@@ -45,15 +45,14 @@ impl Store {
                         let _ = sender.send(response);
                     }
                     StoreCommand::NotifyRead(key, sender) => {
-                        let response = db.get(&key);
-                        match response {
-                            Ok(None) => obligations
+                        let response = db.get(&key).transpose();
+                        if let Some(answer) = response {
+                            let _ = sender.send(answer);
+                        } else {
+                            obligations
                                 .entry(key)
                                 .or_insert_with(VecDeque::new)
-                                .push_back(sender),
-                            _ => {
-                                let _ = sender.send(response.map(|x| x.unwrap()));
-                            }
+                                .push_back(sender)
                         }
                     }
                 }
