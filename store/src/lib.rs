@@ -7,6 +7,7 @@
 )]
 
 use std::collections::{HashMap, VecDeque};
+use std::path::Path;
 use tokio::sync::mpsc::{channel, Sender};
 use tokio::sync::oneshot;
 
@@ -32,7 +33,7 @@ pub struct Store {
 }
 
 impl Store {
-    pub fn new(path: &str) -> StoreResult<Self> {
+    pub fn new<P: AsRef<Path>>(path: P) -> StoreResult<Self> {
         let db = rocksdb::DB::open_default(path)?;
         let mut obligations = HashMap::<_, VecDeque<oneshot::Sender<_>>>::new();
         let (tx, mut rx) = channel(100);
