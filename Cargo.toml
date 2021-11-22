@@ -1,2 +1,10 @@
 [workspace]
 members = ["primary", "node", "store", "crypto", "worker", "consensus", "network", "config"]
+
+[profile.release]
+codegen-units = 1
+lto = true
+
+[profile.bench]
+codegen-units = 1
+lto = true
