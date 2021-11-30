@@ -6,10 +6,14 @@
     rust_2021_compatibility
 )]
 
-use std::collections::{HashMap, VecDeque};
-use std::path::Path;
-use tokio::sync::mpsc::{channel, Sender};
-use tokio::sync::oneshot;
+use std::{
+    collections::{HashMap, VecDeque},
+    path::Path,
+};
+use tokio::sync::{
+    mpsc::{channel, Sender},
+    oneshot,
+};
 
 #[cfg(test)]
 #[path = "tests/store_tests.rs"]
