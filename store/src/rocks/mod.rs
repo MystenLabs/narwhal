@@ -20,52 +20,53 @@ pub struct DBMap<K, V> {
     rocksdb: Arc<rocksdb::DB>,
     pub _phantom: PhantomData<(K, V)>,
     // the rocksDB ColumnFamily under which the map is stored
-    pub opt_cf: Option<String>,
+    pub cf: String,
 }
 
 impl<K, V> DBMap<K, V> {
     pub fn open<P: AsRef<Path>>(
         path: P,
         db_options: Option<rocksdb::Options>,
-        opt_cf: Option<String>,
+        opt_cf: Option<&str>,
     ) -> Result<Self> {
         // Customize database options.
         let mut options = db_options.unwrap_or_default();
         let mut cfs = rocksdb::DB::list_cf(&options, &path)
             .ok()
             .unwrap_or_default();
-        if let Some(ref col) = opt_cf {
-            if !cfs.contains(col) {
-                cfs.push(col.clone());
-            }
+
+        let cf_key = opt_cf
+            .unwrap_or(rocksdb::DEFAULT_COLUMN_FAMILY_NAME)
+            .to_owned();
+
+        if !cfs.contains(&cf_key) {
+            cfs.push(cf_key.to_string());
         }
 
         let primary = path.as_ref().to_path_buf();
         let rocksdb = {
             options.create_if_missing(true);
             options.create_missing_column_families(true);
-            if !cfs.is_empty() {
-                Arc::new(rocksdb::DB::open_cf(&options, &primary, &cfs)?)
-            } else {
-                Arc::new(rocksdb::DB::open(&options, &primary)?)
-            }
+            Arc::new(rocksdb::DB::open_cf(&options, &primary, &cfs)?)
         };
 
         Ok(DBMap {
             rocksdb,
             _phantom: PhantomData,
-            opt_cf,
+            cf: cf_key,
         })
-    }
-
-    fn cf_handle(&self) -> Option<&rocksdb::ColumnFamily> {
-        self.opt_cf
-            .as_ref()
-            .and_then(|cf| self.rocksdb.cf_handle(cf))
     }
 
     pub fn batch(&self) -> DBBatch<'_, K, V> {
         DBBatch::new(self)
+    }
+}
+
+impl<K, V> AsRef<rocksdb::ColumnFamily> for DBMap<K, V> {
+    fn as_ref(&self) -> &rocksdb::ColumnFamily {
+        self.rocksdb
+            .cf_handle(&self.cf)
+            .expect("Map-keying column family should have been checked at DB creation")
     }
 }
 
@@ -102,11 +103,7 @@ impl<'a, K: Serialize, V> DBBatch<'a, K, V> {
         purged_vals
             .map(|k| {
                 let k_buf = config.serialize(&k)?;
-                if let Some(cf) = self.target_db.cf_handle() {
-                    self.batch.delete_cf(cf, k_buf);
-                } else {
-                    self.batch.delete(k_buf);
-                }
+                self.batch.delete_cf(self.target_db.as_ref(), k_buf);
 
                 Ok(())
             })
@@ -122,11 +119,8 @@ impl<'a, K: Serialize, V> DBBatch<'a, K, V> {
         let from_buf = config.serialize(from)?;
         let to_buf = config.serialize(to)?;
 
-        if let Some(cf) = self.target_db.cf_handle() {
-            self.batch.delete_range_cf(cf, from_buf, to_buf)
-        } else {
-            self.batch.delete_range(from_buf, to_buf);
-        }
+        self.batch
+            .delete_range_cf(self.target_db.as_ref(), from_buf, to_buf);
         Ok(self)
     }
 }
@@ -142,11 +136,7 @@ impl<'a, K: Serialize, V: Serialize> DBBatch<'a, K, V> {
             .map(|(ref k, ref v)| {
                 let k_buf = config.serialize(k)?;
                 let v_buf = bincode::serialize(v)?;
-                if let Some(cf) = self.target_db.cf_handle() {
-                    self.batch.put_cf(cf, k_buf, v_buf);
-                } else {
-                    self.batch.put(k_buf, v_buf);
-                }
+                self.batch.put_cf(self.target_db.as_ref(), k_buf, v_buf);
                 Ok(())
             })
             .collect::<Result<_, eyre::Error>>()?;
@@ -173,11 +163,7 @@ where
             .with_fixint_encoding();
 
         let key_buf = config.serialize(key)?;
-        let res = if let Some(cf) = self.cf_handle() {
-            self.rocksdb.get_pinned_cf(cf, &key_buf)
-        } else {
-            self.rocksdb.get_pinned(&key_buf)
-        }?;
+        let res = self.rocksdb.get_pinned_cf(self.as_ref(), &key_buf)?;
         match res {
             Some(data) => Ok(Some(bincode::deserialize(&data)?)),
             None => Ok(None),
@@ -192,11 +178,7 @@ where
         let key_buf = config.serialize(key)?;
         let value_buf = bincode::serialize(value)?;
 
-        let _ = if let Some(cf) = self.cf_handle() {
-            self.rocksdb.put_cf(cf, &key_buf, &value_buf)
-        } else {
-            self.rocksdb.put(&key_buf, &value_buf)
-        }?;
+        let _ = self.rocksdb.put_cf(self.as_ref(), &key_buf, &value_buf)?;
         Ok(())
     }
 
@@ -206,42 +188,26 @@ where
             .with_fixint_encoding();
         let key_buf = config.serialize(key)?;
 
-        let _ = if let Some(cf) = self.cf_handle() {
-            self.rocksdb.delete_cf(cf, &key_buf)
-        } else {
-            self.rocksdb.delete(&key_buf)
-        }?;
+        let _ = self.rocksdb.delete_cf(self.as_ref(), &key_buf)?;
         Ok(())
     }
 
     fn iter(&'a self) -> Self::Iterator {
-        let mut db_iter = if let Some(cf) = self.cf_handle() {
-            self.rocksdb.raw_iterator_cf(cf)
-        } else {
-            self.rocksdb.raw_iterator()
-        };
+        let mut db_iter = self.rocksdb.raw_iterator_cf(self.as_ref());
         db_iter.seek_to_first();
 
         Iter::new(db_iter)
     }
 
     fn keys(&'a self) -> Self::Keys {
-        let mut db_iter = if let Some(cf) = self.cf_handle() {
-            self.rocksdb.raw_iterator_cf(cf)
-        } else {
-            self.rocksdb.raw_iterator()
-        };
+        let mut db_iter = self.rocksdb.raw_iterator_cf(self.as_ref());
         db_iter.seek_to_first();
 
         Keys::new(db_iter)
     }
 
     fn values(&'a self) -> Self::Values {
-        let mut db_iter = if let Some(cf) = self.cf_handle() {
-            self.rocksdb.raw_iterator_cf(cf)
-        } else {
-            self.rocksdb.raw_iterator()
-        };
+        let mut db_iter = self.rocksdb.raw_iterator_cf(self.as_ref());
         db_iter.seek_to_first();
 
         Values::new(db_iter)
