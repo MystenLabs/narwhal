@@ -44,6 +44,7 @@ impl<K, V> DBMap<K, V> {
     }
 }
 
+/// Provides a mutable struct to form a collection of database write operations, and execute them
 pub struct DBBatch<'a, K, V> {
     target_db: &'a DBMap<K, V>,
     batch: WriteBatch,
@@ -70,7 +71,9 @@ impl<'a, K: Serialize, V> DBBatch<'a, K, V> {
     /// Deletes a set of keys given as an iterator
     #[allow(clippy::map_collect_result_unit)] // we don't want a mutable argument
     pub fn delete_batch<T: Iterator<Item = K>>(mut self, purged_vals: T) -> Result<Self> {
-        let config = bincode::DefaultOptions::new().with_big_endian();
+        let config = bincode::DefaultOptions::new()
+            .with_big_endian()
+            .with_fixint_encoding();
         purged_vals
             .map(|k| {
                 let k_buf = config.serialize(&k)?;
@@ -83,7 +86,9 @@ impl<'a, K: Serialize, V> DBBatch<'a, K, V> {
 
     /// Deletes a range of keys between `from` (inclusive) and `to` (non-inclusive)
     pub fn delete_range(mut self, from: &K, to: &K) -> Result<Self> {
-        let config = bincode::DefaultOptions::new().with_big_endian();
+        let config = bincode::DefaultOptions::new()
+            .with_big_endian()
+            .with_fixint_encoding();
         let from_buf = config.serialize(from)?;
         let to_buf = config.serialize(to)?;
 
@@ -96,7 +101,9 @@ impl<'a, K: Serialize, V: Serialize> DBBatch<'a, K, V> {
     /// inserts a range of (key, value) pairs given as an iterator
     #[allow(clippy::map_collect_result_unit)] // we don't want a mutable argument
     pub fn insert_batch<T: Iterator<Item = (K, V)>>(mut self, new_vals: T) -> Result<Self> {
-        let config = bincode::DefaultOptions::new().with_big_endian();
+        let config = bincode::DefaultOptions::new()
+            .with_big_endian()
+            .with_fixint_encoding();
         new_vals
             .map(|(ref k, ref v)| {
                 let k_buf = config.serialize(k)?;
@@ -123,7 +130,9 @@ where
     }
 
     fn get(&self, key: &K) -> Result<Option<V>> {
-        let config = bincode::DefaultOptions::new().with_big_endian();
+        let config = bincode::DefaultOptions::new()
+            .with_big_endian()
+            .with_fixint_encoding();
 
         let key_buf = config.serialize(key)?;
         match self.rocksdb.get_pinned(&key_buf)? {
@@ -133,7 +142,9 @@ where
     }
 
     fn insert(&self, key: &K, value: &V) -> Result<()> {
-        let config = bincode::DefaultOptions::new().with_big_endian();
+        let config = bincode::DefaultOptions::new()
+            .with_big_endian()
+            .with_fixint_encoding();
 
         let key_buf = config.serialize(key)?;
         let value_buf = bincode::serialize(value)?;
@@ -143,7 +154,9 @@ where
     }
 
     fn remove(&self, key: &K) -> Result<()> {
-        let config = bincode::DefaultOptions::new().with_big_endian();
+        let config = bincode::DefaultOptions::new()
+            .with_big_endian()
+            .with_fixint_encoding();
         let key_buf = config.serialize(key)?;
 
         self.rocksdb.delete(&key_buf)?;
