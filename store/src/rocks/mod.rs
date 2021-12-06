@@ -126,7 +126,7 @@ where
         let config = bincode::DefaultOptions::new().with_big_endian();
 
         let key_buf = config.serialize(key)?;
-        match self.rocksdb.get(&key_buf)? {
+        match self.rocksdb.get_pinned(&key_buf)? {
             Some(data) => Ok(Some(bincode::deserialize(&data)?)),
             None => Ok(None),
         }
