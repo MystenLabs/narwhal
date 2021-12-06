@@ -17,9 +17,10 @@ mod tests;
 /// An interface to a rocksDB database, keyed by a columnfamily
 #[derive(Clone, Debug)]
 pub struct DBMap<K, V> {
-    pub(super) rocksdb: Arc<rocksdb::DB>,
-    pub(super) _phantom: PhantomData<(K, V)>,
-    pub(super) opt_cf: Option<String>,
+    rocksdb: Arc<rocksdb::DB>,
+    pub _phantom: PhantomData<(K, V)>,
+    // the rocksDB ColumnFamily under which the map is stored
+    pub opt_cf: Option<String>,
 }
 
 impl<K, V> DBMap<K, V> {
@@ -62,9 +63,7 @@ impl<K, V> DBMap<K, V> {
             .as_ref()
             .and_then(|cf| self.rocksdb.cf_handle(cf))
     }
-}
 
-impl<K, V> DBMap<K, V> {
     pub fn batch(&self) -> DBBatch<'_, K, V> {
         DBBatch::new(self)
     }
