@@ -63,6 +63,62 @@ fn test_iter() {
 }
 
 #[test]
+fn test_iter_skip_to() {
+    let db = DBMap::open(temp_dir(), None).expect("Failed to open storage");
+    for i in 1..100 {
+        db.insert(&i, &i.to_string()).unwrap();
+    }
+
+    let mut db_iter = db.iter();
+    db_iter.skip_to(&50).unwrap();
+
+    assert_eq!(
+        (50..100).map(|i| (i, i.to_string())).collect::<Vec<_>>(),
+        db_iter.collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn test_iter_rev() {
+    let db = DBMap::open(temp_dir(), None).expect("Failed to open storage");
+    for i in 1..100 {
+        db.insert(&i, &i.to_string()).unwrap();
+    }
+
+    let mut db_iter = db.iter();
+    db_iter.skip_to(&50).unwrap();
+
+    assert_eq!(
+        (1..51)
+            .rev()
+            .map(|i| (i, i.to_string()))
+            .collect::<Vec<_>>(),
+        db_iter.rev().collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn test_iter_skip_to_previous() {
+    let db = DBMap::open(temp_dir(), None).expect("Failed to open storage");
+    for i in 1..100 {
+        if i != 50 {
+            db.insert(&i, &i.to_string()).unwrap();
+        }
+    }
+
+    let mut db_iter = db.iter();
+    db_iter.skip_to_previous(&50).unwrap();
+
+    assert_eq!(
+        (49..50)
+            .chain(51..100)
+            .map(|i| (i, i.to_string()))
+            .collect::<Vec<_>>(),
+        db_iter.collect::<Vec<_>>()
+    );
+}
+
+#[test]
 fn test_keys() {
     let db = DBMap::open(temp_dir(), None).expect("Failed to open storage");
 
@@ -75,6 +131,53 @@ fn test_keys() {
 }
 
 #[test]
+fn test_keys_skip_to() {
+    let db = DBMap::open(temp_dir(), None).expect("Failed to open storage");
+    for i in 1..100 {
+        db.insert(&i, &i.to_string()).unwrap();
+    }
+
+    let mut db_iter = db.keys();
+    db_iter.skip_to(&50).unwrap();
+
+    assert_eq!((50..100).collect::<Vec<_>>(), db_iter.collect::<Vec<_>>());
+}
+
+#[test]
+fn test_keys_skip_to_previous() {
+    let db = DBMap::open(temp_dir(), None).expect("Failed to open storage");
+    for i in 1..100 {
+        if i != 50 {
+            db.insert(&i, &i.to_string()).unwrap();
+        }
+    }
+
+    let mut db_iter = db.keys();
+    db_iter.skip_to_previous(&50).unwrap();
+
+    assert_eq!(
+        (49..50).chain(51..100).collect::<Vec<_>>(),
+        db_iter.collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn test_keys_rev() {
+    let db = DBMap::open(temp_dir(), None).expect("Failed to open storage");
+    for i in 1..100 {
+        db.insert(&i, &i.to_string()).unwrap();
+    }
+
+    let mut db_iter = db.keys();
+    db_iter.skip_to(&50).unwrap();
+
+    assert_eq!(
+        (1..51).rev().collect::<Vec<_>>(),
+        db_iter.rev().collect::<Vec<_>>()
+    );
+}
+
+#[test]
 fn test_values() {
     let db = DBMap::open(temp_dir(), None).expect("Failed to open storage");
 
@@ -84,6 +187,24 @@ fn test_values() {
     let mut values = db.values();
     assert_eq!(Some("123456789".to_string()), values.next());
     assert_eq!(None, values.next());
+}
+
+#[test]
+fn test_values_rev() {
+    let db = DBMap::open(temp_dir(), None).expect("Failed to open storage");
+    for i in 1..100 {
+        db.insert(&i, &i.to_string()).unwrap();
+    }
+
+    let mut db_iter = db.values();
+    for _i in 1..50 {
+        db_iter.next();
+    }
+
+    assert_eq!(
+        (1..51).map(|i| i.to_string()).rev().collect::<Vec<_>>(),
+        db_iter.rev().collect::<Vec<_>>()
+    );
 }
 
 #[test]
