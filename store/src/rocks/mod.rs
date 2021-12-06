@@ -4,7 +4,7 @@ mod values;
 
 use crate::traits::Map;
 use bincode::Options;
-use eyre::Result;
+use eyre::{eyre, Result};
 use rocksdb::WriteBatch;
 use serde::{de::DeserializeOwned, Serialize};
 use std::{marker::PhantomData, path::Path, sync::Arc};
@@ -52,6 +52,21 @@ impl<K, V> DBMap<K, V> {
 
         Ok(DBMap {
             rocksdb,
+            _phantom: PhantomData,
+            cf: cf_key,
+        })
+    }
+
+    pub fn reopen(db: &Arc<rocksdb::DB>, opt_cf: Option<&str>) -> Result<Self> {
+        let cf_key = opt_cf
+            .unwrap_or(rocksdb::DEFAULT_COLUMN_FAMILY_NAME)
+            .to_owned();
+
+        db.cf_handle(&cf_key)
+            .ok_or_else(|| eyre!("required columnfamily is not registered in the database"))?;
+
+        Ok(DBMap {
+            rocksdb: db.clone(),
             _phantom: PhantomData,
             cf: cf_key,
         })
