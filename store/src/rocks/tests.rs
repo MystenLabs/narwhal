@@ -8,12 +8,12 @@ fn temp_dir() -> std::path::PathBuf {
 
 #[test]
 fn test_open() {
-    let _db = DBMap::<u32, String>::open(temp_dir(), None).expect("Failed to open storage");
+    let _db = DBMap::<u32, String>::open(temp_dir(), None, None).expect("Failed to open storage");
 }
 
 #[test]
 fn test_contains_key() {
-    let db = DBMap::open(temp_dir(), None).expect("Failed to open storage");
+    let db = DBMap::open(temp_dir(), None, None).expect("Failed to open storage");
 
     db.insert(&123456789, &"123456789".to_string())
         .expect("Failed to insert");
@@ -27,7 +27,7 @@ fn test_contains_key() {
 
 #[test]
 fn test_get() {
-    let db = DBMap::open(temp_dir(), None).expect("Failed to open storage");
+    let db = DBMap::open(temp_dir(), None, None).expect("Failed to open storage");
 
     db.insert(&123456789, &"123456789".to_string())
         .expect("Failed to insert");
@@ -40,7 +40,7 @@ fn test_get() {
 
 #[test]
 fn test_remove() {
-    let db = DBMap::open(temp_dir(), None).expect("Failed to open storage");
+    let db = DBMap::open(temp_dir(), None, None).expect("Failed to open storage");
 
     db.insert(&123456789, &"123456789".to_string())
         .expect("Failed to insert");
@@ -52,7 +52,7 @@ fn test_remove() {
 
 #[test]
 fn test_iter() {
-    let db = DBMap::open(temp_dir(), None).expect("Failed to open storage");
+    let db = DBMap::open(temp_dir(), None, None).expect("Failed to open storage");
 
     db.insert(&123456789, &"123456789".to_string())
         .expect("Failed to insert");
@@ -64,7 +64,7 @@ fn test_iter() {
 
 #[test]
 fn test_iter_skip_to() {
-    let db = DBMap::open(temp_dir(), None).expect("Failed to open storage");
+    let db = DBMap::open(temp_dir(), None, None).expect("Failed to open storage");
     for i in 1..100 {
         db.insert(&i, &i.to_string()).unwrap();
     }
@@ -80,7 +80,7 @@ fn test_iter_skip_to() {
 
 #[test]
 fn test_iter_rev() {
-    let db = DBMap::open(temp_dir(), None).expect("Failed to open storage");
+    let db = DBMap::open(temp_dir(), None, None).expect("Failed to open storage");
     for i in 1..100 {
         db.insert(&i, &i.to_string()).unwrap();
     }
@@ -99,7 +99,7 @@ fn test_iter_rev() {
 
 #[test]
 fn test_iter_skip_to_previous() {
-    let db = DBMap::open(temp_dir(), None).expect("Failed to open storage");
+    let db = DBMap::open(temp_dir(), None, None).expect("Failed to open storage");
     for i in 1..100 {
         if i != 50 {
             db.insert(&i, &i.to_string()).unwrap();
@@ -120,7 +120,7 @@ fn test_iter_skip_to_previous() {
 
 #[test]
 fn test_keys() {
-    let db = DBMap::open(temp_dir(), None).expect("Failed to open storage");
+    let db = DBMap::open(temp_dir(), None, None).expect("Failed to open storage");
 
     db.insert(&123456789, &"123456789".to_string())
         .expect("Failed to insert");
@@ -132,7 +132,7 @@ fn test_keys() {
 
 #[test]
 fn test_keys_skip_to() {
-    let db = DBMap::open(temp_dir(), None).expect("Failed to open storage");
+    let db = DBMap::open(temp_dir(), None, None).expect("Failed to open storage");
     for i in 1..100 {
         db.insert(&i, &i.to_string()).unwrap();
     }
@@ -145,7 +145,7 @@ fn test_keys_skip_to() {
 
 #[test]
 fn test_keys_skip_to_previous() {
-    let db = DBMap::open(temp_dir(), None).expect("Failed to open storage");
+    let db = DBMap::open(temp_dir(), None, None).expect("Failed to open storage");
     for i in 1..100 {
         if i != 50 {
             db.insert(&i, &i.to_string()).unwrap();
@@ -163,7 +163,7 @@ fn test_keys_skip_to_previous() {
 
 #[test]
 fn test_keys_rev() {
-    let db = DBMap::open(temp_dir(), None).expect("Failed to open storage");
+    let db = DBMap::open(temp_dir(), None, None).expect("Failed to open storage");
     for i in 1..100 {
         db.insert(&i, &i.to_string()).unwrap();
     }
@@ -179,7 +179,7 @@ fn test_keys_rev() {
 
 #[test]
 fn test_values() {
-    let db = DBMap::open(temp_dir(), None).expect("Failed to open storage");
+    let db = DBMap::open(temp_dir(), None, None).expect("Failed to open storage");
 
     db.insert(&123456789, &"123456789".to_string())
         .expect("Failed to insert");
@@ -191,7 +191,7 @@ fn test_values() {
 
 #[test]
 fn test_values_rev() {
-    let db = DBMap::open(temp_dir(), None).expect("Failed to open storage");
+    let db = DBMap::open(temp_dir(), None, None).expect("Failed to open storage");
     for i in 1..100 {
         db.insert(&i, &i.to_string()).unwrap();
     }
@@ -209,7 +209,7 @@ fn test_values_rev() {
 
 #[test]
 fn test_insert_batch() {
-    let db = DBMap::open(temp_dir(), None).expect("Failed to open storage");
+    let db = DBMap::open(temp_dir(), None, None).expect("Failed to open storage");
     let keys_vals = (1..100).map(|i| (i, i.to_string()));
     let insert_batch = db
         .batch()
@@ -224,7 +224,7 @@ fn test_insert_batch() {
 
 #[test]
 fn test_delete_batch() {
-    let db = DBMap::open(temp_dir(), None).expect("Failed to open storage");
+    let db = DBMap::open(temp_dir(), None, None).expect("Failed to open storage");
 
     let keys_vals = (1..100).map(|i| (i, i.to_string()));
     let insert_batch = db
@@ -247,7 +247,7 @@ fn test_delete_batch() {
 
 #[test]
 fn test_delete_range() {
-    let db = DBMap::open(temp_dir(), None).expect("Failed to open storage");
+    let db = DBMap::open(temp_dir(), None, None).expect("Failed to open storage");
 
     // Note that the last element is (100, "100".to_owned()) here
     let keys_vals = (0..101).map(|i| (i, i.to_string()));
