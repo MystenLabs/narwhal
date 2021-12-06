@@ -12,6 +12,21 @@ fn test_open() {
 }
 
 #[test]
+fn test_reopen() {
+    let arc = {
+        let db =
+            DBMap::<u32, String>::open(temp_dir(), None, None).expect("Failed to open storage");
+        db.insert(&123456789, &"123456789".to_string())
+            .expect("Failed to insert");
+        db.rocksdb
+    };
+    let db = DBMap::<u32, String>::reopen(&arc, None).expect("Failed to re-open storage");
+    assert!(db
+        .contains_key(&123456789)
+        .expect("Failed to retrieve item in storage"));
+}
+
+#[test]
 fn test_contains_key() {
     let db = DBMap::open(temp_dir(), None, None).expect("Failed to open storage");
 
