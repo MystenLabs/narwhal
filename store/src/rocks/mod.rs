@@ -19,11 +19,13 @@ mod tests;
 /// An interface to a rocksDB database, keyed by a columnfamily
 #[derive(Clone, Debug)]
 pub struct DBMap<K, V> {
-    rocksdb: Arc<rocksdb::DB>,
-    pub _phantom: PhantomData<(K, V)>,
+    pub rocksdb: Arc<rocksdb::DB>,
+    _phantom: PhantomData<fn(K) -> V>,
     // the rocksDB ColumnFamily under which the map is stored
-    pub cf: String,
+    cf: String,
 }
+
+unsafe impl<K: Send, V: Send> Send for DBMap<K, V> {}
 
 impl<K, V> DBMap<K, V> {
     pub fn open<P: AsRef<Path>>(
@@ -31,31 +33,14 @@ impl<K, V> DBMap<K, V> {
         db_options: Option<rocksdb::Options>,
         opt_cf: Option<&str>,
     ) -> Result<Self> {
-        // Customize database options.
-        let mut options = db_options.unwrap_or_default();
-        let mut cfs = rocksdb::DB::list_cf(&options, &path)
-            .ok()
-            .unwrap_or_default();
-
-        let cf_key = opt_cf
-            .unwrap_or(rocksdb::DEFAULT_COLUMN_FAMILY_NAME)
-            .to_owned();
-
-        if !cfs.contains(&cf_key) {
-            cfs.push(cf_key.to_string());
-        }
-
-        let primary = path.as_ref().to_path_buf();
-        let rocksdb = {
-            options.create_if_missing(true);
-            options.create_missing_column_families(true);
-            Arc::new(rocksdb::DB::open_cf(&options, &primary, &cfs)?)
-        };
+        let cf_key = opt_cf.unwrap_or(rocksdb::DEFAULT_COLUMN_FAMILY_NAME);
+        let cfs = vec![cf_key];
+        let rocksdb = open_cf(path, db_options, &cfs)?;
 
         Ok(DBMap {
             rocksdb,
             _phantom: PhantomData,
-            cf: cf_key,
+            cf: cf_key.to_string(),
         })
     }
 
@@ -229,4 +214,34 @@ where
 
         Values::new(db_iter)
     }
+}
+
+pub fn open_cf<P: AsRef<Path>>(
+    path: P,
+    db_options: Option<rocksdb::Options>,
+    opt_cfs: &[&str],
+) -> Result<Arc<rocksdb::DB>> {
+    // Customize database options
+    let mut options = db_options.unwrap_or_default();
+    let mut cfs = rocksdb::DB::list_cf(&options, &path)
+        .ok()
+        .unwrap_or_default();
+
+    // Customize CFs
+
+    for cf_key in opt_cfs.iter() {
+        let key = (*cf_key).to_owned();
+        if !cfs.contains(&key) {
+            cfs.push(key);
+        }
+    }
+
+    let primary = path.as_ref().to_path_buf();
+
+    let rocksdb = {
+        options.create_if_missing(true);
+        options.create_missing_column_families(true);
+        Arc::new(rocksdb::DB::open_cf(&options, &primary, &cfs)?)
+    };
+    Ok(rocksdb)
 }
