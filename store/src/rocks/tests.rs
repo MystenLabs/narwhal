@@ -29,6 +29,13 @@ fn test_reopen() {
 }
 
 #[test]
+fn test_wrong_reopen() {
+    let rocks = open_cf(temp_dir(), None, &["foo", "bar", "baz"]).unwrap();
+    let db = DBMap::<u8, u8>::reopen(&rocks, Some("quux"));
+    assert!(db.is_err());
+}
+
+#[test]
 fn test_contains_key() {
     let db = DBMap::open(temp_dir(), None, None).expect("Failed to open storage");
 
