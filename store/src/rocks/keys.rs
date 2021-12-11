@@ -1,3 +1,5 @@
+// Copyright(C) 2021, Mysten Labs
+// SPDX-License-Identifier: Apache-2.0
 use bincode::Options;
 
 use serde::de::DeserializeOwned;
