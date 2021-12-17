@@ -79,7 +79,7 @@ pub struct DBBatch {
 }
 
 impl DBBatch {
-    pub fn new<'a, K, V>(db: &'a DBMap<K, V>) -> Self {
+    pub fn new<K, V>(db: &DBMap<K, V>) -> Self {
         DBBatch {
             rocksdb: db.rocksdb.clone(),
             batch: WriteBatch::default(),
@@ -98,10 +98,13 @@ impl DBBatch {
 impl DBBatch {
     /// Deletes a set of keys given as an iterator
     #[allow(clippy::map_collect_result_unit)] // we don't want a mutable argument
-    pub fn delete_batch<'a, K: Serialize, T: Iterator<Item = K>,  V>(mut self, db: &'a DBMap<K, V>, purged_vals: T) -> Result<Self> {
-        
+    pub fn delete_batch<K: Serialize, T: Iterator<Item = K>, V>(
+        mut self,
+        db: &DBMap<K, V>,
+        purged_vals: T,
+    ) -> Result<Self> {
         if Arc::as_ptr(&db.rocksdb) != Arc::as_ptr(&self.rocksdb) {
-           panic!("Batch operation across databases.");
+            panic!("Batch operation across databases.");
         }
 
         let config = bincode::DefaultOptions::new()
@@ -119,11 +122,15 @@ impl DBBatch {
     }
 
     /// Deletes a range of keys between `from` (inclusive) and `to` (non-inclusive)
-    pub fn delete_range<'a, K: Serialize, V>(mut self, db: &'a DBMap<K, V>, from: &K, to: &K) -> Result<Self> {
-
+    pub fn delete_range<'a, K: Serialize, V>(
+        mut self,
+        db: &'a DBMap<K, V>,
+        from: &K,
+        to: &K,
+    ) -> Result<Self> {
         if Arc::as_ptr(&db.rocksdb) != Arc::as_ptr(&self.rocksdb) {
             panic!("Batch operation across databases.");
-         }
+        }
 
         let config = bincode::DefaultOptions::new()
             .with_big_endian()
@@ -131,8 +138,7 @@ impl DBBatch {
         let from_buf = config.serialize(from)?;
         let to_buf = config.serialize(to)?;
 
-        self.batch
-            .delete_range_cf(db.as_ref(), from_buf, to_buf);
+        self.batch.delete_range_cf(db.as_ref(), from_buf, to_buf);
         Ok(self)
     }
 }
@@ -140,11 +146,14 @@ impl DBBatch {
 impl DBBatch {
     /// inserts a range of (key, value) pairs given as an iterator
     #[allow(clippy::map_collect_result_unit)] // we don't want a mutable argument
-    pub fn insert_batch<'a, K: Serialize, V: Serialize, T: Iterator<Item = (K, V)>>(mut self, db: &'a DBMap<K, V>, new_vals: T) -> Result<Self> {
-
+    pub fn insert_batch<K: Serialize, V: Serialize, T: Iterator<Item = (K, V)>>(
+        mut self,
+        db: &DBMap<K, V>,
+        new_vals: T,
+    ) -> Result<Self> {
         if Arc::as_ptr(&db.rocksdb) != Arc::as_ptr(&self.rocksdb) {
             panic!("Batch operation across databases.");
-         }
+        }
 
         let config = bincode::DefaultOptions::new()
             .with_big_endian()
