@@ -59,7 +59,7 @@ impl<K, V> DBMap<K, V> {
         })
     }
 
-    pub fn batch(&self) -> DBBatch<'_, K, V> {
+    pub fn batch(&self) -> DBBatch {
         DBBatch::new(self)
     }
 }
@@ -73,39 +73,44 @@ impl<K, V> AsRef<rocksdb::ColumnFamily> for DBMap<K, V> {
 }
 
 /// Provides a mutable struct to form a collection of database write operations, and execute them
-pub struct DBBatch<'a, K, V> {
-    target_db: &'a DBMap<K, V>,
+pub struct DBBatch {
+    rocksdb: Arc<rocksdb::DB>,
     batch: WriteBatch,
 }
 
-impl<'a, K, V> DBBatch<'a, K, V> {
-    pub fn new(db: &'a DBMap<K, V>) -> Self {
+impl DBBatch {
+    pub fn new<'a, K, V>(db: &'a DBMap<K, V>) -> Self {
         DBBatch {
-            target_db: db,
+            rocksdb: db.rocksdb.clone(),
             batch: WriteBatch::default(),
         }
     }
 }
 
-impl<'a, K, V> DBBatch<'a, K, V> {
+impl DBBatch {
     /// Consume the batch and write its operations to the database
     pub fn write(self) -> Result<()> {
-        self.target_db.rocksdb.write(self.batch)?;
+        self.rocksdb.write(self.batch)?;
         Ok(())
     }
 }
 
-impl<'a, K: Serialize, V> DBBatch<'a, K, V> {
+impl DBBatch {
     /// Deletes a set of keys given as an iterator
     #[allow(clippy::map_collect_result_unit)] // we don't want a mutable argument
-    pub fn delete_batch<T: Iterator<Item = K>>(mut self, purged_vals: T) -> Result<Self> {
+    pub fn delete_batch<'a, K: Serialize, T: Iterator<Item = K>,  V>(mut self, db: &'a DBMap<K, V>, purged_vals: T) -> Result<Self> {
+        
+        if Arc::as_ptr(&db.rocksdb) != Arc::as_ptr(&self.rocksdb) {
+           panic!("Batch operation across databases.");
+        }
+
         let config = bincode::DefaultOptions::new()
             .with_big_endian()
             .with_fixint_encoding();
         purged_vals
             .map(|k| {
                 let k_buf = config.serialize(&k)?;
-                self.batch.delete_cf(self.target_db.as_ref(), k_buf);
+                self.batch.delete_cf(db.as_ref(), k_buf);
 
                 Ok(())
             })
@@ -114,7 +119,12 @@ impl<'a, K: Serialize, V> DBBatch<'a, K, V> {
     }
 
     /// Deletes a range of keys between `from` (inclusive) and `to` (non-inclusive)
-    pub fn delete_range(mut self, from: &K, to: &K) -> Result<Self> {
+    pub fn delete_range<'a, K: Serialize, V>(mut self, db: &'a DBMap<K, V>, from: &K, to: &K) -> Result<Self> {
+
+        if Arc::as_ptr(&db.rocksdb) != Arc::as_ptr(&self.rocksdb) {
+            panic!("Batch operation across databases.");
+         }
+
         let config = bincode::DefaultOptions::new()
             .with_big_endian()
             .with_fixint_encoding();
@@ -122,15 +132,20 @@ impl<'a, K: Serialize, V> DBBatch<'a, K, V> {
         let to_buf = config.serialize(to)?;
 
         self.batch
-            .delete_range_cf(self.target_db.as_ref(), from_buf, to_buf);
+            .delete_range_cf(db.as_ref(), from_buf, to_buf);
         Ok(self)
     }
 }
 
-impl<'a, K: Serialize, V: Serialize> DBBatch<'a, K, V> {
+impl DBBatch {
     /// inserts a range of (key, value) pairs given as an iterator
     #[allow(clippy::map_collect_result_unit)] // we don't want a mutable argument
-    pub fn insert_batch<T: Iterator<Item = (K, V)>>(mut self, new_vals: T) -> Result<Self> {
+    pub fn insert_batch<'a, K: Serialize, V: Serialize, T: Iterator<Item = (K, V)>>(mut self, db: &'a DBMap<K, V>, new_vals: T) -> Result<Self> {
+
+        if Arc::as_ptr(&db.rocksdb) != Arc::as_ptr(&self.rocksdb) {
+            panic!("Batch operation across databases.");
+         }
+
         let config = bincode::DefaultOptions::new()
             .with_big_endian()
             .with_fixint_encoding();
@@ -138,7 +153,7 @@ impl<'a, K: Serialize, V: Serialize> DBBatch<'a, K, V> {
             .map(|(ref k, ref v)| {
                 let k_buf = config.serialize(k)?;
                 let v_buf = bincode::serialize(v)?;
-                self.batch.put_cf(self.target_db.as_ref(), k_buf, v_buf);
+                self.batch.put_cf(db.as_ref(), k_buf, v_buf);
                 Ok(())
             })
             .collect::<Result<_, eyre::Error>>()?;

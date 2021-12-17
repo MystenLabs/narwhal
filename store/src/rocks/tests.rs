@@ -116,7 +116,7 @@ fn test_insert_batch() {
     let keys_vals = (1..100).map(|i| (i, i.to_string()));
     let insert_batch = db
         .batch()
-        .insert_batch(keys_vals.clone())
+        .insert_batch(&db, keys_vals.clone())
         .expect("Failed to batch insert");
     let _ = insert_batch.write().expect("Failed to execute batch");
     for (k, v) in keys_vals {
@@ -127,18 +127,18 @@ fn test_insert_batch() {
 
 #[test]
 fn test_delete_batch() {
-    let db = DBMap::open(temp_dir(), None, None).expect("Failed to open storage");
+    let db = DBMap::<i32, String>::open(temp_dir(), None, None).expect("Failed to open storage");
 
     let keys_vals = (1..100).map(|i| (i, i.to_string()));
     let insert_batch = db
         .batch()
-        .insert_batch(keys_vals)
+        .insert_batch(&db, keys_vals)
         .expect("Failed to batch insert");
 
     // delete the odd-index keys
     let deletion_keys = (1..100).step_by(2);
     let delete_batch = insert_batch
-        .delete_batch(deletion_keys)
+        .delete_batch(&db, deletion_keys)
         .expect("Failed to batch delete");
 
     let _ = delete_batch.write().expect("Failed to execute batch");
@@ -156,11 +156,11 @@ fn test_delete_range() {
     let keys_vals = (0..101).map(|i| (i, i.to_string()));
     let insert_batch = db
         .batch()
-        .insert_batch(keys_vals)
+        .insert_batch(&db, keys_vals)
         .expect("Failed to batch insert");
 
     let delete_range_batch = insert_batch
-        .delete_range(&50, &100)
+        .delete_range(&db, &50, &100)
         .expect("Failed to delete range");
 
     let _ = delete_range_batch.write().expect("Failed to execute batch");
