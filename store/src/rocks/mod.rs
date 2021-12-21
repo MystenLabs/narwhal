@@ -28,6 +28,7 @@ pub struct DBMap<K, V> {
 unsafe impl<K: Send, V: Send> Send for DBMap<K, V> {}
 
 impl<K, V> DBMap<K, V> {
+    /// Opens a database from a path, with specific options and an optional column family.
     pub fn open<P: AsRef<Path>>(
         path: P,
         db_options: Option<rocksdb::Options>,
@@ -44,6 +45,17 @@ impl<K, V> DBMap<K, V> {
         })
     }
 
+    /// Reuses an open database column family.
+    ///
+    /// ```
+    ///    # use store::rocks::*;
+    ///    # use std::env::temp_dir;
+    ///    /// Open the DB with all needed column families first.
+    ///    let rocks = open_cf(temp_dir(), None, &["First_CF", "Second_CF"]).unwrap();
+    ///    /// Attach the column families to specific maps.
+    ///    let db_cf_1 = DBMap::<u32,u32>::reopen(&rocks, Some("First_CF")).expect("Failed to open storage");
+    ///    let db_cf_2 = DBMap::<u32,u32>::reopen(&rocks, Some("Second_CF")).expect("Failed to open storage");
+    /// ```
     pub fn reopen(db: &Arc<rocksdb::DB>, opt_cf: Option<&str>) -> Result<Self> {
         let cf_key = opt_cf
             .unwrap_or(rocksdb::DEFAULT_COLUMN_FAMILY_NAME)
@@ -60,7 +72,7 @@ impl<K, V> DBMap<K, V> {
     }
 
     pub fn batch(&self) -> DBBatch {
-        DBBatch::new(self)
+        DBBatch::new(&self.rocksdb)
     }
 }
 
@@ -72,22 +84,65 @@ impl<K, V> AsRef<rocksdb::ColumnFamily> for DBMap<K, V> {
     }
 }
 
-/// Provides a mutable struct to form a collection of database write operations, and execute them
+/// Provides a mutable struct to form a collection of database write operations, and execute them.
+///
+/// Batching write and delete operations is more efficient than performing them one by one, in terms
+/// of latency and ensures their atomicity, ie. they are all writen or none is written preventing
+/// failures leaving the database in an inconsistent state. This is true of operations across column
+/// families in the same database.
+///
+/// Serializations / Deserialization, and naming of column families is performed by passing a DBMap<K,V>
+/// with each operation.
+///
+/// ```
+/// # use store::rocks::*;
+/// # use std::env::temp_dir;
+/// # use crate::store::Map;
+/// let rocks = open_cf(temp_dir(), None, &["First_CF", "Second_CF"]).unwrap();
+///
+/// let db_cf_1 = DBMap::reopen(&rocks, Some("First_CF"))
+///     .expect("Failed to open storage");
+/// let keys_vals_1 = (1..100).map(|i| (i, i.to_string()));
+///
+/// let db_cf_2 = DBMap::reopen(&rocks, Some("Second_CF"))
+///     .expect("Failed to open storage");
+/// let keys_vals_2 = (1000..1100).map(|i| (i, i.to_string()));
+///
+/// let batch = db_cf_1
+///     .batch()
+///     .insert_batch(&db_cf_1, keys_vals_1.clone())
+///     .expect("Failed to batch insert")
+///     .insert_batch(&db_cf_2, keys_vals_2.clone())
+///     .expect("Failed to batch insert");
+///
+/// let _ = batch.write().expect("Failed to execute batch");
+/// for (k, v) in keys_vals_1 {
+///     let val = db_cf_1.get(&k).expect("Failed to get inserted key");
+///     assert_eq!(Some(v), val);
+/// }
+///
+/// for (k, v) in keys_vals_2 {
+///     let val = db_cf_2.get(&k).expect("Failed to get inserted key");
+///     assert_eq!(Some(v), val);
+/// }
+/// ```
+///
 pub struct DBBatch {
     rocksdb: Arc<rocksdb::DB>,
     batch: WriteBatch,
 }
 
 impl DBBatch {
-    pub fn new<K, V>(db: &DBMap<K, V>) -> Self {
+    /// Create a new batch associated with a DB reference.
+    ///
+    /// Use `open_cf` to get the DB reference or an existing open database.
+    pub fn new(dbref: &Arc<rocksdb::DB>) -> Self {
         DBBatch {
-            rocksdb: db.rocksdb.clone(),
+            rocksdb: dbref.clone(),
             batch: WriteBatch::default(),
         }
     }
-}
 
-impl DBBatch {
     /// Consume the batch and write its operations to the database
     pub fn write(self) -> Result<()> {
         self.rocksdb.write(self.batch)?;
@@ -103,8 +158,8 @@ impl DBBatch {
         db: &DBMap<K, V>,
         purged_vals: T,
     ) -> Result<Self> {
-        if Arc::as_ptr(&db.rocksdb) != Arc::as_ptr(&self.rocksdb) {
-            panic!("Batch operation across databases.");
+        if !Arc::ptr_eq(&db.rocksdb, &self.rocksdb) {
+            return Err(eyre!("a batch can't operate over two distinct databases"));
         }
 
         let config = bincode::DefaultOptions::new()
@@ -128,8 +183,8 @@ impl DBBatch {
         from: &K,
         to: &K,
     ) -> Result<Self> {
-        if Arc::as_ptr(&db.rocksdb) != Arc::as_ptr(&self.rocksdb) {
-            panic!("Batch operation across databases.");
+        if !Arc::ptr_eq(&db.rocksdb, &self.rocksdb) {
+            return Err(eyre!("a batch can't operate over two distinct databases"));
         }
 
         let config = bincode::DefaultOptions::new()
@@ -151,8 +206,8 @@ impl DBBatch {
         db: &DBMap<K, V>,
         new_vals: T,
     ) -> Result<Self> {
-        if Arc::as_ptr(&db.rocksdb) != Arc::as_ptr(&self.rocksdb) {
-            panic!("Batch operation across databases.");
+        if !Arc::ptr_eq(&db.rocksdb, &self.rocksdb) {
+            return Err(eyre!("a batch can't operate over two distinct databases"));
         }
 
         let config = bincode::DefaultOptions::new()
@@ -240,6 +295,7 @@ where
     }
 }
 
+/// Opens a database with options, and a number of column families that are created if they do not exist.
 pub fn open_cf<P: AsRef<Path>>(
     path: P,
     db_options: Option<rocksdb::Options>,

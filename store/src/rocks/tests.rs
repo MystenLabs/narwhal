@@ -126,6 +126,54 @@ fn test_insert_batch() {
 }
 
 #[test]
+fn test_insert_batch_across_cf() {
+    let rocks = open_cf(temp_dir(), None, &["First_CF", "Second_CF"]).unwrap();
+
+    let db_cf_1 = DBMap::reopen(&rocks, Some("First_CF")).expect("Failed to open storage");
+    let keys_vals_1 = (1..100).map(|i| (i, i.to_string()));
+
+    let db_cf_2 = DBMap::reopen(&rocks, Some("Second_CF")).expect("Failed to open storage");
+    let keys_vals_2 = (1000..1100).map(|i| (i, i.to_string()));
+
+    let batch = db_cf_1
+        .batch()
+        .insert_batch(&db_cf_1, keys_vals_1.clone())
+        .expect("Failed to batch insert")
+        .insert_batch(&db_cf_2, keys_vals_2.clone())
+        .expect("Failed to batch insert");
+
+    let _ = batch.write().expect("Failed to execute batch");
+    for (k, v) in keys_vals_1 {
+        let val = db_cf_1.get(&k).expect("Failed to get inserted key");
+        assert_eq!(Some(v), val);
+    }
+
+    for (k, v) in keys_vals_2 {
+        let val = db_cf_2.get(&k).expect("Failed to get inserted key");
+        assert_eq!(Some(v), val);
+    }
+}
+
+#[test]
+fn test_insert_batch_across_different_db() {
+    let rocks = open_cf(temp_dir(), None, &["First_CF", "Second_CF"]).unwrap();
+    let rocks2 = open_cf(temp_dir(), None, &["First_CF", "Second_CF"]).unwrap();
+
+    let db_cf_1 = DBMap::reopen(&rocks, Some("First_CF")).expect("Failed to open storage");
+    let keys_vals_1 = (1..100).map(|i| (i, i.to_string()));
+
+    let db_cf_2 = DBMap::reopen(&rocks2, Some("Second_CF")).expect("Failed to open storage");
+    let keys_vals_2 = (1000..1100).map(|i| (i, i.to_string()));
+
+    assert!(db_cf_1
+        .batch()
+        .insert_batch(&db_cf_1, keys_vals_1.clone())
+        .expect("Failed to batch insert")
+        .insert_batch(&db_cf_2, keys_vals_2.clone())
+        .is_err());
+}
+
+#[test]
 fn test_delete_batch() {
     let db = DBMap::<i32, String>::open(temp_dir(), None, None).expect("Failed to open storage");
 
