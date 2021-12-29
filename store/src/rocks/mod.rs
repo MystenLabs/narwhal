@@ -29,7 +29,7 @@ unsafe impl<K: Send, V: Send> Send for DBMap<K, V> {}
 
 impl<K, V> DBMap<K, V> {
     /// Opens a database from a path, with specific options and an optional column family.
-    /// 
+    ///
     /// This database is used to perform operations on single column family, and parametrizes
     /// all operations in `DBBatch` when writting across column families.
     pub fn open<P: AsRef<Path>>(
