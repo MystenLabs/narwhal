@@ -28,6 +28,10 @@ pub struct DBMap<K, V> {
 unsafe impl<K: Send, V: Send> Send for DBMap<K, V> {}
 
 impl<K, V> DBMap<K, V> {
+    /// Opens a database from a path, with specific options and an optional column family.
+    ///
+    /// This database is used to perform operations on single column family, and parametrizes
+    /// all operations in `DBBatch` when writting across column families.
     pub fn open<P: AsRef<Path>>(
         path: P,
         db_options: Option<rocksdb::Options>,
@@ -44,6 +48,18 @@ impl<K, V> DBMap<K, V> {
         })
     }
 
+    /// Reopens an open database as a typed map operating under a specific column family.
+    /// if no column family is passed, the default column family is used.
+    ///
+    /// ```
+    ///    # use store::rocks::*;
+    ///    # use std::env::temp_dir;
+    ///    /// Open the DB with all needed column families first.
+    ///    let rocks = open_cf(temp_dir(), None, &["First_CF", "Second_CF"]).unwrap();
+    ///    /// Attach the column families to specific maps.
+    ///    let db_cf_1 = DBMap::<u32,u32>::reopen(&rocks, Some("First_CF")).expect("Failed to open storage");
+    ///    let db_cf_2 = DBMap::<u32,u32>::reopen(&rocks, Some("Second_CF")).expect("Failed to open storage");
+    /// ```
     pub fn reopen(db: &Arc<rocksdb::DB>, opt_cf: Option<&str>) -> Result<Self> {
         let cf_key = opt_cf
             .unwrap_or(rocksdb::DEFAULT_COLUMN_FAMILY_NAME)
@@ -59,8 +75,8 @@ impl<K, V> DBMap<K, V> {
         })
     }
 
-    pub fn batch(&self) -> DBBatch<'_, K, V> {
-        DBBatch::new(self)
+    pub fn batch(&self) -> DBBatch {
+        DBBatch::new(&self.rocksdb)
     }
 }
 
@@ -72,40 +88,90 @@ impl<K, V> AsRef<rocksdb::ColumnFamily> for DBMap<K, V> {
     }
 }
 
-/// Provides a mutable struct to form a collection of database write operations, and execute them
-pub struct DBBatch<'a, K, V> {
-    target_db: &'a DBMap<K, V>,
+/// Provides a mutable struct to form a collection of database write operations, and execute them.
+///
+/// Batching write and delete operations is faster than performing them one by one and ensures their atomicity,
+///  ie. they are all written or none is.
+/// This is also true of operations across column families in the same database.
+///
+/// Serializations / Deserialization, and naming of column families is performed by passing a DBMap<K,V>
+/// with each operation.
+///
+/// ```
+/// # use store::rocks::*;
+/// # use std::env::temp_dir;
+/// # use crate::store::Map;
+/// let rocks = open_cf(temp_dir(), None, &["First_CF", "Second_CF"]).unwrap();
+///
+/// let db_cf_1 = DBMap::reopen(&rocks, Some("First_CF"))
+///     .expect("Failed to open storage");
+/// let keys_vals_1 = (1..100).map(|i| (i, i.to_string()));
+///
+/// let db_cf_2 = DBMap::reopen(&rocks, Some("Second_CF"))
+///     .expect("Failed to open storage");
+/// let keys_vals_2 = (1000..1100).map(|i| (i, i.to_string()));
+///
+/// let batch = db_cf_1
+///     .batch()
+///     .insert_batch(&db_cf_1, keys_vals_1.clone())
+///     .expect("Failed to batch insert")
+///     .insert_batch(&db_cf_2, keys_vals_2.clone())
+///     .expect("Failed to batch insert");
+///
+/// let _ = batch.write().expect("Failed to execute batch");
+/// for (k, v) in keys_vals_1 {
+///     let val = db_cf_1.get(&k).expect("Failed to get inserted key");
+///     assert_eq!(Some(v), val);
+/// }
+///
+/// for (k, v) in keys_vals_2 {
+///     let val = db_cf_2.get(&k).expect("Failed to get inserted key");
+///     assert_eq!(Some(v), val);
+/// }
+/// ```
+///
+pub struct DBBatch {
+    rocksdb: Arc<rocksdb::DB>,
     batch: WriteBatch,
 }
 
-impl<'a, K, V> DBBatch<'a, K, V> {
-    pub fn new(db: &'a DBMap<K, V>) -> Self {
+impl DBBatch {
+    /// Create a new batch associated with a DB reference.
+    ///
+    /// Use `open_cf` to get the DB reference or an existing open database.
+    pub fn new(dbref: &Arc<rocksdb::DB>) -> Self {
         DBBatch {
-            target_db: db,
+            rocksdb: dbref.clone(),
             batch: WriteBatch::default(),
         }
     }
-}
 
-impl<'a, K, V> DBBatch<'a, K, V> {
     /// Consume the batch and write its operations to the database
     pub fn write(self) -> Result<()> {
-        self.target_db.rocksdb.write(self.batch)?;
+        self.rocksdb.write(self.batch)?;
         Ok(())
     }
 }
 
-impl<'a, K: Serialize, V> DBBatch<'a, K, V> {
+impl DBBatch {
     /// Deletes a set of keys given as an iterator
     #[allow(clippy::map_collect_result_unit)] // we don't want a mutable argument
-    pub fn delete_batch<T: Iterator<Item = K>>(mut self, purged_vals: T) -> Result<Self> {
+    pub fn delete_batch<K: Serialize, T: Iterator<Item = K>, V>(
+        mut self,
+        db: &DBMap<K, V>,
+        purged_vals: T,
+    ) -> Result<Self> {
+        if !Arc::ptr_eq(&db.rocksdb, &self.rocksdb) {
+            return Err(eyre!("a batch can't operate over two distinct databases"));
+        }
+
         let config = bincode::DefaultOptions::new()
             .with_big_endian()
             .with_fixint_encoding();
         purged_vals
             .map(|k| {
                 let k_buf = config.serialize(&k)?;
-                self.batch.delete_cf(self.target_db.as_ref(), k_buf);
+                self.batch.delete_cf(db.as_ref(), k_buf);
 
                 Ok(())
             })
@@ -114,23 +180,39 @@ impl<'a, K: Serialize, V> DBBatch<'a, K, V> {
     }
 
     /// Deletes a range of keys between `from` (inclusive) and `to` (non-inclusive)
-    pub fn delete_range(mut self, from: &K, to: &K) -> Result<Self> {
+    pub fn delete_range<'a, K: Serialize, V>(
+        mut self,
+        db: &'a DBMap<K, V>,
+        from: &K,
+        to: &K,
+    ) -> Result<Self> {
+        if !Arc::ptr_eq(&db.rocksdb, &self.rocksdb) {
+            return Err(eyre!("a batch can't operate over two distinct databases"));
+        }
+
         let config = bincode::DefaultOptions::new()
             .with_big_endian()
             .with_fixint_encoding();
         let from_buf = config.serialize(from)?;
         let to_buf = config.serialize(to)?;
 
-        self.batch
-            .delete_range_cf(self.target_db.as_ref(), from_buf, to_buf);
+        self.batch.delete_range_cf(db.as_ref(), from_buf, to_buf);
         Ok(self)
     }
 }
 
-impl<'a, K: Serialize, V: Serialize> DBBatch<'a, K, V> {
+impl DBBatch {
     /// inserts a range of (key, value) pairs given as an iterator
     #[allow(clippy::map_collect_result_unit)] // we don't want a mutable argument
-    pub fn insert_batch<T: Iterator<Item = (K, V)>>(mut self, new_vals: T) -> Result<Self> {
+    pub fn insert_batch<K: Serialize, V: Serialize, T: Iterator<Item = (K, V)>>(
+        mut self,
+        db: &DBMap<K, V>,
+        new_vals: T,
+    ) -> Result<Self> {
+        if !Arc::ptr_eq(&db.rocksdb, &self.rocksdb) {
+            return Err(eyre!("a batch can't operate over two distinct databases"));
+        }
+
         let config = bincode::DefaultOptions::new()
             .with_big_endian()
             .with_fixint_encoding();
@@ -138,7 +220,7 @@ impl<'a, K: Serialize, V: Serialize> DBBatch<'a, K, V> {
             .map(|(ref k, ref v)| {
                 let k_buf = config.serialize(k)?;
                 let v_buf = bincode::serialize(v)?;
-                self.batch.put_cf(self.target_db.as_ref(), k_buf, v_buf);
+                self.batch.put_cf(db.as_ref(), k_buf, v_buf);
                 Ok(())
             })
             .collect::<Result<_, eyre::Error>>()?;
@@ -216,6 +298,7 @@ where
     }
 }
 
+/// Opens a database with options, and a number of column families that are created if they do not exist.
 pub fn open_cf<P: AsRef<Path>>(
     path: P,
     db_options: Option<rocksdb::Options>,
