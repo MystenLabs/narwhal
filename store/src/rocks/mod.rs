@@ -29,6 +29,9 @@ unsafe impl<K: Send, V: Send> Send for DBMap<K, V> {}
 
 impl<K, V> DBMap<K, V> {
     /// Opens a database from a path, with specific options and an optional column family.
+    /// 
+    /// This database is used to perform operations on single column family, and parametrizes
+    /// all operations in `DBBatch` when writting across column families.
     pub fn open<P: AsRef<Path>>(
         path: P,
         db_options: Option<rocksdb::Options>,
@@ -45,7 +48,8 @@ impl<K, V> DBMap<K, V> {
         })
     }
 
-    /// Reuses an open database column family.
+    /// Reopens an open database as a typed map operating under a specific column family.
+    /// if no column family is passed, the default column family is used.
     ///
     /// ```
     ///    # use store::rocks::*;
@@ -86,10 +90,9 @@ impl<K, V> AsRef<rocksdb::ColumnFamily> for DBMap<K, V> {
 
 /// Provides a mutable struct to form a collection of database write operations, and execute them.
 ///
-/// Batching write and delete operations is more efficient than performing them one by one, in terms
-/// of latency and ensures their atomicity, ie. they are all writen or none is written preventing
-/// failures leaving the database in an inconsistent state. This is true of operations across column
-/// families in the same database.
+/// Batching write and delete operations is faster than performing them one by one and ensures their atomicity,
+///  ie. they are all written or none is.
+/// This is also true of operations across column families in the same database.
 ///
 /// Serializations / Deserialization, and naming of column families is performed by passing a DBMap<K,V>
 /// with each operation.
