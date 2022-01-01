@@ -1,0 +1,7 @@
+# cyclomatic complexity is not always useful
+cognitive-complexity-threshold = 100
+# types are used for safety encoding
+type-complexity-threshold = 10000
+# big constructors
+too-many-arguments-threshold =  14
+
