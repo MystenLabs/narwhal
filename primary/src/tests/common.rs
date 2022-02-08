@@ -208,14 +208,14 @@ pub fn create_db_stores() -> (
     let rocksdb = rocks::open_cf(temp_dir(), None, &[HEADERS_CF, CERTIFICATES_CF, PAYLOAD_CF])
         .expect("Failed creating database");
 
-    let (header_cf, certificate_cf, payload_cf) = reopen!(&rocksdb,
+    let (header_map, certificate_map, payload_map) = reopen!(&rocksdb,
         HEADERS_CF;<Digest, Header<Ed25519PublicKey>>,
         CERTIFICATES_CF;<Digest, Certificate<Ed25519PublicKey>>,
         PAYLOAD_CF;<(Digest, WorkerId), PayloadToken>);
 
     return (
-        Store::new(header_cf),
-        Store::new(certificate_cf),
-        Store::new(payload_cf),
+        Store::new(header_map),
+        Store::new(certificate_map),
+        Store::new(payload_map),
     );
 }

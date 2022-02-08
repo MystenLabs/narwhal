@@ -127,7 +127,7 @@ async fn run(matches: &ArgMatches<'_>) -> Result<()> {
     )
     .expect("Failed creating database");
 
-    let (header_cf, certificate_cf, payload_cf, batch_cf) = reopen!(&rocksdb,
+    let (header_map, certificate_map, payload_map, batch_map) = reopen!(&rocksdb,
         HEADERS_CF;<Digest, Header<Ed25519PublicKey>>,
         CERTIFICATES_CF;<Digest, Certificate<Ed25519PublicKey>>,
         PAYLOAD_CF;<(Digest, WorkerId), PayloadToken>,
@@ -147,9 +147,9 @@ async fn run(matches: &ArgMatches<'_>) -> Result<()> {
                 keypair,
                 committee.clone(),
                 parameters.clone(),
-                Store::new(header_cf),
-                Store::new(certificate_cf),
-                Store::new(payload_cf),
+                Store::new(header_map),
+                Store::new(certificate_map),
+                Store::new(payload_map),
                 /* tx_consensus */ tx_new_certificates,
                 /* rx_consensus */ rx_feedback,
             );
@@ -174,7 +174,7 @@ async fn run(matches: &ArgMatches<'_>) -> Result<()> {
                 id,
                 committee,
                 parameters,
-                Store::new(batch_cf),
+                Store::new(batch_map),
             );
         }
         _ => unreachable!(),
