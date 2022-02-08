@@ -7,7 +7,6 @@
     rust_2021_compatibility
 )]
 
-use crate::rocks::DBMap;
 use anyhow::{Context, Result};
 use clap::{crate_name, crate_version, App, AppSettings, ArgMatches, SubCommand};
 use config::{Committee, Import, Parameters, WorkerId};
@@ -19,7 +18,7 @@ use crypto::{
     Digest,
 };
 use primary::{Certificate, Header, PayloadToken, Primary};
-use store::{reopen, rocks, Store};
+use store::{reopen, rocks, rocks::DBMap, Store};
 use tokio::sync::mpsc::{channel, Receiver};
 use tracing::subscriber::set_global_default;
 use tracing_subscriber::filter::EnvFilter;
