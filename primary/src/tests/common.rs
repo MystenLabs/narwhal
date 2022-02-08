@@ -1,18 +1,24 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
 // SPDX-License-Identifier: Apache-2.0
 use crate::messages::{Certificate, Header, Vote};
+use crate::primary::PayloadToken;
 use bytes::Bytes;
-use config::{Authority, Committee, PrimaryAddresses, WorkerAddresses};
+use config::{Authority, Committee, PrimaryAddresses, WorkerAddresses, WorkerId};
 use crypto::{
     ed25519::{Ed25519KeyPair, Ed25519PublicKey, Ed25519Signature},
     traits::{KeyPair, Signer, VerifyingKey},
-    Hash as _,
+    Digest, Hash as _,
 };
 use futures::{sink::SinkExt as _, stream::StreamExt as _};
 use rand::{rngs::StdRng, SeedableRng as _};
 use std::net::SocketAddr;
+use store::{reopen, rocks, rocks::DBMap, Store};
 use tokio::{net::TcpListener, task::JoinHandle};
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
+
+pub const HEADERS_CF: &str = "headers";
+pub const CERTIFICATES_CF: &str = "certificates";
+pub const PAYLOAD_CF: &str = "payload";
 
 impl<PublicKey: VerifyingKey> PartialEq for Header<PublicKey> {
     fn eq(&self, other: &Self) -> bool {
@@ -189,4 +195,25 @@ pub fn listener(address: SocketAddr) -> JoinHandle<Bytes> {
             _ => panic!("Failed to receive network message"),
         }
     })
+}
+
+pub fn create_db_stores() -> (
+    Store<Digest, Header<Ed25519PublicKey>>,
+    Store<Digest, Certificate<Ed25519PublicKey>>,
+    Store<(Digest, WorkerId), PayloadToken>,
+) {
+    // Create a new test store.
+    let rocksdb = rocks::open_cf(temp_dir(), None, &[HEADERS_CF, CERTIFICATES_CF, PAYLOAD_CF])
+        .expect("Failed creating database");
+
+    let (header_cf, certificate_cf, payload_cf) = reopen!(&rocksdb,
+        HEADERS_CF;<Digest, Header<Ed25519PublicKey>>,
+        CERTIFICATES_CF;<Digest, Certificate<Ed25519PublicKey>>,
+        PAYLOAD_CF;<(Digest, WorkerId), PayloadToken>);
+
+    return (
+        Store::new(header_cf),
+        Store::new(certificate_cf),
+        Store::new(payload_cf),
+    );
 }

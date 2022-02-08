@@ -7,6 +7,7 @@
     rust_2021_compatibility
 )]
 
+use crate::rocks::DBMap;
 use anyhow::{Context, Result};
 use clap::{crate_name, crate_version, App, AppSettings, ArgMatches, SubCommand};
 use config::{Committee, Import, Parameters, WorkerId};
@@ -18,7 +19,7 @@ use crypto::{
     Digest,
 };
 use primary::{Certificate, Header, PayloadToken, Primary};
-use store::{rocks, Store};
+use store::{reopen, rocks, Store};
 use tokio::sync::mpsc::{channel, Receiver};
 use tracing::subscriber::set_global_default;
 use tracing_subscriber::filter::EnvFilter;
@@ -26,6 +27,12 @@ use worker::Worker;
 
 /// The default channel capacity.
 pub const CHANNEL_CAPACITY: usize = 1_000;
+
+// The datastore column family names
+const HEADERS_CF: &str = "headers";
+const CERTIFICATES_CF: &str = "certificates";
+const PAYLOAD_CF: &str = "payload";
+const BATCHES_CF: &str = "batches";
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -117,28 +124,15 @@ async fn run(matches: &ArgMatches<'_>) -> Result<()> {
     let rocksdb = rocks::open_cf(
         store_path,
         None,
-        &["headers", "certificates", "payload", "batches"],
+        &[HEADERS_CF, CERTIFICATES_CF, PAYLOAD_CF, BATCHES_CF],
     )
     .expect("Failed creating database");
-    let header_store = Store::new(
-        rocks::DBMap::<Digest, Header<Ed25519PublicKey>>::reopen(&rocksdb, Some("headers"))
-            .expect("Failed keying headers database"),
-    );
-    let certificate_store = Store::new(
-        rocks::DBMap::<Digest, Certificate<Ed25519PublicKey>>::reopen(
-            &rocksdb,
-            Some("certificates"),
-        )
-        .expect("Failed keying certificates database"),
-    );
-    let payload_store = Store::new(
-        rocks::DBMap::<(Digest, WorkerId), PayloadToken>::reopen(&rocksdb, Some("payload"))
-            .expect("Failed keying payload database"),
-    );
-    let batch_store = Store::new(
-        rocks::DBMap::<Digest, Vec<u8>>::reopen(&rocksdb, Some("batches"))
-            .expect("Failed keying batch message database"),
-    );
+
+    let (header_cf, certificate_cf, payload_cf, batch_cf) = reopen!(&rocksdb,
+        HEADERS_CF;<Digest, Header<Ed25519PublicKey>>,
+        CERTIFICATES_CF;<Digest, Certificate<Ed25519PublicKey>>,
+        PAYLOAD_CF;<(Digest, WorkerId), PayloadToken>,
+        BATCHES_CF;<Digest, Vec<u8>>);
 
     // Channels the sequence of certificates.
     let (tx_output, rx_output) = channel(CHANNEL_CAPACITY);
@@ -154,9 +148,9 @@ async fn run(matches: &ArgMatches<'_>) -> Result<()> {
                 keypair,
                 committee.clone(),
                 parameters.clone(),
-                header_store,
-                certificate_store,
-                payload_store,
+                Store::new(header_cf),
+                Store::new(certificate_cf),
+                Store::new(payload_cf),
                 /* tx_consensus */ tx_new_certificates,
                 /* rx_consensus */ rx_feedback,
             );
@@ -181,7 +175,7 @@ async fn run(matches: &ArgMatches<'_>) -> Result<()> {
                 id,
                 committee,
                 parameters,
-                batch_store,
+                Store::new(batch_cf),
             );
         }
         _ => unreachable!(),
