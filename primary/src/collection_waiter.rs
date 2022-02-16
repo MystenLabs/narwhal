@@ -13,9 +13,10 @@ use tracing::{debug, error};
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::{oneshot};
 use crate::error::DagError::CollectionNotFound;
-use futures::future::{BoxFuture};
+use futures::future::{BoxFuture, try_join_all};
 use tokio::time::{sleep, Instant};
-use futures::stream::{futures_unordered::FuturesUnordered, StreamExt as _};
+use futures::stream::{futures_unordered::FuturesUnordered, FuturesOrdered, StreamExt as _};
+use tokio::sync::oneshot::error::RecvError;
 
 pub type Transaction = Vec<u8>;
 
@@ -35,6 +36,7 @@ pub struct GetCollectionResult {
     transactions: Vec<Transaction>
 }
 
+#[derive(Clone, Default)]
 pub struct BatchMessage {
     id: Digest,
     transactions: Vec<Transaction>
@@ -78,7 +80,7 @@ pub struct CollectionWaiter<PublicKey: VerifyingKey> {
     /// On the key we hold the batch id (we assume it's globally unique).
     /// On the value we hold a tuple of the channel to communicate the result
     /// to and also a timestamp of when the request was sent.
-    tx_pending_batch: HashMap<Digest, (oneshot::Sender<BatchMessage>, u128)>
+    tx_pending_batch: HashMap<Digest, (Sender<BatchMessage>, u128)>
 }
 
 impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
@@ -116,13 +118,96 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
         let timer = sleep(Duration::from_millis(timeout_milis));
         tokio::pin!(timer);
 
+        let mut waiting = FuturesUnordered::new();
+
         loop {
             tokio::select! {
                 Some(command) = self.rx_commands.recv() => {
-                    self.handle_commands(command).await;
+                    match command {
+                        CollectionCommand::GetCollection { id } => {
+                            debug!("Got new GetCollection command");
+                            println!("Got new GetCollection command");
+
+                            let result = self.header_store.read(id.clone()).await;
+                            match result {
+                                Result::Ok(header) => {
+                                    // If header has not been found, send back an error.
+                                    if header.is_none() {
+                                        println!("No header found");
+                                        self.tx_get_collection.send(DagResult::Err(CollectionNotFound(id.clone()))).await;
+                                        return;
+                                    }
+
+                                    println!("Header has been found!");
+
+                                    // If similar request is already under processing, don't start a new one
+                                    if self.pending_get_collection.contains(&id.clone()) {
+                                        debug!("Collection with id {} has already pending request", id.clone());
+                                        return;
+                                    }
+
+                                    println!("No pending get collection");
+
+                                    // Get the "now" time
+                                    let now = SystemTime::now()
+                                        .duration_since(UNIX_EPOCH)
+                                        .expect("Failed to measure time")
+                                        .as_millis();
+
+                                    // Add on a vector the receivers
+                                    let mut batch_receivers = Vec::new();
+
+                                    // otherwise we send requests to all workers to send us their batches
+                                    for (digest, worker_id) in header.unwrap().payload {
+                                        let b = Bytes::new();
+
+                                        println!("Sending batch {} request to worker id {}", digest, worker_id);
+
+                                        let worker_address = self.committee
+                                            .worker(&self.name, &worker_id)
+                                            .expect("Worker id not found")
+                                            .primary_to_worker;
+
+                                        self.network.send(worker_address, b).await;
+
+                                        // mark it as pending batch. Since we assume that batches are unique
+                                        // per collection, a clean up on a collection request will also clean
+                                        // up all the pending batch requests.
+                                        let (tx, rx) = tokio::sync::mpsc::channel(1);
+                                        self.tx_pending_batch.insert(digest.clone(), (tx, now));
+
+                                        // add the receiver to a vector to poll later
+                                        batch_receivers.push(rx);
+                                    }
+
+                                    println!("Now will wait for results");
+                                    debug!("Now will wait for results");
+
+                                    let fut = Self::wait_for_all_batches(id.clone(), batch_receivers);
+                                    waiting.push(fut);
+
+                                    println!("Wait method executed");
+                                },
+                                Result::Err(err) => {
+                                    error!("Store error");
+                                    self.tx_get_collection.send(DagResult::Err(CollectionNotFound(id.clone()))).await;
+                                }
+                            }
+                        },
+                    }
                 },
                 Some(batch_message) = self.rx_batch_receiver.recv() => {
                     self.handle_batch_message(batch_message).await;
+                },
+                Some(result) = waiting.next() => match result {
+                    Ok(batch_message) => {
+                        println!("Sealed batch message");
+                        self.tx_get_collection.send(DagResult::Ok(batch_message)).await;
+                    },
+                    Err(e) => {
+                        println!("Can not seal batch message - error received!: {}", e);
+                        self.tx_get_collection.send(DagResult::Err(e)).await;
+                    }
                 },
                 () = &mut timer => {
                     debug!("Timer has been triggered!");
@@ -135,140 +220,44 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
 
     async fn handle_batch_message(&mut self, message: BatchMessage) {
         println!("Received batch message id {}", message.id);
-    }
 
-    // Wait for a batch to be received
-    async fn wait_for_batch(batch_id: Digest, batch_receiver: oneshot::Receiver<BatchMessage>) -> DagResult<BatchMessage> {
-         let result = batch_receiver.await;
-
-        if result.is_ok() {
-            return DagResult::Ok(result.unwrap());
-        }
-
-        return DagResult::Err(DagError::BatchCanNotBeRetrieved(batch_id));
-    }
-
-    // Waits for all the batches to return, or times out
-    async fn wait_for_all_batches(mut wait_for_batches: FuturesUnordered<BoxFuture<'_, DagResult<BatchMessage>>>) -> DagResult<Vec<BatchMessage>> {
-        let mut batch_messages = Vec::new();
-
-        while let Some(batch_result) = wait_for_batches.next().await {
-            if batch_result.is_ok() {
-                batch_messages.push(batch_result.unwrap());
-            } else {
-                return DagResult::Err(DagError::FailedToGatherBatchesForCollection);
-            }
-        }
-
-        return DagResult::Ok(batch_messages);
-    }
-
-    async fn handle_commands(&mut self, command: CollectionCommand) {
-        match command {
-            CollectionCommand::GetCollection { id } => {
-                debug!("Got new GetCollection command");
-                println!("Got new GetCollection command");
-
-                let result = self.header_store.read(id.clone()).await;
-                match result {
-                    Result::Ok(header) => {
-                        // If header has not been found, send back an error.
-                        if header.is_none() {
-                            println!("No header found");
-                            self.tx_get_collection.send(DagResult::Err(CollectionNotFound(id.clone()))).await;
-                            return;
-                        }
-
-                        println!("Header has been found!");
-
-                        // If similar request is already under processing, don't start a new one
-                        if self.pending_get_collection.contains(&id.clone()) {
-                            debug!("Collection with id {} has already pending request", id.clone());
-                            return;
-                        }
-
-                        println!("No pending get collection");
-
-                        // Get the "now" time
-                        let now = SystemTime::now()
-                            .duration_since(UNIX_EPOCH)
-                            .expect("Failed to measure time")
-                            .as_millis();
-
-                        // Add on a vector the receivers
-                        let mut wait_for_batches = FuturesUnordered::new();
-
-                        // otherwise we send requests to all workers to send us their batches
-                        for (digest, worker_id) in header.unwrap().payload {
-                            let b = Bytes::new();
-
-                            println!("Sending batch {} request to worker id {}", digest, worker_id);
-
-                            let worker_address = self.committee
-                                .worker(&self.name, &worker_id)
-                                .expect("Worker id not found")
-                                .primary_to_worker;
-
-                            self.network.send(worker_address, b).await;
-
-                            // mark it as pending batch. Since we assume that batches are unique
-                            // per collection, a clean up on a collection request will also clean
-                            // up all the pending batch requests.
-                            let (tx, rx) = oneshot::channel();
-                            self.tx_pending_batch.insert(digest.clone(), (tx, now));
-
-                            // add the receiver to a vector to poll later
-                            let fut = Self::wait_for_batch(digest, rx);
-                            wait_for_batches.push(Box::pin(fut));
-                        }
-
-                        println!("Now will wait for results");
-                        debug!("Now will wait for results");
-
-                        let res = Self::wait_for_all_batches(wait_for_batches).await;
-
-                        let mut batch_messages = Vec::new();
-
-                        while let Some(batch_result) = wait_for_batches.next().await {
-                            if batch_result.is_ok() {
-                                debug!("Got successful batches");
-                                println!("Got successful batches");
-                                batch_messages.push(batch_result.unwrap());
-                            } else {
-                                error!("Couldn't gather batches");
-                                println!("Couldn't gather batches");
-                            }
-                        }
-
-                        self.tx_get_collection.send(
-                            DagResult::Ok(GetCollectionResult{
-                                id: id.clone(),
-                                transactions: Vec::new(),
-                            })
-                        ).await;
-
-                        /*
-                        if res.is_ok() {
-                            debug!("Got successful batches");
-                            self.tx_get_collection.send(
-                                DagResult::Ok(GetCollectionResult{
-                                    id: id.clone(),
-                                    transactions: Vec::new(),
-                                })
-                            );
-                        } else {
-                            error!("Couldn't gather batches");
-                        }
-                          */
-                        println!("Hey, got the results back!");
-
-                    },
-                    Result::Err(err) => {
-                        error!("Store error");
-                        self.tx_get_collection.send(DagResult::Err(CollectionNotFound(id.clone()))).await;
-                    }
-                }
+        match self.tx_pending_batch.get(&message.id) {
+            Some((sender, timestamp)) => {
+                sender.send(message.clone()).await;
+                println!("Sent batch message id {}", message.id);
             },
+            None => println!("Couldn't find pending batch with id {}", message.id),
         }
+    }
+
+    async fn wait_for_all_batches(collection_id: Digest, batches_receivers: Vec<Receiver<BatchMessage>>) -> DagResult<GetCollectionResult> {
+        let waiting: Vec<_> = batches_receivers
+            .into_iter()
+            .map(|r|Self::wait_for_batch(r))
+            .collect();
+
+        let handle = try_join_all(waiting).await;
+
+        if handle.is_ok() {
+            let batches:Vec<Transaction> = handle.unwrap().iter()
+                .flat_map(|batch|batch.transactions.clone())
+                .collect();
+
+            return DagResult::Ok(GetCollectionResult{
+                id: collection_id,
+                transactions: batches,
+            });
+        }
+
+        return DagResult::Err(DagError::FailedToGatherBatchesForCollection);
+    }
+
+    async fn wait_for_batch(mut batch_receiver: Receiver<BatchMessage>) -> Result<BatchMessage, DagError> {
+        let result = batch_receiver.recv().await;
+
+        if result.is_some() {
+            return Result::Ok(result.unwrap());
+        }
+        return Result::Err(DagError::BatchCanNotBeRetrieved(Digest::default()));
     }
 }

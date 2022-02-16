@@ -95,7 +95,7 @@ async fn test_successfully_retrieve_collection() {
         Some(result) = rx_get_collection.recv() => {
             match result {
                 Ok(r) => {
-                    assert!(r.transactions.is_empty());
+                    assert!(!r.transactions.is_empty());
                     assert_eq!(r.id, header.id.clone());
                 },
                 Err(err) => {
