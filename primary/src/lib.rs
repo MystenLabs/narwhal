@@ -20,6 +20,7 @@ mod payload_receiver;
 mod primary;
 mod proposer;
 mod synchronizer;
+mod collection_waiter;
 
 #[cfg(test)]
 #[path = "tests/common.rs"]
