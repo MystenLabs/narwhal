@@ -179,6 +179,9 @@ impl<PublicKey: VerifyingKey> Synchronizer<PublicKey> {
                             }
                         }
                         self.pending.retain(|_, (r, _, _)| r > &mut gc_round);
+                    },
+                    PrimaryWorkerMessage::RequestBatch(_) => {
+
                     }
                 },
 
