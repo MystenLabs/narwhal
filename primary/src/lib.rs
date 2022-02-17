@@ -11,6 +11,7 @@
 mod error;
 mod aggregators;
 mod certificate_waiter;
+mod collection_waiter;
 mod core;
 mod garbage_collector;
 mod header_waiter;
@@ -20,7 +21,6 @@ mod payload_receiver;
 mod primary;
 mod proposer;
 mod synchronizer;
-mod collection_waiter;
 
 #[cfg(test)]
 #[path = "tests/common.rs"]

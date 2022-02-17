@@ -53,6 +53,8 @@ pub enum PrimaryWorkerMessage<PublicKey> {
     Synchronize(Vec<Digest>, /* target */ PublicKey),
     /// The primary indicates a round update.
     Cleanup(Round),
+    /// The primary requests a batch from the worker
+    RequestBatch(Digest),
 }
 
 /// The messages sent by the workers to their primary.
@@ -62,6 +64,8 @@ pub enum WorkerPrimaryMessage {
     OurBatch(Digest, WorkerId),
     /// The worker indicates it received a batch's digest from another authority.
     OthersBatch(Digest, WorkerId),
+    /// The worker sends a requested batch
+    RequestedBatch(Digest, WorkerId),
 }
 
 // A type alias marking the "payload" tokens sent by workers to their primary as batch acknowledgements
@@ -292,6 +296,10 @@ impl MessageHandler for WorkerReceiverHandler {
                 .send((digest, worker_id))
                 .await
                 .expect("Failed to send workers' digests"),
+            WorkerPrimaryMessage::RequestedBatch(digest, worker_id) => {
+                // TODO: forward message to the collection waiter
+                println!("Do something");
+            }
         }
         Ok(())
     }

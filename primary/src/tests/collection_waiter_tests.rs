@@ -1,26 +1,19 @@
-use std::borrow::Borrow;
-use std::collections::{BTreeMap, HashMap};
-use std::net::SocketAddr;
+use crate::collection_waiter::{BatchMessage, CollectionCommand, CollectionWaiter};
+use crate::common::{committee, committee_with_base_port, create_db_stores, keys};
+use crate::{Certificate, Header};
 use bytes::Bytes;
+use config::WorkerId;
+use crypto::{ed25519::Ed25519PublicKey, traits::KeyPair};
+use crypto::{Digest, Hash};
 use ed25519_dalek::{Digest as _, Sha512, Signer};
 use futures::{SinkExt, StreamExt};
-use store::reopen;
+use std::collections::BTreeMap;
+use std::net::SocketAddr;
 use tokio::net::TcpListener;
-use crypto::{Digest, Hash};
-use crate::collection_waiter::{GetCollectionResult, CollectionWaiter, CollectionCommand, BatchMessage};
-use crate::common::{
-    certificate, committee, committee_with_base_port, create_db_stores, header, headers, keys,
-    listener,
-};
-use crypto::{ed25519::Ed25519PublicKey, traits::KeyPair};
-use tokio::sync::mpsc::channel;
-use tokio::sync::oneshot;
+use tokio::sync::mpsc::{channel, Sender};
 use tokio::task::JoinHandle;
 use tokio::time::{sleep, Duration};
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
-use config::WorkerId;
-use crate::error::DagResult;
-use crate::{Certificate, Header};
 
 #[tokio::test]
 async fn test_successfully_retrieve_collection() {
@@ -34,14 +27,14 @@ async fn test_successfully_retrieve_collection() {
     let name = kp.public().clone();
     let committee = committee_with_base_port(13_000);
 
-    // AND store headers and batches
-    let header = header_with_payload();
+    // AND store header
+    let header = fixture_header_with_payload();
     header_store.write(header.clone().id, header.clone()).await;
 
     // AND spawn a new collections waiter
     let (tx_commands, rx_commands) = channel(1);
     let (tx_get_collection, mut rx_get_collection) = channel(1);
-    let (tx_batch_messages, rx_batch_messages) = channel(2);
+    let (tx_batch_messages, rx_batch_messages) = channel(10);
 
     CollectionWaiter::spawn(
         name,
@@ -59,63 +52,60 @@ async fn test_successfully_retrieve_collection() {
     let worker_address = committee.worker(&target, &worker_id).unwrap().worker_to_worker;
     */
 
-   // let handle = listener(worker_address, Some(Bytes::from(serialized)));
+    // let handle = listener(worker_address, Some(Bytes::from(serialized)));
 
-    // AND send a get collection command
-    match tx_commands.send(CollectionCommand::GetCollection { id: header.id.clone() }).await {
-        Result::Ok(_) => {
+    // WHEN we send a request to get a collection
+    send_get_collection(tx_commands.clone(), header.id.clone()).await;
 
-        },
-        Result::Err(err) => {
-            panic!("{}", err);
-        }
-    }
-
-    /*
-    tokio::spawn( async move {
-
-    });*/
-    // "mock" the batch responses
+    // AND "mock" the batch responses
     for (batch_id, worker_id) in header.payload {
-        tx_batch_messages.send(
-            BatchMessage{
+        tx_batch_messages
+            .send(BatchMessage {
                 id: batch_id,
-                transactions: vec![
-                    vec![10u8, 5u8, 2u8], vec![8u8, 2u8, 3u8]
-                ]
-            }
-        ).await;
+                transactions: vec![vec![10u8, 5u8, 2u8], vec![8u8, 2u8, 3u8]],
+            })
+            .await;
     }
 
-    // Wait to receive back a response or timeout
-    let timer = sleep(Duration::from_millis(4_000));
+    // THEN we should expect to get back the result
+    let timer = sleep(Duration::from_millis(5_000));
     tokio::pin!(timer);
 
     tokio::select! {
         Some(result) = rx_get_collection.recv() => {
-            match result {
-                Ok(r) => {
-                    assert!(!r.transactions.is_empty());
-                    assert_eq!(r.id, header.id.clone());
-                },
-                Err(err) => {
-                    panic!("error retrieving result: {}", err);
-                }
-            }
+            assert!(result.is_ok(), "Expected to receive a successful result, instead got error: {}", result.err().unwrap());
+
+            let collection = result.unwrap();
+
+            assert!(!collection.batches.is_empty());
+            assert_eq!(collection.id, header.id.clone());
         },
         () = &mut timer => {
-            println!("Timeout ended");
-            assert!(false);
+            panic!("Timeout, no result has been received in time")
         }
     }
 }
 
-pub fn header_with_payload() -> Header<Ed25519PublicKey> {
+async fn send_get_collection(sender: Sender<CollectionCommand>, collection_id: Digest) {
+    sender
+        .send(CollectionCommand::GetCollection { id: collection_id })
+        .await;
+}
+
+pub fn fixture_header_with_payload() -> Header<Ed25519PublicKey> {
     let kp = keys().pop().unwrap();
     let mut payload: BTreeMap<Digest, WorkerId> = BTreeMap::new();
 
-    let batch_digest_1 = Digest::new(Sha512::digest(vec![10u8, 5u8, 8u8, 20u8].as_slice()).as_slice()[..32].try_into().unwrap());
-    let batch_digest_2 = Digest::new(Sha512::digest(vec![14u8, 2u8, 7u8, 10u8].as_slice()).as_slice()[..32].try_into().unwrap());
+    let batch_digest_1 = Digest::new(
+        Sha512::digest(vec![10u8, 5u8, 8u8, 20u8].as_slice()).as_slice()[..32]
+            .try_into()
+            .unwrap(),
+    );
+    let batch_digest_2 = Digest::new(
+        Sha512::digest(vec![14u8, 2u8, 7u8, 10u8].as_slice()).as_slice()[..32]
+            .try_into()
+            .unwrap(),
+    );
 
     payload.insert(batch_digest_1, 0);
     payload.insert(batch_digest_2, 0);

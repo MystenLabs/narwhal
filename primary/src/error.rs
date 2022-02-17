@@ -57,13 +57,4 @@ pub enum DagError {
 
     #[error("Message {0} (round {1}) too old")]
     TooOld(Digest, Round),
-
-    #[error("Collection with id {0} not found")]
-    CollectionNotFound(Digest),
-
-    #[error("Batch {0} can not be retrieved")]
-    BatchCanNotBeRetrieved(Digest),
-
-    #[error("Failed to gather batches for collection")]
-    FailedToGatherBatchesForCollection
 }
