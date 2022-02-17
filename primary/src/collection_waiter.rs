@@ -74,6 +74,20 @@ impl fmt::Display for CollectionErrorType {
 /// downstream worker nodes. The term collection is equal to what is called
 /// "batch" on the rest of the codebase. However, for the external API the
 /// term used is collection.
+///
+/// In order for the component to be used from another component the following
+/// input and output channels are defined:
+///
+/// # Inputs
+/// * rx_commands - Provide this receiver in order to send a command to the waiter
+/// (e.x GetCollection)
+/// * rx_batch_receiver - Provide this receiver in order to send a batch message
+/// to the components. Basically a requested batch that is received from a worker
+/// should be sent on this channel.
+///
+/// # Outputs
+/// * tx_get_collection - Provide this sender to receive the collection data that
+/// have been requested.
 pub struct CollectionWaiter<PublicKey: VerifyingKey> {
     /// The public key of this primary.
     name: PublicKey,
@@ -240,7 +254,6 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
                         Ok(collection_result) => {
                             println!("GetCollection ready for collection {}", &collection_result.id);
 
-                            // send message
                             self.tx_get_collection.send(CollectionResult::Ok(collection_result.clone()))
                             .await
                             .expect("Couldn't send GetCollectionResult message");
@@ -273,7 +286,7 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
         println!("Received batch with id {}", &message.id);
 
         match self.tx_pending_batch.get(&message.id) {
-            Some((sender, timestamp)) => {
+            Some((sender, _)) => {
                 println!("Sending batch message with id {}", &message.id);
                 sender
                     .send(message.clone())

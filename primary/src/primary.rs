@@ -296,7 +296,7 @@ impl MessageHandler for WorkerReceiverHandler {
                 .send((digest, worker_id))
                 .await
                 .expect("Failed to send workers' digests"),
-            WorkerPrimaryMessage::RequestedBatch(digest, worker_id) => {
+            WorkerPrimaryMessage::RequestedBatch(_, _) => {
                 // TODO: forward message to the collection waiter
                 println!("Do something");
             }
