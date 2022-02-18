@@ -77,7 +77,7 @@ impl fmt::Display for CollectionErrorType {
 
 /// CollectionWaiter is responsible for fetching the collection data from the
 /// downstream worker nodes. The term collection is equal to what is called
-/// "batch" on the rest of the codebase. However, for the external API the
+/// "block" (or header) on the rest of the codebase. However, for the external API the
 /// term used is collection.
 ///
 /// In order for the component to be used from another component the following
@@ -324,7 +324,7 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
             });
         }
 
-        return Self::error_result(collection_id, CollectionErrorType::GetCollectionTimeout);
+        Self::error_result(collection_id, CollectionErrorType::GetCollectionTimeout)
     }
 
     /// Waits for a batch to be received. If batch is not received in time,
@@ -336,23 +336,17 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
         let timeout_duration = Duration::from_millis(BATCH_RETRIEVE_TIMEOUT_MILIS);
 
         let result = timeout(timeout_duration, batch_receiver.recv()).await;
-
         if result.is_ok() {
-            return match result.unwrap() {
-                Some(batch) => Result::Ok(batch),
-                // Probably the channel has been closed - we don't expect
-                // this, but still return an error back.
-                None => Result::Err(CollectionErrorType::BatchError),
-            };
+            return result.unwrap().ok_or(CollectionErrorType::BatchError);
         }
 
-        return Result::Err(CollectionErrorType::BatchTimeout);
+        Result::Err(CollectionErrorType::BatchTimeout)
     }
 
     fn error_result<T>(collection_id: Digest, error: CollectionErrorType) -> CollectionResult<T> {
-        return CollectionResult::Err(CollectionError {
+        CollectionResult::Err(CollectionError {
             id: collection_id,
             error,
-        });
+        })
     }
 }
