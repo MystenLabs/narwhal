@@ -1,18 +1,23 @@
-use crate::messages::Header;
-use crate::PrimaryWorkerMessage;
+use crate::{messages::Header, PrimaryWorkerMessage};
 use bytes::Bytes;
 use config::Committee;
 use crypto::{traits::VerifyingKey, Digest};
-use futures::future::try_join_all;
-use futures::stream::{futures_unordered::FuturesUnordered, StreamExt as _};
+use futures::{
+    future::try_join_all,
+    stream::{futures_unordered::FuturesUnordered, StreamExt as _},
+};
 use network::SimpleSender;
-use std::collections::HashMap;
-use std::fmt;
-use std::fmt::Formatter;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::{
+    collections::HashMap,
+    fmt,
+    fmt::Formatter,
+    time::{Duration, SystemTime, UNIX_EPOCH},
+};
 use store::Store;
-use tokio::sync::mpsc::{channel, Receiver, Sender};
-use tokio::time::timeout;
+use tokio::{
+    sync::mpsc::{channel, Receiver, Sender},
+    time::timeout,
+};
 use tracing::error;
 
 const BATCH_RETRIEVE_TIMEOUT_MILIS: u64 = 1_000;

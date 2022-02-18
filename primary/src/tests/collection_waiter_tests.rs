@@ -1,19 +1,27 @@
-use crate::collection_waiter::{BatchMessage, CollectionCommand, CollectionWaiter};
-use crate::common::{committee, committee_with_base_port, create_db_stores, keys};
-use crate::{Certificate, Header, PrimaryWorkerMessage};
+use crate::{
+    collection_waiter::{BatchMessage, CollectionCommand, CollectionWaiter},
+    common::{committee, committee_with_base_port, create_db_stores, keys},
+    Certificate, Header, PrimaryWorkerMessage,
+};
 use bincode::deserialize;
 use config::WorkerId;
-use crypto::traits::VerifyingKey;
-use crypto::{ed25519::Ed25519PublicKey, traits::KeyPair};
-use crypto::{Digest, Hash};
+use crypto::{
+    ed25519::Ed25519PublicKey,
+    traits::{KeyPair, VerifyingKey},
+    Digest, Hash,
+};
 use ed25519_dalek::{Digest as _, Sha512, Signer};
-use futures::{StreamExt};
-use std::collections::{BTreeMap, HashMap};
-use std::net::SocketAddr;
-use tokio::net::TcpListener;
-use tokio::sync::mpsc::{channel, Sender};
-use tokio::task::JoinHandle;
-use tokio::time::{sleep, Duration};
+use futures::StreamExt;
+use std::{
+    collections::{BTreeMap, HashMap},
+    net::SocketAddr,
+};
+use tokio::{
+    net::TcpListener,
+    sync::mpsc::{channel, Sender},
+    task::JoinHandle,
+    time::{sleep, Duration},
+};
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
 
 #[tokio::test]
