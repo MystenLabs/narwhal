@@ -19,6 +19,7 @@ use tokio::{
     time::timeout,
 };
 use tracing::error;
+use Result::*;
 
 const BATCH_RETRIEVE_TIMEOUT_MILIS: u64 = 1_000;
 
@@ -32,27 +33,33 @@ pub enum CollectionCommand {
     /// GetCollection dictates retrieving the collection data
     /// (vector of transactions) by a given collection digest.
     /// Results are sent to the provided Sender.
-    GetCollection { id: Digest },
+    _GetCollection { id: Digest },
 }
 
 #[derive(Clone, Debug)]
 pub struct GetCollectionResult {
     id: Digest,
-    batches: Vec<BatchMessage>,
+    _batches: Vec<BatchMessage>,
 }
 
 #[derive(Clone, Default, Debug)]
 pub struct BatchMessage {
     id: Digest,
-    transactions: Vec<Transaction>,
+    _transactions: Vec<Transaction>,
 }
 
 pub type CollectionResult<T> = Result<T, CollectionError>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CollectionError {
     id: Digest,
     error: CollectionErrorType,
+}
+
+impl<T> From<CollectionError> for CollectionResult<T> {
+    fn from(error: CollectionError) -> Self {
+        CollectionResult::Err(error)
+    }
 }
 
 impl fmt::Display for CollectionError {
@@ -66,7 +73,6 @@ pub enum CollectionErrorType {
     CollectionNotFound,
     BatchTimeout,
     BatchError,
-    GetCollectionTimeout,
 }
 
 impl fmt::Display for CollectionErrorType {
@@ -166,22 +172,11 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
             tokio::select! {
                 Some(command) = self.rx_commands.recv() => {
                     match command {
-                        CollectionCommand::GetCollection { id } => {
+                        CollectionCommand::_GetCollection { id } => {
                             println!("Got new GetCollection command for collection {}", id.clone());
 
-                            let result = self.header_store.read(id.clone()).await;
-                            match result {
-                                Result::Ok(header) => {
-                                    // If header has not been found, send back an error.
-                                    if header.is_none() {
-                                        println!("No header found for collection {}", id.clone());
-                                        self.tx_get_collection
-                                        .send(Self::error_result(id.clone(), CollectionErrorType::CollectionNotFound))
-                                        .await
-                                        .expect("Couldn't send result for collection");
-                                        continue;
-                                    }
-
+                            match self.header_store.read(id.clone()).await {
+                                Ok(Some(header)) => {
                                     // If similar request is already under processing, don't start a new one
                                     if self.pending_get_collection.contains_key(&id.clone()) {
                                         println!("Collection with id {} has already pending request", id.clone());
@@ -200,11 +195,11 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
                                     let mut batch_receivers = Vec::new();
 
                                     // otherwise we send requests to all workers to send us their batches
-                                    for (digest, worker_id) in header.clone().unwrap().payload {
+                                    for (digest, worker_id) in &header.payload {
                                         println!("Sending batch {} request to worker id {}", digest.clone(), worker_id);
 
                                         let worker_address = self.committee
-                                            .worker(&self.name, &worker_id)
+                                            .worker(&self.name, worker_id)
                                             .expect("Worker id not found")
                                             .primary_to_worker;
 
@@ -229,14 +224,18 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
 
                                     // Ensure that we mark this collection retrieval
                                     // as pending so no other can initiate the process
-                                    self.pending_get_collection.insert(id.clone(), header.unwrap());
+                                    self.pending_get_collection.insert(id.clone(), header);
 
                                     println!("Now waiting results for collection {}", id.clone());
                                 },
-                                Result::Err(_err) => {
-                                    error!("Store error");
+                                _ => {
                                     self.tx_get_collection
-                                    .send(Self::error_result(id.clone(), CollectionErrorType::CollectionNotFound))
+                                    .send(
+                                        CollectionResult::from(CollectionError {
+                                                id: id.clone(),
+                                                error: CollectionErrorType::CollectionNotFound,
+                                        })
+                                    )
                                     .await
                                     .expect("Couldn't send CollectionNotFound error for a GetCollection request");
                                 }
@@ -255,31 +254,22 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
                 // By iterating the waiting vector it allow us to proceed
                 // whenever waiting has been finished for a request.
                 Some(result) = waiting.next() => {
-                    let collection_id = match result {
-                        Ok(collection_result) => {
-                            println!("GetCollection ready for collection {}", &collection_result.id);
-
-                            self.tx_get_collection.send(CollectionResult::Ok(collection_result.clone()))
+                    self.tx_get_collection.send(result.clone())
                             .await
                             .expect("Couldn't send GetCollectionResult message");
 
-                            collection_result.id
-                        },
-                        Err(err) =>  {
-                            self.tx_get_collection.send(Self::error_result(err.id.clone(), err.error))
-                            .await
-                            .expect("Couldn't send error for GetCollectionResult message");
-
-                            err.id
-                        }
-                    };
+                    let collection_id = result.map_or_else(|e|e.id, |r|r.id);
 
                     // unlock the pending request & batches
-                    let header = self.pending_get_collection.remove(&collection_id);
-                    if header.is_some() {
-                        for (digest, _) in header.unwrap().payload {
-                            // unlock the pending request
-                            self.tx_pending_batch.remove(&digest);
+                    match self.pending_get_collection.remove(&collection_id) {
+                        Some(header) => {
+                            for (digest, _) in header.payload {
+                                // unlock the pending request
+                                self.tx_pending_batch.remove(&digest);
+                            }
+                        },
+                        None => {
+                            error!("Expected to find header with id {} for pending processing", &collection_id);
                         }
                     }
                 },
@@ -313,40 +303,34 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
     ) -> CollectionResult<GetCollectionResult> {
         let waiting: Vec<_> = batches_receivers
             .into_iter()
-            .map(|p| Self::wait_for_batch(p.1))
+            .map(|p| Self::wait_for_batch(collection_id.clone(), p.1))
             .collect();
 
-        let handle = try_join_all(waiting).await;
-        if handle.is_ok() {
-            return CollectionResult::Ok(GetCollectionResult {
-                id: collection_id,
-                batches: handle.unwrap(),
-            });
-        }
-
-        Self::error_result(collection_id, CollectionErrorType::GetCollectionTimeout)
+        let result = try_join_all(waiting).await?;
+        Ok(GetCollectionResult {
+            id: collection_id,
+            _batches: result,
+        })
     }
 
     /// Waits for a batch to be received. If batch is not received in time,
     /// then a timeout is yielded and an error is returned.
     async fn wait_for_batch(
+        collection_id: Digest,
         mut batch_receiver: Receiver<BatchMessage>,
-    ) -> Result<BatchMessage, CollectionErrorType> {
+    ) -> CollectionResult<BatchMessage> {
         // ensure that we won't wait forever for a batch result to come
         let timeout_duration = Duration::from_millis(BATCH_RETRIEVE_TIMEOUT_MILIS);
 
-        let result = timeout(timeout_duration, batch_receiver.recv()).await;
-        if result.is_ok() {
-            return result.unwrap().ok_or(CollectionErrorType::BatchError);
-        }
-
-        Result::Err(CollectionErrorType::BatchTimeout)
-    }
-
-    fn error_result<T>(collection_id: Digest, error: CollectionErrorType) -> CollectionResult<T> {
-        CollectionResult::Err(CollectionError {
-            id: collection_id,
-            error,
-        })
+        return match timeout(timeout_duration, batch_receiver.recv()).await {
+            Ok(result) => result.ok_or(CollectionError {
+                id: collection_id,
+                error: CollectionErrorType::BatchError,
+            }),
+            Err(_) => CollectionResult::from(CollectionError {
+                id: collection_id,
+                error: CollectionErrorType::BatchTimeout,
+            }),
+        };
     }
 }

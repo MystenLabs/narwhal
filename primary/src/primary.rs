@@ -30,6 +30,7 @@ use std::{
 use store::Store;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tracing::info;
+use crate::collection_waiter::CollectionWaiter;
 
 /// The default channel capacity for each channel of the primary.
 pub const CHANNEL_CAPACITY: usize = 1_000;
@@ -97,6 +98,9 @@ impl Primary {
         let (tx_certificates_loopback, rx_certificates_loopback) = channel(CHANNEL_CAPACITY);
         let (tx_primary_messages, rx_primary_messages) = channel(CHANNEL_CAPACITY);
         let (tx_cert_requests, rx_cert_requests) = channel(CHANNEL_CAPACITY);
+        let (_tx_collection_commands, rx_collection_commands) = channel(CHANNEL_CAPACITY);
+        let (tx_collection_get_result, _rx_collection_get_result) = channel(CHANNEL_CAPACITY);
+        let (_tx_batches, rx_batches) = channel(CHANNEL_CAPACITY);
 
         // Write the parameters to the logs.
         parameters.tracing();
@@ -183,6 +187,15 @@ impl Primary {
         PayloadReceiver::spawn(
             payload_store.clone(),
             /* rx_workers */ rx_others_digests,
+        );
+
+        CollectionWaiter::spawn(
+            name.clone(),
+            committee.clone(),
+            header_store.clone(),
+            rx_collection_commands,
+            tx_collection_get_result,
+            rx_batches,
         );
 
         // Whenever the `Synchronizer` does not manage to validate a header due to missing parent certificates of

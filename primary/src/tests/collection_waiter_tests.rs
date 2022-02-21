@@ -61,7 +61,7 @@ async fn test_successfully_retrieve_collection() {
             batch_id.clone(),
             BatchMessage {
                 id: batch_id,
-                transactions: vec![vec![10u8, 5u8, 2u8], vec![8u8, 2u8, 3u8]],
+                _transactions: vec![vec![10u8, 5u8, 2u8], vec![8u8, 2u8, 3u8]],
             },
         );
     }
@@ -100,6 +100,10 @@ async fn test_successfully_retrieve_collection() {
 
             assert_eq!(collection.batches.len(), expected_batch_messages.len());
             assert_eq!(collection.id, header.id.clone());
+
+            for (digest, batch) in expected_batch_messages {
+                assert_eq!(batch._transactions.len(), 2);
+            }
         },
         () = &mut timer => {
             panic!("Timeout, no result has been received in time")
@@ -112,7 +116,7 @@ async fn test_one_pending_request_for_collection_at_time() {}
 
 async fn send_get_collection(sender: Sender<CollectionCommand>, collection_id: Digest) {
     sender
-        .send(CollectionCommand::GetCollection { id: collection_id })
+        .send(CollectionCommand::_GetCollection { id: collection_id })
         .await;
 }
 
