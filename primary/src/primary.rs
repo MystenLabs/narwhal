@@ -99,7 +99,6 @@ impl Primary {
         let (tx_primary_messages, rx_primary_messages) = channel(CHANNEL_CAPACITY);
         let (tx_cert_requests, rx_cert_requests) = channel(CHANNEL_CAPACITY);
         let (_tx_collection_commands, rx_collection_commands) = channel(CHANNEL_CAPACITY);
-        let (tx_collection_get_result, _rx_collection_get_result) = channel(CHANNEL_CAPACITY);
         let (_tx_batches, rx_batches) = channel(CHANNEL_CAPACITY);
 
         // Write the parameters to the logs.
@@ -194,7 +193,6 @@ impl Primary {
             committee.clone(),
             certificate_store.clone(),
             rx_collection_commands,
-            tx_collection_get_result,
             rx_batches,
         );
 

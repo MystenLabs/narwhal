@@ -39,7 +39,11 @@ pub enum CollectionCommand {
     /// Results are sent to the provided Sender. The id is
     /// basically the Certificate digest id.
     #[allow(dead_code)]
-    GetCollection { id: Digest },
+    GetCollection {
+        id: Digest,
+        // The channel to send the results to.
+        sender: Sender<CollectionResult<GetCollectionResponse>>,
+    },
 }
 
 #[derive(Clone, Debug)]
@@ -76,7 +80,7 @@ impl fmt::Display for CollectionError {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum CollectionErrorType {
     CollectionNotFound,
     BatchTimeout,
@@ -94,19 +98,7 @@ impl fmt::Display for CollectionErrorType {
 /// "block" (or header) on the rest of the codebase. However, for the external API the
 /// term used is collection.
 ///
-/// In order for the component to be used from another component the following
-/// input and output channels are defined:
 ///
-/// # Inputs
-/// * rx_commands - Provide this receiver in order to send a command to the waiter
-/// (e.x GetCollection)
-/// * rx_batch_receiver - Provide this receiver in order to send a batch message
-/// to the components. Basically a requested batch that is received from a worker
-/// should be sent on this channel.
-///
-/// # Outputs
-/// * tx_get_collection - Provide this sender to receive the collection data that
-/// have been requested.
 pub struct CollectionWaiter<PublicKey: VerifyingKey> {
     /// The public key of this primary.
     name: PublicKey,
@@ -119,10 +111,6 @@ pub struct CollectionWaiter<PublicKey: VerifyingKey> {
 
     /// Receive all the requests to get a collection
     rx_commands: Receiver<CollectionCommand>,
-
-    /// A channel sender where the fetched collections
-    /// are communicated to.
-    tx_get_collection: Sender<CollectionResult<GetCollectionResponse>>,
 
     /// Whenever we have a get_collection request, we mark the
     /// processing as pending by adding it on the hashmap. Once
@@ -143,6 +131,10 @@ pub struct CollectionWaiter<PublicKey: VerifyingKey> {
     /// On the value we hold a tuple of the channel to communicate the result
     /// to and also a timestamp of when the request was sent.
     tx_pending_batch: HashMap<Digest, (oneshot::Sender<BatchMessage>, u128)>,
+
+    /// A map that holds the channels we should notify with the
+    /// GetCollection responses.
+    tx_get_collection_map: HashMap<Digest, Vec<Sender<CollectionResult<GetCollectionResponse>>>>,
 }
 
 impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
@@ -153,7 +145,6 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
         committee: Committee<PublicKey>,
         certificate_store: Store<Digest, Certificate<PublicKey>>,
         rx_commands: Receiver<CollectionCommand>,
-        tx_get_collection: Sender<CollectionResult<GetCollectionResponse>>,
         batch_receiver: Receiver<BatchMessage>,
     ) {
         tokio::spawn(async move {
@@ -162,11 +153,11 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
                 committee,
                 certificate_store,
                 rx_commands,
-                tx_get_collection,
                 pending_get_collection: HashMap::new(),
                 network: SimpleSender::new(),
                 rx_batch_receiver: batch_receiver,
                 tx_pending_batch: HashMap::new(),
+                tx_get_collection_map: HashMap::new(),
             }
             .run()
             .await;
@@ -209,11 +200,16 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
         command: CollectionCommand,
     ) -> Option<BoxFuture<'a, CollectionResult<GetCollectionResponse>>> {
         match command {
-            CollectionCommand::GetCollection { id } => {
+            CollectionCommand::GetCollection { id, sender } => {
                 match self.certificate_store.read(id.clone()).await {
                     Ok(Some(certificate)) => {
                         // If similar request is already under processing, don't start a new one
                         if self.pending_get_collection.contains_key(&id.clone()) {
+                            self.tx_get_collection_map
+                                .entry(id.clone())
+                                .or_insert_with(Vec::new)
+                                .push(sender);
+
                             debug!(
                                 "Collection with id {} already has a pending request",
                                 id.clone()
@@ -234,10 +230,15 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
                         self.pending_get_collection
                             .insert(id.clone(), certificate.clone());
 
+                        self.tx_get_collection_map
+                            .entry(id.clone())
+                            .or_insert_with(Vec::new)
+                            .push(sender);
+
                         return Some(fut.boxed());
                     }
                     _ => {
-                        self.tx_get_collection
+                        sender
                             .send(
                                 CollectionResult::from(CollectionError {
                                     id: id.clone(),
@@ -258,14 +259,28 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
         &mut self,
         result: CollectionResult<GetCollectionResponse>,
     ) {
-        self.tx_get_collection
-            .send(result.clone())
-            .await
-            .expect("Couldn't send GetCollectionResult message");
+        let collection_id = result.clone().map_or_else(|e| e.id, |r| r.id);
 
-        let collection_id = result.map_or_else(|e| e.id, |r| r.id);
+        match self.tx_get_collection_map.remove(&collection_id) {
+            Some(senders) => {
+                for sender in senders {
+                    if sender.send(result.clone()).await.is_err() {
+                        error!(
+                            "Couldn't forward results for collection {} to sender",
+                            collection_id.clone()
+                        )
+                    }
+                }
+            }
+            None => {
+                error!(
+                    "We should expect to find channels to respond for {}",
+                    collection_id.clone()
+                );
+            }
+        }
 
-        // unlock the pending request & batches
+        // unlock the pending request & batches.
         match self.pending_get_collection.remove(&collection_id) {
             Some(certificate) => {
                 for (digest, _) in certificate.header.payload {

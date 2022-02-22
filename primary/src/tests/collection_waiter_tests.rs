@@ -1,20 +1,24 @@
 use crate::{
-    collection_waiter::{BatchMessage, CollectionCommand, CollectionWaiter},
-    common::{certificate, committee, committee_with_base_port, create_db_stores, keys},
-    Certificate, Header, PrimaryWorkerMessage,
+    collection_waiter::{
+        BatchMessage, CollectionCommand, CollectionErrorType, CollectionResult, CollectionWaiter,
+        GetCollectionResponse,
+    },
+    common,
+    common::{certificate, committee_with_base_port, create_db_stores, keys},
+    PrimaryWorkerMessage,
 };
 use bincode::deserialize;
-use config::WorkerId;
+use config::{Committee};
 use crypto::{
     ed25519::Ed25519PublicKey,
     traits::{KeyPair, VerifyingKey},
     Digest, Hash,
 };
-use ed25519_dalek::{Digest as _, Sha512, Signer};
+use ed25519_dalek::{Digest as _, Sha512};
 use futures::StreamExt;
 use network::SimpleSender;
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::{HashMap},
     net::SocketAddr,
 };
 use tokio::{
@@ -31,14 +35,10 @@ async fn test_successfully_retrieve_collection() {
     let (_, certificate_store, _) = create_db_stores();
 
     // AND the necessary keys
-    let mut keys = keys();
-    let _ = keys.pop().unwrap(); // Skip the header' author.
-    let kp = keys.pop().unwrap();
-    let name = kp.public().clone();
-    let committee = committee_with_base_port(13_000);
+    let (name, committee) = resolve_name_and_committee();
 
     // AND store certificate
-    let header = fixture_header_with_payload();
+    let header = common::fixture_header_with_payload(2);
     let certificate = certificate(&header);
     certificate_store
         .write(certificate.digest(), certificate.clone())
@@ -56,7 +56,6 @@ async fn test_successfully_retrieve_collection() {
         committee.clone(),
         certificate_store.clone(),
         rx_commands,
-        tx_get_collection,
         rx_batch_messages,
     );
 
@@ -86,7 +85,13 @@ async fn test_successfully_retrieve_collection() {
     );
 
     // WHEN we send a request to get a collection
-    send_get_collection(tx_commands.clone(), collection_id.clone()).await;
+    //send_get_collection(tx_commands.clone(), collection_id.clone()).await;
+    tx_commands
+        .send(CollectionCommand::GetCollection {
+            id: collection_id.clone(),
+            sender: tx_get_collection,
+        })
+        .await;
 
     // Wait for the worker server to complete before continue.
     // Then we'll be confident that the expected batch responses
@@ -125,14 +130,10 @@ async fn test_one_pending_request_for_collection_at_time() {
     let (_, certificate_store, _) = create_db_stores();
 
     // AND the necessary keys
-    let mut keys = keys();
-    let _ = keys.pop().unwrap(); // Skip the header' author.
-    let kp = keys.pop().unwrap();
-    let name = kp.public().clone();
-    let committee = committee_with_base_port(13_000);
+    let (name, committee) = resolve_name_and_committee();
 
-    // AND store header
-    let header = fixture_header_with_payload();
+    // AND store certificate
+    let header = common::fixture_header_with_payload(2);
     let certificate = certificate(&header);
     certificate_store
         .write(certificate.digest(), certificate.clone())
@@ -142,7 +143,6 @@ async fn test_one_pending_request_for_collection_at_time() {
 
     // AND spawn a new collections waiter
     let (_, rx_commands) = channel(1);
-    let (tx_get_collection, _) = channel(1);
     let (_, rx_batch_messages) = channel(1);
 
     let mut waiter = CollectionWaiter {
@@ -150,17 +150,23 @@ async fn test_one_pending_request_for_collection_at_time() {
         committee: committee.clone(),
         certificate_store: certificate_store.clone(),
         rx_commands,
-        tx_get_collection,
         pending_get_collection: HashMap::new(),
         network: SimpleSender::new(),
         rx_batch_receiver: rx_batch_messages,
         tx_pending_batch: HashMap::new(),
+        tx_get_collection_map: HashMap::new(),
+    };
+
+    let get_mock_sender = || {
+        let (tx, _) = channel(1);
+        return tx;
     };
 
     // WHEN we send GetCollection command
     let result_some = waiter
         .handle_command(CollectionCommand::GetCollection {
             id: collection_id.clone(),
+            sender: get_mock_sender(),
         })
         .await;
 
@@ -171,6 +177,7 @@ async fn test_one_pending_request_for_collection_at_time() {
             waiter
                 .handle_command(CollectionCommand::GetCollection {
                     id: collection_id.clone(),
+                    sender: get_mock_sender(),
                 })
                 .await,
         );
@@ -190,46 +197,140 @@ async fn test_one_pending_request_for_collection_at_time() {
     }
 }
 
-async fn send_get_collection(sender: Sender<CollectionCommand>, collection_id: Digest) {
-    sender
-        .send(CollectionCommand::GetCollection { id: collection_id })
+#[tokio::test]
+async fn test_unlocking_pending_get_collection_request_after_response() {
+    // GIVEN
+    let (_, certificate_store, _) = create_db_stores();
+
+    // AND the necessary keys
+    let (name, committee) = resolve_name_and_committee();
+
+    // AND store certificate
+    let header = common::fixture_header_with_payload(2);
+    let certificate = certificate(&header);
+    certificate_store
+        .write(certificate.digest(), certificate.clone())
         .await;
-}
 
-pub fn fixture_header_with_payload() -> Header<Ed25519PublicKey> {
-    let kp = keys().pop().unwrap();
-    let mut payload: BTreeMap<Digest, WorkerId> = BTreeMap::new();
+    let collection_id = certificate.digest();
 
-    let batch_digest_1 = Digest::new(
-        Sha512::digest(vec![10u8, 5u8, 8u8, 20u8].as_slice()).as_slice()[..32]
-            .try_into()
-            .unwrap(),
-    );
-    let batch_digest_2 = Digest::new(
-        Sha512::digest(vec![14u8, 2u8, 7u8, 10u8].as_slice()).as_slice()[..32]
-            .try_into()
-            .unwrap(),
-    );
+    // AND spawn a new collections waiter
+    let (_, rx_commands) = channel(1);
+    let (_, rx_batch_messages) = channel(1);
 
-    payload.insert(batch_digest_1, 0);
-    payload.insert(batch_digest_2, 0);
-
-    let header = Header {
-        author: kp.public().clone(),
-        round: 1,
-        parents: Certificate::genesis(&committee())
-            .iter()
-            .map(|x| x.digest())
-            .collect(),
-        payload,
-        ..Header::default()
+    let mut waiter = CollectionWaiter {
+        name: name.clone(),
+        committee: committee.clone(),
+        certificate_store: certificate_store.clone(),
+        rx_commands,
+        pending_get_collection: HashMap::new(),
+        network: SimpleSender::new(),
+        rx_batch_receiver: rx_batch_messages,
+        tx_pending_batch: HashMap::new(),
+        tx_get_collection_map: HashMap::new(),
     };
 
-    Header {
-        id: header.digest(),
-        signature: kp.sign(header.digest().as_ref()),
-        ..header
+    let get_mock_sender = || {
+        let (tx, _) = channel(1);
+        return tx;
+    };
+
+    // AND we send GetCollection commands
+    for _ in 0..3 {
+        waiter
+            .handle_command(CollectionCommand::GetCollection {
+                id: collection_id.clone(),
+                sender: get_mock_sender(),
+            })
+            .await;
     }
+
+    // WHEN
+    let result = CollectionResult::Ok(GetCollectionResponse {
+        id: collection_id.clone(),
+        batches: vec![],
+    });
+
+    waiter.handle_batch_waiting_result(result).await;
+
+    // THEN
+    assert_eq!(
+        waiter.pending_get_collection.contains_key(&collection_id),
+        false
+    );
+    assert_eq!(
+        waiter.tx_get_collection_map.contains_key(&collection_id),
+        false
+    );
+}
+
+#[tokio::test]
+async fn test_batch_timeout() {
+    // GIVEN
+    let (_, certificate_store, _) = create_db_stores();
+
+    // AND the necessary keys
+    let (name, committee) = resolve_name_and_committee();
+
+    // AND store certificate
+    let header = common::fixture_header_with_payload(2);
+    let certificate = certificate(&header);
+    certificate_store
+        .write(certificate.digest(), certificate.clone())
+        .await;
+
+    let collection_id = certificate.digest();
+
+    // AND spawn a new collections waiter
+    let (tx_commands, rx_commands) = channel(1);
+    let (tx_get_collection, mut rx_get_collection) = channel(1);
+    let (_, rx_batch_messages) = channel(10);
+
+    CollectionWaiter::spawn(
+        name.clone(),
+        committee.clone(),
+        certificate_store.clone(),
+        rx_commands,
+        rx_batch_messages,
+    );
+
+    // WHEN we send a request to get a collection
+    //send_get_collection(tx_commands.clone(), collection_id.clone()).await;
+    tx_commands
+        .send(CollectionCommand::GetCollection {
+            id: collection_id.clone(),
+            sender: tx_get_collection,
+        })
+        .await;
+
+    // THEN we should expect to get back the result
+    let timer = sleep(Duration::from_millis(5_000));
+    tokio::pin!(timer);
+
+    tokio::select! {
+        Some(result) = rx_get_collection.recv() => {
+            assert!(result.is_err(), "Expected to receive an error result");
+
+            let collection_error = result.err().unwrap();
+
+            assert_eq!(collection_error.id, collection_id.clone());
+            assert_eq!(collection_error.error, CollectionErrorType::BatchTimeout);
+        },
+        () = &mut timer => {
+            panic!("Timeout, no result has been received in time")
+        }
+    }
+}
+
+// helper method to get a name and a committee
+fn resolve_name_and_committee() -> (Ed25519PublicKey, Committee<Ed25519PublicKey>) {
+    let mut keys = keys();
+    let _ = keys.pop().unwrap(); // Skip the header' author.
+    let kp = keys.pop().unwrap();
+    let name = kp.public().clone();
+    let committee = committee_with_base_port(13_000);
+
+    (name, committee)
 }
 
 // worker_listener listens to TCP requests. The worker responds to the
