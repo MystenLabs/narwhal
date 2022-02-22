@@ -2,9 +2,8 @@ use crate::{messages::Header, PrimaryWorkerMessage};
 use bytes::Bytes;
 use config::Committee;
 use crypto::{traits::VerifyingKey, Digest};
-use futures::future::BoxFuture;
 use futures::{
-    future::try_join_all,
+    future::{try_join_all, BoxFuture},
     stream::{futures_unordered::FuturesUnordered, StreamExt as _},
     FutureExt,
 };
@@ -16,13 +15,14 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use store::Store;
-use tokio::sync::oneshot;
 use tokio::{
-    sync::mpsc::{Receiver, Sender},
+    sync::{
+        mpsc::{Receiver, Sender},
+        oneshot,
+    },
     time::timeout,
 };
-use tracing::error;
-use tracing::log::debug;
+use tracing::{error, log::debug};
 use Result::*;
 
 const BATCH_RETRIEVE_TIMEOUT_MILIS: u64 = 1_000;
@@ -37,22 +37,25 @@ pub enum CollectionCommand {
     /// GetCollection dictates retrieving the collection data
     /// (vector of transactions) by a given collection digest.
     /// Results are sent to the provided Sender.
-    _GetCollection { id: Digest },
+    #[allow(dead_code)]
+    GetCollection { id: Digest },
 }
 
 #[derive(Clone, Debug)]
-pub struct GetCollectionResult {
+pub struct GetCollectionResponse {
     id: Digest,
-    _batches: Vec<BatchMessage>,
+    #[allow(dead_code)]
+    batches: Vec<BatchMessage>,
 }
 
 #[derive(Clone, Default, Debug)]
 pub struct BatchMessage {
     id: Digest,
-    _transactions: Vec<Transaction>,
+    #[allow(dead_code)]
+    transactions: Vec<Transaction>,
 }
 
-pub type CollectionResult<T> = Result<T, CollectionError>;
+type CollectionResult<T> = Result<T, CollectionError>;
 
 #[derive(Debug, Clone)]
 pub struct CollectionError {
@@ -118,7 +121,7 @@ pub struct CollectionWaiter<PublicKey: VerifyingKey> {
 
     /// A channel sender where the fetched collections
     /// are communicated to.
-    tx_get_collection: Sender<CollectionResult<GetCollectionResult>>,
+    tx_get_collection: Sender<CollectionResult<GetCollectionResponse>>,
 
     /// Whenever we have a get_collection request, we mark the
     /// processing as pending by adding it on the hashmap. Once
@@ -149,7 +152,7 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
         committee: Committee<PublicKey>,
         header_store: Store<Digest, Header<PublicKey>>,
         rx_commands: Receiver<CollectionCommand>,
-        tx_get_collection: Sender<CollectionResult<GetCollectionResult>>,
+        tx_get_collection: Sender<CollectionResult<GetCollectionResponse>>,
         batch_receiver: Receiver<BatchMessage>,
     ) {
         tokio::spawn(async move {
@@ -203,9 +206,9 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
     async fn handle_command<'a>(
         &mut self,
         command: CollectionCommand,
-    ) -> Option<BoxFuture<'a, CollectionResult<GetCollectionResult>>> {
+    ) -> Option<BoxFuture<'a, CollectionResult<GetCollectionResponse>>> {
         match command {
-            CollectionCommand::_GetCollection { id } => {
+            CollectionCommand::GetCollection { id } => {
                 match self.header_store.read(id.clone()).await {
                     Ok(Some(header)) => {
                         // If similar request is already under processing, don't start a new one
@@ -248,7 +251,7 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
         None
     }
 
-    async fn handle_batch_waiting_result(&mut self, result: CollectionResult<GetCollectionResult>) {
+    async fn handle_batch_waiting_result(&mut self, result: CollectionResult<GetCollectionResponse>) {
         self.tx_get_collection
             .send(result.clone())
             .await
@@ -342,16 +345,16 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
     async fn wait_for_all_batches(
         collection_id: Digest,
         batches_receivers: Vec<(Digest, oneshot::Receiver<BatchMessage>)>,
-    ) -> CollectionResult<GetCollectionResult> {
+    ) -> CollectionResult<GetCollectionResponse> {
         let waiting: Vec<_> = batches_receivers
             .into_iter()
             .map(|p| Self::wait_for_batch(collection_id.clone(), p.1))
             .collect();
 
         let result = try_join_all(waiting).await?;
-        Ok(GetCollectionResult {
+        Ok(GetCollectionResponse {
             id: collection_id,
-            _batches: result,
+            batches: result,
         })
     }
 
@@ -366,14 +369,14 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
 
         return match timeout(timeout_duration, batch_receiver).await {
             Ok(Ok(result)) => CollectionResult::Ok(result),
-            Ok(Err(_)) => CollectionResult::from(CollectionError {
+            Ok(Err(_)) => CollectionError {
                 id: collection_id,
                 error: CollectionErrorType::BatchError,
-            }),
-            Err(_) => CollectionResult::from(CollectionError {
+            }.into(),
+            Err(_) => CollectionError {
                 id: collection_id,
                 error: CollectionErrorType::BatchTimeout,
-            }),
+            }.into(),
         };
     }
 }

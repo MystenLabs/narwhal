@@ -11,17 +11,19 @@ use crypto::{
     Digest, Hash,
 };
 use ed25519_dalek::{Digest as _, Sha512, Signer};
-use futures::StreamExt;
+use futures::{
+    StreamExt,
+};
+use network::SimpleSender;
 use std::{
     collections::{BTreeMap, HashMap},
     net::SocketAddr,
 };
-use tokio::time::timeout;
 use tokio::{
     net::TcpListener,
     sync::mpsc::{channel, Sender},
     task::JoinHandle,
-    time::{sleep, Duration},
+    time::{sleep, timeout, Duration},
 };
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
 
@@ -62,7 +64,7 @@ async fn test_successfully_retrieve_collection() {
             batch_id.clone(),
             BatchMessage {
                 id: batch_id,
-                _transactions: vec![vec![10u8, 5u8, 2u8], vec![8u8, 2u8, 3u8]],
+                transactions: vec![vec![10u8, 5u8, 2u8], vec![8u8, 2u8, 3u8]],
             },
         );
     }
@@ -101,11 +103,11 @@ async fn test_successfully_retrieve_collection() {
 
             let collection = result.unwrap();
 
-            assert_eq!(collection._batches.len(), expected_batch_messages.len());
+            assert_eq!(collection.batches.len(), expected_batch_messages.len());
             assert_eq!(collection.id, header.id.clone());
 
-            for (digest, batch) in expected_batch_messages {
-                assert_eq!(batch._transactions.len(), 2);
+            for (_, batch) in expected_batch_messages {
+                assert_eq!(batch.transactions.len(), 2);
             }
         },
         () = &mut timer => {
@@ -115,11 +117,74 @@ async fn test_successfully_retrieve_collection() {
 }
 
 #[tokio::test]
-async fn test_one_pending_request_for_collection_at_time() {}
+async fn test_one_pending_request_for_collection_at_time() {
+    // GIVEN
+    let (header_store, _, _) = create_db_stores();
+
+    // AND the necessary keys
+    let mut keys = keys();
+    let _ = keys.pop().unwrap(); // Skip the header' author.
+    let kp = keys.pop().unwrap();
+    let name = kp.public().clone();
+    let committee = committee_with_base_port(13_000);
+
+    // AND store header
+    let header = fixture_header_with_payload();
+    header_store.write(header.clone().id, header.clone()).await;
+
+    // AND spawn a new collections waiter
+    let (_, rx_commands) = channel(1);
+    let (tx_get_collection, _) = channel(1);
+    let (_, rx_batch_messages) = channel(1);
+
+    let mut waiter = CollectionWaiter {
+        name: name.clone(),
+        committee: committee.clone(),
+        header_store: header_store.clone(),
+        rx_commands,
+        tx_get_collection,
+        pending_get_collection: HashMap::new(),
+        network: SimpleSender::new(),
+        rx_batch_receiver: rx_batch_messages,
+        tx_pending_batch: HashMap::new(),
+    };
+
+    // WHEN we send GetCollection command
+    let result_some = waiter
+        .handle_command(CollectionCommand::GetCollection {
+            id: header.clone().id,
+        })
+        .await;
+
+    // AND we send more GetCollection commands
+    let mut results_none = Vec::new();
+    for _ in 0..3 {
+        results_none.push(
+            waiter
+                .handle_command(CollectionCommand::GetCollection {
+                    id: header.clone().id,
+                })
+                .await,
+        );
+    }
+
+    // THEN
+    assert!(
+        result_some.is_some(),
+        "Expected to have a future to do some further work"
+    );
+
+    for result in results_none {
+        assert!(
+            result.is_none(),
+            "Expected to not get a future for further work"
+        );
+    }
+}
 
 async fn send_get_collection(sender: Sender<CollectionCommand>, collection_id: Digest) {
     sender
-        .send(CollectionCommand::_GetCollection { id: collection_id })
+        .send(CollectionCommand::GetCollection { id: collection_id })
         .await;
 }
 
