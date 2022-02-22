@@ -1,8 +1,7 @@
-use crate::{messages::Header, Certificate, PrimaryWorkerMessage};
+use crate::{messages::Header, PrimaryWorkerMessage};
 use bytes::Bytes;
 use config::Committee;
 use crypto::{traits::VerifyingKey, Digest};
-use ed25519_dalek::{Digest as _, PublicKey, Sha512};
 use futures::future::BoxFuture;
 use futures::{
     future::try_join_all,
@@ -10,8 +9,6 @@ use futures::{
     FutureExt,
 };
 use network::SimpleSender;
-use std::future::Future;
-use std::pin::Pin;
 use std::{
     collections::HashMap,
     fmt,
@@ -19,8 +16,9 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use store::Store;
+use tokio::sync::oneshot;
 use tokio::{
-    sync::mpsc::{channel, Receiver, Sender},
+    sync::mpsc::{Receiver, Sender},
     time::timeout,
 };
 use tracing::error;
@@ -140,7 +138,7 @@ pub struct CollectionWaiter<PublicKey: VerifyingKey> {
     /// On the key we hold the batch id (we assume it's globally unique).
     /// On the value we hold a tuple of the channel to communicate the result
     /// to and also a timestamp of when the request was sent.
-    tx_pending_batch: HashMap<Digest, (Sender<BatchMessage>, u128)>,
+    tx_pending_batch: HashMap<Digest, (oneshot::Sender<BatchMessage>, u128)>,
 }
 
 impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
@@ -200,7 +198,8 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
     }
 
     // handles received commands and returns back a future if needs to
-    // wait for further results.
+    // wait for further results. Otherwise, an empty option is returned
+    // if no further waiting on processing is needed.
     async fn handle_command<'a>(
         &mut self,
         command: CollectionCommand,
@@ -212,7 +211,7 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
                         // If similar request is already under processing, don't start a new one
                         if self.pending_get_collection.contains_key(&id.clone()) {
                             debug!(
-                                "Collection with id {} has already pending request",
+                                "Collection with id {} already has a pending request",
                                 id.clone()
                             );
                             return None;
@@ -221,15 +220,13 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
                         debug!("No pending get collection for {}", id.clone());
 
                         // Add on a vector the receivers
-                        let mut batch_receivers = self.send_batch_requests(header.clone()).await;
+                        let batch_receivers = self.send_batch_requests(header.clone()).await;
 
                         let fut = Self::wait_for_all_batches(id.clone(), batch_receivers);
 
                         // Ensure that we mark this collection retrieval
                         // as pending so no other can initiate the process
                         self.pending_get_collection.insert(id.clone(), header);
-
-                        debug!("Now waiting results for collection {}", id.clone());
 
                         return Some(fut.boxed());
                     }
@@ -263,7 +260,8 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
         match self.pending_get_collection.remove(&collection_id) {
             Some(header) => {
                 for (digest, _) in header.payload {
-                    // unlock the pending request
+                    // unlock the pending request - mostly about the
+                    // timed out requests.
                     self.tx_pending_batch.remove(&digest);
                 }
             }
@@ -282,7 +280,7 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
     async fn send_batch_requests(
         &mut self,
         header: Header<PublicKey>,
-    ) -> Vec<(Digest, Receiver<BatchMessage>)> {
+    ) -> Vec<(Digest, oneshot::Receiver<BatchMessage>)> {
         // Get the "now" time
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -314,7 +312,7 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
             // mark it as pending batch. Since we assume that batches are unique
             // per collection, a clean up on a collection request will also clean
             // up all the pending batch requests.
-            let (tx, rx) = channel(1);
+            let (tx, rx) = oneshot::channel();
             self.tx_pending_batch.insert(digest.clone(), (tx, now));
 
             // add the receiver to a vector to poll later
@@ -325,12 +323,11 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
     }
 
     async fn handle_batch_message(&mut self, message: BatchMessage) {
-        match self.tx_pending_batch.get(&message.id) {
+        match self.tx_pending_batch.remove(&message.id) {
             Some((sender, _)) => {
                 debug!("Sending batch message with id {}", &message.id);
                 sender
                     .send(message.clone())
-                    .await
                     .expect("Couldn't send BatchMessage for pending batch");
             }
             None => {
@@ -344,7 +341,7 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
     /// to be sent back to the request.
     async fn wait_for_all_batches(
         collection_id: Digest,
-        batches_receivers: Vec<(Digest, Receiver<BatchMessage>)>,
+        batches_receivers: Vec<(Digest, oneshot::Receiver<BatchMessage>)>,
     ) -> CollectionResult<GetCollectionResult> {
         let waiting: Vec<_> = batches_receivers
             .into_iter()
@@ -362,13 +359,14 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
     /// then a timeout is yielded and an error is returned.
     async fn wait_for_batch(
         collection_id: Digest,
-        mut batch_receiver: Receiver<BatchMessage>,
+        batch_receiver: oneshot::Receiver<BatchMessage>,
     ) -> CollectionResult<BatchMessage> {
         // ensure that we won't wait forever for a batch result to come
         let timeout_duration = Duration::from_millis(BATCH_RETRIEVE_TIMEOUT_MILIS);
 
-        return match timeout(timeout_duration, batch_receiver.recv()).await {
-            Ok(result) => result.ok_or(CollectionError {
+        return match timeout(timeout_duration, batch_receiver).await {
+            Ok(Ok(result)) => CollectionResult::Ok(result),
+            Ok(Err(_)) => CollectionResult::from(CollectionError {
                 id: collection_id,
                 error: CollectionErrorType::BatchError,
             }),
