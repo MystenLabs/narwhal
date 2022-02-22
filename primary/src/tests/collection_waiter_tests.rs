@@ -1,6 +1,6 @@
 use crate::{
     collection_waiter::{BatchMessage, CollectionCommand, CollectionWaiter},
-    common::{committee, committee_with_base_port, create_db_stores, keys},
+    common::{certificate, committee, committee_with_base_port, create_db_stores, keys},
     Certificate, Header, PrimaryWorkerMessage,
 };
 use bincode::deserialize;
@@ -11,9 +11,7 @@ use crypto::{
     Digest, Hash,
 };
 use ed25519_dalek::{Digest as _, Sha512, Signer};
-use futures::{
-    StreamExt,
-};
+use futures::StreamExt;
 use network::SimpleSender;
 use std::{
     collections::{BTreeMap, HashMap},
@@ -30,7 +28,7 @@ use tokio_util::codec::{Framed, LengthDelimitedCodec};
 #[tokio::test]
 async fn test_successfully_retrieve_collection() {
     // GIVEN
-    let (header_store, _, _) = create_db_stores();
+    let (_, certificate_store, _) = create_db_stores();
 
     // AND the necessary keys
     let mut keys = keys();
@@ -39,9 +37,14 @@ async fn test_successfully_retrieve_collection() {
     let name = kp.public().clone();
     let committee = committee_with_base_port(13_000);
 
-    // AND store header
+    // AND store certificate
     let header = fixture_header_with_payload();
-    header_store.write(header.clone().id, header.clone()).await;
+    let certificate = certificate(&header);
+    certificate_store
+        .write(certificate.digest(), certificate.clone())
+        .await;
+
+    let collection_id = certificate.digest();
 
     // AND spawn a new collections waiter
     let (tx_commands, rx_commands) = channel(1);
@@ -51,7 +54,7 @@ async fn test_successfully_retrieve_collection() {
     CollectionWaiter::spawn(
         name.clone(),
         committee.clone(),
-        header_store.clone(),
+        certificate_store.clone(),
         rx_commands,
         tx_get_collection,
         rx_batch_messages,
@@ -83,7 +86,7 @@ async fn test_successfully_retrieve_collection() {
     );
 
     // WHEN we send a request to get a collection
-    send_get_collection(tx_commands.clone(), header.id.clone()).await;
+    send_get_collection(tx_commands.clone(), collection_id.clone()).await;
 
     // Wait for the worker server to complete before continue.
     // Then we'll be confident that the expected batch responses
@@ -104,7 +107,7 @@ async fn test_successfully_retrieve_collection() {
             let collection = result.unwrap();
 
             assert_eq!(collection.batches.len(), expected_batch_messages.len());
-            assert_eq!(collection.id, header.id.clone());
+            assert_eq!(collection.id, collection_id.clone());
 
             for (_, batch) in expected_batch_messages {
                 assert_eq!(batch.transactions.len(), 2);
@@ -119,7 +122,7 @@ async fn test_successfully_retrieve_collection() {
 #[tokio::test]
 async fn test_one_pending_request_for_collection_at_time() {
     // GIVEN
-    let (header_store, _, _) = create_db_stores();
+    let (_, certificate_store, _) = create_db_stores();
 
     // AND the necessary keys
     let mut keys = keys();
@@ -130,7 +133,12 @@ async fn test_one_pending_request_for_collection_at_time() {
 
     // AND store header
     let header = fixture_header_with_payload();
-    header_store.write(header.clone().id, header.clone()).await;
+    let certificate = certificate(&header);
+    certificate_store
+        .write(certificate.digest(), certificate.clone())
+        .await;
+
+    let collection_id = certificate.digest();
 
     // AND spawn a new collections waiter
     let (_, rx_commands) = channel(1);
@@ -140,7 +148,7 @@ async fn test_one_pending_request_for_collection_at_time() {
     let mut waiter = CollectionWaiter {
         name: name.clone(),
         committee: committee.clone(),
-        header_store: header_store.clone(),
+        certificate_store: certificate_store.clone(),
         rx_commands,
         tx_get_collection,
         pending_get_collection: HashMap::new(),
@@ -152,7 +160,7 @@ async fn test_one_pending_request_for_collection_at_time() {
     // WHEN we send GetCollection command
     let result_some = waiter
         .handle_command(CollectionCommand::GetCollection {
-            id: header.clone().id,
+            id: collection_id.clone(),
         })
         .await;
 
@@ -162,7 +170,7 @@ async fn test_one_pending_request_for_collection_at_time() {
         results_none.push(
             waiter
                 .handle_command(CollectionCommand::GetCollection {
-                    id: header.clone().id,
+                    id: collection_id.clone(),
                 })
                 .await,
         );

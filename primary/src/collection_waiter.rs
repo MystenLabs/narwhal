@@ -1,4 +1,4 @@
-use crate::{messages::Header, PrimaryWorkerMessage};
+use crate::{messages::Header, Certificate, PrimaryWorkerMessage};
 use bytes::Bytes;
 use config::Committee;
 use crypto::{traits::VerifyingKey, Digest};
@@ -36,7 +36,8 @@ pub mod collection_waiter_tests;
 pub enum CollectionCommand {
     /// GetCollection dictates retrieving the collection data
     /// (vector of transactions) by a given collection digest.
-    /// Results are sent to the provided Sender.
+    /// Results are sent to the provided Sender. The id is
+    /// basically the Certificate digest id.
     #[allow(dead_code)]
     GetCollection { id: Digest },
 }
@@ -113,8 +114,8 @@ pub struct CollectionWaiter<PublicKey: VerifyingKey> {
     /// The committee information.
     committee: Committee<PublicKey>,
 
-    /// Storage that keeps the headers by their digest id.
-    header_store: Store<Digest, Header<PublicKey>>,
+    /// Storage that keeps the Certificates by their digest id.
+    certificate_store: Store<Digest, Certificate<PublicKey>>,
 
     /// Receive all the requests to get a collection
     rx_commands: Receiver<CollectionCommand>,
@@ -127,8 +128,8 @@ pub struct CollectionWaiter<PublicKey: VerifyingKey> {
     /// processing as pending by adding it on the hashmap. Once
     /// we have a result back - or timeout - we expect to remove
     /// the digest from the map. The key is the collection id, and
-    /// the value is the corresponding header.
-    pending_get_collection: HashMap<Digest, Header<PublicKey>>,
+    /// the value is the corresponding certificate.
+    pending_get_collection: HashMap<Digest, Certificate<PublicKey>>,
 
     /// Network driver allowing to send messages.
     network: SimpleSender,
@@ -150,7 +151,7 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
     pub fn spawn(
         name: PublicKey,
         committee: Committee<PublicKey>,
-        header_store: Store<Digest, Header<PublicKey>>,
+        certificate_store: Store<Digest, Certificate<PublicKey>>,
         rx_commands: Receiver<CollectionCommand>,
         tx_get_collection: Sender<CollectionResult<GetCollectionResponse>>,
         batch_receiver: Receiver<BatchMessage>,
@@ -159,7 +160,7 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
             Self {
                 name,
                 committee,
-                header_store,
+                certificate_store,
                 rx_commands,
                 tx_get_collection,
                 pending_get_collection: HashMap::new(),
@@ -209,8 +210,8 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
     ) -> Option<BoxFuture<'a, CollectionResult<GetCollectionResponse>>> {
         match command {
             CollectionCommand::GetCollection { id } => {
-                match self.header_store.read(id.clone()).await {
-                    Ok(Some(header)) => {
+                match self.certificate_store.read(id.clone()).await {
+                    Ok(Some(certificate)) => {
                         // If similar request is already under processing, don't start a new one
                         if self.pending_get_collection.contains_key(&id.clone()) {
                             debug!(
@@ -223,13 +224,15 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
                         debug!("No pending get collection for {}", id.clone());
 
                         // Add on a vector the receivers
-                        let batch_receivers = self.send_batch_requests(header.clone()).await;
+                        let batch_receivers =
+                            self.send_batch_requests(certificate.header.clone()).await;
 
                         let fut = Self::wait_for_all_batches(id.clone(), batch_receivers);
 
                         // Ensure that we mark this collection retrieval
                         // as pending so no other can initiate the process
-                        self.pending_get_collection.insert(id.clone(), header);
+                        self.pending_get_collection
+                            .insert(id.clone(), certificate.clone());
 
                         return Some(fut.boxed());
                     }
@@ -251,7 +254,10 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
         None
     }
 
-    async fn handle_batch_waiting_result(&mut self, result: CollectionResult<GetCollectionResponse>) {
+    async fn handle_batch_waiting_result(
+        &mut self,
+        result: CollectionResult<GetCollectionResponse>,
+    ) {
         self.tx_get_collection
             .send(result.clone())
             .await
@@ -261,8 +267,8 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
 
         // unlock the pending request & batches
         match self.pending_get_collection.remove(&collection_id) {
-            Some(header) => {
-                for (digest, _) in header.payload {
+            Some(certificate) => {
+                for (digest, _) in certificate.header.payload {
                     // unlock the pending request - mostly about the
                     // timed out requests.
                     self.tx_pending_batch.remove(&digest);
@@ -372,11 +378,13 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
             Ok(Err(_)) => CollectionError {
                 id: collection_id,
                 error: CollectionErrorType::BatchError,
-            }.into(),
+            }
+            .into(),
             Err(_) => CollectionError {
                 id: collection_id,
                 error: CollectionErrorType::BatchTimeout,
-            }.into(),
+            }
+            .into(),
         };
     }
 }

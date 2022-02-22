@@ -192,7 +192,7 @@ impl Primary {
         CollectionWaiter::spawn(
             name.clone(),
             committee.clone(),
-            header_store.clone(),
+            certificate_store.clone(),
             rx_collection_commands,
             tx_collection_get_result,
             rx_batches,
