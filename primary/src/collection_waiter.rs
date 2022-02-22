@@ -1,12 +1,17 @@
-use crate::{messages::Header, PrimaryWorkerMessage};
+use crate::{messages::Header, Certificate, PrimaryWorkerMessage};
 use bytes::Bytes;
 use config::Committee;
 use crypto::{traits::VerifyingKey, Digest};
+use ed25519_dalek::{Digest as _, PublicKey, Sha512};
+use futures::future::BoxFuture;
 use futures::{
     future::try_join_all,
     stream::{futures_unordered::FuturesUnordered, StreamExt as _},
+    FutureExt,
 };
 use network::SimpleSender;
+use std::future::Future;
+use std::pin::Pin;
 use std::{
     collections::HashMap,
     fmt,
@@ -19,6 +24,7 @@ use tokio::{
     time::timeout,
 };
 use tracing::error;
+use tracing::log::debug;
 use Result::*;
 
 const BATCH_RETRIEVE_TIMEOUT_MILIS: u64 = 1_000;
@@ -171,76 +177,9 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
         loop {
             tokio::select! {
                 Some(command) = self.rx_commands.recv() => {
-                    match command {
-                        CollectionCommand::_GetCollection { id } => {
-                            println!("Got new GetCollection command for collection {}", id.clone());
-
-                            match self.header_store.read(id.clone()).await {
-                                Ok(Some(header)) => {
-                                    // If similar request is already under processing, don't start a new one
-                                    if self.pending_get_collection.contains_key(&id.clone()) {
-                                        println!("Collection with id {} has already pending request", id.clone());
-                                        continue;
-                                    }
-
-                                    println!("No pending get collection for {}", id.clone());
-
-                                    // Get the "now" time
-                                    let now = SystemTime::now()
-                                        .duration_since(UNIX_EPOCH)
-                                        .expect("Failed to measure time")
-                                        .as_millis();
-
-                                    // Add on a vector the receivers
-                                    let mut batch_receivers = Vec::new();
-
-                                    // otherwise we send requests to all workers to send us their batches
-                                    for (digest, worker_id) in &header.payload {
-                                        println!("Sending batch {} request to worker id {}", digest.clone(), worker_id);
-
-                                        let worker_address = self.committee
-                                            .worker(&self.name, worker_id)
-                                            .expect("Worker id not found")
-                                            .primary_to_worker;
-
-                                        let message = PrimaryWorkerMessage::<PublicKey>::RequestBatch(digest.clone());
-                                        let bytes = bincode::serialize(&message)
-                                                    .expect("Failed to serialize batch request");
-
-                                        self.network.send(worker_address, Bytes::from(bytes)).await;
-
-                                        // mark it as pending batch. Since we assume that batches are unique
-                                        // per collection, a clean up on a collection request will also clean
-                                        // up all the pending batch requests.
-                                        let (tx, rx) = channel(1);
-                                        self.tx_pending_batch.insert(digest.clone(), (tx, now));
-
-                                        // add the receiver to a vector to poll later
-                                        batch_receivers.push((digest.clone(), rx));
-                                    }
-
-                                    let fut = Self::wait_for_all_batches(id.clone(), batch_receivers);
-                                    waiting.push(fut);
-
-                                    // Ensure that we mark this collection retrieval
-                                    // as pending so no other can initiate the process
-                                    self.pending_get_collection.insert(id.clone(), header);
-
-                                    println!("Now waiting results for collection {}", id.clone());
-                                },
-                                _ => {
-                                    self.tx_get_collection
-                                    .send(
-                                        CollectionResult::from(CollectionError {
-                                                id: id.clone(),
-                                                error: CollectionErrorType::CollectionNotFound,
-                                        })
-                                    )
-                                    .await
-                                    .expect("Couldn't send CollectionNotFound error for a GetCollection request");
-                                }
-                            }
-                        },
+                    match self.handle_command(command).await {
+                        Some(fut) => waiting.push(fut),
+                        None => debug!("no processing for command, will not wait for any results")
                     }
                 },
                 // When we receive a BatchMessage (from a worker), this is
@@ -254,42 +193,148 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
                 // By iterating the waiting vector it allow us to proceed
                 // whenever waiting has been finished for a request.
                 Some(result) = waiting.next() => {
-                    self.tx_get_collection.send(result.clone())
-                            .await
-                            .expect("Couldn't send GetCollectionResult message");
-
-                    let collection_id = result.map_or_else(|e|e.id, |r|r.id);
-
-                    // unlock the pending request & batches
-                    match self.pending_get_collection.remove(&collection_id) {
-                        Some(header) => {
-                            for (digest, _) in header.payload {
-                                // unlock the pending request
-                                self.tx_pending_batch.remove(&digest);
-                            }
-                        },
-                        None => {
-                            error!("Expected to find header with id {} for pending processing", &collection_id);
-                        }
-                    }
+                    self.handle_batch_waiting_result(result).await;
                 },
             }
         }
     }
 
-    async fn handle_batch_message(&mut self, message: BatchMessage) {
-        println!("Received batch with id {}", &message.id);
+    // handles received commands and returns back a future if needs to
+    // wait for further results.
+    async fn handle_command<'a>(
+        &mut self,
+        command: CollectionCommand,
+    ) -> Option<BoxFuture<'a, CollectionResult<GetCollectionResult>>> {
+        match command {
+            CollectionCommand::_GetCollection { id } => {
+                match self.header_store.read(id.clone()).await {
+                    Ok(Some(header)) => {
+                        // If similar request is already under processing, don't start a new one
+                        if self.pending_get_collection.contains_key(&id.clone()) {
+                            debug!(
+                                "Collection with id {} has already pending request",
+                                id.clone()
+                            );
+                            return None;
+                        }
 
+                        debug!("No pending get collection for {}", id.clone());
+
+                        // Add on a vector the receivers
+                        let mut batch_receivers = self.send_batch_requests(header.clone()).await;
+
+                        let fut = Self::wait_for_all_batches(id.clone(), batch_receivers);
+
+                        // Ensure that we mark this collection retrieval
+                        // as pending so no other can initiate the process
+                        self.pending_get_collection.insert(id.clone(), header);
+
+                        debug!("Now waiting results for collection {}", id.clone());
+
+                        return Some(fut.boxed());
+                    }
+                    _ => {
+                        self.tx_get_collection
+                            .send(
+                                CollectionResult::from(CollectionError {
+                                    id: id.clone(),
+                                    error: CollectionErrorType::CollectionNotFound,
+                                })
+                            )
+                            .await
+                            .expect("Couldn't send CollectionNotFound error for a GetCollection request");
+                    }
+                }
+            }
+        }
+
+        None
+    }
+
+    async fn handle_batch_waiting_result(&mut self, result: CollectionResult<GetCollectionResult>) {
+        self.tx_get_collection
+            .send(result.clone())
+            .await
+            .expect("Couldn't send GetCollectionResult message");
+
+        let collection_id = result.map_or_else(|e| e.id, |r| r.id);
+
+        // unlock the pending request & batches
+        match self.pending_get_collection.remove(&collection_id) {
+            Some(header) => {
+                for (digest, _) in header.payload {
+                    // unlock the pending request
+                    self.tx_pending_batch.remove(&digest);
+                }
+            }
+            None => {
+                error!(
+                    "Expected to find header with id {} for pending processing",
+                    &collection_id
+                );
+            }
+        }
+    }
+
+    // Sends requests to fetch the batches from the corresponding workers.
+    // It returns a vector of tuples of the batch digest and a Receiver
+    // channel of the fetched batch.
+    async fn send_batch_requests(
+        &mut self,
+        header: Header<PublicKey>,
+    ) -> Vec<(Digest, Receiver<BatchMessage>)> {
+        // Get the "now" time
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("Failed to measure time")
+            .as_millis();
+
+        // Add on a vector the receivers
+        let mut batch_receivers = Vec::new();
+
+        // otherwise we send requests to all workers to send us their batches
+        for (digest, worker_id) in header.payload {
+            debug!(
+                "Sending batch {} request to worker id {}",
+                digest.clone(),
+                worker_id
+            );
+
+            let worker_address = self
+                .committee
+                .worker(&self.name, &worker_id)
+                .expect("Worker id not found")
+                .primary_to_worker;
+
+            let message = PrimaryWorkerMessage::<PublicKey>::RequestBatch(digest.clone());
+            let bytes = bincode::serialize(&message).expect("Failed to serialize batch request");
+
+            self.network.send(worker_address, Bytes::from(bytes)).await;
+
+            // mark it as pending batch. Since we assume that batches are unique
+            // per collection, a clean up on a collection request will also clean
+            // up all the pending batch requests.
+            let (tx, rx) = channel(1);
+            self.tx_pending_batch.insert(digest.clone(), (tx, now));
+
+            // add the receiver to a vector to poll later
+            batch_receivers.push((digest.clone(), rx));
+        }
+
+        batch_receivers
+    }
+
+    async fn handle_batch_message(&mut self, message: BatchMessage) {
         match self.tx_pending_batch.get(&message.id) {
             Some((sender, _)) => {
-                println!("Sending batch message with id {}", &message.id);
+                debug!("Sending batch message with id {}", &message.id);
                 sender
                     .send(message.clone())
                     .await
                     .expect("Couldn't send BatchMessage for pending batch");
             }
             None => {
-                println!("Couldn't find pending batch with id {}", message.id);
+                debug!("Couldn't find pending batch with id {}", message.id);
             }
         }
     }

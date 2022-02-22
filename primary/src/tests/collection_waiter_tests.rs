@@ -16,6 +16,7 @@ use std::{
     collections::{BTreeMap, HashMap},
     net::SocketAddr,
 };
+use tokio::time::timeout;
 use tokio::{
     net::TcpListener,
     sync::mpsc::{channel, Sender},
@@ -81,12 +82,14 @@ async fn test_successfully_retrieve_collection() {
 
     // WHEN we send a request to get a collection
     send_get_collection(tx_commands.clone(), header.id.clone()).await;
-    //send_get_collection(tx_commands.clone(), header.id.clone()).await;
 
     // Wait for the worker server to complete before continue.
     // Then we'll be confident that the expected batch responses
     // have been sent (via the tx_batch_messages channel though)
-    handle.await;
+    match timeout(Duration::from_millis(4_000), handle).await {
+        Err(_) => panic!("worker hasn't received expected batch requests"),
+        _ => {}
+    }
 
     // THEN we should expect to get back the result
     let timer = sleep(Duration::from_millis(5_000));
@@ -98,7 +101,7 @@ async fn test_successfully_retrieve_collection() {
 
             let collection = result.unwrap();
 
-            assert_eq!(collection.batches.len(), expected_batch_messages.len());
+            assert_eq!(collection._batches.len(), expected_batch_messages.len());
             assert_eq!(collection.id, header.id.clone());
 
             for (digest, batch) in expected_batch_messages {

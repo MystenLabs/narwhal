@@ -1,5 +1,6 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
 // SPDX-License-Identifier: Apache-2.0
+use crate::collection_waiter::CollectionWaiter;
 use crate::{
     certificate_waiter::CertificateWaiter,
     core::Core,
@@ -30,7 +31,6 @@ use std::{
 use store::Store;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tracing::info;
-use crate::collection_waiter::CollectionWaiter;
 
 /// The default channel capacity for each channel of the primary.
 pub const CHANNEL_CAPACITY: usize = 1_000;
