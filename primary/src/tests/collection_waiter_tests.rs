@@ -1,3 +1,5 @@
+// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
 use crate::{
     collection_waiter::{
         BatchMessage, CollectionCommand, CollectionErrorType, CollectionResult, CollectionWaiter,
