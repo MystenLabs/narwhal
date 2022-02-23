@@ -1,8 +1,8 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
 // SPDX-License-Identifier: Apache-2.0
 use crate::{
+    block_waiter::{BatchMessage, BlockWaiter, Transaction},
     certificate_waiter::CertificateWaiter,
-    collection_waiter::CollectionWaiter,
     core::Core,
     error::DagError,
     garbage_collector::GarbageCollector,
@@ -66,7 +66,7 @@ pub enum WorkerPrimaryMessage {
     /// The worker indicates it received a batch's digest from another authority.
     OthersBatch(Digest, WorkerId),
     /// The worker sends a requested batch
-    RequestedBatch(Digest, WorkerId),
+    RequestedBatch(Digest, Vec<Transaction>),
 }
 
 // A type alias marking the "payload" tokens sent by workers to their primary as batch acknowledgements
@@ -98,8 +98,8 @@ impl Primary {
         let (tx_certificates_loopback, rx_certificates_loopback) = channel(CHANNEL_CAPACITY);
         let (tx_primary_messages, rx_primary_messages) = channel(CHANNEL_CAPACITY);
         let (tx_cert_requests, rx_cert_requests) = channel(CHANNEL_CAPACITY);
-        let (_tx_collection_commands, rx_collection_commands) = channel(CHANNEL_CAPACITY);
-        let (_tx_batches, rx_batches) = channel(CHANNEL_CAPACITY);
+        let (_tx_batch_commands, rx_batch_commands) = channel(CHANNEL_CAPACITY);
+        let (tx_batches, rx_batches) = channel(CHANNEL_CAPACITY);
 
         // Write the parameters to the logs.
         parameters.tracing();
@@ -140,6 +140,7 @@ impl Primary {
             WorkerReceiverHandler {
                 tx_our_digests,
                 tx_others_digests,
+                tx_batches,
             },
         );
         info!(
@@ -188,11 +189,13 @@ impl Primary {
             /* rx_workers */ rx_others_digests,
         );
 
-        CollectionWaiter::spawn(
+        // Retrieves a block's data by contacting the worker nodes that contain the
+        // underlying batches and their transactions.
+        BlockWaiter::spawn(
             name.clone(),
             committee.clone(),
             certificate_store.clone(),
-            rx_collection_commands,
+            rx_batch_commands,
             rx_batches,
         );
 
@@ -286,6 +289,7 @@ impl<PublicKey: VerifyingKey> MessageHandler for PrimaryReceiverHandler<PublicKe
 struct WorkerReceiverHandler {
     tx_our_digests: Sender<(Digest, WorkerId)>,
     tx_others_digests: Sender<(Digest, WorkerId)>,
+    tx_batches: Sender<BatchMessage>,
 }
 
 #[async_trait]
@@ -307,10 +311,14 @@ impl MessageHandler for WorkerReceiverHandler {
                 .send((digest, worker_id))
                 .await
                 .expect("Failed to send workers' digests"),
-            WorkerPrimaryMessage::RequestedBatch(_, _) => {
-                // TODO: forward message to the collection waiter
-                println!("Do something");
-            }
+            WorkerPrimaryMessage::RequestedBatch(digest, transactions) => self
+                .tx_batches
+                .send(BatchMessage {
+                    id: digest,
+                    transactions,
+                })
+                .await
+                .expect("Failed to send batches"),
         }
         Ok(())
     }

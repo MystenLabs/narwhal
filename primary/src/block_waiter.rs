@@ -32,24 +32,24 @@ const BATCH_RETRIEVE_TIMEOUT_MILIS: u64 = 1_000;
 pub type Transaction = Vec<u8>;
 
 #[cfg(test)]
-#[path = "tests/collection_waiter_tests.rs"]
-pub mod collection_waiter_tests;
+#[path = "tests/block_waiter_tests.rs"]
+pub mod block_waiter_tests;
 
-pub enum CollectionCommand {
-    /// GetCollection dictates retrieving the collection data
-    /// (vector of transactions) by a given collection digest.
+pub enum BlockCommand {
+    /// GetBlock dictates retrieving the block data
+    /// (vector of transactions) by a given block digest.
     /// Results are sent to the provided Sender. The id is
     /// basically the Certificate digest id.
     #[allow(dead_code)]
-    GetCollection {
+    GetBlock {
         id: Digest,
         // The channel to send the results to.
-        sender: Sender<CollectionResult<GetCollectionResponse>>,
+        sender: Sender<BlockResult<GetBlockResponse>>,
     },
 }
 
 #[derive(Clone, Debug)]
-pub struct GetCollectionResponse {
+pub struct GetBlockResponse {
     id: Digest,
     #[allow(dead_code)]
     batches: Vec<BatchMessage>,
@@ -57,51 +57,125 @@ pub struct GetCollectionResponse {
 
 #[derive(Clone, Default, Debug)]
 pub struct BatchMessage {
-    id: Digest,
-    #[allow(dead_code)]
-    transactions: Vec<Transaction>,
+    pub id: Digest,
+    pub transactions: Vec<Transaction>,
 }
 
-type CollectionResult<T> = Result<T, CollectionError>;
+type BlockResult<T> = Result<T, BlockError>;
 
 #[derive(Debug, Clone)]
-pub struct CollectionError {
+pub struct BlockError {
     id: Digest,
-    error: CollectionErrorType,
+    error: BlockErrorType,
 }
 
-impl<T> From<CollectionError> for CollectionResult<T> {
-    fn from(error: CollectionError) -> Self {
-        CollectionResult::Err(error)
+impl<T> From<BlockError> for BlockResult<T> {
+    fn from(error: BlockError) -> Self {
+        BlockResult::Err(error)
     }
 }
 
-impl fmt::Display for CollectionError {
+impl fmt::Display for BlockError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "collection id: {}, error type: {}", self.id, self.error)
+        write!(f, "block id: {}, error type: {}", self.id, self.error)
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum CollectionErrorType {
-    CollectionNotFound,
+pub enum BlockErrorType {
+    BlockNotFound,
     BatchTimeout,
     BatchError,
 }
 
-impl fmt::Display for CollectionErrorType {
+impl fmt::Display for BlockErrorType {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", self)
     }
 }
 
-/// CollectionWaiter is responsible for fetching the collection data from the
-/// downstream worker nodes. The term collection is equal to what is called
-/// "block" (or header) on the rest of the codebase. However, for the external API the
-/// term used is collection.
+/// BlockWaiter is responsible for fetching the block data from the
+/// downstream worker nodes. A block is basically the aggregate
+/// of batches of transactions for a given certificate.
 ///
+/// # Example
 ///
-pub struct CollectionWaiter<PublicKey: VerifyingKey> {
+/// Basic setup of the BlockWaiter
+///
+/// This example shows the basic setup of the BlockWaiter module. It showcases
+/// the necessary components that have to be used (e.x channels, datastore etc)
+/// and how a request (command) should be issued to get a block and receive
+/// the result of it.
+///
+/// ```rust
+/// # use store::{reopen, rocks, rocks::DBMap, Store};
+/// # use tokio::sync::mpsc::{channel};
+/// # use crypto::Hash;
+/// # use std::env::temp_dir;
+/// # use crypto::Digest;
+/// # use crypto::ed25519::Ed25519PublicKey;
+/// # use config::Committee;
+/// # use std::collections::BTreeMap;
+/// # use primary::Certificate;
+/// # use primary::{BatchMessage, BlockWaiter, BlockCommand};
+///
+/// #[tokio::main(flavor = "current_thread")]
+/// # async fn main() {
+///     const CERTIFICATES_CF: &str = "certificates";
+///
+///     // Basic setup: datastore, channels & BlockWaiter
+///     let rocksdb = rocks::open_cf(temp_dir(), None, &[CERTIFICATES_CF])
+///         .expect("Failed creating database");
+///
+///     let (certificate_map) = reopen!(&rocksdb,
+///             CERTIFICATES_CF;<Digest, Certificate<Ed25519PublicKey>>);
+///     let certificate_store = Store::new(certificate_map);
+///
+///     let (tx_commands, rx_commands) = channel(1);
+///     let (tx_batches, rx_batches) = channel(1);
+///     let (tx_get_block, mut rx_get_block) = channel(1);
+///
+///     let name = Ed25519PublicKey::default();
+///     let committee = Committee{ authorities: BTreeMap::new() };
+///
+///     BlockWaiter::spawn(
+///         name,
+///         committee,
+///         certificate_store.clone(),
+///         rx_commands,
+///         rx_batches,
+///     );
+///
+///     // A dummy certificate
+///     let certificate = Certificate::<Ed25519PublicKey>::default();
+///
+///     // Send a command to receive a block
+///     tx_commands
+///         .send(BlockCommand::GetBlock {
+///             id: certificate.digest(),
+///             sender: tx_get_block,
+///         })
+///         .await;
+///
+///     // Dummy - we expect to receive the requested batches via another component
+///     // and get fed via the tx_batches channel.
+///     tx_batches.send(BatchMessage{ id: Digest::default(), transactions: vec![] }).await;
+///
+///     // Wait to receive the block output to the provided sender channel
+///     match rx_get_block.recv().await {
+///         Some(Ok(result)) => {
+///             println!("Successfully received a block response");
+///         }
+///         Some(Err(err)) => {
+///             println!("Received an error {}", err);
+///         }
+///         _ => {
+///             println!("Nothing received");
+///         }
+///     }
+/// # }
+/// ```
+pub struct BlockWaiter<PublicKey: VerifyingKey> {
     /// The public key of this primary.
     name: PublicKey,
 
@@ -111,15 +185,15 @@ pub struct CollectionWaiter<PublicKey: VerifyingKey> {
     /// Storage that keeps the Certificates by their digest id.
     certificate_store: Store<Digest, Certificate<PublicKey>>,
 
-    /// Receive all the requests to get a collection
-    rx_commands: Receiver<CollectionCommand>,
+    /// Receive all the requests to get a block
+    rx_commands: Receiver<BlockCommand>,
 
-    /// Whenever we have a get_collection request, we mark the
+    /// Whenever we have a get_block request, we mark the
     /// processing as pending by adding it on the hashmap. Once
     /// we have a result back - or timeout - we expect to remove
-    /// the digest from the map. The key is the collection id, and
+    /// the digest from the map. The key is the block id, and
     /// the value is the corresponding certificate.
-    pending_get_collection: HashMap<Digest, Certificate<PublicKey>>,
+    pending_get_block: HashMap<Digest, Certificate<PublicKey>>,
 
     /// Network driver allowing to send messages.
     network: SimpleSender,
@@ -135,18 +209,18 @@ pub struct CollectionWaiter<PublicKey: VerifyingKey> {
     tx_pending_batch: HashMap<Digest, (oneshot::Sender<BatchMessage>, u128)>,
 
     /// A map that holds the channels we should notify with the
-    /// GetCollection responses.
-    tx_get_collection_map: HashMap<Digest, Vec<Sender<CollectionResult<GetCollectionResponse>>>>,
+    /// GetBlock responses.
+    tx_get_block_map: HashMap<Digest, Vec<Sender<BlockResult<GetBlockResponse>>>>,
 }
 
-impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
+impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
     // Create a new waiter and start listening on incoming
-    // commands to fetch a collection
+    // commands to fetch a block
     pub fn spawn(
         name: PublicKey,
         committee: Committee<PublicKey>,
         certificate_store: Store<Digest, Certificate<PublicKey>>,
-        rx_commands: Receiver<CollectionCommand>,
+        rx_commands: Receiver<BlockCommand>,
         batch_receiver: Receiver<BatchMessage>,
     ) {
         tokio::spawn(async move {
@@ -155,11 +229,11 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
                 committee,
                 certificate_store,
                 rx_commands,
-                pending_get_collection: HashMap::new(),
+                pending_get_block: HashMap::new(),
                 network: SimpleSender::new(),
                 rx_batch_receiver: batch_receiver,
                 tx_pending_batch: HashMap::new(),
-                tx_get_collection_map: HashMap::new(),
+                tx_get_block_map: HashMap::new(),
             }
             .run()
             .await;
@@ -183,7 +257,7 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
                 Some(batch_message) = self.rx_batch_receiver.recv() => {
                     self.handle_batch_message(batch_message).await;
                 },
-                // When we send a request to fetch a collection's batches
+                // When we send a request to fetch a block's batches
                 // we wait on the results to come back before we proceed.
                 // By iterating the waiting vector it allow us to proceed
                 // whenever waiting has been finished for a request.
@@ -199,27 +273,24 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
     // if no further waiting on processing is needed.
     async fn handle_command<'a>(
         &mut self,
-        command: CollectionCommand,
-    ) -> Option<BoxFuture<'a, CollectionResult<GetCollectionResponse>>> {
+        command: BlockCommand,
+    ) -> Option<BoxFuture<'a, BlockResult<GetBlockResponse>>> {
         match command {
-            CollectionCommand::GetCollection { id, sender } => {
+            BlockCommand::GetBlock { id, sender } => {
                 match self.certificate_store.read(id.clone()).await {
                     Ok(Some(certificate)) => {
                         // If similar request is already under processing, don't start a new one
-                        if self.pending_get_collection.contains_key(&id.clone()) {
-                            self.tx_get_collection_map
+                        if self.pending_get_block.contains_key(&id.clone()) {
+                            self.tx_get_block_map
                                 .entry(id.clone())
                                 .or_insert_with(Vec::new)
                                 .push(sender);
 
-                            debug!(
-                                "Collection with id {} already has a pending request",
-                                id.clone()
-                            );
+                            debug!("Block with id {} already has a pending request", id.clone());
                             return None;
                         }
 
-                        debug!("No pending get collection for {}", id.clone());
+                        debug!("No pending get block for {}", id.clone());
 
                         // Add on a vector the receivers
                         let batch_receivers =
@@ -227,12 +298,12 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
 
                         let fut = Self::wait_for_all_batches(id.clone(), batch_receivers);
 
-                        // Ensure that we mark this collection retrieval
+                        // Ensure that we mark this block retrieval
                         // as pending so no other can initiate the process
-                        self.pending_get_collection
+                        self.pending_get_block
                             .insert(id.clone(), certificate.clone());
 
-                        self.tx_get_collection_map
+                        self.tx_get_block_map
                             .entry(id.clone())
                             .or_insert_with(Vec::new)
                             .push(sender);
@@ -241,14 +312,12 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
                     }
                     _ => {
                         sender
-                            .send(
-                                CollectionResult::from(CollectionError {
-                                    id: id.clone(),
-                                    error: CollectionErrorType::CollectionNotFound,
-                                })
-                            )
+                            .send(BlockResult::from(BlockError {
+                                id: id.clone(),
+                                error: BlockErrorType::BlockNotFound,
+                            }))
                             .await
-                            .expect("Couldn't send CollectionNotFound error for a GetCollection request");
+                            .expect("Couldn't send BlockNotFound error for a GetBlock request");
                     }
                 }
             }
@@ -257,19 +326,16 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
         None
     }
 
-    async fn handle_batch_waiting_result(
-        &mut self,
-        result: CollectionResult<GetCollectionResponse>,
-    ) {
-        let collection_id = result.clone().map_or_else(|e| e.id, |r| r.id);
+    async fn handle_batch_waiting_result(&mut self, result: BlockResult<GetBlockResponse>) {
+        let block_id = result.clone().map_or_else(|e| e.id, |r| r.id);
 
-        match self.tx_get_collection_map.remove(&collection_id) {
+        match self.tx_get_block_map.remove(&block_id) {
             Some(senders) => {
                 for sender in senders {
                     if sender.send(result.clone()).await.is_err() {
                         error!(
-                            "Couldn't forward results for collection {} to sender",
-                            collection_id.clone()
+                            "Couldn't forward results for block {} to sender",
+                            block_id.clone()
                         )
                     }
                 }
@@ -277,13 +343,13 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
             None => {
                 error!(
                     "We should expect to find channels to respond for {}",
-                    collection_id.clone()
+                    block_id.clone()
                 );
             }
         }
 
         // unlock the pending request & batches.
-        match self.pending_get_collection.remove(&collection_id) {
+        match self.pending_get_block.remove(&block_id) {
             Some(certificate) => {
                 for (digest, _) in certificate.header.payload {
                     // unlock the pending request - mostly about the
@@ -294,7 +360,7 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
             None => {
                 error!(
                     "Expected to find header with id {} for pending processing",
-                    &collection_id
+                    &block_id
                 );
             }
         }
@@ -336,7 +402,7 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
             self.network.send(worker_address, Bytes::from(bytes)).await;
 
             // mark it as pending batch. Since we assume that batches are unique
-            // per collection, a clean up on a collection request will also clean
+            // per block, a clean up on a block request will also clean
             // up all the pending batch requests.
             let (tx, rx) = oneshot::channel();
             self.tx_pending_batch.insert(digest.clone(), (tx, now));
@@ -363,20 +429,20 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
     }
 
     /// A helper method to "wait" for all the batch responses to be received.
-    /// It gets the fetched batches and creates a GetCollectionResult ready
+    /// It gets the fetched batches and creates a GetBlockResponse ready
     /// to be sent back to the request.
     async fn wait_for_all_batches(
-        collection_id: Digest,
+        block_id: Digest,
         batches_receivers: Vec<(Digest, oneshot::Receiver<BatchMessage>)>,
-    ) -> CollectionResult<GetCollectionResponse> {
+    ) -> BlockResult<GetBlockResponse> {
         let waiting: Vec<_> = batches_receivers
             .into_iter()
-            .map(|p| Self::wait_for_batch(collection_id.clone(), p.1))
+            .map(|p| Self::wait_for_batch(block_id.clone(), p.1))
             .collect();
 
         let result = try_join_all(waiting).await?;
-        Ok(GetCollectionResponse {
-            id: collection_id,
+        Ok(GetBlockResponse {
+            id: block_id,
             batches: result,
         })
     }
@@ -384,22 +450,22 @@ impl<PublicKey: VerifyingKey> CollectionWaiter<PublicKey> {
     /// Waits for a batch to be received. If batch is not received in time,
     /// then a timeout is yielded and an error is returned.
     async fn wait_for_batch(
-        collection_id: Digest,
+        block_id: Digest,
         batch_receiver: oneshot::Receiver<BatchMessage>,
-    ) -> CollectionResult<BatchMessage> {
+    ) -> BlockResult<BatchMessage> {
         // ensure that we won't wait forever for a batch result to come
         let timeout_duration = Duration::from_millis(BATCH_RETRIEVE_TIMEOUT_MILIS);
 
         return match timeout(timeout_duration, batch_receiver).await {
-            Ok(Ok(result)) => CollectionResult::Ok(result),
-            Ok(Err(_)) => CollectionError {
-                id: collection_id,
-                error: CollectionErrorType::BatchError,
+            Ok(Ok(result)) => BlockResult::Ok(result),
+            Ok(Err(_)) => BlockError {
+                id: block_id,
+                error: BlockErrorType::BatchError,
             }
             .into(),
-            Err(_) => CollectionError {
-                id: collection_id,
-                error: CollectionErrorType::BatchTimeout,
+            Err(_) => BlockError {
+                id: block_id,
+                error: BlockErrorType::BatchTimeout,
             }
             .into(),
         };
