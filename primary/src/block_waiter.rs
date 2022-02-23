@@ -360,7 +360,7 @@ impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
             None => {
                 // TODO: handle panic here
                 error!(
-                    "Expected to find certificae with id {} for pending processing",
+                    "Expected to find certificate with id {} for pending processing",
                     &block_id
                 );
             }
