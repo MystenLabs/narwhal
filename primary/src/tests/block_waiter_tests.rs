@@ -6,7 +6,7 @@ use crate::{
     },
     common,
     common::{certificate, committee_with_base_port, create_db_stores, keys},
-    PrimaryWorkerMessage,
+    Certificate, PrimaryWorkerMessage,
 };
 use bincode::deserialize;
 use config::Committee;
@@ -305,6 +305,56 @@ async fn test_batch_timeout() {
 
             assert_eq!(block_error.id, block_id.clone());
             assert_eq!(block_error.error, BlockErrorType::BatchTimeout);
+        },
+        () = &mut timer => {
+            panic!("Timeout, no result has been received in time")
+        }
+    }
+}
+
+#[tokio::test]
+async fn test_return_error_when_certificate_is_missing() {
+    // GIVEN
+    let (_, certificate_store, _) = create_db_stores();
+    let (name, committee) = resolve_name_and_committee();
+
+    // AND create a certificate but don't store it
+    let certificate = Certificate::<Ed25519PublicKey>::default();
+    let block_id = certificate.digest();
+
+    // AND spawn a new blocks waiter
+    let (tx_commands, rx_commands) = channel(1);
+    let (tx_get_block, mut rx_get_block) = channel(1);
+    let (_, rx_batch_messages) = channel(10);
+
+    BlockWaiter::spawn(
+        name.clone(),
+        committee.clone(),
+        certificate_store.clone(),
+        rx_commands,
+        rx_batch_messages,
+    );
+
+    // WHEN we send a request to get a block
+    tx_commands
+        .send(BlockCommand::GetBlock {
+            id: block_id.clone(),
+            sender: tx_get_block,
+        })
+        .await;
+
+    // THEN we should expect to get back the error
+    let timer = sleep(Duration::from_millis(5_000));
+    tokio::pin!(timer);
+
+    tokio::select! {
+        Some(result) = rx_get_block.recv() => {
+            assert!(result.is_err(), "Expected to receive an error result");
+
+            let block_error = result.err().unwrap();
+
+            assert_eq!(block_error.id, block_id.clone());
+            assert_eq!(block_error.error, BlockErrorType::BlockNotFound);
         },
         () = &mut timer => {
             panic!("Timeout, no result has been received in time")
