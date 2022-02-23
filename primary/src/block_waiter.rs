@@ -27,7 +27,7 @@ use tokio::{
 use tracing::{error, log::debug};
 use Result::*;
 
-const BATCH_RETRIEVE_TIMEOUT_MILIS: u64 = 1_000;
+const BATCH_RETRIEVE_TIMEOUT: Duration = Duration::from_secs(1);
 
 pub type Transaction = Vec<u8>;
 
@@ -312,7 +312,7 @@ impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
                     }
                     _ => {
                         sender
-                            .send(BlockResult::from(BlockError {
+                            .send(Err(BlockError {
                                 id: id.clone(),
                                 error: BlockErrorType::BlockNotFound,
                             }))
@@ -358,8 +358,9 @@ impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
                 }
             }
             None => {
+                // TODO: handle panic here
                 error!(
-                    "Expected to find header with id {} for pending processing",
+                    "Expected to find certificae with id {} for pending processing",
                     &block_id
                 );
             }
@@ -379,7 +380,7 @@ impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
             .expect("Failed to measure time")
             .as_millis();
 
-        // Add on a vector the receivers
+        // Add the receivers to a vector
         let mut batch_receivers = Vec::new();
 
         // otherwise we send requests to all workers to send us their batches
@@ -454,9 +455,7 @@ impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
         batch_receiver: oneshot::Receiver<BatchMessage>,
     ) -> BlockResult<BatchMessage> {
         // ensure that we won't wait forever for a batch result to come
-        let timeout_duration = Duration::from_millis(BATCH_RETRIEVE_TIMEOUT_MILIS);
-
-        return match timeout(timeout_duration, batch_receiver).await {
+        return match timeout(BATCH_RETRIEVE_TIMEOUT, batch_receiver).await {
             Ok(Ok(result)) => BlockResult::Ok(result),
             Ok(Err(_)) => BlockError {
                 id: block_id,
