@@ -81,7 +81,7 @@ impl<PublicKey: VerifyingKey> Worker<PublicKey> {
 
         // Spawn all worker tasks.
         let (tx_primary, rx_primary) = channel(CHANNEL_CAPACITY);
-        worker.handle_primary_messages();
+        worker.handle_primary_messages(tx_primary.clone());
         worker.handle_clients_transactions(tx_primary.clone());
         worker.handle_workers_messages(tx_primary);
 
@@ -109,7 +109,7 @@ impl<PublicKey: VerifyingKey> Worker<PublicKey> {
     }
 
     /// Spawn all tasks responsible to handle messages from our primary.
-    fn handle_primary_messages(&self) {
+    fn handle_primary_messages(&self, tx_primary: Sender<SerializedBatchDigestMessage>) {
         let (tx_synchronizer, rx_synchronizer) = channel(CHANNEL_CAPACITY);
 
         // Receive incoming messages from our primary.
@@ -136,6 +136,7 @@ impl<PublicKey: VerifyingKey> Worker<PublicKey> {
             self.parameters.sync_retry_delay,
             self.parameters.sync_retry_nodes,
             /* rx_message */ rx_synchronizer,
+            tx_primary,
         );
 
         info!(
