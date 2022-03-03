@@ -37,7 +37,7 @@ pub const CHANNEL_CAPACITY: usize = 1_000;
 pub type Round = u64;
 
 /// Indicates a serialized `WorkerPrimaryMessage` message.
-pub type SerializedBatchDigestMessage = Vec<u8>;
+pub type SerializedWorkerPrimaryMessage = Vec<u8>;
 
 /// The message exchanged between workers.
 #[derive(Debug, Serialize, Deserialize)]
@@ -109,7 +109,7 @@ impl<PublicKey: VerifyingKey> Worker<PublicKey> {
     }
 
     /// Spawn all tasks responsible to handle messages from our primary.
-    fn handle_primary_messages(&self, tx_primary: Sender<SerializedBatchDigestMessage>) {
+    fn handle_primary_messages(&self, tx_primary: Sender<SerializedWorkerPrimaryMessage>) {
         let (tx_synchronizer, rx_synchronizer) = channel(CHANNEL_CAPACITY);
 
         // Receive incoming messages from our primary.
@@ -146,7 +146,7 @@ impl<PublicKey: VerifyingKey> Worker<PublicKey> {
     }
 
     /// Spawn all tasks responsible to handle clients transactions.
-    fn handle_clients_transactions(&self, tx_primary: Sender<SerializedBatchDigestMessage>) {
+    fn handle_clients_transactions(&self, tx_primary: Sender<SerializedWorkerPrimaryMessage>) {
         let (tx_batch_maker, rx_batch_maker) = channel(CHANNEL_CAPACITY);
         let (tx_quorum_waiter, rx_quorum_waiter) = channel(CHANNEL_CAPACITY);
         let (tx_processor, rx_processor) = channel(CHANNEL_CAPACITY);
@@ -205,7 +205,7 @@ impl<PublicKey: VerifyingKey> Worker<PublicKey> {
     }
 
     /// Spawn all tasks responsible to handle messages from other workers.
-    fn handle_workers_messages(&self, tx_primary: Sender<SerializedBatchDigestMessage>) {
+    fn handle_workers_messages(&self, tx_primary: Sender<SerializedWorkerPrimaryMessage>) {
         let (tx_helper, rx_helper) = channel(CHANNEL_CAPACITY);
         let (tx_processor, rx_processor) = channel(CHANNEL_CAPACITY);
 

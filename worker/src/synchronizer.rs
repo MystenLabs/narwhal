@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use crate::{
     processor::SerializedBatchMessage,
-    worker::{Round, SerializedBatchDigestMessage, WorkerMessage},
+    worker::{Round, SerializedWorkerPrimaryMessage, WorkerMessage},
 };
 use bytes::Bytes;
 use config::{Committee, WorkerId};
@@ -57,7 +57,7 @@ pub struct Synchronizer<PublicKey: VerifyingKey> {
     /// It also keeps the round number and a time stamp (`u128`) of each request we sent.
     pending: HashMap<Digest, (Round, Sender<()>, u128)>,
     // Output channel to send out the batch requests.
-    tx_primary: Sender<SerializedBatchDigestMessage>,
+    tx_primary: Sender<SerializedWorkerPrimaryMessage>,
 }
 
 impl<PublicKey: VerifyingKey> Synchronizer<PublicKey> {
@@ -70,7 +70,7 @@ impl<PublicKey: VerifyingKey> Synchronizer<PublicKey> {
         sync_retry_delay: u64,
         sync_retry_nodes: usize,
         rx_message: Receiver<PrimaryWorkerMessage<PublicKey>>,
-        tx_primary: Sender<SerializedBatchDigestMessage>,
+        tx_primary: Sender<SerializedWorkerPrimaryMessage>,
     ) {
         tokio::spawn(async move {
             Self {
