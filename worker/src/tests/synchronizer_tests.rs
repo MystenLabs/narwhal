@@ -4,10 +4,9 @@
 use super::*;
 use crate::common::{
     batch, batch_digest, committee_with_base_port, keys, listener, open_batch_store,
-    resolve_batch_digest, serialise_batch, temp_dir,
+    resolve_batch_digest, serialise_batch,
 };
 use crypto::ed25519::Ed25519PublicKey;
-use store::rocks;
 use tokio::{sync::mpsc::channel, time::timeout};
 
 #[tokio::test]
@@ -21,10 +20,7 @@ async fn synchronize() {
     let committee = committee_with_base_port(9_000);
 
     // Create a new test store.
-    let db =
-        rocks::DBMap::<Digest, SerializedBatchMessage>::open(temp_dir(), None, Some("batches"))
-            .unwrap();
-    let store = Store::new(db);
+    let store = open_batch_store();
 
     // Spawn a `Synchronizer` instance.
     Synchronizer::spawn(

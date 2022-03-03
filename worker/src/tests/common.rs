@@ -110,7 +110,7 @@ pub fn batch() -> Batch {
 
 // Fixture
 pub fn serialized_batch() -> Vec<u8> {
-    return serialise_batch(batch());
+    serialise_batch(batch())
 }
 
 pub fn serialise_batch(batch: Batch) -> Vec<u8> {
@@ -120,7 +120,7 @@ pub fn serialise_batch(batch: Batch) -> Vec<u8> {
 
 // Fixture
 pub fn batch_digest() -> Digest {
-    return resolve_batch_digest(serialized_batch());
+    resolve_batch_digest(serialized_batch())
 }
 
 // Fixture
@@ -155,5 +155,5 @@ pub fn open_batch_store() -> Store<Digest, SerializedBatchMessage> {
     let db =
         rocks::DBMap::<Digest, SerializedBatchMessage>::open(temp_dir(), None, Some(BATCHES_CF))
             .unwrap();
-    return Store::new(db);
+    Store::new(db)
 }
