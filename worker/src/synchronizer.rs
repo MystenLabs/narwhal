@@ -247,8 +247,6 @@ impl<PublicKey: VerifyingKey> Synchronizer<PublicKey> {
                         panic!("Wrong type has been stored!");
                     }
                 };
-
-                // send batch response to primary
                 WorkerPrimaryMessage::RequestedBatch(digest.clone(), batch.to_vec())
             }
             _ => WorkerPrimaryMessage::Error(WorkerPrimaryError::RequestedBatchNotFound(
@@ -257,7 +255,6 @@ impl<PublicKey: VerifyingKey> Synchronizer<PublicKey> {
         };
 
         let serialised = bincode::serialize(&message).expect("Failed to serialise message");
-
         self.tx_primary
             .send(serialised)
             .await
