@@ -99,7 +99,7 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
         tx_proposer: Sender<(Vec<Digest>, Round)>,
     ) {
         tokio::spawn(async move {
-            Core::new_core(
+            Self {
                 name,
                 committee,
                 header_store,
@@ -108,61 +108,25 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
                 signature_service,
                 consensus_round,
                 gc_depth,
-                max_header_round_offset,
                 rx_primaries,
                 rx_header_waiter,
                 rx_certificate_waiter,
                 rx_proposer,
                 tx_consensus,
                 tx_proposer,
-            )
+                gc_round: 0,
+                max_header_round_offset,
+                last_voted: HashMap::with_capacity(2 * gc_depth as usize),
+                processing: HashMap::with_capacity(2 * gc_depth as usize),
+                current_header: Header::default(),
+                votes_aggregator: VotesAggregator::new(),
+                certificates_aggregators: HashMap::with_capacity(2 * gc_depth as usize),
+                network: ReliableSender::new(),
+                cancel_handlers: HashMap::with_capacity(2 * gc_depth as usize),
+            }
             .run()
             .await;
         });
-    }
-
-    fn new_core(
-        name: PublicKey,
-        committee: Committee<PublicKey>,
-        header_store: Store<Digest, Header<PublicKey>>,
-        certificate_store: Store<Digest, Certificate<PublicKey>>,
-        synchronizer: Synchronizer<PublicKey>,
-        signature_service: SignatureService<PublicKey::Sig>,
-        consensus_round: Arc<AtomicU64>,
-        gc_depth: Round,
-        max_header_round_offset: Round,
-        rx_primaries: Receiver<PrimaryMessage<PublicKey>>,
-        rx_header_waiter: Receiver<Header<PublicKey>>,
-        rx_certificate_waiter: Receiver<Certificate<PublicKey>>,
-        rx_proposer: Receiver<Header<PublicKey>>,
-        tx_consensus: Sender<Certificate<PublicKey>>,
-        tx_proposer: Sender<(Vec<Digest>, Round)>,
-    ) -> Self {
-        Self {
-            name,
-            committee,
-            header_store,
-            certificate_store,
-            synchronizer,
-            signature_service,
-            consensus_round,
-            gc_depth,
-            rx_primaries,
-            rx_header_waiter,
-            rx_certificate_waiter,
-            rx_proposer,
-            tx_consensus,
-            tx_proposer,
-            gc_round: 0,
-            max_header_round_offset,
-            last_voted: HashMap::with_capacity(2 * gc_depth as usize),
-            processing: HashMap::with_capacity(2 * gc_depth as usize),
-            current_header: Header::default(),
-            votes_aggregator: VotesAggregator::new(),
-            certificates_aggregators: HashMap::with_capacity(2 * gc_depth as usize),
-            network: ReliableSender::new(),
-            cancel_handlers: HashMap::with_capacity(2 * gc_depth as usize),
-        }
     }
 
     async fn process_own_header(&mut self, header: Header<PublicKey>) -> DagResult<()> {
