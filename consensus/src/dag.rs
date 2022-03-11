@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use crypto::traits::VerifyingKey;
 use primary::Certificate;
-use tokio::sync::mpsc::Receiver;
+use tokio::{sync::mpsc::Receiver, task::JoinHandle};
 use tracing::debug;
 
 // Dag represents the pure dag that is constructed
@@ -15,8 +15,8 @@ pub struct Dag<PublicKey: VerifyingKey> {
 }
 
 impl<PublicKey: VerifyingKey> Dag<PublicKey> {
-    pub fn spawn(rx_primary: Receiver<Certificate<PublicKey>>) {
-        tokio::spawn(async move { Self { rx_primary }.run().await });
+    pub fn spawn(rx_primary: Receiver<Certificate<PublicKey>>) -> JoinHandle<()> {
+        tokio::spawn(async move { Self { rx_primary }.run().await })
     }
 
     async fn run(&mut self) {
