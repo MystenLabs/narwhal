@@ -91,6 +91,85 @@ async fn process_header() {
 }
 
 #[tokio::test]
+async fn process_header_returns_max_round_exceeds_error() {
+    let mut keys = keys();
+    let _ = keys.pop().unwrap(); // Skip the header' author.
+    let kp = keys.pop().unwrap();
+    let name = kp.public().clone();
+    let signature_service = SignatureService::new(kp);
+
+    let committee = committee_with_base_port(13_000);
+
+    let (tx_sync_headers, _rx_sync_headers) = channel(1);
+    let (tx_sync_certificates, _rx_sync_certificates) = channel(1);
+    let (_, rx_primary_messages) = channel(1);
+    let (_tx_headers_loopback, rx_headers_loopback) = channel(1);
+    let (_tx_certificates_loopback, rx_certificates_loopback) = channel(1);
+    let (_tx_headers, rx_headers) = channel(1);
+    let (tx_consensus, _rx_consensus) = channel(1);
+    let (tx_parents, _rx_parents) = channel(1);
+
+    // Create test stores.
+    let (header_store, certificates_store, payload_store) = create_db_stores();
+
+    // Make a synchronizer for the core.
+    let synchronizer = Synchronizer::new(
+        name.clone(),
+        &committee,
+        certificates_store.clone(),
+        payload_store,
+        /* tx_header_waiter */ tx_sync_headers,
+        /* tx_certificate_waiter */ tx_sync_certificates,
+    );
+
+    let gc_depth = 50;
+
+    // Setting the max offset
+    let max_header_round_offset: u64 = 0;
+
+    // Create a Core struct
+    let mut core = Core {
+        name,
+        committee,
+        header_store,
+        certificate_store: certificates_store,
+        synchronizer,
+        signature_service,
+        consensus_round: Arc::new(AtomicU64::new(0)),
+        gc_depth: 50,
+        max_header_round_offset,
+        rx_primaries: rx_primary_messages,
+        rx_header_waiter: rx_headers_loopback,
+        rx_certificate_waiter: rx_certificates_loopback,
+        rx_proposer: rx_headers,
+        tx_consensus,
+        tx_proposer: tx_parents,
+        gc_round: 0,
+        last_voted: HashMap::with_capacity(2 * gc_depth as usize),
+        processing: HashMap::with_capacity(2 * gc_depth as usize),
+        current_header: Header::default(),
+        votes_aggregator: VotesAggregator::new(),
+        certificates_aggregators: HashMap::with_capacity(2 * gc_depth as usize),
+        network: ReliableSender::new(),
+        cancel_handlers: HashMap::with_capacity(2 * gc_depth as usize),
+    };
+
+    // WHEN
+    let result = core.sanitize_header(&header());
+
+    // THEN
+    assert!(result.is_err());
+    match result.err().unwrap() {
+        DagError::MessageRoundExceedsMaximumOffset(digest, header_round, max_offset) => {
+            assert_eq!(digest, header().digest());
+            assert_eq!(header_round, header().round);
+            assert_eq!(max_offset, max_header_round_offset);
+        }
+        _ => panic!("Error not matched the expected one"),
+    }
+}
+
+#[tokio::test]
 async fn process_header_missing_parent() {
     let kp = keys().pop().unwrap();
     let name = kp.public().clone();
