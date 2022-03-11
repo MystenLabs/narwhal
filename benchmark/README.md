@@ -33,7 +33,8 @@ node_params = {
     'sync_retry_delay': 10_000,
     'sync_retry_nodes': 3,
     'batch_size': 500_000,
-    'max_batch_delay': 100
+    'max_batch_delay': 100,
+    'max_header_round_offset': 50
 }
 ```
 They are defined as follows:
@@ -44,6 +45,7 @@ They are defined as follows:
 * `sync_retry_nodes`: Determine with how many nodes to sync when re-trying to send sync-request. These nodes are picked at random from the committee.
 * `batch_size`: The preferred batch size. The workers seal a batch of transactions when it reaches this size. Denominated in bytes.
 * `max_batch_delay`: The delay after which the workers seal a batch of transactions, even if `max_batch_size` is not reached. Denominated in ms.
+* `max_header_round_offset`: The maximum acceptable difference between the local round value and a received header's, assuming that the header round value is higher.
 
 ### Run the benchmark
 Once you specified both `bench_params` and `node_params` as desired, run:

@@ -182,6 +182,7 @@ impl Primary {
             signature_service.clone(),
             consensus_round.clone(),
             parameters.gc_depth,
+            parameters.max_header_round_offset,
             /* rx_primaries */ rx_primary_messages,
             /* rx_header_waiter */ rx_headers_loopback,
             /* rx_certificate_waiter */ rx_certificates_loopback,

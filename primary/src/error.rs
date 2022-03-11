@@ -58,4 +58,7 @@ pub enum DagError {
 
     #[error("Message {0} (round {1}) too old")]
     TooOld(Digest, Round),
+
+    #[error("Message {0} round offset exceeds maximum {1}")]
+    MessageRoundExceedsMaximumOffset(Digest, Round),
 }

@@ -75,6 +75,9 @@ pub struct Core<PublicKey: VerifyingKey> {
     network: ReliableSender,
     /// Keeps the cancel handlers of the messages we sent.
     cancel_handlers: HashMap<Round, Vec<CancelHandler>>,
+    /// The maximum different between the current round and the received header
+    /// round (when header.round >= consensus_round)
+    max_header_round_offset: Round,
 }
 
 impl<PublicKey: VerifyingKey> Core<PublicKey> {
@@ -87,6 +90,7 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
         signature_service: SignatureService<PublicKey::Sig>,
         consensus_round: Arc<AtomicU64>,
         gc_depth: Round,
+        max_header_round_offset: Round,
         rx_primaries: Receiver<PrimaryMessage<PublicKey>>,
         rx_header_waiter: Receiver<Header<PublicKey>>,
         rx_certificate_waiter: Receiver<Certificate<PublicKey>>,
@@ -111,6 +115,7 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
                 tx_consensus,
                 tx_proposer,
                 gc_round: 0,
+                max_header_round_offset,
                 last_voted: HashMap::with_capacity(2 * gc_depth as usize),
                 processing: HashMap::with_capacity(2 * gc_depth as usize),
                 current_header: Header::default(),
@@ -332,10 +337,17 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
             DagError::TooOld(header.id.clone(), header.round)
         );
 
+        ensure!(
+            header.round
+                <= self.consensus_round.load(Ordering::Relaxed) + self.max_header_round_offset,
+            DagError::MessageRoundExceedsMaximumOffset(
+                header.id.clone(),
+                self.max_header_round_offset
+            )
+        );
+
         // Verify the header's signature.
         header.verify(&self.committee)?;
-
-        // TODO [issue #3]: Prevent bad nodes from sending junk headers with high round numbers.
 
         Ok(())
     }
