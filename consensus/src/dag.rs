@@ -5,9 +5,9 @@ use primary::Certificate;
 use tokio::{sync::mpsc::Receiver, task::JoinHandle};
 use tracing::debug;
 
-// Dag represents the pure dag that is constructed
-// by the certificate of each round without any
-// consensus running on top of it.
+/// Dag represents the pure dag that is constructed
+/// by the certificate of each round without any
+/// consensus running on top of it.
 pub struct Dag<PublicKey: VerifyingKey> {
     /// Receives new certificates from the primary. The primary should send us new certificates only
     /// if it already sent us its whole history.
