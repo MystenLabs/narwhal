@@ -265,10 +265,10 @@ impl<PublicKey: VerifyingKey> Synchronizer<PublicKey> {
     }
 
     async fn handle_delete_batches(&mut self, digests: Vec<Digest>) {
-        let message = match self.delete_batches(digests.as_slice()).await {
+        let message = match self.store.remove_all(digests.clone()).await {
             Ok(_) => WorkerPrimaryMessage::DeletedBatches(digests),
-            Err(_) => {
-                error!("Error received when tried to delete batches");
+            Err(err) => {
+                error!("{}", err);
                 WorkerPrimaryMessage::Error(WorkerPrimaryError::ErrorWhileDeletingBatches(
                     digests.clone(),
                 ))
@@ -280,15 +280,5 @@ impl<PublicKey: VerifyingKey> Synchronizer<PublicKey> {
             .send(serialised)
             .await
             .expect("Failed to send message to primary channel");
-    }
-
-    async fn delete_batches(&mut self, digests: &[Digest]) -> Result<(), StoreError> {
-        // TODO: this will be replaced by an atomic operation to delete the batches
-        // once available in Store. The atomic operation will be possible to return an error
-        // as well.
-        for d in digests {
-            self.store.remove(d.clone()).await;
-        }
-        Ok(())
     }
 }
