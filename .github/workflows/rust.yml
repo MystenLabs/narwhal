@@ -37,8 +37,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        toolchain: [stable, nightly]
+        toolchain: [stable]
         os: [ubuntu]
+        experimental: [false]
+        include:
+          - toolchain: nightly
+            os: ubuntu
+            experimental: true
     steps:
       - uses: actions/checkout@v2
       - name: Install rust
@@ -49,6 +54,7 @@ jobs:
           override: true
       - uses: Swatinem/rust-cache@v1
       - name: Test
+        continue-on-error: ${{matrix.experimental}}
         uses: actions-rs/cargo@v1
         with:
           command: test
