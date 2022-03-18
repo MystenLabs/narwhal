@@ -22,6 +22,7 @@ mod payload_receiver;
 mod primary;
 mod proposer;
 mod synchronizer;
+mod block_remover;
 
 #[cfg(test)]
 #[path = "tests/common.rs"]
