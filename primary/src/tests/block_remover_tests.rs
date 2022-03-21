@@ -1,15 +1,19 @@
+use crate::{
+    block_remover::BlockRemover,
+    common,
+    common::{certificate, committee_with_base_port, create_db_stores, keys},
+};
 use config::Committee;
-use crypto::ed25519::Ed25519PublicKey;
-use crypto::traits::KeyPair;
+use crypto::{ed25519::Ed25519PublicKey, traits::KeyPair};
 use network::SimpleSender;
-use crate::block_remover::BlockRemover;
-use crate::common;
-use crate::common::{certificate, committee_with_base_port, create_db_stores, keys};
+use tokio::sync::mpsc::channel;
 
 #[tokio::test]
 async fn test_setup() {
     // GIVEN
-    let (header_store, certificate_store, _) = create_db_stores();
+    let (header_store, certificate_store, payload_store) = create_db_stores();
+    let (_tx_commands, rx_commands) = channel(10);
+    let (_tx_delete_batches, rx_delete_batches) = channel(10);
 
     // AND the necessary keys
     let (name, committee) = resolve_name_and_committee();
@@ -18,15 +22,16 @@ async fn test_setup() {
     let header = common::fixture_header_with_payload(2);
     let certificate = certificate(&header);
 
-    let mut block_remover = BlockRemover::new(
+    BlockRemover::spawn(
         name,
         committee,
         certificate_store,
         header_store,
+        payload_store,
         SimpleSender::new(),
+        rx_commands,
+        rx_delete_batches,
     );
-
-    block_remover.run().await;
 }
 
 // helper method to get a name and a committee
