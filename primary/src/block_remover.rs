@@ -69,7 +69,7 @@ pub type DeleteBatchResult = Result<DeleteBatchMessage, DeleteBatchMessage>;
 
 #[derive(Clone, Default, Debug)]
 pub struct DeleteBatchMessage {
-    ids: Vec<BatchDigest>,
+    pub ids: Vec<BatchDigest>,
 }
 
 /// BlockRemover is responsible for removing blocks identified by
@@ -77,6 +77,97 @@ pub struct DeleteBatchMessage {
 /// It will make sure that the DAG is updated, internal storage where
 /// there certificates and headers are stored, and the corresponding
 /// batches as well.
+///
+/// # Example
+///
+/// Basic setup of the BlockRemover
+///
+/// This example shows the basic setup of the BlockRemover module. It showcases
+/// the necessary components that have to be used (e.x channels, datastore etc)
+/// and how a request (command) should be issued to delete a list of blocks and receive
+/// the result of it.
+///
+/// ```rust
+/// # use store::{reopen, rocks, rocks::DBMap, Store};
+/// # use network::SimpleSender;
+/// # use tokio::sync::mpsc::{channel};
+/// # use crypto::Hash;
+/// # use std::env::temp_dir;
+/// # use crypto::Digest;
+/// # use crypto::ed25519::Ed25519PublicKey;
+/// # use config::Committee;
+/// # use std::collections::BTreeMap;
+/// # use primary::Certificate;
+/// # use primary::{BatchMessage, BlockWaiter, BlockCommand};
+/// # use config::WorkerId;
+/// # use primary::{BlockRemover, BlockRemoverCommand, DeleteBatchMessage, Header, PayloadToken};
+/// # use primary::{BatchDigest, CertificateDigest, HeaderDigest};
+///
+/// #[tokio::main(flavor = "current_thread")]
+/// # async fn main() {
+/// const CERTIFICATES_CF: &str = "certificates";
+///     const HEADERS_CF: &str = "headers";
+///     const PAYLOAD_CF: &str = "payload";
+///
+///     // Basic setup: datastore, channels & BlockWaiter
+///     let rocksdb = rocks::open_cf(temp_dir(), None, &[CERTIFICATES_CF, HEADERS_CF, PAYLOAD_CF])
+///         .expect("Failed creating database");
+///
+///     let (certificate_map, headers_map, payload_map) = reopen!(&rocksdb,
+///             CERTIFICATES_CF;<CertificateDigest, Certificate<Ed25519PublicKey>>,
+///             HEADERS_CF;<HeaderDigest, Header<Ed25519PublicKey>>,
+///             PAYLOAD_CF;<(BatchDigest, WorkerId), PayloadToken>);
+///     let certificate_store = Store::new(certificate_map);
+///     let headers_store = Store::new(headers_map);
+///     let payload_store = Store::new(payload_map);
+///
+///     let (tx_commands, rx_commands) = channel(1);
+///     let (tx_delete_batches, rx_delete_batches) = channel(1);
+///     let (tx_delete_block_result, mut rx_delete_block_result) = channel(1);
+///
+///     let name = Ed25519PublicKey::default();
+///     let committee = Committee{ authorities: BTreeMap::new() };
+///
+///     BlockRemover::spawn(
+///         name,
+///         committee,
+///         certificate_store.clone(),
+///         headers_store.clone(),
+///         payload_store.clone(),
+///         SimpleSender::new(),
+///         rx_commands,
+///         rx_delete_batches,
+///     );
+///
+///     // A dummy certificate
+///     let certificate = Certificate::<Ed25519PublicKey>::default();
+///
+///     // Send a command to receive a block
+///     tx_commands
+///         .send(BlockRemoverCommand::RemoveBlocks {
+///             ids: vec![certificate.clone().digest()],
+///             sender: tx_delete_block_result,
+///         })
+///         .await;
+///
+///     // Dummy - we expect to receive the deleted batches responses via another component
+///     // and get fed via the tx_delete_batches channel.
+///     tx_delete_batches.send(Ok(DeleteBatchMessage{ ids: vec![BatchDigest::default()] })).await;
+///
+///     // Wait to receive the blocks delete output to the provided sender channel
+///     match rx_delete_block_result.recv().await {
+///         Some(Ok(result)) => {
+///             println!("Successfully received a delete blocks response");
+///         }
+///         Some(Err(err)) => {
+///             println!("Received an error {:?}", err);
+///         }
+///         _ => {
+///             println!("Nothing received");
+///         }
+///     }
+/// # }
+/// ```
 pub struct BlockRemover<PublicKey: VerifyingKey> {
     /// The public key of this primary.
     name: PublicKey,

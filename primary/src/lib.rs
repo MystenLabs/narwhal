@@ -29,6 +29,7 @@ mod synchronizer;
 mod common;
 
 pub use crate::{
+    block_remover::{BlockRemover, BlockRemoverCommand, DeleteBatchMessage},
     block_waiter::{BatchMessage, BlockCommand, BlockWaiter},
     messages::{
         Batch, BatchDigest, Certificate, CertificateDigest, Header, HeaderDigest, Transaction,
