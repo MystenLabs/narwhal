@@ -1,7 +1,8 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
 use crate::{
-    block_remover::BlockErrorType::Failed, Certificate, Header, PayloadToken, PrimaryWorkerMessage,
+    block_remover::BlockErrorType::Failed, BatchDigest, Certificate, CertificateDigest, Header,
+    HeaderDigest, PayloadToken, PrimaryWorkerMessage,
 };
 use bytes::Bytes;
 use config::{Committee, WorkerId};
@@ -15,11 +16,16 @@ use network::SimpleSender;
 use std::{collections::HashMap, time::Duration};
 use store::{rocks::TypedStoreError, Store};
 use tokio::{
-    sync::{mpsc::Receiver, oneshot},
+    sync::{
+        mpsc::{Receiver, Sender},
+        oneshot,
+    },
     task::JoinHandle,
     time::timeout,
 };
 use tracing::{error, log::debug};
+
+const BATCH_DELETE_TIMEOUT: Duration = Duration::from_secs(2);
 
 type RequestKey = Vec<u8>;
 
@@ -27,30 +33,31 @@ type RequestKey = Vec<u8>;
 #[path = "tests/block_remover_tests.rs"]
 pub mod block_remover_tests;
 
+#[derive(Debug)]
 pub enum BlockRemoverCommand {
     RemoveBlocks {
         // the block ids to remove
-        ids: Vec<Digest>,
+        ids: Vec<CertificateDigest>,
         // the channel to communicate the results
-        sender: oneshot::Sender<BlockRemoverResult<RemoveBlocksResponse>>,
+        sender: Sender<BlockRemoverResult<RemoveBlocksResponse>>,
     },
 }
 
 #[derive(Clone, Debug)]
 pub struct RemoveBlocksResponse {
     // the block ids to remove
-    ids: Vec<Digest>,
+    ids: Vec<CertificateDigest>,
 }
 
 type BlockRemoverResult<T> = Result<T, BlockRemoverError>;
 
 #[derive(Clone, Debug)]
 pub struct BlockRemoverError {
-    ids: Vec<Digest>,
+    ids: Vec<CertificateDigest>,
     error: BlockErrorType,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum BlockErrorType {
     Timeout,
     Failed,
@@ -60,7 +67,7 @@ pub type DeleteBatchResult = Result<DeleteBatchMessage, DeleteBatchMessage>;
 
 #[derive(Clone, Default, Debug)]
 pub struct DeleteBatchMessage {
-    ids: Vec<Digest>,
+    ids: Vec<BatchDigest>,
 }
 
 /// BlockRemover is responsible for removing blocks identified by
@@ -76,13 +83,13 @@ pub struct BlockRemover<PublicKey: VerifyingKey> {
     committee: Committee<PublicKey>,
 
     /// Storage that keeps the Certificates by their digest id.
-    certificate_store: Store<Digest, Certificate<PublicKey>>,
+    certificate_store: Store<CertificateDigest, Certificate<PublicKey>>,
 
     /// Storage that keeps the headers by their digest id
-    header_store: Store<Digest, Header<PublicKey>>,
+    header_store: Store<HeaderDigest, Header<PublicKey>>,
 
     /// The persistent storage for payload markers from workers.
-    payload_store: Store<(Digest, WorkerId), PayloadToken>,
+    payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,
 
     /// Network driver allowing to send messages.
     network: SimpleSender,
@@ -95,8 +102,7 @@ pub struct BlockRemover<PublicKey: VerifyingKey> {
 
     /// Holds the senders that are pending to be notified for
     /// a removal request.
-    tx_removal_results:
-        HashMap<RequestKey, Vec<oneshot::Sender<BlockRemoverResult<RemoveBlocksResponse>>>>,
+    tx_removal_results: HashMap<RequestKey, Vec<Sender<BlockRemoverResult<RemoveBlocksResponse>>>>,
 
     tx_worker_removal_results: HashMap<RequestKey, oneshot::Sender<DeleteBatchResult>>,
 
@@ -108,9 +114,9 @@ impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
     pub fn spawn(
         name: PublicKey,
         committee: Committee<PublicKey>,
-        certificate_store: Store<Digest, Certificate<PublicKey>>,
-        header_store: Store<Digest, Header<PublicKey>>,
-        payload_store: Store<(Digest, WorkerId), PayloadToken>,
+        certificate_store: Store<CertificateDigest, Certificate<PublicKey>>,
+        header_store: Store<HeaderDigest, Header<PublicKey>>,
+        payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,
         network: SimpleSender,
         rx_commands: Receiver<BlockRemoverCommand>,
         rx_delete_batches: Receiver<DeleteBatchResult>,
@@ -159,7 +165,7 @@ impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
         result: BlockRemoverResult<RemoveBlocksResponse>,
     ) {
         let block_ids = result.clone().map_or_else(|e| e.ids, |r| r.ids);
-        let key = Self::construct_request_key(&block_ids);
+        let key = Self::construct_blocks_request_key(&block_ids);
 
         match self.tx_removal_results.remove(&key) {
             None => {
@@ -169,14 +175,6 @@ impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
                 );
             }
             Some(senders) => {
-                let broadcast = |result_to_send: BlockRemoverResult<RemoveBlocksResponse>| {
-                    for sender in senders {
-                        sender
-                            .send(result_to_send.clone())
-                            .expect("Couldn't send message to channel");
-                    }
-                };
-
                 let cleanup_successful = match self.pending_removal_requests.remove(&key) {
                     None => {
                         error!("Expected to find pending request for this key {:?}", &key);
@@ -189,7 +187,7 @@ impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
                         // So we ensure that we "unlock" the pending request and give the opportunity
                         // a request to re-execute if the downstream clean up operations fail.
                         for batch_ids in batches_by_worker.values() {
-                            let request_key = Self::construct_request_key(batch_ids);
+                            let request_key = Self::construct_batches_request_key(batch_ids);
 
                             self.tx_worker_removal_results.remove(&request_key);
                         }
@@ -209,13 +207,32 @@ impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
                 // whatever this is. Otherwise, we are sending back an error
                 // response.
                 if cleanup_successful.is_ok() {
-                    broadcast(result);
+                    Self::broadcast(senders, result).await;
                 } else {
-                    broadcast(Err(BlockRemoverError {
-                        ids: block_ids,
-                        error: BlockErrorType::Failed,
-                    }));
+                    Self::broadcast(
+                        senders,
+                        Err(BlockRemoverError {
+                            ids: block_ids,
+                            error: BlockErrorType::Failed,
+                        }),
+                    )
+                    .await;
                 }
+            }
+        }
+    }
+
+    /// Helper method to broadcast the result_to_send to all the senders.
+    async fn broadcast(
+        senders: Vec<Sender<BlockRemoverResult<RemoveBlocksResponse>>>,
+        result_to_send: BlockRemoverResult<RemoveBlocksResponse>,
+    ) {
+        for sender in senders {
+            if sender.send(result_to_send.clone()).await.is_err() {
+                error!(
+                    "Couldn't send message to channel for result [{:?}]",
+                    result_to_send
+                );
             }
         }
     }
@@ -223,9 +240,9 @@ impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
     async fn cleanup_internal_state(
         &mut self,
         certificates: Vec<Certificate<PublicKey>>,
-        batches_by_worker: HashMap<WorkerId, Vec<Digest>>,
+        batches_by_worker: HashMap<WorkerId, Vec<BatchDigest>>,
     ) -> Result<(), TypedStoreError> {
-        let header_ids: Vec<Digest> = certificates
+        let header_ids: Vec<HeaderDigest> = certificates
             .clone()
             .into_iter()
             .map(|c| c.header.id)
@@ -233,7 +250,7 @@ impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
         self.header_store.remove_all(header_ids).await?;
 
         // delete batch from the payload store as well
-        let mut batches_to_cleanup: Vec<(Digest, WorkerId)> = Vec::new();
+        let mut batches_to_cleanup: Vec<(BatchDigest, WorkerId)> = Vec::new();
         for (worker_id, batch_ids) in batches_by_worker {
             batch_ids.into_iter().for_each(|d| {
                 batches_to_cleanup.push((d, worker_id));
@@ -247,7 +264,7 @@ impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
 
         // NOTE: delete certificates in the end since if we need to repeat the request
         // we want to be able to find them in storage.
-        let certificate_ids: Vec<Digest> =
+        let certificate_ids: Vec<CertificateDigest> =
             certificates.as_slice().iter().map(|c| c.digest()).collect();
         self.certificate_store.remove_all(certificate_ids).await?;
 
@@ -256,7 +273,7 @@ impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
 
     async fn handle_delete_batch_result(&mut self, batch_result: DeleteBatchResult) {
         let ids = batch_result.clone().map_or_else(|e| e.ids, |r| r.ids);
-        let key = Self::construct_request_key(&ids);
+        let key = Self::construct_batches_request_key(&ids);
 
         if let Some(sender) = self.tx_worker_removal_results.remove(&key) {
             sender
@@ -276,7 +293,7 @@ impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
                 // check whether we have a similar request pending
                 // to make the check easy we sort the digests in asc order,
                 // and then we merge all the bytes to form a key
-                let key = Self::construct_request_key(&ids);
+                let key = Self::construct_blocks_request_key(&ids);
 
                 if self.pending_removal_requests.contains_key(&key) {
                     // request already pending, nothing to do, just add the sender to the list
@@ -331,6 +348,7 @@ impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
                     Err(_) => {
                         sender
                             .send(Err(BlockRemoverError { ids, error: Failed }))
+                            .await
                             .expect("Couldn't send error to channel");
                     }
                 }
@@ -371,7 +389,7 @@ impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
             // create a key based on the provided batch ids and use it as a request
             // key to identify the channel to forward the response once the delete
             // response is received.
-            let worker_request_key = Self::construct_request_key(&batch_ids);
+            let worker_request_key = Self::construct_batches_request_key(&batch_ids);
 
             let (tx, rx) = oneshot::channel();
             receivers.push((worker_request_key.clone(), rx));
@@ -384,7 +402,7 @@ impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
     }
 
     async fn wait_for_responses(
-        block_ids: Vec<Digest>,
+        block_ids: Vec<CertificateDigest>,
         receivers: Vec<(RequestKey, oneshot::Receiver<DeleteBatchResult>)>,
     ) -> BlockRemoverResult<RemoveBlocksResponse> {
         let waiting: Vec<_> = receivers
@@ -410,18 +428,33 @@ impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
         request_key: RequestKey,
         rx: oneshot::Receiver<DeleteBatchResult>,
     ) -> Result<RequestKey, BlockErrorType> {
-        match timeout(Duration::from_secs(5), rx).await {
+        match timeout(BATCH_DELETE_TIMEOUT, rx).await {
             Ok(Ok(_)) => Ok(request_key),
             Ok(Err(_)) => Err(BlockErrorType::Failed),
             Err(_) => Err(BlockErrorType::Timeout),
         }
     }
 
-    fn construct_request_key(ids: &[Digest]) -> RequestKey {
+    fn construct_blocks_request_key(ids: &[CertificateDigest]) -> RequestKey {
         let mut ids_cloned = ids.to_vec();
         ids_cloned.sort();
 
-        let result: RequestKey = ids_cloned.into_iter().flat_map(|d| d.to_vec()).collect();
+        let result: RequestKey = ids_cloned
+            .into_iter()
+            .flat_map(|d| Digest::from(d).to_vec())
+            .collect();
+
+        result
+    }
+
+    fn construct_batches_request_key(ids: &[BatchDigest]) -> RequestKey {
+        let mut ids_cloned = ids.to_vec();
+        ids_cloned.sort();
+
+        let result: RequestKey = ids_cloned
+            .into_iter()
+            .flat_map(|d| Digest::from(d).to_vec())
+            .collect();
 
         result
     }
@@ -430,35 +463,17 @@ impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
     // them by the worker id.
     fn map_batches_by_worker(
         certificates: &[Certificate<PublicKey>],
-    ) -> HashMap<WorkerId, Vec<Digest>> {
-        let mut batches_by_worker: HashMap<WorkerId, Vec<Digest>> = HashMap::new();
+    ) -> HashMap<WorkerId, Vec<BatchDigest>> {
+        let mut batches_by_worker: HashMap<WorkerId, Vec<BatchDigest>> = HashMap::new();
         for certificate in certificates.iter() {
             for (batch_id, worker_id) in &certificate.header.payload {
                 batches_by_worker
                     .entry(*worker_id)
                     .or_insert_with(Vec::new)
-                    .push(batch_id.clone());
+                    .push(*batch_id);
             }
         }
 
         batches_by_worker
-    }
-}
-
-pub struct BlockHandler {}
-
-impl BlockHandler {
-    /// it retrieves a block by providing the block digest id (practically the
-    /// certificate digest).
-    pub async fn _get_block(_block_digest: Digest) -> Result<(), ()> {
-        Ok(())
-    }
-
-    /// it receives an iterator of digests where each identifies a block, and it
-    /// performs all the necessary steps to remove them from our system.
-    pub async fn _remove_blocks(
-        _block_digests: impl IntoIterator<Item = Digest>,
-    ) -> Result<(), BlockRemoverError> {
-        Ok(())
     }
 }
