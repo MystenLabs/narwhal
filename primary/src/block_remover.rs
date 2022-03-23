@@ -98,7 +98,6 @@ pub struct DeleteBatchMessage {
 /// # use config::Committee;
 /// # use std::collections::BTreeMap;
 /// # use primary::Certificate;
-/// # use primary::{BatchMessage, BlockWaiter, BlockCommand};
 /// # use config::WorkerId;
 /// # use primary::{BlockRemover, BlockRemoverCommand, DeleteBatchMessage, Header, PayloadToken};
 /// # use primary::{BatchDigest, CertificateDigest, HeaderDigest};
