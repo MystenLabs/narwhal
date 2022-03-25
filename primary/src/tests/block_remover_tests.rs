@@ -316,8 +316,8 @@ async fn test_unlocking_pending_requests() {
         network: SimpleSender::new(),
         rx_commands,
         pending_removal_requests: HashMap::new(),
-        tx_removal_results: HashMap::new(),
-        tx_worker_removal_results: HashMap::new(),
+        map_tx_removal_results: HashMap::new(),
+        map_tx_worker_removal_results: HashMap::new(),
         rx_delete_batches,
     };
 
@@ -378,11 +378,15 @@ async fn test_unlocking_pending_requests() {
 
     assert_eq!(remover.pending_removal_requests.len(), 1);
     assert_eq!(
-        remover.tx_removal_results.get(&request_key).unwrap().len(),
+        remover
+            .map_tx_removal_results
+            .get(&request_key)
+            .unwrap()
+            .len(),
         3
     );
 
-    assert_eq!(remover.tx_removal_results.len(), 1);
+    assert_eq!(remover.map_tx_removal_results.len(), 1);
 
     // WHEN we send the delete response
     let result = BlockRemoverResult::Ok(RemoveBlocksResponse {
@@ -394,7 +398,7 @@ async fn test_unlocking_pending_requests() {
     // THEN ensure that internal state has been unlocked
 
     assert!(remover.pending_removal_requests.is_empty());
-    assert!(remover.tx_removal_results.is_empty());
+    assert!(remover.map_tx_removal_results.is_empty());
 }
 
 pub fn worker_listener<PublicKey: VerifyingKey>(
