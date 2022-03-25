@@ -2,9 +2,11 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use crate::{
-    messages::{BatchDigest, Certificate, CertificateDigest, Header, HeaderDigest, Vote},
+    messages::{
+        BatchDigest, Certificate, CertificateDigest, Header, HeaderBuilder, HeaderDigest, Vote,
+    },
     primary::PayloadToken,
-    Batch, Round, Transaction,
+    Batch, Transaction,
 };
 use bytes::Bytes;
 use config::{Authority, Committee, PrimaryAddresses, WorkerAddresses, WorkerId};
@@ -16,10 +18,7 @@ use crypto::{
 use ed25519_dalek::{Digest as _, Sha512};
 use futures::{sink::SinkExt as _, stream::StreamExt as _};
 use rand::{rngs::StdRng, SeedableRng as _};
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    net::SocketAddr,
-};
+use std::{collections::BTreeMap, net::SocketAddr};
 use store::{reopen, rocks, rocks::DBMap, Store};
 use tokio::{net::TcpListener, task::JoinHandle};
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
@@ -191,73 +190,6 @@ pub fn headers() -> Vec<Header<Ed25519PublicKey>> {
         .collect()
 }
 
-// Helper build to allow us construct in a flexible way
-// multiple combinations of headers without always
-// creating / extending functions.
-pub struct HeaderBuilder<PublicKey: VerifyingKey> {
-    author: Option<PublicKey>,
-    round: Option<Round>,
-    payload: BTreeMap<BatchDigest, WorkerId>,
-    parents: Option<BTreeSet<CertificateDigest>>,
-}
-
-impl<PublicKey: VerifyingKey> HeaderBuilder<PublicKey> {
-    pub fn new() -> HeaderBuilder<PublicKey> {
-        HeaderBuilder {
-            author: None,
-            round: None,
-            payload: BTreeMap::new(),
-            parents: None,
-        }
-    }
-
-    pub fn with_author(mut self, author: PublicKey) -> Self {
-        self.author = Some(author);
-        self
-    }
-
-    pub fn with_round(mut self, round: Round) -> Self {
-        self.round = Some(round);
-        self
-    }
-
-    pub fn with_parents(mut self, parents: BTreeSet<CertificateDigest>) -> Self {
-        self.parents = Some(parents);
-        self
-    }
-
-    pub fn with_payload(mut self, payload: BTreeMap<BatchDigest, WorkerId>) -> Self {
-        self.payload = payload;
-        self
-    }
-
-    pub fn with_payload_batch(mut self, batch: Batch, worker_id: WorkerId) -> Self {
-        self.payload.insert(batch.digest(), worker_id);
-
-        self
-    }
-
-    pub fn build<F>(self, signer: F) -> Header<PublicKey>
-    where
-        F: FnOnce(&[u8]) -> PublicKey::Sig,
-    {
-        let h = Header {
-            author: self.author.unwrap(),
-            round: self.round.unwrap(),
-            payload: self.payload,
-            parents: self.parents.unwrap(),
-            id: HeaderDigest::default(),
-            signature: PublicKey::Sig::default(),
-        };
-
-        Header {
-            id: h.digest(),
-            signature: signer(Digest::from(h.digest()).as_ref()),
-            ..h
-        }
-    }
-}
-
 #[allow(dead_code)]
 pub fn fixture_header() -> Header<Ed25519PublicKey> {
     let kp = keys().pop().unwrap();
@@ -268,16 +200,13 @@ pub fn fixture_header() -> Header<Ed25519PublicKey> {
 pub fn fixture_header_builder() -> HeaderBuilder<Ed25519PublicKey> {
     let kp = keys().pop().unwrap();
 
-    let builder = HeaderBuilder::<Ed25519PublicKey>::new();
-    builder
-        .with_author(kp.public().clone())
-        .with_round(1)
-        .with_parents(
-            Certificate::genesis(&committee())
-                .iter()
-                .map(|x| x.digest())
-                .collect(),
-        )
+    let builder = HeaderBuilder::<Ed25519PublicKey>::default();
+    builder.author(kp.public().clone()).round(1).parents(
+        Certificate::genesis(&committee())
+            .iter()
+            .map(|x| x.digest())
+            .collect(),
+    )
 }
 
 pub fn fixture_header_with_payload(number_of_batches: u8) -> Header<Ed25519PublicKey> {
@@ -294,9 +223,7 @@ pub fn fixture_header_with_payload(number_of_batches: u8) -> Header<Ed25519Publi
     }
 
     let builder = fixture_header_builder();
-    builder
-        .with_payload(payload)
-        .build(|payload| kp.sign(payload))
+    builder.payload(payload).build(|payload| kp.sign(payload))
 }
 
 // will create a batch with randomly formed transactions

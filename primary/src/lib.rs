@@ -9,6 +9,9 @@
 )]
 
 #[macro_use]
+extern crate derive_builder;
+
+#[macro_use]
 mod error;
 mod aggregators;
 mod block_remover;

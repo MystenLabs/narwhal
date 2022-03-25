@@ -30,7 +30,7 @@ use tokio::{
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
 
 #[tokio::test]
-async fn test_setup() {
+async fn test_successful_blocks_delete() {
     // GIVEN
     let (header_store, certificate_store, payload_store) = create_db_stores();
     let (tx_commands, rx_commands) = channel(10);
