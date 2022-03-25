@@ -4,7 +4,7 @@
 use crate::{
     messages::{BatchDigest, Certificate, CertificateDigest, Header, HeaderDigest, Vote},
     primary::PayloadToken,
-    Round,
+    Batch, Round, Transaction,
 };
 use bytes::Bytes;
 use config::{Authority, Committee, PrimaryAddresses, WorkerAddresses, WorkerId};
@@ -299,51 +299,20 @@ pub fn fixture_header_with_payload(number_of_batches: u8) -> Header<Ed25519Publi
         .build(|payload| kp.sign(payload))
 }
 
-type Transaction = Vec<u8>;
+// will create a batch with randomly formed transactions
+// dictated by the parameter number_of_transactions
+pub fn fixture_batch_with_transactions(number_of_transactions: u32) -> Batch {
+    let transactions = (0..number_of_transactions)
+        .map(|_v| transaction())
+        .collect();
 
-#[derive(Clone)]
-pub struct Batch {
-    payload: Vec<Transaction>,
-}
-
-impl Batch {
-    // will create a batch with randomly formed transactions
-    // dictated by the parameter number_of_transactions
-    pub fn new_with_transactions(number_of_transactions: u32) -> Self {
-        Self {
-            payload: (0..number_of_transactions)
-                .map(|_v| transaction())
-                .collect(),
-        }
-    }
-
-    #[allow(dead_code)]
-    pub fn payload(self) -> Vec<Transaction> {
-        self.payload
-    }
-
-    pub fn digest(self) -> BatchDigest {
-        BatchDigest::new(
-            Sha512::digest(bincode::serialize(&self.payload).unwrap().as_slice()).as_slice()[..32]
-                .try_into()
-                .unwrap(),
-        )
-    }
+    Batch(transactions)
 }
 
 // Fixture
 pub fn transaction() -> Transaction {
     // generate random value transactions, but the length will be always 100 bytes
     (0..100).map(|_v| rand::random::<u8>()).collect()
-}
-
-// Fixture
-pub fn resolve_batch_digest(batch: Vec<Transaction>) -> Digest {
-    Digest::new(
-        Sha512::digest(bincode::serialize(&batch).unwrap().as_slice()).as_slice()[..32]
-            .try_into()
-            .unwrap(),
-    )
 }
 
 // Fixture

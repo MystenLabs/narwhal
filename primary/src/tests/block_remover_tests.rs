@@ -6,8 +6,8 @@ use crate::{
         DeleteBatchResult, RemoveBlocksResponse, RequestKey,
     },
     common::{
-        certificate, create_db_stores, fixture_header_builder, keys, resolve_name_and_committee,
-        Batch,
+        certificate, create_db_stores, fixture_batch_with_transactions, fixture_header_builder,
+        keys, resolve_name_and_committee,
     },
     BatchDigest, PrimaryWorkerMessage,
 };
@@ -64,8 +64,8 @@ async fn test_setup() {
 
     // AND generate headers with distributed batches between 2 workers (0 and 1)
     for headers in 0..5 {
-        let batch_1 = Batch::new_with_transactions(10);
-        let batch_2 = Batch::new_with_transactions(10);
+        let batch_1 = fixture_batch_with_transactions(10);
+        let batch_2 = fixture_batch_with_transactions(10);
 
         let header = fixture_header_builder()
             .with_payload_batch(batch_1.clone(), worker_id_0)
@@ -206,8 +206,8 @@ async fn test_timeout() {
 
     // AND generate headers with distributed batches between 2 workers (2 and 3)
     for headers in 0..5 {
-        let batch_1 = Batch::new_with_transactions(10);
-        let batch_2 = Batch::new_with_transactions(10);
+        let batch_1 = fixture_batch_with_transactions(10);
+        let batch_2 = fixture_batch_with_transactions(10);
 
         let header = fixture_header_builder()
             .with_payload_batch(batch_1.clone(), worker_id_2)
@@ -328,7 +328,7 @@ async fn test_unlocking_pending_requests() {
 
     let worker_id_0 = 0;
 
-    let batch = Batch::new_with_transactions(10);
+    let batch = fixture_batch_with_transactions(10);
     let header = fixture_header_builder()
         .with_payload_batch(batch.clone(), worker_id_0)
         .build(|payload| key.sign(payload));
