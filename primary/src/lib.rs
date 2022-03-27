@@ -28,7 +28,9 @@ mod synchronizer;
 mod common;
 
 pub use crate::{
-    block_waiter::{BatchMessage, BlockCommand, BlockWaiter},
+    block_waiter::{
+        BatchMessage, BlockCommand, BlockError, BlockResult, BlockWaiter, GetBlockResponse,
+    },
     messages::{
         Batch, BatchDigest, Certificate, CertificateDigest, Header, HeaderDigest, Transaction,
     },

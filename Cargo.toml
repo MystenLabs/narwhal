@@ -1,5 +1,5 @@
 [workspace]
-members = ["dag", "primary", "node", "crypto", "worker", "consensus", "network", "config"]
+members = ["dag", "primary", "node", "crypto", "worker", "consensus", "network", "config", "subscriber"]
 
 [profile.release]
 codegen-units = 1
