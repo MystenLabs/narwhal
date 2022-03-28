@@ -1,8 +1,6 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crate::{
-    store::ConsensusStore, ConsensusOutput, SequenceNumber, SubscriberId, SubscriberMessage,
-};
+use crate::{store::ConsensusStore, ConsensusOutput, SequenceNumber, SubscriberMessage};
 use crypto::{traits::VerifyingKey, Hash};
 use futures::{
     future::BoxFuture,
@@ -38,14 +36,16 @@ pub struct SubscriberCore<PublicKey: VerifyingKey> {
     store: Arc<ConsensusStore<PublicKey>>,
 
     /// Hold a channel to communicate with each subscriber.
-    subscribers: HashMap<SubscriberId, Sender<ConsensusOutput>>,
-    /// The current number of subscribers.
-    subscribers_count: usize,
+    subscribers: Vec<Sender<ConsensusOutput>>,
     /// The maximum number of subscribers.
     max_subscribers: usize,
 }
 
 impl<PublicKey: VerifyingKey> SubscriberCore<PublicKey> {
+    /// The frequency at which we persist the consensus state. This is a tradeoff between
+    /// performance and speed to recovery after crash.
+    const PERSIST_FREQUENCY: Round = 100;
+
     /// Cerate a new subscriber core and spawn it in a new tokio task.
     pub fn spawn(
         rx_input: Receiver<Certificate<PublicKey>>,
@@ -64,8 +64,7 @@ impl<PublicKey: VerifyingKey> SubscriberCore<PublicKey> {
                     .expect("Failed to open consensus store"),
                 last_committed: store.get_last_committed(),
                 store,
-                subscribers: HashMap::new(),
-                subscribers_count: 0,
+                subscribers: Vec::with_capacity(max_subscribers),
                 max_subscribers,
             }
             .run()
@@ -75,15 +74,14 @@ impl<PublicKey: VerifyingKey> SubscriberCore<PublicKey> {
 
     /// Register a new subscriber.
     fn register_subscriber(&mut self, message: SubscriberMessage) {
-        match self.subscribers_count < self.max_subscribers {
+        match self.subscribers.len() < self.max_subscribers {
             true => {
-                let SubscriberMessage(sender, id) = message;
-                self.subscribers.insert(id, sender);
-                self.subscribers_count += 1;
+                let SubscriberMessage(sender) = message;
+                self.subscribers.push(sender);
                 log::debug!(
-                    "Registered subscriber {:?} (total subscribers count: {})",
-                    id,
-                    self.subscribers_count
+                    "Registered subscriber {}/{})",
+                    self.subscribers.len(),
+                    self.max_subscribers
                 );
             }
             false => log::debug!("Cannot accept more subscribers (limit reached)"),
@@ -160,20 +158,19 @@ impl<PublicKey: VerifyingKey> SubscriberCore<PublicKey> {
             // Notify the subscribers of the new output. If a subscriber's channel is full (the subscriber
             // is slow), we simply skip this output. The subscriber will eventually sync to catch up.
             let mut to_drop = Vec::new();
-            for (id, subscriber) in &self.subscribers {
+            for (i, subscriber) in self.subscribers.iter().enumerate() {
                 if subscriber.is_closed() {
-                    to_drop.push(*id);
+                    to_drop.push(i);
                     continue;
                 }
                 if subscriber.capacity() > 0 && subscriber.send(output.clone()).await.is_err() {
-                    to_drop.push(*id);
+                    to_drop.push(i);
                 }
             }
 
             // Cleanup the list subscribers that dropped the connection.
-            for id in to_drop {
-                self.subscribers.remove(&id);
-                self.subscribers_count -= 1;
+            for i in to_drop {
+                self.subscribers.remove(i);
             }
         }
     }
@@ -209,7 +206,7 @@ impl<PublicKey: VerifyingKey> SubscriberCore<PublicKey> {
                     // Once in a while persist the current state. Not doing it frequently simply
                     // means that the node will do more work upon rebooting (after a crash). All
                     // subscribers are able to handle duplicate messages (efficiently).
-                    if certificate_round % 100 == 0 {
+                    if certificate_round % Self::PERSIST_FREQUENCY == 0 {
                         if let Err(e) = self.persist_state().await {
                             log::error!("{}", e);
                         }
