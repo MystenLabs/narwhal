@@ -22,5 +22,4 @@ bincode = "1.3.3"
 store = { git = "https://github.com/mystenlabs/mysten-infra.git", package = "typed-store", rev = "808de09203d147b43d59114b8afd9e51cbcf5778"}
 
 crypto = { path = "../crypto" }
-network = { path = "../network" }
 primary = { path = "../primary" }
