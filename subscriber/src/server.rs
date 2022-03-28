@@ -70,6 +70,7 @@ impl<PublicKey: VerifyingKey> SubscriberConnection<PublicKey> {
                 Some(buffer) = self.socket.next() => match buffer {
                     Ok(_buffer) => {
                         // TODO: Implement the synchronizer.
+                        unimplemented!();
                     },
                     Err(e) => {
                         log::debug!("Error while reading TCP stream: {}", e);
@@ -127,7 +128,7 @@ impl<PublicKey: VerifyingKey> SubscriberServer<PublicKey> {
                 }
             };
 
-            // TODO: Limit the number of subscribers here rather than in the core.
+            // TODO [issue #109]: Limit the number of subscribers here rather than in the core.
             log::debug!("Incoming connection established with {}", peer);
             let core_channel = self.tx_subscriber.clone();
             let store = self.store.clone();
