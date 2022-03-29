@@ -17,6 +17,10 @@ use tokio::{
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
 use tracing::{debug, error};
 
+#[cfg(test)]
+#[path = "tests/subscriber_tests.rs"]
+pub mod subscriber_tests;
+
 /// The messages sent by the subscriber server to the sequencer core to notify the manager
 /// of a new subscriber.
 type NewSubscriber<PublicKey> = Sender<ConsensusOutput<PublicKey>>;
@@ -221,7 +225,7 @@ impl<PublicKey: VerifyingKey> SubscriberConnection<PublicKey> {
     /// Help the subscriber missing chunks of the output sequence to get up to speed.
     async fn synchronize(&mut self, request: ConsensusSyncRequest) -> StoreResult<()> {
         // Load the digests from the consensus store.
-        let indices: Vec<_> = (request.start + 1..request.stop).collect();
+        let indices: Vec<_> = (request.start + 1..=request.stop).collect();
         let digests = self
             .consensus_store
             .read_sequenced_certificates(&indices)?

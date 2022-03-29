@@ -144,6 +144,21 @@ pub fn make_consensus_store(store_path: &std::path::Path) -> Arc<ConsensusStore<
     Arc::new(ConsensusStore::new(last_committed_map, sequence_map))
 }
 
+pub fn make_certificate_store(
+    store_path: &std::path::Path,
+) -> store::Store<CertificateDigest, Certificate<Ed25519PublicKey>> {
+    const CERTIFICATES_CF: &str = "certificates";
+
+    let rocksdb =
+        rocks::open_cf(store_path, None, &[CERTIFICATES_CF]).expect("Failed creating database");
+
+    let certificate_map = reopen!(&rocksdb,
+        CERTIFICATES_CF;<CertificateDigest, Certificate<Ed25519PublicKey>>
+    );
+
+    store::Store::new(certificate_map)
+}
+
 // Run for 4 dag rounds in ideal conditions (all nodes reference all other nodes). We should commit
 // the leader of round 2.
 #[tokio::test]
