@@ -251,6 +251,7 @@ impl<PublicKey: VerifyingKey> Consensus<PublicKey> {
                 consensus_index += 1;
 
                 // Persist the update.
+                // TODO [issue #116]: Ensure this is not a performance bottleneck.
                 store.write_consensus_state(
                     &state.last_committed,
                     &consensus_index,
