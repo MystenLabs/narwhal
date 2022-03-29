@@ -395,14 +395,11 @@ impl<PublicKey: VerifyingKey> Consensus<PublicKey> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use std::collections::BTreeSet;
-
+    use super::{consensus_tests::*, *};
     use crypto::traits::KeyPair;
     use primary::Certificate;
     use rand::Rng;
-
-    use super::consensus_tests::*;
+    use std::collections::BTreeSet;
 
     #[test]
     fn state_limits_test() {
@@ -419,9 +416,21 @@ mod tests {
         let (certificates, _next_parents) = make_optimal_certificates(1, rounds, &genesis, &keys);
         let committee = mock_committee(&keys);
 
+        let store_path = temp_testdir::TempDir::default();
+        let store = make_consensus_store(&store_path);
+
+        let consensus_index = 0;
         let mut state = State::new(Certificate::genesis(&mock_committee(&keys[..])));
         for certificate in certificates {
-            Consensus::process_certificate(&committee, gc_depth, &mut state, certificate);
+            Consensus::process_certificate(
+                &committee,
+                &store,
+                gc_depth,
+                &mut state,
+                consensus_index,
+                certificate,
+            )
+            .unwrap();
         }
         // with "optimal" certificates (see `make_optimal_certificates`), and a round-robin between leaders,
         // we need at most 6 rounds lookbehind: we elect a leader at most at round r-2, and its round is
@@ -454,9 +463,21 @@ mod tests {
         let (certificates, _next_parents) = make_certificates(1, rounds, &genesis, &keys, 0.333);
         let committee = mock_committee(&keys);
 
+        let store_path = temp_testdir::TempDir::default();
+        let store = make_consensus_store(&store_path);
+
         let mut state = State::new(Certificate::genesis(&mock_committee(&keys[..])));
+        let consensus_index = 0;
         for certificate in certificates {
-            Consensus::process_certificate(&committee, gc_depth, &mut state, certificate);
+            Consensus::process_certificate(
+                &committee,
+                &store,
+                gc_depth,
+                &mut state,
+                consensus_index,
+                certificate,
+            )
+            .unwrap();
         }
         // with "less optimal" certificates (see `make_certificates`), we should keep at most gc_depth rounds lookbehind
         let n = state.dag.len();

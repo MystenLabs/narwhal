@@ -12,7 +12,7 @@ mod store;
 pub mod subscriber;
 pub mod tusk;
 
-pub use crate::{subscriber::SubscriberHandler, tusk::Consensus};
+pub use crate::{store::ConsensusStore, subscriber::SubscriberHandler, tusk::Consensus};
 
 use crypto::traits::VerifyingKey;
 use primary::Certificate;

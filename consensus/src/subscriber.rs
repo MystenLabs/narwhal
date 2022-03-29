@@ -35,7 +35,7 @@ impl SubscriberHandler {
         // The persistent store holding the consensus state.
         consensus_store: Arc<ConsensusStore<PublicKey>>,
         // The persistent store holding the certificates.
-        certificate_store: Arc<CertificateStore<PublicKey>>,
+        certificate_store: CertificateStore<PublicKey>,
         // A channel to receive the output of consensus.
         rx_sequence: Receiver<ConsensusOutput<PublicKey>>,
         // The maximum number of subscribers that this node can handle.
@@ -121,7 +121,7 @@ pub struct SubscriberServer<PublicKey: VerifyingKey> {
     consensus_store: Arc<ConsensusStore<PublicKey>>,
     /// The persistent storage holding certificates. It is only used to help subscribers to sync, this
     /// task never writes to the store.
-    certificate_store: Arc<CertificateStore<PublicKey>>,
+    certificate_store: CertificateStore<PublicKey>,
 }
 
 impl<PublicKey: VerifyingKey> SubscriberServer<PublicKey> {
@@ -130,7 +130,7 @@ impl<PublicKey: VerifyingKey> SubscriberServer<PublicKey> {
         address: SocketAddr,
         tx_subscriber: Sender<NewSubscriber<PublicKey>>,
         consensus_store: Arc<ConsensusStore<PublicKey>>,
-        certificate_store: Arc<CertificateStore<PublicKey>>,
+        certificate_store: CertificateStore<PublicKey>,
     ) {
         tokio::spawn(async move {
             Self {
@@ -186,7 +186,7 @@ struct SubscriberConnection<PublicKey: VerifyingKey> {
     consensus_store: Arc<ConsensusStore<PublicKey>>,
     /// The persistent storage holding certificates. It is only used to help subscribers to sync, this
     /// task never writes to the store.
-    certificate_store: Arc<CertificateStore<PublicKey>>,
+    certificate_store: CertificateStore<PublicKey>,
     /// The TCP socket connection to the subscriber.
     socket: Framed<TcpStream, LengthDelimitedCodec>,
     /// The identifier of the subscriber.
@@ -201,7 +201,7 @@ impl<PublicKey: VerifyingKey> SubscriberConnection<PublicKey> {
     pub fn spawn(
         tx_subscriber: Sender<NewSubscriber<PublicKey>>,
         consensus_store: Arc<ConsensusStore<PublicKey>>,
-        certificate_store: Arc<CertificateStore<PublicKey>>,
+        certificate_store: CertificateStore<PublicKey>,
         socket: Framed<TcpStream, LengthDelimitedCodec>,
         peer: SocketAddr,
     ) -> JoinHandle<()> {

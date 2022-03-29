@@ -3,7 +3,6 @@
 use crate::SequenceNumber;
 use crypto::traits::VerifyingKey;
 use primary::{CertificateDigest, Round};
-use rocksdb::DBCompressionType;
 use std::{collections::HashMap, path::Path};
 use store::{
     rocks::{DBMap, TypedStoreError},
@@ -26,13 +25,27 @@ pub struct ConsensusStore<PublicKey: VerifyingKey> {
 }
 
 impl<PublicKey: VerifyingKey> ConsensusStore<PublicKey> {
-    /// Open the consensus store.
-    pub fn open<P: AsRef<Path>>(path: P, db_options: Option<rocksdb::Options>) -> Self {
+    /// Create a new consensus store structure by using already loaded maps.
+    pub fn new(
+        last_committed: DBMap<PublicKey, Round>,
+        sequence: DBMap<SequenceNumber, CertificateDigest>,
+    ) -> Self {
+        Self {
+            last_committed,
+            sequence,
+        }
+    }
+
+    /// Open (or re-open) the consensus store.
+    pub fn open_with_options<P: AsRef<Path>>(
+        path: P,
+        db_options: Option<rocksdb::Options>,
+    ) -> Self {
         let row_cache = rocksdb::Cache::new_lru_cache(1_000_000).expect("Cache is ok");
         let mut options = db_options.unwrap_or_default();
         options.set_row_cache(&row_cache);
         options.set_table_cache_num_shard_bits(10);
-        options.set_compression_type(DBCompressionType::None);
+        options.set_compression_type(rocksdb::DBCompressionType::None);
 
         let db = store::rocks::open_cf_opts(
             &path,
@@ -41,10 +54,10 @@ impl<PublicKey: VerifyingKey> ConsensusStore<PublicKey> {
         )
         .expect("Cannot open DB.");
 
-        Self {
-            last_committed: DBMap::reopen(&db, Some(LAST_COMMITTED_CF)).expect("Cannot open CF."),
-            sequence: DBMap::reopen(&db, Some(SEQUENCE_CF)).expect("Cannot open CF."),
-        }
+        let last_committed = DBMap::reopen(&db, Some(LAST_COMMITTED_CF)).expect("Cannot open CF.");
+        let sequence = DBMap::reopen(&db, Some(SEQUENCE_CF)).expect("Cannot open CF.");
+
+        Self::new(last_committed, sequence)
     }
 
     /// Persist the consensus state.
