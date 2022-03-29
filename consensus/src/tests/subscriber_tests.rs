@@ -111,7 +111,7 @@ async fn subscribe() {
 
     // Spawn the consensus and subscriber handler.
     let address = "127.0.0.1:12000".parse::<SocketAddr>().unwrap();
-    let tx_waiter = spawn_validator(address).await;
+    let tx_consensus_input = spawn_validator(address).await;
 
     // Spawn a subscriber.
     tokio::task::yield_now().await;
@@ -122,7 +122,7 @@ async fn subscribe() {
     // so the task should not block.
     tokio::task::yield_now().await;
     while let Some(certificate) = certificates.pop_front() {
-        tx_waiter.send(certificate).await.unwrap();
+        tx_consensus_input.send(certificate).await.unwrap();
     }
 
     // Ensure the first 4 ordered certificates are from round 1 (they are the parents of the committed
@@ -144,7 +144,7 @@ async fn subscribe_sync() {
 
     // Spawn the consensus and subscriber handler.
     let address = "127.0.0.1:12001".parse::<SocketAddr>().unwrap();
-    let tx_waiter = spawn_validator(address).await;
+    let tx_consensus_input = spawn_validator(address).await;
 
     // Spawn a subscriber.
     tokio::task::yield_now().await;
@@ -155,7 +155,7 @@ async fn subscribe_sync() {
     // so the task should not block.
     tokio::task::yield_now().await;
     while let Some(certificate) = certificates.pop_front() {
-        tx_waiter.send(certificate).await.unwrap();
+        tx_consensus_input.send(certificate).await.unwrap();
     }
 
     // Read first 4 certificates. Then pretend we crashed after reading the first certificate and
