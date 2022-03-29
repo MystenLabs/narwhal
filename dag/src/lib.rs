@@ -1,12 +1,15 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
+
 use itertools::Itertools;
 use rayon::prelude::*;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, RwLock, Weak};
 
 pub mod bft;
+pub mod node_dag;
 
 pub type NodeRef<T> = Arc<RwLock<Node<T>>>;
+pub type WeakNodeRef<T> = Weak<RwLock<Node<T>>>;
 
 impl<T> From<Node<T>> for NodeRef<T> {
     fn from(node: Node<T>) -> Self {
@@ -14,7 +17,7 @@ impl<T> From<Node<T>> for NodeRef<T> {
     }
 }
 
-/// The DSU tree node.
+/// The Dag node.
 #[derive(Debug, Clone)]
 pub struct Node<T> {
     parents: Vec<NodeRef<T>>,

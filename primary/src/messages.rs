@@ -5,16 +5,15 @@ use crate::{
     error::{DagError, DagResult},
     primary::Round,
 };
+use blake2::{digest::Update, VarBlake2b};
 use config::{Committee, WorkerId};
 use crypto::{
     traits::{EncodeDecodeBase64, VerifyingKey},
     Digest, Hash, SignatureService, DIGEST_LEN,
 };
-use ed25519_dalek::{Digest as _, Sha512};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet, HashSet},
-    convert::TryInto,
     fmt,
 };
 
@@ -23,7 +22,7 @@ pub type Transaction = Vec<u8>;
 pub struct Batch(pub Vec<Transaction>);
 
 #[derive(Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct BatchDigest(pub(crate) [u8; crypto::DIGEST_LEN]);
+pub struct BatchDigest(pub [u8; crypto::DIGEST_LEN]);
 
 impl fmt::Debug for BatchDigest {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
@@ -53,19 +52,14 @@ impl Hash for Batch {
     type TypedDigest = BatchDigest;
 
     fn digest(&self) -> Self::TypedDigest {
-        let mut hasher = Sha512::new();
-        for x in &self.0 {
-            hasher.update(x);
-        }
-        BatchDigest(
-            hasher.finalize().as_slice()[..DIGEST_LEN]
-                .try_into()
-                .unwrap(),
-        )
+        BatchDigest(crypto::blake2b_256(|hasher| {
+            self.0.iter().for_each(|tx| hasher.update(tx))
+        }))
     }
 }
 
-#[derive(Clone, Serialize, Deserialize, Default)]
+#[derive(Clone, Serialize, Deserialize, Default, Builder)]
+#[builder(pattern = "owned", build_fn(skip))]
 #[serde(bound(deserialize = "PublicKey: VerifyingKey"))] // bump the bound to VerifyingKey as soon as you include a sig
 pub struct Header<PublicKey: VerifyingKey> {
     pub author: PublicKey,
@@ -74,6 +68,42 @@ pub struct Header<PublicKey: VerifyingKey> {
     pub parents: BTreeSet<CertificateDigest>,
     pub id: HeaderDigest,
     pub signature: <PublicKey as VerifyingKey>::Sig,
+}
+
+impl<PublicKey: VerifyingKey> HeaderBuilder<PublicKey> {
+    #[allow(dead_code)]
+    pub fn build<F>(self, signer: F) -> Header<PublicKey>
+    where
+        F: FnOnce(&[u8]) -> PublicKey::Sig,
+    {
+        let h = Header {
+            author: self.author.unwrap(),
+            round: self.round.unwrap(),
+            payload: self.payload.unwrap(),
+            parents: self.parents.unwrap(),
+            id: HeaderDigest::default(),
+            signature: PublicKey::Sig::default(),
+        };
+
+        Header {
+            id: h.digest(),
+            signature: signer(Digest::from(h.digest()).as_ref()),
+            ..h
+        }
+    }
+
+    // helper method to set directly values to the payload
+    #[allow(dead_code)]
+    pub fn with_payload_batch(mut self, batch: Batch, worker_id: WorkerId) -> Self {
+        if self.payload.is_none() {
+            self.payload = Some(BTreeMap::new());
+        }
+        let payload = self.payload.as_mut().unwrap();
+
+        payload.insert(batch.digest(), worker_id);
+
+        self
+    }
 }
 
 impl<PublicKey: VerifyingKey> Header<PublicKey> {
@@ -152,21 +182,18 @@ impl<PublicKey: VerifyingKey> Hash for Header<PublicKey> {
     type TypedDigest = HeaderDigest;
 
     fn digest(&self) -> HeaderDigest {
-        let mut hasher = Sha512::new();
-        hasher.update(&self.author);
-        hasher.update(self.round.to_le_bytes());
-        for (x, y) in &self.payload {
-            hasher.update(Digest::from(*x).as_ref());
-            hasher.update(y.to_le_bytes());
-        }
-        for x in &self.parents {
-            hasher.update(Digest::from(*x).as_ref());
-        }
-        HeaderDigest(
-            hasher.finalize().as_slice()[..DIGEST_LEN]
-                .try_into()
-                .unwrap(),
-        )
+        let hasher_update = |hasher: &mut VarBlake2b| {
+            hasher.update(&self.author);
+            hasher.update(self.round.to_le_bytes());
+            for (x, y) in self.payload.iter() {
+                hasher.update(Digest::from(*x));
+                hasher.update(y.to_le_bytes());
+            }
+            for x in self.parents.iter() {
+                hasher.update(Digest::from(*x))
+            }
+        };
+        HeaderDigest(crypto::blake2b_256(hasher_update))
     }
 }
 
@@ -236,7 +263,7 @@ impl<PublicKey: VerifyingKey> Vote<PublicKey> {
             .map_err(DagError::from)
     }
 }
-#[derive(Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Copy)]
 pub struct VoteDigest([u8; DIGEST_LEN]);
 
 impl From<VoteDigest> for Digest {
@@ -261,16 +288,13 @@ impl<PublicKey: VerifyingKey> Hash for Vote<PublicKey> {
     type TypedDigest = VoteDigest;
 
     fn digest(&self) -> VoteDigest {
-        let mut hasher = Sha512::new();
-        let header_id: Digest = self.id.into();
-        hasher.update(header_id);
-        hasher.update(self.round.to_le_bytes());
-        hasher.update(&self.origin);
-        VoteDigest(
-            hasher.finalize().as_slice()[..DIGEST_LEN]
-                .try_into()
-                .unwrap(),
-        )
+        let hasher_update = |hasher: &mut VarBlake2b| {
+            hasher.update(Digest::from(self.id));
+            hasher.update(self.round.to_le_bytes());
+            hasher.update(&self.origin);
+        };
+
+        VoteDigest(crypto::blake2b_256(hasher_update))
     }
 }
 
@@ -377,16 +401,13 @@ impl<PublicKey: VerifyingKey> Hash for Certificate<PublicKey> {
     type TypedDigest = CertificateDigest;
 
     fn digest(&self) -> CertificateDigest {
-        let mut hasher = Sha512::new();
-        let header_id: Digest = self.header.id.into();
-        hasher.update(header_id);
-        hasher.update(self.round().to_le_bytes());
-        hasher.update(self.origin());
-        CertificateDigest(
-            hasher.finalize().as_slice()[..DIGEST_LEN]
-                .try_into()
-                .unwrap(),
-        )
+        let hasher_update = |hasher: &mut VarBlake2b| {
+            hasher.update(Digest::from(self.header.id));
+            hasher.update(self.round().to_le_bytes());
+            hasher.update(&self.origin());
+        };
+
+        CertificateDigest(crypto::blake2b_256(hasher_update))
     }
 }
 

@@ -1,14 +1,14 @@
 // Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use std::convert::TryInto;
 
 use super::*;
 use crate::{
     ed25519::{Ed25519KeyPair, Ed25519PrivateKey, Ed25519PublicKey, Ed25519Signature},
     traits::{EncodeDecodeBase64, VerifyingKey},
 };
-use ed25519_dalek::{Digest as _, Sha512};
+
+use blake2::digest::Update;
 use rand::{rngs::StdRng, SeedableRng as _};
 use signature::{Signature, Signer, Verifier};
 
@@ -16,13 +16,29 @@ impl Hash for &[u8] {
     type TypedDigest = Digest;
 
     fn digest(&self) -> Digest {
-        Digest(Sha512::digest(self).as_slice()[..32].try_into().unwrap())
+        Digest(blake2b_256(|hasher| hasher.update(self)))
     }
 }
 
 pub fn keys() -> Vec<Ed25519KeyPair> {
     let mut rng = StdRng::from_seed([0; 32]);
     (0..4).map(|_| Ed25519KeyPair::generate(&mut rng)).collect()
+}
+
+#[test]
+fn serialize_deserialize() {
+    let kpref = keys().pop().unwrap();
+    let public_key = kpref.public();
+
+    let bytes = bincode::serialize(&public_key).unwrap();
+    let pk2 = bincode::deserialize::<Ed25519PublicKey>(&bytes).unwrap();
+    assert_eq!(*public_key, pk2);
+
+    let private_key = kpref.private();
+    let bytes = bincode::serialize(&private_key).unwrap();
+    let privkey = bincode::deserialize::<Ed25519PublicKey>(&bytes).unwrap();
+    let bytes2 = bincode::serialize(&privkey).unwrap();
+    assert_eq!(bytes, bytes2);
 }
 
 #[test]
@@ -139,7 +155,7 @@ async fn signature_service() {
     // Request signature from the service.
     let message: &[u8] = b"Hello, world!";
     let digest = message.digest();
-    let signature = service.request_signature(digest.clone()).await;
+    let signature = service.request_signature(digest).await;
 
     // Verify the signature we received.
     assert!(pk.verify(digest.as_ref(), &signature).is_ok());

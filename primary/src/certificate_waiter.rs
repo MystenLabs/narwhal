@@ -116,7 +116,7 @@ impl<PublicKey: VerifyingKey> CertificateWaiter<PublicKey> {
                         self.tx_core.send(certificate).await.expect("Failed to send certificate");
                     },
                     Err(e) => {
-                        error!("{}", e);
+                        error!("{e}");
                         panic!("Storage failure: killing node.");
                     }
                 },
