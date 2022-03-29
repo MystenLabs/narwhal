@@ -29,6 +29,9 @@ use tokio::{
 };
 use tracing::{error, log::debug};
 use Result::*;
+use futures::stream::FuturesOrdered;
+use tokio::sync::mpsc::channel;
+use crypto::{Digest, Hash};
 
 const BATCH_RETRIEVE_TIMEOUT: Duration = Duration::from_secs(1);
 
@@ -48,6 +51,12 @@ pub enum BlockCommand {
         // The channel to send the results to.
         sender: Sender<BlockResult<GetBlockResponse>>,
     },
+
+    #[allow(dead_code)]
+    GetBlocks {
+        ids: Vec<CertificateDigest>,
+        sender: Sender<GetBlocksResponse>
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -55,6 +64,11 @@ pub struct GetBlockResponse {
     id: CertificateDigest,
     #[allow(dead_code)]
     pub batches: Vec<BatchMessage>,
+}
+
+#[derive(Clone, Debug)]
+pub struct GetBlocksResponse {
+    pub blocks: Vec<BlockResult<GetBlockResponse>>
 }
 
 pub type BatchResult = Result<BatchMessage, BatchMessageError>;
@@ -104,6 +118,8 @@ impl fmt::Display for BlockErrorType {
         write!(f, "{:?}", self)
     }
 }
+
+type RequestKey = Vec<u8>;
 
 /// BlockWaiter is responsible for fetching the block data from the
 /// downstream worker nodes. A block is basically the aggregate
@@ -221,6 +237,10 @@ pub struct BlockWaiter<PublicKey: VerifyingKey> {
     /// A map that holds the channels we should notify with the
     /// GetBlock responses.
     tx_get_block_map: HashMap<CertificateDigest, Vec<Sender<BlockResult<GetBlockResponse>>>>,
+
+    /// A map that holds the channels we should notify with the
+    /// GetBlocks responses.
+    tx_get_blocks_map: HashMap<RequestKey, Vec<Sender<GetBlocksResponse>>>
 }
 
 impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
@@ -286,6 +306,94 @@ impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
         command: BlockCommand,
     ) -> Option<BoxFuture<'a, BlockResult<GetBlockResponse>>> {
         match command {
+            BlockCommand::GetBlocks { ids, sender } => {
+                // check whether we have a similar request pending
+                // to make the check easy we sort the digests in asc order,
+                // and then we merge all the bytes to form a key
+                let key = Self::construct_get_blocks_request_key(&ids);
+
+                if self.tx_get_blocks_map.contains_key(&key) {
+                    // request already pending, nothing to do, just add the sender to the list
+                    // of pending to be notified ones.
+                    self.tx_get_blocks_map
+                        .entry(key)
+                        .or_insert_with(Vec::new)
+                        .push(sender);
+
+                    debug!("GetBlocks has an already pending request for the provided ids");
+                    return None;
+                }
+
+                match self.certificate_store.read_all(ids).await {
+                    Ok(certificates) => {
+                        // find which certificates missing and which not
+                        let mut found_certificates: Vec<Certificate<PublicKey>> = Vec::new();
+                        let mut missing_certificates: Vec<CertificateDigest> = Vec::new();
+
+                        for (i, certificate)  in certificates.iter().enumerate() {
+                            if certificate.is_some() {
+                                found_certificates.push(certificate.unwrap());
+                            } else {
+                                missing_certificates.push(certificates.ge(*i));
+                            }
+                        }
+
+                        // for the ones we found, let's start fetching them
+                            // find out for which ones we are already have a pending request
+                        let mut map_tx_get_block_receivers = HashMap::new();
+                        let mut futures = FuturesOrdered::new();
+
+                        for certificate in found_certificates.iter() {
+                            let (get_block_sender, get_block_receiver) = channel(1);
+
+                            let id = certificate.digest();
+
+                            if self.pending_get_block.contains_key(&id) {
+                                self.tx_get_block_map
+                                    .entry(id)
+                                    .or_insert_with(Vec::new)
+                                    .push(get_block_sender);
+
+                                debug!("Block with id {} already has a pending request", id.clone());
+                            } else {
+                                // for the ones for which we don't have a pending request, start one
+
+                                // for each non pending request start fetching the batches for them
+                                // Add on a vector the receivers
+                                let batch_receivers =
+                                    self.send_batch_requests(certificate.header.clone()).await;
+
+                                let fut = Self::wait_for_all_batches(id, batch_receivers);
+
+                                // Ensure that we mark this block retrieval
+                                // as pending so no other can initiate the process
+                                self.pending_get_block.insert(id, certificate.clone());
+
+                                self.tx_get_block_map
+                                    .entry(id)
+                                    .or_insert_with(Vec::new)
+                                    .push(get_block_sender);
+
+                                futures.push(fut.boxed());
+                            }
+
+                            map_tx_get_block_receivers.insert(id, get_block_receiver);
+                        }
+
+                        // create a waiter to fetch them all and send the response
+                        let fut = Self::wait_for_all_blocks(map_tx_get_block_receivers);
+
+                        // mark the request as pending
+                        self.tx_get_blocks_map
+                            .entry(key)
+                            .or_insert_with(Vec::new)
+                            .push(sender);
+
+
+                    }
+                    Err(_) => {}
+                }
+            }
             BlockCommand::GetBlock { id, sender } => {
                 match self.certificate_store.read(id).await {
                     Ok(Some(certificate)) => {
@@ -476,5 +584,17 @@ impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
             id: block_id,
             error: e,
         })
+    }
+
+    fn construct_get_blocks_request_key(ids: &[CertificateDigest]) -> RequestKey {
+        let mut ids_cloned = ids.to_vec();
+        ids_cloned.sort();
+
+        let result: RequestKey = ids_cloned
+            .into_iter()
+            .flat_map(|d| Digest::from(d).to_vec())
+            .collect();
+
+        result
     }
 }
