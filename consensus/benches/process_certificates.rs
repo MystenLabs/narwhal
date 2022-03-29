@@ -34,7 +34,8 @@ pub fn process_certificates(c: &mut Criterion) {
         let store_path = temp_testdir::TempDir::default();
         let store = make_consensus_store(&store_path);
 
-        let mut state = consensus::tusk::State::new(Certificate::genesis(&mock_committee(&keys[..])));
+        let mut state =
+            consensus::tusk::State::new(Certificate::genesis(&mock_committee(&keys[..])));
 
         let data_size: usize = certificates
             .iter()
