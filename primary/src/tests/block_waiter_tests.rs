@@ -14,7 +14,10 @@ use network::SimpleSender;
 use std::{collections::HashMap, net::SocketAddr};
 use tokio::{
     net::TcpListener,
-    sync::mpsc::{channel, Sender},
+    sync::{
+        mpsc::{channel, Sender},
+        oneshot,
+    },
     task::JoinHandle,
     time::{sleep, timeout, Duration},
 };
@@ -39,7 +42,7 @@ async fn test_successfully_retrieve_block() {
 
     // AND spawn a new blocks waiter
     let (tx_commands, rx_commands) = channel(1);
-    let (tx_get_block, mut rx_get_block) = channel(1);
+    let (tx_get_block, rx_get_block) = oneshot::channel();
     let (tx_batch_messages, rx_batch_messages) = channel(10);
 
     BlockWaiter::spawn(
@@ -96,7 +99,7 @@ async fn test_successfully_retrieve_block() {
     tokio::pin!(timer);
 
     tokio::select! {
-        Some(result) = rx_get_block.recv() => {
+        Ok(result) = rx_get_block => {
             assert!(result.is_ok(), "Expected to receive a successful result, instead got error: {}", result.err().unwrap());
 
             let block = result.unwrap();
@@ -145,19 +148,17 @@ async fn test_one_pending_request_for_block_at_time() {
         rx_batch_receiver: rx_batch_messages,
         tx_pending_batch: HashMap::new(),
         tx_get_block_map: HashMap::new(),
+        tx_get_blocks_map: HashMap::new(),
     };
 
     let get_mock_sender = || {
-        let (tx, _) = channel(1);
+        let (tx, _) = oneshot::channel();
         tx
     };
 
     // WHEN we send GetBlock command
     let result_some = waiter
-        .handle_command(BlockCommand::GetBlock {
-            id: block_id,
-            sender: get_mock_sender(),
-        })
+        .handle_get_block_command(block_id, get_mock_sender())
         .await;
 
     // AND we send more GetBlock commands
@@ -165,10 +166,7 @@ async fn test_one_pending_request_for_block_at_time() {
     for _ in 0..3 {
         results_none.push(
             waiter
-                .handle_command(BlockCommand::GetBlock {
-                    id: block_id,
-                    sender: get_mock_sender(),
-                })
+                .handle_get_block_command(block_id, get_mock_sender())
                 .await,
         );
     }
@@ -218,20 +216,18 @@ async fn test_unlocking_pending_get_block_request_after_response() {
         rx_batch_receiver: rx_batch_messages,
         tx_pending_batch: HashMap::new(),
         tx_get_block_map: HashMap::new(),
+        tx_get_blocks_map: HashMap::new(),
     };
 
     let get_mock_sender = || {
-        let (tx, _) = channel(1);
+        let (tx, _) = oneshot::channel();
         tx
     };
 
     // AND we send GetBlock commands
     for _ in 0..3 {
         waiter
-            .handle_command(BlockCommand::GetBlock {
-                id: block_id,
-                sender: get_mock_sender(),
-            })
+            .handle_get_block_command(block_id, get_mock_sender())
             .await;
     }
 
@@ -267,7 +263,7 @@ async fn test_batch_timeout() {
 
     // AND spawn a new blocks waiter
     let (tx_commands, rx_commands) = channel(1);
-    let (tx_get_block, mut rx_get_block) = channel(1);
+    let (tx_get_block, rx_get_block) = oneshot::channel();
     let (_, rx_batch_messages) = channel(10);
 
     BlockWaiter::spawn(
@@ -292,7 +288,7 @@ async fn test_batch_timeout() {
     tokio::pin!(timer);
 
     tokio::select! {
-        Some(result) = rx_get_block.recv() => {
+        Ok(result) = rx_get_block => {
             assert!(result.is_err(), "Expected to receive an error result");
 
             let block_error = result.err().unwrap();
@@ -318,7 +314,7 @@ async fn test_return_error_when_certificate_is_missing() {
 
     // AND spawn a new blocks waiter
     let (tx_commands, rx_commands) = channel(1);
-    let (tx_get_block, mut rx_get_block) = channel(1);
+    let (tx_get_block, rx_get_block) = oneshot::channel();
     let (_, rx_batch_messages) = channel(10);
 
     BlockWaiter::spawn(
@@ -343,7 +339,7 @@ async fn test_return_error_when_certificate_is_missing() {
     tokio::pin!(timer);
 
     tokio::select! {
-        Some(result) = rx_get_block.recv() => {
+        Ok(result) = rx_get_block => {
             assert!(result.is_err(), "Expected to receive an error result");
 
             let block_error = result.err().unwrap();
