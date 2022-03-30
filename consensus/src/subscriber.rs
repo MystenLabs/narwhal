@@ -80,7 +80,7 @@ impl<PublicKey: VerifyingKey> SubscriberManager<PublicKey> {
 
     /// Update all subscribers with the latest certificate.
     async fn update_subscribers(&mut self, message: ConsensusOutput<PublicKey>) {
-        // TODO: Could this be better written through a`join_all`?
+        // TODO: Could this be better written through `join_all`?
 
         // Notify the subscribers of the new output. If a subscriber's channel is full (the subscriber
         // is slow), we simply skip this output. The subscriber will eventually sync to catch up.
@@ -272,6 +272,7 @@ impl<PublicKey: VerifyingKey> SubscriberConnection<PublicKey> {
             .expect("Failed to send new subscriber to core");
 
         // Interact with the subscriber.
+        // TODO [issue #120]: Better error handling (we have a log of prints and breaks here).
         loop {
             tokio::select! {
                 // Update the subscriber every time a certificate is sequenced.
