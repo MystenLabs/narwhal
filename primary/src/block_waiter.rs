@@ -389,36 +389,8 @@ impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
 
         match self.certificate_store.read_all(ids.clone()).await {
             Ok(certificates) => {
-                let mut get_block_receivers = Vec::new();
-                let mut futures = Vec::new();
-
-                for (i, c) in certificates.into_iter().enumerate() {
-                    let (get_block_sender, get_block_receiver) = oneshot::channel();
-                    let id = *ids.get(i).unwrap();
-
-                    // certificate has been found
-                    if c.is_some() {
-                        let certificate = c.unwrap();
-                        let fut = self.get_block(id, certificate, get_block_sender).await;
-
-                        if fut.is_some() {
-                            futures.push(fut.unwrap().boxed());
-                        }
-                    } else {
-                        // if certificate has not been found , we just want to send directly a non-found block response
-                        get_block_sender
-                            .send(Err(BlockError {
-                                id,
-                                error: BlockErrorType::BlockNotFound,
-                            }))
-                            .expect("Couldn't send BlockNotFound error for a GetBlock request");
-                    }
-
-                    get_block_receivers.push(get_block_receiver);
-                }
-
-                // create a waiter to fetch them all and send the response
-                let fut = Self::wait_for_all_blocks(ids.clone(), get_block_receivers);
+                let (get_block_futures, get_blocks_future) =
+                    self.get_blocks(ids, certificates).await;
 
                 // mark the request as pending
                 self.tx_get_blocks_map
@@ -426,7 +398,7 @@ impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
                     .or_insert_with(Vec::new)
                     .push(sender);
 
-                return (Some(futures), Some(fut.boxed()));
+                return (get_block_futures, get_blocks_future);
             }
             Err(err) => {
                 error!("{err}");
@@ -434,6 +406,48 @@ impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
         }
 
         (None, None)
+    }
+
+    async fn get_blocks<'a>(
+        &mut self,
+        ids: Vec<CertificateDigest>,
+        certificates: Vec<Option<Certificate<PublicKey>>>,
+    ) -> (
+        Option<Vec<BoxFuture<'a, BlockResult<GetBlockResponse>>>>,
+        Option<BoxFuture<'a, BlocksResult>>,
+    ) {
+        let mut get_block_receivers = Vec::new();
+        let mut futures = Vec::new();
+
+        for (i, c) in certificates.into_iter().enumerate() {
+            let (get_block_sender, get_block_receiver) = oneshot::channel();
+            let id = *ids.get(i).unwrap();
+
+            // certificate has been found
+            if c.is_some() {
+                let certificate = c.unwrap();
+                let fut = self.get_block(id, certificate, get_block_sender).await;
+
+                if fut.is_some() {
+                    futures.push(fut.unwrap().boxed());
+                }
+            } else {
+                // if certificate has not been found , we just want to send directly a non-found block response
+                get_block_sender
+                    .send(Err(BlockError {
+                        id,
+                        error: BlockErrorType::BlockNotFound,
+                    }))
+                    .expect("Couldn't send BlockNotFound error for a GetBlock request");
+            }
+
+            get_block_receivers.push(get_block_receiver);
+        }
+
+        // create a waiter to fetch them all and send the response
+        let fut = Self::wait_for_all_blocks(ids.clone(), get_block_receivers);
+
+        return (Some(futures), Some(fut.boxed()));
     }
 
     // handles received commands and returns back a future if needs to
