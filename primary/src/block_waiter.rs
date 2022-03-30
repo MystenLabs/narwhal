@@ -6,7 +6,7 @@ use crate::{
 };
 use bytes::Bytes;
 use config::Committee;
-use crypto::{traits::VerifyingKey, Digest, Hash};
+use crypto::{traits::VerifyingKey, Digest};
 use futures::{
     future::{try_join_all, BoxFuture},
     stream::{futures_unordered::FuturesUnordered, StreamExt as _},
@@ -389,31 +389,29 @@ impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
 
         match self.certificate_store.read_all(ids.clone()).await {
             Ok(certificates) => {
-                // find which certificates missing and which not
-                let mut found_certificates: Vec<Certificate<PublicKey>> = Vec::new();
-                let mut missing_certificates: Vec<CertificateDigest> = Vec::new();
-
-                for (i, certificate) in certificates.into_iter().enumerate() {
-                    if certificate.is_some() {
-                        found_certificates.push(certificate.unwrap());
-                    } else {
-                        // TODO: send those as NotFound blocks
-                        missing_certificates.push(*ids.get(i).unwrap());
-                    }
-                }
-
                 let mut get_block_receivers = Vec::new();
                 let mut futures = Vec::new();
 
-                for certificate in found_certificates.into_iter() {
-                    let id = certificate.digest();
-
+                for (i, c) in certificates.into_iter().enumerate() {
                     let (get_block_sender, get_block_receiver) = oneshot::channel();
+                    let id = *ids.get(i).unwrap();
 
-                    let fut = self.get_block(id, certificate, get_block_sender).await;
+                    // certificate has been found
+                    if c.is_some() {
+                        let certificate = c.unwrap();
+                        let fut = self.get_block(id, certificate, get_block_sender).await;
 
-                    if fut.is_some() {
-                        futures.push(fut.unwrap().boxed());
+                        if fut.is_some() {
+                            futures.push(fut.unwrap().boxed());
+                        }
+                    } else {
+                        // if certificate has not been found , we just want to send directly a non-found block response
+                        get_block_sender
+                            .send(Err(BlockError {
+                                id,
+                                error: BlockErrorType::BlockNotFound,
+                            }))
+                            .expect("Couldn't send BlockNotFound error for a GetBlock request");
                     }
 
                     get_block_receivers.push(get_block_receiver);

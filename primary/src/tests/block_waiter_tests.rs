@@ -1,13 +1,15 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use crate::{
-    block_waiter::{BatchResult, BlockErrorType, BlockResult, GetBlockResponse, GetBlocksResponse},
+    block_waiter::{
+        BatchResult, BlockError, BlockErrorType, BlockResult, GetBlockResponse, GetBlocksResponse,
+    },
     common,
     common::{
         certificate, create_db_stores, fixture_batch_with_transactions, fixture_header_builder,
         keys, resolve_name_and_committee,
     },
-    messages, BatchDigest, BatchMessage, BlockCommand, BlockWaiter, Certificate,
+    messages, BatchDigest, BatchMessage, BlockCommand, BlockWaiter, Certificate, CertificateDigest,
     PrimaryWorkerMessage,
 };
 use bincode::deserialize;
@@ -186,6 +188,15 @@ async fn test_successfully_retrieve_multiple_blocks() {
             batches,
         }));
     }
+
+    // AND add a missing block as well
+    let missing_block_id = CertificateDigest::default();
+    expected_get_block_responses.push(Err(BlockError {
+        id: missing_block_id,
+        error: BlockErrorType::BlockNotFound,
+    }));
+
+    block_ids.push(missing_block_id);
 
     // AND the expected get blocks response
     let expected_get_blocks_response = GetBlocksResponse {
