@@ -47,27 +47,31 @@ pub enum BlockCommand {
     },
 
     #[allow(dead_code)]
+    /// GetBlocks will initiate the process of retrieving the
+    /// block data for multiple provided block ids. The results
+    /// will be returned in the same order that the ids were
+    /// provided.
     GetBlocks {
         ids: Vec<CertificateDigest>,
         sender: oneshot::Sender<BlocksResult>,
     },
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct GetBlockResponse {
     id: CertificateDigest,
     #[allow(dead_code)]
     pub batches: Vec<BatchMessage>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct GetBlocksResponse {
     pub blocks: Vec<BlockResult<GetBlockResponse>>,
 }
 
 pub type BatchResult = Result<BatchMessage, BatchMessageError>;
 
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Default, Debug, PartialEq)]
 pub struct BatchMessage {
     pub id: BatchDigest,
     pub transactions: Batch,
@@ -82,7 +86,7 @@ pub struct BatchMessageError {
 
 pub type BlockResult<T> = Result<T, BlockError>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct BlockError {
     id: CertificateDigest,
     error: BlockErrorType,
@@ -393,11 +397,12 @@ impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
                     if certificate.is_some() {
                         found_certificates.push(certificate.unwrap());
                     } else {
+                        // TODO: send those as NotFound blocks
                         missing_certificates.push(*ids.get(i).unwrap());
                     }
                 }
 
-                let mut map_tx_get_block_receivers = HashMap::new();
+                let mut get_block_receivers = Vec::new();
                 let mut futures = Vec::new();
 
                 for certificate in found_certificates.into_iter() {
@@ -411,11 +416,11 @@ impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
                         futures.push(fut.unwrap().boxed());
                     }
 
-                    map_tx_get_block_receivers.insert(id, get_block_receiver);
+                    get_block_receivers.push(get_block_receiver);
                 }
 
                 // create a waiter to fetch them all and send the response
-                let fut = Self::wait_for_all_blocks(ids.clone(), map_tx_get_block_receivers);
+                let fut = Self::wait_for_all_blocks(ids.clone(), get_block_receivers);
 
                 // mark the request as pending
                 self.tx_get_blocks_map
@@ -494,13 +499,10 @@ impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
 
     async fn wait_for_all_blocks(
         ids: Vec<CertificateDigest>,
-        map_blocks_receivers: HashMap<
-            CertificateDigest,
-            oneshot::Receiver<BlockResult<GetBlockResponse>>,
-        >,
+        get_block_receivers: Vec<oneshot::Receiver<BlockResult<GetBlockResponse>>>,
     ) -> BlocksResult {
-        let receivers: Vec<_> = map_blocks_receivers
-            .into_values()
+        let receivers: Vec<_> = get_block_receivers
+            .into_iter()
             .map(|r| Self::wait_to_receive(r))
             .collect();
 
@@ -624,7 +626,7 @@ impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
                     .expect("Couldn't send BatchResult for pending batch");
             }
             None => {
-                debug!("Couldn't find pending batch with id {}", &batch_id);
+                println!("Couldn't find pending batch with id {}", &batch_id);
             }
         }
     }
@@ -641,7 +643,12 @@ impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
             .map(|p| Self::wait_for_batch(block_id, p.1))
             .collect();
 
-        let result = try_join_all(waiting).await?;
+        let mut result = try_join_all(waiting).await?;
+
+        // to make deterministic the response, let's make sure that we'll serve the
+        // batch results in the same order. Sort by batch_id ascending order.
+        result.sort_by(|a, b| a.id.cmp(&b.id));
+
         Ok(GetBlockResponse {
             id: block_id,
             batches: result,
@@ -657,7 +664,10 @@ impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
         // ensure that we won't wait forever for a batch result to come
         let r = match timeout(BATCH_RETRIEVE_TIMEOUT, batch_receiver).await {
             Ok(Ok(result)) => result.or(Err(BlockErrorType::BatchError)),
-            Ok(Err(_)) => Err(BlockErrorType::BatchError),
+            Ok(Err(err)) => {
+                println!("Receiver error: {}", err);
+                Err(BlockErrorType::BatchError)
+            }
             Err(_) => Err(BlockErrorType::BatchTimeout),
         };
 
