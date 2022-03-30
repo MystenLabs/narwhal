@@ -80,6 +80,8 @@ impl<PublicKey: VerifyingKey> SubscriberManager<PublicKey> {
 
     /// Update all subscribers with the latest certificate.
     async fn update_subscribers(&mut self, message: ConsensusOutput<PublicKey>) {
+        // TODO: Could this be better written through a`join_all`?
+
         // Notify the subscribers of the new output. If a subscriber's channel is full (the subscriber
         // is slow), we simply skip this output. The subscriber will eventually sync to catch up.
         let mut to_drop = Vec::new();
@@ -225,10 +227,9 @@ impl<PublicKey: VerifyingKey> SubscriberConnection<PublicKey> {
     /// Help the subscriber missing chunks of the output sequence to get up to speed.
     async fn synchronize(&mut self, request: ConsensusSyncRequest) -> StoreResult<()> {
         // Load the digests from the consensus store.
-        let indices: Vec<_> = (request.start + 1..=request.stop).collect();
         let digests = self
             .consensus_store
-            .read_sequenced_certificates(&indices)?
+            .read_sequenced_certificates(&request.missing)?
             .into_iter()
             .take_while(|x| x.is_some())
             .map(|x| x.unwrap());
@@ -237,7 +238,7 @@ impl<PublicKey: VerifyingKey> SubscriberConnection<PublicKey> {
         let certificates = self.certificate_store.read_all(digests).await?;
 
         // Transmit each certificate to the subscriber (in the right order).
-        for (certificate, consensus_index) in certificates.into_iter().zip(indices.into_iter()) {
+        for (certificate, consensus_index) in certificates.into_iter().zip(request.missing) {
             match certificate {
                 Some(certificate) => {
                     let message = ConsensusOutput {

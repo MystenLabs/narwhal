@@ -17,6 +17,7 @@ pub use crate::{store::ConsensusStore, subscriber::SubscriberHandler, tusk::Cons
 use crypto::traits::VerifyingKey;
 use primary::Certificate;
 use serde::{Deserialize, Serialize};
+use std::ops::RangeInclusive;
 
 /// The default channel size used in the consensus and subscriber logic.
 pub const DEFAULT_CHANNEL_SIZE: usize = 1_000;
@@ -37,8 +38,6 @@ pub struct ConsensusOutput<PublicKey: VerifyingKey> {
 /// The message sent by the client to sync missing chunks of the output sequence.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ConsensusSyncRequest {
-    /// The latest index known by the client.
-    pub start: SequenceNumber,
-    /// The latest index the client would like to sync.
-    pub stop: SequenceNumber,
+    /// The sequence numbers of the missing consensus outputs.
+    pub missing: RangeInclusive<SequenceNumber>,
 }

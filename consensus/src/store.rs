@@ -3,15 +3,11 @@
 use crate::SequenceNumber;
 use crypto::traits::VerifyingKey;
 use primary::{CertificateDigest, Round};
-use std::{collections::HashMap, path::Path};
+use std::{collections::HashMap, ops::RangeInclusive};
 use store::{
     rocks::{DBMap, TypedStoreError},
     traits::Map,
 };
-
-// The datastore column family names.
-const LAST_COMMITTED_CF: &str = "last_committed";
-const SEQUENCE_CF: &str = "sequence";
 
 /// Convenience type to propagate store errors.
 pub type StoreResult<T> = Result<T, TypedStoreError>;
@@ -34,30 +30,6 @@ impl<PublicKey: VerifyingKey> ConsensusStore<PublicKey> {
             last_committed,
             sequence,
         }
-    }
-
-    /// Open (or re-open) the consensus store.
-    pub fn open_with_options<P: AsRef<Path>>(
-        path: P,
-        db_options: Option<rocksdb::Options>,
-    ) -> Self {
-        let row_cache = rocksdb::Cache::new_lru_cache(1_000_000).expect("Cache is ok");
-        let mut options = db_options.unwrap_or_default();
-        options.set_row_cache(&row_cache);
-        options.set_table_cache_num_shard_bits(10);
-        options.set_compression_type(rocksdb::DBCompressionType::None);
-
-        let db = store::rocks::open_cf_opts(
-            &path,
-            Some(options.clone()),
-            &[(LAST_COMMITTED_CF, &options), (SEQUENCE_CF, &options)],
-        )
-        .expect("Cannot open DB.");
-
-        let last_committed = DBMap::reopen(&db, Some(LAST_COMMITTED_CF)).expect("Cannot open CF.");
-        let sequence = DBMap::reopen(&db, Some(SEQUENCE_CF)).expect("Cannot open CF.");
-
-        Self::new(last_committed, sequence)
     }
 
     /// Persist the consensus state.
@@ -84,9 +56,15 @@ impl<PublicKey: VerifyingKey> ConsensusStore<PublicKey> {
     /// Load the certificate digests sequenced at a specific indices.
     pub fn read_sequenced_certificates(
         &self,
-        indices: &[SequenceNumber],
+        missing: &RangeInclusive<SequenceNumber>,
     ) -> StoreResult<Vec<Option<CertificateDigest>>> {
-        self.sequence.multi_get(indices)
+        Ok(self
+            .sequence
+            .iter()
+            .skip_to(missing.start())?
+            .take_while(|(index, _)| index <= missing.end())
+            .map(|(_, digest)| Some(digest))
+            .collect())
     }
 
     /// Load the last (ie. the highest) consensus index associated to a certificate.

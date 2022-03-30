@@ -172,8 +172,7 @@ async fn subscribe_sync() {
     let last_known_server_index = 4;
 
     let message = ConsensusSyncRequest {
-        start: last_known_client_index,
-        stop: last_known_server_index,
+        missing: (last_known_client_index + 1..=last_known_server_index),
     };
     let serialized = bincode::serialize(&message).unwrap();
     writer.send(Bytes::from(serialized)).await.unwrap();
