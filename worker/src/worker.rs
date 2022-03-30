@@ -23,7 +23,7 @@ use std::{
 };
 use store::Store;
 use tokio::sync::mpsc::{channel, Sender};
-use tracing::{debug, error, info, warn};
+use tracing::{error, info, warn};
 
 #[cfg(test)]
 #[path = "tests/worker_tests.rs"]
@@ -318,10 +318,7 @@ impl<PublicKey: VerifyingKey> MessageHandler for WorkerReceiverHandler<PublicKey
                     .expect("Failed to send batch request");
 
                 while let Some(batch) = receiver.recv().await {
-                    if let Err(e) = writer.send(Bytes::from(batch)).await {
-                        debug!("Connection dropped by client {e}");
-                        break;
-                    }
+                    writer.send(Bytes::from(batch)).await?;
                 }
             }
             Err(e) => warn!("Serialization error: {e}"),
