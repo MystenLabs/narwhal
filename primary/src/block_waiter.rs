@@ -49,7 +49,7 @@ pub enum BlockCommand {
     #[allow(dead_code)]
     GetBlocks {
         ids: Vec<CertificateDigest>,
-        sender: oneshot::Sender<GetBlocksResponse>,
+        sender: oneshot::Sender<BlocksResult>,
     },
 }
 
@@ -108,6 +108,26 @@ pub enum BlockErrorType {
 }
 
 impl fmt::Display for BlockErrorType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+type BlocksResult = Result<GetBlocksResponse, BlocksError>;
+
+#[derive(Debug, Clone)]
+pub struct BlocksError {
+    ids: Vec<CertificateDigest>,
+    #[allow(dead_code)]
+    error: BlocksErrorType,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum BlocksErrorType {
+    Error,
+}
+
+impl fmt::Display for BlocksErrorType {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", self)
     }
@@ -233,7 +253,7 @@ pub struct BlockWaiter<PublicKey: VerifyingKey> {
 
     /// A map that holds the channels we should notify with the
     /// GetBlocks responses.
-    tx_get_blocks_map: HashMap<RequestKey, Vec<oneshot::Sender<GetBlocksResponse>>>,
+    tx_get_blocks_map: HashMap<RequestKey, Vec<oneshot::Sender<BlocksResult>>>,
 }
 
 impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
@@ -266,7 +286,7 @@ impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
 
     async fn run(&mut self) {
         let mut waiting_get_block = FuturesUnordered::new();
-        let waiting_get_blocks = FuturesUnordered::new();
+        let mut waiting_get_blocks = FuturesUnordered::new();
 
         loop {
             tokio::select! {
@@ -304,6 +324,36 @@ impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
                 Some(result) = waiting_get_block.next() => {
                     self.handle_batch_waiting_result(result).await;
                 },
+                Some(result) = waiting_get_blocks.next() => {
+                    self.handle_get_blocks_waiting_result(result).await;
+                }
+            }
+        }
+    }
+
+    async fn handle_get_blocks_waiting_result(&mut self, result: BlocksResult) {
+        let ids = result.clone().map_or_else(
+            |err| err.ids,
+            |ok| {
+                ok.blocks
+                    .into_iter()
+                    .map(|res| res.map_or_else(|e| e.id, |r| r.id))
+                    .collect()
+            },
+        );
+
+        let key = Self::construct_get_blocks_request_key(&ids);
+
+        match self.tx_get_blocks_map.remove(&key) {
+            Some(senders) => {
+                for sender in senders {
+                    if sender.send(result.clone()).is_err() {
+                        error!("Couldn't forward results for blocks {:?} to sender", ids)
+                    }
+                }
+            }
+            None => {
+                error!("We should expect to find channels to respond for {:?}", ids);
             }
         }
     }
@@ -311,10 +361,10 @@ impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
     async fn handle_get_blocks_command<'a>(
         &mut self,
         ids: Vec<CertificateDigest>,
-        sender: oneshot::Sender<GetBlocksResponse>,
+        sender: oneshot::Sender<BlocksResult>,
     ) -> (
         Option<Vec<BoxFuture<'a, BlockResult<GetBlockResponse>>>>,
-        Option<BoxFuture<'a, Result<GetBlocksResponse, RecvError>>>,
+        Option<BoxFuture<'a, BlocksResult>>,
     ) {
         // check whether we have a similar request pending
         // to make the check easy we sort the digests in asc order,
@@ -365,7 +415,7 @@ impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
                 }
 
                 // create a waiter to fetch them all and send the response
-                let fut = Self::wait_for_all_blocks(map_tx_get_block_receivers);
+                let fut = Self::wait_for_all_blocks(ids.clone(), map_tx_get_block_receivers);
 
                 // mark the request as pending
                 self.tx_get_blocks_map
@@ -443,18 +493,29 @@ impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
     }
 
     async fn wait_for_all_blocks(
+        ids: Vec<CertificateDigest>,
         map_blocks_receivers: HashMap<
             CertificateDigest,
             oneshot::Receiver<BlockResult<GetBlockResponse>>,
         >,
-    ) -> Result<GetBlocksResponse, RecvError> {
+    ) -> BlocksResult {
         let receivers: Vec<_> = map_blocks_receivers
             .into_values()
             .map(|r| Self::wait_to_receive(r))
             .collect();
 
-        let result = try_join_all(receivers).await?;
-        Ok(GetBlocksResponse { blocks: result })
+        let result = try_join_all(receivers).await;
+
+        if result.is_err() {
+            Err(BlocksError {
+                ids,
+                error: BlocksErrorType::Error,
+            })
+        } else {
+            Ok(GetBlocksResponse {
+                blocks: result.unwrap(),
+            })
+        }
     }
 
     async fn wait_to_receive(
