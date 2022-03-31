@@ -39,14 +39,12 @@ pub enum BlockCommand {
     /// (vector of transactions) by a given block digest.
     /// Results are sent to the provided Sender. The id is
     /// basically the Certificate digest id.
-    #[allow(dead_code)]
     GetBlock {
         id: CertificateDigest,
         // The channel to send the results to.
         sender: oneshot::Sender<BlockResult<GetBlockResponse>>,
     },
 
-    #[allow(dead_code)]
     /// GetBlocks will initiate the process of retrieving the
     /// block data for multiple provided block ids. The results
     /// will be returned in the same order that the ids were
