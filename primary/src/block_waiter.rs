@@ -296,7 +296,7 @@ impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
                     match command {
                         BlockCommand::GetBlocks { ids, sender } => {
                             match self.handle_get_blocks_command(ids, sender).await {
-                                (Some(get_block_futures), Some(get_blocks_future)) => {
+                                Some((get_block_futures, get_blocks_future)) => {
                                     for fut in get_block_futures {
                                         waiting_get_block.push(fut);
                                     }
@@ -364,10 +364,10 @@ impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
         &mut self,
         ids: Vec<CertificateDigest>,
         sender: oneshot::Sender<BlocksResult>,
-    ) -> (
-        Option<Vec<BoxFuture<'a, BlockResult<GetBlockResponse>>>>,
-        Option<BoxFuture<'a, BlocksResult>>,
-    ) {
+    ) -> Option<(
+        Vec<BoxFuture<'a, BlockResult<GetBlockResponse>>>,
+        BoxFuture<'a, BlocksResult>,
+    )> {
         // check whether we have a similar request pending
         // to make the check easy we sort the digests in asc order,
         // and then we merge all the bytes to form a key
@@ -382,7 +382,7 @@ impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
                 .push(sender);
 
             debug!("GetBlocks has an already pending request for the provided ids");
-            return (None, None);
+            return None;
         }
 
         match self.certificate_store.read_all(ids.clone()).await {
@@ -396,14 +396,14 @@ impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
                     .or_insert_with(Vec::new)
                     .push(sender);
 
-                return (get_block_futures, get_blocks_future);
+                return Some((get_block_futures, get_blocks_future));
             }
             Err(err) => {
                 error!("{err}");
             }
         }
 
-        (None, None)
+        None
     }
 
     async fn get_blocks<'a>(
@@ -411,8 +411,8 @@ impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
         ids: Vec<CertificateDigest>,
         certificates: Vec<Option<Certificate<PublicKey>>>,
     ) -> (
-        Option<Vec<BoxFuture<'a, BlockResult<GetBlockResponse>>>>,
-        Option<BoxFuture<'a, BlocksResult>>,
+        Vec<BoxFuture<'a, BlockResult<GetBlockResponse>>>,
+        BoxFuture<'a, BlocksResult>,
     ) {
         let mut get_block_receivers = Vec::new();
         let mut futures = Vec::new();
@@ -445,7 +445,7 @@ impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
         // create a waiter to fetch them all and send the response
         let fut = Self::wait_for_all_blocks(ids.clone(), get_block_receivers);
 
-        return (Some(futures), Some(fut.boxed()));
+        return (futures, fut.boxed());
     }
 
     // handles received commands and returns back a future if needs to
