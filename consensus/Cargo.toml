@@ -11,6 +11,7 @@ rand = { version = "0.7.3", optional = true }
 crypto = { path = "../crypto" }
 config = { path = "../config" }
 primary = { path = "../primary" }
+blake2 = "0.9"
 tracing = "0.1.31"
 tokio-util = { version = "0.7.0", features = ["codec"] }
 serde = { version = "1.0.136", features = ["derive"] }
@@ -29,6 +30,8 @@ criterion = "0.3.5"
 ed25519-dalek = { version = "1.0.1", features = ["batch", "serde"] }
 pprof = { version = "0.6.2", features = ["criterion", "flamegraph"] }
 temp_testdir = "0.2"
+async-trait = "0.1.53"
+worker = { path = "../worker" }
 
 [features]
 default = ["rand"]
