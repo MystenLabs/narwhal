@@ -1,5 +1,8 @@
 use async_trait::async_trait;
-use consensus::SequenceNumber;
+use bytes::BytesMut;
+use consensus::{ConsensusOutput, SequenceNumber};
+use crypto::traits::VerifyingKey;
+use futures::StreamExt;
 use serde::de::DeserializeOwned;
 use std::time::Duration;
 use tokio::time::sleep;

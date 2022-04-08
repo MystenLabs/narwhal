@@ -6,7 +6,7 @@ use consensus::ConsensusOutput;
 use crypto::{traits::VerifyingKey, Hash};
 use futures::{
     future::try_join_all,
-    stream::{FuturesOrdered, StreamExt as _},
+    stream::{FuturesUnordered, StreamExt as _},
     SinkExt, StreamExt as _,
 };
 use primary::{BatchDigest, Certificate, CertificateDigest};
@@ -25,80 +25,68 @@ use tokio_util::codec::{Framed, LengthDelimitedCodec};
 use tracing::{debug, error, warn};
 use worker::{SerializedBatchMessage, WorkerMessage};
 
+/// Download transactions data from the consensus workers and notifies the called when the job is done.
 pub struct BatchLoader<PublicKey: VerifyingKey> {
+    /// The temporary storage holding all transactions' data (that may be too big to hold in memory).
     store: Store<BatchDigest, SerializedBatchMessage>,
+    /// Receive consensus outputs for which to download the associated transaction data.
     rx_input: Receiver<ConsensusOutput<PublicKey>>,
+    /// Send back consensus output messages for which we downloaded all associated transaction data.
     tx_output: Sender<ConsensusOutput<PublicKey>>,
-    already_requested: HashSet<CertificateDigest>,
+    /// The network addresses of the consensus workers.
     addresses: HashMap<WorkerId, SocketAddr>,
+    /// A map of connections with the consensus workers.
     connections: HashMap<WorkerId, Sender<Vec<BatchDigest>>>,
 }
 
 impl<PublicKey: VerifyingKey> BatchLoader<PublicKey> {
-    /// Wait for particular data to become available in the storage and then returns.
-    async fn waiter<T>(
-        missing: Vec<BatchDigest>,
-        store: &Store<BatchDigest, SerializedBatchMessage>,
-        deliver: T,
-    ) -> Result<T, StoreError> {
-        let waiting: Vec<_> = missing.into_iter().map(|x| store.notify_read(x)).collect();
-        try_join_all(waiting).await.map(|_| deliver)
-    }
-
+    /// Receive to consensus message for which we need to download the associated transaction data.
     async fn run(&mut self) -> Result<(), StoreError> {
-        let mut waiting = FuturesOrdered::new();
+        while let Some(message) = self.rx_input.recv().await {
+            let certificate = &message.certificate;
 
-        loop {
-            tokio::select! {
-                Some(message) = self.rx_input.recv() => {
-                    let certificate = &message.certificate;
-
-                    // Send a request for every batch referenced by the certificate.
-                    // TODO: Can probably write it better
-                    let mut map = HashMap::new();
-                    for (digest, worker_id) in certificate.header.payload.iter() {
-                        map.entry(*worker_id).or_insert_with(Vec::new).push(*digest);
-                    }
-                    for (worker_id, digests) in map {
-                        let sender = self.connections.entry(worker_id).or_insert_with(|| {
-                            let (sender, receiver) = channel(DEFAULT_CHANNEL_SIZE);
-                            let address = self.addresses.get(&worker_id).unwrap(); // TODO: unwrap
-                            SyncConnection::spawn::<PublicKey>(*address, self.store.clone(), receiver);
-                            sender
-                        });
-                        sender.send(digests).await.expect("Failed to send message to sync connection");
-                    }
-
-                    // Mark the certificate as pending until we get all the batches it references.
-                    if self.already_requested.insert(certificate.digest()) {
-                        let digests = certificate.header.payload.keys().cloned().collect();
-                        let future = Self::waiter(digests, &self.store, message);
-                        waiting.push(future);
-                    }
-                },
-
-                Some(result) = waiting.next() => {
-                    let message = result?;
-
-                    // Cleanup internal state. The persistent storage is cleaned after processing all
-                    // transactions of the batch.
-                    self.already_requested.remove(&message.certificate.digest());
-
-                    // All the transactions referenced by this certificate are ready for processing.
-                    self.tx_output.send(message).await.expect("Failed to send certificate");
-                }
+            // Send a request for every batch referenced by the certificate.
+            // TODO: Can we write it better without allocating a HashMap every time?
+            let mut map = HashMap::with_capacity(certificate.header.payload.len());
+            for (digest, worker_id) in certificate.header.payload.iter() {
+                map.entry(*worker_id).or_insert_with(Vec::new).push(*digest);
+            }
+            for (worker_id, digests) in map {
+                let sender = self.connections.entry(worker_id).or_insert_with(|| {
+                    let (sender, receiver) = channel(DEFAULT_CHANNEL_SIZE);
+                    // TODO: Return error UnexpectedConsensusMessage.
+                    let address = self
+                        .addresses
+                        .get(&worker_id)
+                        .expect("UnexpectedConsensusMessage");
+                    SyncConnection::spawn::<PublicKey>(*address, self.store.clone(), receiver);
+                    sender
+                });
+                sender
+                    .send(digests)
+                    .await
+                    .expect("Failed to send message to sync connection");
             }
         }
+        Ok(())
     }
 }
 
+/// Connect (and maintain a connection) with a specific worker. Then download batches from that
+/// specific worker.
 struct SyncConnection {
+    /// The address of the worker to connect with.
     address: SocketAddr,
+    /// The temporary storage holding all transactions' data (that may be too big to hold in memory).
     store: Store<BatchDigest, SerializedBatchMessage>,
+    /// Receive the batches to download from the worker.
     rx_request: Receiver<Vec<BatchDigest>>,
+    /// Keep a set of requests already made to avoid asking twice for the same batch.
+    already_requested: HashSet<BatchDigest>,
 }
 
 impl SyncConnection {
+    /// Spawn a new worker connection in a dedicated tokio task.
     pub fn spawn<PublicKey: VerifyingKey>(
         address: SocketAddr,
         store: Store<BatchDigest, SerializedBatchMessage>,
@@ -109,12 +97,14 @@ impl SyncConnection {
                 address,
                 store,
                 rx_request,
+                already_requested: HashSet::new(),
             }
             .run::<PublicKey>()
             .await;
         });
     }
 
+    /// Main loop keeping the connection with a worker alive and receive batches to download.
     async fn run<PublicKey: VerifyingKey>(&mut self) -> Result<(), Box<dyn Error>> {
         // The connection waiter ensures we do not attempt to reconnect immediately after failure.
         let mut connection_waiter = ConnectionWaiter::default();
@@ -139,21 +129,46 @@ impl SyncConnection {
             // Listen to sync request and update the store with the replies.
             loop {
                 tokio::select! {
+                    // Listen for batches to download.
                     Some(digests) = self.rx_request.recv() => {
-                        let message = WorkerMessage::<PublicKey>::ClientBatchRequest(digests);
+                        // Filter digests that we already requested.
+                        let mut missing = Vec::new();
+                        for digest in digests {
+                            if !self.already_requested.contains(&digest) {
+                                missing.push(digest);
+                            }
+                        }
+
+                        // Request the batch from the worker.
+                        let message = WorkerMessage::<PublicKey>::ClientBatchRequest(missing.clone());
                         let serialized = bincode::serialize(&message).expect("Failed to serialize request");
-                        if let Err(e) = connection.send(Bytes::from(serialized)).await {
-                            warn!("Failed to send sync request to worker {}: {e}", self.address);
-                            continue 'main;
+                        match connection.send(Bytes::from(serialized)).await {
+                            Ok(()) => {
+                                for digest in missing {
+                                    self.already_requested.insert(digest);
+                                }
+                            },
+                            Err(e) => {
+                                warn!("Failed to send sync request to worker {}: {e}", self.address);
+                                continue 'main;
+                            }
                         }
                     },
 
+                    // Receive the batch data from the worker.
                     Some(result) = connection.next() => {
                         match result {
                             Ok(batch) => {
+                                // Store the batch in the temporary store.
                                 // TODO: We can probably avoid re-computing the hash of the bach since we trust the worker.
                                 let digest = BatchDigest::new(crypto::blake2b_256(|hasher| hasher.update(&batch)));
                                 self.store.write(digest, batch.to_vec()).await;
+
+                                // Cleanup internal state.
+                                self.already_requested.remove(&digest);
+
+                                // Reset the connection timeout delay.
+                                connection_waiter.reset();
                             },
                             Err(e) => {
                                 warn!("Failed to receive batch reply from worker {}: {e}", self.address);
