@@ -1,7 +1,9 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crate::utils::{
-    AuthorityState, ConnectionWaiter, SubscriberError, SubscriberResult, SubscriberState,
+use crate::{
+    errors::{SubscriberError, SubscriberResult},
+    utils::ConnectionWaiter,
+    AuthorityState, SubscriberState,
 };
 use consensus::{ConsensusOutput, SequenceNumber};
 use crypto::traits::VerifyingKey;
@@ -224,17 +226,14 @@ where
                     .execution_state
                     .handle_consensus_transaction(subscriber_state.clone(), command)
                     .await
-                    .map_err(|e| SubscriberError::from(e));
+                    .map_err(SubscriberError::from);
 
-                match &result {
-                    Err(SubscriberError::ClientExecutionError(e)) => {
-                        // We may want to log the errors that are the user's fault (i.e., that are neither our fault
-                        // or the fault of consensus) for debug purposes. It is safe to continue by ignoring those
-                        // certificates/transactions since all honest subscribers will do the same.
-                        debug!("{e}");
-                        continue;
-                    }
-                    _ => (),
+                if let Err(SubscriberError::ClientExecutionError(e)) = &result {
+                    // We may want to log the errors that are the user's fault (i.e., that are neither our fault
+                    // or the fault of consensus) for debug purposes. It is safe to continue by ignoring those
+                    // certificates/transactions since all honest subscribers will do the same.
+                    debug!("{e}");
+                    continue;
                 }
 
                 // We must take special care to errors that are our fault, such as storage errors. We may be the

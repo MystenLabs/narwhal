@@ -1,7 +1,8 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use crate::{
-    utils::{ConnectionWaiter, SubscriberError, SubscriberResult},
+    errors::{SubscriberError, SubscriberResult},
+    utils::ConnectionWaiter,
     DEFAULT_CHANNEL_SIZE,
 };
 use blake2::digest::Update;
