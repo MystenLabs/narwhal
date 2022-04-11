@@ -1,28 +1,26 @@
-use crate::{utils::ConnectionWaiter, DEFAULT_CHANNEL_SIZE};
+use crate::{
+    utils::{ConnectionWaiter, SubscriberError, SubscriberResult},
+    DEFAULT_CHANNEL_SIZE,
+};
 use blake2::digest::Update;
 use bytes::Bytes;
 use config::WorkerId;
 use consensus::ConsensusOutput;
-use crypto::{traits::VerifyingKey, Hash};
-use futures::{
-    future::try_join_all,
-    stream::{FuturesUnordered, StreamExt as _},
-    SinkExt, StreamExt as _,
-};
-use primary::{BatchDigest, Certificate, CertificateDigest};
+use crypto::traits::VerifyingKey;
+use futures::{stream::StreamExt, SinkExt};
+use primary::BatchDigest;
 use std::{
     collections::{HashMap, HashSet},
-    error::Error,
     net::SocketAddr,
 };
-use store::{Store, StoreError};
+use store::Store;
 use tokio::{
-    net::{TcpListener, TcpStream},
+    net::TcpStream,
     sync::mpsc::{channel, Receiver, Sender},
     task::JoinHandle,
 };
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
-use tracing::{debug, error, warn};
+use tracing::warn;
 use worker::{SerializedBatchMessage, WorkerMessage};
 
 /// Download transactions data from the consensus workers and notifies the called when the job is done.
@@ -31,8 +29,6 @@ pub struct BatchLoader<PublicKey: VerifyingKey> {
     store: Store<BatchDigest, SerializedBatchMessage>,
     /// Receive consensus outputs for which to download the associated transaction data.
     rx_input: Receiver<ConsensusOutput<PublicKey>>,
-    /// Send back consensus output messages for which we downloaded all associated transaction data.
-    tx_output: Sender<ConsensusOutput<PublicKey>>,
     /// The network addresses of the consensus workers.
     addresses: HashMap<WorkerId, SocketAddr>,
     /// A map of connections with the consensus workers.
@@ -40,8 +36,26 @@ pub struct BatchLoader<PublicKey: VerifyingKey> {
 }
 
 impl<PublicKey: VerifyingKey> BatchLoader<PublicKey> {
+    /// Spawn a new batch loaded in a dedicated tokio task.
+    pub fn spawn(
+        store: Store<BatchDigest, SerializedBatchMessage>,
+        rx_input: Receiver<ConsensusOutput<PublicKey>>,
+        addresses: HashMap<WorkerId, SocketAddr>,
+    ) -> JoinHandle<SubscriberResult<()>> {
+        tokio::spawn(async move {
+            Self {
+                store,
+                rx_input,
+                addresses,
+                connections: HashMap::new(),
+            }
+            .run()
+            .await
+        })
+    }
+
     /// Receive to consensus message for which we need to download the associated transaction data.
-    async fn run(&mut self) -> Result<(), StoreError> {
+    async fn run(&mut self) -> SubscriberResult<()> {
         while let Some(message) = self.rx_input.recv().await {
             let certificate = &message.certificate;
 
@@ -52,16 +66,17 @@ impl<PublicKey: VerifyingKey> BatchLoader<PublicKey> {
                 map.entry(*worker_id).or_insert_with(Vec::new).push(*digest);
             }
             for (worker_id, digests) in map {
+                let address = self
+                    .addresses
+                    .get(&worker_id)
+                    .ok_or(SubscriberError::UnexpectedWorkerId(worker_id))?;
+
                 let sender = self.connections.entry(worker_id).or_insert_with(|| {
                     let (sender, receiver) = channel(DEFAULT_CHANNEL_SIZE);
-                    // TODO: Return error UnexpectedConsensusMessage.
-                    let address = self
-                        .addresses
-                        .get(&worker_id)
-                        .expect("UnexpectedConsensusMessage");
                     SyncConnection::spawn::<PublicKey>(*address, self.store.clone(), receiver);
                     sender
                 });
+
                 sender
                     .send(digests)
                     .await
@@ -105,7 +120,7 @@ impl SyncConnection {
     }
 
     /// Main loop keeping the connection with a worker alive and receive batches to download.
-    async fn run<PublicKey: VerifyingKey>(&mut self) -> Result<(), Box<dyn Error>> {
+    async fn run<PublicKey: VerifyingKey>(&mut self) {
         // The connection waiter ensures we do not attempt to reconnect immediately after failure.
         let mut connection_waiter = ConnectionWaiter::default();
 

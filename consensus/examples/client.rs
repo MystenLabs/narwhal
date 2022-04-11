@@ -1,22 +1,16 @@
-use crate::utils::{AuthorityState, ConnectionWaiter};
-use bytes::Bytes;
+use crate::utils::{AuthorityState, ConnectionWaiter, SubscriberError, SubscriberResult};
 use consensus::{ConsensusOutput, SequenceNumber};
-use crypto::{ed25519::Ed25519PublicKey, traits::VerifyingKey};
+use crypto::traits::VerifyingKey;
 use futures::{
     future::try_join_all,
-    stream::{FuturesOrdered, StreamExt as _},
-    SinkExt, StreamExt as _,
+    stream::{FuturesOrdered, StreamExt},
 };
-use primary::{Batch, BatchDigest, Certificate};
-use std::{cmp::Ordering, error::Error, net::SocketAddr, sync::Arc};
-use store::{Store, StoreError};
-use tokio::{
-    net::{TcpListener, TcpStream},
-    sync::mpsc::{channel, Receiver, Sender},
-    task::JoinHandle,
-};
+use primary::{Batch, BatchDigest};
+use std::{cmp::Ordering, net::SocketAddr, sync::Arc};
+use store::Store;
+use tokio::{net::TcpStream, sync::mpsc::Sender, task::JoinHandle};
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
-use tracing::{debug, error, warn};
+use tracing::{debug, info, warn};
 use worker::{SerializedBatchMessage, WorkerMessage};
 
 /// The `Subscriber` receives certificates sequenced by the consensus and execute every
@@ -42,36 +36,43 @@ impl<State: AuthorityState, PublicKey: VerifyingKey> Drop for Subscriber<State, 
     }
 }
 
-impl<State: AuthorityState, PublicKey: VerifyingKey> Subscriber<State, PublicKey> {
-    /*
-    /// Create a new consensus handler with the input authority state.
-    pub fn new(state: Arc<AuthorityState>) -> SuiResult<Self> {
+impl<State, PublicKey> Subscriber<State, PublicKey>
+where
+    State: AuthorityState + Send + Sync + 'static,
+    PublicKey: VerifyingKey,
+{
+    /// Create a new subscriber with the input authority state.
+    pub fn new(
+        address: SocketAddr,
+        store: Store<BatchDigest, SerializedBatchMessage>,
+        state: Arc<State>,
+        tx_batch_loader: Sender<ConsensusOutput<PublicKey>>,
+    ) -> SubscriberResult<Self> {
+        info!("Consensus client connecting to {}", address);
+
         // Ensure there is a single consensus client modifying the state.
-        let status = state
-            .ask_consensus_write_lock
-            .fetch_add(1, AtomicOrdering::SeqCst);
-        fp_ensure!(status == 0, SuiError::OnlyOneConsensusClientPermitted);
+        if !state.ask_consensus_write_lock() {
+            return Err(SubscriberError::OnlyOneConsensusClientPermitted);
+        }
 
         // Load the last consensus index from storage.
-        let last_consensus_index = state.last_consensus_index()?;
+        let last_consensus_index = 0;
 
         // Return a consensus client only if all went well (safety-critical).
         Ok(Self {
+            address,
+            store,
             state,
+            tx_batch_loader,
             last_consensus_index,
         })
     }
 
-    /// Spawn the consensus client in a new tokio task.
-    pub fn spawn(
-        mut handler: Self,
-        address: SocketAddr,
-        buffer_size: usize,
-    ) -> JoinHandle<SuiResult<()>> {
-        log::info!("Consensus client connecting to {}", address);
-        tokio::spawn(async move { handler.run(address, buffer_size).await })
+    /// Spawn the subscriber  in a new tokio task.
+    pub fn spawn(mut subscriber: Self) -> JoinHandle<SubscriberResult<()>> {
+        info!("Consensus subscriber connecting to {}", subscriber.address);
+        tokio::spawn(async move { subscriber.run().await })
     }
-    */
 
     /// Synchronize with the consensus in case we missed part of its output sequence.
     /// It is safety-critical that we process the consensus' outputs in the complete
@@ -81,7 +82,7 @@ impl<State: AuthorityState, PublicKey: VerifyingKey> Subscriber<State, PublicKey
         connection: &mut Framed<TcpStream, LengthDelimitedCodec>,
         last_known_client_index: u64,
         last_known_server_index: u64,
-    ) -> Vec<ConsensusOutput<PublicKey>> {
+    ) -> SubscriberResult<Vec<ConsensusOutput<PublicKey>>> {
         let mut next_ordinary_sequence = last_known_server_index + 1;
         let mut next_catchup_sequence = last_known_client_index + 1;
         let mut buffer = Vec::new();
@@ -98,8 +99,7 @@ impl<State: AuthorityState, PublicKey: VerifyingKey> Subscriber<State, PublicKey
                 sequence.push(output);
                 next_catchup_sequence += 1;
             } else {
-                // TODO: Return error UnexpectedConsensusMessage.
-                panic!("UnexpectedConsensusMessage");
+                return Err(SubscriberError::UnexpectedConsensusIndex(consensus_index));
             }
 
             if consensus_index == last_known_server_index {
@@ -108,7 +108,7 @@ impl<State: AuthorityState, PublicKey: VerifyingKey> Subscriber<State, PublicKey
         }
 
         sequence.extend(buffer);
-        sequence
+        Ok(sequence)
     }
 
     /// Process a single consensus output message. If we realize we are missing part of the sequence,
@@ -117,7 +117,7 @@ impl<State: AuthorityState, PublicKey: VerifyingKey> Subscriber<State, PublicKey
         &self,
         message: &ConsensusOutput<PublicKey>,
         connection: &mut Framed<TcpStream, LengthDelimitedCodec>,
-    ) -> Vec<ConsensusOutput<PublicKey>> {
+    ) -> SubscriberResult<Vec<ConsensusOutput<PublicKey>>> {
         let consensus_index = message.consensus_index;
 
         // Check that the latest consensus index is as expected; otherwise synchronize.
@@ -125,7 +125,7 @@ impl<State: AuthorityState, PublicKey: VerifyingKey> Subscriber<State, PublicKey
             Ordering::Greater => {
                 // That is fine, it may happen when the consensus node crashes and recovers.
                 debug!("Consensus index of authority bigger than expected");
-                return Vec::default();
+                return Ok(Vec::default());
             }
             Ordering::Less => {
                 debug!("Authority is synchronizing missed sequenced certificates");
@@ -146,7 +146,7 @@ impl<State: AuthorityState, PublicKey: VerifyingKey> Subscriber<State, PublicKey
             let last_known_server_index = message.consensus_index;
             Self::synchronize(connection, last_known_client_index, last_known_server_index).await
         } else {
-            vec![message.clone()]
+            Ok(vec![message.clone()])
         }
     }
 
@@ -154,7 +154,7 @@ impl<State: AuthorityState, PublicKey: VerifyingKey> Subscriber<State, PublicKey
     async fn execute_transactions(
         &self,
         message: &ConsensusOutput<PublicKey>,
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> SubscriberResult<()> {
         // The store should now hold all transaction data referenced by the input certificate.
         for digest in message.certificate.header.payload.keys() {
             let batch = match self.store.read(*digest).await? {
@@ -173,7 +173,8 @@ impl<State: AuthorityState, PublicKey: VerifyingKey> Subscriber<State, PublicKey
             // Deserialize the consensus workers' batch message to retrieve a list of transactions.
             let transactions = match bincode::deserialize(&batch) {
                 Ok(WorkerMessage::<PublicKey>::Batch(Batch(x))) => x,
-                _ => panic!("UnexpectedConsensusMessage"), // TODO: Return error UnexpectedConsensusMessage
+                Ok(_) => return Err(SubscriberError::UnexpectedProtocolMessage),
+                Err(e) => return Err(SubscriberError::SerializationError(e)),
             };
 
             for transaction in transactions {
@@ -188,12 +189,29 @@ impl<State: AuthorityState, PublicKey: VerifyingKey> Subscriber<State, PublicKey
                     }
                 };
 
-                // TODO: the function below may return errors to ignore as well as 'storeErrors' to not ignore.
                 // TODO: Return to the result to the higher level client.
                 // TODO: Should we execute on another task so we can keep downloading batches while we execute?
-                self.state
+                let result = self
+                    .state
                     .handle_consensus_transaction(message.consensus_index, command)
-                    .await;
+                    .await
+                    .map_err(|e| SubscriberError::from(e));
+
+                match &result {
+                    Err(SubscriberError::ClientExecutionError(e)) => {
+                        // We may want to log the errors that are the user's fault (i.e., that are neither our fault
+                        // or the fault of consensus) for debug purposes. It is safe to continue by ignoring those
+                        // certificates/transactions since all honest subscribers will do the same.
+                        debug!("{e}");
+                        continue;
+                    }
+                    _ => (),
+                }
+
+                // We must take special care to errors that are our fault, such as storage errors. We may be the
+                // only authority experiencing it, and thus cannot continue to process certificates until the
+                // problem is fixed.
+                result?;
             }
         }
         Ok(())
@@ -204,13 +222,16 @@ impl<State: AuthorityState, PublicKey: VerifyingKey> Subscriber<State, PublicKey
         missing: Vec<BatchDigest>,
         store: &Store<BatchDigest, SerializedBatchMessage>,
         deliver: T,
-    ) -> Result<T, StoreError> {
+    ) -> SubscriberResult<T> {
         let waiting: Vec<_> = missing.into_iter().map(|x| store.notify_read(x)).collect();
-        try_join_all(waiting).await.map(|_| deliver)
+        try_join_all(waiting)
+            .await
+            .map(|_| deliver)
+            .map_err(SubscriberError::from)
     }
 
     /// Main loop connecting to the consensus to listen to sequence messages.
-    async fn run(&mut self) -> Result<(), Box<dyn Error>> {
+    async fn run(&mut self) -> SubscriberResult<()> {
         let mut waiting = FuturesOrdered::new();
 
         // The connection waiter ensures we do not attempt to reconnect immediately after failure.
@@ -256,8 +277,8 @@ impl<State: AuthorityState, PublicKey: VerifyingKey> Subscriber<State, PublicKey
                             }
                         };
 
-                        // Process the consensus message (synchronize missing messages, download transaction data, etc).
-                        let sequence = self.handle_consensus_message(&message, &mut connection).await;
+                        // Process the consensus message (synchronize missing messages, download transaction data).
+                        let sequence = self.handle_consensus_message(&message, &mut connection).await?;
 
                         // Update the latest consensus index. The state will atomically persist the change when
                         // executing the transaction. It is important to increment the consensus index before
@@ -284,7 +305,7 @@ impl<State: AuthorityState, PublicKey: VerifyingKey> Subscriber<State, PublicKey
 
                         // Execute all transactions associated with the consensus output message. This function
                         // also persist the necessary data to enable crash-recovery.
-                        self.execute_transactions(&message).await;
+                        self.execute_transactions(&message).await?;
 
                         // Cleanup the temporary persistent storage.
                         for digest in message.certificate.header.payload.into_keys() {
