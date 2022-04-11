@@ -18,7 +18,9 @@ pub trait AuthorityState {
     /// Execute the transaction and atomically persist the consensus index.
     async fn handle_consensus_transaction(
         &self,
-        consensus_index: SequenceNumber,
+        next_certificate_index: SequenceNumber,
+        next_batch_index: SequenceNumber,
+        next_transaction_index: SequenceNumber,
         transaction: Self::Transaction,
     ) -> Result<(), Self::Error>;
 
@@ -32,7 +34,9 @@ pub trait AuthorityState {
     fn release_consensus_write_lock(&self);
 
     /// Load the last consensus index from storage.
-    async fn load_last_consensus_index(&self) -> Result<SequenceNumber, Self::Error>;
+    async fn load_last_consensus_indices(
+        &self,
+    ) -> Result<(SequenceNumber, SequenceNumber, SequenceNumber), Self::Error>;
 }
 
 pub type SubscriberResult<T> = Result<T, SubscriberError>;

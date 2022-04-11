@@ -26,8 +26,12 @@ pub struct Subscriber<State: AuthorityState, PublicKey: VerifyingKey> {
     state: Arc<State>,
     /// A channel to the batch loader to download transaction's data.
     tx_batch_loader: Sender<ConsensusOutput<PublicKey>>,
-    /// The index of the latest consensus message we processed.
-    last_consensus_index: SequenceNumber,
+    /// The index of the latest consensus message we processed (used for crash-recovery).
+    next_certificate_index: SequenceNumber,
+    /// The index of the last batch we executed (used for crash-recovery).
+    next_batch_index: SequenceNumber,
+    /// The index of the last transaction we executed (used for crash-recovery).
+    next_transaction_index: SequenceNumber,
 }
 
 impl<State: AuthorityState, PublicKey: VerifyingKey> Drop for Subscriber<State, PublicKey> {
@@ -56,7 +60,8 @@ where
         }
 
         // Load the last consensus index from storage.
-        let last_consensus_index = state.load_last_consensus_index().await?;
+        let (next_certificate_index, next_batch_index, next_transaction_index) =
+            state.load_last_consensus_indices().await?;
 
         // Return a consensus client only if all went well (safety-critical).
         Ok(Self {
@@ -64,7 +69,9 @@ where
             store,
             state,
             tx_batch_loader,
-            last_consensus_index,
+            next_certificate_index,
+            next_batch_index,
+            next_transaction_index,
         })
     }
 
@@ -121,7 +128,7 @@ where
         let consensus_index = message.consensus_index;
 
         // Check that the latest consensus index is as expected; otherwise synchronize.
-        let need_to_sync = match self.last_consensus_index.cmp(&consensus_index) {
+        let need_to_sync = match self.next_certificate_index.cmp(&consensus_index) {
             Ordering::Greater => {
                 // That is fine, it may happen when the consensus node crashes and recovers.
                 debug!("Consensus index of authority bigger than expected");
@@ -142,7 +149,7 @@ where
 
         // Synchronize missing consensus outputs if we need to.
         if need_to_sync {
-            let last_known_client_index = self.last_consensus_index;
+            let last_known_client_index = self.next_certificate_index;
             let last_known_server_index = message.consensus_index;
             Self::synchronize(connection, last_known_client_index, last_known_server_index).await
         } else {
@@ -155,8 +162,18 @@ where
         &self,
         message: &ConsensusOutput<PublicKey>,
     ) -> SubscriberResult<()> {
-        // The store should now hold all transaction data referenced by the input certificate.
-        for digest in message.certificate.header.payload.keys() {
+        let mut next_certificate_index = message.consensus_index;
+        let mut next_batch_index = self.next_batch_index;
+        let mut next_transaction_index = self.next_transaction_index;
+
+        let total_batches = message.certificate.header.payload.len() as u64;
+        for (batch_index, digest) in message.certificate.header.payload.keys().enumerate() {
+            // Skip batches that we already executed (after crash-recovery).
+            if (batch_index as u64) < next_batch_index {
+                continue;
+            }
+
+            // The store should now hold all transaction data referenced by the input certificate.
             let batch = match self.store.read(*digest).await? {
                 Some(x) => x,
                 None => {
@@ -177,7 +194,29 @@ where
                 Err(e) => return Err(SubscriberError::SerializationError(e)),
             };
 
-            for transaction in transactions {
+            let total_transactions = transactions.len() as u64;
+            for (transaction_index, transaction) in transactions.into_iter().enumerate() {
+                // Skip transactions that we already executed (after crash-recovery).
+                if (transaction_index as u64) < next_transaction_index {
+                    continue;
+                }
+
+                // Compute the next expected indices. Those will be persisted by the state and are only
+                // used for crash-recovery.
+                // TODO: This logic is error-prone, we should write it better.
+                if next_transaction_index + 1 == total_transactions {
+                    next_transaction_index = 0;
+
+                    if next_batch_index + 1 == total_batches {
+                        next_batch_index = 0;
+                        next_certificate_index = message.consensus_index + 1;
+                    } else {
+                        next_batch_index += 1
+                    }
+                } else {
+                    next_transaction_index += 1;
+                }
+
                 // The consensus simply orders bytes, so we first need to deserialize the transaction.
                 // If the deserialization fail it is safe to ignore the transaction since all correct clients
                 // will do the same. Remember that a bad authority or client may input random bytes to the consensus.
@@ -193,7 +232,12 @@ where
                 // TODO: Notify the the higher level client of the transaction's execution status.
                 let result = self
                     .state
-                    .handle_consensus_transaction(message.consensus_index, command)
+                    .handle_consensus_transaction(
+                        next_certificate_index,
+                        next_batch_index,
+                        next_transaction_index,
+                        command,
+                    )
                     .await
                     .map_err(|e| SubscriberError::from(e));
 
@@ -212,7 +256,14 @@ where
                 // only authority experiencing it, and thus cannot continue to process certificates until the
                 // problem is fixed.
                 result?;
+
+                // Increase the transaction index.
+                next_transaction_index += 1;
             }
+
+            // Reset the transaction index and increase the batch index.
+            next_transaction_index = 0;
+            next_batch_index += 1;
         }
         Ok(())
     }
@@ -284,7 +335,7 @@ where
                         // executing the transaction. It is important to increment the consensus index before
                         // deserializing the transaction data because the consensus core will increment its own
                         // index regardless of deserialization or other application-specific failures.
-                        self.last_consensus_index += sequence.len() as u64;
+                        self.next_certificate_index += sequence.len() as u64;
 
                         // Wait for the transaction data to be available in the store. We will then execute the transactions.
                         for message in sequence {
@@ -306,6 +357,8 @@ where
                         // Execute all transactions associated with the consensus output message. This function
                         // also persist the necessary data to enable crash-recovery.
                         self.execute_transactions(&message).await?;
+                        self.next_batch_index = 0;
+                        self.next_transaction_index = 0;
 
                         // Cleanup the temporary persistent storage.
                         for digest in message.certificate.header.payload.into_keys() {
