@@ -30,6 +30,9 @@ pub trait AuthorityState {
     /// Tell the state that the caller instance is no longer using calling
     //// `handle_consensus_transaction`.
     fn release_consensus_write_lock(&self);
+
+    /// Load the last consensus index from storage.
+    async fn load_last_consensus_index(&self) -> Result<SequenceNumber, Self::Error>;
 }
 
 pub type SubscriberResult<T> = Result<T, SubscriberError>;

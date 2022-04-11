@@ -42,7 +42,7 @@ where
     PublicKey: VerifyingKey,
 {
     /// Create a new subscriber with the input authority state.
-    pub fn new(
+    pub async fn new(
         address: SocketAddr,
         store: Store<BatchDigest, SerializedBatchMessage>,
         state: Arc<State>,
@@ -56,7 +56,7 @@ where
         }
 
         // Load the last consensus index from storage.
-        let last_consensus_index = 0;
+        let last_consensus_index = state.load_last_consensus_index().await?;
 
         // Return a consensus client only if all went well (safety-critical).
         Ok(Self {
@@ -189,8 +189,8 @@ where
                     }
                 };
 
-                // TODO: Return to the result to the higher level client.
                 // TODO: Should we execute on another task so we can keep downloading batches while we execute?
+                // TODO: Notify the the higher level client of the transaction's execution status.
                 let result = self
                     .state
                     .handle_consensus_transaction(message.consensus_index, command)
