@@ -1,3 +1,5 @@
+// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
 use async_trait::async_trait;
 use config::WorkerId;
 use consensus::SequenceNumber;
