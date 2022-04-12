@@ -52,7 +52,6 @@ impl AuthorityState for TestExecutionState {
 
     fn release_consensus_write_lock(&self) {}
 
-    /// Load the last consensus index from storage.
     async fn load_subscriber_state(&self) -> Result<SubscriberState, Self::Error> {
         Ok(SubscriberState::default())
     }
