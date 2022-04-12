@@ -43,7 +43,6 @@ async fn handle_consensus_message() {
     .await
     .unwrap();
     Subscriber::spawn(subscriber);
-    tokio::task::yield_now().await;
 
     // Feed certificates to the mock sequencer and ensure the batch loader receive the command to
     // download the corresponding transaction data.
@@ -92,7 +91,6 @@ async fn synchronize() {
     .await
     .unwrap();
     Subscriber::spawn(subscriber);
-    tokio::task::yield_now().await;
 
     // Send two extra certificates. The client needs to sync for the first two certificates.
     for _ in 0..2 {
@@ -137,7 +135,6 @@ async fn execute_transactions() {
     .await
     .unwrap();
     Subscriber::spawn(subscriber);
-    tokio::task::yield_now().await;
 
     // Feed certificates to the mock sequencer and add the transaction data to storage (as if
     // the batch loader downloaded them).
@@ -161,7 +158,6 @@ async fn execute_transactions() {
     }
 
     // Ensure the execution state is updated accordingly.
-    tokio::task::yield_now().await;
     let expected = SubscriberState {
         next_certificate_index: 2,
         next_batch_index: 0,
@@ -204,7 +200,6 @@ async fn execute_empty_certificate() {
     .await
     .unwrap();
     Subscriber::spawn(subscriber);
-    tokio::task::yield_now().await;
 
     // Feed empty certificates to the mock sequencer.
     for _ in 0..2 {
@@ -220,7 +215,6 @@ async fn execute_empty_certificate() {
     tx_sequence.send(certificate).await.unwrap();
     let _ = rx_batch_loader.recv().await.unwrap();
 
-    tokio::task::yield_now().await;
     let expected = SubscriberState {
         next_certificate_index: 3,
         next_batch_index: 0,
