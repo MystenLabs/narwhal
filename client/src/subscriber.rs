@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 use crate::{
     errors::{SubscriberError, SubscriberResult},
+    state::SubscriberState,
     utils::ConnectionWaiter,
-    AuthorityState, SubscriberState,
+    AuthorityState,
 };
 use consensus::{ConsensusOutput, SequenceNumber};
 use crypto::traits::VerifyingKey;
