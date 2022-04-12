@@ -7,6 +7,12 @@ use std::sync::Arc;
 use thiserror::Error;
 use tokio::sync::RwLock;
 
+/// A malformed transaction.
+pub const MALFORMED_TRANSACTION: <TestExecutionState as AuthorityState>::Transaction = 400;
+
+/// A special transaction that makes the executor engine crash.
+pub const KILLER_TRANSACTION: <TestExecutionState as AuthorityState>::Transaction = 500;
+
 /// A dumb execution state for testing.
 #[derive(Default)]
 pub struct TestExecutionState {
@@ -29,9 +35,9 @@ impl AuthorityState for TestExecutionState {
         subscriber_state: SubscriberState,
         transaction: Self::Transaction,
     ) -> Result<(), Self::Error> {
-        if transaction == 400 {
+        if transaction == MALFORMED_TRANSACTION {
             Err(Self::Error::ClientError)
-        } else if transaction == 500 {
+        } else if transaction == KILLER_TRANSACTION {
             Err(Self::Error::ServerError)
         } else {
             let mut guard = self.subscriber_state.write().await;
