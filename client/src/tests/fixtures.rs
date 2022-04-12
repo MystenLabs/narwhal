@@ -8,6 +8,7 @@ use serde::Serialize;
 use std::collections::BTreeMap;
 use worker::{SerializedBatchMessage, WorkerMessage};
 
+/// A test batch containing specific transactions.
 pub fn test_batch<T: Serialize>(transactions: Vec<T>) -> (BatchDigest, SerializedBatchMessage) {
     let batch = transactions
         .iter()
@@ -19,6 +20,7 @@ pub fn test_batch<T: Serialize>(transactions: Vec<T>) -> (BatchDigest, Serialize
     (digest, serialized)
 }
 
+/// A test certificate with a specific payload.
 pub fn test_certificate(payload: BTreeMap<BatchDigest, WorkerId>) -> Certificate<Ed25519PublicKey> {
     Certificate {
         header: Header {
@@ -28,30 +30,3 @@ pub fn test_certificate(payload: BTreeMap<BatchDigest, WorkerId>) -> Certificate
         ..Certificate::default()
     }
 }
-
-/*
-pub fn mock_certificate(
-    origin: Ed25519PublicKey,
-    round: Round,
-    parents: BTreeSet<CertificateDigest>,
-) -> (CertificateDigest, Certificate<Ed25519PublicKey>) {
-    let digest_0 = BatchDigest([0u8; DIGEST_LEN]);
-    let digest_1 = BatchDigest([1u8; DIGEST_LEN]);
-    let payload = [(digest_0, 0), (digest_1, 1)].iter().cloned().collect();
-    let header = Header {
-        payload:,
-        ..Header::default()
-    };
-
-    let certificate = Certificate {
-        header: Header {
-            author: origin,
-            round,
-            parents,
-            ..Header::default()
-        },
-        ..Certificate::default()
-    };
-    (certificate.digest(), certificate)
-}
-*/

@@ -28,4 +28,4 @@ consensus = { path = "../consensus" }
 
 [dev-dependencies]
 rand = "0.7.3"
-temp_testdir = "0.2"
+tempfile = "3.3.0"

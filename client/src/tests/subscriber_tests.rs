@@ -8,7 +8,7 @@ use crate::{
 };
 use crypto::ed25519::Ed25519PublicKey;
 use primary::Certificate;
-use std::{path::Path, sync::Arc};
+use std::sync::Arc;
 use store::{
     reopen,
     rocks::{open_cf, DBMap},
@@ -26,10 +26,9 @@ async fn handle_consensus_message() {
     tokio::task::yield_now().await;
 
     // Spawn a subscriber.
-    let store_path = ".test_storage_handle_consensus_message";
-    let _ = std::fs::remove_dir_all(store_path);
+    let store_path = tempfile::tempdir().unwrap();
     const BATCHES_CF: &str = "batches";
-    let rocksdb = open_cf(Path::new(store_path), None, &[BATCHES_CF]).unwrap();
+    let rocksdb = open_cf(store_path, None, &[BATCHES_CF]).unwrap();
     let batch_map = reopen!(&rocksdb, BATCHES_CF;<BatchDigest, SerializedBatchMessage>);
     let store = Store::new(batch_map);
 
@@ -53,9 +52,6 @@ async fn handle_consensus_message() {
         let output = rx_batch_loader.recv().await.unwrap();
         assert_eq!(output.consensus_index, i);
     }
-
-    // Delete the test storage.
-    std::fs::remove_dir_all(store_path).unwrap();
 }
 
 #[tokio::test]
@@ -74,10 +70,9 @@ async fn synchronize() {
     }
 
     // Spawn a subscriber.
-    let store_path = ".test_storage_synchronize";
-    let _ = std::fs::remove_dir_all(store_path);
+    let store_path = tempfile::tempdir().unwrap();
     const BATCHES_CF: &str = "batches";
-    let rocksdb = open_cf(Path::new(store_path), None, &[BATCHES_CF]).unwrap();
+    let rocksdb = open_cf(store_path, None, &[BATCHES_CF]).unwrap();
     let batch_map = reopen!(&rocksdb, BATCHES_CF;<BatchDigest, SerializedBatchMessage>);
     let store = Store::new(batch_map);
 
@@ -102,9 +97,6 @@ async fn synchronize() {
         let output = rx_batch_loader.recv().await.unwrap();
         assert_eq!(output.consensus_index, i);
     }
-
-    // Delete the test storage.
-    std::fs::remove_dir_all(store_path).unwrap();
 }
 
 #[tokio::test]
@@ -118,10 +110,9 @@ async fn execute_transactions() {
     tokio::task::yield_now().await;
 
     // Spawn a subscriber.
-    let store_path = ".test_storage_execute_transactions";
-    let _ = std::fs::remove_dir_all(store_path);
+    let store_path = tempfile::tempdir().unwrap();
     const BATCHES_CF: &str = "batches";
-    let rocksdb = open_cf(Path::new(store_path), None, &[BATCHES_CF]).unwrap();
+    let rocksdb = open_cf(store_path, None, &[BATCHES_CF]).unwrap();
     let batch_map = reopen!(&rocksdb, BATCHES_CF;<BatchDigest, SerializedBatchMessage>);
     let store = Store::new(batch_map);
 
@@ -164,9 +155,6 @@ async fn execute_transactions() {
         next_transaction_index: 0,
     };
     assert_eq!(execution_state.get_subscriber_state().await, expected);
-
-    // Delete the test storage.
-    std::fs::remove_dir_all(store_path).unwrap();
 }
 
 #[tokio::test]
@@ -180,10 +168,9 @@ async fn execute_empty_certificate() {
     tokio::task::yield_now().await;
 
     // Spawn a subscriber.
-    let store_path = ".test_storage_execute_empty_certificate";
-    let _ = std::fs::remove_dir_all(store_path);
+    let store_path = tempfile::tempdir().unwrap();
     const BATCHES_CF: &str = "batches";
-    let rocksdb = open_cf(Path::new(store_path), None, &[BATCHES_CF]).unwrap();
+    let rocksdb = open_cf(store_path, None, &[BATCHES_CF]).unwrap();
     let batch_map = reopen!(&rocksdb, BATCHES_CF;<BatchDigest, SerializedBatchMessage>);
     let store = Store::new(batch_map);
 
@@ -218,9 +205,6 @@ async fn execute_empty_certificate() {
         next_transaction_index: 0,
     };
     assert_eq!(execution_state.get_subscriber_state().await, expected);
-
-    // Delete the test storage.
-    std::fs::remove_dir_all(store_path).unwrap();
 }
 
 #[tokio::test]
@@ -234,10 +218,9 @@ async fn execute_malformed_transactions() {
     tokio::task::yield_now().await;
 
     // Spawn a subscriber.
-    let store_path = ".test_storage_execute_malformed_transactions";
-    let _ = std::fs::remove_dir_all(store_path);
+    let store_path = tempfile::tempdir().unwrap();
     const BATCHES_CF: &str = "batches";
-    let rocksdb = open_cf(Path::new(store_path), None, &[BATCHES_CF]).unwrap();
+    let rocksdb = open_cf(store_path, None, &[BATCHES_CF]).unwrap();
     let batch_map = reopen!(&rocksdb, BATCHES_CF;<BatchDigest, SerializedBatchMessage>);
     let store = Store::new(batch_map);
 
@@ -292,9 +275,6 @@ async fn execute_malformed_transactions() {
         next_transaction_index: 0,
     };
     assert_eq!(execution_state.get_subscriber_state().await, expected);
-
-    // Delete the test storage.
-    std::fs::remove_dir_all(store_path).unwrap();
 }
 
 #[tokio::test]
@@ -308,10 +288,9 @@ async fn internal_error_execution() {
     tokio::task::yield_now().await;
 
     // Spawn a subscriber.
-    let store_path = ".test_storage_internal_error_execution";
-    let _ = std::fs::remove_dir_all(store_path);
+    let store_path = tempfile::tempdir().unwrap();
     const BATCHES_CF: &str = "batches";
-    let rocksdb = open_cf(Path::new(store_path), None, &[BATCHES_CF]).unwrap();
+    let rocksdb = open_cf(store_path, None, &[BATCHES_CF]).unwrap();
     let batch_map = reopen!(&rocksdb, BATCHES_CF;<BatchDigest, SerializedBatchMessage>);
     let store = Store::new(batch_map);
 
@@ -342,7 +321,4 @@ async fn internal_error_execution() {
     // Ensure the execution state does not change.
     let expected = SubscriberState::default();
     assert_eq!(execution_state.get_subscriber_state().await, expected);
-
-    // Delete the test storage.
-    std::fs::remove_dir_all(store_path).unwrap();
 }
