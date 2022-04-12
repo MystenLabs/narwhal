@@ -6,11 +6,13 @@ use crate::{
     utils::ConnectionWaiter,
     AuthorityState,
 };
-use consensus::{ConsensusOutput, SequenceNumber};
+use bytes::Bytes;
+use consensus::{ConsensusOutput, ConsensusSyncRequest, SequenceNumber};
 use crypto::traits::VerifyingKey;
 use futures::{
     future::try_join_all,
     stream::{FuturesOrdered, StreamExt},
+    SinkExt,
 };
 use primary::{Batch, BatchDigest};
 use std::{cmp::Ordering, net::SocketAddr, sync::Arc};
@@ -96,13 +98,39 @@ where
         last_known_client_index: SequenceNumber,
         last_known_server_index: SequenceNumber,
     ) -> SubscriberResult<Vec<ConsensusOutput<PublicKey>>> {
+        // Send a sync request.
+        let request = ConsensusSyncRequest {
+            missing: (last_known_client_index + 1..=last_known_server_index),
+        };
+        let serialized = bincode::serialize(&request).expect("Failed to serialize sync request");
+        if let Err(e) = connection.send(Bytes::from(serialized)).await {
+            warn!("Failed to send sync request: {e}");
+            return Ok(Vec::default());
+        }
+
+        // Read the replies.
         let mut next_ordinary_sequence = last_known_server_index + 1;
         let mut next_catchup_sequence = last_known_client_index + 1;
         let mut buffer = Vec::new();
         let mut sequence = Vec::new();
         loop {
-            let bytes = connection.next().await.unwrap().unwrap();
-            let output: ConsensusOutput<PublicKey> = bincode::deserialize(&bytes).unwrap();
+            let output: ConsensusOutput<_> = match connection.next().await {
+                Some(Ok(bytes)) => match bincode::deserialize(&bytes) {
+                    Ok(output) => output,
+                    Err(e) => {
+                        warn!("Failed to deserialize consensus output {}", e);
+                        return Ok(Vec::default());
+                    }
+                },
+                Some(Err(e)) => {
+                    warn!("Failed to receive sync reply from consensus: {e}");
+                    return Ok(Vec::default());
+                }
+                None => {
+                    warn!("Consensus node dropped connection");
+                    return Ok(Vec::default());
+                }
+            };
             let consensus_index = output.consensus_index;
 
             if consensus_index == next_ordinary_sequence {
