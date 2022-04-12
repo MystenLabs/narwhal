@@ -108,7 +108,7 @@ pub trait AuthorityState {
     async fn load_subscriber_state(&self) -> Result<SubscriberState, Self::Error>;
 }
 
-/// Spawn a new client subscriber.
+/// Spawn a new client subscriber.ca
 pub async fn spawn_client_subscriber<ExecutionState, PublicKey>(
     name: PublicKey,
     committee: Committee<PublicKey>,
