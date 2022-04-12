@@ -7,8 +7,12 @@ mod subscriber;
 mod utils;
 
 #[cfg(test)]
-#[path = "tests/common.rs"]
-mod common;
+#[path = "tests/fixtures.rs"]
+mod fixtures;
+
+#[cfg(test)]
+#[path = "tests/execution_state.rs"]
+mod execution_state;
 
 #[cfg(test)]
 #[path = "tests/sequencer.rs"]

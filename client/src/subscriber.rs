@@ -202,6 +202,12 @@ where
     ) -> SubscriberResult<SubscriberState> {
         let mut subscriber_state = self.subscriber_state.clone();
 
+        // Skip the certificate if it contains no transactions.
+        if message.certificate.header.payload.is_empty() {
+            subscriber_state.skip_certificate();
+            return Ok(subscriber_state);
+        }
+
         let total_batches = message.certificate.header.payload.len();
         for (index, digest) in message.certificate.header.payload.keys().enumerate() {
             // Skip batches that we already executed (after crash-recovery).

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use crate::{AuthorityState, AuthorityStateError, SubscriberState};
 use async_trait::async_trait;
+use futures::executor::block_on;
 use std::sync::Arc;
 use thiserror::Error;
 use tokio::sync::RwLock;
@@ -10,6 +11,12 @@ use tokio::sync::RwLock;
 #[derive(Default)]
 pub struct TestExecutionState {
     subscriber_state: Arc<RwLock<SubscriberState>>,
+}
+
+impl std::fmt::Debug for TestExecutionState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", block_on(self.subscriber_state.read()))
+    }
 }
 
 #[async_trait]
@@ -22,14 +29,14 @@ impl AuthorityState for TestExecutionState {
         subscriber_state: SubscriberState,
         transaction: Self::Transaction,
     ) -> Result<(), Self::Error> {
-        if transaction == 0 {
+        if transaction == 400 {
+            Err(Self::Error::ClientError)
+        } else if transaction == 500 {
+            Err(Self::Error::ServerError)
+        } else {
             let mut guard = self.subscriber_state.write().await;
             *guard = subscriber_state;
             Ok(())
-        } else if transaction == 1 {
-            Err(Self::Error::ClientError)
-        } else {
-            Err(Self::Error::ServerError)
         }
     }
 
@@ -42,6 +49,12 @@ impl AuthorityState for TestExecutionState {
     /// Load the last consensus index from storage.
     async fn load_subscriber_state(&self) -> Result<SubscriberState, Self::Error> {
         Ok(SubscriberState::default())
+    }
+}
+
+impl TestExecutionState {
+    pub async fn get_subscriber_state(&self) -> SubscriberState {
+        self.subscriber_state.read().await.clone()
     }
 }
 

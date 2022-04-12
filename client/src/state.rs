@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 /// The state of the subscriber keeping track of the transactions that have already been
 /// executed. It ensures we do not process twice the same transaction despite crash-recovery.
-#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, Eq)]
 pub struct SubscriberState {
     /// The index of the latest consensus message we processed (used for crash-recovery).
     pub next_certificate_index: SequenceNumber,
@@ -39,6 +39,13 @@ impl SubscriberState {
         }
         self.next_batch_index = (self.next_batch_index + 1) % total_batches;
         self.next_transaction_index = 0;
+    }
+
+    /// Update the state to skip a certificate.
+    pub fn skip_certificate(&mut self) {
+        self.next_transaction_index = 0;
+        self.next_batch_index = 0;
+        self.next_certificate_index += 1;
     }
 
     /// Check whether the input index is the next expected batch index.

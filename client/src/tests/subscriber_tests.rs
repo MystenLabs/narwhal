@@ -1,7 +1,11 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use super::*;
-use crate::{common::TestExecutionState, sequencer::MockSequencer};
+use crate::{
+    execution_state::TestExecutionState,
+    fixtures::{test_batch, test_certificate},
+    sequencer::MockSequencer,
+};
 use crypto::ed25519::Ed25519PublicKey;
 use primary::Certificate;
 use std::{path::Path, sync::Arc};
@@ -32,7 +36,7 @@ async fn handle_consensus_message() {
     let execution_state = Arc::new(TestExecutionState::default());
     let subscriber = Subscriber::<TestExecutionState, Ed25519PublicKey>::new(
         node_address,
-        store.clone(),
+        store,
         execution_state,
         tx_batch_loader,
     )
@@ -81,7 +85,7 @@ async fn synchronize() {
     let execution_state = Arc::new(TestExecutionState::default());
     let subscriber = Subscriber::<TestExecutionState, Ed25519PublicKey>::new(
         node_address,
-        store.clone(),
+        store,
         execution_state,
         tx_batch_loader,
     )
@@ -100,6 +104,129 @@ async fn synchronize() {
         let output = rx_batch_loader.recv().await.unwrap();
         assert_eq!(output.consensus_index, i);
     }
+
+    // Delete the test storage.
+    std::fs::remove_dir_all(store_path).unwrap();
+}
+
+#[tokio::test]
+async fn execute_transactions() {
+    let node_address = "127.0.0.1:13002".parse().unwrap();
+    let (tx_sequence, rx_sequence) = channel(10);
+    let (tx_batch_loader, mut rx_batch_loader) = channel(10);
+
+    // Spawn a mock consensus
+    MockSequencer::spawn(node_address, rx_sequence);
+    tokio::task::yield_now().await;
+
+    // Spawn a subscriber.
+    let store_path = ".test_storage_execute_transactions";
+    let _ = std::fs::remove_dir_all(store_path);
+    const BATCHES_CF: &str = "batches";
+    let rocksdb = open_cf(Path::new(store_path), None, &[BATCHES_CF]).unwrap();
+    let batch_map = reopen!(&rocksdb, BATCHES_CF;<BatchDigest, SerializedBatchMessage>);
+    let store = Store::new(batch_map);
+
+    let execution_state = Arc::new(TestExecutionState::default());
+    let subscriber = Subscriber::<TestExecutionState, Ed25519PublicKey>::new(
+        node_address,
+        store.clone(),
+        execution_state.clone(),
+        tx_batch_loader,
+    )
+    .await
+    .unwrap();
+    Subscriber::spawn(subscriber);
+    tokio::task::yield_now().await;
+
+    // Feed certificates to the mock sequencer and add the transaction data to storage (as if
+    // the batch loader downloaded them).
+    for i in 0..2 {
+        let tx00 = i as u64;
+        let tx01 = (i + 1000) as u64;
+        let tx10 = (i + 2000) as u64;
+        let tx11 = (i + 3000) as u64;
+
+        let (digest_0, batch_0) = test_batch(vec![tx00, tx01]);
+        let (digest_1, batch_1) = test_batch(vec![tx10, tx11]);
+
+        store.write(digest_0, batch_0).await;
+        store.write(digest_1, batch_1).await;
+
+        let payload = [(digest_0, 0), (digest_1, 1)].iter().cloned().collect();
+        let certificate = test_certificate(payload);
+
+        tx_sequence.send(certificate).await.unwrap();
+        let _ = rx_batch_loader.recv().await.unwrap();
+    }
+
+    // Ensure the execution state is updated accordingly.
+    tokio::task::yield_now().await;
+    let expected = SubscriberState {
+        next_certificate_index: 2,
+        next_batch_index: 0,
+        next_transaction_index: 0,
+    };
+    assert_eq!(execution_state.get_subscriber_state().await, expected);
+
+    // Delete the test storage.
+    std::fs::remove_dir_all(store_path).unwrap();
+}
+
+#[tokio::test]
+async fn execute_empty_certificate() {
+    let node_address = "127.0.0.1:13003".parse().unwrap();
+    let (tx_sequence, rx_sequence) = channel(10);
+    let (tx_batch_loader, mut rx_batch_loader) = channel(10);
+
+    // Sink the batch loader receiver.
+    //tokio::spawn(async move {while rx_batch_loader.recv().await.is_some() {} });
+
+    // Spawn a mock consensus
+    MockSequencer::spawn(node_address, rx_sequence);
+    tokio::task::yield_now().await;
+
+    // Spawn a subscriber.
+    let store_path = ".test_storage_execute_empty_certificate";
+    let _ = std::fs::remove_dir_all(store_path);
+    const BATCHES_CF: &str = "batches";
+    let rocksdb = open_cf(Path::new(store_path), None, &[BATCHES_CF]).unwrap();
+    let batch_map = reopen!(&rocksdb, BATCHES_CF;<BatchDigest, SerializedBatchMessage>);
+    let store = Store::new(batch_map);
+
+    let execution_state = Arc::new(TestExecutionState::default());
+    let subscriber = Subscriber::<TestExecutionState, Ed25519PublicKey>::new(
+        node_address,
+        store.clone(),
+        execution_state.clone(),
+        tx_batch_loader,
+    )
+    .await
+    .unwrap();
+    Subscriber::spawn(subscriber);
+    tokio::task::yield_now().await;
+
+    // Feed empty certificates to the mock sequencer.
+    for _ in 0..2 {
+        tx_sequence.send(Certificate::default()).await.unwrap();
+        let _ = rx_batch_loader.recv().await.unwrap();
+    }
+
+    // Then feed one non-empty certificate and ensure the certificate index is updated.
+    let (digest, batch) = test_batch(vec![10u64, 11u64]);
+    store.write(digest, batch).await;
+    let payload = [(digest, 0)].iter().cloned().collect();
+    let certificate = test_certificate(payload);
+    tx_sequence.send(certificate).await.unwrap();
+    let _ = rx_batch_loader.recv().await.unwrap();
+
+    tokio::task::yield_now().await;
+    let expected = SubscriberState {
+        next_certificate_index: 3,
+        next_batch_index: 0,
+        next_transaction_index: 0,
+    };
+    assert_eq!(execution_state.get_subscriber_state().await, expected);
 
     // Delete the test storage.
     std::fs::remove_dir_all(store_path).unwrap();
