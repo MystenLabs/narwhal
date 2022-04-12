@@ -6,6 +6,14 @@ mod state;
 mod subscriber;
 mod utils;
 
+#[cfg(test)]
+#[path = "tests/common.rs"]
+mod common;
+
+#[cfg(test)]
+#[path = "tests/sequencer.rs"]
+mod sequencer;
+
 pub use errors::AuthorityStateError;
 pub use state::SubscriberState;
 
@@ -15,7 +23,7 @@ use config::Committee;
 use crypto::traits::VerifyingKey;
 use primary::BatchDigest;
 use serde::de::DeserializeOwned;
-use std::{net::SocketAddr, sync::Arc};
+use std::{net::SocketAddr, path::Path, sync::Arc};
 use store::{
     reopen,
     rocks::{open_cf, DBMap},
@@ -63,7 +71,7 @@ pub async fn spawn_client_subscriber<ExecutionState, PublicKey>(
     name: PublicKey,
     committee: Committee<PublicKey>,
     address: SocketAddr,
-    store_path: &str,
+    store_path: &Path,
     execution_state: Arc<ExecutionState>,
 ) -> SubscriberResult<(
     JoinHandle<SubscriberResult<()>>,

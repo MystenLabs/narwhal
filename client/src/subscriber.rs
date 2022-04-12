@@ -22,6 +22,10 @@ use tokio_util::codec::{Framed, LengthDelimitedCodec};
 use tracing::{debug, info, warn};
 use worker::{SerializedBatchMessage, WorkerMessage};
 
+#[cfg(test)]
+#[path = "tests/subscriber_tests.rs"]
+pub mod subscriber_tests;
+
 /// The `Subscriber` receives certificates sequenced by the consensus and execute every
 /// transaction it references. We assume that the messages we receives from consensus has
 /// already been authenticated (ie. they really come from a trusted consensus node) and
