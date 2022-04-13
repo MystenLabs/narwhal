@@ -289,6 +289,7 @@ struct WorkerReceiverHandler<PublicKey: VerifyingKey> {
 impl<PublicKey: VerifyingKey> MessageHandler for WorkerReceiverHandler<PublicKey> {
     async fn dispatch(&self, writer: &mut Writer, serialized: Bytes) -> Result<(), Box<dyn Error>> {
         // Deserialize and parse the message.
+        // TODO [issue #7]: Do some accounting to prevent bad actors from use all our resources.
         match bincode::deserialize(&serialized) {
             Ok(WorkerMessage::Batch(..)) => {
                 self.tx_processor
