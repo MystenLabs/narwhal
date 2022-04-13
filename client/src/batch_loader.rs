@@ -83,7 +83,7 @@ impl<PublicKey: VerifyingKey> BatchLoader<PublicKey> {
                 sender
                     .send(digests)
                     .await
-                    .expect("Failed to send message to sync connection");
+                    .expect("Sync connections are kept alive and never die");
             }
         }
         Ok(())
