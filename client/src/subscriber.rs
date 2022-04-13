@@ -218,7 +218,7 @@ where
                 Some(x) => x,
                 None => {
                     // If two certificates contain the exact same batch (eg. by the actions of a Byzantine
-                    // consensus node), some correct client may already have deleted the batch from they temporary
+                    // consensus node), some correct client may already have deleted the batch from their temporary
                     // storage while others may not. This is not a problem, we can simply ignore the second batch
                     // since there is no point in executing twice the same transactions (as the second execution
                     // attempt will always fail).
