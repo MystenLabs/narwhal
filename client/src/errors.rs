@@ -5,6 +5,22 @@ use consensus::SequenceNumber;
 use store::StoreError;
 use thiserror::Error;
 
+#[macro_export]
+macro_rules! bail {
+    ($e:expr) => {
+        return Err($e)
+    };
+}
+
+#[macro_export(local_inner_macros)]
+macro_rules! ensure {
+    ($cond:expr, $e:expr) => {
+        if !($cond) {
+            bail!($e);
+        }
+    };
+}
+
 pub type SubscriberResult<T> = Result<T, SubscriberError>;
 
 #[derive(Debug, Error)]
@@ -17,6 +33,9 @@ pub enum SubscriberError {
 
     #[error("Unexpected consensus index number {0}")]
     UnexpectedConsensusIndex(SequenceNumber),
+
+    #[error("The client-consensus connection dropped")]
+    ConsensusConnectionDropped,
 
     #[error("Deserialization of consensus message failed: {0}")]
     SerializationError(#[from] Box<bincode::ErrorKind>),

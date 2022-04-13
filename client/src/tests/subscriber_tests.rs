@@ -8,19 +8,25 @@ use crate::{
 };
 use crypto::ed25519::Ed25519PublicKey;
 use primary::Certificate;
-use std::{net::SocketAddr, sync::Arc};
+use std::sync::Arc;
 use store::{
     reopen,
     rocks::{open_cf, DBMap},
 };
 use tokio::sync::mpsc::{channel, Sender};
 
-/// Spawn a test subscriber.
-async fn spawn_subscriber(
-    node_address: SocketAddr,
+/// Spawn a mock consensus core and a test subscriber.
+async fn spawn_consensus_and_subscriber(
+    rx_sequence: Receiver<Certificate<Ed25519PublicKey>>,
     tx_batch_loader: Sender<ConsensusOutput<Ed25519PublicKey>>,
 ) -> (Store<BatchDigest, SerializedBatchMessage>, Arc<TestState>) {
-    // Spawn a subscriber.
+    let (tx_consensus_to_client, rx_consensus_to_client) = channel(10);
+    let (tx_client_to_consensus, rx_client_to_consensus) = channel(10);
+
+    // Spawn a mock consensus core.
+    MockSequencer::spawn(rx_sequence, rx_client_to_consensus, tx_consensus_to_client);
+
+    // Spawn a test subscriber.
     let store_path = tempfile::tempdir().unwrap();
     const BATCHES_CF: &str = "batches";
     let rocksdb = open_cf(store_path, None, &[BATCHES_CF]).unwrap();
@@ -28,31 +34,24 @@ async fn spawn_subscriber(
     let store = Store::new(batch_map);
 
     let execution_state = Arc::new(TestState::default());
-    let subscriber = Subscriber::<TestState, Ed25519PublicKey>::new(
-        node_address,
+    Subscriber::<TestState, Ed25519PublicKey>::spawn(
         store.clone(),
         execution_state.clone(),
+        rx_consensus_to_client,
+        tx_client_to_consensus,
         tx_batch_loader,
-    )
-    .await
-    .unwrap();
-    Subscriber::spawn(subscriber);
+    );
 
     (store, execution_state)
 }
 
 #[tokio::test]
 async fn handle_consensus_message() {
-    let node_address = "127.0.0.1:13000".parse().unwrap();
     let (tx_sequence, rx_sequence) = channel(10);
     let (tx_batch_loader, mut rx_batch_loader) = channel(10);
 
-    // Spawn a mock consensus
-    MockSequencer::spawn(node_address, rx_sequence);
-    tokio::task::yield_now().await;
-
     // Spawn a subscriber.
-    let _ = spawn_subscriber(node_address, tx_batch_loader).await;
+    let _ = spawn_consensus_and_subscriber(rx_sequence, tx_batch_loader).await;
 
     // Feed certificates to the mock sequencer and ensure the batch loader receive the command to
     // download the corresponding transaction data.
@@ -67,21 +66,35 @@ async fn handle_consensus_message() {
 
 #[tokio::test]
 async fn synchronize() {
-    let node_address = "127.0.0.1:13001".parse().unwrap();
     let (tx_sequence, rx_sequence) = channel(10);
     let (tx_batch_loader, mut rx_batch_loader) = channel(10);
+    let (tx_consensus_to_client, rx_consensus_to_client) = channel(10);
+    let (tx_client_to_consensus, rx_client_to_consensus) = channel(10);
 
-    // Spawn a mock consensus
-    MockSequencer::spawn(node_address, rx_sequence);
-    tokio::task::yield_now().await;
+    // Spawn a mock consensus core.
+    MockSequencer::spawn(rx_sequence, rx_client_to_consensus, tx_consensus_to_client);
 
     // Send two certificates.
     for _ in 0..2 {
         tx_sequence.send(Certificate::default()).await.unwrap();
     }
+    tokio::task::yield_now().await;
 
     // Spawn a subscriber.
-    let _ = spawn_subscriber(node_address, tx_batch_loader).await;
+    let store_path = tempfile::tempdir().unwrap();
+    const BATCHES_CF: &str = "batches";
+    let rocksdb = open_cf(store_path, None, &[BATCHES_CF]).unwrap();
+    let batch_map = reopen!(&rocksdb, BATCHES_CF;<BatchDigest, SerializedBatchMessage>);
+    let store = Store::new(batch_map);
+
+    let execution_state = Arc::new(TestState::default());
+    Subscriber::<TestState, Ed25519PublicKey>::spawn(
+        store.clone(),
+        execution_state.clone(),
+        rx_consensus_to_client,
+        tx_client_to_consensus,
+        tx_batch_loader,
+    );
 
     // Send two extra certificates. The client needs to sync for the first two certificates.
     for _ in 0..2 {
@@ -97,16 +110,12 @@ async fn synchronize() {
 
 #[tokio::test]
 async fn execute_transactions() {
-    let node_address = "127.0.0.1:13002".parse().unwrap();
     let (tx_sequence, rx_sequence) = channel(10);
     let (tx_batch_loader, mut rx_batch_loader) = channel(10);
 
-    // Spawn a mock consensus
-    MockSequencer::spawn(node_address, rx_sequence);
-    tokio::task::yield_now().await;
-
     // Spawn a subscriber.
-    let (store, execution_state) = spawn_subscriber(node_address, tx_batch_loader).await;
+    let (store, execution_state) =
+        spawn_consensus_and_subscriber(rx_sequence, tx_batch_loader).await;
 
     // Feed certificates to the mock sequencer and add the transaction data to storage (as if
     // the batch loader downloaded them).
@@ -140,16 +149,12 @@ async fn execute_transactions() {
 
 #[tokio::test]
 async fn execute_empty_certificate() {
-    let node_address = "127.0.0.1:13003".parse().unwrap();
     let (tx_sequence, rx_sequence) = channel(10);
     let (tx_batch_loader, mut rx_batch_loader) = channel(10);
 
-    // Spawn a mock consensus
-    MockSequencer::spawn(node_address, rx_sequence);
-    tokio::task::yield_now().await;
-
     // Spawn a subscriber.
-    let (store, execution_state) = spawn_subscriber(node_address, tx_batch_loader).await;
+    let (store, execution_state) =
+        spawn_consensus_and_subscriber(rx_sequence, tx_batch_loader).await;
 
     // Feed empty certificates to the mock sequencer.
     for _ in 0..2 {
@@ -175,16 +180,12 @@ async fn execute_empty_certificate() {
 
 #[tokio::test]
 async fn execute_malformed_transactions() {
-    let node_address = "127.0.0.1:13004".parse().unwrap();
     let (tx_sequence, rx_sequence) = channel(10);
     let (tx_batch_loader, mut rx_batch_loader) = channel(10);
 
-    // Spawn a mock consensus
-    MockSequencer::spawn(node_address, rx_sequence);
-    tokio::task::yield_now().await;
-
     // Spawn a subscriber.
-    let (store, execution_state) = spawn_subscriber(node_address, tx_batch_loader).await;
+    let (store, execution_state) =
+        spawn_consensus_and_subscriber(rx_sequence, tx_batch_loader).await;
 
     // Feed a bad transaction to the mock sequencer
     let tx0 = MALFORMED_TRANSACTION;
@@ -230,16 +231,12 @@ async fn execute_malformed_transactions() {
 
 #[tokio::test]
 async fn internal_error_execution() {
-    let node_address = "127.0.0.1:13005".parse().unwrap();
     let (tx_sequence, rx_sequence) = channel(10);
     let (tx_batch_loader, mut rx_batch_loader) = channel(10);
 
-    // Spawn a mock consensus
-    MockSequencer::spawn(node_address, rx_sequence);
-    tokio::task::yield_now().await;
-
     // Spawn a subscriber.
-    let (store, execution_state) = spawn_subscriber(node_address, tx_batch_loader).await;
+    let (store, execution_state) =
+        spawn_consensus_and_subscriber(rx_sequence, tx_batch_loader).await;
 
     // Feed a killer transaction to the mock sequencer
     let tx0 = KILLER_TRANSACTION;

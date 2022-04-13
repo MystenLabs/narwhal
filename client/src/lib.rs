@@ -4,7 +4,6 @@ mod batch_loader;
 mod errors;
 mod state;
 mod subscriber;
-mod utils;
 
 #[cfg(test)]
 #[path = "tests/fixtures.rs"]
@@ -24,16 +23,20 @@ pub use state::SubscriberState;
 use crate::{batch_loader::BatchLoader, errors::SubscriberResult, subscriber::Subscriber};
 use async_trait::async_trait;
 use config::Committee;
+use consensus::{ConsensusOutput, ConsensusSyncRequest};
 use crypto::traits::VerifyingKey;
 use primary::BatchDigest;
 use serde::de::DeserializeOwned;
-use std::{net::SocketAddr, path::Path, sync::Arc};
+use std::{path::Path, sync::Arc};
 use store::{
     reopen,
     rocks::{open_cf, DBMap},
     Store,
 };
-use tokio::{sync::mpsc::channel, task::JoinHandle};
+use tokio::{
+    sync::mpsc::{channel, Receiver, Sender},
+    task::JoinHandle,
+};
 use worker::SerializedBatchMessage;
 
 /// Default inter-task channel size.
@@ -70,13 +73,14 @@ pub trait ExecutionState {
     async fn load_subscriber_state(&self) -> Result<SubscriberState, Self::Error>;
 }
 
-/// Spawn a new client subscriber.ca
+/// Spawn a new client subscriber.
 pub async fn spawn_client_subscriber<State, PublicKey>(
     name: PublicKey,
     committee: Committee<PublicKey>,
-    address: SocketAddr,
     store_path: &Path,
     execution_state: Arc<State>,
+    rx_consensus: Receiver<ConsensusOutput<PublicKey>>,
+    tx_consensus: Sender<ConsensusSyncRequest>,
 ) -> SubscriberResult<(
     JoinHandle<SubscriberResult<()>>,
     JoinHandle<SubscriberResult<()>>,
@@ -93,14 +97,13 @@ where
     let store = Store::new(batch_map);
 
     // Spawn the subscriber.
-    let subscriber = Subscriber::<State, PublicKey>::new(
-        address,
+    let subscriber_handle = Subscriber::<State, PublicKey>::spawn(
         store.clone(),
         execution_state,
+        rx_consensus,
+        tx_consensus,
         tx_batch_loader,
-    )
-    .await?;
-    let subscriber_handle = Subscriber::spawn(subscriber);
+    );
 
     // Spawn the batch loader.
     let worker_addresses = committee

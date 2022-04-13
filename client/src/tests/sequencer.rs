@@ -1,30 +1,30 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use bytes::Bytes;
 use consensus::{ConsensusOutput, ConsensusSyncRequest, SequenceNumber};
-use crypto::ed25519::Ed25519PublicKey;
-use futures::{SinkExt, StreamExt};
+use crypto::traits::VerifyingKey;
 use primary::Certificate;
-use std::net::SocketAddr;
-use tokio::{
-    net::{TcpListener, TcpStream},
-    sync::mpsc::Receiver,
-};
-use tokio_util::codec::{Framed, LengthDelimitedCodec};
+use tokio::sync::mpsc::{Receiver, Sender};
+use tracing::warn;
 
-pub struct MockSequencer {
-    address: SocketAddr,
-    rx_sequence: Receiver<Certificate<Ed25519PublicKey>>,
+pub struct MockSequencer<PublicKey: VerifyingKey> {
+    rx_sequence: Receiver<Certificate<PublicKey>>,
+    rx_client: Receiver<ConsensusSyncRequest>,
+    tx_client: Sender<ConsensusOutput<PublicKey>>,
     consensus_index: SequenceNumber,
-    sequence: Vec<ConsensusOutput<Ed25519PublicKey>>,
+    sequence: Vec<ConsensusOutput<PublicKey>>,
 }
 
-impl MockSequencer {
-    pub fn spawn(address: SocketAddr, rx_sequence: Receiver<Certificate<Ed25519PublicKey>>) {
+impl<PublicKey: VerifyingKey> MockSequencer<PublicKey> {
+    pub fn spawn(
+        rx_sequence: Receiver<Certificate<PublicKey>>,
+        rx_client: Receiver<ConsensusSyncRequest>,
+        tx_client: Sender<ConsensusOutput<PublicKey>>,
+    ) {
         tokio::spawn(async move {
             Self {
-                address,
                 rx_sequence,
+                rx_client,
+                tx_client,
                 consensus_index: SequenceNumber::default(),
                 sequence: Vec::new(),
             }
@@ -33,47 +33,36 @@ impl MockSequencer {
         });
     }
 
-    async fn synchronize(
-        &mut self,
-        request: ConsensusSyncRequest,
-        connection: &mut Framed<TcpStream, LengthDelimitedCodec>,
-    ) {
+    async fn synchronize(&mut self, request: ConsensusSyncRequest) {
         for i in request.missing {
-            let message = &self.sequence[i as usize];
-            let serialized = bincode::serialize(message).unwrap();
-            connection.send(Bytes::from(serialized)).await.unwrap();
+            let message = self.sequence[i as usize].clone();
+            if self.tx_client.send(message).await.is_err() {
+                warn!("Failed to deliver sequenced message to client");
+                break;
+            }
         }
     }
 
     async fn run(&mut self) {
-        let socket = TcpListener::bind(&self.address).await.unwrap();
-
         loop {
-            let (socket, _) = socket.accept().await.unwrap();
-            let mut connection = Framed::new(socket, LengthDelimitedCodec::new());
+            tokio::select! {
+                // Update the subscriber every time a message is sequenced.
+                Some(certificate) = self.rx_sequence.recv() => {
+                    let message = ConsensusOutput {
+                        certificate,
+                        consensus_index: self.consensus_index
+                    };
 
-            loop {
-                tokio::select! {
-                    // Update the subscriber every time a message is sequenced.
-                    Some(certificate) = self.rx_sequence.recv() => {
-                        let message = ConsensusOutput {
-                            certificate,
-                            consensus_index: self.consensus_index
-                        };
+                    self.consensus_index += 1;
+                    self.sequence.push(message.clone());
 
-                        self.consensus_index += 1;
-                        self.sequence.push(message.clone());
-
-                        let serialized = bincode::serialize(&message).unwrap();
-                        let _ = connection.send(Bytes::from(serialized)).await;
-                    },
-
-                    // Receive sync requests form the subscriber.
-                    Some(bytes) = connection.next() => {
-                        let request = bincode::deserialize(&bytes.unwrap()).unwrap();
-                        self.synchronize(request, &mut connection).await;
+                    if  self.tx_client.send(message).await.is_err() {
+                        warn!("Failed to deliver sequenced message to client");
                     }
-                }
+                },
+
+                // Receive sync requests form the subscriber.
+                Some(request) = self.rx_client.recv() => self.synchronize(request).await,
             }
         }
     }

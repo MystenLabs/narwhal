@@ -1,25 +1,25 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use crate::{
+    bail, ensure,
     errors::{SubscriberError, SubscriberResult},
     state::SubscriberState,
-    utils::ConnectionWaiter,
     ExecutionState,
 };
-use bytes::Bytes;
 use consensus::{ConsensusOutput, ConsensusSyncRequest, SequenceNumber};
 use crypto::traits::VerifyingKey;
 use futures::{
     future::try_join_all,
     stream::{FuturesOrdered, StreamExt},
-    SinkExt,
 };
 use primary::{Batch, BatchDigest};
-use std::{cmp::Ordering, net::SocketAddr, sync::Arc};
+use std::{cmp::Ordering, sync::Arc};
 use store::Store;
-use tokio::{net::TcpStream, sync::mpsc::Sender, task::JoinHandle};
-use tokio_util::codec::{Framed, LengthDelimitedCodec};
-use tracing::{debug, info, warn};
+use tokio::{
+    sync::mpsc::{Receiver, Sender},
+    task::JoinHandle,
+};
+use tracing::{debug, info};
 use worker::{SerializedBatchMessage, WorkerMessage};
 
 #[cfg(test)]
@@ -31,12 +31,14 @@ pub mod subscriber_tests;
 /// already been authenticated (ie. they really come from a trusted consensus node) and
 /// integrity-validated (ie. no corrupted messages).
 pub struct Subscriber<State: ExecutionState, PublicKey: VerifyingKey> {
-    /// The network address of the consensus node.
-    address: SocketAddr,
     /// The temporary storage holding all transactions' data (that may be too big to hold in memory).
     store: Store<BatchDigest, SerializedBatchMessage>,
     /// The (global) state to perform execution.
     execution_state: Arc<State>,
+    /// A channel to receive consensus messages.
+    rx_consensus: Receiver<ConsensusOutput<PublicKey>>,
+    /// A channel to send sync request to consensus for missed messages.
+    tx_consensus: Sender<ConsensusSyncRequest>,
     /// A channel to the batch loader to download transaction's data.
     tx_batch_loader: Sender<ConsensusOutput<PublicKey>>,
     /// The indices ensuring we do not execute twice the same transaction.
@@ -56,39 +58,39 @@ where
     State: ExecutionState + Send + Sync + 'static,
     PublicKey: VerifyingKey,
 {
-    /// Create a new subscriber with the input authority state.
-    pub async fn new(
-        address: SocketAddr,
+    /// Spawn a new subscriber in a new tokio task.
+    pub fn spawn(
         store: Store<BatchDigest, SerializedBatchMessage>,
         execution_state: Arc<State>,
+        rx_consensus: Receiver<ConsensusOutput<PublicKey>>,
+        tx_consensus: Sender<ConsensusSyncRequest>,
         tx_batch_loader: Sender<ConsensusOutput<PublicKey>>,
-    ) -> SubscriberResult<Self> {
-        info!("Consensus client connecting to {}", address);
+    ) -> JoinHandle<SubscriberResult<()>> {
+        info!("Consensus subscriber connecting started");
+        tokio::spawn(async move {
+            // Ensure there is a single consensus client modifying the execution state.
+            ensure!(
+                execution_state.ask_consensus_write_lock(),
+                SubscriberError::OnlyOneConsensusClientPermitted
+            );
 
-        // Ensure there is a single consensus client modifying the execution state.
-        if !execution_state.ask_consensus_write_lock() {
-            return Err(SubscriberError::OnlyOneConsensusClientPermitted);
-        }
+            // Load the subscriber state from storage.
+            let subscriber_state = execution_state.load_subscriber_state().await?;
+            let next_consensus_index = subscriber_state.next_certificate_index;
 
-        // Load the subscriber state from storage.
-        let subscriber_state = execution_state.load_subscriber_state().await?;
-        let next_consensus_index = subscriber_state.next_certificate_index;
-
-        // Return a consensus client only if all went well (safety-critical).
-        Ok(Self {
-            address,
-            store,
-            execution_state,
-            tx_batch_loader,
-            subscriber_state,
-            next_consensus_index,
+            // Spawn a consensus client only if all went well (safety-critical).
+            Self {
+                store,
+                execution_state,
+                rx_consensus,
+                tx_consensus,
+                tx_batch_loader,
+                subscriber_state,
+                next_consensus_index,
+            }
+            .run()
+            .await
         })
-    }
-
-    /// Spawn the subscriber  in a new tokio task.
-    pub fn spawn(mut subscriber: Self) -> JoinHandle<SubscriberResult<()>> {
-        info!("Consensus subscriber connecting to {}", subscriber.address);
-        tokio::spawn(async move { subscriber.run().await })
     }
 
     /// Synchronize with the consensus in case we missed part of its output sequence.
@@ -96,7 +98,7 @@ where
     /// and right order. This function reads the consensus outputs out of a stream and
     /// return them in the right order.
     async fn synchronize(
-        connection: &mut Framed<TcpStream, LengthDelimitedCodec>,
+        &mut self,
         last_known_client_index: SequenceNumber,
         last_known_server_index: SequenceNumber,
     ) -> SubscriberResult<Vec<ConsensusOutput<PublicKey>>> {
@@ -104,11 +106,10 @@ where
         let request = ConsensusSyncRequest {
             missing: (last_known_client_index + 1..=last_known_server_index),
         };
-        let serialized = bincode::serialize(&request).expect("Failed to serialize sync request");
-        if let Err(e) = connection.send(Bytes::from(serialized)).await {
-            warn!("Failed to send sync request: {e}");
-            return Ok(Vec::default());
-        }
+        self.tx_consensus
+            .send(request)
+            .await
+            .map_err(|_| SubscriberError::ConsensusConnectionDropped)?;
 
         // Read the replies.
         let mut next_ordinary_sequence = last_known_server_index + 1;
@@ -116,22 +117,9 @@ where
         let mut buffer = Vec::new();
         let mut sequence = Vec::new();
         loop {
-            let output: ConsensusOutput<_> = match connection.next().await {
-                Some(Ok(bytes)) => match bincode::deserialize(&bytes) {
-                    Ok(output) => output,
-                    Err(e) => {
-                        warn!("Failed to deserialize consensus output {}", e);
-                        return Ok(Vec::default());
-                    }
-                },
-                Some(Err(e)) => {
-                    warn!("Failed to receive sync reply from consensus: {e}");
-                    return Ok(Vec::default());
-                }
-                None => {
-                    warn!("Consensus node dropped connection");
-                    return Ok(Vec::default());
-                }
+            let output = match self.rx_consensus.recv().await {
+                Some(x) => x,
+                None => bail!(SubscriberError::ConsensusConnectionDropped),
             };
             let consensus_index = output.consensus_index;
 
@@ -142,7 +130,7 @@ where
                 sequence.push(output);
                 next_catchup_sequence += 1;
             } else {
-                return Err(SubscriberError::UnexpectedConsensusIndex(consensus_index));
+                bail!(SubscriberError::UnexpectedConsensusIndex(consensus_index));
             }
 
             if consensus_index == last_known_server_index {
@@ -157,9 +145,8 @@ where
     /// Process a single consensus output message. If we realize we are missing part of the sequence,
     /// we first sync every missing output and return them on the right order.
     async fn handle_consensus_message(
-        &self,
+        &mut self,
         message: &ConsensusOutput<PublicKey>,
-        connection: &mut Framed<TcpStream, LengthDelimitedCodec>,
     ) -> SubscriberResult<Vec<ConsensusOutput<PublicKey>>> {
         let consensus_index = message.consensus_index;
 
@@ -187,7 +174,8 @@ where
         if need_to_sync {
             let last_known_client_index = self.subscriber_state.next_certificate_index;
             let last_known_server_index = message.consensus_index;
-            Self::synchronize(connection, last_known_client_index, last_known_server_index).await
+            self.synchronize(last_known_client_index, last_known_server_index)
+                .await
         } else {
             Ok(vec![message.clone()])
         }
@@ -231,8 +219,8 @@ where
             // Deserialize the consensus workers' batch message to retrieve a list of transactions.
             let transactions = match bincode::deserialize(&batch) {
                 Ok(WorkerMessage::<PublicKey>::Batch(Batch(x))) => x,
-                Ok(_) => return Err(SubscriberError::UnexpectedProtocolMessage),
-                Err(e) => return Err(SubscriberError::SerializationError(e)),
+                Ok(_) => bail!(SubscriberError::UnexpectedProtocolMessage),
+                Err(e) => bail!(SubscriberError::SerializationError(e)),
             };
 
             let total_transactions = transactions.len();
@@ -285,7 +273,7 @@ where
     /// Wait for particular data to become available in the storage and then returns.
     async fn waiter<T>(
         missing: Vec<BatchDigest>,
-        store: &Store<BatchDigest, SerializedBatchMessage>,
+        store: Store<BatchDigest, SerializedBatchMessage>,
         deliver: T,
     ) -> SubscriberResult<T> {
         let waiting: Vec<_> = missing.into_iter().map(|x| store.notify_read(x)).collect();
@@ -299,83 +287,39 @@ where
     async fn run(&mut self) -> SubscriberResult<()> {
         let mut waiting = FuturesOrdered::new();
 
-        // The connection waiter ensures we do not attempt to reconnect immediately after failure.
-        let mut connection_waiter = ConnectionWaiter::default();
+        // Listen to sequenced consensus message and process them.
+        loop {
+            tokio::select! {
+                // Receive the ordered sequence of consensus messages from a consensus node.
+                Some(message) = self.rx_consensus.recv() => {
+                    // Process the consensus message (synchronize missing messages, download transaction data).
+                    let sequence = self.handle_consensus_message(&message).await?;
 
-        // Continuously connects to the consensus node.
-        'main: loop {
-            // Wait a bit before re-attempting connections.
-            connection_waiter.wait().await;
+                    // Update the latest consensus index. The state will atomically persist the change when
+                    // executing the transaction. It is important to increment the consensus index before
+                    // deserializing the transaction data because the consensus core will increment its own
+                    // index regardless of deserialization or other application-specific failures.
+                    self.next_consensus_index += sequence.len() as SequenceNumber;
 
-            // Subscribe to the consensus' output.
-            let mut connection = match TcpStream::connect(self.address).await {
-                Ok(x) => Framed::new(x, LengthDelimitedCodec::new()),
-                Err(e) => {
-                    warn!(
-                        "Failed to subscribe to consensus output (retry {}): {e}",
-                        connection_waiter.status(),
-                    );
-                    continue 'main;
-                }
-            };
+                    // Wait for the transaction data to be available in the store. We will then execute the transactions.
+                    for message in sequence {
+                        let digests = message.certificate.header.payload.keys().cloned().collect();
+                        let future = Self::waiter(digests, self.store.clone(), message);
+                        waiting.push(future);
+                    }
+                },
 
-            // Listen to sequenced consensus message and process them.
-            loop {
-                tokio::select! {
-                    // Receive the ordered sequence of consensus messages from a consensus node.
-                    result = connection.next() => {
-                        let message = match result {
-                            Some(Ok(bytes)) => match bincode::deserialize(&bytes.to_vec()) {
-                                Ok(message) => message,
-                                Err(e) => {
-                                    warn!("Failed to deserialize consensus output {}", e);
-                                    continue 'main;
-                                }
-                            },
-                            Some(Err(e)) => {
-                                warn!("Failed to receive data from consensus: {}", e);
-                                continue 'main;
-                            }
-                            None => {
-                                debug!("Connection dropped by consensus");
-                                continue 'main;
-                            }
-                        };
+                // Receive here consensus messages for which we have downloaded all transactions data.
+                Some(result) = waiting.next() => {
+                    let message = result?;
 
-                        // Process the consensus message (synchronize missing messages, download transaction data).
-                        let sequence = self.handle_consensus_message(&message, &mut connection).await?;
+                    // Execute all transactions associated with the consensus output message. This function
+                    // also persist the necessary data to enable crash-recovery.
+                    self.subscriber_state = self.execute_transactions(&message).await?;
 
-                        // Update the latest consensus index. The state will atomically persist the change when
-                        // executing the transaction. It is important to increment the consensus index before
-                        // deserializing the transaction data because the consensus core will increment its own
-                        // index regardless of deserialization or other application-specific failures.
-                        self.next_consensus_index += sequence.len() as SequenceNumber;
-
-                        // Wait for the transaction data to be available in the store. We will then execute the transactions.
-                        for message in sequence {
-                            let digests = message.certificate.header.payload.keys().cloned().collect();
-                            let future = Self::waiter(digests, &self.store, message);
-                            waiting.push(future);
-                        }
-
-                        // Reset the connection timeout delay.
-                        connection_waiter.reset();
-                    },
-
-                    // Receive here consensus messages for which we have downloaded all transactions data.
-                    // TODO: It is not nice that we do not pull these futures in case we loose connection with
-                    // the consensus node (see the outer loop labeled 'main').
-                    Some(result) = waiting.next() => {
-                        let message = result?;
-
-                        // Execute all transactions associated with the consensus output message. This function
-                        // also persist the necessary data to enable crash-recovery.
-                        self.subscriber_state = self.execute_transactions(&message).await?;
-
-                        // Cleanup the temporary persistent storage.
-                        for digest in message.certificate.header.payload.into_keys() {
-                            self.store.remove(digest).await;
-                        }
+                    // Cleanup the temporary persistent storage.
+                    for digest in message.certificate.header.payload.into_keys() {
+                        self.store.remove(digest).await;
                     }
                 }
             }
