@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use super::*;
 use crate::{
-    execution_state::{TestExecutionState, KILLER_TRANSACTION, MALFORMED_TRANSACTION},
+    execution_state::{TestState, KILLER_TRANSACTION, MALFORMED_TRANSACTION},
     fixtures::{test_batch, test_certificate},
     sequencer::MockSequencer,
 };
@@ -19,10 +19,7 @@ use tokio::sync::mpsc::{channel, Sender};
 async fn spawn_subscriber(
     node_address: SocketAddr,
     tx_batch_loader: Sender<ConsensusOutput<Ed25519PublicKey>>,
-) -> (
-    Store<BatchDigest, SerializedBatchMessage>,
-    Arc<TestExecutionState>,
-) {
+) -> (Store<BatchDigest, SerializedBatchMessage>, Arc<TestState>) {
     // Spawn a subscriber.
     let store_path = tempfile::tempdir().unwrap();
     const BATCHES_CF: &str = "batches";
@@ -30,8 +27,8 @@ async fn spawn_subscriber(
     let batch_map = reopen!(&rocksdb, BATCHES_CF;<BatchDigest, SerializedBatchMessage>);
     let store = Store::new(batch_map);
 
-    let execution_state = Arc::new(TestExecutionState::default());
-    let subscriber = Subscriber::<TestExecutionState, Ed25519PublicKey>::new(
+    let execution_state = Arc::new(TestState::default());
+    let subscriber = Subscriber::<TestState, Ed25519PublicKey>::new(
         node_address,
         store.clone(),
         execution_state.clone(),

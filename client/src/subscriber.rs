@@ -4,7 +4,7 @@ use crate::{
     errors::{SubscriberError, SubscriberResult},
     state::SubscriberState,
     utils::ConnectionWaiter,
-    AuthorityState,
+    ExecutionState,
 };
 use bytes::Bytes;
 use consensus::{ConsensusOutput, ConsensusSyncRequest, SequenceNumber};
@@ -30,13 +30,13 @@ pub mod subscriber_tests;
 /// transaction it references. We assume that the messages we receives from consensus has
 /// already been authenticated (ie. they really come from a trusted consensus node) and
 /// integrity-validated (ie. no corrupted messages).
-pub struct Subscriber<ExecutionState: AuthorityState, PublicKey: VerifyingKey> {
+pub struct Subscriber<State: ExecutionState, PublicKey: VerifyingKey> {
     /// The network address of the consensus node.
     address: SocketAddr,
     /// The temporary storage holding all transactions' data (that may be too big to hold in memory).
     store: Store<BatchDigest, SerializedBatchMessage>,
     /// The (global) state to perform execution.
-    execution_state: Arc<ExecutionState>,
+    execution_state: Arc<State>,
     /// A channel to the batch loader to download transaction's data.
     tx_batch_loader: Sender<ConsensusOutput<PublicKey>>,
     /// The indices ensuring we do not execute twice the same transaction.
@@ -45,24 +45,22 @@ pub struct Subscriber<ExecutionState: AuthorityState, PublicKey: VerifyingKey> {
     next_consensus_index: SequenceNumber,
 }
 
-impl<ExecutionState: AuthorityState, PublicKey: VerifyingKey> Drop
-    for Subscriber<ExecutionState, PublicKey>
-{
+impl<State: ExecutionState, PublicKey: VerifyingKey> Drop for Subscriber<State, PublicKey> {
     fn drop(&mut self) {
         self.execution_state.release_consensus_write_lock();
     }
 }
 
-impl<ExecutionState, PublicKey> Subscriber<ExecutionState, PublicKey>
+impl<State, PublicKey> Subscriber<State, PublicKey>
 where
-    ExecutionState: AuthorityState + Send + Sync + 'static,
+    State: ExecutionState + Send + Sync + 'static,
     PublicKey: VerifyingKey,
 {
     /// Create a new subscriber with the input authority state.
     pub async fn new(
         address: SocketAddr,
         store: Store<BatchDigest, SerializedBatchMessage>,
-        execution_state: Arc<ExecutionState>,
+        execution_state: Arc<State>,
         tx_batch_loader: Sender<ConsensusOutput<PublicKey>>,
     ) -> SubscriberResult<Self> {
         info!("Consensus client connecting to {}", address);

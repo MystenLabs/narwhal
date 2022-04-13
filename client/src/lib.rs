@@ -18,7 +18,7 @@ mod execution_state;
 #[path = "tests/sequencer.rs"]
 mod sequencer;
 
-pub use errors::AuthorityStateError;
+pub use errors::ExecutionStateError;
 pub use state::SubscriberState;
 
 use crate::{batch_loader::BatchLoader, errors::SubscriberResult, subscriber::Subscriber};
@@ -43,12 +43,12 @@ pub const DEFAULT_CHANNEL_SIZE: usize = 1_000;
 const BATCHES_CF: &str = "batches";
 
 #[async_trait]
-pub trait AuthorityState {
+pub trait ExecutionState {
     /// The type of the transaction to process.
     type Transaction: DeserializeOwned + Send;
 
     /// The error type to return in case something went wrong during execution.
-    type Error: AuthorityStateError;
+    type Error: ExecutionStateError;
 
     /// Execute the transaction and atomically persist the consensus index.
     async fn handle_consensus_transaction(
@@ -71,18 +71,18 @@ pub trait AuthorityState {
 }
 
 /// Spawn a new client subscriber.ca
-pub async fn spawn_client_subscriber<ExecutionState, PublicKey>(
+pub async fn spawn_client_subscriber<State, PublicKey>(
     name: PublicKey,
     committee: Committee<PublicKey>,
     address: SocketAddr,
     store_path: &Path,
-    execution_state: Arc<ExecutionState>,
+    execution_state: Arc<State>,
 ) -> SubscriberResult<(
     JoinHandle<SubscriberResult<()>>,
     JoinHandle<SubscriberResult<()>>,
 )>
 where
-    ExecutionState: AuthorityState + Send + Sync + 'static,
+    State: ExecutionState + Send + Sync + 'static,
     PublicKey: VerifyingKey,
 {
     let (tx_batch_loader, rx_batch_loader) = channel(DEFAULT_CHANNEL_SIZE);
@@ -93,7 +93,7 @@ where
     let store = Store::new(batch_map);
 
     // Spawn the subscriber.
-    let subscriber = Subscriber::<ExecutionState, PublicKey>::new(
+    let subscriber = Subscriber::<State, PublicKey>::new(
         address,
         store.clone(),
         execution_state,

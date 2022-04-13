@@ -1,6 +1,6 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crate::{AuthorityState, AuthorityStateError, SubscriberState};
+use crate::{ExecutionState, ExecutionStateError, SubscriberState};
 use async_trait::async_trait;
 use futures::executor::block_on;
 use std::sync::Arc;
@@ -8,27 +8,27 @@ use thiserror::Error;
 use tokio::sync::RwLock;
 
 /// A malformed transaction.
-pub const MALFORMED_TRANSACTION: <TestExecutionState as AuthorityState>::Transaction = 400;
+pub const MALFORMED_TRANSACTION: <TestState as ExecutionState>::Transaction = 400;
 
 /// A special transaction that makes the executor engine crash.
-pub const KILLER_TRANSACTION: <TestExecutionState as AuthorityState>::Transaction = 500;
+pub const KILLER_TRANSACTION: <TestState as ExecutionState>::Transaction = 500;
 
 /// A dumb execution state for testing.
 #[derive(Default)]
-pub struct TestExecutionState {
+pub struct TestState {
     subscriber_state: Arc<RwLock<SubscriberState>>,
 }
 
-impl std::fmt::Debug for TestExecutionState {
+impl std::fmt::Debug for TestState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}", block_on(self.subscriber_state.read()))
     }
 }
 
 #[async_trait]
-impl AuthorityState for TestExecutionState {
+impl ExecutionState for TestState {
     type Transaction = u64;
-    type Error = TestExecutionStateError;
+    type Error = TestStateError;
 
     async fn handle_consensus_transaction(
         &self,
@@ -57,14 +57,14 @@ impl AuthorityState for TestExecutionState {
     }
 }
 
-impl TestExecutionState {
+impl TestState {
     pub async fn get_subscriber_state(&self) -> SubscriberState {
         self.subscriber_state.read().await.clone()
     }
 }
 
 #[derive(Debug, Error)]
-pub enum TestExecutionStateError {
+pub enum TestStateError {
     #[error("Something went wrong in the authority")]
     ServerError,
 
@@ -73,7 +73,7 @@ pub enum TestExecutionStateError {
 }
 
 #[async_trait]
-impl AuthorityStateError for TestExecutionStateError {
+impl ExecutionStateError for TestStateError {
     fn node_error(&self) -> bool {
         match self {
             Self::ServerError => true,

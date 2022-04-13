@@ -36,7 +36,7 @@ pub enum SubscriberError {
 
 /// Trait do separate execution errors in two categories: (i) errors caused by a bad client, (ii)
 /// errors caused by a fault in the authority.
-pub trait AuthorityStateError {
+pub trait ExecutionStateError {
     /// Whether the error is due to a fault in the authority (eg. internal storage error).
     fn node_error(&self) -> bool;
 
@@ -44,7 +44,7 @@ pub trait AuthorityStateError {
     fn to_string(&self) -> String;
 }
 
-impl<T: AuthorityStateError> From<T> for SubscriberError {
+impl<T: ExecutionStateError> From<T> for SubscriberError {
     fn from(e: T) -> Self {
         match e.node_error() {
             true => SubscriberError::NodeExecutionError(e.to_string()),
