@@ -3,7 +3,7 @@
 use crate::{
     bail, ensure,
     errors::{SubscriberError, SubscriberResult},
-    state::SubscriberState,
+    state::ExecutionIndices,
     ExecutionState,
 };
 use consensus::{ConsensusOutput, ConsensusSyncRequest, SequenceNumber};
@@ -42,7 +42,7 @@ pub struct Subscriber<State: ExecutionState, PublicKey: VerifyingKey> {
     /// A channel to the batch loader to download transaction's data.
     tx_batch_loader: Sender<ConsensusOutput<PublicKey>>,
     /// The indices ensuring we do not execute twice the same transaction.
-    subscriber_state: SubscriberState,
+    execution_indices: ExecutionIndices,
     /// The index of the next expected consensus output.
     next_consensus_index: SequenceNumber,
 }
@@ -75,8 +75,8 @@ where
             );
 
             // Load the subscriber state from storage.
-            let subscriber_state = execution_state.load_subscriber_state().await?;
-            let next_consensus_index = subscriber_state.next_certificate_index;
+            let execution_indices = execution_state.load_execution_indices().await?;
+            let next_consensus_index = execution_indices.next_certificate_index;
 
             // Spawn a consensus client only if all went well (safety-critical).
             Self {
@@ -85,7 +85,7 @@ where
                 rx_consensus,
                 tx_consensus,
                 tx_batch_loader,
-                subscriber_state,
+                execution_indices,
                 next_consensus_index,
             }
             .run()
@@ -172,7 +172,7 @@ where
 
         // Synchronize missing consensus outputs if we need to.
         if need_to_sync {
-            let last_known_client_index = self.subscriber_state.next_certificate_index;
+            let last_known_client_index = self.execution_indices.next_certificate_index;
             let last_known_server_index = message.consensus_index;
             self.synchronize(last_known_client_index, last_known_server_index)
                 .await
@@ -185,19 +185,19 @@ where
     async fn execute_transactions(
         &self,
         message: &ConsensusOutput<PublicKey>,
-    ) -> SubscriberResult<SubscriberState> {
-        let mut subscriber_state = self.subscriber_state.clone();
+    ) -> SubscriberResult<ExecutionIndices> {
+        let mut execution_indices = self.execution_indices.clone();
 
         // Skip the certificate if it contains no transactions.
         if message.certificate.header.payload.is_empty() {
-            subscriber_state.skip_certificate();
-            return Ok(subscriber_state);
+            execution_indices.skip_certificate();
+            return Ok(execution_indices);
         }
 
         let total_batches = message.certificate.header.payload.len();
         for (index, digest) in message.certificate.header.payload.keys().enumerate() {
             // Skip batches that we already executed (after crash-recovery).
-            if !subscriber_state.check_next_batch_index(index as SequenceNumber) {
+            if !execution_indices.check_next_batch_index(index as SequenceNumber) {
                 continue;
             }
 
@@ -211,7 +211,7 @@ where
                     // since there is no point in executing twice the same transactions (as the second execution
                     // attempt will always fail).
                     debug!("Duplicate batch {digest}");
-                    subscriber_state.skip_batch(total_batches);
+                    execution_indices.skip_batch(total_batches);
                     continue;
                 }
             };
@@ -226,13 +226,13 @@ where
             let total_transactions = transactions.len();
             for (index, transaction) in transactions.into_iter().enumerate() {
                 // Skip transactions that we already executed (after crash-recovery).
-                if !subscriber_state.check_next_transaction_index(index as SequenceNumber) {
+                if !execution_indices.check_next_transaction_index(index as SequenceNumber) {
                     continue;
                 }
 
                 // Compute the next expected indices. Those will be persisted upon transaction execution and are only
                 // used for crash-recovery.
-                subscriber_state.next(total_batches, total_transactions);
+                execution_indices.next(total_batches, total_transactions);
 
                 // The consensus simply orders bytes, so we first need to deserialize the transaction.
                 // If the deserialization fail it is safe to ignore the transaction since all correct clients
@@ -249,7 +249,7 @@ where
                 // TODO: Notify the the higher level client of the transaction's execution status.
                 let result = self
                     .execution_state
-                    .handle_consensus_transaction(subscriber_state.clone(), command)
+                    .handle_consensus_transaction(execution_indices.clone(), command)
                     .await
                     .map_err(SubscriberError::from);
 
@@ -267,7 +267,7 @@ where
                 result?;
             }
         }
-        Ok(subscriber_state)
+        Ok(execution_indices)
     }
 
     /// Wait for particular data to become available in the storage and then returns.
@@ -315,7 +315,7 @@ where
 
                     // Execute all transactions associated with the consensus output message. This function
                     // also persist the necessary data to enable crash-recovery.
-                    self.subscriber_state = self.execute_transactions(&message).await?;
+                    self.execution_indices = self.execute_transactions(&message).await?;
 
                     // Cleanup the temporary persistent storage.
                     for digest in message.certificate.header.payload.into_keys() {

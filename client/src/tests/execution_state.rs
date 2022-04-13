@@ -1,6 +1,6 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crate::{ExecutionState, ExecutionStateError, SubscriberState};
+use crate::{ExecutionIndices, ExecutionState, ExecutionStateError};
 use async_trait::async_trait;
 use futures::executor::block_on;
 use std::sync::Arc;
@@ -16,12 +16,12 @@ pub const KILLER_TRANSACTION: <TestState as ExecutionState>::Transaction = 500;
 /// A dumb execution state for testing.
 #[derive(Default)]
 pub struct TestState {
-    subscriber_state: Arc<RwLock<SubscriberState>>,
+    execution_indices: Arc<RwLock<ExecutionIndices>>,
 }
 
 impl std::fmt::Debug for TestState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", block_on(self.subscriber_state.read()))
+        write!(f, "{:?}", block_on(self.execution_indices.read()))
     }
 }
 
@@ -32,7 +32,7 @@ impl ExecutionState for TestState {
 
     async fn handle_consensus_transaction(
         &self,
-        subscriber_state: SubscriberState,
+        execution_indices: ExecutionIndices,
         transaction: Self::Transaction,
     ) -> Result<(), Self::Error> {
         if transaction == MALFORMED_TRANSACTION {
@@ -40,8 +40,8 @@ impl ExecutionState for TestState {
         } else if transaction == KILLER_TRANSACTION {
             Err(Self::Error::ServerError)
         } else {
-            let mut guard = self.subscriber_state.write().await;
-            *guard = subscriber_state;
+            let mut guard = self.execution_indices.write().await;
+            *guard = execution_indices;
             Ok(())
         }
     }
@@ -52,14 +52,14 @@ impl ExecutionState for TestState {
 
     fn release_consensus_write_lock(&self) {}
 
-    async fn load_subscriber_state(&self) -> Result<SubscriberState, Self::Error> {
-        Ok(SubscriberState::default())
+    async fn load_execution_indices(&self) -> Result<ExecutionIndices, Self::Error> {
+        Ok(ExecutionIndices::default())
     }
 }
 
 impl TestState {
-    pub async fn get_subscriber_state(&self) -> SubscriberState {
-        self.subscriber_state.read().await.clone()
+    pub async fn get_execution_indices(&self) -> ExecutionIndices {
+        self.execution_indices.read().await.clone()
     }
 }
 

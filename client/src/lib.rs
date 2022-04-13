@@ -18,7 +18,7 @@ mod execution_state;
 mod sequencer;
 
 pub use errors::ExecutionStateError;
-pub use state::SubscriberState;
+pub use state::ExecutionIndices;
 
 use crate::{batch_loader::BatchLoader, errors::SubscriberResult, subscriber::Subscriber};
 use async_trait::async_trait;
@@ -56,7 +56,7 @@ pub trait ExecutionState {
     /// Execute the transaction and atomically persist the consensus index.
     async fn handle_consensus_transaction(
         &self,
-        subscriber_state: SubscriberState,
+        execution_indices: ExecutionIndices,
         transaction: Self::Transaction,
     ) -> Result<(), Self::Error>;
 
@@ -70,7 +70,7 @@ pub trait ExecutionState {
     fn release_consensus_write_lock(&self);
 
     /// Load the last consensus index from storage.
-    async fn load_subscriber_state(&self) -> Result<SubscriberState, Self::Error>;
+    async fn load_execution_indices(&self) -> Result<ExecutionIndices, Self::Error>;
 }
 
 /// Spawn a new client subscriber.

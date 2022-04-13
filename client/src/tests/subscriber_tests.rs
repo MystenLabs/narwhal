@@ -139,12 +139,12 @@ async fn execute_transactions() {
     }
 
     // Ensure the execution state is updated accordingly.
-    let expected = SubscriberState {
+    let expected = ExecutionIndices {
         next_certificate_index: 2,
         next_batch_index: 0,
         next_transaction_index: 0,
     };
-    assert_eq!(execution_state.get_subscriber_state().await, expected);
+    assert_eq!(execution_state.get_execution_indices().await, expected);
 }
 
 #[tokio::test]
@@ -170,12 +170,12 @@ async fn execute_empty_certificate() {
     tx_sequence.send(certificate).await.unwrap();
     let _ = rx_batch_loader.recv().await.unwrap();
 
-    let expected = SubscriberState {
+    let expected = ExecutionIndices {
         next_certificate_index: 3,
         next_batch_index: 0,
         next_transaction_index: 0,
     };
-    assert_eq!(execution_state.get_subscriber_state().await, expected);
+    assert_eq!(execution_state.get_execution_indices().await, expected);
 }
 
 #[tokio::test]
@@ -221,12 +221,12 @@ async fn execute_malformed_transactions() {
     }
 
     // Ensure the execution state is updated accordingly.
-    let expected = SubscriberState {
+    let expected = ExecutionIndices {
         next_certificate_index: 3,
         next_batch_index: 0,
         next_transaction_index: 0,
     };
-    assert_eq!(execution_state.get_subscriber_state().await, expected);
+    assert_eq!(execution_state.get_execution_indices().await, expected);
 }
 
 #[tokio::test]
@@ -252,6 +252,6 @@ async fn internal_error_execution() {
     let _ = rx_batch_loader.recv().await.unwrap();
 
     // Ensure the execution state does not change.
-    let expected = SubscriberState::default();
-    assert_eq!(execution_state.get_subscriber_state().await, expected);
+    let expected = ExecutionIndices::default();
+    assert_eq!(execution_state.get_execution_indices().await, expected);
 }

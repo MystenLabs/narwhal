@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 /// The state of the subscriber keeping track of the transactions that have already been
 /// executed. It ensures we do not process twice the same transaction despite crash-recovery.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, Eq)]
-pub struct SubscriberState {
+pub struct ExecutionIndices {
     /// The index of the latest consensus message we processed (used for crash-recovery).
     pub next_certificate_index: SequenceNumber,
     /// The index of the last batch we executed (used for crash-recovery).
@@ -15,7 +15,7 @@ pub struct SubscriberState {
     pub next_transaction_index: SequenceNumber,
 }
 
-impl SubscriberState {
+impl ExecutionIndices {
     /// Compute the next expected indices.
     pub fn next(&mut self, total_batches: usize, total_transactions: usize) {
         let total_batches = total_batches as SequenceNumber;
