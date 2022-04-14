@@ -56,9 +56,9 @@ where
         execution_state: Arc<State>,
         rx_subscriber: Receiver<ConsensusOutput<PublicKey>>,
         tx_output: Sender<SubscriberResult<SerializedTransaction>>,
-        execution_indices: ExecutionIndices,
     ) -> JoinHandle<SubscriberResult<()>> {
         tokio::spawn(async move {
+            let execution_indices = execution_state.load_execution_indices().await?;
             Self {
                 store,
                 execution_state,

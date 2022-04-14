@@ -3,9 +3,13 @@
 use crate::{ExecutionIndices, ExecutionState, ExecutionStateError};
 use async_trait::async_trait;
 use futures::executor::block_on;
-use std::sync::Arc;
+use std::path::Path;
+use store::{
+    reopen,
+    rocks::{open_cf, DBMap},
+    Store,
+};
 use thiserror::Error;
-use tokio::sync::RwLock;
 
 /// A malformed transaction.
 pub const MALFORMED_TRANSACTION: <TestState as ExecutionState>::Transaction = 400;
@@ -14,14 +18,19 @@ pub const MALFORMED_TRANSACTION: <TestState as ExecutionState>::Transaction = 40
 pub const KILLER_TRANSACTION: <TestState as ExecutionState>::Transaction = 500;
 
 /// A dumb execution state for testing.
-#[derive(Default)]
 pub struct TestState {
-    execution_indices: Arc<RwLock<ExecutionIndices>>,
+    store: Store<u64, ExecutionIndices>,
 }
 
 impl std::fmt::Debug for TestState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", block_on(self.execution_indices.read()))
+        write!(f, "{:?}", block_on(self.get_execution_indices()))
+    }
+}
+
+impl Default for TestState {
+    fn default() -> Self {
+        Self::new(tempfile::tempdir().unwrap().path())
     }
 }
 
@@ -40,8 +49,9 @@ impl ExecutionState for TestState {
         } else if transaction == KILLER_TRANSACTION {
             Err(Self::Error::ServerError)
         } else {
-            let mut guard = self.execution_indices.write().await;
-            *guard = execution_indices;
+            self.store
+                .write(Self::INDICES_ADDRESS, execution_indices)
+                .await;
             Ok(())
         }
     }
@@ -53,13 +63,33 @@ impl ExecutionState for TestState {
     fn release_consensus_write_lock(&self) {}
 
     async fn load_execution_indices(&self) -> Result<ExecutionIndices, Self::Error> {
-        Ok(ExecutionIndices::default())
+        let indices = self
+            .store
+            .read(Self::INDICES_ADDRESS)
+            .await
+            .unwrap()
+            .unwrap_or_default();
+        Ok(indices)
     }
 }
 
 impl TestState {
+    /// The address at which to store the indices (rocksdb is a key-value store).
+    pub const INDICES_ADDRESS: u64 = 14;
+
+    /// Create a new test state.
+    pub fn new(store_path: &Path) -> Self {
+        const STATE_CF: &str = "test_state";
+        let rocksdb = open_cf(store_path, None, &[STATE_CF]).unwrap();
+        let map = reopen!(&rocksdb, STATE_CF;<u64, ExecutionIndices>);
+        Self {
+            store: Store::new(map),
+        }
+    }
+
+    /// Load the execution indices; ie. the state.
     pub async fn get_execution_indices(&self) -> ExecutionIndices {
-        self.execution_indices.read().await.clone()
+        self.load_execution_indices().await.unwrap()
     }
 }
 

@@ -18,14 +18,11 @@ async fn execute_transactions() {
     // Spawn the executor.
     let store = test_store();
     let execution_state = Arc::new(TestState::default());
-    let execution_indices = ExecutionIndices::default();
-
     Executor::<TestState, Ed25519PublicKey>::spawn(
         store.clone(),
         execution_state.clone(),
         /* rx_subscriber */ rx_executor,
         tx_output,
-        execution_indices,
     );
 
     // Feed certificates to the mock sequencer and add the transaction data to storage (as if
@@ -34,13 +31,13 @@ async fn execute_transactions() {
         /* certificates */ 2, /* batches_per_certificate */ 2,
         /* transactions_per_batch */ 2,
     );
-    for (i, (certificate, batches)) in certificates.into_iter().enumerate() {
+    for (certificate, batches) in certificates {
         for (digest, batch) in batches {
             store.write(digest, batch).await;
         }
         let message = ConsensusOutput {
             certificate,
-            consensus_index: i as SequenceNumber,
+            consensus_index: SequenceNumber::default(),
         };
         tx_executor.send(message).await.unwrap();
     }
@@ -63,22 +60,19 @@ async fn execute_empty_certificate() {
     // Spawn the executor.
     let store = test_store();
     let execution_state = Arc::new(TestState::default());
-    let execution_indices = ExecutionIndices::default();
-
     Executor::<TestState, Ed25519PublicKey>::spawn(
         store.clone(),
         execution_state.clone(),
         /* rx_subscriber */ rx_executor,
         tx_output,
-        execution_indices,
     );
 
     // Feed empty certificates to the executor.
     let empty_certificates = 2;
-    for i in 0..empty_certificates {
+    for _ in 0..empty_certificates {
         let message = ConsensusOutput {
             certificate: Certificate::default(),
-            consensus_index: i as SequenceNumber,
+            consensus_index: SequenceNumber::default(),
         };
         tx_executor.send(message).await.unwrap();
     }
@@ -88,13 +82,13 @@ async fn execute_empty_certificate() {
         /* certificates */ 1, /* batches_per_certificate */ 2,
         /* transactions_per_batch */ 2,
     );
-    for (i, (certificate, batches)) in certificates.into_iter().enumerate() {
+    for (certificate, batches) in certificates {
         for (digest, batch) in batches {
             store.write(digest, batch).await;
         }
         let message = ConsensusOutput {
             certificate,
-            consensus_index: empty_certificates + i as SequenceNumber,
+            consensus_index: SequenceNumber::default(),
         };
         tx_executor.send(message).await.unwrap();
     }
@@ -117,14 +111,11 @@ async fn execute_malformed_transactions() {
     // Spawn the executor.
     let store = test_store();
     let execution_state = Arc::new(TestState::default());
-    let execution_indices = ExecutionIndices::default();
-
     Executor::<TestState, Ed25519PublicKey>::spawn(
         store.clone(),
         execution_state.clone(),
         /* rx_subscriber */ rx_executor,
         tx_output,
-        execution_indices,
     );
 
     // Feed a malformed transaction to the mock sequencer
@@ -143,18 +134,18 @@ async fn execute_malformed_transactions() {
     };
     tx_executor.send(message).await.unwrap();
 
-    // Feed two certificates with good transactions to the mock sequencer.
+    // Feed two certificates with good transactions to the executor.
     let certificates = test_u64_certificates(
         /* certificates */ 2, /* batches_per_certificate */ 2,
         /* transactions_per_batch */ 2,
     );
-    for (i, (certificate, batches)) in certificates.into_iter().enumerate() {
+    for (certificate, batches) in certificates {
         for (digest, batch) in batches {
             store.write(digest, batch).await;
         }
         let message = ConsensusOutput {
             certificate,
-            consensus_index: 1 + i as SequenceNumber,
+            consensus_index: SequenceNumber::default(),
         };
         tx_executor.send(message).await.unwrap();
     }
@@ -177,20 +168,80 @@ async fn internal_error_execution() {
     // Spawn the executor.
     let store = test_store();
     let execution_state = Arc::new(TestState::default());
-    let execution_indices = ExecutionIndices::default();
-
     Executor::<TestState, Ed25519PublicKey>::spawn(
         store.clone(),
         execution_state.clone(),
         /* rx_subscriber */ rx_executor,
         tx_output,
-        execution_indices,
     );
 
-    // Feed a 'killer' transaction to the mock sequencer. This is a special test transaction that
+    // Feed a 'killer' transaction to the executor. This is a special test transaction that
     // crashes the test executor engine.
-    let tx0 = KILLER_TRANSACTION;
-    let tx1 = 10;
+    let tx00 = 10;
+    let tx01 = 11;
+    let tx10 = 12;
+    let tx11 = KILLER_TRANSACTION;
+
+    let (digest_0, batch_0) = test_batch(vec![tx00, tx01]);
+    let (digest_1, batch_1) = test_batch(vec![tx10, tx11]);
+
+    store.write(digest_0, batch_0).await;
+    store.write(digest_1, batch_1).await;
+
+    let payload = [(digest_0, 0), (digest_1, 1)].iter().cloned().collect();
+    let certificate = test_certificate(payload);
+
+    let message = ConsensusOutput {
+        certificate,
+        consensus_index: SequenceNumber::default(),
+    };
+    tx_executor.send(message).await.unwrap();
+
+    // Ensure the execution state does not change.
+    let _ = rx_output.recv().await;
+    let expected = ExecutionIndices {
+        next_certificate_index: 0,
+        next_batch_index: 0,
+        next_transaction_index: 1,
+    };
+    assert_eq!(execution_state.get_execution_indices().await, expected);
+}
+
+#[tokio::test]
+async fn crash_recovery() {
+    let (tx_executor, rx_executor) = channel(10);
+    let (tx_output, mut rx_output) = channel(10);
+
+    // Spawn the executor.
+    let store = test_store();
+    let execution_state = Arc::new(TestState::default());
+    Executor::<TestState, Ed25519PublicKey>::spawn(
+        store.clone(),
+        execution_state.clone(),
+        /* rx_subscriber */ rx_executor,
+        tx_output,
+    );
+
+    // Feed two certificates with good transactions to the executor.
+    let certificates = test_u64_certificates(
+        /* certificates */ 2, /* batches_per_certificate */ 2,
+        /* transactions_per_batch */ 2,
+    );
+    for (certificate, batches) in certificates {
+        for (digest, batch) in batches {
+            store.write(digest, batch).await;
+        }
+        let message = ConsensusOutput {
+            certificate,
+            consensus_index: SequenceNumber::default(),
+        };
+        tx_executor.send(message).await.unwrap();
+    }
+
+    // Feed a 'killer' transaction to the executor. This is a special test transaction that
+    // crashes the test executor engine.
+    let tx0 = 10;
+    let tx1 = KILLER_TRANSACTION;
     let (digest, batch) = test_batch(vec![tx0, tx1]);
 
     store.write(digest, batch).await;
@@ -204,8 +255,48 @@ async fn internal_error_execution() {
     };
     tx_executor.send(message).await.unwrap();
 
-    // Ensure the execution state does not change.
+    // Ensure the execution state is as expected.
     let _ = rx_output.recv().await;
-    let expected = ExecutionIndices::default();
+    let expected = ExecutionIndices {
+        next_certificate_index: 2,
+        next_batch_index: 0,
+        next_transaction_index: 1,
+    };
+    assert_eq!(execution_state.get_execution_indices().await, expected);
+
+    // Reboot the executor.
+    let (tx_executor, rx_executor) = channel(10);
+    let (tx_output, mut rx_output) = channel(10);
+
+    Executor::<TestState, Ed25519PublicKey>::spawn(
+        store.clone(),
+        execution_state.clone(),
+        /* rx_subscriber */ rx_executor,
+        tx_output,
+    );
+
+    // Feed two certificates with good transactions to the executor.
+    let certificates = test_u64_certificates(
+        /* certificates */ 2, /* batches_per_certificate */ 2,
+        /* transactions_per_batch */ 2,
+    );
+    for (certificate, batches) in certificates {
+        for (digest, batch) in batches {
+            store.write(digest, batch).await;
+        }
+        let message = ConsensusOutput {
+            certificate,
+            consensus_index: SequenceNumber::default(),
+        };
+        tx_executor.send(message).await.unwrap();
+    }
+
+    // Ensure the execution state is as expected.
+    let _ = rx_output.recv().await;
+    let expected = ExecutionIndices {
+        next_certificate_index: 4,
+        next_batch_index: 0,
+        next_transaction_index: 0,
+    };
     assert_eq!(execution_state.get_execution_indices().await, expected);
 }

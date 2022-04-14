@@ -135,7 +135,6 @@ where
         execution_state,
         /* rx_subscriber */ rx_executor,
         tx_output,
-        execution_indices,
     );
 
     // Spawn the batch loader.
