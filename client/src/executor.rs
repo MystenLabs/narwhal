@@ -157,8 +157,19 @@ where
                     debug!("No users listening for transaction execution");
                 }
 
-                // Stop execution if a serious error happened.
-                result?;
+                match result {
+                    Ok(()) => (),
+
+                    // We may want to log the errors that are the user's fault (i.e., that are neither
+                    // our fault or the fault of consensus) for debug purposes. It is safe to continue
+                    // by ignoring those transactions since all honest subscribers will do the same.
+                    Err(SubscriberError::ClientExecutionError(e)) => debug!("{e}"),
+
+                    // We must take special care to errors that are our fault, such as storage errors.
+                    // We may be the only authority experiencing it, and thus cannot continue to process
+                    // transactions until the problem is fixed.
+                    Err(e) => bail!(e),
+                }
             }
         }
         Ok(())
@@ -182,30 +193,15 @@ where
         // bytes to the consensus.
         let transaction: State::Transaction = match bincode::deserialize(&serialized) {
             Ok(x) => x,
-            Err(e) => {
-                debug!("Failed to deserialize transaction: {e}");
-                return Ok(());
-            }
+            Err(e) => bail!(SubscriberError::ClientExecutionError(format!(
+                "Failed to deserialize transaction: {e}"
+            ))),
         };
 
         // Execute the transaction.
-        let result = self
-            .execution_state
+        self.execution_state
             .handle_consensus_transaction(self.execution_indices.clone(), transaction)
             .await
-            .map_err(SubscriberError::from);
-
-        // We may want to log the errors that are the user's fault (i.e., that are neither
-        // our fault or the fault of consensus) for debug purposes. It is safe to continue
-        // by ignoring those transactions since all honest subscribers will do the same.
-        if let Err(SubscriberError::ClientExecutionError(e)) = &result {
-            debug!("{e}");
-            return Ok(());
-        }
-
-        // We must take special care to errors that are our fault, such as storage errors. We may
-        // be the only authority experiencing it, and thus cannot continue to process transactions
-        // until the problem is fixed.
-        result
+            .map_err(SubscriberError::from)
     }
 }
