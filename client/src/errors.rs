@@ -23,7 +23,7 @@ macro_rules! ensure {
 
 pub type SubscriberResult<T> = Result<T, SubscriberError>;
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, Clone)]
 pub enum SubscriberError {
     #[error("Storage failure: {0}")]
     StoreError(#[from] StoreError),
@@ -37,8 +37,11 @@ pub enum SubscriberError {
     #[error("The client-consensus connection dropped")]
     ConsensusConnectionDropped,
 
+    #[error("Connection with the transaction executor dropped")]
+    ExecutorConnectionDropped,
+
     #[error("Deserialization of consensus message failed: {0}")]
-    SerializationError(#[from] Box<bincode::ErrorKind>),
+    SerializationError(String),
 
     #[error("Received unexpected protocol message from consensus")]
     UnexpectedProtocolMessage,
@@ -51,6 +54,12 @@ pub enum SubscriberError {
 
     #[error("Client transaction invalid: {0}")]
     ClientExecutionError(String),
+}
+
+impl From<Box<bincode::ErrorKind>> for SubscriberError {
+    fn from(e: Box<bincode::ErrorKind>) -> Self {
+        Self::SerializationError(e.to_string())
+    }
 }
 
 /// Trait do separate execution errors in two categories: (i) errors caused by a bad client, (ii)
@@ -66,8 +75,8 @@ pub trait ExecutionStateError {
 impl<T: ExecutionStateError> From<T> for SubscriberError {
     fn from(e: T) -> Self {
         match e.node_error() {
-            true => SubscriberError::NodeExecutionError(e.to_string()),
-            false => SubscriberError::ClientExecutionError(e.to_string()),
+            true => Self::NodeExecutionError(e.to_string()),
+            false => Self::ClientExecutionError(e.to_string()),
         }
     }
 }

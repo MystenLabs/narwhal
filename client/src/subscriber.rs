@@ -1,10 +1,8 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use crate::{
-    bail, ensure,
+    bail,
     errors::{SubscriberError, SubscriberResult},
-    state::ExecutionIndices,
-    ExecutionState,
 };
 use consensus::{ConsensusOutput, ConsensusSyncRequest, SequenceNumber};
 use crypto::traits::VerifyingKey;
@@ -12,15 +10,15 @@ use futures::{
     future::try_join_all,
     stream::{FuturesOrdered, StreamExt},
 };
-use primary::{Batch, BatchDigest};
-use std::{cmp::Ordering, sync::Arc};
+use primary::BatchDigest;
+use std::cmp::Ordering;
 use store::Store;
 use tokio::{
     sync::mpsc::{Receiver, Sender},
     task::JoinHandle,
 };
-use tracing::{debug, info};
-use worker::{SerializedBatchMessage, WorkerMessage};
+use tracing::debug;
+use worker::SerializedBatchMessage;
 
 #[cfg(test)]
 #[path = "tests/subscriber_tests.rs"]
@@ -30,62 +28,39 @@ pub mod subscriber_tests;
 /// transaction it references. We assume that the messages we receives from consensus has
 /// already been authenticated (ie. they really come from a trusted consensus node) and
 /// integrity-validated (ie. no corrupted messages).
-pub struct Subscriber<State: ExecutionState, PublicKey: VerifyingKey> {
+pub struct Subscriber<PublicKey: VerifyingKey> {
     /// The temporary storage holding all transactions' data (that may be too big to hold in memory).
     store: Store<BatchDigest, SerializedBatchMessage>,
-    /// The (global) state to perform execution.
-    execution_state: Arc<State>,
     /// A channel to receive consensus messages.
     rx_consensus: Receiver<ConsensusOutput<PublicKey>>,
     /// A channel to send sync request to consensus for missed messages.
     tx_consensus: Sender<ConsensusSyncRequest>,
     /// A channel to the batch loader to download transaction's data.
     tx_batch_loader: Sender<ConsensusOutput<PublicKey>>,
-    /// The indices ensuring we do not execute twice the same transaction.
-    execution_indices: ExecutionIndices,
+    /// A channel to send the complete and ordered list of consensus outputs to the executor. This
+    /// channel is used once all transactions data are downloaded.
+    tx_executor: Sender<ConsensusOutput<PublicKey>>,
     /// The index of the next expected consensus output.
     next_consensus_index: SequenceNumber,
 }
 
-impl<State: ExecutionState, PublicKey: VerifyingKey> Drop for Subscriber<State, PublicKey> {
-    fn drop(&mut self) {
-        self.execution_state.release_consensus_write_lock();
-    }
-}
-
-impl<State, PublicKey> Subscriber<State, PublicKey>
-where
-    State: ExecutionState + Send + Sync + 'static,
-    PublicKey: VerifyingKey,
-{
+impl<PublicKey: VerifyingKey> Subscriber<PublicKey> {
     /// Spawn a new subscriber in a new tokio task.
     pub fn spawn(
         store: Store<BatchDigest, SerializedBatchMessage>,
-        execution_state: Arc<State>,
         rx_consensus: Receiver<ConsensusOutput<PublicKey>>,
         tx_consensus: Sender<ConsensusSyncRequest>,
         tx_batch_loader: Sender<ConsensusOutput<PublicKey>>,
+        tx_executor: Sender<ConsensusOutput<PublicKey>>,
+        next_consensus_index: SequenceNumber,
     ) -> JoinHandle<SubscriberResult<()>> {
-        info!("Consensus subscriber connecting started");
         tokio::spawn(async move {
-            // Ensure there is a single consensus client modifying the execution state.
-            ensure!(
-                execution_state.ask_consensus_write_lock(),
-                SubscriberError::OnlyOneConsensusClientPermitted
-            );
-
-            // Load the subscriber state from storage.
-            let execution_indices = execution_state.load_execution_indices().await?;
-            let next_consensus_index = execution_indices.next_certificate_index;
-
-            // Spawn a consensus client only if all went well (safety-critical).
             Self {
                 store,
-                execution_state,
                 rx_consensus,
                 tx_consensus,
                 tx_batch_loader,
-                execution_indices,
+                tx_executor,
                 next_consensus_index,
             }
             .run()
@@ -181,95 +156,6 @@ where
         }
     }
 
-    /// Execute every transaction referenced by a specific consensus message.
-    async fn execute_transactions(
-        &self,
-        message: &ConsensusOutput<PublicKey>,
-    ) -> SubscriberResult<ExecutionIndices> {
-        let mut execution_indices = self.execution_indices.clone();
-
-        // Skip the certificate if it contains no transactions.
-        if message.certificate.header.payload.is_empty() {
-            execution_indices.skip_certificate();
-            return Ok(execution_indices);
-        }
-
-        let total_batches = message.certificate.header.payload.len();
-        for (index, digest) in message.certificate.header.payload.keys().enumerate() {
-            // Skip batches that we already executed (after crash-recovery).
-            if !execution_indices.check_next_batch_index(index as SequenceNumber) {
-                continue;
-            }
-
-            // The store should now hold all transaction data referenced by the input certificate.
-            let batch = match self.store.read(*digest).await? {
-                Some(x) => x,
-                None => {
-                    // If two certificates contain the exact same batch (eg. by the actions of a Byzantine
-                    // consensus node), some correct client may already have deleted the batch from their temporary
-                    // storage while others may not. This is not a problem, we can simply ignore the second batch
-                    // since there is no point in executing twice the same transactions (as the second execution
-                    // attempt will always fail).
-                    debug!("Duplicate batch {digest}");
-                    execution_indices.skip_batch(total_batches);
-                    continue;
-                }
-            };
-
-            // Deserialize the consensus workers' batch message to retrieve a list of transactions.
-            let transactions = match bincode::deserialize(&batch) {
-                Ok(WorkerMessage::<PublicKey>::Batch(Batch(x))) => x,
-                Ok(_) => bail!(SubscriberError::UnexpectedProtocolMessage),
-                Err(e) => bail!(SubscriberError::SerializationError(e)),
-            };
-
-            let total_transactions = transactions.len();
-            for (index, transaction) in transactions.into_iter().enumerate() {
-                // Skip transactions that we already executed (after crash-recovery).
-                if !execution_indices.check_next_transaction_index(index as SequenceNumber) {
-                    continue;
-                }
-
-                // Compute the next expected indices. Those will be persisted upon transaction execution and are only
-                // used for crash-recovery.
-                execution_indices.next(total_batches, total_transactions);
-
-                // The consensus simply orders bytes, so we first need to deserialize the transaction.
-                // If the deserialization fail it is safe to ignore the transaction since all correct clients
-                // will do the same. Remember that a bad authority or client may input random bytes to the consensus.
-                let command = match bincode::deserialize(&transaction) {
-                    Ok(x) => x,
-                    Err(e) => {
-                        debug!("Failed to deserialize transaction: {e}");
-                        continue;
-                    }
-                };
-
-                // TODO: Should we execute on another task so we can keep downloading batches while we execute?
-                // TODO: Notify the the higher level client of the transaction's execution status.
-                let result = self
-                    .execution_state
-                    .handle_consensus_transaction(execution_indices.clone(), command)
-                    .await
-                    .map_err(SubscriberError::from);
-
-                if let Err(SubscriberError::ClientExecutionError(e)) = &result {
-                    // We may want to log the errors that are the user's fault (i.e., that are neither our fault
-                    // or the fault of consensus) for debug purposes. It is safe to continue by ignoring those
-                    // certificates/transactions since all honest subscribers will do the same.
-                    debug!("{e}");
-                    continue;
-                }
-
-                // We must take special care to errors that are our fault, such as storage errors. We may be the
-                // only authority experiencing it, and thus cannot continue to process certificates until the
-                // problem is fixed.
-                result?;
-            }
-        }
-        Ok(execution_indices)
-    }
-
     /// Wait for particular data to become available in the storage and then returns.
     async fn waiter<T>(
         missing: Vec<BatchDigest>,
@@ -310,18 +196,11 @@ where
                 },
 
                 // Receive here consensus messages for which we have downloaded all transactions data.
-                Some(result) = waiting.next() => {
-                    let message = result?;
-
-                    // Execute all transactions associated with the consensus output message. This function
-                    // also persist the necessary data to enable crash-recovery.
-                    self.execution_indices = self.execute_transactions(&message).await?;
-
-                    // Cleanup the temporary persistent storage.
-                    for digest in message.certificate.header.payload.into_keys() {
-                        self.store.remove(digest).await;
-                    }
-                }
+                Some(message) = waiting.next() => self
+                    .tx_executor
+                    .send(message?)
+                    .await
+                    .map_err(|_| SubscriberError::ExecutorConnectionDropped)?
             }
         }
     }

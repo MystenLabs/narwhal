@@ -4,8 +4,14 @@ use blake2::digest::Update;
 use config::WorkerId;
 use crypto::ed25519::Ed25519PublicKey;
 use primary::{Batch, BatchDigest, Certificate, Header};
+use rand::{rngs::StdRng, RngCore, SeedableRng};
 use serde::Serialize;
 use std::collections::BTreeMap;
+use store::{
+    reopen,
+    rocks::{open_cf, DBMap},
+    Store,
+};
 use worker::{SerializedBatchMessage, WorkerMessage};
 
 /// A test batch containing specific transactions.
@@ -29,4 +35,48 @@ pub fn test_certificate(payload: BTreeMap<BatchDigest, WorkerId>) -> Certificate
         },
         ..Certificate::default()
     }
+}
+
+/// Make a test storage to hold transaction data.
+pub fn test_store() -> Store<BatchDigest, SerializedBatchMessage> {
+    let store_path = tempfile::tempdir().unwrap();
+    const BATCHES_CF: &str = "batches";
+    let rocksdb = open_cf(store_path, None, &[BATCHES_CF]).unwrap();
+    let batch_map = reopen!(&rocksdb, BATCHES_CF;<BatchDigest, SerializedBatchMessage>);
+    Store::new(batch_map)
+}
+
+/// Create a number of test certificates containing transactions of type u64.
+pub fn test_u64_certificates(
+    certificates: usize,
+    batches_per_certificate: usize,
+    transactions_per_batch: usize,
+) -> Vec<(
+    Certificate<Ed25519PublicKey>,
+    Vec<(BatchDigest, SerializedBatchMessage)>,
+)> {
+    let mut rng = StdRng::from_seed([0; 32]);
+    (0..certificates)
+        .map(|_| {
+            let batches: Vec<_> = (0..batches_per_certificate)
+                .map(|_| {
+                    test_batch(
+                        (0..transactions_per_batch)
+                            .map(|_| rng.next_u64())
+                            .collect(),
+                    )
+                })
+                .collect();
+
+            let payload: BTreeMap<_, _> = batches
+                .iter()
+                .enumerate()
+                .map(|(i, (digest, _))| (*digest, /* worker_id */ i as WorkerId))
+                .collect();
+
+            let certificate = test_certificate(payload);
+
+            (certificate, batches)
+        })
+        .collect()
 }

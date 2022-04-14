@@ -5,7 +5,8 @@ use serde::{Deserialize, Serialize};
 
 /// The state of the subscriber keeping track of the transactions that have already been
 /// executed. It ensures we do not process twice the same transaction despite crash-recovery.
-#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+#[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct ExecutionIndices {
     /// The index of the latest consensus message we processed (used for crash-recovery).
     pub next_certificate_index: SequenceNumber,

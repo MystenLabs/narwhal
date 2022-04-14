@@ -2,24 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 use super::*;
 use crate::{
-    execution_state::{TestState, KILLER_TRANSACTION, MALFORMED_TRANSACTION},
-    fixtures::{test_batch, test_certificate},
+    fixtures::{test_store, test_u64_certificates},
     sequencer::MockSequencer,
 };
 use crypto::ed25519::Ed25519PublicKey;
 use primary::Certificate;
-use std::sync::Arc;
-use store::{
-    reopen,
-    rocks::{open_cf, DBMap},
-};
 use tokio::sync::mpsc::{channel, Sender};
 
 /// Spawn a mock consensus core and a test subscriber.
 async fn spawn_consensus_and_subscriber(
     rx_sequence: Receiver<Certificate<Ed25519PublicKey>>,
     tx_batch_loader: Sender<ConsensusOutput<Ed25519PublicKey>>,
-) -> (Store<BatchDigest, SerializedBatchMessage>, Arc<TestState>) {
+    tx_executor: Sender<ConsensusOutput<Ed25519PublicKey>>,
+) -> Store<BatchDigest, SerializedBatchMessage> {
     let (tx_consensus_to_client, rx_consensus_to_client) = channel(10);
     let (tx_client_to_consensus, rx_client_to_consensus) = channel(10);
 
@@ -27,31 +22,61 @@ async fn spawn_consensus_and_subscriber(
     MockSequencer::spawn(rx_sequence, rx_client_to_consensus, tx_consensus_to_client);
 
     // Spawn a test subscriber.
-    let store_path = tempfile::tempdir().unwrap();
-    const BATCHES_CF: &str = "batches";
-    let rocksdb = open_cf(store_path, None, &[BATCHES_CF]).unwrap();
-    let batch_map = reopen!(&rocksdb, BATCHES_CF;<BatchDigest, SerializedBatchMessage>);
-    let store = Store::new(batch_map);
-
-    let execution_state = Arc::new(TestState::default());
-    Subscriber::<TestState, Ed25519PublicKey>::spawn(
+    let store = test_store();
+    let next_consensus_index = SequenceNumber::default();
+    Subscriber::<Ed25519PublicKey>::spawn(
         store.clone(),
-        execution_state.clone(),
         rx_consensus_to_client,
         tx_client_to_consensus,
         tx_batch_loader,
+        tx_executor,
+        next_consensus_index,
     );
 
-    (store, execution_state)
+    store
 }
 
 #[tokio::test]
-async fn handle_consensus_message() {
+async fn handle_certificate_with_downloaded_batch() {
     let (tx_sequence, rx_sequence) = channel(10);
     let (tx_batch_loader, mut rx_batch_loader) = channel(10);
+    let (tx_executor, mut rx_executor) = channel(10);
 
     // Spawn a subscriber.
-    let _ = spawn_consensus_and_subscriber(rx_sequence, tx_batch_loader).await;
+    let store = spawn_consensus_and_subscriber(rx_sequence, tx_batch_loader, tx_executor).await;
+
+    // Feed certificates to the mock sequencer and ensure the batch loader receive the command to
+    // download the corresponding transaction data.
+    let total_certificates = 2;
+    let certificates = test_u64_certificates(
+        total_certificates,
+        /* batches_per_certificate */ 2,
+        /* transactions_per_batch */ 2,
+    );
+    for (certificate, batches) in certificates {
+        for (digest, batch) in batches {
+            store.write(digest, batch).await;
+        }
+        tx_sequence.send(certificate).await.unwrap();
+    }
+
+    for i in 0..total_certificates {
+        let output = rx_batch_loader.recv().await.unwrap();
+        assert_eq!(output.consensus_index, i as SequenceNumber);
+
+        let output = rx_executor.recv().await.unwrap();
+        assert_eq!(output.consensus_index, i as SequenceNumber);
+    }
+}
+
+#[tokio::test]
+async fn handle_empty_certificate() {
+    let (tx_sequence, rx_sequence) = channel(10);
+    let (tx_batch_loader, mut rx_batch_loader) = channel(10);
+    let (tx_executor, mut rx_executor) = channel(10);
+
+    // Spawn a subscriber.
+    let _ = spawn_consensus_and_subscriber(rx_sequence, tx_batch_loader, tx_executor).await;
 
     // Feed certificates to the mock sequencer and ensure the batch loader receive the command to
     // download the corresponding transaction data.
@@ -61,6 +86,9 @@ async fn handle_consensus_message() {
     for i in 0..2 {
         let output = rx_batch_loader.recv().await.unwrap();
         assert_eq!(output.consensus_index, i);
+
+        let output = rx_executor.recv().await.unwrap();
+        assert_eq!(output.consensus_index, i);
     }
 }
 
@@ -68,6 +96,7 @@ async fn handle_consensus_message() {
 async fn synchronize() {
     let (tx_sequence, rx_sequence) = channel(10);
     let (tx_batch_loader, mut rx_batch_loader) = channel(10);
+    let (tx_executor, mut rx_executor) = channel(10);
     let (tx_consensus_to_client, rx_consensus_to_client) = channel(10);
     let (tx_client_to_consensus, rx_client_to_consensus) = channel(10);
 
@@ -81,19 +110,15 @@ async fn synchronize() {
     tokio::task::yield_now().await;
 
     // Spawn a subscriber.
-    let store_path = tempfile::tempdir().unwrap();
-    const BATCHES_CF: &str = "batches";
-    let rocksdb = open_cf(store_path, None, &[BATCHES_CF]).unwrap();
-    let batch_map = reopen!(&rocksdb, BATCHES_CF;<BatchDigest, SerializedBatchMessage>);
-    let store = Store::new(batch_map);
-
-    let execution_state = Arc::new(TestState::default());
-    Subscriber::<TestState, Ed25519PublicKey>::spawn(
+    let store = test_store();
+    let next_consensus_index = SequenceNumber::default();
+    Subscriber::<Ed25519PublicKey>::spawn(
         store.clone(),
-        execution_state.clone(),
         rx_consensus_to_client,
         tx_client_to_consensus,
         tx_batch_loader,
+        tx_executor,
+        next_consensus_index,
     );
 
     // Send two extra certificates. The client needs to sync for the first two certificates.
@@ -105,153 +130,8 @@ async fn synchronize() {
     for i in 0..4 {
         let output = rx_batch_loader.recv().await.unwrap();
         assert_eq!(output.consensus_index, i);
+
+        let output = rx_executor.recv().await.unwrap();
+        assert_eq!(output.consensus_index, i);
     }
-}
-
-#[tokio::test]
-async fn execute_transactions() {
-    let (tx_sequence, rx_sequence) = channel(10);
-    let (tx_batch_loader, mut rx_batch_loader) = channel(10);
-
-    // Spawn a subscriber.
-    let (store, execution_state) =
-        spawn_consensus_and_subscriber(rx_sequence, tx_batch_loader).await;
-
-    // Feed certificates to the mock sequencer and add the transaction data to storage (as if
-    // the batch loader downloaded them).
-    for i in 0..2 {
-        let tx00 = i as u64;
-        let tx01 = (i + 1000) as u64;
-        let tx10 = (i + 2000) as u64;
-        let tx11 = (i + 3000) as u64;
-
-        let (digest_0, batch_0) = test_batch(vec![tx00, tx01]);
-        let (digest_1, batch_1) = test_batch(vec![tx10, tx11]);
-
-        store.write(digest_0, batch_0).await;
-        store.write(digest_1, batch_1).await;
-
-        let payload = [(digest_0, 0), (digest_1, 1)].iter().cloned().collect();
-        let certificate = test_certificate(payload);
-
-        tx_sequence.send(certificate).await.unwrap();
-        let _ = rx_batch_loader.recv().await.unwrap();
-    }
-
-    // Ensure the execution state is updated accordingly.
-    let expected = ExecutionIndices {
-        next_certificate_index: 2,
-        next_batch_index: 0,
-        next_transaction_index: 0,
-    };
-    assert_eq!(execution_state.get_execution_indices().await, expected);
-}
-
-#[tokio::test]
-async fn execute_empty_certificate() {
-    let (tx_sequence, rx_sequence) = channel(10);
-    let (tx_batch_loader, mut rx_batch_loader) = channel(10);
-
-    // Spawn a subscriber.
-    let (store, execution_state) =
-        spawn_consensus_and_subscriber(rx_sequence, tx_batch_loader).await;
-
-    // Feed empty certificates to the mock sequencer.
-    for _ in 0..2 {
-        tx_sequence.send(Certificate::default()).await.unwrap();
-        let _ = rx_batch_loader.recv().await.unwrap();
-    }
-
-    // Then feed one non-empty certificate and ensure the certificate index is updated.
-    let (digest, batch) = test_batch(vec![10u64, 11u64]);
-    store.write(digest, batch).await;
-    let payload = [(digest, 0)].iter().cloned().collect();
-    let certificate = test_certificate(payload);
-    tx_sequence.send(certificate).await.unwrap();
-    let _ = rx_batch_loader.recv().await.unwrap();
-
-    let expected = ExecutionIndices {
-        next_certificate_index: 3,
-        next_batch_index: 0,
-        next_transaction_index: 0,
-    };
-    assert_eq!(execution_state.get_execution_indices().await, expected);
-}
-
-#[tokio::test]
-async fn execute_malformed_transactions() {
-    let (tx_sequence, rx_sequence) = channel(10);
-    let (tx_batch_loader, mut rx_batch_loader) = channel(10);
-
-    // Spawn a subscriber.
-    let (store, execution_state) =
-        spawn_consensus_and_subscriber(rx_sequence, tx_batch_loader).await;
-
-    // Feed a bad transaction to the mock sequencer
-    let tx0 = MALFORMED_TRANSACTION;
-    let tx1 = 10;
-    let (digest, batch) = test_batch(vec![tx0, tx1]);
-
-    store.write(digest, batch).await;
-
-    let payload = [(digest, 0)].iter().cloned().collect();
-    let certificate = test_certificate(payload);
-
-    tx_sequence.send(certificate).await.unwrap();
-    let _ = rx_batch_loader.recv().await.unwrap();
-
-    // Feed two certificates with good transactions to the mock sequencer.
-    for i in 0..2 {
-        let tx00 = i as u64;
-        let tx01 = (i + 1000) as u64;
-        let tx10 = (i + 2000) as u64;
-        let tx11 = (i + 3000) as u64;
-
-        let (digest_0, batch_0) = test_batch(vec![tx00, tx01]);
-        let (digest_1, batch_1) = test_batch(vec![tx10, tx11]);
-
-        store.write(digest_0, batch_0).await;
-        store.write(digest_1, batch_1).await;
-
-        let payload = [(digest_0, 0), (digest_1, 1)].iter().cloned().collect();
-        let certificate = test_certificate(payload);
-
-        tx_sequence.send(certificate).await.unwrap();
-        let _ = rx_batch_loader.recv().await.unwrap();
-    }
-
-    // Ensure the execution state is updated accordingly.
-    let expected = ExecutionIndices {
-        next_certificate_index: 3,
-        next_batch_index: 0,
-        next_transaction_index: 0,
-    };
-    assert_eq!(execution_state.get_execution_indices().await, expected);
-}
-
-#[tokio::test]
-async fn internal_error_execution() {
-    let (tx_sequence, rx_sequence) = channel(10);
-    let (tx_batch_loader, mut rx_batch_loader) = channel(10);
-
-    // Spawn a subscriber.
-    let (store, execution_state) =
-        spawn_consensus_and_subscriber(rx_sequence, tx_batch_loader).await;
-
-    // Feed a killer transaction to the mock sequencer
-    let tx0 = KILLER_TRANSACTION;
-    let tx1 = 10;
-    let (digest, batch) = test_batch(vec![tx0, tx1]);
-
-    store.write(digest, batch).await;
-
-    let payload = [(digest, 0)].iter().cloned().collect();
-    let certificate = test_certificate(payload);
-
-    tx_sequence.send(certificate).await.unwrap();
-    let _ = rx_batch_loader.recv().await.unwrap();
-
-    // Ensure the execution state does not change.
-    let expected = ExecutionIndices::default();
-    assert_eq!(execution_state.get_execution_indices().await, expected);
 }
