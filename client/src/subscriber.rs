@@ -172,7 +172,7 @@ where
 
         // Synchronize missing consensus outputs if we need to.
         if need_to_sync {
-            let last_known_client_index = self.execution_indices.next_certificate_index;
+            let last_known_client_index = self.next_consensus_index;
             let last_known_server_index = message.consensus_index;
             self.synchronize(last_known_client_index, last_known_server_index)
                 .await
