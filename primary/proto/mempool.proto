@@ -1,0 +1,16 @@
+syntax = "proto3";
+package mempool;
+
+message GetCollectionsRequest {
+    // Request message contains the list of collection ids to be retreived.
+    repeated int32 collection_id = 1;
+}
+
+message GetCollectionsResponse {
+    // Reply contains a placeholder not implemented message.
+    string message = 1;
+}
+
+service Validator {
+    rpc GetCollections (GetCollectionsRequest) returns (GetCollectionsResponse);
+}

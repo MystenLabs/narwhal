@@ -19,6 +19,7 @@ mod block_waiter;
 mod certificate_waiter;
 mod core;
 mod garbage_collector;
+mod grpc_server;
 mod header_waiter;
 mod helper;
 mod messages;

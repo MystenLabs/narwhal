@@ -9,7 +9,7 @@ edition = "2021"
 [dependencies]
 futures = "0.3.21"
 serde = { version = "1.0.136", features = ["derive"] }
-tokio = { version = "1.17.0", features = ["sync", "rt", "macros"] }
+tokio = { version = "1.17.0", features = ["sync", "rt", "macros", "rt-multi-thread"] }
 tokio-util = { version = "0.7.0", features = ["codec"] }
 ed25519-dalek = "1.0.1"
 thiserror = "1.0.30"
@@ -19,6 +19,8 @@ async-recursion = "1.0.0"
 async-trait = "0.1.52"
 store = { git = "https://github.com/mystenlabs/mysten-infra.git", package = "typed-store", rev = "808de09203d147b43d59114b8afd9e51cbcf5778"}
 tracing = { version = "0.1.31", features = ["log"] }
+tonic = "0.6"
+prost = "0.9"
 
 crypto = { path = "../crypto" }
 config = { path = "../config" }
@@ -30,6 +32,9 @@ blake2 = "0.9"
 [dev-dependencies]
 rand = "0.7.3"
 tempfile = "3.3.0"
+
+[build-dependencies]
+tonic-build = "0.6"
 
 [features]
 benchmark = []

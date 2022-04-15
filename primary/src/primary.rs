@@ -8,6 +8,7 @@ use crate::{
     core::Core,
     error::DagError,
     garbage_collector::GarbageCollector,
+    grpc_server::GrpcServer,
     header_waiter::HeaderWaiter,
     helper::Helper,
     messages::{BatchDigest, Certificate, CertificateDigest, Header, HeaderDigest, Vote},
@@ -35,6 +36,10 @@ use store::Store;
 use thiserror::Error;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tracing::info;
+
+#[cfg(test)]
+#[path = "tests/primary_tests.rs"]
+pub mod primary_tests;
 
 /// The default channel capacity for each channel of the primary.
 pub const CHANNEL_CAPACITY: usize = 1_000;
@@ -279,6 +284,9 @@ impl Primary {
 
         // The `Helper` is dedicated to reply to certificates requests from other primaries.
         Helper::spawn(committee.clone(), certificate_store, rx_cert_requests);
+
+        // Spawn a grpc server to accept requests from consensus layer.
+        GrpcServer::spawn();
 
         // NOTE: This log entry is used to compute performance.
         info!(
