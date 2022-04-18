@@ -1,17 +1,17 @@
 # Running Benchmarks
-This document explains how to benchmark the codebase and read benchmarks' results. It also provides a step-by-step tutorial to run benchmarks on [Amazon Web Services (AWS)](https://aws.amazon.com) accross multiple data centers (WAN).
+This document explains how to benchmark the codebase and read benchmark results. It also provides a step-by-step tutorial to run benchmarks on [Amazon Web Services (AWS)](https://aws.amazon.com) across multiple data centers (WAN).
 
-## Local Benchmarks
-When running benchmarks, the codebase is automatically compiled with the feature flag `benchmark`. This enables the node to print some special log entries that are then read by the python scripts and used to compute performance. These special log entries are clearly indicated with comments in the code: make sure to not alter them (otherwise the benchmark scripts will fail to interpret the logs).
+## Local benchmarks
+When running benchmarks, the codebase is automatically compiled with the feature flag `benchmark`. This enables the node to print special log entries that are then read by the Python scripts and used to compute performance. These special log entries are clearly indicated with comments in the code: make sure to not alter them. (Otherwise, the benchmark scripts will fail to interpret the logs.)
 
 ### Parametrize the benchmark
-After cloning the repo and [installing all dependencies](https://github.com/mystenlabs/narwhal#quick-start), you can use [Fabric](http://www.fabfile.org/) to run benchmarks on your local machine.  Locate the task called `local` in the file [fabfile.py](https://github.com/mystenlabs/narwhal/blob/main/benchmark/fabfile.py):
+After [cloning the repo and installing all dependencies](https://github.com/mystenlabs/narwhal#quick-start), you can use [Fabric](http://www.fabfile.org/) to run benchmarks on your local machine.  Locate the task called `local` in the file [fabfile.py](https://github.com/mystenlabs/narwhal/blob/main/benchmark/fabfile.py):
 ```python
 @task
 def local(ctx):
     ...
 ```
-The task specifies two types of parameters, the *benchmark parameters* and the *nodes parameters*. The benchmark parameters look as follows:
+The task specifies two types of parameters, the *benchmark parameters* and the *nodes parameters*. The benchmark parameters appear as follows:
 ```python
 bench_params = {
     'nodes': 4,
@@ -22,7 +22,9 @@ bench_params = {
     'duration': 20,
 }
 ```
-They specify the number of primaries (`nodes`) and workers per primary (`workers`) to deploy, the input rate (tx/s) at which the clients submits transactions to the system (`rate`), the size of each transaction in bytes (`tx_size`), the number of faulty nodes ('faults), and the duration of the benchmark in seconds (`duration`). The minimum transaction size is 9 bytes, this ensure that the transactions of a client are all different. The benchmarking script will deploy as many clients as workers and divide the input rate equally amongst each client. For instance, if you configure the testbed with 4 nodes, 1 worker per node, and an input rate of 1,000 tx/s (as in the example above), the scripts will deploy 4 clients each submitting transactions to one node at a rate of 250 tx/s. When the parameters `faults` is set to `f > 0`, the last `f` nodes and clients are not booted; the system will thus run with `n-f` nodes (and `n-f` clients).
+They specify the number of primaries (`nodes`) and workers per primary (`workers`) to deploy, the input rate (transactions per second, or tx/s) at which the clients submit transactions to the system (`rate`), the size of each transaction in bytes (`tx_size`), the number of faulty nodes ('faults`), and the duration of the benchmark in seconds (`duration`). The minimum transaction size is 9 bytes; this ensures the transactions of a client are all different.
+
+The benchmarking script will deploy as many clients as workers and divide the input rate equally amongst each client. For instance, if you configure the testbed with four nodes, one worker per node, and an input rate of 1,000 tx/s (as in the example above), the scripts will deploy 4 clients each submitting transactions to one node at a rate of 250 tx/s. When the parameters `faults` is set to `f > 0`, the last `f` nodes and clients are not booted; the system will thus run with `n-f` nodes (and `n-f` clients).
 
 The nodes parameters determine the configuration for the primaries and workers:
 ```python
