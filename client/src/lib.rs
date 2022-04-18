@@ -91,7 +91,7 @@ pub async fn spawn_client_subscriber<State, PublicKey>(
     execution_state: Arc<State>,
     rx_consensus: Receiver<ConsensusOutput<PublicKey>>,
     tx_consensus: Sender<ConsensusSyncRequest>,
-    tx_output: Sender<SubscriberResult<SerializedTransaction>>,
+    tx_output: Sender<(SubscriberResult<()>, SerializedTransaction)>,
 ) -> SubscriberResult<(
     JoinHandle<SubscriberResult<()>>,
     JoinHandle<SubscriberResult<()>>,
