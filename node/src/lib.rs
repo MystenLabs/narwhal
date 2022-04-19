@@ -3,7 +3,7 @@
 use config::{Committee, Parameters, WorkerId};
 use consensus::{dag::Dag, Consensus, ConsensusStore, SequenceNumber, SubscriberHandler};
 use crypto::traits::{KeyPair, Signer, VerifyingKey};
-use executor::{Client, ExecutionState, SerializedTransactionDigest, SubscriberResult};
+use executor::{ExecutionState, Executor, SerializedTransactionDigest, SubscriberResult};
 use primary::{
     BatchDigest, Certificate, CertificateDigest, Header, HeaderDigest, PayloadToken, Primary, Round,
 };
@@ -184,7 +184,7 @@ impl Node {
         );
 
         // Spawn the client executing the transactions.
-        Client::spawn(
+        Executor::spawn(
             name,
             committee,
             store.batch_store.clone(),

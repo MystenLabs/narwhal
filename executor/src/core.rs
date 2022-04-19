@@ -30,7 +30,7 @@ pub mod executor_tests;
 /// consensus messages in the right and complete order. All transactions data referenced by the
 /// certificate should already be downloaded in the temporary storage. This module ensures it does
 /// not processes twice the same transaction (despite crash-recovery).
-pub struct Executor<State: ExecutionState, PublicKey: VerifyingKey> {
+pub struct Core<State: ExecutionState, PublicKey: VerifyingKey> {
     /// The temporary storage holding all transactions' data (that may be too big to hold in memory).
     store: Store<BatchDigest, SerializedBatchMessage>,
     /// The (global) state to perform execution.
@@ -43,13 +43,13 @@ pub struct Executor<State: ExecutionState, PublicKey: VerifyingKey> {
     execution_indices: ExecutionIndices,
 }
 
-impl<State: ExecutionState, PublicKey: VerifyingKey> Drop for Executor<State, PublicKey> {
+impl<State: ExecutionState, PublicKey: VerifyingKey> Drop for Core<State, PublicKey> {
     fn drop(&mut self) {
         self.execution_state.release_consensus_write_lock();
     }
 }
 
-impl<State, PublicKey> Executor<State, PublicKey>
+impl<State, PublicKey> Core<State, PublicKey>
 where
     State: ExecutionState + Send + Sync + 'static,
     PublicKey: VerifyingKey,
