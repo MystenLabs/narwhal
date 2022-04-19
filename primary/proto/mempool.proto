@@ -1,9 +1,13 @@
 syntax = "proto3";
 package mempool;
 
+message CertificateDigest {
+    bytes f_bytes = 1;
+}
+
 message GetCollectionsRequest {
     // Request message contains the list of collection ids to be retreived.
-    repeated int32 collection_id = 1;
+    repeated CertificateDigest collection_id = 1;
 }
 
 message GetCollectionsResponse {

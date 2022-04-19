@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use crate::{
     error::{DagError, DagResult},
+    grpc_server::mempool,
     primary::Round,
 };
 use blake2::{digest::Update, VarBlake2b};
@@ -379,9 +380,23 @@ impl<PublicKey: VerifyingKey> Certificate<PublicKey> {
 #[derive(Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct CertificateDigest([u8; DIGEST_LEN]);
 
+impl CertificateDigest {
+    pub fn new(digest: [u8; DIGEST_LEN]) -> CertificateDigest {
+        CertificateDigest(digest)
+    }
+}
+
 impl From<CertificateDigest> for Digest {
     fn from(hd: CertificateDigest) -> Self {
         Digest::new(hd.0)
+    }
+}
+
+impl From<CertificateDigest> for mempool::CertificateDigest {
+    fn from(hd: CertificateDigest) -> Self {
+        mempool::CertificateDigest {
+            f_bytes: hd.0.to_vec(),
+        }
     }
 }
 

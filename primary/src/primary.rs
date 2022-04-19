@@ -125,7 +125,7 @@ impl Primary {
         let (tx_cert_requests, rx_cert_requests) = channel(CHANNEL_CAPACITY);
         // _tx_get_block_commands should be used by the handler that will issue the requests
         // to fetch the collections from Narwhal (e.x the get_collections endpoint).
-        let (_tx_get_block_commands, rx_get_block_commands) = channel(CHANNEL_CAPACITY);
+        let (tx_get_block_commands, rx_get_block_commands) = channel(CHANNEL_CAPACITY);
         let (tx_batches, rx_batches) = channel(CHANNEL_CAPACITY);
         // _tx_block_removal_commands should be used by the handler that will issue the requests
         // to remove collections from Narwhal (e.x the remove_collections endpoint).
@@ -286,7 +286,7 @@ impl Primary {
         Helper::spawn(committee.clone(), certificate_store, rx_cert_requests);
 
         // Spawn a grpc server to accept requests from consensus layer.
-        GrpcServer::spawn();
+        GrpcServer::spawn(tx_get_block_commands);
 
         // NOTE: This log entry is used to compute performance.
         info!(
