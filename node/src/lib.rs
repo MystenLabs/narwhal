@@ -1,9 +1,9 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use client::{Client, ExecutionState, SerializedTransaction, SubscriberResult};
 use config::{Committee, Parameters, WorkerId};
 use consensus::{dag::Dag, Consensus, ConsensusStore, SequenceNumber, SubscriberHandler};
 use crypto::traits::{KeyPair, Signer, VerifyingKey};
+use executor::{Client, ExecutionState, SerializedTransactionDigest, SubscriberResult};
 use primary::{
     BatchDigest, Certificate, CertificateDigest, Header, HeaderDigest, PayloadToken, Primary, Round,
 };
@@ -98,7 +98,7 @@ impl Node {
         // The state used by the client to execute transactions.
         execution_state: Arc<State>,
         // A channel to output transactions execution confirmations.
-        tx_confirmation: Sender<(SubscriberResult<()>, SerializedTransaction)>,
+        tx_confirmation: Sender<SubscriberResult<SerializedTransactionDigest>>,
     ) -> SubscriberResult<()>
     where
         PublicKey: VerifyingKey,
@@ -156,7 +156,7 @@ impl Node {
         execution_state: Arc<State>,
         rx_new_certificates: Receiver<Certificate<PublicKey>>,
         tx_feedback: Sender<Certificate<PublicKey>>,
-        tx_confirmation: Sender<(SubscriberResult<()>, SerializedTransaction)>,
+        tx_confirmation: Sender<SubscriberResult<SerializedTransactionDigest>>,
     ) -> SubscriberResult<()>
     where
         PublicKey: VerifyingKey,

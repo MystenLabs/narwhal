@@ -45,6 +45,9 @@ pub const DEFAULT_CHANNEL_SIZE: usize = 1_000;
 /// Convenience type representing a serialized transaction.
 pub type SerializedTransaction = Vec<u8>;
 
+/// Convenience type representing a serialized transaction digest.
+pub type SerializedTransactionDigest = u64;
+
 #[async_trait]
 pub trait ExecutionState {
     /// The type of the transaction to process.
@@ -85,7 +88,7 @@ impl Client {
         execution_state: Arc<State>,
         rx_consensus: Receiver<ConsensusOutput<PublicKey>>,
         tx_consensus: Sender<ConsensusSyncRequest>,
-        tx_output: Sender<(SubscriberResult<()>, SerializedTransaction)>,
+        tx_output: Sender<SubscriberResult<SerializedTransactionDigest>>,
     ) -> SubscriberResult<(
         JoinHandle<SubscriberResult<()>>,
         JoinHandle<SubscriberResult<()>>,
