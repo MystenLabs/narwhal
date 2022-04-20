@@ -177,8 +177,8 @@ impl Node {
         );
 
         // The subscriber handler receives the ordered sequence from consensus and feed them
-        // to the executor. The executor has its own state and data store who may crash 
-        // independently of the narwhal node.  
+        // to the executor. The executor has its own state and data store who may crash
+        // independently of the narwhal node.
         SubscriberHandler::spawn(
             store.consensus_store.clone(),
             store.certificate_store.clone(),
@@ -187,7 +187,7 @@ impl Node {
             /* tx_client */ tx_consensus_to_client,
         );
 
-        // Spawn the client executing the transactions. It can also synchronize with the 
+        // Spawn the client executing the transactions. It can also synchronize with the
         // subscriber handler if it missed some transactions.
         Executor::spawn(
             name,
