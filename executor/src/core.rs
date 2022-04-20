@@ -4,12 +4,16 @@ use crate::{
     bail,
     errors::{SubscriberError, SubscriberResult},
     state::ExecutionIndices,
-    ExecutionState, SerializedTransaction,
+    ExecutionState, SerializedTransaction, SerializedTransactionDigest,
 };
 use consensus::{ConsensusOutput, SequenceNumber};
 use crypto::traits::VerifyingKey;
 use primary::{Batch, BatchDigest};
-use std::sync::Arc;
+use std::{
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
+    sync::Arc,
+};
 use store::Store;
 use tokio::{
     sync::mpsc::{Receiver, Sender},
@@ -26,7 +30,7 @@ pub mod executor_tests;
 /// consensus messages in the right and complete order. All transactions data referenced by the
 /// certificate should already be downloaded in the temporary storage. This module ensures it does
 /// not processes twice the same transaction (despite crash-recovery).
-pub struct Executor<State: ExecutionState, PublicKey: VerifyingKey> {
+pub struct Core<State: ExecutionState, PublicKey: VerifyingKey> {
     /// The temporary storage holding all transactions' data (that may be too big to hold in memory).
     store: Store<BatchDigest, SerializedBatchMessage>,
     /// The (global) state to perform execution.
@@ -34,18 +38,18 @@ pub struct Executor<State: ExecutionState, PublicKey: VerifyingKey> {
     /// Receive ordered consensus output to execute.
     rx_subscriber: Receiver<ConsensusOutput<PublicKey>>,
     /// Outputs executed transactions.
-    tx_output: Sender<SubscriberResult<SerializedTransaction>>,
+    tx_output: Sender<(SubscriberResult<()>, SerializedTransactionDigest)>,
     /// The indices ensuring we do not execute twice the same transaction.
     execution_indices: ExecutionIndices,
 }
 
-impl<State: ExecutionState, PublicKey: VerifyingKey> Drop for Executor<State, PublicKey> {
+impl<State: ExecutionState, PublicKey: VerifyingKey> Drop for Core<State, PublicKey> {
     fn drop(&mut self) {
         self.execution_state.release_consensus_write_lock();
     }
 }
 
-impl<State, PublicKey> Executor<State, PublicKey>
+impl<State, PublicKey> Core<State, PublicKey>
 where
     State: ExecutionState + Send + Sync + 'static,
     PublicKey: VerifyingKey,
@@ -55,7 +59,7 @@ where
         store: Store<BatchDigest, SerializedBatchMessage>,
         execution_state: Arc<State>,
         rx_subscriber: Receiver<ConsensusOutput<PublicKey>>,
-        tx_output: Sender<SubscriberResult<SerializedTransaction>>,
+        tx_output: Sender<(SubscriberResult<()>, SerializedTransactionDigest)>,
     ) -> JoinHandle<SubscriberResult<()>> {
         tokio::spawn(async move {
             let execution_indices = execution_state.load_execution_indices().await?;
@@ -152,7 +156,7 @@ where
                     .await;
 
                 // Output the result (eg. to notify the end-user);
-                let output = result.clone().map(|_| transaction);
+                let output = (result.clone(), Self::hash(&transaction));
                 if self.tx_output.send(output).await.is_err() {
                     debug!("No users listening for transaction execution");
                 }
@@ -203,5 +207,13 @@ where
             .handle_consensus_transaction(self.execution_indices.clone(), transaction)
             .await
             .map_err(SubscriberError::from)
+    }
+
+    /// Hash serialized consensus transactions. We do not need specific cryptographic properties except
+    /// only collision resistance.
+    fn hash(serialized: &SerializedTransaction) -> SerializedTransactionDigest {
+        let mut hasher = DefaultHasher::new();
+        serialized.hash(&mut hasher);
+        hasher.finish()
     }
 }

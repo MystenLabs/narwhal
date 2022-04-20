@@ -1,8 +1,8 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 mod batch_loader;
+mod core;
 mod errors;
-mod executor;
 mod state;
 mod subscriber;
 
@@ -18,12 +18,10 @@ mod execution_state;
 #[path = "tests/sequencer.rs"]
 mod sequencer;
 
-pub use errors::{ExecutionStateError, SubscriberResult};
+pub use errors::{ExecutionStateError, SubscriberError, SubscriberResult};
 pub use state::ExecutionIndices;
 
-use crate::{
-    batch_loader::BatchLoader, errors::SubscriberError, executor::Executor, subscriber::Subscriber,
-};
+use crate::{batch_loader::BatchLoader, core::Core, subscriber::Subscriber};
 use async_trait::async_trait;
 use config::Committee;
 use consensus::{ConsensusOutput, ConsensusSyncRequest};
@@ -44,6 +42,9 @@ pub const DEFAULT_CHANNEL_SIZE: usize = 1_000;
 
 /// Convenience type representing a serialized transaction.
 pub type SerializedTransaction = Vec<u8>;
+
+/// Convenience type representing a serialized transaction digest.
+pub type SerializedTransactionDigest = u64;
 
 #[async_trait]
 pub trait ExecutionState {
@@ -74,9 +75,9 @@ pub trait ExecutionState {
 }
 
 /// A client subscribing to the consensus output and executing every transaction.
-pub struct Client;
+pub struct Executor;
 
-impl Client {
+impl Executor {
     /// Spawn a new client subscriber.
     pub async fn spawn<State, PublicKey>(
         name: PublicKey,
@@ -85,7 +86,7 @@ impl Client {
         execution_state: Arc<State>,
         rx_consensus: Receiver<ConsensusOutput<PublicKey>>,
         tx_consensus: Sender<ConsensusSyncRequest>,
-        tx_output: Sender<SubscriberResult<SerializedTransaction>>,
+        tx_output: Sender<(SubscriberResult<()>, SerializedTransactionDigest)>,
     ) -> SubscriberResult<(
         JoinHandle<SubscriberResult<()>>,
         JoinHandle<SubscriberResult<()>>,
@@ -118,8 +119,8 @@ impl Client {
             next_consensus_index,
         );
 
-        // Spawn the executor.
-        let executor_handle = Executor::<State, PublicKey>::spawn(
+        // Spawn the executor's core.
+        let executor_handle = Core::<State, PublicKey>::spawn(
             store.clone(),
             execution_state,
             /* rx_subscriber */ rx_executor,

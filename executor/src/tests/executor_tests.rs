@@ -18,7 +18,7 @@ async fn execute_transactions() {
     // Spawn the executor.
     let store = test_store();
     let execution_state = Arc::new(TestState::default());
-    Executor::<TestState, Ed25519PublicKey>::spawn(
+    Core::<TestState, Ed25519PublicKey>::spawn(
         store.clone(),
         execution_state.clone(),
         /* rx_subscriber */ rx_executor,
@@ -60,7 +60,7 @@ async fn execute_empty_certificate() {
     // Spawn the executor.
     let store = test_store();
     let execution_state = Arc::new(TestState::default());
-    Executor::<TestState, Ed25519PublicKey>::spawn(
+    Core::<TestState, Ed25519PublicKey>::spawn(
         store.clone(),
         execution_state.clone(),
         /* rx_subscriber */ rx_executor,
@@ -111,7 +111,7 @@ async fn execute_malformed_transactions() {
     // Spawn the executor.
     let store = test_store();
     let execution_state = Arc::new(TestState::default());
-    Executor::<TestState, Ed25519PublicKey>::spawn(
+    Core::<TestState, Ed25519PublicKey>::spawn(
         store.clone(),
         execution_state.clone(),
         /* rx_subscriber */ rx_executor,
@@ -168,7 +168,7 @@ async fn internal_error_execution() {
     // Spawn the executor.
     let store = test_store();
     let execution_state = Arc::new(TestState::default());
-    Executor::<TestState, Ed25519PublicKey>::spawn(
+    Core::<TestState, Ed25519PublicKey>::spawn(
         store.clone(),
         execution_state.clone(),
         /* rx_subscriber */ rx_executor,
@@ -215,7 +215,7 @@ async fn crash_recovery() {
     // Spawn the executor.
     let store = test_store();
     let execution_state = Arc::new(TestState::default());
-    Executor::<TestState, Ed25519PublicKey>::spawn(
+    Core::<TestState, Ed25519PublicKey>::spawn(
         store.clone(),
         execution_state.clone(),
         /* rx_subscriber */ rx_executor,
@@ -268,7 +268,7 @@ async fn crash_recovery() {
     let (tx_executor, rx_executor) = channel(10);
     let (tx_output, mut rx_output) = channel(10);
 
-    Executor::<TestState, Ed25519PublicKey>::spawn(
+    Core::<TestState, Ed25519PublicKey>::spawn(
         store.clone(),
         execution_state.clone(),
         /* rx_subscriber */ rx_executor,
