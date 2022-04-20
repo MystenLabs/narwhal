@@ -101,11 +101,18 @@ aws_secret_access_key = YOUR_SECRET_ACCESS_KEY
 Do not specify any AWS region in that file as the Python scripts will allow you to handle multiple regions programmatically.
 
 ### Step 2. Add your SSH public key to your AWS account
-You must now [add your SSH public key to your AWS account](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html). This operation is manual (AWS exposes APIs to manipulate keys) and needs to be repeated for each AWS region that you plan to use. Upon importing your key, AWS requires you to choose a 'name' for your key; ensure you set the same name on all AWS regions. This SSH key will be used by the Python scripts to execute commands and upload/download files to your AWS instances.
-If you don't have an SSH key, you can create one using [ssh-keygen](https://www.ssh.com/ssh/keygen/):
+
+TODO: Specify in this first sentence whether they will use RSA or ED25519 key pair.
+
+You must now add your SSH public key to your AWS account. If you don't have an SSH key, you can create one through Amazon or by using [ssh-keygen](https://www.ssh.com/ssh/keygen/):
 ```
 $ ssh-keygen -f ~/.ssh/aws
 ```
+
+Then follow the instructions for [Amazon EC2 key pairs and Linux instances](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html) to import the public key to Amazon EC2. 
+
+This operation is manual (AWS exposes APIs to manipulate keys) and needs to be repeated for each AWS region that you plan to use. Upon importing your key, AWS requires you to choose a 'name' for your key; ensure you set the same name on all AWS regions. This SSH key will be used by the Python scripts to execute commands and upload/download files to your AWS instances.
+
 
 ### Step 3. Configure the testbed
 The file [settings.json](https://github.com/mystenlabs/narwhal/blob/main/benchmark/settings.json) (located in [narwhal/benchmarks](https://github.com/mystenlabs/narwhal/blob/main/benchmark)) contains all the configuration parameters of the testbed to deploy. Its content looks as follows:
@@ -141,7 +148,7 @@ The second block (`ports`) specifies the TCP ports to use:
 ```json
 "port": 5000,
 ```
-Narwhal requires a number of TCP ports, depening on the number of workers per node, Each primary requires 2 ports (one to receive messages from other primaties and one to receive messages from its workers), and each worker requires 3 ports (one to receive client transactions, one to receive messages from its primary, and one to receive messages from other workers). Note that the script will open a large port range (5000-7000) to the WAN on all your AWS instances.
+Narwhal requires a number of TCP ports, depending on the number of workers per node, Each primary requires 2 ports (one to receive messages from other primaties and one to receive messages from its workers), and each worker requires 3 ports (one to receive client transactions, one to receive messages from its primary, and one to receive messages from other workers). Note that the script will open a large port range (5000-7000) to the WAN on all your AWS instances.
 
 The third block (`repo`) contains the information regarding the repository's name, the URL of the repo, and the branch containing the code to deploy:
 ```json
