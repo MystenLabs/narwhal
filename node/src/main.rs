@@ -162,7 +162,7 @@ async fn run(matches: &ArgMatches<'_>) -> Result<()> {
 }
 
 /// Receives an ordered list of certificates and apply any application-specific logic.
-async fn analyze(mut rx_output: Receiver<SubscriberResult<SerializedTransactionDigest>>) {
+async fn analyze(mut rx_output: Receiver<(SubscriberResult<()>, SerializedTransactionDigest)>) {
     while let Some(_message) = rx_output.recv().await {
         // NOTE: Notify the user that its transaction has been processed.
     }

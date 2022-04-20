@@ -98,7 +98,7 @@ impl Node {
         // The state used by the client to execute transactions.
         execution_state: Arc<State>,
         // A channel to output transactions execution confirmations.
-        tx_confirmation: Sender<SubscriberResult<SerializedTransactionDigest>>,
+        tx_confirmation: Sender<(SubscriberResult<()>, SerializedTransactionDigest)>,
     ) -> SubscriberResult<()>
     where
         PublicKey: VerifyingKey,
@@ -156,7 +156,7 @@ impl Node {
         execution_state: Arc<State>,
         rx_new_certificates: Receiver<Certificate<PublicKey>>,
         tx_feedback: Sender<Certificate<PublicKey>>,
-        tx_confirmation: Sender<SubscriberResult<SerializedTransactionDigest>>,
+        tx_confirmation: Sender<(SubscriberResult<()>, SerializedTransactionDigest)>,
     ) -> SubscriberResult<()>
     where
         PublicKey: VerifyingKey,

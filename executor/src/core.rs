@@ -38,7 +38,7 @@ pub struct Core<State: ExecutionState, PublicKey: VerifyingKey> {
     /// Receive ordered consensus output to execute.
     rx_subscriber: Receiver<ConsensusOutput<PublicKey>>,
     /// Outputs executed transactions.
-    tx_output: Sender<SubscriberResult<SerializedTransactionDigest>>,
+    tx_output: Sender<(SubscriberResult<()>, SerializedTransactionDigest)>,
     /// The indices ensuring we do not execute twice the same transaction.
     execution_indices: ExecutionIndices,
 }
@@ -59,7 +59,7 @@ where
         store: Store<BatchDigest, SerializedBatchMessage>,
         execution_state: Arc<State>,
         rx_subscriber: Receiver<ConsensusOutput<PublicKey>>,
-        tx_output: Sender<SubscriberResult<SerializedTransactionDigest>>,
+        tx_output: Sender<(SubscriberResult<()>, SerializedTransactionDigest)>,
     ) -> JoinHandle<SubscriberResult<()>> {
         tokio::spawn(async move {
             let execution_indices = execution_state.load_execution_indices().await?;
@@ -156,8 +156,7 @@ where
                     .await;
 
                 // Output the result (eg. to notify the end-user);
-                let digest = Self::hash(&transaction);
-                let output = result.clone().map(|_| digest);
+                let output = (result.clone(), Self::hash(&transaction));
                 if self.tx_output.send(output).await.is_err() {
                     debug!("No users listening for transaction execution");
                 }

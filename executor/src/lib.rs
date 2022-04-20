@@ -88,7 +88,7 @@ impl Executor {
         execution_state: Arc<State>,
         rx_consensus: Receiver<ConsensusOutput<PublicKey>>,
         tx_consensus: Sender<ConsensusSyncRequest>,
-        tx_output: Sender<SubscriberResult<SerializedTransactionDigest>>,
+        tx_output: Sender<(SubscriberResult<()>, SerializedTransactionDigest)>,
     ) -> SubscriberResult<(
         JoinHandle<SubscriberResult<()>>,
         JoinHandle<SubscriberResult<()>>,
