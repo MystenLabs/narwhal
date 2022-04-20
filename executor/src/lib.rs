@@ -18,12 +18,10 @@ mod execution_state;
 #[path = "tests/sequencer.rs"]
 mod sequencer;
 
-pub use errors::{ExecutionStateError, SubscriberResult};
+pub use errors::{ExecutionStateError, SubscriberError, SubscriberResult};
 pub use state::ExecutionIndices;
 
-use crate::{
-    batch_loader::BatchLoader, core::Core, errors::SubscriberError, subscriber::Subscriber,
-};
+use crate::{batch_loader::BatchLoader, core::Core, subscriber::Subscriber};
 use async_trait::async_trait;
 use config::Committee;
 use consensus::{ConsensusOutput, ConsensusSyncRequest};
