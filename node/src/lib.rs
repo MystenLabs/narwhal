@@ -166,7 +166,7 @@ impl Node {
         let (tx_consensus_to_client, rx_consensus_to_client) = channel(Self::CHANNEL_CAPACITY);
         let (tx_client_to_consensus, rx_client_to_consensus) = channel(Self::CHANNEL_CAPACITY);
 
-        // Spawn the consensus core and the client handler.
+        // Spawn the consensus core who only sequences transactions.
         Consensus::spawn(
             committee.clone(),
             store.consensus_store.clone(),
@@ -175,6 +175,10 @@ impl Node {
             /* tx_primary */ tx_feedback,
             /* tx_output */ tx_sequence,
         );
+
+        // The subscriber handler receives the ordered sequence from consensus and feed them
+        // to the executor. The executor has its own state and data store who may crash 
+        // independently of the narwhal node.  
         SubscriberHandler::spawn(
             store.consensus_store.clone(),
             store.certificate_store.clone(),
@@ -183,7 +187,8 @@ impl Node {
             /* tx_client */ tx_consensus_to_client,
         );
 
-        // Spawn the client executing the transactions.
+        // Spawn the client executing the transactions. It can also synchronize with the 
+        // subscriber handler if it missed some transactions.
         Executor::spawn(
             name,
             committee,
