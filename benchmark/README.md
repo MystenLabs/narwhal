@@ -101,7 +101,7 @@ aws_secret_access_key = YOUR_SECRET_ACCESS_KEY
 Do not specify any AWS region in that file as the Python scripts will allow you to handle multiple regions programmatically.
 
 ### Step 2. Add your SSH public key to your AWS account
-You must now [add your SSH public key to your AWS account](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html). This operation is manual (AWS exposes little APIs to manipulate keys) and needs to be repeated for each AWS region that you plan to use. Upon importing your key, AWS requires you to choose a 'name' for your key; ensure you set the same name on all AWS regions. This SSH key will be used by the python scripts to execute commands and upload/download files to your AWS instances.
+You must now [add your SSH public key to your AWS account](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html). This operation is manual (AWS exposes APIs to manipulate keys) and needs to be repeated for each AWS region that you plan to use. Upon importing your key, AWS requires you to choose a 'name' for your key; ensure you set the same name on all AWS regions. This SSH key will be used by the Python scripts to execute commands and upload/download files to your AWS instances.
 If you don't have an SSH key, you can create one using [ssh-keygen](https://www.ssh.com/ssh/keygen/):
 ```
 $ ssh-keygen -f ~/.ssh/aws
