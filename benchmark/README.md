@@ -102,7 +102,11 @@ Do not specify any AWS region in that file as the Python scripts will allow you 
 
 ### Step 2. Add your SSH public key to your AWS account
 
-You must now add your *ED25519* SSH public key to your AWS account. If you don't have an SSH key, you can create one through Amazon or by using [ssh-keygen](https://www.ssh.com/ssh/keygen/):
+You must now add your *ED25519* SSH public key to your AWS account.
+
+:warning: Do not use a password to protect your key. Doing so will result in `PasswordRequiredException` errors when running `fab` later.
+
+If you don't have an SSH key, you can create one through Amazon or by using [ssh-keygen](https://www.ssh.com/ssh/keygen/):
 ```
 $ ssh-keygen -t ed25519 -f ~/.ssh/aws
 ```
