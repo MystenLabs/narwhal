@@ -16,6 +16,7 @@ use std::{
     io::{BufWriter, Write as _},
     net::SocketAddr,
     ops::Deref,
+    time::Duration,
 };
 use thiserror::Error;
 use tracing::info;
@@ -73,6 +74,50 @@ pub type Stake = u32;
 pub type WorkerId = u32;
 
 #[derive(Deserialize, Clone)]
+/// Holds all the node properties. An example is provided to
+/// showcase the usage and deserialization from a json file.
+///
+/// ```rust
+///  use std::fs::File;
+///  use tempfile::tempdir;
+///  use std::io::Write;
+///  use crate::{Import, Parameters};
+///
+/// # fn main() {
+///  // GIVEN
+///  let input = r#"{
+///     "header_size": 1000,
+///     "max_header_delay": 100,
+///     "gc_depth": 50,
+///     "sync_retry_delay": 5000,
+///     "sync_retry_nodes": 3,
+///     "batch_size": 500000,
+///     "max_batch_delay": 100,
+///     "block_synchronizer": {
+///         "certificates_synchronize_timeout": "2000ms",
+///         "payload_synchronize_timeout": "3000ms",
+///         "payload_availability_timeout": "4000ms"
+///     }
+///  }"#;
+///
+///  // AND temporary file
+///  let dir = tempdir().expect("Couldn't create tempdir");
+///
+///  let file_path = dir.path().join("temp-properties.json");
+///  let mut file = File::create(file_path.clone()).expect("Couldn't create temp file");
+///
+///  // AND write the json context
+///  writeln!(file, "{input}").expect("Couldn't write to file");
+///
+///  // WHEN
+///  let params = Parameters::import(file_path.to_str().unwrap()).expect("Error raised");
+///
+///  // THEN
+///  assert_eq!(params.block_synchronizer.certificates_synchronize_timeout.as_millis(), 2_000);
+///  assert_eq!(params.block_synchronizer.payload_synchronize_timeout.as_millis(), 3_000);
+///  assert_eq!(params.block_synchronizer.payload_availability_timeout.as_millis(), 4_000);
+///  }
+/// ```
 pub struct Parameters {
     /// The preferred header size. The primary creates a new header when it has enough parents and
     /// enough batches' digests to reach `header_size`. Denominated in bytes.
@@ -100,24 +145,61 @@ pub struct Parameters {
 #[derive(Deserialize, Clone)]
 pub struct BlockSynchronizerParameters {
     /// The timeout configuration when requesting certificates from peers.
-    /// Denominated in milliseconds.
-    pub certificates_synchronize_timeout_ms: u64,
+    #[serde(with = "duration_format")]
+    pub certificates_synchronize_timeout: Duration,
     /// Timeout when has requested the payload for a certificate and is
-    /// waiting to receive them. Denominated in milliseconds.
-    pub payload_synchronize_timeout_ms: u64,
+    /// waiting to receive them.
+    #[serde(with = "duration_format")]
+    pub payload_synchronize_timeout: Duration,
     /// The timeout configuration when for when we ask the other peers to
     /// discover who has the payload available for the dictated certificates.
-    /// Denominated in milliseconds.
-    pub payload_availability_timeout_ms: u64,
+    #[serde(with = "duration_format")]
+    pub payload_availability_timeout: Duration,
 }
 
 impl Default for BlockSynchronizerParameters {
     fn default() -> Self {
         Self {
-            certificates_synchronize_timeout_ms: 2_000,
-            payload_synchronize_timeout_ms: 2_000,
-            payload_availability_timeout_ms: 2_000,
+            certificates_synchronize_timeout: Duration::from_millis(2_000),
+            payload_synchronize_timeout: Duration::from_millis(2_000),
+            payload_availability_timeout: Duration::from_millis(2_000),
         }
+    }
+}
+
+/// Allow us to serialize and deserialize Duration values in a more
+/// human friendly format (e.x in json files). When serialized then
+/// a string of the following format is written: [number]ms , for
+/// example "20ms". When deserialized, then a Duration is created.
+mod duration_format {
+    use serde::{Deserialize, Deserializer, Serializer};
+    use std::time::Duration;
+
+    #[allow(dead_code)]
+    pub fn serialize<S>(duration: &Duration, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let s = format!("{}ms", duration.as_millis());
+        serializer.serialize_str(&s)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Duration, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+
+        if let Some(milis) = s.strip_suffix("ms") {
+            return milis
+                .parse::<u64>()
+                .map(Duration::from_millis)
+                .map_err(|e| serde::de::Error::custom(e.to_string()));
+        }
+
+        Err(serde::de::Error::custom(format!(
+            "Wrong format detected: {s}. It should be number in miliseconds, e.x 10ms"
+        )))
     }
 }
 
@@ -147,15 +229,21 @@ impl Parameters {
         info!("Max batch delay set to {} ms", self.max_batch_delay);
         info!(
             "Synchronize certificates timeout set to {} ms",
-            self.block_synchronizer.certificates_synchronize_timeout_ms
+            self.block_synchronizer
+                .certificates_synchronize_timeout
+                .as_millis()
         );
         info!(
             "Payload (batches) availability timeout set to {} ms",
-            self.block_synchronizer.payload_availability_timeout_ms
+            self.block_synchronizer
+                .payload_availability_timeout
+                .as_millis()
         );
         info!(
             "Synchronize payload (batches) timeout set to {} ms",
-            self.block_synchronizer.payload_synchronize_timeout_ms
+            self.block_synchronizer
+                .payload_synchronize_timeout
+                .as_millis()
         );
     }
 }
