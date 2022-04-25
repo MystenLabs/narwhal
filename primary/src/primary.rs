@@ -26,29 +26,23 @@ use network::{MessageHandler, Receiver as NetworkReceiver, SimpleSender, Writer}
 use serde::{Deserialize, Serialize};
 use std::{
     error::Error,
-    net::{IpAddr, Ipv4Addr},
+    net::{IpAddr, Ipv4Addr, SocketAddr},
     sync::{atomic::AtomicU64, Arc},
 };
 use store::Store;
 use thiserror::Error;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
+use tonic::{Request, Response, Status};
 use tracing::info;
 use types::{
-    error::DagError, Batch, BatchDigest, Certificate, CertificateDigest, Header, HeaderDigest,
-    Round, Vote,
+    error::DagError, Batch, BatchDigest, BincodeEncodedPayload, Certificate, CertificateDigest,
+    Empty, Header, HeaderDigest, PrimaryToPrimary, PrimaryToPrimaryServer, Round,
 };
 
 /// The default channel capacity for each channel of the primary.
 pub const CHANNEL_CAPACITY: usize = 1_000;
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(bound(deserialize = "PublicKey: VerifyingKey"))]
-pub enum PrimaryMessage<PublicKey: VerifyingKey> {
-    Header(Header<PublicKey>),
-    Vote(Vote<PublicKey>),
-    Certificate(Certificate<PublicKey>),
-    CertificatesRequest(Vec<CertificateDigest>, /* requestor */ PublicKey),
-}
+pub use types::PrimaryMessage;
 
 /// The messages sent by the primary to its workers.
 #[derive(Debug, Serialize, Deserialize)]
@@ -139,14 +133,11 @@ impl Primary {
             .expect("Our public key or worker id is not in the committee")
             .primary_to_primary;
         address.set_ip(Primary::INADDR_ANY);
-        NetworkReceiver::spawn(
-            address,
-            /* handler */
-            PrimaryReceiverHandler {
-                tx_primary_messages,
-                tx_cert_requests,
-            },
-        );
+        PrimaryReceiverHandler {
+            tx_primary_messages,
+            tx_cert_requests,
+        }
+        .spawn(address);
         info!(
             "Primary {} listening to primary messages on {}",
             name.encode_base64(),
@@ -299,6 +290,15 @@ struct PrimaryReceiverHandler<PublicKey: VerifyingKey> {
     tx_cert_requests: Sender<(Vec<CertificateDigest>, PublicKey)>,
 }
 
+impl<PublicKey: VerifyingKey> PrimaryReceiverHandler<PublicKey> {
+    fn spawn(self, address: SocketAddr) {
+        let service = tonic::transport::Server::builder()
+            .add_service(PrimaryToPrimaryServer::new(self))
+            .serve(address);
+        tokio::spawn(service);
+    }
+}
+
 #[async_trait]
 impl<PublicKey: VerifyingKey> MessageHandler for PrimaryReceiverHandler<PublicKey> {
     async fn dispatch(&self, writer: &mut Writer, serialized: Bytes) -> Result<(), Box<dyn Error>> {
@@ -319,6 +319,34 @@ impl<PublicKey: VerifyingKey> MessageHandler for PrimaryReceiverHandler<PublicKe
                 .expect("Failed to send certificate"),
         }
         Ok(())
+    }
+}
+
+#[async_trait]
+impl<PublicKey: VerifyingKey> PrimaryToPrimary for PrimaryReceiverHandler<PublicKey> {
+    async fn send_message(
+        &self,
+        request: Request<BincodeEncodedPayload>,
+    ) -> Result<Response<Empty>, Status> {
+        let message: PrimaryMessage<PublicKey> = request
+            .into_inner()
+            .deserialize()
+            .map_err(|e| Status::invalid_argument(e.to_string()))?;
+
+        match message {
+            PrimaryMessage::CertificatesRequest(missing, requestor) => self
+                .tx_cert_requests
+                .send((missing, requestor))
+                .await
+                .expect("Failed to send primary message"),
+            request => self
+                .tx_primary_messages
+                .send(request)
+                .await
+                .expect("Failed to send certificate"),
+        }
+
+        Ok(Response::new(Empty {}))
     }
 }
 
