@@ -22,7 +22,7 @@ use tokio_util::codec::{Framed, LengthDelimitedCodec};
 use tonic::Response;
 use types::{
     Batch, BatchDigest, BincodeEncodedPayload, Certificate, Empty, Header, PrimaryToPrimary,
-    PrimaryToPrimaryServer, Transaction, Vote,
+    PrimaryToPrimaryServer, Transaction, Vote, WorkerToPrimary, WorkerToPrimaryServer,
 };
 
 pub const HEADERS_CF: &str = "headers";
@@ -346,6 +346,33 @@ impl PrimaryToPrimaryMockServer {
 
 #[tonic::async_trait]
 impl PrimaryToPrimary for PrimaryToPrimaryMockServer {
+    async fn send_message(
+        &self,
+        request: tonic::Request<BincodeEncodedPayload>,
+    ) -> Result<tonic::Response<Empty>, tonic::Status> {
+        self.sender.send(request.into_inner()).await.unwrap();
+        Ok(Response::new(Empty {}))
+    }
+}
+
+pub struct WorkerToPrimaryMockServer {
+    sender: Sender<BincodeEncodedPayload>,
+}
+
+impl WorkerToPrimaryMockServer {
+    pub fn spawn(address: SocketAddr) -> Receiver<BincodeEncodedPayload> {
+        let (sender, receiver) = channel(1);
+        let mock = Self { sender };
+        let service = tonic::transport::Server::builder()
+            .add_service(WorkerToPrimaryServer::new(mock))
+            .serve(address);
+        tokio::spawn(service);
+        receiver
+    }
+}
+
+#[tonic::async_trait]
+impl WorkerToPrimary for WorkerToPrimaryMockServer {
     async fn send_message(
         &self,
         request: tonic::Request<BincodeEncodedPayload>,
