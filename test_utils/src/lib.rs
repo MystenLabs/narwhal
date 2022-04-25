@@ -13,10 +13,17 @@ use futures::{sink::SinkExt as _, stream::StreamExt as _};
 use rand::{rngs::StdRng, SeedableRng as _};
 use std::{collections::BTreeMap, net::SocketAddr};
 use store::{rocks, Store};
-use types::{Batch, BatchDigest, Certificate, Header, Transaction, Vote};
-
-use tokio::{net::TcpListener, task::JoinHandle};
+use tokio::{
+    net::TcpListener,
+    sync::mpsc::{channel, Receiver, Sender},
+    task::JoinHandle,
+};
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
+use tonic::Response;
+use types::{
+    Batch, BatchDigest, BincodeEncodedPayload, Certificate, Empty, Header, PrimaryToPrimary,
+    PrimaryToPrimaryServer, Transaction, Vote,
+};
 
 pub const HEADERS_CF: &str = "headers";
 pub const CERTIFICATES_CF: &str = "certificates";
@@ -319,6 +326,33 @@ pub fn expecting_listener(address: SocketAddr, expected: Option<Bytes>) -> JoinH
             _ => panic!("Failed to receive network message"),
         }
     })
+}
+
+pub struct PrimaryToPrimaryMockServer {
+    sender: Sender<BincodeEncodedPayload>,
+}
+
+impl PrimaryToPrimaryMockServer {
+    pub fn spawn(address: SocketAddr) -> Receiver<BincodeEncodedPayload> {
+        let (sender, receiver) = channel(1);
+        let mock = Self { sender };
+        let service = tonic::transport::Server::builder()
+            .add_service(PrimaryToPrimaryServer::new(mock))
+            .serve(address);
+        tokio::spawn(service);
+        receiver
+    }
+}
+
+#[tonic::async_trait]
+impl PrimaryToPrimary for PrimaryToPrimaryMockServer {
+    async fn send_message(
+        &self,
+        request: tonic::Request<BincodeEncodedPayload>,
+    ) -> Result<tonic::Response<Empty>, tonic::Status> {
+        self.sender.send(request.into_inner()).await.unwrap();
+        Ok(Response::new(Empty {}))
+    }
 }
 
 // helper method to get a name and a committee. Special care should be given on
