@@ -51,13 +51,13 @@ class PathMaker:
     @staticmethod
     def worker_log_file(i, j):
         assert isinstance(i, int) and i >= 0
-        assert isinstance(j, int) and i >= 0
+        assert isinstance(j, int) and j >= 0
         return join(PathMaker.logs_path(), f'worker-{i}-{j}.log')
 
     @staticmethod
     def client_log_file(i, j):
         assert isinstance(i, int) and i >= 0
-        assert isinstance(j, int) and i >= 0
+        assert isinstance(j, int) and j >= 0
         return join(PathMaker.logs_path(), f'client-{i}-{j}.log')
 
     @staticmethod

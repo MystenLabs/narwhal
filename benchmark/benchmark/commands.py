@@ -1,4 +1,5 @@
 # Copyright(C) Facebook, Inc. and its affiliates.
+import subprocess
 from os.path import join
 
 from benchmark.utils import PathMaker
@@ -57,7 +58,8 @@ class CommandMaker:
 
     @staticmethod
     def kill():
-        return 'tmux kill-server'
+        cmd = '''tmux list-sessions | awk 'BEGIN{FS=":"}{print $1}' | grep -eE (worker|primary|client)| xargs -n 1 tmux kill-session -t'''
+        return cmd
 
     @staticmethod
     def alias_binaries(origin):
