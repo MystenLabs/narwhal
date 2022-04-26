@@ -4,6 +4,7 @@ use crate::{
     errors::{SubscriberError, SubscriberResult},
     DEFAULT_CHANNEL_SIZE,
 };
+use backoff::{backoff::Backoff, future::retry, ExponentialBackoff};
 use blake2::digest::Update;
 use bytes::Bytes;
 use config::WorkerId;
@@ -20,7 +21,6 @@ use tokio::{
     net::TcpStream,
     sync::mpsc::{channel, Receiver, Sender},
     task::JoinHandle,
-    time::sleep,
 };
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
 use tracing::warn;
@@ -126,21 +126,30 @@ impl SyncConnection {
     /// Main loop keeping the connection with a worker alive and receive batches to download.
     async fn run<PublicKey: VerifyingKey>(&mut self) {
         // The connection waiter ensures we do not attempt to reconnect immediately after failure.
-        let mut connection_waiter = ConnectionWaiter::default();
+        let connection_waiter = || {
+            let mut eb = ExponentialBackoff {
+                initial_interval: Duration::from_millis(200),
+                multiplier: 2f64,
+                max_interval: Duration::from_millis(60_000),
+                ..ExponentialBackoff::default()
+            };
+            eb.reset();
+            eb
+        };
 
         // Continuously connects to the worker.
         'main: loop {
-            // Wait a bit before re-attempting connections.
-            connection_waiter.wait().await;
-
             // Connect to the worker.
-            let mut connection = match TcpStream::connect(self.address).await {
+            let mut connection = match retry(connection_waiter(), || async {
+                TcpStream::connect(self.address)
+                    .await
+                    .map_err(|err| err.into())
+            })
+            .await
+            {
                 Ok(x) => Framed::new(x, LengthDelimitedCodec::new()),
                 Err(e) => {
-                    warn!(
-                        "Failed to connect to worker (retry {}): {e}",
-                        connection_waiter.status(),
-                    );
+                    warn!("Failed to connect to worker: {}", e);
                     continue 'main;
                 }
             };
@@ -185,9 +194,6 @@ impl SyncConnection {
 
                                 // Cleanup internal state.
                                 self.already_requested.remove(&digest);
-
-                                // Reset the connection timeout delay.
-                                connection_waiter.reset();
                             },
                             Err(e) => {
                                 warn!("Failed to receive batch reply from worker {}: {e}", self.address);
@@ -198,59 +204,5 @@ impl SyncConnection {
                 }
             }
         }
-    }
-}
-
-/// Make the network client wait a bit before re-attempting network connections.
-pub struct ConnectionWaiter {
-    /// The minimum delay to wait before re-attempting a connection.
-    min_delay: u64,
-    /// The maximum delay to wait before re-attempting a connection.
-    max_delay: u64,
-    /// The actual delay we wait before re-attempting a connection.
-    delay: u64,
-    /// The number of times we attempted to make a connection.
-    retry: usize,
-}
-
-impl Default for ConnectionWaiter {
-    fn default() -> Self {
-        Self::new(/* min_delay */ 200, /* max_delay */ 60_000)
-    }
-}
-
-impl ConnectionWaiter {
-    /// Create a new connection waiter.
-    pub fn new(min_delay: u64, max_delay: u64) -> Self {
-        Self {
-            min_delay,
-            max_delay,
-            delay: 0,
-            retry: 0,
-        }
-    }
-
-    /// Return the number of failed attempts.
-    pub fn status(&self) -> &usize {
-        &self.retry
-    }
-
-    /// Wait for a bit (depending on the number of failed connections).
-    pub async fn wait(&mut self) {
-        if self.delay != 0 {
-            sleep(Duration::from_millis(self.delay)).await;
-        }
-
-        self.delay = match self.delay {
-            0 => self.min_delay,
-            _ => std::cmp::min(2 * self.delay, self.max_delay),
-        };
-        self.retry += 1;
-    }
-
-    /// Reset the waiter to its initial parameters.
-    pub fn reset(&mut self) {
-        self.delay = 0;
-        self.retry = 0;
     }
 }
