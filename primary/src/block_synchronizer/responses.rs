@@ -1,3 +1,5 @@
+// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
 use blake2::digest::Update;
 use config::Committee;
 use crypto::{traits::VerifyingKey, Digest, Hash};

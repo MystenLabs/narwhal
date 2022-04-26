@@ -343,7 +343,7 @@ impl<PublicKey: VerifyingKey> BlockSynchronizer<PublicKey> {
             return None;
         }
 
-        let key: RequestID = certificates_to_sync.iter().collect();
+        let key = RequestID::from_iter(certificates_to_sync.iter());
 
         let message = PrimaryMessage::<PublicKey>::PayloadAvailabilityRequest {
             certificate_ids: block_ids_to_sync,
@@ -401,7 +401,7 @@ impl<PublicKey: VerifyingKey> BlockSynchronizer<PublicKey> {
             return None;
         }
 
-        let key: RequestID = to_sync.iter().collect();
+        let key = RequestID::from_iter(to_sync.iter());
 
         let message = PrimaryMessage::<PublicKey>::CertificatesBatchRequest {
             certificate_ids: block_ids,
