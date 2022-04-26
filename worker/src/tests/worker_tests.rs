@@ -1,7 +1,6 @@
 // Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use std::time::Duration;
 use super::*;
 use crate::{
     common::{
@@ -14,6 +13,7 @@ use crypto::ed25519::Ed25519PublicKey;
 use futures::{SinkExt, StreamExt};
 use network::SimpleSender;
 use primary::WorkerPrimaryMessage;
+use std::time::Duration;
 use store::rocks;
 use tokio::net::TcpStream;
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
