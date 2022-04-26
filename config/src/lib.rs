@@ -76,6 +76,8 @@ pub type WorkerId = u32;
 #[derive(Deserialize, Clone)]
 /// Holds all the node properties. An example is provided to
 /// showcase the usage and deserialization from a json file.
+/// To define a Duration on the property file can use either
+/// miliseconds or seconds (e.x 5s, 10ms , 2000ms)
 ///
 /// ```rust
 ///  use std::fs::File;
@@ -89,12 +91,12 @@ pub type WorkerId = u32;
 ///     "header_size": 1000,
 ///     "max_header_delay": "100ms",
 ///     "gc_depth": 50,
-///     "sync_retry_delay": "5000ms",
+///     "sync_retry_delay": "5s",
 ///     "sync_retry_nodes": 3,
 ///     "batch_size": 500000,
 ///     "max_batch_delay": "100ms",
 ///     "block_synchronizer": {
-///         "certificates_synchronize_timeout": "2000ms",
+///         "certificates_synchronize_timeout": "2s",
 ///         "payload_synchronize_timeout": "3000ms",
 ///         "payload_availability_timeout": "4000ms"
 ///     }
@@ -113,6 +115,7 @@ pub type WorkerId = u32;
 ///  let params = Parameters::import(file_path.to_str().unwrap()).expect("Error raised");
 ///
 ///  // THEN
+///  assert_eq!(params.sync_retry_delay.as_millis(), 5_000);
 ///  assert_eq!(params.block_synchronizer.certificates_synchronize_timeout.as_millis(), 2_000);
 ///  assert_eq!(params.block_synchronizer.payload_synchronize_timeout.as_millis(), 3_000);
 ///  assert_eq!(params.block_synchronizer.payload_availability_timeout.as_millis(), 4_000);
@@ -197,6 +200,11 @@ mod duration_format {
             return milis
                 .parse::<u64>()
                 .map(Duration::from_millis)
+                .map_err(|e| serde::de::Error::custom(e.to_string()));
+        } else if let Some(seconds) = s.strip_suffix('s') {
+            return seconds
+                .parse::<u64>()
+                .map(Duration::from_secs)
                 .map_err(|e| serde::de::Error::custom(e.to_string()));
         }
 
