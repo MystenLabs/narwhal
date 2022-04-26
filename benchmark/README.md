@@ -30,12 +30,12 @@ The nodes parameters determine the configuration for the primaries and workers:
 ```python
 node_params = {
     'header_size': 1_000,
-    'max_header_delay': 100,
+    'max_header_delay': '100ms',
     'gc_depth': 50,
-    'sync_retry_delay': 10_000,
+    'sync_retry_delay': '10_000ms',
     'sync_retry_nodes': 3,
     'batch_size': 500_000,
-    'max_batch_delay': 100
+    'max_batch_delay': '100ms'
 }
 ```
 They are defined as follows:

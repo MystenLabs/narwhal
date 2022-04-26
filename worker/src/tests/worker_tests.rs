@@ -1,3 +1,4 @@
+use std::time::Duration;
 // Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -66,7 +67,7 @@ async fn handle_client_batch_request() {
     let id = 0;
     let committee = committee_with_base_port(11_001);
     let parameters = Parameters {
-        max_header_delay: 100_000, // Ensure no batches are created.
+        max_header_delay: Duration::from_millis(100_000), // Ensure no batches are created.
         ..Parameters::default()
     };
 

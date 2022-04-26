@@ -81,18 +81,18 @@ pub type WorkerId = u32;
 ///  use std::fs::File;
 ///  use tempfile::tempdir;
 ///  use std::io::Write;
-///  use crate::{Import, Parameters};
+///  use config::{Import, Parameters};
 ///
 /// # fn main() {
 ///  // GIVEN
-///  let input = r#"{
+/// let input = r#"{
 ///     "header_size": 1000,
-///     "max_header_delay": 100,
+///     "max_header_delay": "100ms",
 ///     "gc_depth": 50,
-///     "sync_retry_delay": 5000,
+///     "sync_retry_delay": "5000ms",
 ///     "sync_retry_nodes": 3,
 ///     "batch_size": 500000,
-///     "max_batch_delay": 100,
+///     "max_batch_delay": "100ms",
 ///     "block_synchronizer": {
 ///         "certificates_synchronize_timeout": "2000ms",
 ///         "payload_synchronize_timeout": "3000ms",
@@ -123,12 +123,14 @@ pub struct Parameters {
     /// enough batches' digests to reach `header_size`. Denominated in bytes.
     pub header_size: usize,
     /// The maximum delay that the primary waits between generating two headers, even if the header
-    /// did not reach `max_header_size`. Denominated in ms.
-    pub max_header_delay: u64,
+    /// did not reach `max_header_size`.
+    #[serde(with = "duration_format")]
+    pub max_header_delay: Duration,
     /// The depth of the garbage collection (Denominated in number of rounds).
     pub gc_depth: u64,
     /// The delay after which the synchronizer retries to send sync requests. Denominated in ms.
-    pub sync_retry_delay: u64,
+    #[serde(with = "duration_format")]
+    pub sync_retry_delay: Duration,
     /// Determine with how many nodes to sync when re-trying to send sync-request. These nodes
     /// are picked at random from the committee.
     pub sync_retry_nodes: usize,
@@ -136,8 +138,9 @@ pub struct Parameters {
     /// Denominated in bytes.
     pub batch_size: usize,
     /// The delay after which the workers seal a batch of transactions, even if `max_batch_size`
-    /// is not reached. Denominated in ms.
-    pub max_batch_delay: u64,
+    /// is not reached.
+    #[serde(with = "duration_format")]
+    pub max_batch_delay: Duration,
     /// The parameters for the block synchronizer
     pub block_synchronizer: BlockSynchronizerParameters,
 }
@@ -207,12 +210,12 @@ impl Default for Parameters {
     fn default() -> Self {
         Self {
             header_size: 1_000,
-            max_header_delay: 100,
+            max_header_delay: Duration::from_millis(100),
             gc_depth: 50,
-            sync_retry_delay: 5_000,
+            sync_retry_delay: Duration::from_millis(5_000),
             sync_retry_nodes: 3,
             batch_size: 500_000,
-            max_batch_delay: 100,
+            max_batch_delay: Duration::from_millis(100),
             block_synchronizer: BlockSynchronizerParameters::default(),
         }
     }
@@ -221,12 +224,21 @@ impl Default for Parameters {
 impl Parameters {
     pub fn tracing(&self) {
         info!("Header size set to {} B", self.header_size);
-        info!("Max header delay set to {} ms", self.max_header_delay);
+        info!(
+            "Max header delay set to {} ms",
+            self.max_header_delay.as_millis()
+        );
         info!("Garbage collection depth set to {} rounds", self.gc_depth);
-        info!("Sync retry delay set to {} ms", self.sync_retry_delay);
+        info!(
+            "Sync retry delay set to {} ms",
+            self.sync_retry_delay.as_millis()
+        );
         info!("Sync retry nodes set to {} nodes", self.sync_retry_nodes);
         info!("Batch size set to {} B", self.batch_size);
-        info!("Max batch delay set to {} ms", self.max_batch_delay);
+        info!(
+            "Max batch delay set to {} ms",
+            self.max_batch_delay.as_millis()
+        );
         info!(
             "Synchronize certificates timeout set to {} ms",
             self.block_synchronizer
