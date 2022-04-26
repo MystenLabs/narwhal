@@ -77,50 +77,7 @@ pub type WorkerId = u32;
 /// Holds all the node properties. An example is provided to
 /// showcase the usage and deserialization from a json file.
 /// To define a Duration on the property file can use either
-/// miliseconds or seconds (e.x 5s, 10ms , 2000ms)
-///
-/// ```rust
-///  use std::fs::File;
-///  use tempfile::tempdir;
-///  use std::io::Write;
-///  use config::{Import, Parameters};
-///
-/// # fn main() {
-///  // GIVEN
-/// let input = r#"{
-///     "header_size": 1000,
-///     "max_header_delay": "100ms",
-///     "gc_depth": 50,
-///     "sync_retry_delay": "5s",
-///     "sync_retry_nodes": 3,
-///     "batch_size": 500000,
-///     "max_batch_delay": "100ms",
-///     "block_synchronizer": {
-///         "certificates_synchronize_timeout": "2s",
-///         "payload_synchronize_timeout": "3000ms",
-///         "payload_availability_timeout": "4000ms"
-///     }
-///  }"#;
-///
-///  // AND temporary file
-///  let dir = tempdir().expect("Couldn't create tempdir");
-///
-///  let file_path = dir.path().join("temp-properties.json");
-///  let mut file = File::create(file_path.clone()).expect("Couldn't create temp file");
-///
-///  // AND write the json context
-///  writeln!(file, "{input}").expect("Couldn't write to file");
-///
-///  // WHEN
-///  let params = Parameters::import(file_path.to_str().unwrap()).expect("Error raised");
-///
-///  // THEN
-///  assert_eq!(params.sync_retry_delay.as_millis(), 5_000);
-///  assert_eq!(params.block_synchronizer.certificates_synchronize_timeout.as_millis(), 2_000);
-///  assert_eq!(params.block_synchronizer.payload_synchronize_timeout.as_millis(), 3_000);
-///  assert_eq!(params.block_synchronizer.payload_availability_timeout.as_millis(), 4_000);
-///  }
-/// ```
+/// miliseconds or seconds (e.x 5s, 10ms , 2000ms).
 pub struct Parameters {
     /// The preferred header size. The primary creates a new header when it has enough parents and
     /// enough batches' digests to reach `header_size`. Denominated in bytes.
@@ -402,8 +359,9 @@ mod duration_format {
 
 #[cfg(test)]
 mod tests {
-    use crate::{duration_format, Deserialize};
-    use std::time::Duration;
+    use crate::{duration_format, Deserialize, Import, Parameters};
+    use std::{fs::File, io::Write, time::Duration};
+    use tempfile::tempdir;
 
     #[derive(Deserialize)]
     struct MockProperties {
@@ -411,6 +369,61 @@ mod tests {
         property_1: Duration,
         #[serde(with = "duration_format")]
         property_2: Duration,
+    }
+
+    #[test]
+    fn parse_properties() {
+        // GIVEN
+        let input = r#"{
+             "header_size": 1000,
+             "max_header_delay": "100ms",
+             "gc_depth": 50,
+             "sync_retry_delay": "5s",
+             "sync_retry_nodes": 3,
+             "batch_size": 500000,
+             "max_batch_delay": "100ms",
+             "block_synchronizer": {
+                 "certificates_synchronize_timeout": "2s",
+                 "payload_synchronize_timeout": "3000ms",
+                 "payload_availability_timeout": "4000ms"
+             }
+          }"#;
+
+        // AND temporary file
+        let dir = tempdir().expect("Couldn't create tempdir");
+
+        let file_path = dir.path().join("temp-properties.json");
+        let mut file = File::create(file_path.clone()).expect("Couldn't create temp file");
+
+        // AND write the json context
+        writeln!(file, "{input}").expect("Couldn't write to file");
+
+        // WHEN
+        let params = Parameters::import(file_path.to_str().unwrap()).expect("Error raised");
+
+        // THEN
+        assert_eq!(params.sync_retry_delay.as_millis(), 5_000);
+        assert_eq!(
+            params
+                .block_synchronizer
+                .certificates_synchronize_timeout
+                .as_millis(),
+            2_000
+        );
+        assert_eq!(
+            params
+                .block_synchronizer
+                .payload_synchronize_timeout
+                .as_millis(),
+            3_000
+        );
+        assert_eq!(
+            params
+                .block_synchronizer
+                .payload_availability_timeout
+                .as_millis(),
+            4_000
+        );
     }
 
     #[test]
