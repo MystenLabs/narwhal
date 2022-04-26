@@ -373,17 +373,8 @@ impl<PublicKey: VerifyingKey> Committee<PublicKey> {
 /// a string of the following format is written: [number]ms , for
 /// example "20ms". When deserialized, then a Duration is created.
 mod duration_format {
-    use serde::{Deserialize, Deserializer, Serializer};
+    use serde::{Deserialize, Deserializer};
     use std::time::Duration;
-
-    #[allow(dead_code)]
-    pub fn serialize<S>(duration: &Duration, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let s = format!("{}ms", duration.as_millis());
-        serializer.serialize_str(&s)
-    }
 
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Duration, D::Error>
     where
