@@ -10,7 +10,7 @@ publish = false
 base64ct = { version = "1.5.0", features = ["alloc"] }
 ed25519-dalek = { version = "1.0.1", features = ["batch", "serde"] }
 eyre = "0.6.8"
-rand = { version = "0.7.3", features = ["std"] }
+rand = { version = "0.8.5", features = ["std"] }
 serde = { version = "1.0.136", features = ["derive"] }
 zeroize = "1.5.1"
 signature = "1.5.0"

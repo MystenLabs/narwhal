@@ -13,7 +13,7 @@ bytes = "1.1.0"
 cfg-if = "1.0.0"
 clap = "2.34"
 futures = "0.3.21"
-rand = "0.7.3"
+rand = "0.8.5"
 store = { git = "https://github.com/mystenlabs/mysten-infra.git", package = "typed-store", rev = "808de09203d147b43d59114b8afd9e51cbcf5778" }
 thiserror = "1.0.30"
 tokio = { version = "1.17.0", features = ["full"] }
