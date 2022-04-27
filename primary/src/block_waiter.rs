@@ -1,9 +1,6 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crate::{
-    messages::{BatchDigest, CertificateDigest, Header},
-    Batch, Certificate, PrimaryWorkerMessage,
-};
+use crate::PrimaryWorkerMessage;
 use bytes::Bytes;
 use config::Committee;
 use crypto::{traits::VerifyingKey, Digest};
@@ -21,10 +18,11 @@ use std::{
 };
 use store::Store;
 use tokio::{
-    sync::{mpsc::Receiver, oneshot, oneshot::error::RecvError},
+    sync::{mpsc::Receiver, oneshot},
     time::timeout,
 };
 use tracing::{error, log::debug};
+use types::{Batch, BatchDigest, Certificate, CertificateDigest, Header};
 use Result::*;
 
 const BATCH_RETRIEVE_TIMEOUT: Duration = Duration::from_secs(1);
@@ -159,9 +157,10 @@ type RequestKey = Vec<u8>;
 /// # use crypto::ed25519::Ed25519PublicKey;
 /// # use config::Committee;
 /// # use std::collections::BTreeMap;
-/// # use primary::Certificate;
+/// # use types::Certificate;
 /// # use tempfile::tempdir;
-/// # use primary::{BatchMessage, BlockWaiter, BlockCommand,BatchDigest, CertificateDigest, Batch};
+/// # use primary::{BatchMessage, BlockWaiter, BlockCommand};
+/// # use types::{BatchDigest, CertificateDigest, Batch};
 ///
 /// #[tokio::main(flavor = "current_thread")]
 /// # async fn main() {
@@ -514,12 +513,7 @@ impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
         ids: Vec<CertificateDigest>,
         get_block_receivers: Vec<oneshot::Receiver<BlockResult<GetBlockResponse>>>,
     ) -> BlocksResult {
-        let receivers: Vec<_> = get_block_receivers
-            .into_iter()
-            .map(|r| Self::wait_to_receive(r))
-            .collect();
-
-        let result = try_join_all(receivers).await;
+        let result = try_join_all(get_block_receivers).await;
 
         if result.is_err() {
             Err(BlocksError {
@@ -531,12 +525,6 @@ impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
                 blocks: result.unwrap(),
             })
         }
-    }
-
-    async fn wait_to_receive(
-        receiver: oneshot::Receiver<BlockResult<GetBlockResponse>>,
-    ) -> Result<BlockResult<GetBlockResponse>, RecvError> {
-        receiver.await
     }
 
     async fn handle_batch_waiting_result(&mut self, result: BlockResult<GetBlockResponse>) {

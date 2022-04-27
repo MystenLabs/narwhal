@@ -95,6 +95,30 @@ pub struct Parameters {
     pub max_batch_delay: u64,
 }
 
+#[derive(Deserialize, Clone)]
+pub struct BlockSynchronizerParameters {
+    /// The timeout configuration when requesting certificates from peers.
+    /// Denominated in milliseconds.
+    pub certificates_synchronize_timeout_ms: u64,
+    /// Timeout when has requested the payload for a certificate and is
+    /// waiting to receive them. Denominated in milliseconds.
+    pub payload_synchronize_timeout_ms: u64,
+    /// The timeout configuration when for when we ask the other peers to
+    /// discover who has the payload available for the dictated certificates.
+    /// Denominated in milliseconds.
+    pub payload_availability_timeout_ms: u64,
+}
+
+impl Default for BlockSynchronizerParameters {
+    fn default() -> Self {
+        Self {
+            certificates_synchronize_timeout_ms: 2_000,
+            payload_synchronize_timeout_ms: 2_000,
+            payload_availability_timeout_ms: 2_000,
+        }
+    }
+}
+
 impl Default for Parameters {
     fn default() -> Self {
         Self {
@@ -121,7 +145,7 @@ impl Parameters {
     }
 }
 
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct PrimaryAddresses {
     /// Address to receive messages from other primaries (WAN).
     pub primary_to_primary: SocketAddr,
@@ -129,7 +153,7 @@ pub struct PrimaryAddresses {
     pub worker_to_primary: SocketAddr,
 }
 
-#[derive(Clone, Deserialize, Eq, Hash, PartialEq)]
+#[derive(Clone, Serialize, Deserialize, Eq, Hash, PartialEq)]
 pub struct WorkerAddresses {
     /// Address to receive client transactions (WAN).
     pub transactions: SocketAddr,
@@ -139,7 +163,7 @@ pub struct WorkerAddresses {
     pub primary_to_worker: SocketAddr,
 }
 
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Authority {
     /// The voting power of this authority.
     pub stake: Stake,
@@ -149,7 +173,7 @@ pub struct Authority {
     pub workers: HashMap<WorkerId, WorkerAddresses>,
 }
 
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(bound(deserialize = "PublicKey: DeserializeOwned"))]
 pub struct Committee<PublicKey: VerifyingKey> {
     pub authorities: BTreeMap<PublicKey, Authority>,

@@ -1,15 +1,17 @@
+use arc_swap::ArcSwap;
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use dashmap::DashMap;
 use either::Either;
-use std::sync::{Arc, RwLock};
+use once_cell::sync::OnceCell;
+use std::sync::Arc;
 use thiserror::Error;
 
 use super::{Node, NodeRef, WeakNodeRef};
 
 /// A trait marking the minimum information we need to sort out the value for a node:
 /// - `parents`: hash pointers to its parents, and
-/// - `compressible`: the inital value of whether it's compressible
+/// - `compressible`: a value-derived boolean indicating if that value is, initially, compressible
 /// The `crypto:Hash` trait bound offers the digest-ibility.
 pub trait Affiliated: crypto::Hash {
     fn parents(&self) -> Vec<<Self as crypto::Hash>::TypedDigest>;
@@ -74,13 +76,17 @@ impl<T: Affiliated> NodeDag<T> {
             .get(&digest)
             .ok_or(DagError::UnknownDigest(digest))?;
         match *node_ref {
-            Either::Left(ref node) => Ok(node.upgrade().ok_or(DagError::DroppedDigest(digest))?),
+            Either::Left(ref node) => Ok(NodeRef(
+                node.upgrade().ok_or(DagError::DroppedDigest(digest))?,
+            )),
             // the node is a head of the graph, just return
             Either::Right(ref node) => Ok(node.clone()),
         }
     }
 
-    // Note: the dag currently does not do any causal completion, and maintains that
+    // Inserts a node in the Dag.
+    //
+    // Note: the dag currently does not do any causal completion, and only verifies the invariant that
     // - insertion should be idempotent
     // - an unseen node is a head (not pointed) to by any other node.
     pub fn try_insert(&mut self, value: T) -> Result<(), DagError<T>> {
@@ -104,17 +110,23 @@ impl<T: Affiliated> NodeDag<T> {
                 }
             })
             .collect::<Result<Vec<_>, _>>()?;
-        let compressible = value.compressible();
+        let compressible: OnceCell<()> = {
+            let cell = OnceCell::new();
+            if value.compressible() {
+                let _ = cell.set(());
+            }
+            cell
+        };
 
         let node = Node {
-            parents,
+            parents: ArcSwap::from_pointee(parents),
             value,
             compressible,
         };
-        let strong_node_ref = Arc::new(RwLock::new(node));
+        let strong_node_ref = Arc::new(node);
         // important: do this first, before downgrading the head references
         self.node_table
-            .insert(digest, Either::Right(strong_node_ref));
+            .insert(digest, Either::Right(strong_node_ref.into()));
         // maintain the header invariant
         for mut parent in parent_digests
             .into_iter()

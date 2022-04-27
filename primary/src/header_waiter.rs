@@ -1,12 +1,7 @@
 // Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crate::{
-    error::{DagError, DagResult},
-    messages::{BatchDigest, CertificateDigest, Header, HeaderDigest},
-    primary::{PayloadToken, PrimaryMessage, PrimaryWorkerMessage, Round},
-    Certificate,
-};
+use crate::primary::{PayloadToken, PrimaryMessage, PrimaryWorkerMessage};
 use bytes::Bytes;
 use config::{Committee, WorkerId};
 use crypto::traits::VerifyingKey;
@@ -30,6 +25,10 @@ use tokio::{
     time::{sleep, Duration, Instant},
 };
 use tracing::{debug, error};
+use types::{
+    error::{DagError, DagResult},
+    BatchDigest, Certificate, CertificateDigest, Header, HeaderDigest, Round,
+};
 
 /// The resolution of the timer that checks whether we received replies to our sync requests, and triggers
 /// new sync requests if we didn't.
@@ -272,15 +271,16 @@ impl<PublicKey: VerifyingKey> HeaderWaiter<PublicKey> {
                         }
                     }
 
-                    let addresses = self.committee
-                        .others_primaries(&self.name)
-                        .iter()
-                        .map(|(_, x)| x.primary_to_primary)
-                        .collect();
-                    let message = PrimaryMessage::CertificatesRequest(retry, self.name.clone());
-                    let bytes = bincode::serialize(&message).expect("Failed to serialize cert request");
-                    self.network.lucky_broadcast(addresses, Bytes::from(bytes), self.sync_retry_nodes).await;
-
+                    if !retry.is_empty() {
+                        let addresses = self.committee
+                            .others_primaries(&self.name)
+                            .iter()
+                            .map(|(_, x)| x.primary_to_primary)
+                            .collect();
+                        let message = PrimaryMessage::CertificatesRequest(retry, self.name.clone());
+                        let bytes = bincode::serialize(&message).expect("Failed to serialize cert request");
+                        self.network.lucky_broadcast(addresses, Bytes::from(bytes), self.sync_retry_nodes).await;
+                    }
                     // Reschedule the timer.
                     timer.as_mut().reset(Instant::now() + Duration::from_millis(TIMER_RESOLUTION));
                 }

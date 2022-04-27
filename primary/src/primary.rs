@@ -3,23 +3,30 @@
 // SPDX-License-Identifier: Apache-2.0
 use crate::{
     block_remover::DeleteBatchResult,
+    // TODO[#175][#127]: re-plug the BlockSynchronizer
+    // block_synchronizer::BlockSynchronizer,
     block_waiter::{BatchMessage, BatchMessageError, BatchResult, BlockWaiter},
     certificate_waiter::CertificateWaiter,
     core::Core,
-    error::DagError,
     garbage_collector::GarbageCollector,
     grpc_server::GrpcServer,
     header_waiter::HeaderWaiter,
     helper::Helper,
-    messages::{BatchDigest, Certificate, CertificateDigest, Header, HeaderDigest, Vote},
     payload_receiver::PayloadReceiver,
     proposer::Proposer,
     synchronizer::Synchronizer,
-    Batch, BlockRemover, DeleteBatchMessage,
+    BlockRemover,
+    DeleteBatchMessage,
 };
 use async_trait::async_trait;
 use bytes::Bytes;
-use config::{Committee, Parameters, WorkerId};
+use config::{
+    // TODO[#175][#127]: re-plug the BlockSynchronizer
+    // BlockSynchronizerParameters,
+    Committee,
+    Parameters,
+    WorkerId,
+};
 use crypto::{
     traits::{EncodeDecodeBase64, Signer, VerifyingKey},
     SignatureService,
@@ -36,6 +43,10 @@ use store::Store;
 use thiserror::Error;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tracing::info;
+use types::{
+    error::DagError, Batch, BatchDigest, Certificate, CertificateDigest, Header, HeaderDigest,
+    Round, Vote,
+};
 
 #[cfg(test)]
 #[path = "tests/primary_tests.rs"]
@@ -44,9 +55,6 @@ pub mod primary_tests;
 /// The default channel capacity for each channel of the primary.
 pub const CHANNEL_CAPACITY: usize = 1_000;
 
-/// The round number.
-pub type Round = u64;
-
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(bound(deserialize = "PublicKey: VerifyingKey"))]
 pub enum PrimaryMessage<PublicKey: VerifyingKey> {
@@ -54,6 +62,23 @@ pub enum PrimaryMessage<PublicKey: VerifyingKey> {
     Vote(Vote<PublicKey>),
     Certificate(Certificate<PublicKey>),
     CertificatesRequest(Vec<CertificateDigest>, /* requestor */ PublicKey),
+
+    CertificatesBatchRequest {
+        certificate_ids: Vec<CertificateDigest>,
+        requestor: PublicKey,
+    },
+    CertificatesBatchResponse {
+        certificates: Vec<(CertificateDigest, Option<Certificate<PublicKey>>)>,
+    },
+
+    PayloadAvailabilityRequest {
+        certificate_ids: Vec<CertificateDigest>,
+        requestor: PublicKey,
+    },
+
+    PayloadAvailabilityResponse {
+        payload_availability: Vec<(CertificateDigest, bool)>,
+    },
 }
 
 /// The messages sent by the primary to its workers.
@@ -131,6 +156,13 @@ impl Primary {
         // to remove collections from Narwhal (e.x the remove_collections endpoint).
         let (_tx_block_removal_commands, rx_block_removal_commands) = channel(CHANNEL_CAPACITY);
         let (tx_batch_removal, rx_batch_removal) = channel(CHANNEL_CAPACITY);
+        /* TODO[#175][#175][#127]: re-plug the block synchronizer
+        let (_tx_block_synchronizer_commands, rx_block_synchronizer_commands) =
+            channel(CHANNEL_CAPACITY);
+        let (_tx_certificate_responses, rx_certificate_responses) = channel(CHANNEL_CAPACITY);
+        let (_tx_payload_availability_responses, rx_payload_availability_responses) =
+            channel(CHANNEL_CAPACITY);
+        */
 
         // Write the parameters to the logs.
         parameters.tracing();
@@ -242,6 +274,21 @@ impl Primary {
             rx_block_removal_commands,
             rx_batch_removal,
         );
+
+        // Responsible for finding missing blocks (certificates) and fetching
+        // them from the primary peers by synchronizing also their batches.
+        /* TODO[#175][#127]: re-plug the block synchronizer
+        BlockSynchronizer::spawn(
+            name.clone(),
+            committee.clone(),
+            rx_block_synchronizer_commands,
+            rx_certificate_responses,
+            rx_payload_availability_responses,
+            SimpleSender::new(),
+            payload_store.clone(),
+            BlockSynchronizerParameters::default(),
+        );
+        */
 
         // Whenever the `Synchronizer` does not manage to validate a header due to missing parent certificates of
         // batch digests, it commands the `HeaderWaiter` to synchronize with other nodes, wait for their reply, and

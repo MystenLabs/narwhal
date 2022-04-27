@@ -8,13 +8,11 @@
     rust_2021_compatibility
 )]
 
-#[macro_use]
-extern crate derive_builder;
-
-#[macro_use]
-mod error;
 mod aggregators;
 mod block_remover;
+// TODO [#175][#127]: re-plug the blocksynchronzier
+#[allow(dead_code)]
+mod block_synchronizer;
 mod block_waiter;
 mod certificate_waiter;
 mod core;
@@ -22,11 +20,11 @@ mod garbage_collector;
 mod grpc_server;
 mod header_waiter;
 mod helper;
-mod messages;
 mod payload_receiver;
 mod primary;
 mod proposer;
 mod synchronizer;
+mod utils;
 
 #[cfg(test)]
 #[path = "tests/common.rs"]
@@ -35,11 +33,7 @@ mod common;
 pub use crate::{
     block_remover::{BlockRemover, BlockRemoverCommand, DeleteBatchMessage},
     block_waiter::{BatchMessage, BlockCommand, BlockWaiter},
-    messages::{
-        Batch, BatchDigest, Certificate, CertificateDigest, Header, HeaderDigest, Transaction,
-    },
     primary::{
-        PayloadToken, Primary, PrimaryWorkerMessage, Round, WorkerPrimaryError,
-        WorkerPrimaryMessage,
+        PayloadToken, Primary, PrimaryWorkerMessage, WorkerPrimaryError, WorkerPrimaryMessage,
     },
 };

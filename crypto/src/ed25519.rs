@@ -1,7 +1,9 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
+use base64ct::{Base64, Encoding};
 use serde::{de, Deserialize, Serialize};
 use signature::{Signature, Signer, Verifier};
+use std::fmt::{self, Display};
 
 use crate::traits::{
     Authenticator, EncodeDecodeBase64, KeyPair, SigningKey, ToFromBytes, VerifyingKey,
@@ -42,6 +44,12 @@ impl AsRef<[u8]> for Ed25519PublicKey {
 impl Default for Ed25519PublicKey {
     fn default() -> Self {
         Ed25519PublicKey::from_bytes(&[0u8; 32]).unwrap()
+    }
+}
+
+impl Display for Ed25519PublicKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        write!(f, "{}", Base64::encode_string(self.0.as_bytes()))
     }
 }
 
@@ -147,6 +155,12 @@ impl AsRef<[u8]> for Ed25519Signature {
     }
 }
 
+impl Display for Ed25519Signature {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        write!(f, "{}", Base64::encode_string(self.as_ref()))
+    }
+}
+
 // see [#34](https://github.com/MystenLabs/narwhal/issues/34)
 impl Default for Ed25519Signature {
     fn default() -> Self {
@@ -159,8 +173,8 @@ impl Default for Ed25519Signature {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type")] // necessary so as not to deser under a != type
 pub struct Ed25519KeyPair {
-    name: Ed25519PublicKey,
-    secret: Ed25519PrivateKey,
+    pub name: Ed25519PublicKey,
+    pub secret: Ed25519PrivateKey,
 }
 
 impl KeyPair for Ed25519KeyPair {
@@ -181,6 +195,15 @@ impl KeyPair for Ed25519KeyPair {
         Ed25519KeyPair {
             name: Ed25519PublicKey(kp.public),
             secret: Ed25519PrivateKey(kp.secret),
+        }
+    }
+}
+
+impl From<ed25519_dalek::Keypair> for Ed25519KeyPair {
+    fn from(dalek_kp: ed25519_dalek::Keypair) -> Self {
+        Ed25519KeyPair {
+            name: Ed25519PublicKey(dalek_kp.public),
+            secret: Ed25519PrivateKey(dalek_kp.secret),
         }
     }
 }

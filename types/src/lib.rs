@@ -4,7 +4,6 @@
 use crate::{
     error::{DagError, DagResult},
     grpc_server::mempool,
-    primary::Round,
 };
 use blake2::{digest::Update, VarBlake2b};
 use config::{Committee, WorkerId};
@@ -12,11 +11,21 @@ use crypto::{
     traits::{EncodeDecodeBase64, VerifyingKey},
     Digest, Hash, SignatureService, DIGEST_LEN,
 };
+use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet, HashSet},
     fmt,
 };
+
+#[cfg(feature = "test")]
+pub mod test_utils;
+// Error types
+#[macro_use]
+pub mod error;
+
+/// The round number.
+pub type Round = u64;
 
 pub type Transaction = Vec<u8>;
 #[derive(Clone, Serialize, Deserialize, Default, Debug, PartialEq, Eq)]

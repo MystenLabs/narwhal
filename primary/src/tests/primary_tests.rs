@@ -5,8 +5,6 @@ use crate::block_waiter::block_waiter_tests::worker_listener;
 use crate::common::{self, certificate, committee_with_base_port, keys, temp_dir};
 use crate::grpc_server::mempool::{validator_client::ValidatorClient, GetCollectionsRequest};
 use crate::messages;
-
-use super::*;
 use crypto::Hash;
 use crypto::{ed25519::Ed25519PublicKey, traits::KeyPair};
 use store::rocks;
