@@ -362,6 +362,7 @@ mod tests {
     use crate::{duration_format, Deserialize, Import, Parameters};
     use std::{fs::File, io::Write, time::Duration};
     use tempfile::tempdir;
+    use tracing_test::traced_test;
 
     #[derive(Deserialize)]
     struct MockProperties {
@@ -372,6 +373,7 @@ mod tests {
     }
 
     #[test]
+    #[traced_test]
     fn parse_properties() {
         // GIVEN
         let input = r#"{
@@ -424,6 +426,34 @@ mod tests {
                 .as_millis(),
             4_000
         );
+    }
+
+    #[test]
+    #[traced_test]
+    fn tracing_should_print_parameters() {
+        // GIVEN
+        let parameters = Parameters::default();
+
+        // WHEN
+        parameters.tracing();
+
+        // THEN
+        assert!(logs_contain("Header size set to 1000 B"));
+        assert!(logs_contain("Max header delay set to 100 ms"));
+        assert!(logs_contain("Garbage collection depth set to 50 rounds"));
+        assert!(logs_contain("Sync retry delay set to 5000 ms"));
+        assert!(logs_contain("Sync retry nodes set to 3 nodes"));
+        assert!(logs_contain("Batch size set to 500000 B"));
+        assert!(logs_contain("Max batch delay set to 100 ms"));
+        assert!(logs_contain(
+            "Synchronize certificates timeout set to 2000 ms"
+        ));
+        assert!(logs_contain(
+            "Payload (batches) availability timeout set to 2000 ms"
+        ));
+        assert!(logs_contain(
+            "Synchronize payload (batches) timeout set to 2000 ms"
+        ));
     }
 
     #[test]
