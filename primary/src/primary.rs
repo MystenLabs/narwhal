@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0
 use crate::{
     block_remover::DeleteBatchResult,
-    // TODO[#175][#127]: re-plug the BlockSynchronizer
-    // block_synchronizer::BlockSynchronizer,
     block_waiter::{BatchMessage, BatchMessageError, BatchResult, BlockWaiter},
     certificate_waiter::CertificateWaiter,
     core::Core,
@@ -14,18 +12,11 @@ use crate::{
     payload_receiver::PayloadReceiver,
     proposer::Proposer,
     synchronizer::Synchronizer,
-    BlockRemover,
-    DeleteBatchMessage,
+    BlockRemover, DeleteBatchMessage,
 };
 use async_trait::async_trait;
 use bytes::Bytes;
-use config::{
-    // TODO[#175][#127]: re-plug the BlockSynchronizer
-    // BlockSynchronizerParameters,
-    Committee,
-    Parameters,
-    WorkerId,
-};
+use config::{Committee, Parameters, WorkerId};
 use crypto::{
     traits::{EncodeDecodeBase64, Signer, VerifyingKey},
     SignatureService,
@@ -196,7 +187,7 @@ impl Primary {
             address,
             /* handler */
             WorkerReceiverHandler {
-                tx_our_digests,
+                tx_our_digests: tx_our_digests.clone(),
                 tx_others_digests,
                 tx_batches,
                 tx_batch_removal,
@@ -240,7 +231,13 @@ impl Primary {
         );
 
         // Keeps track of the latest consensus round and allows other tasks to clean up their their internal state
-        GarbageCollector::spawn(&name, &committee, consensus_round.clone(), rx_consensus);
+        GarbageCollector::spawn(
+            &name,
+            &committee,
+            consensus_round.clone(),
+            rx_consensus,
+            tx_our_digests,
+        );
 
         // Receives batch digests from other workers. They are only used to validate headers.
         PayloadReceiver::spawn(

@@ -22,6 +22,8 @@ pub struct GarbageCollector<PublicKey: VerifyingKey> {
     consensus_round: Arc<AtomicU64>,
     /// Receives the ordered certificates from consensus.
     rx_consensus: Receiver<Certificate<PublicKey>>,
+    /// Re-sent our own GC'ed digests to the proposed.
+    tx_our_digests: Sender<(BatchDigest, WorkerId)>,
     /// The network addresses of our workers.
     addresses: Vec<SocketAddr>,
     /// A network sender to notify our workers of cleanup events.
@@ -34,6 +36,7 @@ impl<PublicKey: VerifyingKey> GarbageCollector<PublicKey> {
         committee: &Committee<PublicKey>,
         consensus_round: Arc<AtomicU64>,
         rx_consensus: Receiver<Certificate<PublicKey>>,
+        tx_our_digests: Sender<(BatchDigest, WorkerId)>,
     ) {
         let addresses = committee
             .our_workers(name)
@@ -46,6 +49,7 @@ impl<PublicKey: VerifyingKey> GarbageCollector<PublicKey> {
             Self {
                 consensus_round,
                 rx_consensus,
+                tx_our_digests,
                 addresses,
                 network: SimpleSender::new(),
             }
@@ -57,9 +61,19 @@ impl<PublicKey: VerifyingKey> GarbageCollector<PublicKey> {
     async fn run(&mut self) {
         let mut last_committed_round = 0;
         while let Some(certificate) = self.rx_consensus.recv().await {
-            // TODO [issue #9]: Re-include batch digests that have not been sequenced into our next block.
-
             let round = certificate.round();
+
+            // Re-include batch digests that have not been sequenced into our next block.
+            if certificate.author() == name {
+                for payload in certificate.header.payload {
+                    self.tx_our_digests
+                        .send(payload)
+                        .await
+                        .expect("Failed to re-propose GC'ed digests");
+                }
+            }
+
+            // Run the GC.
             if round > last_committed_round {
                 last_committed_round = round;
 
