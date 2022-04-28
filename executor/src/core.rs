@@ -98,7 +98,10 @@ where
             return Ok(());
         }
 
-        println!("Core received non-empty certificate #{}", message.consensus_index);
+        println!(
+            "Core received non-empty certificate #{}",
+            message.consensus_index
+        );
 
         // Execute every batch in the certificate.
         let total_batches = message.certificate.header.payload.len();

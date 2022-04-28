@@ -251,7 +251,6 @@ impl<PublicKey: VerifyingKey> Consensus<PublicKey> {
                 // Update and clean up internal state.
                 state.update(&x, gc_depth);
 
-
                 // Add the certificate to the sequence.
                 sequence.push(ConsensusOutput {
                     certificate: x,

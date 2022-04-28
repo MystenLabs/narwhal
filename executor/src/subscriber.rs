@@ -145,7 +145,10 @@ impl<PublicKey: VerifyingKey> Subscriber<PublicKey> {
             .await
             .expect("Failed to send message ot batch loader");
 
-        println!("Executor received #{consensus_index} (need_to_sync={need_to_sync}, empty={})", message.certificate.header.payload.is_empty());
+        println!(
+            "Executor received #{consensus_index} (need_to_sync={need_to_sync}, empty={})",
+            message.certificate.header.payload.is_empty()
+        );
 
         // Synchronize missing consensus outputs if we need to.
         if need_to_sync {
@@ -198,7 +201,7 @@ impl<PublicKey: VerifyingKey> Subscriber<PublicKey> {
                 },
 
                 // Receive here consensus messages for which we have downloaded all transactions data.
-                Some(message) = waiting.next() => 
+                Some(message) = waiting.next() =>
                 {
                     let m = message?;
                     println!("Executor loaded #{}", m.consensus_index);

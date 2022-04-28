@@ -151,6 +151,7 @@ impl SyncConnection {
                     // Listen for batches to download.
                     Some(digests) = self.rx_request.recv() => {
                         // Filter digests that we already requested.
+                        /*
                         let mut missing = Vec::new();
                         for digest in digests {
                             if !self.already_requested.contains(&digest) {
@@ -160,15 +161,19 @@ impl SyncConnection {
                         if missing.is_empty() {
                             continue;
                         }
+                        */
+                        let missing = digests;
 
                         // Request the batch from the worker.
                         let message = WorkerMessage::<PublicKey>::ClientBatchRequest(missing.clone());
                         let serialized = bincode::serialize(&message).expect("Failed to serialize request");
                         match connection.send(Bytes::from(serialized)).await {
                             Ok(()) => {
+                                /*
                                 for digest in missing {
                                     self.already_requested.insert(digest);
                                 }
+                                */
                             },
                             Err(e) => {
                                 warn!("Failed to send sync request to worker {}: {e}", self.address);
@@ -187,7 +192,7 @@ impl SyncConnection {
                                 self.store.write(digest, batch.to_vec()).await;
 
                                 // Cleanup internal state.
-                                self.already_requested.remove(&digest);
+                                //self.already_requested.remove(&digest);
 
                                 // Reset the connection timeout delay.
                                 connection_waiter.reset();
