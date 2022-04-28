@@ -79,9 +79,11 @@ where
             self.execute_certificate(&message).await?;
 
             // Cleanup the temporary persistent storage.
+            /*
             for digest in message.certificate.header.payload.into_keys() {
                 self.store.remove(digest).await;
             }
+            */
         }
         Ok(())
     }
