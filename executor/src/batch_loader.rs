@@ -67,6 +67,7 @@ impl<PublicKey: VerifyingKey> BatchLoader<PublicKey> {
             // TODO: Can we write it better without allocating a HashMap every time?
             let mut map = HashMap::with_capacity(certificate.header.payload.len());
             for (digest, worker_id) in certificate.header.payload.iter() {
+                println!("Loading {digest} from {worker_id}");
                 map.entry(*worker_id).or_insert_with(Vec::new).push(*digest);
             }
             for (worker_id, digests) in map {
