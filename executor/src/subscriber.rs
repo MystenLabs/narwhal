@@ -174,8 +174,8 @@ impl<PublicKey: VerifyingKey> Subscriber<PublicKey> {
             .await
             .map(|_| deliver)
             .map_err(SubscriberError::from);
-            println("DONE");
-            x
+        println!("DONE");
+        x
     }
 
     /// Main loop connecting to the consensus to listen to sequence messages.
