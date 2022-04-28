@@ -21,7 +21,7 @@ mod grpc_server;
 mod header_waiter;
 mod helper;
 mod payload_receiver;
-mod primary;
+pub mod primary;
 mod proposer;
 mod synchronizer;
 mod utils;

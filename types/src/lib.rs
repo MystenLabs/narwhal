@@ -1,10 +1,7 @@
 // Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crate::{
-    error::{DagError, DagResult},
-    grpc_server::mempool,
-};
+use crate::error::{DagError, DagResult};
 use blake2::{digest::Update, VarBlake2b};
 use config::{Committee, WorkerId};
 use crypto::{
@@ -23,6 +20,9 @@ pub mod test_utils;
 // Error types
 #[macro_use]
 pub mod error;
+
+mod proto;
+pub use proto::*;
 
 /// The round number.
 pub type Round = u64;
@@ -401,9 +401,9 @@ impl From<CertificateDigest> for Digest {
     }
 }
 
-impl From<CertificateDigest> for mempool::CertificateDigest {
+impl From<CertificateDigest> for CertificateDigestProto {
     fn from(hd: CertificateDigest) -> Self {
-        mempool::CertificateDigest {
+        CertificateDigestProto {
             f_bytes: hd.0.to_vec(),
         }
     }

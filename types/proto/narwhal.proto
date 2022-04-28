@@ -1,12 +1,17 @@
-syntax = "proto3";
-package mempool;
+// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
 
+syntax = "proto3";
+
+package narwhal;
+
+// Proto wrapper for Narwhal type CertificateDigest([u8; 32])
 message CertificateDigest {
     bytes f_bytes = 1;
 }
 
 message GetCollectionsRequest {
-    // Request message contains the list of collection ids to be retreived.
+    // List of collections to be retreived.
     repeated CertificateDigest collection_id = 1;
 }
 
@@ -15,6 +20,8 @@ message GetCollectionsResponse {
     string message = 1;
 }
 
+// The consensus to mempool interface for validator actions.
 service Validator {
+    // Returns the collection contents for each requested collection
     rpc GetCollections (GetCollectionsRequest) returns (GetCollectionsResponse);
 }

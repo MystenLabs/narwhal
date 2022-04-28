@@ -1,12 +1,11 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
-use crate::primary::CHANNEL_CAPACITY;
-use crate::PayloadToken;
-use crate::{BatchMessage, Primary};
 use config::{Parameters, WorkerId};
 use crypto::Hash;
 use crypto::{ed25519::Ed25519PublicKey, traits::KeyPair};
+use primary::primary::CHANNEL_CAPACITY;
+use primary::{BatchMessage, PayloadToken, Primary};
 use store::{rocks, Store};
 use tokio::sync::mpsc::channel;
 use types::test_utils::{
@@ -16,6 +15,7 @@ use types::{
     Batch, BatchDigest, Certificate, CertificateDigest, GetCollectionsRequest, Header,
     HeaderDigest, ValidatorClient,
 };
+use worker::{SerializedBatchMessage, Worker};
 
 #[tokio::test]
 async fn test_get_collections() {
@@ -68,10 +68,10 @@ async fn test_get_collections() {
     let (_tx_feedback, rx_feedback) = channel(CHANNEL_CAPACITY);
 
     Primary::spawn(
-        name,
+        name.clone(),
         signer,
         committee.clone(),
-        parameters,
+        parameters.clone(),
         header_store,
         certificate_store,
         payload_store,
@@ -96,13 +96,31 @@ async fn test_get_collections() {
 
     // Spin up a worker node for actual data (WORK IN PROGRESS)
 
-    /*
     let worker_id = 0;
+
+    // Create a new test store.
+    let worker_map = rocks::DBMap::<BatchDigest, SerializedBatchMessage>::open(
+        temp_dir(),
+        None,
+        Some("batches"),
+    )
+    .unwrap();
+    let worker_store = Store::new(worker_map);
+
+    // Spawn a `Worker` instance.
+    Worker::spawn(
+        name.clone(),
+        worker_id,
+        committee.clone(),
+        parameters.clone(),
+        worker_store,
+    );
+
+    /*
     let worker_address = committee
         .worker(&name, &worker_id)
         .unwrap()
         .primary_to_worker;
-
     let handle = worker_listener::<Ed25519PublicKey>(
         worker_address,
         expected_batch_messages.clone(),
@@ -121,6 +139,9 @@ async fn test_get_collections() {
 
     let response = client.get_collections(request).await.unwrap();
 
-    // No data so expecting a BatchTimeout for now.
-    assert_eq!(true, response.into_inner().message.contains("BatchTimeout"));
+    let actual_message = response.into_inner().message;
+    println!("{}", actual_message);
+
+    // No data so expecting a BatchError for now.
+    assert_eq!(true, actual_message.contains("BatchError"));
 }

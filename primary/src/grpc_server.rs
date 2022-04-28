@@ -1,25 +1,22 @@
 use std::time::Duration;
 
-use crate::block_waiter::{BlockError, BlocksError, GetBlockResponse, GetBlocksResponse};
-use crate::{BatchDigest, BlockCommand, CertificateDigest};
-use mempool::validator_server::{Validator, ValidatorServer};
-use mempool::{GetCollectionsRequest, GetCollectionsResponse};
-use tokio::sync::mpsc::{Receiver, Sender};
+use crate::block_waiter::{BlockError, GetBlockResponse};
+use crate::BlockCommand;
+use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot;
 use tokio::time::sleep;
 use tonic::{transport::Server, Request, Response, Status};
 use tracing::error;
-
-pub mod mempool {
-    tonic::include_proto!("mempool"); // The string specified here must match the proto package name
-}
+use types::{
+    CertificateDigest, GetCollectionsRequest, GetCollectionsResponse, Validator, ValidatorServer,
+};
 
 #[derive(Debug)]
-pub struct Mempool {
+pub struct Narwhal {
     tx_get_block_commands: Sender<BlockCommand>,
 }
 
-impl Mempool {
+impl Narwhal {
     fn new(tx_get_block_commands: Sender<BlockCommand>) -> Self {
         Self {
             tx_get_block_commands,
@@ -28,7 +25,7 @@ impl Mempool {
 }
 
 #[tonic::async_trait]
-impl Validator for Mempool {
+impl Validator for Narwhal {
     async fn get_collections(
         &self,
         request: Request<GetCollectionsRequest>,
@@ -81,7 +78,7 @@ impl Validator for Mempool {
             message = format!("Attemped fetch of no collections!");
         }
 
-        let reply = mempool::GetCollectionsResponse { message };
+        let reply = GetCollectionsResponse { message };
 
         Ok(Response::new(reply))
     }
@@ -105,10 +102,10 @@ impl GrpcServer {
 
     async fn run(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         let addr = "127.0.0.1:50052".parse()?;
-        let mempool = Mempool::new(self.tx_get_block_commands.to_owned());
+        let narwhal = Narwhal::new(self.tx_get_block_commands.to_owned());
 
         Server::builder()
-            .add_service(ValidatorServer::new(mempool))
+            .add_service(ValidatorServer::new(narwhal))
             .serve(addr)
             .await?;
 
