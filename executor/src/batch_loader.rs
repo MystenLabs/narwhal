@@ -157,6 +157,9 @@ impl SyncConnection {
                                 missing.push(digest);
                             }
                         }
+                        if missing.is_empty() {
+                            continue;
+                        }
 
                         // Request the batch from the worker.
                         let message = WorkerMessage::<PublicKey>::ClientBatchRequest(missing.clone());
