@@ -311,6 +311,7 @@ impl<PublicKey: VerifyingKey> MessageHandler for WorkerReceiverHandler<PublicKey
             Ok(WorkerMessage::ClientBatchRequest(missing)) => {
                 // TODO [issue #7]: Do some accounting to prevent bad actors from use all our
                 // resources (in this case allocate a gigantic channel).
+                println!("Worker: executor asks for {missing:?}\n");
                 let (sender, mut receiver) = channel(missing.len());
 
                 self.tx_client_helper
