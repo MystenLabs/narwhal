@@ -5,12 +5,10 @@ use super::*;
 use crate::common::create_db_stores;
 use crypto::traits::KeyPair;
 use futures::future::try_join_all;
-use types::{
-    test_utils::{
-        certificate, committee, committee_with_base_port, header, headers, keys, listener, votes,
-    },
-    BatchDigest, Header, Vote,
+use test_utils::{
+    certificate, committee, committee_with_base_port, header, headers, keys, listener, votes,
 };
+use types::{BatchDigest, Header, Vote};
 
 use tokio::sync::mpsc::channel;
 
