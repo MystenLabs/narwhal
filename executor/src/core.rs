@@ -91,11 +91,14 @@ where
         &mut self,
         message: &ConsensusOutput<PublicKey>,
     ) -> SubscriberResult<()> {
+        println!("Core received certificate #{}", message.consensus_index);
         // Skip the certificate if it contains no transactions.
         if message.certificate.header.payload.is_empty() {
             self.execution_indices.skip_certificate();
             return Ok(());
         }
+
+        println!("Core received non-empty certificate #{}", message.consensus_index);
 
         // Execute every batch in the certificate.
         let total_batches = message.certificate.header.payload.len();

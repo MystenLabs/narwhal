@@ -145,7 +145,7 @@ impl<PublicKey: VerifyingKey> Subscriber<PublicKey> {
             .await
             .expect("Failed to send message ot batch loader");
 
-        println!("Executor received #{consensus_index} (need_to_sync={need_to_sync}");
+        println!("Executor received #{consensus_index} (need_to_sync={need_to_sync})");
 
         // Synchronize missing consensus outputs if we need to.
         if need_to_sync {
