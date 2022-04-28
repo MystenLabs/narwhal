@@ -170,10 +170,12 @@ impl<PublicKey: VerifyingKey> Subscriber<PublicKey> {
         println!("Waiting for {missing:?} to appear in store");
         let waiting: Vec<_> = missing.into_iter().map(|x| store.notify_read(x)).collect();
 
-        try_join_all(waiting)
+        let x = try_join_all(waiting)
             .await
             .map(|_| deliver)
-            .map_err(SubscriberError::from)
+            .map_err(SubscriberError::from);
+            println("DONE");
+            x
     }
 
     /// Main loop connecting to the consensus to listen to sequence messages.
