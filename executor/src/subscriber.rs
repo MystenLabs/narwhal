@@ -167,8 +167,9 @@ impl<PublicKey: VerifyingKey> Subscriber<PublicKey> {
         store: Store<BatchDigest, SerializedBatchMessage>,
         deliver: T,
     ) -> SubscriberResult<T> {
-        let waiting: Vec<_> = missing.into_iter().map(|x| store.notify_read(x)).collect();
         println!("Waiting for {missing:?} to appear in store");
+        let waiting: Vec<_> = missing.into_iter().map(|x| store.notify_read(x)).collect();
+
         try_join_all(waiting)
             .await
             .map(|_| deliver)
