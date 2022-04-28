@@ -195,6 +195,11 @@ impl<PublicKey: VerifyingKey> Subscriber<PublicKey> {
                     // Wait for the transaction data to be available in the store. We will then execute the transactions.
                     for message in sequence {
                         let digests = message.certificate.header.payload.keys().cloned().collect();
+                        println!(
+                            "Executor waiting to load #{} (empty={})",
+                            message.consensus_index,
+                            message.certificate.header.payload.is_empty()
+                        );
                         let future = Self::waiter(digests, self.store.clone(), message);
                         waiting.push(future);
                     }
