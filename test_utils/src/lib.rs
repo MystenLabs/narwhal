@@ -13,8 +13,7 @@ use futures::{sink::SinkExt as _, stream::StreamExt as _};
 use rand::{rngs::StdRng, SeedableRng as _};
 use std::{collections::BTreeMap, net::SocketAddr};
 use store::{rocks, Store};
-use types::{Batch, BatchDigest, Certificate, Transaction};
-use types::{Header, Vote};
+use types::{Batch, BatchDigest, Certificate, Header, Transaction, Vote};
 
 use tokio::{net::TcpListener, task::JoinHandle};
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
