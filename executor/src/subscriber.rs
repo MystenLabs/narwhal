@@ -200,11 +200,12 @@ impl<PublicKey: VerifyingKey> Subscriber<PublicKey> {
                 // Receive here consensus messages for which we have downloaded all transactions data.
                 Some(message) = waiting.next() => 
                 {
+                    let m = message?;
                     println!("Executor loaded #{}", message.consensus_index);
 
                     self
                     .tx_executor
-                    .send(message?)
+                    .send(message)
                     .await
                     .map_err(|_| SubscriberError::ExecutorConnectionDropped)?
                 }
