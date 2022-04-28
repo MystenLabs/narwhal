@@ -19,7 +19,7 @@ use tokio::{
     sync::mpsc::{Receiver, Sender},
     task::JoinHandle,
 };
-use tracing::{debug, info, warn};
+use tracing::{debug, warn};
 use types::{Certificate, CertificateDigest, Round};
 
 #[cfg(any(test, feature = "benchmark"))]
@@ -157,12 +157,14 @@ impl<PublicKey: VerifyingKey> Consensus<PublicKey> {
             for output in sequence {
                 let certificate = &output.certificate;
                 #[cfg(not(feature = "benchmark"))]
-                debug!("Committed {}", certificate.header);
+                if output.consensus_index % 5_000 == 0 {
+                    debug!("Committed {}", certificate.header);
+                }
 
                 #[cfg(feature = "benchmark")]
                 for digest in certificate.header.payload.keys() {
                     // NOTE: This log entry is used to compute performance.
-                    info!("Committed {} -> {:?}", certificate.header, digest);
+                    tracing::info!("Committed {} -> {:?}", certificate.header, digest);
                 }
 
                 self.tx_primary
@@ -247,9 +249,6 @@ impl<PublicKey: VerifyingKey> Consensus<PublicKey> {
                 // Update and clean up internal state.
                 state.update(&x, gc_depth);
 
-                // Increase the global consensus index.
-                consensus_index += 1;
-
                 // Persist the update.
                 // TODO [issue #116]: Ensure this is not a performance bottleneck.
                 store.write_consensus_state(
@@ -263,6 +262,9 @@ impl<PublicKey: VerifyingKey> Consensus<PublicKey> {
                     certificate: x,
                     consensus_index,
                 });
+
+                // Increase the global consensus index.
+                consensus_index += 1;
             }
         }
 
