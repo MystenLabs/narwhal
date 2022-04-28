@@ -1,10 +1,16 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-//! Allow us to serialize and deserialize Duration values in a more
-//! human friendly format (e.x in json files). When serialized then
-//! a string of the following format is written: [number]ms , for
-//! example "20ms". When deserialized, then a Duration is created.
+//! Allow us to deserialize Duration values in a more human friendly format
+//! (e.x in json files). The deserialization supports to time units:
+//! * miliseconds
+//! * seconds
+//!
+//! To identify miliseconds then a string of the following format should be
+//! provided: [number]ms , for example "20ms", or "2_000ms".
+//!
+//! To identify seconds, then the following format should be used:
+//! [number]s, for example "20s", or "10_000s".
 use serde::{Deserialize, Deserializer};
 use std::time::Duration;
 
@@ -16,11 +22,13 @@ where
 
     if let Some(milis) = s.strip_suffix("ms") {
         return milis
+            .replace('_', "")
             .parse::<u64>()
             .map(Duration::from_millis)
             .map_err(|e| serde::de::Error::custom(e.to_string()));
     } else if let Some(seconds) = s.strip_suffix('s') {
         return seconds
+            .replace('_', "")
             .parse::<u64>()
             .map(Duration::from_secs)
             .map_err(|e| serde::de::Error::custom(e.to_string()));
@@ -43,14 +51,20 @@ mod tests {
         property_1: Duration,
         #[serde(with = "duration_format")]
         property_2: Duration,
+        #[serde(with = "duration_format")]
+        property_3: Duration,
+        #[serde(with = "duration_format")]
+        property_4: Duration,
     }
 
     #[test]
     fn parse_miliseconds_and_seconds() {
         // GIVEN
         let input = r#"{
-             "property_1": "1000ms",
-             "property_2": "8s"
+             "property_1": "1_000ms",
+             "property_2": "2ms",
+             "property_3": "8s",
+             "property_4": "5_000s"
           }"#;
 
         // WHEN
@@ -59,7 +73,9 @@ mod tests {
 
         // THEN
         assert_eq!(result.property_1.as_millis(), 1_000);
-        assert_eq!(result.property_2.as_secs(), 8);
+        assert_eq!(result.property_2.as_millis(), 2);
+        assert_eq!(result.property_3.as_secs(), 8);
+        assert_eq!(result.property_4.as_secs(), 5_000);
     }
 
     #[test]

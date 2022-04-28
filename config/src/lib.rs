@@ -348,8 +348,8 @@ mod tests {
              "max_batch_delay": "100ms",
              "block_synchronizer": {
                  "certificates_synchronize_timeout": "2s",
-                 "payload_synchronize_timeout": "3000ms",
-                 "payload_availability_timeout": "4000ms"
+                 "payload_synchronize_timeout": "3_000ms",
+                 "payload_availability_timeout": "4_000ms"
              }
           }"#;
 
