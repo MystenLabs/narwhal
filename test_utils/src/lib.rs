@@ -12,6 +12,7 @@ use crypto::{
 use futures::{sink::SinkExt as _, stream::StreamExt as _};
 use rand::{rngs::StdRng, SeedableRng as _};
 use std::{collections::BTreeMap, net::SocketAddr};
+use store::{rocks, Store};
 use types::{Batch, BatchDigest, Certificate, Transaction};
 use types::{Header, Vote};
 
@@ -27,6 +28,10 @@ pub fn temp_dir() -> std::path::PathBuf {
         .expect("Failed to open temporary directory")
         .into_path()
 }
+
+////////////////////////////////////////////////////////////////
+/// Keys, Committee
+////////////////////////////////////////////////////////////////
 
 // Fixture
 pub fn keys() -> Vec<Ed25519KeyPair> {
@@ -143,6 +148,10 @@ pub fn committee_with_base_port(base_port: u16) -> Committee<Ed25519PublicKey> {
     }
     committee
 }
+
+////////////////////////////////////////////////////////////////
+/// Headers, Votes, Certificates
+////////////////////////////////////////////////////////////////
 
 // Fixture
 pub fn header() -> Header<Ed25519PublicKey> {
@@ -287,6 +296,32 @@ pub fn listener(address: SocketAddr) -> JoinHandle<Bytes> {
     })
 }
 
+// Fixture
+pub fn expecting_listener(address: SocketAddr, expected: Option<Bytes>) -> JoinHandle<()> {
+    tokio::spawn(async move {
+        let listener = TcpListener::bind(&address).await.unwrap();
+        let (socket, _) = listener.accept().await.unwrap();
+        let transport = Framed::new(socket, LengthDelimitedCodec::new());
+        let (mut writer, mut reader) = transport.split();
+        match reader.next().await {
+            Some(Ok(received)) => {
+                writer.send(Bytes::from("Ack")).await.unwrap();
+                if let Some(expected) = expected {
+                    let rcvd = received.freeze();
+                    assert_eq!(
+                        rcvd.clone(),
+                        expected.clone(),
+                        "expected {} received {}",
+                        hex::encode(expected),
+                        hex::encode(rcvd)
+                    );
+                }
+            }
+            _ => panic!("Failed to receive network message"),
+        }
+    })
+}
+
 // helper method to get a name and a committee. Special care should be given on
 // the base_port parameter to not collide between tests. It is advisable to
 // provide unique base_port numbers across the tests.
@@ -300,4 +335,74 @@ pub fn resolve_name_and_committee(
     let committee = committee_with_base_port(base_port);
 
     (name, committee)
+}
+
+////////////////////////////////////////////////////////////////
+/// Batches
+////////////////////////////////////////////////////////////////
+
+// Fixture
+pub fn batch() -> Batch {
+    Batch(vec![transaction(), transaction()])
+}
+
+// Fixture
+pub fn batch_digest() -> BatchDigest {
+    resolve_batch_digest(serialized_batch())
+}
+
+pub fn digest_batch(batch: Batch) -> BatchDigest {
+    let serialized_batch = serialize_batch_message(batch);
+    resolve_batch_digest(serialized_batch)
+}
+
+// Fixture
+pub fn resolve_batch_digest(batch_serialised: Vec<u8>) -> BatchDigest {
+    BatchDigest::new(crypto::blake2b_256(|hasher| {
+        hasher.update(&batch_serialised)
+    }))
+}
+
+// Fixture
+pub fn serialized_batch() -> Vec<u8> {
+    serialize_batch_message(batch())
+}
+
+pub fn serialize_batch_message(batch: Batch) -> Vec<u8> {
+    let message = worker::WorkerMessage::<Ed25519PublicKey>::Batch(batch);
+    bincode::serialize(&message).unwrap()
+}
+
+/// generate multiple fixture batches. The number of generated batches
+/// are dictated by the parameter num_of_batches.
+pub fn batches(num_of_batches: usize) -> Vec<Batch> {
+    let mut batches = Vec::new();
+
+    for i in 1..num_of_batches + 1 {
+        batches.push(batch_with_transactions(i));
+    }
+
+    batches
+}
+
+pub fn batch_with_transactions(num_of_transactions: usize) -> Batch {
+    let mut transactions = Vec::new();
+
+    for _ in 0..num_of_transactions {
+        transactions.push(transaction());
+    }
+
+    Batch(transactions)
+}
+
+const BATCHES_CF: &str = "batches";
+
+pub fn open_batch_store() -> Store<BatchDigest, worker::SerializedBatchMessage> {
+    let db = rocks::DBMap::<BatchDigest, worker::SerializedBatchMessage>::open(
+        temp_dir(),
+        None,
+        Some(BATCHES_CF),
+    )
+    .unwrap();
+    Store::new(db)
 }
