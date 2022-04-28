@@ -246,16 +246,10 @@ impl<PublicKey: VerifyingKey> Consensus<PublicKey> {
         {
             // Starting from the oldest leader, flatten the sub-dag referenced by the leader.
             for x in Consensus::order_dag(gc_depth, leader, state) {
+                let digest = x.digest();
+
                 // Update and clean up internal state.
                 state.update(&x, gc_depth);
-
-                // Persist the update.
-                // TODO [issue #116]: Ensure this is not a performance bottleneck.
-                store.write_consensus_state(
-                    &state.last_committed,
-                    &consensus_index,
-                    &x.digest(),
-                )?;
 
                 // Add the certificate to the sequence.
                 sequence.push(ConsensusOutput {
@@ -265,6 +259,10 @@ impl<PublicKey: VerifyingKey> Consensus<PublicKey> {
 
                 // Increase the global consensus index.
                 consensus_index += 1;
+
+                // Persist the update.
+                // TODO [issue #116]: Ensure this is not a performance bottleneck.
+                store.write_consensus_state(&state.last_committed, &consensus_index, &digest)?;
             }
         }
 
