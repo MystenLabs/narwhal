@@ -83,9 +83,12 @@ where
             self.execute_certificate(&message).await?;
 
             // Cleanup the temporary persistent storage.
+            // TODO [issue #191]: Security cleanup the store. 
+            /* 
             for digest in message.certificate.header.payload.into_keys() {
                 self.store.remove(digest).await;
             }
+            */
         }
         Ok(())
     }
