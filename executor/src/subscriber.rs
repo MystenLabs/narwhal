@@ -145,7 +145,7 @@ impl<PublicKey: VerifyingKey> Subscriber<PublicKey> {
             .await
             .expect("Failed to send message ot batch loader");
 
-        println!("Executor #{consensus_index} (need_to_sync={need_to_sync}");
+        println!("Executor received #{consensus_index} (need_to_sync={need_to_sync}");
 
         // Synchronize missing consensus outputs if we need to.
         if need_to_sync {
@@ -198,11 +198,16 @@ impl<PublicKey: VerifyingKey> Subscriber<PublicKey> {
                 },
 
                 // Receive here consensus messages for which we have downloaded all transactions data.
-                Some(message) = waiting.next() => self
+                Some(message) = waiting.next() => 
+                {
+                    println!("Executor loaded #{}", message.consensus_index);
+
+                    self
                     .tx_executor
                     .send(message?)
                     .await
                     .map_err(|_| SubscriberError::ExecutorConnectionDropped)?
+                }
             }
         }
     }
