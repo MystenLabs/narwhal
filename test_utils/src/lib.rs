@@ -1,19 +1,19 @@
 // Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use super::{Header, Vote};
-use crate::{Batch, BatchDigest, Certificate, Transaction};
 use blake2::digest::Update;
 use bytes::Bytes;
 use config::{Authority, Committee, PrimaryAddresses, WorkerAddresses, WorkerId};
 use crypto::{
     ed25519::{Ed25519KeyPair, Ed25519PublicKey, Ed25519Signature},
-    traits::{KeyPair, Signer, VerifyingKey},
+    traits::{KeyPair, Signer},
     Digest, Hash as _,
 };
 use futures::{sink::SinkExt as _, stream::StreamExt as _};
 use rand::{rngs::StdRng, SeedableRng as _};
 use std::{collections::BTreeMap, net::SocketAddr};
+use types::{Batch, BatchDigest, Certificate, Transaction};
+use types::{Header, Vote};
 
 use tokio::{net::TcpListener, task::JoinHandle};
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
@@ -21,18 +21,6 @@ use tokio_util::codec::{Framed, LengthDelimitedCodec};
 pub const HEADERS_CF: &str = "headers";
 pub const CERTIFICATES_CF: &str = "certificates";
 pub const PAYLOAD_CF: &str = "payload";
-
-impl<PublicKey: VerifyingKey> PartialEq for Header<PublicKey> {
-    fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
-    }
-}
-
-impl<PublicKey: VerifyingKey> PartialEq for Vote<PublicKey> {
-    fn eq(&self, other: &Self) -> bool {
-        self.digest() == other.digest()
-    }
-}
 
 pub fn temp_dir() -> std::path::PathBuf {
     tempfile::tempdir()
@@ -208,10 +196,10 @@ pub fn fixture_header() -> Header<Ed25519PublicKey> {
     fixture_header_builder().build(|payload| kp.sign(payload))
 }
 
-pub fn fixture_header_builder() -> crate::HeaderBuilder<Ed25519PublicKey> {
+pub fn fixture_header_builder() -> types::HeaderBuilder<Ed25519PublicKey> {
     let kp = keys().pop().unwrap();
 
-    let builder = crate::HeaderBuilder::<Ed25519PublicKey>::default();
+    let builder = types::HeaderBuilder::<Ed25519PublicKey>::default();
     builder.author(kp.public().clone()).round(1).parents(
         Certificate::genesis(&committee())
             .iter()
