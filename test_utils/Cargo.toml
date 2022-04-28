@@ -25,3 +25,5 @@ tokio-util = { version = "0.7.1", features = ["codec"] }
 config = { path = "../config" }
 crypto = { path = "../crypto" }
 types = { path = "../types" }
+worker = { path = "../worker"}
+hex = "0.4.3"
