@@ -201,11 +201,11 @@ impl<PublicKey: VerifyingKey> Subscriber<PublicKey> {
                 Some(message) = waiting.next() => 
                 {
                     let m = message?;
-                    println!("Executor loaded #{}", message.consensus_index);
+                    println!("Executor loaded #{}", m.consensus_index);
 
                     self
                     .tx_executor
-                    .send(message)
+                    .send(m)
                     .await
                     .map_err(|_| SubscriberError::ExecutorConnectionDropped)?
                 }
