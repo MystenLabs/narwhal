@@ -54,7 +54,8 @@ pub trait ExecutionState {
     /// The error type to return in case something went wrong during execution.
     type Error: ExecutionStateError;
 
-    /// Execute the transaction and atomically persist the consensus index.
+    /// Execute the transaction and atomically persist the consensus index. This function
+    /// returns a serialized result (Vec<u8>) that will be output by the executor channel.
     async fn handle_consensus_transaction(
         &self,
         execution_indices: ExecutionIndices,
