@@ -1,6 +1,9 @@
+// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 use std::time::Duration;
 
-use crate::block_waiter::{BlockError, GetBlockResponse};
+use crate::block_waiter::{BlockError, BlocksError, GetBlockResponse, GetBlocksResponse};
 use crate::BlockCommand;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot;
@@ -8,7 +11,8 @@ use tokio::time::sleep;
 use tonic::{transport::Server, Request, Response, Status};
 use tracing::error;
 use types::{
-    CertificateDigest, GetCollectionsRequest, GetCollectionsResponse, Validator, ValidatorServer,
+    BatchMessageProto, CertificateDigest, CollectionRetrievalResult, GetCollectionsRequest,
+    GetCollectionsResponse, Validator, ValidatorServer,
 };
 
 #[derive(Debug)]
@@ -30,11 +34,9 @@ impl Validator for Narwhal {
         &self,
         request: Request<GetCollectionsRequest>,
     ) -> Result<Response<GetCollectionsResponse>, Status> {
-        println!("Got a request: {:?}", request);
-
         let collection_ids = request.into_inner().collection_id;
 
-        let message;
+        let get_blocks_response;
 
         if collection_ids.len() == 1 {
             // Get a single block
@@ -42,9 +44,9 @@ impl Validator for Narwhal {
             let rx_get_block: oneshot::Receiver<Result<GetBlockResponse, BlockError>>;
             (tx_get_block, rx_get_block) = oneshot::channel();
 
-            // Convert proto CertificateDigest to rust CertificateDigest
             let collection_id =
                 CertificateDigest::new(collection_ids[0].f_bytes.clone().try_into().unwrap());
+
             self.tx_get_block_commands
                 .send(BlockCommand::GetBlock {
                     id: collection_id,
@@ -58,29 +60,95 @@ impl Validator for Narwhal {
 
             tokio::select! {
                 Ok(result) = rx_get_block => {
-                    message = match result {
-                        Ok(block) => format!("Retreived Block {:?}", block),
-                        Err(err) => format!("Expected to receive a successful get blocks result, instead got error: {:?}", err)
+                    get_blocks_response = match result {
+                        Ok(block) => {
+                            let mut retrieval_results = vec![];
+                            for batch in block.batches {
+                                retrieval_results.push(CollectionRetrievalResult{
+                                    retrieval_result: Some(types::RetrievalResult::Batch(BatchMessageProto::from(batch)))
+                                });
+                            }
+
+                            Ok(GetCollectionsResponse {
+                                result: retrieval_results,
+                            })
+                        },
+                        Err(err) => {
+                            Ok(GetCollectionsResponse {
+                                result: vec![CollectionRetrievalResult{
+                                    retrieval_result: Some(types::RetrievalResult::Error(err.into())),
+                                }]
+                            })
+                        }
                     };
                 },
                 () = &mut timer => {
-                    message = format!("Timeout, no result has been received in time");
+                    get_blocks_response = Err(Status::internal("Timeout, no result has been received in time"));
                 }
             }
         } else if collection_ids.len() >= 1 {
             // Get multiple blocks
-            message = format!(
-                "Attemped multi fetch of {:?}, but service is not implemented!",
-                collection_ids
-            );
+            let tx_get_blocks: oneshot::Sender<Result<GetBlocksResponse, BlocksError>>;
+            let rx_get_blocks: oneshot::Receiver<Result<GetBlocksResponse, BlocksError>>;
+            (tx_get_blocks, rx_get_blocks) = oneshot::channel();
+
+            let ids = collection_ids
+                .iter()
+                .map(|c_id| CertificateDigest::new(c_id.f_bytes.clone().try_into().unwrap()))
+                .collect();
+
+            self.tx_get_block_commands
+                .send(BlockCommand::GetBlocks {
+                    ids,
+                    sender: tx_get_blocks,
+                })
+                .await
+                .unwrap();
+
+            let timer = sleep(Duration::from_millis(5_000));
+            tokio::pin!(timer);
+
+            tokio::select! {
+                Ok(result) = rx_get_blocks => {
+                    get_blocks_response = match result {
+                        Ok(blocks_response) => {
+                            let mut retrieval_results = vec![];
+                            for block_result in blocks_response.blocks {
+                                match block_result {
+                                    Ok(block_response) => {
+                                        for batch in block_response.batches {
+                                            retrieval_results.push(CollectionRetrievalResult{
+                                                retrieval_result: Some(types::RetrievalResult::Batch(BatchMessageProto::from(batch)))
+                                            });
+                                        }
+                                    }
+                                    Err(block_error) => {
+                                        retrieval_results.push(CollectionRetrievalResult{
+                                                retrieval_result: Some(types::RetrievalResult::Error(block_error.into())),
+                                            });
+                                    }
+                                }
+                            }
+                            Ok(GetCollectionsResponse {
+                                result: retrieval_results,
+                            })
+                        },
+                        Err(err) => {
+                            Err(Status::internal(format!("Expected to receive a successful get blocks result, instead got error: {:?}", err)))
+                        }
+                    }
+                },
+                () = &mut timer => {
+                    get_blocks_response = Err(Status::internal("Timeout, no result has been received in time"));
+                }
+            }
         } else {
-            // no collection ids requested.
-            message = format!("Attemped fetch of no collections!");
+            get_blocks_response = Err(Status::invalid_argument(
+                "Attemped fetch of no collections!",
+            ));
         }
 
-        let reply = GetCollectionsResponse { message };
-
-        Ok(Response::new(reply))
+        get_blocks_response.map(|response| Response::new(response))
     }
 }
 

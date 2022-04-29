@@ -5,9 +5,95 @@ syntax = "proto3";
 
 package narwhal;
 
-// Proto wrapper for Narwhal type CertificateDigest([u8; 32])
+// TODO: Make proto the source of truth for all relevant narwhal types.
+
+/* 
+ * Proto wrapper for Narwhal type 
+ *
+ * pub struct CertificateDigest([u8; DIGEST_LEN])
+ *
+ */
 message CertificateDigest {
     bytes f_bytes = 1;
+}
+
+/* 
+ * Proto wrapper for Narwhal type 
+ *
+ * pub struct BatchDigest(pub [u8; crypto::DIGEST_LEN]);
+ *
+ */
+message BatchDigest {
+    bytes f_bytes = 1;
+}
+
+/* 
+ * Proto wrapper for Narwhal type 
+ *
+ * pub struct Batch(pub Vec<Transaction>);
+ *
+ */
+message Batch {
+    repeated Transaction transaction = 1;
+}
+
+/* 
+ * Proto wrapper for Narwhal type 
+ *
+ * pub type Transaction = Vec<u8>;
+ *
+ */
+message Transaction {
+    bytes f_bytes = 1;
+}
+
+/*
+ * Proto wrapper for Narwhal type 
+ *
+ * pub enum BlockErrorType {
+ *   BlockNotFound,
+ *   BatchTimeout,
+ *   BatchError,
+ * }
+ */
+ enum BlockErrorType {
+    BLOCK_NOT_FOUND = 0;
+    BATCH_TIMEOUT = 1;
+    BATCH_ERROR = 2;
+}
+
+/*
+ * Proto wrapper for Narwhal type 
+ *
+ * pub struct BlockError {
+ *     id: CertificateDigest,
+ *     error: BlockErrorType,
+ * }
+ */
+message BlockError {
+    CertificateDigest id = 1;
+    BlockErrorType error = 2;
+}
+
+/*
+ * Proto wrapper for Narwhal type
+ *
+ * pub struct BatchMessage {
+ *   pub id: BatchDigest,
+ *   pub transactions: Batch,
+ * }
+ *
+ */
+ message BatchMessage {
+    BatchDigest id = 1;
+    Batch transactions = 2;
+}
+
+message CollectionRetrievalResult {
+    oneof retrieval_result {
+        BatchMessage batch = 1;
+        BlockError error = 2;
+    }
 }
 
 message GetCollectionsRequest {
@@ -16,8 +102,8 @@ message GetCollectionsRequest {
 }
 
 message GetCollectionsResponse {
-    // Reply contains a placeholder not implemented message.
-    string message = 1;
+    // List of retrieval results of collections.
+    repeated CollectionRetrievalResult result = 1;
 }
 
 // The consensus to mempool interface for validator actions.

@@ -17,9 +17,7 @@ fn bootstrap() {
         .join("src")
         .join("generated");
 
-    // Use `Bytes` instead of `Vec<u8>` for bytes fields
     let config = prost_build::Config::default();
-    // config.bytes(&["."]);
 
     tonic_build::configure()
         .out_dir(format!("{}", out_dir.display()))

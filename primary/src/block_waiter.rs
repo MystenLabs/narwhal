@@ -22,7 +22,10 @@ use tokio::{
     time::timeout,
 };
 use tracing::{error, log::debug};
-use types::{Batch, BatchDigest, Certificate, CertificateDigest, Header};
+use types::{
+    Batch, BatchDigest, BatchMessageProto, BatchProto, BlockErrorProto, BlockErrorTypeProto,
+    Certificate, CertificateDigest, Header, TransactionProto,
+};
 use Result::*;
 
 const BATCH_RETRIEVE_TIMEOUT: Duration = Duration::from_secs(1);
@@ -55,7 +58,7 @@ pub enum BlockCommand {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct GetBlockResponse {
-    id: CertificateDigest,
+    pub id: CertificateDigest,
     #[allow(dead_code)]
     pub batches: Vec<BatchMessage>,
 }
@@ -73,6 +76,24 @@ pub struct BatchMessage {
     pub transactions: Batch,
 }
 
+impl From<BatchMessage> for BatchMessageProto {
+    fn from(message: BatchMessage) -> Self {
+        BatchMessageProto {
+            id: Some(message.id.into()),
+            transactions: Some(BatchProto {
+                transaction: message
+                    .transactions
+                    .0
+                    .iter()
+                    .map(|transaction| TransactionProto {
+                        f_bytes: transaction.to_vec(),
+                    })
+                    .collect::<Vec<TransactionProto>>(),
+            }),
+        }
+    }
+}
+
 #[derive(Clone, Default, Debug)]
 // If worker couldn't send us a batch, this error message
 // should be passed to BlockWaiter.
@@ -86,6 +107,15 @@ pub type BlockResult<T> = Result<T, BlockError>;
 pub struct BlockError {
     id: CertificateDigest,
     error: BlockErrorType,
+}
+
+impl From<BlockError> for BlockErrorProto {
+    fn from(error: BlockError) -> Self {
+        BlockErrorProto {
+            id: Some(error.id.into()),
+            error: BlockErrorTypeProto::from(error.error).into(),
+        }
+    }
 }
 
 impl<T> From<BlockError> for BlockResult<T> {
@@ -105,6 +135,16 @@ pub enum BlockErrorType {
     BlockNotFound,
     BatchTimeout,
     BatchError,
+}
+
+impl From<BlockErrorType> for BlockErrorTypeProto {
+    fn from(error_type: BlockErrorType) -> Self {
+        match error_type {
+            BlockErrorType::BlockNotFound => BlockErrorTypeProto::BlockNotFound,
+            BlockErrorType::BatchTimeout => BlockErrorTypeProto::BatchTimeout,
+            BlockErrorType::BatchError => BlockErrorTypeProto::BatchError,
+        }
+    }
 }
 
 impl fmt::Display for BlockErrorType {

@@ -1,10 +1,90 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-/// Proto wrapper for Narwhal type CertificateDigest([u8; 32])
+// TODO: Make proto the source of truth for all relevant narwhal types.
+
+/// 
+/// Proto wrapper for Narwhal type 
+///
+/// pub struct CertificateDigest([u8; DIGEST_LEN])
+///
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CertificateDigest {
     #[prost(bytes="vec", tag="1")]
     pub f_bytes: ::prost::alloc::vec::Vec<u8>,
+}
+/// 
+/// Proto wrapper for Narwhal type 
+///
+/// pub struct BatchDigest(pub [u8; crypto::DIGEST_LEN]);
+///
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BatchDigest {
+    #[prost(bytes="vec", tag="1")]
+    pub f_bytes: ::prost::alloc::vec::Vec<u8>,
+}
+/// 
+/// Proto wrapper for Narwhal type 
+///
+/// pub struct Batch(pub Vec<Transaction>);
+///
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Batch {
+    #[prost(message, repeated, tag="1")]
+    pub transaction: ::prost::alloc::vec::Vec<Transaction>,
+}
+/// 
+/// Proto wrapper for Narwhal type 
+///
+/// pub type Transaction = Vec<u8>;
+///
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Transaction {
+    #[prost(bytes="vec", tag="1")]
+    pub f_bytes: ::prost::alloc::vec::Vec<u8>,
+}
+///
+/// Proto wrapper for Narwhal type 
+///
+/// pub struct BlockError {
+///     id: CertificateDigest,
+///     error: BlockErrorType,
+/// }
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BlockError {
+    #[prost(message, optional, tag="1")]
+    pub id: ::core::option::Option<CertificateDigest>,
+    #[prost(enumeration="BlockErrorType", tag="2")]
+    pub error: i32,
+}
+///
+/// Proto wrapper for Narwhal type
+///
+/// pub struct BatchMessage {
+///   pub id: BatchDigest,
+///   pub transactions: Batch,
+/// }
+///
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BatchMessage {
+    #[prost(message, optional, tag="1")]
+    pub id: ::core::option::Option<BatchDigest>,
+    #[prost(message, optional, tag="2")]
+    pub transactions: ::core::option::Option<Batch>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CollectionRetrievalResult {
+    #[prost(oneof="collection_retrieval_result::RetrievalResult", tags="1, 2")]
+    pub retrieval_result: ::core::option::Option<collection_retrieval_result::RetrievalResult>,
+}
+/// Nested message and enum types in `CollectionRetrievalResult`.
+pub mod collection_retrieval_result {
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum RetrievalResult {
+        #[prost(message, tag="1")]
+        Batch(super::BatchMessage),
+        #[prost(message, tag="2")]
+        Error(super::BlockError),
+    }
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetCollectionsRequest {
@@ -14,9 +94,24 @@ pub struct GetCollectionsRequest {
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetCollectionsResponse {
-    /// Reply contains a placeholder not implemented message.
-    #[prost(string, tag="1")]
-    pub message: ::prost::alloc::string::String,
+    /// List of retrieval results of collections.
+    #[prost(message, repeated, tag="1")]
+    pub result: ::prost::alloc::vec::Vec<CollectionRetrievalResult>,
+}
+///
+/// Proto wrapper for Narwhal type 
+///
+/// pub enum BlockErrorType {
+///   BlockNotFound,
+///   BatchTimeout,
+///   BatchError,
+/// }
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum BlockErrorType {
+    BlockNotFound = 0,
+    BatchTimeout = 1,
+    BatchError = 2,
 }
 /// Generated client implementations.
 pub mod validator_client {

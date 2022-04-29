@@ -52,6 +52,14 @@ impl From<BatchDigest> for Digest {
     }
 }
 
+impl From<BatchDigest> for BatchDigestProto {
+    fn from(digest: BatchDigest) -> Self {
+        BatchDigestProto {
+            f_bytes: digest.0.to_vec(),
+        }
+    }
+}
+
 impl BatchDigest {
     pub fn new(val: [u8; DIGEST_LEN]) -> BatchDigest {
         BatchDigest(val)
