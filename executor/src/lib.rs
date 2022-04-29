@@ -59,7 +59,7 @@ pub trait ExecutionState {
         &self,
         execution_indices: ExecutionIndices,
         transaction: Self::Transaction,
-    ) -> Result<(), Self::Error>;
+    ) -> Result<Vec<u8>, Self::Error>;
 
     /// Simple guardrail ensuring there is a single instance using the state
     /// to call `handle_consensus_transaction`. Many instances may read the state,
@@ -86,7 +86,7 @@ impl Executor {
         execution_state: Arc<State>,
         rx_consensus: Receiver<ConsensusOutput<PublicKey>>,
         tx_consensus: Sender<ConsensusSyncRequest>,
-        tx_output: Sender<(SubscriberResult<()>, SerializedTransaction)>,
+        tx_output: Sender<(SubscriberResult<Vec<u8>>, SerializedTransaction)>,
     ) -> SubscriberResult<(
         JoinHandle<SubscriberResult<()>>,
         JoinHandle<SubscriberResult<()>>,
