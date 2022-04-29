@@ -2,8 +2,8 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use super::*;
-use crate::common::transaction;
 use crypto::ed25519::Ed25519PublicKey;
+use test_utils::transaction;
 use tokio::sync::mpsc::channel;
 
 #[tokio::test]
@@ -15,18 +15,20 @@ async fn make_batch() {
     // Spawn a `BatchMaker` instance.
     BatchMaker::spawn(
         /* max_batch_size */ 200,
-        /* max_batch_delay */ 1_000_000, // Ensure the timer is not triggered.
+        /* max_batch_delay */
+        Duration::from_millis(1_000_000), // Ensure the timer is not triggered.
         rx_transaction,
         tx_message,
         /* workers_addresses */ dummy_addresses,
     );
 
     // Send enough transactions to seal a batch.
-    tx_transaction.send(transaction()).await.unwrap();
-    tx_transaction.send(transaction()).await.unwrap();
+    let tx = transaction();
+    tx_transaction.send(tx.clone()).await.unwrap();
+    tx_transaction.send(tx.clone()).await.unwrap();
 
     // Ensure the batch is as expected.
-    let expected_batch = Batch(vec![transaction(), transaction()]);
+    let expected_batch = Batch(vec![tx.clone(), tx.clone()]);
     let QuorumWaiterMessage { batch, handlers: _ } = rx_message.recv().await.unwrap();
     match bincode::deserialize(&batch).unwrap() {
         WorkerMessage::<Ed25519PublicKey>::Batch(batch) => assert_eq!(batch, expected_batch),
@@ -43,17 +45,19 @@ async fn batch_timeout() {
     // Spawn a `BatchMaker` instance.
     BatchMaker::spawn(
         /* max_batch_size */ 200,
-        /* max_batch_delay */ 50, // Ensure the timer is triggered.
+        /* max_batch_delay */
+        Duration::from_millis(50), // Ensure the timer is triggered.
         rx_transaction,
         tx_message,
         /* workers_addresses */ dummy_addresses,
     );
 
     // Do not send enough transactions to seal a batch..
-    tx_transaction.send(transaction()).await.unwrap();
+    let tx = transaction();
+    tx_transaction.send(tx.clone()).await.unwrap();
 
     // Ensure the batch is as expected.
-    let expected_batch = Batch(vec![transaction()]);
+    let expected_batch = Batch(vec![tx]);
     let QuorumWaiterMessage { batch, handlers: _ } = rx_message.recv().await.unwrap();
     match bincode::deserialize(&batch).unwrap() {
         WorkerMessage::<Ed25519PublicKey>::Batch(batch) => assert_eq!(batch, expected_batch),

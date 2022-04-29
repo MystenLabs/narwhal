@@ -8,11 +8,11 @@ use primary::CHANNEL_CAPACITY;
 use primary::{PayloadToken, Primary};
 use std::time::Duration;
 use store::{rocks, Store};
-use tokio::sync::mpsc::channel;
-use types::test_utils::{
+use test_utils::{
     certificate, committee_with_base_port, fixture_batch_with_transactions, fixture_header_builder,
     keys, temp_dir,
 };
+use tokio::sync::mpsc::channel;
 use types::{
     BatchDigest, Certificate, CertificateDigest, CertificateDigestProto, CollectionRetrievalResult,
     GetCollectionsRequest, Header, HeaderDigest, ValidatorClient,
