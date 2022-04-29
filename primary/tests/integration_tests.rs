@@ -4,7 +4,7 @@ use config::{Parameters, WorkerId};
 use crypto::traits::Signer;
 use crypto::Hash;
 use crypto::{ed25519::Ed25519PublicKey, traits::KeyPair};
-use primary::primary::CHANNEL_CAPACITY;
+use primary::CHANNEL_CAPACITY;
 use primary::{PayloadToken, Primary};
 use std::time::Duration;
 use store::{rocks, Store};
@@ -67,14 +67,14 @@ async fn test_get_collections() {
     let batch_store = Store::new(batch_map);
 
     let worker_id = 0;
-    // headers or collections
+    // Headers/Collections
     let mut header_ids = Vec::new();
-    // certficates
+    // Blocks/Certficates
     let mut block_ids = Vec::new();
     let key = keys().pop().unwrap();
     let mut missing_batch = CertificateDigest::new([0; 32]);
 
-    // generate headers
+    // Generate headers
     for n in 0..5 {
         let batch = fixture_batch_with_transactions(10);
 
@@ -85,17 +85,17 @@ async fn test_get_collections() {
         let certificate = certificate(&header);
         let block_id = certificate.digest();
 
-        // write the certificate
+        // Write the certificate
         certificate_store
             .write(certificate.digest(), certificate.clone())
             .await;
 
-        // write the header
+        // Write the header
         header_store.write(header.clone().id, header.clone()).await;
 
         header_ids.push(header.clone().id);
 
-        // write the batches to payload store
+        // Write the batches to payload store
         payload_store
             .write_all(vec![((batch.clone().digest(), worker_id), 0)])
             .await
@@ -140,7 +140,7 @@ async fn test_get_collections() {
         batch_store,
     );
 
-    // Test grpc server with client call
+    // Test gRPC server with client call
     let mut client = ValidatorClient::connect("http://127.0.0.1:50052")
         .await
         .unwrap();
@@ -154,12 +154,9 @@ async fn test_get_collections() {
 
     let status = client.get_collections(request).await.unwrap_err();
 
-    assert_eq!(
-        true,
-        status
-            .message()
-            .contains("Attemped fetch of no collections!")
-    );
+    assert!(status
+        .message()
+        .contains("Attemped fetch of no collections!"));
 
     // Test get 1 collection
     let request = tonic::Request::new(GetCollectionsRequest {
@@ -172,10 +169,10 @@ async fn test_get_collections() {
 
     assert_eq!(1, actual_result.len());
 
-    assert!(match actual_result[0].retrieval_result {
-        Some(types::RetrievalResult::Batch(_)) => true,
-        _ => false,
-    });
+    matches!(
+        actual_result[0].retrieval_result,
+        Some(types::RetrievalResult::Batch(_))
+    );
 
     // Test get 5 collections
     let request = tonic::Request::new(GetCollectionsRequest {
@@ -189,32 +186,26 @@ async fn test_get_collections() {
     assert_eq!(5, actual_result.len());
 
     // One batch was intentionally left missing from the worker batch store.
-    // Assert 4 Batches were returned
+    // Assert 4 Batches are returned
     assert_eq!(
         4,
         actual_result
             .iter()
-            .filter(|&r| match r.retrieval_result {
-                Some(types::RetrievalResult::Batch(_)) => true,
-                _ => false,
-            })
+            .filter(|&r| matches!(r.retrieval_result, Some(types::RetrievalResult::Batch(_))))
             .count()
     );
 
-    // and 1 Error was returned
+    // And 1 Error is returned
     let errors: Vec<&CollectionRetrievalResult> = actual_result
         .iter()
-        .filter(|&r| match r.retrieval_result {
-            Some(types::RetrievalResult::Error(_)) => true,
-            _ => false,
-        })
+        .filter(|&r| matches!(r.retrieval_result, Some(types::RetrievalResult::Error(_))))
         .collect::<Vec<_>>();
     assert_eq!(1, errors.len());
 
-    // and check missing batch id is correct
+    // And check missing batch id is correct
     let actual_missing_batch = match errors[0].retrieval_result.as_ref().unwrap() {
         types::RetrievalResult::Error(e) => e.id.as_ref(),
-        _ => panic!("Should only have an error here."),
+        _ => panic!("Should never hit this branch."),
     };
     assert_eq!(
         &CertificateDigestProto::from(missing_batch),

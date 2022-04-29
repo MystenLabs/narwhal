@@ -86,7 +86,7 @@ impl Validator for Narwhal {
                     get_blocks_response = Err(Status::internal("Timeout, no result has been received in time"));
                 }
             }
-        } else if collection_ids.len() >= 1 {
+        } else if !collection_ids.is_empty() {
             // Get multiple blocks
             let tx_get_blocks: oneshot::Sender<Result<GetBlocksResponse, BlocksError>>;
             let rx_get_blocks: oneshot::Receiver<Result<GetBlocksResponse, BlocksError>>;
@@ -148,7 +148,7 @@ impl Validator for Narwhal {
             ));
         }
 
-        get_blocks_response.map(|response| Response::new(response))
+        get_blocks_response.map(Response::new)
     }
 }
 

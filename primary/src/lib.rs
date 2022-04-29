@@ -21,7 +21,7 @@ mod grpc_server;
 mod header_waiter;
 mod helper;
 mod payload_receiver;
-pub mod primary;
+mod primary;
 mod proposer;
 mod synchronizer;
 mod utils;
@@ -35,5 +35,6 @@ pub use crate::{
     block_waiter::{BatchMessage, BlockCommand, BlockWaiter},
     primary::{
         PayloadToken, Primary, PrimaryWorkerMessage, WorkerPrimaryError, WorkerPrimaryMessage,
+        CHANNEL_CAPACITY,
     },
 };
