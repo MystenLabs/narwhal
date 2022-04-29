@@ -2,7 +2,6 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use super::*;
-use futures::sink::SinkExt as _;
 use tokio::{
     sync::mpsc::{channel, Sender},
     time::{sleep, Duration},

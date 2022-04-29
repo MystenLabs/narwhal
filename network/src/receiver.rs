@@ -5,8 +5,11 @@ use crate::error::NetworkError;
 use async_trait::async_trait;
 use bytes::Bytes;
 use futures::stream::{SplitSink, StreamExt as _};
+use futures::SinkExt;
+use std::borrow::BorrowMut;
 use std::{error::Error, net::SocketAddr};
 use tokio::net::{TcpListener, TcpStream};
+use tokio::sync::mpsc::{channel, Receiver as mspcReceiver, Sender};
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
 use tracing::{debug, info, warn};
 
@@ -15,7 +18,10 @@ use tracing::{debug, info, warn};
 pub mod receiver_tests;
 
 /// Convenient alias for the writer end of the TCP channel.
-pub type Writer = SplitSink<Framed<TcpStream, LengthDelimitedCodec>, Bytes>;
+pub type TcpWriter = SplitSink<Framed<TcpStream, LengthDelimitedCodec>, Bytes>;
+
+/// Convenient alias for the output of the dispatch function.
+pub type Writer = Sender<Bytes>;
 
 #[async_trait]
 pub trait MessageHandler: Clone + Send + Sync + 'static {
@@ -69,11 +75,18 @@ impl<Handler: MessageHandler> Receiver<Handler> {
     async fn spawn_runner(socket: TcpStream, peer: SocketAddr, handler: Handler) {
         tokio::spawn(async move {
             let transport = Framed::new(socket, LengthDelimitedCodec::new());
-            let (mut writer, mut reader) = transport.split();
+            let (writer, mut reader) = transport.split();
+
+            let (tx_response, tr_response): (Writer, mspcReceiver<Bytes>) = channel(100);
+            Self::spawn_response_writer(tr_response, writer).await;
+
             while let Some(frame) = reader.next().await {
                 match frame.map_err(|e| NetworkError::FailedToReceiveMessage(peer, e)) {
                     Ok(message) => {
-                        if let Err(e) = handler.dispatch(&mut writer, message.freeze()).await {
+                        if let Err(e) = handler
+                            .dispatch(tx_response.clone().borrow_mut(), message.freeze())
+                            .await
+                        {
                             warn!("{e}");
                             return;
                         }
@@ -85,6 +98,25 @@ impl<Handler: MessageHandler> Receiver<Handler> {
                 }
             }
             warn!("Connection closed by peer {peer}");
+        });
+    }
+
+    /// Spawns a new task that will listen for any responses from the accounting layer and
+    /// forward them to the tcp writer.
+    async fn spawn_response_writer(
+        mut tr_response: mspcReceiver<Bytes>,
+        mut tcp_writer: TcpWriter,
+    ) {
+        tokio::spawn(async move {
+            loop {
+                tokio::select! {
+                   Some(response) = tr_response.recv() => {
+                        if let Err(e) = tcp_writer.send(response).await {
+                            warn!("{e}");
+                        }
+                    }
+                }
+            }
         });
     }
 }
