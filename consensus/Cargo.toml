@@ -28,6 +28,7 @@ criterion = "0.3.5"
 ed25519-dalek = { version = "1.0.1", features = ["batch", "serde"] }
 pprof = { version = "0.8.0", features = ["criterion", "flamegraph"] }
 test_utils = { path = "../test_utils"}
+tempfile = "3.3.0"
 
 [features]
 default = ["rand"]
