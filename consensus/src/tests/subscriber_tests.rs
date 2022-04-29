@@ -40,10 +40,10 @@ pub async fn spawn_node(
     let committee = mock_committee(&keys[..]);
 
     // Create the storages.
-    let consensus_store_path = tempfile::tempdir().unwrap();
-    let consensus_store = make_consensus_store(consensus_store_path.path());
-    let certificate_store_path = tempfile::tempdir().unwrap();
-    let certificate_store = make_certificate_store(certificate_store_path.path());
+    let consensus_store_path = test_utils::temp_dir();
+    let consensus_store = make_consensus_store(&consensus_store_path);
+    let certificate_store_path = test_utils::temp_dir();
+    let certificate_store = make_certificate_store(&certificate_store_path);
 
     // Persist the certificates to storage (they may be require by the synchronizer).
     let to_store = certificates.into_iter().map(|x| (x.digest(), x));

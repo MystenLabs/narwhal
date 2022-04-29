@@ -13,7 +13,7 @@ use tokio::{
 use tracing::{debug, error};
 use types::{Certificate, CertificateDigest};
 
-#[cfg(any(test, feature = "benchmark"))]
+#[cfg(test)]
 #[path = "tests/subscriber_tests.rs"]
 pub mod subscriber_tests;
 
