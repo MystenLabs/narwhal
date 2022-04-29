@@ -1,13 +1,13 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
+use super::*;
 use crate::{
     tusk::consensus_tests::*, Consensus, ConsensusOutput, ConsensusSyncRequest, SubscriberHandler,
 };
 use crypto::{ed25519::Ed25519PublicKey, traits::KeyPair, Hash};
 use std::collections::{BTreeSet, VecDeque};
-use tokio::sync::mpsc::{channel, Receiver, Sender};
-use super::*;
 use test_utils::keys;
+use tokio::sync::mpsc::{channel, Receiver, Sender};
 
 /// Make enough certificates to commit a leader.
 pub fn commit_certificates() -> VecDeque<Certificate<Ed25519PublicKey>> {
@@ -127,7 +127,7 @@ async fn subscribe() {
         tx_consensus_input.send(certificate).await.unwrap();
     }
 
-    // Ensure the first 4 ordered certificates have the expected consensus index. Note that we 
+    // Ensure the first 4 ordered certificates have the expected consensus index. Note that we
     // need to feed 5 certificates to consensus to trigger a commit.
     for i in 0..=4 {
         let output = rx_consensus_to_client.recv().await.unwrap();
