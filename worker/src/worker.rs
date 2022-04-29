@@ -9,7 +9,6 @@ use async_trait::async_trait;
 use bytes::Bytes;
 use config::{Committee, Parameters, WorkerId};
 use crypto::traits::VerifyingKey;
-use futures::sink::SinkExt as _;
 use network::{MessageHandler, Receiver, Writer};
 use primary::{Batch, BatchDigest, PrimaryWorkerMessage, Transaction};
 use serde::{Deserialize, Serialize};

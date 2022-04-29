@@ -23,7 +23,6 @@ use crypto::{
     traits::{EncodeDecodeBase64, Signer, VerifyingKey},
     SignatureService,
 };
-use futures::sink::SinkExt as _;
 use network::{MessageHandler, Receiver as NetworkReceiver, SimpleSender, Writer};
 use serde::{Deserialize, Serialize};
 use std::{
