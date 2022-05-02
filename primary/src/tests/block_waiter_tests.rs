@@ -1,4 +1,4 @@
-use crate::{BatchMessage, BlockCommand, BlockWaiter};
+use crate::{BlockCommand, BlockWaiter};
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use crate::{
@@ -28,7 +28,7 @@ use tokio::{
     time::{sleep, timeout, Duration},
 };
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
-use types::{Batch, BatchDigest, Certificate, CertificateDigest};
+use types::{Batch, BatchDigest, BatchMessage, Certificate, CertificateDigest};
 
 #[tokio::test]
 async fn test_successfully_retrieve_block() {

@@ -12,7 +12,7 @@ use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet, HashSet},
-    fmt,
+    fmt::{self, Formatter},
 };
 // Error types
 #[macro_use]
@@ -471,5 +471,44 @@ impl<PublicKey: VerifyingKey> PartialEq for Certificate<PublicKey> {
         ret &= self.round() == other.round();
         ret &= self.origin() == other.origin();
         ret
+    }
+}
+
+#[derive(Clone, Default, Debug, PartialEq)]
+pub struct BatchMessage {
+    pub id: BatchDigest,
+    pub transactions: Batch,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum BlockErrorType {
+    BlockNotFound,
+    BatchTimeout,
+    BatchError,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct BlockError {
+    pub id: CertificateDigest,
+    pub error: BlockErrorType,
+}
+
+pub type BlockResult<T> = Result<T, BlockError>;
+
+impl<T> From<BlockError> for BlockResult<T> {
+    fn from(error: BlockError) -> Self {
+        BlockResult::Err(error)
+    }
+}
+
+impl fmt::Display for BlockError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "block id: {}, error type: {}", self.id, self.error)
+    }
+}
+
+impl fmt::Display for BlockErrorType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self)
     }
 }

@@ -105,6 +105,26 @@ pub struct Parameters {
     pub max_batch_delay: Duration,
     /// The parameters for the block synchronizer
     pub block_synchronizer: BlockSynchronizerParameters,
+    /// The parameters for gRPC server
+    pub grpc_server: GrpcServerParameters,
+}
+
+#[derive(Deserialize, Clone)]
+pub struct GrpcServerParameters {
+    /// Socket address the server should be listening to.
+    pub socket_addr: String,
+    /// The timeout configuration when requesting batches from workers.
+    #[serde(with = "duration_format")]
+    pub get_collections_timeout: Duration,
+}
+
+impl Default for GrpcServerParameters {
+    fn default() -> Self {
+        Self {
+            socket_addr: "127.0.0.1:50052".to_string(),
+            get_collections_timeout: Duration::from_millis(5_000),
+        }
+    }
 }
 
 #[derive(Deserialize, Clone)]
@@ -143,6 +163,7 @@ impl Default for Parameters {
             batch_size: 500_000,
             max_batch_delay: Duration::from_millis(100),
             block_synchronizer: BlockSynchronizerParameters::default(),
+            grpc_server: GrpcServerParameters::default(),
         }
     }
 }

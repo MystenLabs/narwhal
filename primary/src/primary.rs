@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use crate::{
     block_remover::DeleteBatchResult,
-    block_waiter::{BatchMessage, BatchMessageError, BatchResult, BlockWaiter},
+    block_waiter::{BatchMessageError, BatchResult, BlockWaiter},
     certificate_waiter::CertificateWaiter,
     core::Core,
     garbage_collector::GarbageCollector,
@@ -36,8 +36,8 @@ use thiserror::Error;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tracing::info;
 use types::{
-    error::DagError, Batch, BatchDigest, Certificate, CertificateDigest, Header, HeaderDigest,
-    Round, Vote,
+    error::DagError, Batch, BatchDigest, BatchMessage, Certificate, CertificateDigest, Header,
+    HeaderDigest, Round, Vote,
 };
 
 /// The default channel capacity for each channel of the primary.
@@ -321,7 +321,11 @@ impl Primary {
         Helper::spawn(committee.clone(), certificate_store, rx_cert_requests);
 
         // Spawn a grpc server to accept requests from consensus layer.
-        GrpcServer::spawn(tx_get_block_commands);
+        GrpcServer::spawn(
+            parameters.grpc_server.socket_addr,
+            tx_get_block_commands,
+            parameters.grpc_server.get_collections_timeout,
+        );
 
         // NOTE: This log entry is used to compute performance.
         info!(

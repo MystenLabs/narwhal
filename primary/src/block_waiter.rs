@@ -23,8 +23,8 @@ use tokio::{
 };
 use tracing::{error, log::debug};
 use types::{
-    Batch, BatchDigest, BatchMessageProto, BatchProto, BlockErrorProto, BlockErrorTypeProto,
-    Certificate, CertificateDigest, Header, TransactionProto,
+    BatchDigest, BatchMessage, BlockError, BlockErrorType, BlockResult, Certificate,
+    CertificateDigest, Header,
 };
 use Result::*;
 
@@ -70,87 +70,11 @@ pub struct GetBlocksResponse {
 
 pub type BatchResult = Result<BatchMessage, BatchMessageError>;
 
-#[derive(Clone, Default, Debug, PartialEq)]
-pub struct BatchMessage {
-    pub id: BatchDigest,
-    pub transactions: Batch,
-}
-
-impl From<BatchMessage> for BatchMessageProto {
-    fn from(message: BatchMessage) -> Self {
-        BatchMessageProto {
-            id: Some(message.id.into()),
-            transactions: Some(BatchProto {
-                transaction: message
-                    .transactions
-                    .0
-                    .iter()
-                    .map(|transaction| TransactionProto {
-                        f_bytes: transaction.to_vec(),
-                    })
-                    .collect::<Vec<TransactionProto>>(),
-            }),
-        }
-    }
-}
-
 #[derive(Clone, Default, Debug)]
 // If worker couldn't send us a batch, this error message
 // should be passed to BlockWaiter.
 pub struct BatchMessageError {
     pub id: BatchDigest,
-}
-
-pub type BlockResult<T> = Result<T, BlockError>;
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct BlockError {
-    id: CertificateDigest,
-    error: BlockErrorType,
-}
-
-impl From<BlockError> for BlockErrorProto {
-    fn from(error: BlockError) -> Self {
-        BlockErrorProto {
-            id: Some(error.id.into()),
-            error: BlockErrorTypeProto::from(error.error).into(),
-        }
-    }
-}
-
-impl<T> From<BlockError> for BlockResult<T> {
-    fn from(error: BlockError) -> Self {
-        BlockResult::Err(error)
-    }
-}
-
-impl fmt::Display for BlockError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "block id: {}, error type: {}", self.id, self.error)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum BlockErrorType {
-    BlockNotFound,
-    BatchTimeout,
-    BatchError,
-}
-
-impl From<BlockErrorType> for BlockErrorTypeProto {
-    fn from(error_type: BlockErrorType) -> Self {
-        match error_type {
-            BlockErrorType::BlockNotFound => BlockErrorTypeProto::BlockNotFound,
-            BlockErrorType::BatchTimeout => BlockErrorTypeProto::BatchTimeout,
-            BlockErrorType::BatchError => BlockErrorTypeProto::BatchError,
-        }
-    }
-}
-
-impl fmt::Display for BlockErrorType {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self)
-    }
 }
 
 type BlocksResult = Result<GetBlocksResponse, BlocksError>;

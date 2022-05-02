@@ -32,7 +32,7 @@ mod common;
 
 pub use crate::{
     block_remover::{BlockRemover, BlockRemoverCommand, DeleteBatchMessage},
-    block_waiter::{BatchMessage, BlockCommand, BlockWaiter},
+    block_waiter::{BlockCommand, BlockWaiter},
     primary::{
         PayloadToken, Primary, PrimaryWorkerMessage, WorkerPrimaryError, WorkerPrimaryMessage,
         CHANNEL_CAPACITY,

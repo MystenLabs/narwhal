@@ -56,10 +56,10 @@ message Transaction {
  *   BatchError,
  * }
  */
- enum BlockErrorType {
-    BLOCK_NOT_FOUND = 0;
-    BATCH_TIMEOUT = 1;
-    BATCH_ERROR = 2;
+ enum CollectionErrorType {
+    COLLECTION_NOT_FOUND = 0;
+    COLLECTION_TIMEOUT = 1;
+    COLLECTION_ERROR = 2;
 }
 
 /*
@@ -70,9 +70,9 @@ message Transaction {
  *     error: BlockErrorType,
  * }
  */
-message BlockError {
+message CollectionError {
     CertificateDigest id = 1;
-    BlockErrorType error = 2;
+    CollectionErrorType error = 2;
 }
 
 /*
@@ -92,13 +92,13 @@ message BlockError {
 message CollectionRetrievalResult {
     oneof retrieval_result {
         BatchMessage batch = 1;
-        BlockError error = 2;
+        CollectionError error = 2;
     }
 }
 
 message GetCollectionsRequest {
     // List of collections to be retreived.
-    repeated CertificateDigest collection_id = 1;
+    repeated CertificateDigest collection_ids = 1;
 }
 
 message GetCollectionsResponse {

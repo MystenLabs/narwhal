@@ -50,10 +50,10 @@ pub struct Transaction {
 ///     error: BlockErrorType,
 /// }
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct BlockError {
+pub struct CollectionError {
     #[prost(message, optional, tag="1")]
     pub id: ::core::option::Option<CertificateDigest>,
-    #[prost(enumeration="BlockErrorType", tag="2")]
+    #[prost(enumeration="CollectionErrorType", tag="2")]
     pub error: i32,
 }
 ///
@@ -83,14 +83,14 @@ pub mod collection_retrieval_result {
         #[prost(message, tag="1")]
         Batch(super::BatchMessage),
         #[prost(message, tag="2")]
-        Error(super::BlockError),
+        Error(super::CollectionError),
     }
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetCollectionsRequest {
     /// List of collections to be retreived.
     #[prost(message, repeated, tag="1")]
-    pub collection_id: ::prost::alloc::vec::Vec<CertificateDigest>,
+    pub collection_ids: ::prost::alloc::vec::Vec<CertificateDigest>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetCollectionsResponse {
@@ -108,10 +108,10 @@ pub struct GetCollectionsResponse {
 /// }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
-pub enum BlockErrorType {
-    BlockNotFound = 0,
-    BatchTimeout = 1,
-    BatchError = 2,
+pub enum CollectionErrorType {
+    CollectionNotFound = 0,
+    CollectionTimeout = 1,
+    CollectionError = 2,
 }
 /// Generated client implementations.
 pub mod validator_client {

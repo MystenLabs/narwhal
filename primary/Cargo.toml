@@ -36,6 +36,7 @@ types = { path = "../types" }
 tempfile = "3.3.0"
 worker = { path = "../worker" }
 test_utils = { path = "../test_utils"}
+node = { path = "../node" }
 
 
 [features]
