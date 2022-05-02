@@ -93,6 +93,10 @@ impl Node {
         // The configuration parameters.
         parameters: Parameters,
         // Whether to run consensus (and an executor client) or not.
+        // If true, an internal consensus will be used or else an external consensus will be used.
+        // If an external consensus will be used, then this bool will also ensure that the
+        // corresponding gRPC server that is used for communication between narwhal and
+        // external consensus is also spawned.
         consensus: bool,
         // The state used by the client to execute transactions.
         execution_state: Arc<State>,
@@ -121,6 +125,7 @@ impl Node {
             store.payload_store.clone(),
             /* tx_consensus */ tx_new_certificates,
             /* rx_consensus */ rx_feedback,
+            consensus,
         );
 
         // Check whether to run consensus.

@@ -204,6 +204,11 @@ impl Parameters {
                 .payload_synchronize_timeout
                 .as_millis()
         );
+        info!("gRPC Server listening on {}", self.grpc_server.socket_addr);
+        info!(
+            "Get collections timeout set to {} ms",
+            self.grpc_server.get_collections_timeout.as_millis()
+        );
     }
 }
 
@@ -371,6 +376,10 @@ mod tests {
                  "certificates_synchronize_timeout": "2s",
                  "payload_synchronize_timeout": "3_000ms",
                  "payload_availability_timeout": "4_000ms"
+             },
+             "grpc_server": {
+                 "socket_addr": "127.0.0.1:50052",
+                 "get_collections_timeout": "5_000ms"
              }
           }"#;
 
@@ -409,6 +418,11 @@ mod tests {
                 .as_millis(),
             4_000
         );
+        assert_eq!(params.grpc_server.socket_addr, "127.0.0.1:50052");
+        assert_eq!(
+            params.grpc_server.get_collections_timeout.as_millis(),
+            5_000
+        );
     }
 
     #[test]
@@ -437,5 +451,7 @@ mod tests {
         assert!(logs_contain(
             "Synchronize payload (batches) timeout set to 2000 ms"
         ));
+        assert!(logs_contain("gRPC Server listening on 127.0.0.1:50052"));
+        assert!(logs_contain("Get collections timeout set to 5000 ms"));
     }
 }

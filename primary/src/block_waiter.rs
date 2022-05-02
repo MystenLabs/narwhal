@@ -123,8 +123,8 @@ type RequestKey = Vec<u8>;
 /// # use std::collections::BTreeMap;
 /// # use types::Certificate;
 /// # use tempfile::tempdir;
-/// # use primary::{BatchMessage, BlockWaiter, BlockCommand};
-/// # use types::{BatchDigest, CertificateDigest, Batch};
+/// # use primary::{BlockWaiter, BlockCommand};
+/// # use types::{BatchMessage, BatchDigest, CertificateDigest, Batch};
 ///
 /// #[tokio::main(flavor = "current_thread")]
 /// # async fn main() {

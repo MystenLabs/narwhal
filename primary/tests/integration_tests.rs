@@ -102,6 +102,7 @@ async fn test_get_collections() {
         store.payload_store,
         /* tx_consensus */ tx_new_certificates,
         /* rx_consensus */ rx_feedback,
+        /* external_consensus */ true,
     );
 
     // Wait for primary to start all components (including grpc server)
