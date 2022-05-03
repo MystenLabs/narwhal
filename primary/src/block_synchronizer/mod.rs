@@ -339,7 +339,11 @@ impl<PublicKey: VerifyingKey> BlockSynchronizer<PublicKey> {
         let mut certificates_to_sync = Vec::new();
         let mut block_ids_to_sync = Vec::new();
 
-        for certificate in certificates.clone() {
+        let missing_certificates = self
+            .reply_with_payload_already_in_storage(certificates.clone(), respond_to.clone())
+            .await;
+
+        for certificate in missing_certificates {
             let block_id = certificate.digest();
 
             if self.resolve_pending_request(Payload(block_id), respond_to.clone()) {
@@ -389,9 +393,12 @@ impl<PublicKey: VerifyingKey> BlockSynchronizer<PublicKey> {
     /// it already has a pending request and for the rest is broadcasting a
     /// message to the other peer nodes to fetch the request certificates, if
     /// available. We expect each peer node to respond with the actual
-    /// certificates that has available. The method returns a future that is
-    /// running the process of waiting to gather the node responses and
-    /// emit the result as the next State to be executed.
+    /// certificates that has available. Also, the method is querying in the
+    /// internal storage whether there are any certificates already stored and
+    /// available. For the ones found in storage the replies are send directly
+    /// back to the consumer. The method returns a future that is running the
+    /// process of waiting to gather the node responses and emits the result as
+    /// the next State to be executed.
     async fn handle_synchronize_block_headers_command<'a>(
         &mut self,
         block_ids: Vec<CertificateDigest>,
@@ -495,6 +502,51 @@ impl<PublicKey: VerifyingKey> BlockSynchronizer<PublicKey> {
                 HashSet::from_iter(block_ids.iter().cloned())
             }
         }
+    }
+
+    /// For each provided certificate, via the certificates vector, it queries
+    /// the internal storage to identify whether all the payload batches are
+    /// available. For the certificates that their full payload is found, then
+    /// a reply is immediately sent to the consumer via the provided respond_to
+    /// channel. For the ones that haven't been found, are returned back on the
+    /// returned vector.
+    async fn reply_with_payload_already_in_storage(
+        &self,
+        certificates: Vec<Certificate<PublicKey>>,
+        respond_to: Sender<BlockSynchronizeResult<BlockHeader<PublicKey>>>,
+    ) -> Vec<Certificate<PublicKey>> {
+        let mut missing_payload_certs = Vec::new();
+        let mut futures = Vec::new();
+
+        for certificate in certificates {
+            let payload: Vec<(BatchDigest, WorkerId)> =
+                certificate.header.payload.clone().into_iter().collect();
+
+            let payload_available = match self.payload_store.read_all(payload).await {
+                Ok(payload_result) => payload_result.into_iter().all(|x| x.is_some()).to_owned(),
+                Err(err) => {
+                    error!("Error occurred when querying payloads: {err}");
+                    false
+                }
+            };
+
+            if !payload_available {
+                missing_payload_certs.push(certificate);
+            } else {
+                futures.push(respond_to.send(Ok(BlockHeader {
+                    certificate,
+                    fetched_from_storage: true,
+                })));
+            }
+        }
+
+        for r in join_all(futures).await {
+            if r.is_err() {
+                error!("Couldn't send message to channel [{:?}]", r.err().unwrap());
+            }
+        }
+
+        missing_payload_certs
     }
 
     // Broadcasts a message to all the other primary nodes.

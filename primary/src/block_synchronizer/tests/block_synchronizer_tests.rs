@@ -679,6 +679,101 @@ async fn test_reply_with_certificates_already_in_storage() {
     }
 }
 
+#[tokio::test]
+async fn test_reply_with_payload_already_in_storage() {
+    // GIVEN
+    let (_, certificate_store, payload_store) = create_db_stores();
+
+    // AND the necessary keys
+    let (name, committee) = resolve_name_and_committee(13001);
+    let key = keys().pop().unwrap();
+
+    let (_, rx_commands) = channel(10);
+    let (_, rx_certificate_responses) = channel(10);
+    let (_, rx_payload_availability_responses) = channel(10);
+
+    let synchronizer = BlockSynchronizer {
+        name,
+        committee,
+        rx_commands,
+        rx_certificate_responses,
+        rx_payload_availability_responses,
+        pending_requests: Default::default(),
+        map_certificate_responses_senders: Default::default(),
+        map_payload_availability_responses_senders: Default::default(),
+        primary_network: Default::default(),
+        worker_network: Default::default(),
+        certificate_store: certificate_store.clone(),
+        payload_store: payload_store.clone(),
+        certificates_synchronize_timeout: Default::default(),
+        payload_synchronize_timeout: Default::default(),
+        payload_availability_timeout: Default::default(),
+    };
+
+    let mut certificates_map: HashMap<CertificateDigest, Certificate<Ed25519PublicKey>> =
+        HashMap::new();
+    let mut certificates = Vec::new();
+    const NUM_OF_CERTIFICATES_WITH_MISSING_PAYLOAD: u32 = 5;
+
+    // AND storing some certificates
+    for i in 1..=8 {
+        let batch = fixture_batch_with_transactions(10);
+
+        let header = fixture_header_builder()
+            .with_payload_batch(batch.clone(), 0)
+            .build(|payload| key.sign(payload));
+
+        let certificate: Certificate<Ed25519PublicKey> = certificate(&header);
+
+        certificates.push(certificate.clone());
+        certificates_map.insert(certificate.clone().digest(), certificate.clone());
+
+        if i > NUM_OF_CERTIFICATES_WITH_MISSING_PAYLOAD {
+            certificate_store
+                .write(certificate.digest(), certificate.clone())
+                .await;
+
+            for entry in certificate.header.payload {
+                payload_store.write(entry, 1).await;
+            }
+        }
+    }
+
+    // AND create a dummy sender/receiver
+    let (tx, mut rx) = channel(10);
+
+    // WHEN
+    let missing_certificates = synchronizer
+        .reply_with_payload_already_in_storage(certificates, tx)
+        .await;
+
+    // THEN some certificates with missing payload exist
+    assert_eq!(
+        missing_certificates.len() as u32,
+        NUM_OF_CERTIFICATES_WITH_MISSING_PAYLOAD,
+        "Number of expected missing certificates differ."
+    );
+
+    // AND should have received all the block headers
+    for _ in 0..8 - NUM_OF_CERTIFICATES_WITH_MISSING_PAYLOAD {
+        let result = timeout(Duration::from_secs(1), rx.recv())
+            .await
+            .unwrap()
+            .unwrap();
+
+        let block_header = result.unwrap();
+
+        assert!(
+            block_header.fetched_from_storage,
+            "Should have been fetched from storage"
+        );
+        assert!(
+            certificates_map.contains_key(&block_header.certificate.digest()),
+            "Not found expected certificate"
+        );
+    }
+}
+
 pub fn primary_listener<T>(
     num_of_expected_responses: i32,
     address: SocketAddr,
