@@ -143,7 +143,7 @@ impl Client {
 
                 tx.resize(size, 0u8);
                 let bytes = tx.split().freeze();
-                TransactionProto { transaction: bytes }
+                TransactionProto { f_bytes: bytes }
             });
 
             if let Err(e) = client.submit_transaction_stream(stream).await {
