@@ -295,9 +295,8 @@ struct PrimaryReceiverHandler<PublicKey: VerifyingKey> {
 
 impl<PublicKey: VerifyingKey> PrimaryReceiverHandler<PublicKey> {
     fn spawn(self, address: SocketAddr, max_concurrent_requests: usize) {
-        let concurrent_limit = tower::limit::ConcurrencyLimitLayer::new(max_concurrent_requests);
         let service = tonic::transport::Server::builder()
-            .layer(concurrent_limit)
+            .concurrency_limit_per_connection(max_concurrent_requests)
             .add_service(PrimaryToPrimaryServer::new(self))
             .serve(address);
         tokio::spawn(service);
