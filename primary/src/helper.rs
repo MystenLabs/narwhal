@@ -72,8 +72,8 @@ impl<PublicKey: VerifyingKey> Helper<PublicKey> {
                     self.process_certificates(certificate_ids, requestor, true)
                         .await;
                 }
-                // A request that another primary sends us to check whether we have
-                // available to serve the payloads for the provided certificate_ids.
+                // A request that another primary sends us to ask whether we
+                // can serve batch data for the provided certificate_ids.
                 PrimaryMessage::PayloadAvailabilityRequest {
                     certificate_ids,
                     requestor,
@@ -88,10 +88,10 @@ impl<PublicKey: VerifyingKey> Helper<PublicKey> {
         }
     }
 
-    /// Checks for each provided digest of the list of digests they node has
-    /// the corresponding certificate within its storage and the payload as
-    /// well. If yes, then the requestor can follow up and request the batches
-    /// payload from the primary's workers via the standard syncing approach.
+    /// Processes a payload availability request by checking we have the
+    /// certificate & batch data for each certificate digest in digests,
+    /// and reports on each fully available item in the request in a
+    /// PayloadAvailabilityResponse.
     async fn process_payload_availability(
         &mut self,
         digests: Vec<CertificateDigest>,
@@ -130,19 +130,15 @@ impl<PublicKey: VerifyingKey> Helper<PublicKey> {
             }
         };
 
-        let certificates_and_ids: Vec<(CertificateDigest, Option<Certificate<PublicKey>>)> =
-            digests.into_iter().zip(certificates).collect();
-
-        for (id, certificate_option) in certificates_and_ids {
+        for (id, certificate_option) in digests.into_iter().zip(certificates) {
             // Find the batches only for the certificates that exist
             if let Some(certificate) = certificate_option {
-                let payload: Vec<(BatchDigest, WorkerId)> =
-                    certificate.header.payload.into_iter().collect();
-
-                let payload_available = match self.payload_store.read_all(payload).await {
-                    Ok(payload_result) => {
-                        payload_result.into_iter().all(|x| x.is_some()).to_owned()
-                    }
+                let payload_available = match self
+                    .payload_store
+                    .read_all(certificate.header.payload)
+                    .await
+                {
+                    Ok(payload_result) => payload_result.into_iter().all(|x| x.is_some()),
                     Err(err) => {
                         // we'll assume that we don't have available the payloads,
                         // otherwise and error response should be sent back.
