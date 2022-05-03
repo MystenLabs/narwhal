@@ -18,7 +18,10 @@ use futures::{
 };
 use network::{PrimaryNetwork, PrimaryToWorkerNetwork};
 use rand::{rngs::SmallRng, SeedableRng};
-use std::{collections::HashMap, time::Duration};
+use std::{
+    collections::{HashMap, HashSet},
+    time::Duration,
+};
 use store::Store;
 use thiserror::Error;
 use tokio::{
@@ -40,7 +43,16 @@ pub mod responses;
 /// proceed to next state.
 const CERTIFICATE_RESPONSES_RATIO_THRESHOLD: f32 = 0.5;
 
-type ResultSender<T> = Sender<BlockSynchronizeResult<Certificate<T>>>;
+#[derive(Debug, Clone)]
+pub struct BlockHeader<PublicKey: VerifyingKey> {
+    certificate: Certificate<PublicKey>,
+    /// When the certificate is found in the local storage and is fetched
+    /// from it (instead via the primary peers), then this value will
+    /// be true, false otherwise.
+    fetched_from_storage: bool,
+}
+
+type ResultSender<T> = Sender<BlockSynchronizeResult<BlockHeader<T>>>;
 type BlockSynchronizeResult<T> = Result<T, SyncError>;
 
 pub enum Command<PublicKey: VerifyingKey> {
@@ -79,16 +91,16 @@ pub enum Command<PublicKey: VerifyingKey> {
 enum State<PublicKey: VerifyingKey> {
     HeadersSynchronized {
         request_id: RequestID,
-        certificates: HashMap<CertificateDigest, Result<Certificate<PublicKey>, SyncError>>,
+        certificates: HashMap<CertificateDigest, Result<BlockHeader<PublicKey>, SyncError>>,
     },
     PayloadAvailabilityReceived {
         request_id: RequestID,
-        certificates: HashMap<CertificateDigest, Result<Certificate<PublicKey>, SyncError>>,
+        certificates: HashMap<CertificateDigest, Result<BlockHeader<PublicKey>, SyncError>>,
         peers: Peers<PublicKey, Certificate<PublicKey>>,
     },
     PayloadSynchronized {
         request_id: RequestID,
-        result: Result<Certificate<PublicKey>, SyncError>,
+        result: Result<BlockHeader<PublicKey>, SyncError>,
     },
 }
 
@@ -156,6 +168,9 @@ pub struct BlockSynchronizer<PublicKey: VerifyingKey> {
     primary_network: PrimaryNetwork,
     worker_network: PrimaryToWorkerNetwork,
 
+    /// The store that holds the certificates
+    certificate_store: Store<CertificateDigest, Certificate<PublicKey>>,
+
     /// The persistent storage for payload markers from workers
     payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,
 
@@ -178,6 +193,7 @@ impl<PublicKey: VerifyingKey> BlockSynchronizer<PublicKey> {
         rx_payload_availability_responses: Receiver<PayloadAvailabilityResponse<PublicKey>>,
         network: PrimaryNetwork,
         payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,
+        certificate_store: Store<CertificateDigest, Certificate<PublicKey>>,
         parameters: BlockSynchronizerParameters,
     ) {
         tokio::spawn(async move {
@@ -193,6 +209,7 @@ impl<PublicKey: VerifyingKey> BlockSynchronizer<PublicKey> {
                 primary_network: network,
                 worker_network: PrimaryToWorkerNetwork::default(),
                 payload_store,
+                certificate_store,
                 certificates_synchronize_timeout: parameters.certificates_synchronize_timeout,
                 payload_synchronize_timeout: parameters.payload_availability_timeout,
                 payload_availability_timeout: parameters.payload_availability_timeout,
@@ -262,7 +279,7 @@ impl<PublicKey: VerifyingKey> BlockSynchronizer<PublicKey> {
                             }
                         },
                         State::PayloadSynchronized { request_id, result } => {
-                            let id = result.as_ref().map_or_else(|e| e.block_id(), |r| r.digest());
+                            let id = result.as_ref().map_or_else(|e| e.block_id(), |r| r.certificate.digest());
 
                             debug!("Block payload synchronize result received for certificate id {id} for request id {request_id}");
 
@@ -277,7 +294,7 @@ impl<PublicKey: VerifyingKey> BlockSynchronizer<PublicKey> {
     async fn notify_requestors_for_result(
         &mut self,
         request: PendingIdentifier,
-        result: BlockSynchronizeResult<Certificate<PublicKey>>,
+        result: BlockSynchronizeResult<BlockHeader<PublicKey>>,
     ) {
         // remove the senders & broadcast result
         if let Some(respond_to) = self.pending_requests.remove(&request) {
@@ -381,9 +398,14 @@ impl<PublicKey: VerifyingKey> BlockSynchronizer<PublicKey> {
         respond_to: ResultSender<PublicKey>,
     ) -> Option<BoxFuture<'a, State<PublicKey>>> {
         let mut to_sync = Vec::new();
-        // a new request to synchronise blocks
-        // check if there are pending requests. If yes, then ignore
-        for block_id in block_ids.clone() {
+
+        let missing_block_ids = self
+            .reply_with_certificates_already_in_storage(block_ids.clone(), respond_to.clone())
+            .await;
+
+        // check if there are pending requests on the block_ids.
+        // If yes, then ignore.
+        for block_id in missing_block_ids {
             if self.resolve_pending_request(Header(block_id), respond_to.clone()) {
                 to_sync.push(block_id);
             } else {
@@ -423,6 +445,56 @@ impl<PublicKey: VerifyingKey> BlockSynchronizer<PublicKey> {
             )
             .boxed(),
         )
+    }
+
+    /// This method queries the local storage to try and find certificates
+    /// identified by the provided block ids. For the ones found it sends
+    /// back to the provided `respond_to` sender the certificates directly.
+    /// A hashset is returned with the non found block_ids.
+    async fn reply_with_certificates_already_in_storage(
+        &self,
+        block_ids: Vec<CertificateDigest>,
+        respond_to: Sender<BlockSynchronizeResult<BlockHeader<PublicKey>>>,
+    ) -> HashSet<CertificateDigest> {
+        // find the certificates that already exist in storage
+        match self.certificate_store.read_all(block_ids.clone()).await {
+            Ok(certificates) => {
+                let (found, missing): (
+                    Vec<(CertificateDigest, Option<Certificate<PublicKey>>)>,
+                    Vec<(CertificateDigest, Option<Certificate<PublicKey>>)>,
+                ) = block_ids
+                    .into_iter()
+                    .zip(certificates)
+                    .partition(|f| f.1.is_some());
+
+                // Reply back directly with the found from storage certificates
+                let futures: Vec<_> = found
+                    .into_iter()
+                    .filter(|e| e.1.is_some())
+                    .map(|(_, c)| {
+                        respond_to.send(Ok(BlockHeader {
+                            certificate: c.unwrap(),
+                            fetched_from_storage: true,
+                        }))
+                    })
+                    .collect();
+
+                for r in join_all(futures).await {
+                    if r.is_err() {
+                        error!("Couldn't send message to channel [{:?}]", r.err().unwrap());
+                    }
+                }
+
+                // reply back with the missing certificates
+                missing.into_iter().map(|e| e.0).collect()
+            }
+            Err(err) => {
+                error!("Couldn't fetch certificates: {err}");
+
+                // report all as missing so we can at least try to fetch from peers.
+                HashSet::from_iter(block_ids.iter().cloned())
+            }
+        }
     }
 
     // Broadcasts a message to all the other primary nodes.
@@ -539,7 +611,10 @@ impl<PublicKey: VerifyingKey> BlockSynchronizer<PublicKey> {
 
         State::PayloadSynchronized {
             request_id,
-            result: Ok(certificate),
+            result: Ok(BlockHeader {
+                certificate,
+                fetched_from_storage: false,
+            }),
         }
     }
 
@@ -754,21 +829,27 @@ impl<PublicKey: VerifyingKey> BlockSynchronizer<PublicKey> {
         peers: &Peers<PublicKey, Certificate<PublicKey>>,
         block_ids: Vec<CertificateDigest>,
         timeout: bool,
-    ) -> HashMap<CertificateDigest, Result<Certificate<PublicKey>, SyncError>> {
+    ) -> HashMap<CertificateDigest, Result<BlockHeader<PublicKey>, SyncError>> {
         let mut certificates_by_id: HashMap<CertificateDigest, Certificate<PublicKey>> = peers
             .unique_values()
             .into_iter()
             .map(|c| (c.digest(), c))
             .collect();
 
-        let mut result: HashMap<CertificateDigest, Result<Certificate<PublicKey>, SyncError>> =
+        let mut result: HashMap<CertificateDigest, Result<BlockHeader<PublicKey>, SyncError>> =
             HashMap::new();
 
         for block_id in block_ids {
             // if not found, then this is an Error - couldn't be retrieved
             // by any peer - suspicious!
             if let Some(certificate) = certificates_by_id.remove(&block_id) {
-                result.insert(block_id, Ok(certificate));
+                result.insert(
+                    block_id,
+                    Ok(BlockHeader {
+                        certificate,
+                        fetched_from_storage: false,
+                    }),
+                );
             } else if timeout {
                 result.insert(block_id, Err(SyncError::Timeout { block_id }));
             } else {
