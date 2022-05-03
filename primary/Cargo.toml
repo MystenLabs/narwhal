@@ -30,14 +30,16 @@ rand = { version = "0.7.3", features = ["small_rng"] }
 crypto = { path = "../crypto" }
 network = { path = "../network" }
 types = { path = "../types" }
+tower = "0.4.12"
 
 
 [dev-dependencies]
-tempfile = "3.3.0"
-worker = { path = "../worker" }
-test_utils = { path = "../test_utils"}
+itertools = "0.10.3"
 node = { path = "../node" }
-
+tempfile = "3.3.0"
+test_utils = { path = "../test_utils"}
+tracing-test = { version = "0.2.1" }
+worker = { path = "../worker" }
 
 [features]
 benchmark = []

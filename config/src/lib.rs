@@ -107,6 +107,8 @@ pub struct Parameters {
     pub block_synchronizer: BlockSynchronizerParameters,
     /// The parameters for gRPC server
     pub grpc_server: GrpcServerParameters,
+    /// The maximum number of concurrent requests for messages accepted from an un-trusted entity
+    pub max_concurrent_requests: usize,
 }
 
 #[derive(Deserialize, Clone)]
@@ -164,6 +166,7 @@ impl Default for Parameters {
             max_batch_delay: Duration::from_millis(100),
             block_synchronizer: BlockSynchronizerParameters::default(),
             grpc_server: GrpcServerParameters::default(),
+            max_concurrent_requests: 500_000,
         }
     }
 }
@@ -209,6 +212,10 @@ impl Parameters {
             "Get collections timeout set to {} ms",
             self.grpc_server.get_collections_timeout.as_millis()
         );
+        info!(
+            "Max concurrent requests set to {}",
+            self.max_concurrent_requests
+        )
     }
 }
 
@@ -380,7 +387,8 @@ mod tests {
              "grpc_server": {
                  "socket_addr": "127.0.0.1:50052",
                  "get_collections_timeout": "5_000ms"
-             }
+             },
+             "max_concurrent_requests": 500000
           }"#;
 
         // AND temporary file
@@ -453,5 +461,6 @@ mod tests {
         ));
         assert!(logs_contain("gRPC Server listening on 127.0.0.1:50052"));
         assert!(logs_contain("Get collections timeout set to 5000 ms"));
+        assert!(logs_contain("Max concurrent requests set to 500000"))
     }
 }

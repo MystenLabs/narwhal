@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use crate::{
     block_remover::DeleteBatchResult,
+    block_synchronizer::BlockSynchronizer,
     block_waiter::{BatchMessageError, BatchResult, BlockWaiter},
     certificate_waiter::CertificateWaiter,
     core::Core,
@@ -13,7 +14,7 @@ use crate::{
     payload_receiver::PayloadReceiver,
     proposer::Proposer,
     synchronizer::Synchronizer,
-    BlockRemover, DeleteBatchMessage,
+    BlockRemover, DeleteBatchMessage, PayloadAvailabilityResponse,
 };
 use async_trait::async_trait;
 use config::{Committee, Parameters, WorkerId};
@@ -21,7 +22,7 @@ use crypto::{
     traits::{EncodeDecodeBase64, Signer, VerifyingKey},
     SignatureService,
 };
-use network::PrimaryToWorkerNetwork;
+use network::{PrimaryNetwork, PrimaryToWorkerNetwork};
 use serde::{Deserialize, Serialize};
 use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
@@ -97,7 +98,7 @@ impl Primary {
         let (tx_headers_loopback, rx_headers_loopback) = channel(CHANNEL_CAPACITY);
         let (tx_certificates_loopback, rx_certificates_loopback) = channel(CHANNEL_CAPACITY);
         let (tx_primary_messages, rx_primary_messages) = channel(CHANNEL_CAPACITY);
-        let (tx_cert_requests, rx_cert_requests) = channel(CHANNEL_CAPACITY);
+        let (tx_helper_requests, rx_helper_requests) = channel(CHANNEL_CAPACITY);
         // _tx_get_block_commands should be used by the handler that will issue the requests
         // to fetch the collections from Narwhal (e.x the get_collections endpoint).
         let (tx_get_block_commands, rx_get_block_commands) = channel(CHANNEL_CAPACITY);
@@ -106,13 +107,11 @@ impl Primary {
         // to remove collections from Narwhal (e.x the remove_collections endpoint).
         let (_tx_block_removal_commands, rx_block_removal_commands) = channel(CHANNEL_CAPACITY);
         let (tx_batch_removal, rx_batch_removal) = channel(CHANNEL_CAPACITY);
-        /* TODO[#175][#175][#127]: re-plug the block synchronizer
         let (_tx_block_synchronizer_commands, rx_block_synchronizer_commands) =
             channel(CHANNEL_CAPACITY);
         let (_tx_certificate_responses, rx_certificate_responses) = channel(CHANNEL_CAPACITY);
-        let (_tx_payload_availability_responses, rx_payload_availability_responses) =
+        let (tx_payload_availability_responses, rx_payload_availability_responses) =
             channel(CHANNEL_CAPACITY);
-        */
 
         // Write the parameters to the logs.
         parameters.tracing();
@@ -129,9 +128,10 @@ impl Primary {
         address.set_ip(Primary::INADDR_ANY);
         PrimaryReceiverHandler {
             tx_primary_messages,
-            tx_cert_requests,
+            tx_helper_requests,
+            tx_payload_availability_responses,
         }
-        .spawn(address);
+        .spawn(address, parameters.max_concurrent_requests);
         info!(
             "Primary {} listening to primary messages on {}",
             name.encode_base64(),
@@ -221,18 +221,16 @@ impl Primary {
 
         // Responsible for finding missing blocks (certificates) and fetching
         // them from the primary peers by synchronizing also their batches.
-        /* TODO[#175][#127]: re-plug the block synchronizer
         BlockSynchronizer::spawn(
             name.clone(),
             committee.clone(),
             rx_block_synchronizer_commands,
             rx_certificate_responses,
             rx_payload_availability_responses,
-            SimpleSender::new(),
+            PrimaryNetwork::default(),
             payload_store.clone(),
-            BlockSynchronizerParameters::default(),
+            parameters.block_synchronizer,
         );
-        */
 
         // Whenever the `Synchronizer` does not manage to validate a header due to missing parent certificates of
         // batch digests, it commands the `HeaderWaiter` to synchronize with other nodes, wait for their reply, and
@@ -241,7 +239,7 @@ impl Primary {
             name.clone(),
             committee.clone(),
             certificate_store.clone(),
-            payload_store,
+            payload_store.clone(),
             consensus_round.clone(),
             parameters.gc_depth,
             parameters.sync_retry_delay,
@@ -273,8 +271,15 @@ impl Primary {
             /* tx_core */ tx_headers,
         );
 
-        // The `Helper` is dedicated to reply to certificates requests from other primaries.
-        Helper::spawn(committee.clone(), certificate_store, rx_cert_requests);
+        // The `Helper` is dedicated to reply to certificates & payload availability requests
+        // from other primaries.
+        Helper::spawn(
+            name.clone(),
+            committee.clone(),
+            certificate_store,
+            payload_store,
+            rx_helper_requests,
+        );
 
         if external_consensus {
             // Spawn a grpc server to accept requests from external consensus layer.
@@ -302,12 +307,14 @@ impl Primary {
 #[derive(Clone)]
 struct PrimaryReceiverHandler<PublicKey: VerifyingKey> {
     tx_primary_messages: Sender<PrimaryMessage<PublicKey>>,
-    tx_cert_requests: Sender<PrimaryMessage<PublicKey>>,
+    tx_helper_requests: Sender<PrimaryMessage<PublicKey>>,
+    tx_payload_availability_responses: Sender<PayloadAvailabilityResponse<PublicKey>>,
 }
 
 impl<PublicKey: VerifyingKey> PrimaryReceiverHandler<PublicKey> {
-    fn spawn(self, address: SocketAddr) {
+    fn spawn(self, address: SocketAddr, max_concurrent_requests: usize) {
         let service = tonic::transport::Server::builder()
+            .concurrency_limit_per_connection(max_concurrent_requests)
             .add_service(PrimaryToPrimaryServer::new(self))
             .serve(address);
         tokio::spawn(service);
@@ -327,13 +334,29 @@ impl<PublicKey: VerifyingKey> PrimaryToPrimary for PrimaryReceiverHandler<Public
 
         match message {
             PrimaryMessage::CertificatesRequest(_, _) => self
-                .tx_cert_requests
+                .tx_helper_requests
                 .send(message)
                 .await
                 .expect("Failed to send primary message"),
             PrimaryMessage::CertificatesBatchRequest { .. } => self
-                .tx_cert_requests
+                .tx_helper_requests
                 .send(message)
+                .await
+                .expect("Failed to send primary message"),
+            PrimaryMessage::PayloadAvailabilityRequest { .. } => self
+                .tx_helper_requests
+                .send(message)
+                .await
+                .expect("Failed to send primary message"),
+            PrimaryMessage::PayloadAvailabilityResponse {
+                payload_availability,
+                from,
+            } => self
+                .tx_payload_availability_responses
+                .send(PayloadAvailabilityResponse {
+                    block_ids: payload_availability.to_vec(),
+                    from: from.clone(),
+                })
                 .await
                 .expect("Failed to send primary message"),
             _ => self
