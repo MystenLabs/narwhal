@@ -46,9 +46,10 @@ const CERTIFICATE_RESPONSES_RATIO_THRESHOLD: f32 = 0.5;
 #[derive(Debug, Clone)]
 pub struct BlockHeader<PublicKey: VerifyingKey> {
     certificate: Certificate<PublicKey>,
-    /// When the certificate is found in the local storage and is fetched
-    /// from it (instead via the primary peers), then this value will
-    /// be true, false otherwise.
+    /// It designates whether the requested quantity (either the certificate
+    /// or the payload) has been retrieved via the local storage. If true,
+    /// the it used the storage. If false, then it has been fetched via
+    /// the peers.
     fetched_from_storage: bool,
 }
 
