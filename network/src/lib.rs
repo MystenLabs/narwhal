@@ -8,13 +8,35 @@
     rust_2021_compatibility
 )]
 
-mod error;
-mod receiver;
-mod reliable_sender;
-mod simple_sender;
+mod primary;
+mod retry;
+mod worker;
 
 pub use crate::{
-    receiver::{MessageHandler, Receiver, Writer},
-    reliable_sender::{CancelHandler, ReliableSender},
-    simple_sender::SimpleSender,
+    primary::{PrimaryNetwork, PrimaryToWorkerNetwork},
+    retry::RetryConfig,
+    worker::WorkerNetwork,
 };
+
+#[derive(Debug)]
+#[must_use]
+pub struct CancelHandler<T>(tokio::task::JoinHandle<T>);
+
+impl<T> Drop for CancelHandler<T> {
+    fn drop(&mut self) {
+        self.0.abort();
+    }
+}
+
+impl<T> std::future::Future for CancelHandler<T> {
+    type Output = T;
+
+    fn poll(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Self::Output> {
+        use futures::future::FutureExt;
+        // If the task panics just propagate it up
+        self.0.poll_unpin(cx).map(Result::unwrap)
+    }
+}

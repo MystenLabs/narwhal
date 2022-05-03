@@ -5,16 +5,29 @@
 #[rustfmt::skip]
 mod narwhal;
 
+use std::{array::TryFromSliceError, ops::Deref};
+
 use crate::{Batch, BatchMessage, BlockError, BlockErrorType, CertificateDigest};
+use bytes::Bytes;
 
 pub use narwhal::{
     collection_retrieval_result::RetrievalResult,
+    primary_to_primary_client::PrimaryToPrimaryClient,
+    primary_to_primary_server::{PrimaryToPrimary, PrimaryToPrimaryServer},
+    primary_to_worker_client::PrimaryToWorkerClient,
+    primary_to_worker_server::{PrimaryToWorker, PrimaryToWorkerServer},
+    transactions_client::TransactionsClient,
+    transactions_server::{Transactions, TransactionsServer},
     validator_client::ValidatorClient,
     validator_server::{Validator, ValidatorServer},
+    worker_to_primary_client::WorkerToPrimaryClient,
+    worker_to_primary_server::{WorkerToPrimary, WorkerToPrimaryServer},
+    worker_to_worker_client::WorkerToWorkerClient,
+    worker_to_worker_server::{WorkerToWorker, WorkerToWorkerServer},
     Batch as BatchProto, BatchDigest as BatchDigestProto, BatchMessage as BatchMessageProto,
-    CertificateDigest as CertificateDigestProto, CollectionError, CollectionErrorType,
-    CollectionRetrievalResult, GetCollectionsRequest, GetCollectionsResponse,
-    Transaction as TransactionProto,
+    BincodeEncodedPayload, CertificateDigest as CertificateDigestProto, CollectionError,
+    CollectionErrorType, CollectionRetrievalResult, Empty, GetCollectionsRequest,
+    GetCollectionsResponse, Transaction as TransactionProto,
 };
 
 impl From<BatchMessage> for BatchMessageProto {
@@ -31,9 +44,9 @@ impl From<Batch> for BatchProto {
         BatchProto {
             transaction: batch
                 .0
-                .iter()
+                .into_iter()
                 .map(|transaction| TransactionProto {
-                    f_bytes: transaction.to_vec(),
+                    f_bytes: Bytes::from(transaction),
                 })
                 .collect::<Vec<TransactionProto>>(),
         }
@@ -60,9 +73,26 @@ impl From<BlockErrorType> for CollectionErrorType {
 }
 
 impl TryFrom<CertificateDigestProto> for CertificateDigest {
-    type Error = Vec<u8>;
+    type Error = TryFromSliceError;
 
     fn try_from(digest: CertificateDigestProto) -> Result<Self, Self::Error> {
-        Ok(CertificateDigest::new(digest.f_bytes.try_into()?))
+        Ok(CertificateDigest::new(digest.f_bytes.deref().try_into()?))
+    }
+}
+
+impl BincodeEncodedPayload {
+    pub fn deserialize<T: serde::de::DeserializeOwned>(&self) -> Result<T, bincode::Error> {
+        bincode::deserialize(self.payload.as_ref())
+    }
+
+    pub fn try_from<T: serde::Serialize>(value: &T) -> Result<Self, bincode::Error> {
+        let payload = bincode::serialize(value)?.into();
+        Ok(Self { payload })
+    }
+}
+
+impl From<Bytes> for BincodeEncodedPayload {
+    fn from(payload: Bytes) -> Self {
+        Self { payload }
     }
 }

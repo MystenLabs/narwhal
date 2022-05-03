@@ -16,74 +16,35 @@ use crate::{
     BlockRemover, DeleteBatchMessage,
 };
 use async_trait::async_trait;
-use bytes::Bytes;
 use config::{Committee, Parameters, WorkerId};
 use crypto::{
     traits::{EncodeDecodeBase64, Signer, VerifyingKey},
     SignatureService,
 };
-use futures::sink::SinkExt as _;
-use network::{MessageHandler, Receiver as NetworkReceiver, SimpleSender, Writer};
+use network::PrimaryToWorkerNetwork;
 use serde::{Deserialize, Serialize};
 use std::{
-    borrow::Borrow,
-    error::Error,
-    net::{IpAddr, Ipv4Addr},
+    net::{IpAddr, Ipv4Addr, SocketAddr},
     sync::{atomic::AtomicU64, Arc},
 };
 use store::Store;
 use thiserror::Error;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
+use tonic::{Request, Response, Status};
 use tracing::info;
 use types::{
-    error::DagError, Batch, BatchDigest, BatchMessage, Certificate, CertificateDigest, Header,
-    HeaderDigest, Round, Vote,
+    Batch, BatchDigest, BatchMessage, BincodeEncodedPayload, Certificate, CertificateDigest, Empty,
+    Header, HeaderDigest, PrimaryToPrimary, PrimaryToPrimaryServer, WorkerToPrimary,
+    WorkerToPrimaryServer,
 };
 
 /// The default channel capacity for each channel of the primary.
 pub const CHANNEL_CAPACITY: usize = 1_000;
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(bound(deserialize = "PublicKey: VerifyingKey"))]
-pub enum PrimaryMessage<PublicKey: VerifyingKey> {
-    Header(Header<PublicKey>),
-    Vote(Vote<PublicKey>),
-    Certificate(Certificate<PublicKey>),
-    CertificatesRequest(Vec<CertificateDigest>, /* requestor */ PublicKey),
-
-    CertificatesBatchRequest {
-        certificate_ids: Vec<CertificateDigest>,
-        requestor: PublicKey,
-    },
-    CertificatesBatchResponse {
-        certificates: Vec<(CertificateDigest, Option<Certificate<PublicKey>>)>,
-    },
-
-    PayloadAvailabilityRequest {
-        certificate_ids: Vec<CertificateDigest>,
-        requestor: PublicKey,
-    },
-
-    PayloadAvailabilityResponse {
-        payload_availability: Vec<(CertificateDigest, bool)>,
-    },
-}
-
-/// The messages sent by the primary to its workers.
-#[derive(Debug, Serialize, Deserialize)]
-pub enum PrimaryWorkerMessage<PublicKey> {
-    /// The primary indicates that the worker need to sync the target missing batches.
-    Synchronize(Vec<BatchDigest>, /* target */ PublicKey),
-    /// The primary indicates a round update.
-    Cleanup(Round),
-    /// The primary requests a batch from the worker
-    RequestBatch(BatchDigest),
-    /// Delete the batches, dictated from the provided vector of digest, from the worker node
-    DeleteBatches(Vec<BatchDigest>),
-}
+pub use types::{PrimaryMessage, PrimaryWorkerMessage};
 
 /// The messages sent by the workers to their primary.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub enum WorkerPrimaryMessage {
     /// The worker indicates it sealed a new batch.
     OurBatch(BatchDigest, WorkerId),
@@ -166,14 +127,11 @@ impl Primary {
             .expect("Our public key or worker id is not in the committee")
             .primary_to_primary;
         address.set_ip(Primary::INADDR_ANY);
-        NetworkReceiver::spawn(
-            address,
-            /* handler */
-            PrimaryReceiverHandler {
-                tx_primary_messages,
-                tx_cert_requests,
-            },
-        );
+        PrimaryReceiverHandler {
+            tx_primary_messages,
+            tx_cert_requests,
+        }
+        .spawn(address);
         info!(
             "Primary {} listening to primary messages on {}",
             name.encode_base64(),
@@ -186,16 +144,13 @@ impl Primary {
             .expect("Our public key or worker id is not in the committee")
             .worker_to_primary;
         address.set_ip(Primary::INADDR_ANY);
-        NetworkReceiver::spawn(
-            address,
-            /* handler */
-            WorkerReceiverHandler {
-                tx_our_digests,
-                tx_others_digests,
-                tx_batches,
-                tx_batch_removal,
-            },
-        );
+        WorkerReceiverHandler {
+            tx_our_digests,
+            tx_others_digests,
+            tx_batches,
+            tx_batch_removal,
+        }
+        .spawn(address);
         info!(
             "Primary {} listening to workers messages on {}",
             name.encode_base64(),
@@ -259,7 +214,7 @@ impl Primary {
             certificate_store.clone(),
             header_store,
             payload_store.clone(),
-            SimpleSender::new(),
+            PrimaryToWorkerNetwork::default(),
             rx_block_removal_commands,
             rx_batch_removal,
         );
@@ -350,34 +305,45 @@ struct PrimaryReceiverHandler<PublicKey: VerifyingKey> {
     tx_cert_requests: Sender<PrimaryMessage<PublicKey>>,
 }
 
+impl<PublicKey: VerifyingKey> PrimaryReceiverHandler<PublicKey> {
+    fn spawn(self, address: SocketAddr) {
+        let service = tonic::transport::Server::builder()
+            .add_service(PrimaryToPrimaryServer::new(self))
+            .serve(address);
+        tokio::spawn(service);
+    }
+}
+
 #[async_trait]
-impl<PublicKey: VerifyingKey> MessageHandler for PrimaryReceiverHandler<PublicKey> {
-    async fn dispatch(&self, writer: &mut Writer, serialized: Bytes) -> Result<(), Box<dyn Error>> {
-        // Reply with an ACK.
-        let _ = writer.send(Bytes::from("Ack")).await;
+impl<PublicKey: VerifyingKey> PrimaryToPrimary for PrimaryReceiverHandler<PublicKey> {
+    async fn send_message(
+        &self,
+        request: Request<BincodeEncodedPayload>,
+    ) -> Result<Response<Empty>, Status> {
+        let message: PrimaryMessage<PublicKey> = request
+            .into_inner()
+            .deserialize()
+            .map_err(|e| Status::invalid_argument(e.to_string()))?;
 
-        // Deserialize and parse the message.
-        let request: PrimaryMessage<PublicKey> =
-            bincode::deserialize(&serialized).map_err(DagError::SerializationError)?;
-
-        match request.borrow() {
+        match message {
             PrimaryMessage::CertificatesRequest(_, _) => self
                 .tx_cert_requests
-                .send(request)
+                .send(message)
                 .await
                 .expect("Failed to send primary message"),
             PrimaryMessage::CertificatesBatchRequest { .. } => self
                 .tx_cert_requests
-                .send(request)
+                .send(message)
                 .await
                 .expect("Failed to send primary message"),
             _ => self
                 .tx_primary_messages
-                .send(request)
+                .send(message)
                 .await
                 .expect("Failed to send certificate"),
         }
-        Ok(())
+
+        Ok(Response::new(Empty {}))
     }
 }
 
@@ -390,15 +356,27 @@ struct WorkerReceiverHandler {
     tx_batch_removal: Sender<DeleteBatchResult>,
 }
 
+impl WorkerReceiverHandler {
+    fn spawn(self, address: SocketAddr) {
+        let service = tonic::transport::Server::builder()
+            .add_service(WorkerToPrimaryServer::new(self))
+            .serve(address);
+        tokio::spawn(service);
+    }
+}
+
 #[async_trait]
-impl MessageHandler for WorkerReceiverHandler {
-    async fn dispatch(
+impl WorkerToPrimary for WorkerReceiverHandler {
+    async fn send_message(
         &self,
-        _writer: &mut Writer,
-        serialized: Bytes,
-    ) -> Result<(), Box<dyn Error>> {
-        // Deserialize and parse the message.
-        match bincode::deserialize(&serialized).map_err(DagError::SerializationError)? {
+        request: Request<BincodeEncodedPayload>,
+    ) -> Result<Response<Empty>, Status> {
+        let message: WorkerPrimaryMessage = request
+            .into_inner()
+            .deserialize()
+            .map_err(|e| Status::invalid_argument(e.to_string()))?;
+
+        match message {
             WorkerPrimaryMessage::OurBatch(digest, worker_id) => self
                 .tx_our_digests
                 .send((digest, worker_id))
@@ -435,6 +413,7 @@ impl MessageHandler for WorkerReceiverHandler {
                     .expect("Failed to send error batch delete result"),
             },
         }
-        Ok(())
+
+        Ok(Response::new(Empty {}))
     }
 }

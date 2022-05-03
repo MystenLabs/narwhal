@@ -14,13 +14,13 @@ fn bootstrap() {
     let proto_files = &["proto/narwhal.proto"];
     let dirs = &["proto"];
 
-    println!(std::env!("CARGO_MANIFEST_DIR"));
-
     let out_dir = PathBuf::from(std::env!("CARGO_MANIFEST_DIR"))
         .join("src")
         .join("generated");
 
-    let config = prost_build::Config::default();
+    // Use `Bytes` instead of `Vec<u8>` for bytes fields
+    let mut config = prost_build::Config::new();
+    config.bytes(&["."]);
 
     tonic_build::configure()
         .out_dir(format!("{}", out_dir.display()))

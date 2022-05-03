@@ -9,18 +9,21 @@ use async_trait::async_trait;
 use bytes::Bytes;
 use config::{Committee, Parameters, WorkerId};
 use crypto::traits::VerifyingKey;
-use futures::sink::SinkExt as _;
-use network::{MessageHandler, Receiver, Writer};
-use primary::PrimaryWorkerMessage;
-use serde::{Deserialize, Serialize};
+use futures::{Stream, StreamExt};
+use primary::{PrimaryWorkerMessage, WorkerPrimaryMessage};
 use std::{
-    error::Error,
-    net::{IpAddr, Ipv4Addr},
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+    pin::Pin,
 };
 use store::Store;
 use tokio::sync::mpsc::{channel, Sender};
-use tracing::{error, info, warn};
-use types::{Batch, BatchDigest, Transaction};
+use tonic::{Request, Response, Status};
+use tracing::info;
+use types::{
+    BatchDigest, BincodeEncodedPayload, ClientBatchRequest, Empty, PrimaryToWorker,
+    PrimaryToWorkerServer, Transaction, TransactionProto, Transactions, TransactionsServer,
+    WorkerToWorker, WorkerToWorkerServer,
+};
 
 #[cfg(test)]
 #[path = "tests/worker_tests.rs"]
@@ -33,23 +36,10 @@ pub const CHANNEL_CAPACITY: usize = 1_000;
 // TODO: Move to the primary.
 pub type Round = u64;
 
-/// Indicates a serialized `WorkerPrimaryMessage` message.
-pub type SerializedWorkerPrimaryMessage = Vec<u8>;
-
 /// Indicates a serialized `WorkerMessage::Batch` message.
 pub type SerializedBatchMessage = Vec<u8>;
 
-/// The message exchanged between workers.
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(bound(deserialize = "PublicKey: VerifyingKey"))]
-pub enum WorkerMessage<PublicKey: VerifyingKey> {
-    /// Used by workers to send a new batch or to reply to a batch request.
-    Batch(Batch),
-    /// Used by workers to request batches.
-    BatchRequest(Vec<BatchDigest>, /* origin */ PublicKey),
-    /// Used by clients to request batches.
-    ClientBatchRequest(Vec<BatchDigest>),
-}
+pub use types::WorkerMessage;
 
 pub struct Worker<PublicKey: VerifyingKey> {
     /// The public key of this authority.
@@ -113,7 +103,7 @@ impl<PublicKey: VerifyingKey> Worker<PublicKey> {
     }
 
     /// Spawn all tasks responsible to handle messages from our primary.
-    fn handle_primary_messages(&self, tx_primary: Sender<SerializedWorkerPrimaryMessage>) {
+    fn handle_primary_messages(&self, tx_primary: Sender<WorkerPrimaryMessage>) {
         let (tx_synchronizer, rx_synchronizer) = channel(CHANNEL_CAPACITY);
 
         // Receive incoming messages from our primary.
@@ -123,11 +113,7 @@ impl<PublicKey: VerifyingKey> Worker<PublicKey> {
             .expect("Our public key or worker id is not in the committee")
             .primary_to_worker;
         address.set_ip(INADDR_ANY);
-        Receiver::spawn(
-            address,
-            /* handler */
-            PrimaryReceiverHandler { tx_synchronizer },
-        );
+        PrimaryReceiverHandler { tx_synchronizer }.spawn(address);
 
         // The `Synchronizer` is responsible to keep the worker in sync with the others. It handles the commands
         // it receives from the primary (which are mainly notifications that we are out of sync).
@@ -150,7 +136,7 @@ impl<PublicKey: VerifyingKey> Worker<PublicKey> {
     }
 
     /// Spawn all tasks responsible to handle clients transactions.
-    fn handle_clients_transactions(&self, tx_primary: Sender<SerializedWorkerPrimaryMessage>) {
+    fn handle_clients_transactions(&self, tx_primary: Sender<WorkerPrimaryMessage>) {
         let (tx_batch_maker, rx_batch_maker) = channel(CHANNEL_CAPACITY);
         let (tx_quorum_waiter, rx_quorum_waiter) = channel(CHANNEL_CAPACITY);
         let (tx_processor, rx_processor) = channel(CHANNEL_CAPACITY);
@@ -162,10 +148,7 @@ impl<PublicKey: VerifyingKey> Worker<PublicKey> {
             .expect("Our public key or worker id is not in the committee")
             .transactions;
         address.set_ip(INADDR_ANY);
-        Receiver::spawn(
-            address,
-            /* handler */ TxReceiverHandler { tx_batch_maker },
-        );
+        TxReceiverHandler { tx_batch_maker }.spawn(address);
 
         // The transactions are sent to the `BatchMaker` that assembles them into batches. It then broadcasts
         // (in a reliable manner) the batches to all other workers that share the same `id` as us. Finally, it
@@ -209,7 +192,7 @@ impl<PublicKey: VerifyingKey> Worker<PublicKey> {
     }
 
     /// Spawn all tasks responsible to handle messages from other workers.
-    fn handle_workers_messages(&self, tx_primary: Sender<SerializedWorkerPrimaryMessage>) {
+    fn handle_workers_messages(&self, tx_primary: Sender<WorkerPrimaryMessage>) {
         let (tx_worker_helper, rx_worker_helper) = channel(CHANNEL_CAPACITY);
         let (tx_client_helper, rx_client_helper) = channel(CHANNEL_CAPACITY);
         let (tx_processor, rx_processor) = channel(CHANNEL_CAPACITY);
@@ -221,15 +204,12 @@ impl<PublicKey: VerifyingKey> Worker<PublicKey> {
             .expect("Our public key or worker id is not in the committee")
             .worker_to_worker;
         address.set_ip(INADDR_ANY);
-        Receiver::spawn(
-            address,
-            /* handler */
-            WorkerReceiverHandler {
-                tx_worker_helper,
-                tx_client_helper,
-                tx_processor,
-            },
-        );
+        WorkerReceiverHandler {
+            tx_worker_helper,
+            tx_client_helper,
+            tx_processor,
+        }
+        .spawn(address);
 
         // The `Helper` is dedicated to reply to batch requests from other workers.
         Helper::spawn(
@@ -263,18 +243,45 @@ struct TxReceiverHandler {
     tx_batch_maker: Sender<Transaction>,
 }
 
+impl TxReceiverHandler {
+    fn spawn(self, address: SocketAddr) {
+        let service = tonic::transport::Server::builder()
+            .add_service(TransactionsServer::new(self))
+            .serve(address);
+        tokio::spawn(service);
+    }
+}
+
 #[async_trait]
-impl MessageHandler for TxReceiverHandler {
-    async fn dispatch(&self, _writer: &mut Writer, message: Bytes) -> Result<(), Box<dyn Error>> {
+impl Transactions for TxReceiverHandler {
+    async fn submit_transaction(
+        &self,
+        request: Request<TransactionProto>,
+    ) -> Result<Response<Empty>, Status> {
+        let message = request.into_inner().f_bytes;
         // Send the transaction to the batch maker.
         self.tx_batch_maker
             .send(message.to_vec())
             .await
             .expect("Failed to send transaction");
 
-        // Give the change to schedule other tasks.
-        tokio::task::yield_now().await;
-        Ok(())
+        Ok(Response::new(Empty {}))
+    }
+
+    async fn submit_transaction_stream(
+        &self,
+        request: tonic::Request<tonic::Streaming<types::TransactionProto>>,
+    ) -> Result<tonic::Response<types::Empty>, tonic::Status> {
+        let mut transactions = request.into_inner();
+
+        while let Some(Ok(txn)) = transactions.next().await {
+            // Send the transaction to the batch maker.
+            self.tx_batch_maker
+                .send(txn.f_bytes.to_vec())
+                .await
+                .expect("Failed to send transaction");
+        }
+        Ok(Response::new(Empty {}))
     }
 }
 
@@ -286,45 +293,75 @@ struct WorkerReceiverHandler<PublicKey: VerifyingKey> {
     tx_processor: Sender<SerializedBatchMessage>,
 }
 
+impl<PublicKey: VerifyingKey> WorkerReceiverHandler<PublicKey> {
+    fn spawn(self, address: SocketAddr) {
+        let service = tonic::transport::Server::builder()
+            .add_service(WorkerToWorkerServer::new(self))
+            .serve(address);
+        tokio::spawn(service);
+    }
+}
+
 #[async_trait]
-impl<PublicKey: VerifyingKey> MessageHandler for WorkerReceiverHandler<PublicKey> {
-    async fn dispatch(&self, writer: &mut Writer, serialized: Bytes) -> Result<(), Box<dyn Error>> {
-        // Deserialize and parse the message.
-        // TODO [issue #7]: Do some accounting to prevent bad actors from use all our resources.
-        match bincode::deserialize(&serialized) {
-            Ok(WorkerMessage::Batch(..)) => {
+impl<PublicKey: VerifyingKey> WorkerToWorker for WorkerReceiverHandler<PublicKey> {
+    async fn send_message(
+        &self,
+        request: Request<BincodeEncodedPayload>,
+    ) -> Result<Response<Empty>, Status> {
+        let message: WorkerMessage<PublicKey> = request
+            .get_ref()
+            .deserialize()
+            .map_err(|e| Status::invalid_argument(e.to_string()))?;
+        match message {
+            WorkerMessage::Batch(..) => {
                 self.tx_processor
-                    .send(serialized.to_vec())
+                    .send(request.get_ref().payload.to_vec())
                     .await
                     .expect("Failed to send batch");
-
-                let _ = writer.send(Bytes::from("Ack")).await;
             }
-            Ok(WorkerMessage::BatchRequest(missing, requestor)) => {
+            WorkerMessage::BatchRequest(missing, requestor) => {
                 self.tx_worker_helper
                     .send((missing, requestor))
                     .await
                     .expect("Failed to send batch request");
-
-                let _ = writer.send(Bytes::from("Ack")).await;
             }
-            Ok(WorkerMessage::ClientBatchRequest(missing)) => {
-                // TODO [issue #7]: Do some accounting to prevent bad actors from use all our
-                // resources (in this case allocate a gigantic channel).
-                let (sender, mut receiver) = channel(missing.len());
-
-                self.tx_client_helper
-                    .send((missing, sender))
-                    .await
-                    .expect("Failed to send batch request");
-
-                while let Some(batch) = receiver.recv().await {
-                    writer.send(Bytes::from(batch)).await?;
-                }
-            }
-            Err(e) => warn!("Serialization error: {e}"),
         }
-        Ok(())
+
+        Ok(Response::new(Empty {}))
+    }
+
+    type ClientBatchRequestStream =
+        Pin<Box<dyn Stream<Item = Result<BincodeEncodedPayload, Status>> + Send>>;
+
+    async fn client_batch_request(
+        &self,
+        request: Request<BincodeEncodedPayload>,
+    ) -> Result<Response<Self::ClientBatchRequestStream>, Status> {
+        let missing = request
+            .into_inner()
+            .deserialize::<ClientBatchRequest>()
+            .map_err(|e| Status::invalid_argument(e.to_string()))?
+            .0;
+
+        // TODO [issue #7]: Do some accounting to prevent bad actors from use all our
+        // resources (in this case allocate a gigantic channel).
+        let (sender, receiver) = channel(missing.len());
+
+        self.tx_client_helper
+            .send((missing, sender))
+            .await
+            .expect("Failed to send batch request");
+
+        let stream = tokio_stream::wrappers::ReceiverStream::new(receiver).map(|batch| {
+            let payload = BincodeEncodedPayload {
+                payload: Bytes::from(batch),
+            };
+            Ok(payload)
+        });
+
+        Ok(Response::new(
+            Box::pin(stream) as Self::ClientBatchRequestStream
+        ))
     }
 }
 
@@ -334,22 +371,31 @@ struct PrimaryReceiverHandler<PublicKey: VerifyingKey> {
     tx_synchronizer: Sender<PrimaryWorkerMessage<PublicKey>>,
 }
 
+impl<PublicKey: VerifyingKey> PrimaryReceiverHandler<PublicKey> {
+    fn spawn(self, address: SocketAddr) {
+        let service = tonic::transport::Server::builder()
+            .add_service(PrimaryToWorkerServer::new(self))
+            .serve(address);
+        tokio::spawn(service);
+    }
+}
+
 #[async_trait]
-impl<PublicKey: VerifyingKey> MessageHandler for PrimaryReceiverHandler<PublicKey> {
-    async fn dispatch(
+impl<PublicKey: VerifyingKey> PrimaryToWorker for PrimaryReceiverHandler<PublicKey> {
+    async fn send_message(
         &self,
-        _writer: &mut Writer,
-        serialized: Bytes,
-    ) -> Result<(), Box<dyn Error>> {
-        // Deserialize the message and send it to the synchronizer.
-        match bincode::deserialize(&serialized) {
-            Err(e) => error!("Failed to deserialize primary message: {e}"),
-            Ok(message) => self
-                .tx_synchronizer
-                .send(message)
-                .await
-                .expect("Failed to send transaction"),
-        }
-        Ok(())
+        request: Request<BincodeEncodedPayload>,
+    ) -> Result<Response<Empty>, Status> {
+        let message: PrimaryWorkerMessage<PublicKey> = request
+            .into_inner()
+            .deserialize()
+            .map_err(|e| Status::invalid_argument(e.to_string()))?;
+
+        self.tx_synchronizer
+            .send(message)
+            .await
+            .expect("Failed to send transaction");
+
+        Ok(Response::new(Empty {}))
     }
 }

@@ -1,12 +1,11 @@
 // Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crate::worker::{Round, SerializedBatchMessage, SerializedWorkerPrimaryMessage, WorkerMessage};
-use bytes::Bytes;
+use crate::worker::{Round, SerializedBatchMessage};
 use config::{Committee, WorkerId};
 use crypto::traits::VerifyingKey;
 use futures::stream::{futures_unordered::FuturesUnordered, StreamExt as _};
-use network::SimpleSender;
+use network::WorkerNetwork;
 use primary::{PrimaryWorkerMessage, WorkerPrimaryError, WorkerPrimaryMessage};
 use std::{
     collections::HashMap,
@@ -18,7 +17,7 @@ use tokio::{
     time::{sleep, Duration, Instant},
 };
 use tracing::{debug, error};
-use types::BatchDigest;
+use types::{BatchDigest, WorkerMessage};
 
 #[cfg(test)]
 #[path = "tests/synchronizer_tests.rs"]
@@ -47,7 +46,7 @@ pub struct Synchronizer<PublicKey: VerifyingKey> {
     /// Input channel to receive the commands from the primary.
     rx_message: Receiver<PrimaryWorkerMessage<PublicKey>>,
     /// A network sender to send requests to the other workers.
-    network: SimpleSender,
+    network: WorkerNetwork,
     /// Loosely keep track of the primary's round number (only used for cleanup).
     round: Round,
     /// Keeps the digests (of batches) that are waiting to be processed by the primary. Their
@@ -55,7 +54,7 @@ pub struct Synchronizer<PublicKey: VerifyingKey> {
     /// It also keeps the round number and a time stamp (`u128`) of each request we sent.
     pending: HashMap<BatchDigest, (Round, Sender<()>, u128)>,
     // Output channel to send out the batch requests.
-    tx_primary: Sender<SerializedWorkerPrimaryMessage>,
+    tx_primary: Sender<WorkerPrimaryMessage>,
 }
 
 impl<PublicKey: VerifyingKey> Synchronizer<PublicKey> {
@@ -68,7 +67,7 @@ impl<PublicKey: VerifyingKey> Synchronizer<PublicKey> {
         sync_retry_delay: Duration,
         sync_retry_nodes: usize,
         rx_message: Receiver<PrimaryWorkerMessage<PublicKey>>,
-        tx_primary: Sender<SerializedWorkerPrimaryMessage>,
+        tx_primary: Sender<WorkerPrimaryMessage>,
     ) {
         tokio::spawn(async move {
             Self {
@@ -80,7 +79,7 @@ impl<PublicKey: VerifyingKey> Synchronizer<PublicKey> {
                 sync_retry_delay,
                 sync_retry_nodes,
                 rx_message,
-                network: SimpleSender::new(),
+                network: WorkerNetwork::default(),
                 round: Round::default(),
                 pending: HashMap::new(),
                 tx_primary,
@@ -163,8 +162,7 @@ impl<PublicKey: VerifyingKey> Synchronizer<PublicKey> {
                             }
                         };
                         let message = WorkerMessage::BatchRequest(missing, self.name.clone());
-                        let serialized = bincode::serialize(&message).expect("Failed to serialize our own message");
-                        self.network.send(address, Bytes::from(serialized)).await;
+                        self.network.unreliable_send(address, &message).await;
                     },
                     PrimaryWorkerMessage::Cleanup(round) => {
                         // Keep track of the primary's round number.
@@ -226,9 +224,8 @@ impl<PublicKey: VerifyingKey> Synchronizer<PublicKey> {
                             .iter().map(|(_, address)| address.worker_to_worker)
                             .collect();
                         let message = WorkerMessage::BatchRequest(retry, self.name.clone());
-                        let serialized = bincode::serialize(&message).expect("Failed to serialize our own message");
                         self.network
-                            .lucky_broadcast(addresses, Bytes::from(serialized), self.sync_retry_nodes)
+                            .lucky_broadcast(addresses, &message, self.sync_retry_nodes)
                             .await;
                     }
 
@@ -253,9 +250,8 @@ impl<PublicKey: VerifyingKey> Synchronizer<PublicKey> {
             _ => WorkerPrimaryMessage::Error(WorkerPrimaryError::RequestedBatchNotFound(digest)),
         };
 
-        let serialised = bincode::serialize(&message).expect("Failed to serialise message");
         self.tx_primary
-            .send(serialised)
+            .send(message)
             .await
             .expect("Failed to send message to primary channel");
     }
@@ -271,9 +267,8 @@ impl<PublicKey: VerifyingKey> Synchronizer<PublicKey> {
             }
         };
 
-        let serialised = bincode::serialize(&message).expect("Failed to serialise message");
         self.tx_primary
-            .send(serialised)
+            .send(message)
             .await
             .expect("Failed to send message to primary channel");
     }

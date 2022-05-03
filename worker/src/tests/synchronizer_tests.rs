@@ -4,8 +4,8 @@
 use super::*;
 use crypto::{ed25519::Ed25519PublicKey, traits::KeyPair};
 use test_utils::{
-    batch, batch_digest, batches, committee_with_base_port, expecting_listener, keys,
-    open_batch_store, resolve_batch_digest, serialize_batch_message,
+    batch, batch_digest, batches, committee_with_base_port, keys, open_batch_store,
+    resolve_batch_digest, serialize_batch_message, WorkerToWorkerMockServer,
 };
 use tokio::{sync::mpsc::channel, time::timeout};
 
@@ -42,14 +42,14 @@ async fn synchronize() {
     let missing = vec![batch_digest()];
     let message = WorkerMessage::BatchRequest(missing.clone(), name.clone());
     let serialized = bincode::serialize(&message).unwrap();
-    let handle = expecting_listener(address, Some(Bytes::from(serialized)));
+    let mut handle = WorkerToWorkerMockServer::spawn(address);
 
     // Send a sync request.
     let message = PrimaryWorkerMessage::Synchronize(missing, target);
     tx_message.send(message).await.unwrap();
 
     // Ensure the target receives the sync request.
-    assert!(handle.await.is_ok());
+    assert_eq!(handle.recv().await.unwrap().payload, serialized);
 }
 
 #[tokio::test]
@@ -95,7 +95,7 @@ async fn test_successful_request_batch() {
 
     // THEN we should receive batch the batch
     if let Ok(Some(message)) = timeout(Duration::from_secs(5), rx_primary.recv()).await {
-        match bincode::deserialize(&message).unwrap() {
+        match message {
             WorkerPrimaryMessage::RequestedBatch(digest, batch) => {
                 assert_eq!(batch, expected_batch);
                 assert_eq!(digest, expected_digest)
@@ -147,7 +147,7 @@ async fn test_request_batch_not_found() {
 
     // THEN we should receive batch the batch
     if let Ok(Some(message)) = timeout(Duration::from_secs(5), rx_primary.recv()).await {
-        match bincode::deserialize(&message).unwrap() {
+        match message {
             WorkerPrimaryMessage::Error(error) => {
                 assert_eq!(
                     error,
@@ -211,7 +211,7 @@ async fn test_successful_batch_delete() {
 
     // THEN we should receive the acknowledgement that the batches have been deleted
     if let Ok(Some(message)) = timeout(Duration::from_secs(5), rx_primary.recv()).await {
-        match bincode::deserialize(&message).unwrap() {
+        match message {
             WorkerPrimaryMessage::DeletedBatches(digests) => {
                 assert_eq!(digests, batch_digests);
             }

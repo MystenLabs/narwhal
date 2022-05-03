@@ -9,14 +9,22 @@ use crypto::{
     traits::{KeyPair, Signer},
     Digest, Hash as _,
 };
-use futures::{sink::SinkExt as _, stream::StreamExt as _};
+use futures::{sink::SinkExt as _, stream::StreamExt as _, Stream};
 use rand::{rngs::StdRng, SeedableRng as _};
-use std::{collections::BTreeMap, net::SocketAddr};
+use std::{collections::BTreeMap, net::SocketAddr, pin::Pin};
 use store::{rocks, Store};
-use types::{Batch, BatchDigest, Certificate, Header, Transaction, Vote};
-
-use tokio::{net::TcpListener, task::JoinHandle};
+use tokio::{
+    net::TcpListener,
+    sync::mpsc::{channel, Receiver, Sender},
+    task::JoinHandle,
+};
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
+use tonic::Response;
+use types::{
+    Batch, BatchDigest, BincodeEncodedPayload, Certificate, Empty, Header, PrimaryToPrimary,
+    PrimaryToPrimaryServer, PrimaryToWorker, PrimaryToWorkerServer, Transaction, Vote,
+    WorkerToPrimary, WorkerToPrimaryServer, WorkerToWorker, WorkerToWorkerServer,
+};
 
 pub const HEADERS_CF: &str = "headers";
 pub const CERTIFICATES_CF: &str = "certificates";
@@ -319,6 +327,124 @@ pub fn expecting_listener(address: SocketAddr, expected: Option<Bytes>) -> JoinH
             _ => panic!("Failed to receive network message"),
         }
     })
+}
+
+pub struct PrimaryToPrimaryMockServer {
+    sender: Sender<BincodeEncodedPayload>,
+}
+
+impl PrimaryToPrimaryMockServer {
+    pub fn spawn(address: SocketAddr) -> Receiver<BincodeEncodedPayload> {
+        let (sender, receiver) = channel(1);
+        let mock = Self { sender };
+        let service = tonic::transport::Server::builder()
+            .add_service(PrimaryToPrimaryServer::new(mock))
+            .serve(address);
+        tokio::spawn(service);
+        receiver
+    }
+}
+
+#[tonic::async_trait]
+impl PrimaryToPrimary for PrimaryToPrimaryMockServer {
+    async fn send_message(
+        &self,
+        request: tonic::Request<BincodeEncodedPayload>,
+    ) -> Result<tonic::Response<Empty>, tonic::Status> {
+        self.sender.send(request.into_inner()).await.unwrap();
+        Ok(Response::new(Empty {}))
+    }
+}
+
+pub struct WorkerToPrimaryMockServer {
+    sender: Sender<BincodeEncodedPayload>,
+}
+
+impl WorkerToPrimaryMockServer {
+    pub fn spawn(address: SocketAddr) -> Receiver<BincodeEncodedPayload> {
+        let (sender, receiver) = channel(1);
+        let mock = Self { sender };
+        let service = tonic::transport::Server::builder()
+            .add_service(WorkerToPrimaryServer::new(mock))
+            .serve(address);
+        tokio::spawn(service);
+        receiver
+    }
+}
+
+#[tonic::async_trait]
+impl WorkerToPrimary for WorkerToPrimaryMockServer {
+    async fn send_message(
+        &self,
+        request: tonic::Request<BincodeEncodedPayload>,
+    ) -> Result<tonic::Response<Empty>, tonic::Status> {
+        self.sender.send(request.into_inner()).await.unwrap();
+        Ok(Response::new(Empty {}))
+    }
+}
+
+pub struct PrimaryToWorkerMockServer {
+    sender: Sender<BincodeEncodedPayload>,
+}
+
+impl PrimaryToWorkerMockServer {
+    pub fn spawn(address: SocketAddr) -> Receiver<BincodeEncodedPayload> {
+        let (sender, receiver) = channel(1);
+        let mock = Self { sender };
+        let service = tonic::transport::Server::builder()
+            .add_service(PrimaryToWorkerServer::new(mock))
+            .serve(address);
+        tokio::spawn(service);
+        receiver
+    }
+}
+
+#[tonic::async_trait]
+impl PrimaryToWorker for PrimaryToWorkerMockServer {
+    async fn send_message(
+        &self,
+        request: tonic::Request<BincodeEncodedPayload>,
+    ) -> Result<tonic::Response<Empty>, tonic::Status> {
+        self.sender.send(request.into_inner()).await.unwrap();
+        Ok(Response::new(Empty {}))
+    }
+}
+
+pub struct WorkerToWorkerMockServer {
+    sender: Sender<BincodeEncodedPayload>,
+}
+
+impl WorkerToWorkerMockServer {
+    pub fn spawn(address: SocketAddr) -> Receiver<BincodeEncodedPayload> {
+        let (sender, receiver) = channel(1);
+        let mock = Self { sender };
+        let service = tonic::transport::Server::builder()
+            .add_service(WorkerToWorkerServer::new(mock))
+            .serve(address);
+        tokio::spawn(service);
+        receiver
+    }
+}
+
+#[tonic::async_trait]
+impl WorkerToWorker for WorkerToWorkerMockServer {
+    async fn send_message(
+        &self,
+        request: tonic::Request<BincodeEncodedPayload>,
+    ) -> Result<tonic::Response<Empty>, tonic::Status> {
+        self.sender.send(request.into_inner()).await.unwrap();
+        Ok(Response::new(Empty {}))
+    }
+
+    type ClientBatchRequestStream =
+        Pin<Box<dyn Stream<Item = Result<BincodeEncodedPayload, tonic::Status>> + Send>>;
+
+    async fn client_batch_request(
+        &self,
+        _request: tonic::Request<BincodeEncodedPayload>,
+    ) -> Result<tonic::Response<Self::ClientBatchRequestStream>, tonic::Status> {
+        todo!()
+    }
 }
 
 // helper method to get a name and a committee. Special care should be given on
