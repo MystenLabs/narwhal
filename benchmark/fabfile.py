@@ -33,7 +33,7 @@ def local(ctx, debug=True):
             'payload_synchronize_timeout': '2_000ms',
             'payload_availability_timeout': '2_000ms'
         },
-        'max_concurrent_requests': 2
+        'max_concurrent_requests': 500_000
     }
     try:
         ret = LocalBench(bench_params, node_params).run(debug)
