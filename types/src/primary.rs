@@ -484,6 +484,7 @@ pub enum PrimaryMessage<PublicKey: VerifyingKey> {
     },
     CertificatesBatchResponse {
         certificates: Vec<(CertificateDigest, Option<Certificate<PublicKey>>)>,
+        from: PublicKey,
     },
 
     PayloadAvailabilityRequest {
