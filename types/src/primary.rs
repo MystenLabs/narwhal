@@ -49,7 +49,7 @@ impl From<BatchDigest> for Digest {
 impl From<BatchDigest> for BatchDigestProto {
     fn from(digest: BatchDigest) -> Self {
         BatchDigestProto {
-            f_bytes: Bytes::from(digest.0.to_vec()),
+            digest: Bytes::from(digest.0.to_vec()),
         }
     }
 }
@@ -417,7 +417,7 @@ impl From<CertificateDigest> for Digest {
 impl From<CertificateDigest> for CertificateDigestProto {
     fn from(hd: CertificateDigest) -> Self {
         CertificateDigestProto {
-            f_bytes: Bytes::from(hd.0.to_vec()),
+            digest: Bytes::from(hd.0.to_vec()),
         }
     }
 }

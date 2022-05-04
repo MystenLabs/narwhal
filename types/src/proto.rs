@@ -46,7 +46,7 @@ impl From<Batch> for BatchProto {
                 .0
                 .into_iter()
                 .map(|transaction| TransactionProto {
-                    f_bytes: Bytes::from(transaction),
+                    transaction: Bytes::from(transaction),
                 })
                 .collect::<Vec<TransactionProto>>(),
         }
@@ -76,7 +76,7 @@ impl TryFrom<CertificateDigestProto> for CertificateDigest {
     type Error = TryFromSliceError;
 
     fn try_from(digest: CertificateDigestProto) -> Result<Self, Self::Error> {
-        Ok(CertificateDigest::new(digest.f_bytes.deref().try_into()?))
+        Ok(CertificateDigest::new(digest.digest.deref().try_into()?))
     }
 }
 

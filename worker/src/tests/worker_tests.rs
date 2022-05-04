@@ -63,7 +63,7 @@ async fn handle_clients_transactions() {
         .unwrap();
     for tx in batch.0 {
         let txn = TransactionProto {
-            f_bytes: Bytes::from(tx.clone()),
+            transaction: Bytes::from(tx.clone()),
         };
         client.submit_transaction(txn).await.unwrap();
     }

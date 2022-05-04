@@ -10,7 +10,7 @@
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CertificateDigest {
     #[prost(bytes="bytes", tag="1")]
-    pub f_bytes: ::prost::bytes::Bytes,
+    pub digest: ::prost::bytes::Bytes,
 }
 /// 
 /// Proto wrapper for Narwhal type 
@@ -20,7 +20,7 @@ pub struct CertificateDigest {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct BatchDigest {
     #[prost(bytes="bytes", tag="1")]
-    pub f_bytes: ::prost::bytes::Bytes,
+    pub digest: ::prost::bytes::Bytes,
 }
 /// 
 /// Proto wrapper for Narwhal type 
@@ -40,7 +40,7 @@ pub struct Batch {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Transaction {
     #[prost(bytes="bytes", tag="1")]
-    pub f_bytes: ::prost::bytes::Bytes,
+    pub transaction: ::prost::bytes::Bytes,
 }
 ///
 /// Proto wrapper for Narwhal type 

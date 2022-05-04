@@ -14,7 +14,7 @@ package narwhal;
  *
  */
 message CertificateDigest {
-    bytes f_bytes = 1;
+    bytes digest = 1;
 }
 
 /* 
@@ -24,7 +24,7 @@ message CertificateDigest {
  *
  */
 message BatchDigest {
-    bytes f_bytes = 1;
+    bytes digest = 1;
 }
 
 /* 
@@ -44,7 +44,7 @@ message Batch {
  *
  */
 message Transaction {
-    bytes f_bytes = 1;
+    bytes transaction = 1;
 }
 
 /*

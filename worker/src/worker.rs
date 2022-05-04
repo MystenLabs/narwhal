@@ -258,7 +258,7 @@ impl Transactions for TxReceiverHandler {
         &self,
         request: Request<TransactionProto>,
     ) -> Result<Response<Empty>, Status> {
-        let message = request.into_inner().f_bytes;
+        let message = request.into_inner().transaction;
         // Send the transaction to the batch maker.
         self.tx_batch_maker
             .send(message.to_vec())
@@ -277,7 +277,7 @@ impl Transactions for TxReceiverHandler {
         while let Some(Ok(txn)) = transactions.next().await {
             // Send the transaction to the batch maker.
             self.tx_batch_maker
-                .send(txn.f_bytes.to_vec())
+                .send(txn.transaction.to_vec())
                 .await
                 .expect("Failed to send transaction");
         }
