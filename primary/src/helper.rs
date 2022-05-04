@@ -7,7 +7,7 @@ use crypto::traits::VerifyingKey;
 use network::PrimaryNetwork;
 use store::Store;
 use tokio::sync::mpsc::Receiver;
-use tracing::{error, warn};
+use tracing::{error, instrument, warn};
 use types::{BatchDigest, Certificate, CertificateDigest};
 
 #[cfg(test)]
@@ -92,6 +92,7 @@ impl<PublicKey: VerifyingKey> Helper<PublicKey> {
     /// certificate & batch data for each certificate digest in digests,
     /// and reports on each fully available item in the request in a
     /// PayloadAvailabilityResponse.
+    #[instrument(level="debug", skip_all, fields(certificate_ids = ?digests))]
     async fn process_payload_availability(
         &mut self,
         digests: Vec<CertificateDigest>,
@@ -165,6 +166,7 @@ impl<PublicKey: VerifyingKey> Helper<PublicKey> {
             .await;
     }
 
+    #[instrument(level="debug", skip_all, fields(certificate_ids = ?digests, mode = batch_mode))]
     async fn process_certificates(
         &mut self,
         digests: Vec<CertificateDigest>,
@@ -186,7 +188,6 @@ impl<PublicKey: VerifyingKey> Helper<PublicKey> {
         };
 
         // TODO [issue #195]: Do some accounting to prevent bad nodes from monopolizing our resources.
-
         let certificates = match self.certificate_store.read_all(digests.to_owned()).await {
             Ok(certificates) => certificates,
             Err(err) => {
