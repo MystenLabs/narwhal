@@ -41,8 +41,8 @@ impl Validator for NarwhalValidator {
             let (tx_get_blocks, rx_get_blocks) = oneshot::channel();
             let mut ids = vec![];
             for collection_id in collection_ids {
-                ids.push(collection_id.try_into().map_err(|vec| {
-                    Status::invalid_argument(format!("Could not serialize: {:?}", vec))
+                ids.push(collection_id.try_into().map_err(|err| {
+                    Status::invalid_argument(format!("Could not serialize: {:?}", err))
                 })?);
             }
             self.tx_get_block_commands
