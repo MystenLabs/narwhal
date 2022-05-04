@@ -105,9 +105,6 @@ async fn test_get_collections() {
         /* external_consensus */ true,
     );
 
-    // Wait for primary to start all components (including grpc server)
-    tokio::time::sleep(Duration::from_secs(3)).await;
-
     // Spawn a `Worker` instance.
     Worker::spawn(
         name.clone(),
@@ -117,12 +114,19 @@ async fn test_get_collections() {
         store.batch_store,
     );
 
-    // Test gRPC server with client call
-    let mut client =
-        ValidatorClient::connect("http://".to_string() + &parameters.grpc_server.socket_addr)
-            .await
-            .unwrap();
+    let max_grpc_connect_retries = 3;
+    let mut grpc_connect_retry_count = 0;
+    let dst = format!("http://{}", parameters.consensus_api_grpc.socket_addr);
+    let mut client = ValidatorClient::connect(dst.to_owned()).await;
+    while client.is_err() {
+        client = ValidatorClient::connect(dst.to_owned()).await;
+        tokio::time::sleep(Duration::from_secs(1)).await;
+        grpc_connect_retry_count += 1;
+        assert!(grpc_connect_retry_count < max_grpc_connect_retries);
+    }
 
+    // Test gRPC server with client call
+    let mut client = client.unwrap();
     let collection_ids = block_ids;
 
     // Test get no collections

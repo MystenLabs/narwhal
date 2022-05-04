@@ -8,7 +8,7 @@ use crate::{
     certificate_waiter::CertificateWaiter,
     core::Core,
     garbage_collector::GarbageCollector,
-    grpc_server::GrpcServer,
+    grpc_server::ConsensusAPIGrpc,
     header_waiter::HeaderWaiter,
     helper::Helper,
     payload_receiver::PayloadReceiver,
@@ -283,10 +283,10 @@ impl Primary {
 
         if external_consensus {
             // Spawn a grpc server to accept requests from external consensus layer.
-            GrpcServer::spawn(
-                parameters.grpc_server.socket_addr,
+            ConsensusAPIGrpc::spawn(
+                parameters.consensus_api_grpc.socket_addr,
                 tx_get_block_commands,
-                parameters.grpc_server.get_collections_timeout,
+                parameters.consensus_api_grpc.get_collections_timeout,
             );
         }
 

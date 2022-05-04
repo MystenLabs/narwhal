@@ -5,7 +5,7 @@ syntax = "proto3";
 
 package narwhal;
 
-// TODO: Make proto the source of truth for all relevant narwhal types.
+// TODO: Make this proto the source of truth for all relevant narwhal types.
 
 /* 
  * Proto wrapper for Narwhal type 
@@ -102,6 +102,7 @@ message GetCollectionsRequest {
 }
 
 message GetCollectionsResponse {
+    // TODO: Revisit this for spec compliance.  
     // List of retrieval results of collections.
     repeated CollectionRetrievalResult result = 1;
 }

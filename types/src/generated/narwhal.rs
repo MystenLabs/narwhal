@@ -1,6 +1,6 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-// TODO: Make proto the source of truth for all relevant narwhal types.
+// TODO: Make this proto the source of truth for all relevant narwhal types.
 
 /// 
 /// Proto wrapper for Narwhal type 
@@ -94,6 +94,7 @@ pub struct GetCollectionsRequest {
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetCollectionsResponse {
+    /// TODO: Revisit this for spec compliance.  
     /// List of retrieval results of collections.
     #[prost(message, repeated, tag="1")]
     pub result: ::prost::alloc::vec::Vec<CollectionRetrievalResult>,

@@ -11,13 +11,13 @@ use types::ValidatorServer;
 
 mod validator;
 
-pub struct GrpcServer {
+pub struct ConsensusAPIGrpc {
     socket_addr: String,
     tx_get_block_commands: Sender<BlockCommand>,
     get_collections_timeout: Duration,
 }
 
-impl GrpcServer {
+impl ConsensusAPIGrpc {
     pub fn spawn(
         socket_addr: String,
         tx_get_block_commands: Sender<BlockCommand>,

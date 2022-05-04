@@ -93,7 +93,7 @@ impl Node {
         // The configuration parameters.
         parameters: Parameters,
         // Whether to run consensus (and an executor client) or not.
-        // If true, an internal consensus will be used or else an external consensus will be used.
+        // If true, an internal consensus will be used, else an external consensus will be used.
         // If an external consensus will be used, then this bool will also ensure that the
         // corresponding gRPC server that is used for communication between narwhal and
         // external consensus is also spawned.

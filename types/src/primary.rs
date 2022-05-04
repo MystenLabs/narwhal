@@ -512,6 +512,7 @@ pub enum PrimaryWorkerMessage<PublicKey> {
 
 #[derive(Clone, Default, Debug, PartialEq)]
 pub struct BatchMessage {
+    // TODO: revisit including the id here [see #188]
     pub id: BatchDigest,
     pub transactions: Batch,
 }
