@@ -26,6 +26,8 @@ use types::{
     CertificateDigest, Header,
 };
 use Result::*;
+use tokio::sync::mpsc::Sender;
+use crate::block_synchronizer::Command;
 
 const BATCH_RETRIEVE_TIMEOUT: Duration = Duration::from_secs(1);
 
@@ -221,6 +223,10 @@ pub struct BlockWaiter<PublicKey: VerifyingKey> {
     /// A map that holds the channels we should notify with the
     /// GetBlocks responses.
     tx_get_blocks_map: HashMap<RequestKey, Vec<oneshot::Sender<BlocksResult>>>,
+
+    /// The sender to use in order to publish messages to the
+    /// block_synchronizer to fetch certificates and synchronize blocks.
+    tx_block_synchronizer: Sender<Command<PublicKey>>,
 }
 
 impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
@@ -369,6 +375,10 @@ impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
         }
 
         None
+    }
+
+    async fn get_certificates(&mut self, ids: Vec<CertificateDigest>) {
+
     }
 
     async fn get_blocks<'a>(
