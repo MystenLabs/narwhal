@@ -1,13 +1,11 @@
-use crate::{BlockCommand, BlockWaiter};
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use crate::{
-    block_synchronizer::{BlockHeader, Command, SyncError},
+    block_synchronizer::{mock::MockBlockSynchronizer, BlockHeader, Command, SyncError},
     block_waiter::{
         BatchResult, BlockError, BlockErrorType, BlockResult, GetBlockResponse, GetBlocksResponse,
     },
-    common::create_db_stores,
-    PrimaryWorkerMessage,
+    BlockCommand, BlockWaiter, PrimaryWorkerMessage,
 };
 use bincode::deserialize;
 use crypto::{ed25519::Ed25519PublicKey, traits::VerifyingKey, Hash};
@@ -30,31 +28,23 @@ use types::{Batch, BatchDigest, BatchMessage, Certificate, CertificateDigest};
 
 #[tokio::test]
 async fn test_successfully_retrieve_block() {
-    // GIVEN
-    let (_, certificate_store, _) = create_db_stores();
-
-    // AND the necessary keys
+    // GIVEN the necessary keys
     let (name, committee) = resolve_name_and_committee(12000);
 
     // AND store certificate
     let header = fixture_header_with_payload(2);
     let certificate = certificate(&header);
-    certificate_store
-        .write(certificate.digest(), certificate.clone())
-        .await;
-
     let block_id = certificate.digest();
 
     // AND spawn a new blocks waiter
     let (tx_commands, rx_commands) = channel(1);
     let (tx_get_block, rx_get_block) = oneshot::channel();
     let (tx_batch_messages, rx_batch_messages) = channel(10);
-    let (tx_block_synchronizer, _rx_block_synchronizer) = channel(10);
+    let (tx_block_synchronizer, rx_block_synchronizer) = channel(10);
 
     BlockWaiter::spawn(
         name.clone(),
         committee.clone(),
-        certificate_store.clone(),
         rx_commands,
         rx_batch_messages,
         tx_block_synchronizer,
@@ -84,6 +74,16 @@ async fn test_successfully_retrieve_block() {
         expected_batch_messages.clone(),
         tx_batch_messages,
     );
+
+    // AND mock the response from the block synchronizer
+    let mock_synchronizer = MockBlockSynchronizer::new(rx_block_synchronizer);
+    let expected_result = vec![Ok(BlockHeader {
+        certificate: certificate.clone(),
+        fetched_from_storage: true,
+    })];
+    mock_synchronizer
+        .expect_synchronize_block_headers(vec![block_id], expected_result, 1)
+        .await;
 
     // WHEN we send a request to get a block
     tx_commands
@@ -122,14 +122,13 @@ async fn test_successfully_retrieve_block() {
             panic!("Timeout, no result has been received in time")
         }
     }
+
+    mock_synchronizer.assert_expectations().await;
 }
 
 #[tokio::test]
 async fn test_successfully_retrieve_multiple_blocks() {
-    // GIVEN
-    let (_, certificate_store, _) = create_db_stores();
-
-    // AND the necessary keys
+    // GIVEN the necessary keys
     let (name, committee) = resolve_name_and_committee(14001);
 
     let key = keys().pop().unwrap();
@@ -137,8 +136,7 @@ async fn test_successfully_retrieve_multiple_blocks() {
     let mut expected_batch_messages = HashMap::new();
     let worker_id = 0;
     let mut expected_get_block_responses = Vec::new();
-    let mut certificates: HashMap<CertificateDigest, Certificate<Ed25519PublicKey>> =
-        HashMap::new();
+    let mut certificates = Vec::new();
 
     for _ in 0..2 {
         let batch_1 = fixture_batch_with_transactions(10);
@@ -150,7 +148,7 @@ async fn test_successfully_retrieve_multiple_blocks() {
             .build(|payload| key.sign(payload));
 
         let certificate = certificate(&header);
-        certificates.insert(certificate.digest(), certificate.clone());
+        certificates.push(certificate.clone());
 
         block_ids.push(certificate.digest());
 
@@ -208,12 +206,11 @@ async fn test_successfully_retrieve_multiple_blocks() {
     let (tx_commands, rx_commands) = channel(1);
     let (tx_get_blocks, rx_get_blocks) = oneshot::channel();
     let (tx_batch_messages, rx_batch_messages) = channel(10);
-    let (tx_block_synchronizer, mut rx_block_synchronizer) = channel(10);
+    let (tx_block_synchronizer, rx_block_synchronizer) = channel(10);
 
     BlockWaiter::spawn(
         name.clone(),
         committee.clone(),
-        certificate_store.clone(),
         rx_commands,
         rx_batch_messages,
         tx_block_synchronizer,
@@ -231,42 +228,33 @@ async fn test_successfully_retrieve_multiple_blocks() {
         tx_batch_messages,
     );
 
+    // AND mock the responses from the BlockSynchronizer
+    let mock_synchronizer = MockBlockSynchronizer::new(rx_block_synchronizer);
+
+    let mut expected_result = Vec::new();
+
+    for certificate in certificates {
+        expected_result.push(Ok(BlockHeader {
+            certificate: certificate.to_owned(),
+            fetched_from_storage: true,
+        }));
+    }
+    expected_result.push(Err(SyncError::Error {
+        block_id: missing_block_id,
+    }));
+
+    mock_synchronizer
+        .expect_synchronize_block_headers(block_ids.clone(), expected_result, 1)
+        .await;
+
     // WHEN we send a request to get a block
     tx_commands
         .send(BlockCommand::GetBlocks {
-            ids: block_ids,
+            ids: block_ids.clone(),
             sender: tx_get_blocks,
         })
         .await
         .unwrap();
-
-    let command: Command<Ed25519PublicKey> = rx_block_synchronizer.recv().await.unwrap();
-    match command {
-        Command::SynchronizeBlockHeaders {
-            block_ids,
-            respond_to,
-        } => {
-            for block_id in block_ids {
-                if let Some(certificate) = certificates.get(&block_id) {
-                    respond_to
-                        .send(Ok(BlockHeader {
-                            certificate: certificate.to_owned(),
-                            fetched_from_storage: true,
-                        }))
-                        .await
-                        .expect("Couldn't send message");
-                } else {
-                    respond_to
-                        .send(Err(SyncError::Error { block_id }))
-                        .await
-                        .expect("Couldn't send message");
-                }
-            }
-        }
-        _ => {
-            panic!("Unexpected command received");
-        }
-    }
 
     // Wait for the worker server to complete before continue.
     // Then we'll be confident that the expected batch responses
@@ -288,34 +276,28 @@ async fn test_successfully_retrieve_multiple_blocks() {
             panic!("Timeout, no result has been received in time")
         }
     }
+
+    mock_synchronizer.assert_expectations().await;
 }
 
 #[tokio::test]
 async fn test_one_pending_request_for_block_at_time() {
-    // GIVEN
-    let (_, certificate_store, _) = create_db_stores();
-
-    // AND the necessary keys
+    // GIVEN the necessary keys
     let (name, committee) = resolve_name_and_committee(13002);
 
     // AND store certificate
     let header = fixture_header_with_payload(2);
     let certificate = certificate(&header);
-    certificate_store
-        .write(certificate.digest(), certificate.clone())
-        .await;
-
     let block_id = certificate.digest();
 
     // AND spawn a new blocks waiter
     let (_, rx_commands) = channel(1);
     let (_, rx_batch_messages) = channel(1);
-    let (tx_block_synchronizer, _rx_block_synchronizer) = channel(10);
+    let (tx_block_synchronizer, mut rx_block_synchronizer) = channel(10);
 
     let mut waiter = BlockWaiter {
         name: name.clone(),
         committee: committee.clone(),
-        certificate_store: certificate_store.clone(),
         rx_commands,
         tx_block_synchronizer,
         pending_get_block: HashMap::new(),
@@ -330,6 +312,31 @@ async fn test_one_pending_request_for_block_at_time() {
         let (tx, _) = oneshot::channel();
         tx
     };
+
+    tokio::spawn(async move {
+        for _ in 0..=3 {
+            let command: Command<Ed25519PublicKey> = rx_block_synchronizer.recv().await.unwrap();
+            match command {
+                Command::SynchronizeBlockHeaders {
+                    block_ids,
+                    respond_to,
+                } => {
+                    assert_eq!(*block_ids.first().unwrap(), block_id);
+
+                    respond_to
+                        .send(Ok(BlockHeader {
+                            certificate: certificate.clone(),
+                            fetched_from_storage: true,
+                        }))
+                        .await
+                        .expect("Couldn't send message");
+                }
+                _ => {
+                    panic!("Unexpected command received");
+                }
+            }
+        }
+    });
 
     // WHEN we send GetBlock command
     let result_some = waiter
@@ -362,30 +369,22 @@ async fn test_one_pending_request_for_block_at_time() {
 
 #[tokio::test]
 async fn test_unlocking_pending_get_block_request_after_response() {
-    // GIVEN
-    let (_, certificate_store, _) = create_db_stores();
-
-    // AND the necessary keys
+    // GIVEN the necessary keys
     let (name, committee) = resolve_name_and_committee(13003);
 
     // AND store certificate
     let header = fixture_header_with_payload(2);
     let certificate = certificate(&header);
-    certificate_store
-        .write(certificate.digest(), certificate.clone())
-        .await;
-
     let block_id = certificate.digest();
 
     // AND spawn a new blocks waiter
     let (_, rx_commands) = channel(1);
     let (_, rx_batch_messages) = channel(1);
-    let (tx_block_synchronizer, _rx_block_synchronizer) = channel(10);
+    let (tx_block_synchronizer, rx_block_synchronizer) = channel(10);
 
     let mut waiter = BlockWaiter {
         name: name.clone(),
         committee: committee.clone(),
-        certificate_store: certificate_store.clone(),
         rx_commands,
         tx_block_synchronizer,
         pending_get_block: HashMap::new(),
@@ -400,6 +399,16 @@ async fn test_unlocking_pending_get_block_request_after_response() {
         let (tx, _) = oneshot::channel();
         tx
     };
+
+    // AND mock the responses of the BlockSynchronizer
+    let mock_synchronizer = MockBlockSynchronizer::new(rx_block_synchronizer);
+    let expected_result = vec![Ok(BlockHeader {
+        certificate: certificate.clone(),
+        fetched_from_storage: true,
+    })];
+    mock_synchronizer
+        .expect_synchronize_block_headers(vec![block_id], expected_result, 3)
+        .await;
 
     // AND we send GetBlock commands
     for _ in 0..3 {
@@ -419,39 +428,43 @@ async fn test_unlocking_pending_get_block_request_after_response() {
     // THEN
     assert!(!waiter.pending_get_block.contains_key(&block_id));
     assert!(!waiter.tx_get_block_map.contains_key(&block_id));
+
+    mock_synchronizer.assert_expectations().await;
 }
 
 #[tokio::test]
 async fn test_batch_timeout() {
-    // GIVEN
-    let (_, certificate_store, _) = create_db_stores();
-
-    // AND the necessary keys
+    // GIVEN the necessary keys
     let (name, committee) = resolve_name_and_committee(13004);
 
     // AND store certificate
     let header = fixture_header_with_payload(2);
     let certificate = certificate(&header);
-    certificate_store
-        .write(certificate.digest(), certificate.clone())
-        .await;
-
     let block_id = certificate.digest();
 
     // AND spawn a new blocks waiter
     let (tx_commands, rx_commands) = channel(1);
     let (tx_get_block, rx_get_block) = oneshot::channel();
     let (_, rx_batch_messages) = channel(10);
-    let (tx_block_synchronizer, _rx_block_synchronizer) = channel(10);
+    let (tx_block_synchronizer, rx_block_synchronizer) = channel(10);
 
     BlockWaiter::spawn(
         name.clone(),
         committee.clone(),
-        certificate_store.clone(),
         rx_commands,
         rx_batch_messages,
         tx_block_synchronizer,
     );
+
+    // AND mock the responses of the BlockSynchronizer
+    let mock_synchronizer = MockBlockSynchronizer::new(rx_block_synchronizer);
+    let expected_result = vec![Ok(BlockHeader {
+        certificate: certificate.clone(),
+        fetched_from_storage: true,
+    })];
+    mock_synchronizer
+        .expect_synchronize_block_headers(vec![block_id], expected_result, 1)
+        .await;
 
     // WHEN we send a request to get a block
     tx_commands
@@ -479,12 +492,13 @@ async fn test_batch_timeout() {
             panic!("Timeout, no result has been received in time")
         }
     }
+
+    mock_synchronizer.assert_expectations().await;
 }
 
 #[tokio::test]
 async fn test_return_error_when_certificate_is_missing() {
     // GIVEN
-    let (_, certificate_store, _) = create_db_stores();
     let (name, committee) = resolve_name_and_committee(13005);
 
     // AND create a certificate but don't store it
@@ -495,16 +509,25 @@ async fn test_return_error_when_certificate_is_missing() {
     let (tx_commands, rx_commands) = channel(1);
     let (tx_get_block, rx_get_block) = oneshot::channel();
     let (_, rx_batch_messages) = channel(10);
-    let (tx_block_synchronizer, _rx_block_synchronizer) = channel(10);
+    let (tx_block_synchronizer, rx_block_synchronizer) = channel(10);
 
     BlockWaiter::spawn(
         name.clone(),
         committee.clone(),
-        certificate_store.clone(),
         rx_commands,
         rx_batch_messages,
         tx_block_synchronizer,
     );
+
+    // AND mock the responses of the BlockSynchronizer
+    let mock_synchronizer = MockBlockSynchronizer::new(rx_block_synchronizer);
+    mock_synchronizer
+        .expect_synchronize_block_headers(
+            vec![block_id],
+            vec![Err(SyncError::Error { block_id })],
+            1,
+        )
+        .await;
 
     // WHEN we send a request to get a block
     tx_commands
@@ -532,6 +555,8 @@ async fn test_return_error_when_certificate_is_missing() {
             panic!("Timeout, no result has been received in time")
         }
     }
+
+    mock_synchronizer.assert_expectations().await;
 }
 
 // worker_listener listens to TCP requests. The worker responds to the

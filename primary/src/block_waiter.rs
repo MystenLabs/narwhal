@@ -18,7 +18,6 @@ use std::{
     fmt::Formatter,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
-use store::Store;
 use tokio::{
     sync::{
         mpsc::{channel, Receiver, Sender},
@@ -118,7 +117,6 @@ type RequestKey = Vec<u8>;
 /// the result of it.
 ///
 /// ```rust
-/// # use store::{reopen, rocks, rocks::DBMap, Store};
 /// # use tokio::sync::mpsc::{channel};
 /// # use tokio::sync::oneshot;
 /// # use crypto::Hash;
@@ -127,25 +125,13 @@ type RequestKey = Vec<u8>;
 /// # use config::Committee;
 /// # use std::collections::BTreeMap;
 /// # use types::Certificate;
-/// # use tempfile::tempdir;
 /// # use primary::{BlockWaiter, BlockCommand};
 /// # use types::{BatchMessage, BatchDigest, CertificateDigest, Batch};
 ///
 /// #[tokio::main(flavor = "current_thread")]
 /// # async fn main() {
-///     const CERTIFICATES_CF: &str = "certificates";
-///
-///     let temp_dir = tempdir().expect("Failed to open temporary directory").into_path();
-///
-///     // Basic setup: datastore, channels & BlockWaiter
-///     let rocksdb = rocks::open_cf(temp_dir, None, &[CERTIFICATES_CF])
-///         .expect("Failed creating database");
-///
-///     let (certificate_map) = reopen!(&rocksdb,
-///             CERTIFICATES_CF;<CertificateDigest, Certificate<Ed25519PublicKey>>);
-///     let certificate_store = Store::new(certificate_map);
-///
-///     let (tx_commands, rx_commands) = channel(1);
+///     use primary::{BlockHeader, MockBlockSynchronizer};
+/// let (tx_commands, rx_commands) = channel(1);
 ///     let (tx_batches, rx_batches) = channel(1);
 ///     let (tx_get_block, mut rx_get_block) = oneshot::channel();
 ///     let (tx_block_synchronizer, rx_block_synchronizer) = channel(1);
@@ -156,7 +142,6 @@ type RequestKey = Vec<u8>;
 ///     BlockWaiter::spawn(
 ///         name,
 ///         committee,
-///         certificate_store.clone(),
 ///         rx_commands,
 ///         rx_batches,
 ///         tx_block_synchronizer,
@@ -164,6 +149,17 @@ type RequestKey = Vec<u8>;
 ///
 ///     // A dummy certificate
 ///     let certificate = Certificate::<Ed25519PublicKey>::default();
+///
+///     // Dummy - we expect the BlockSynchronizer to actually respond, here
+///     // we are using a mock
+///     let mock_synchronizer = MockBlockSynchronizer::new(rx_block_synchronizer);
+///     let expected_result = vec![Ok(BlockHeader {
+///         certificate: certificate.clone(),
+///         fetched_from_storage: true,
+///     })];
+///     mock_synchronizer
+///         .expect_synchronize_block_headers(vec![certificate.digest()], expected_result, 1)
+///         .await;
 ///
 ///     // Send a command to receive a block
 ///     tx_commands
@@ -194,9 +190,6 @@ pub struct BlockWaiter<PublicKey: VerifyingKey> {
 
     /// The committee information.
     committee: Committee<PublicKey>,
-
-    /// Storage that keeps the Certificates by their digest id.
-    certificate_store: Store<CertificateDigest, Certificate<PublicKey>>,
 
     /// Receive all the requests to get a block
     rx_commands: Receiver<BlockCommand>,
@@ -241,7 +234,6 @@ impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
     pub fn spawn(
         name: PublicKey,
         committee: Committee<PublicKey>,
-        certificate_store: Store<CertificateDigest, Certificate<PublicKey>>,
         rx_commands: Receiver<BlockCommand>,
         batch_receiver: Receiver<BatchResult>,
         tx_block_synchronizer: Sender<Command<PublicKey>>,
@@ -250,7 +242,6 @@ impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
             Self {
                 name,
                 committee,
-                certificate_store,
                 rx_commands,
                 tx_block_synchronizer,
                 pending_get_block: HashMap::new(),
@@ -379,12 +370,21 @@ impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
         Some((get_block_futures, get_blocks_future))
     }
 
+    /// Helper method to retrieve a single certificate.
+    #[instrument(level = "debug", skip_all, fields(certificate_id = ?id))]
+    async fn get_certificate(&mut self, id: CertificateDigest) -> Option<Certificate<PublicKey>> {
+        if let Some((_, c)) = self.get_certificates(vec![id]).await.first() {
+            return c.to_owned();
+        }
+        None
+    }
+
     /// Will fetch the certificates via the block_synchronizer. If the
     /// certificate is missing then we expect the synchronizer to
     /// fetch it via the peers. Otherwise if available on the storage
     /// should return the result immediately. The method is blocking to
     /// retrieve all the results.
-    #[instrument(level = "debug", skip_all)]
+    #[instrument(level = "debug", skip_all, fields(certificate_ids = ?ids))]
     async fn get_certificates(
         &mut self,
         ids: Vec<CertificateDigest>,
@@ -460,7 +460,7 @@ impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
                         id,
                         error: BlockErrorType::BlockNotFound,
                     }))
-                    .expect("Couldn't send BlockNotFound error for a GetBlock request");
+                    .expect("Couldn't send BlockNotFound error for a GetBlocks request");
             }
 
             get_block_receivers.push(get_block_receiver);
@@ -475,14 +475,15 @@ impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
     // handles received commands and returns back a future if needs to
     // wait for further results. Otherwise, an empty option is returned
     // if no further waiting on processing is needed.
+    #[instrument(level="debug", skip_all, fields(block_ids = ?id))]
     async fn handle_get_block_command<'a>(
         &mut self,
         id: CertificateDigest,
         sender: oneshot::Sender<BlockResult<GetBlockResponse>>,
     ) -> Option<BoxFuture<'a, BlockResult<GetBlockResponse>>> {
-        return match self.certificate_store.read(id).await {
-            Ok(Some(certificate)) => self.get_block(id, certificate, sender).await,
-            _ => {
+        match self.get_certificate(id).await {
+            Some(certificate) => self.get_block(id, certificate, sender).await,
+            None => {
                 sender
                     .send(Err(BlockError {
                         id,
@@ -492,7 +493,7 @@ impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
 
                 None
             }
-        };
+        }
     }
 
     async fn get_block<'a>(

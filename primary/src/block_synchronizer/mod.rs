@@ -34,6 +34,7 @@ use types::{BatchDigest, Certificate, CertificateDigest};
 #[cfg(test)]
 #[path = "tests/block_synchronizer_tests.rs"]
 mod block_synchronizer_tests;
+pub mod mock;
 mod peers;
 pub mod responses;
 

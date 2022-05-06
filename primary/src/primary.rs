@@ -203,7 +203,6 @@ impl Primary {
         BlockWaiter::spawn(
             name.clone(),
             committee.clone(),
-            certificate_store.clone(),
             rx_get_block_commands,
             rx_batches,
             tx_block_synchronizer_commands,
