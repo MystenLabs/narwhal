@@ -107,7 +107,7 @@ impl Primary {
         // to remove collections from Narwhal (e.x the remove_collections endpoint).
         let (_tx_block_removal_commands, rx_block_removal_commands) = channel(CHANNEL_CAPACITY);
         let (tx_batch_removal, rx_batch_removal) = channel(CHANNEL_CAPACITY);
-        let (_tx_block_synchronizer_commands, rx_block_synchronizer_commands) =
+        let (tx_block_synchronizer_commands, rx_block_synchronizer_commands) =
             channel(CHANNEL_CAPACITY);
         let (tx_certificate_responses, rx_certificate_responses) = channel(CHANNEL_CAPACITY);
         let (tx_payload_availability_responses, rx_payload_availability_responses) =
@@ -206,6 +206,7 @@ impl Primary {
             certificate_store.clone(),
             rx_get_block_commands,
             rx_batches,
+            tx_block_synchronizer_commands,
         );
 
         // Orchestrates the removal of blocks across the primary and worker nodes.

@@ -2,6 +2,7 @@ use crate::{BlockCommand, BlockWaiter};
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use crate::{
+    block_synchronizer::{BlockHeader, Command, SyncError},
     block_waiter::{
         BatchResult, BlockError, BlockErrorType, BlockResult, GetBlockResponse, GetBlocksResponse,
     },
@@ -48,6 +49,7 @@ async fn test_successfully_retrieve_block() {
     let (tx_commands, rx_commands) = channel(1);
     let (tx_get_block, rx_get_block) = oneshot::channel();
     let (tx_batch_messages, rx_batch_messages) = channel(10);
+    let (tx_block_synchronizer, _rx_block_synchronizer) = channel(10);
 
     BlockWaiter::spawn(
         name.clone(),
@@ -55,6 +57,7 @@ async fn test_successfully_retrieve_block() {
         certificate_store.clone(),
         rx_commands,
         rx_batch_messages,
+        tx_block_synchronizer,
     );
 
     // AND "mock" the batch responses
@@ -134,6 +137,8 @@ async fn test_successfully_retrieve_multiple_blocks() {
     let mut expected_batch_messages = HashMap::new();
     let worker_id = 0;
     let mut expected_get_block_responses = Vec::new();
+    let mut certificates: HashMap<CertificateDigest, Certificate<Ed25519PublicKey>> =
+        HashMap::new();
 
     for _ in 0..2 {
         let batch_1 = fixture_batch_with_transactions(10);
@@ -145,9 +150,7 @@ async fn test_successfully_retrieve_multiple_blocks() {
             .build(|payload| key.sign(payload));
 
         let certificate = certificate(&header);
-        certificate_store
-            .write(certificate.digest(), certificate.clone())
-            .await;
+        certificates.insert(certificate.digest(), certificate.clone());
 
         block_ids.push(certificate.digest());
 
@@ -205,6 +208,7 @@ async fn test_successfully_retrieve_multiple_blocks() {
     let (tx_commands, rx_commands) = channel(1);
     let (tx_get_blocks, rx_get_blocks) = oneshot::channel();
     let (tx_batch_messages, rx_batch_messages) = channel(10);
+    let (tx_block_synchronizer, mut rx_block_synchronizer) = channel(10);
 
     BlockWaiter::spawn(
         name.clone(),
@@ -212,6 +216,7 @@ async fn test_successfully_retrieve_multiple_blocks() {
         certificate_store.clone(),
         rx_commands,
         rx_batch_messages,
+        tx_block_synchronizer,
     );
 
     // AND spin up a worker node
@@ -234,6 +239,34 @@ async fn test_successfully_retrieve_multiple_blocks() {
         })
         .await
         .unwrap();
+
+    let command: Command<Ed25519PublicKey> = rx_block_synchronizer.recv().await.unwrap();
+    match command {
+        Command::SynchronizeBlockHeaders {
+            block_ids,
+            respond_to,
+        } => {
+            for block_id in block_ids {
+                if let Some(certificate) = certificates.get(&block_id) {
+                    respond_to
+                        .send(Ok(BlockHeader {
+                            certificate: certificate.to_owned(),
+                            fetched_from_storage: true,
+                        }))
+                        .await
+                        .expect("Couldn't send message");
+                } else {
+                    respond_to
+                        .send(Err(SyncError::Error { block_id }))
+                        .await
+                        .expect("Couldn't send message");
+                }
+            }
+        }
+        _ => {
+            panic!("Unexpected command received");
+        }
+    }
 
     // Wait for the worker server to complete before continue.
     // Then we'll be confident that the expected batch responses
@@ -277,12 +310,14 @@ async fn test_one_pending_request_for_block_at_time() {
     // AND spawn a new blocks waiter
     let (_, rx_commands) = channel(1);
     let (_, rx_batch_messages) = channel(1);
+    let (tx_block_synchronizer, _rx_block_synchronizer) = channel(10);
 
     let mut waiter = BlockWaiter {
         name: name.clone(),
         committee: committee.clone(),
         certificate_store: certificate_store.clone(),
         rx_commands,
+        tx_block_synchronizer,
         pending_get_block: HashMap::new(),
         worker_network: PrimaryToWorkerNetwork::default(),
         rx_batch_receiver: rx_batch_messages,
@@ -345,12 +380,14 @@ async fn test_unlocking_pending_get_block_request_after_response() {
     // AND spawn a new blocks waiter
     let (_, rx_commands) = channel(1);
     let (_, rx_batch_messages) = channel(1);
+    let (tx_block_synchronizer, _rx_block_synchronizer) = channel(10);
 
     let mut waiter = BlockWaiter {
         name: name.clone(),
         committee: committee.clone(),
         certificate_store: certificate_store.clone(),
         rx_commands,
+        tx_block_synchronizer,
         pending_get_block: HashMap::new(),
         worker_network: PrimaryToWorkerNetwork::default(),
         rx_batch_receiver: rx_batch_messages,
@@ -405,6 +442,7 @@ async fn test_batch_timeout() {
     let (tx_commands, rx_commands) = channel(1);
     let (tx_get_block, rx_get_block) = oneshot::channel();
     let (_, rx_batch_messages) = channel(10);
+    let (tx_block_synchronizer, _rx_block_synchronizer) = channel(10);
 
     BlockWaiter::spawn(
         name.clone(),
@@ -412,6 +450,7 @@ async fn test_batch_timeout() {
         certificate_store.clone(),
         rx_commands,
         rx_batch_messages,
+        tx_block_synchronizer,
     );
 
     // WHEN we send a request to get a block
@@ -456,6 +495,7 @@ async fn test_return_error_when_certificate_is_missing() {
     let (tx_commands, rx_commands) = channel(1);
     let (tx_get_block, rx_get_block) = oneshot::channel();
     let (_, rx_batch_messages) = channel(10);
+    let (tx_block_synchronizer, _rx_block_synchronizer) = channel(10);
 
     BlockWaiter::spawn(
         name.clone(),
@@ -463,6 +503,7 @@ async fn test_return_error_when_certificate_is_missing() {
         certificate_store.clone(),
         rx_commands,
         rx_batch_messages,
+        tx_block_synchronizer,
     );
 
     // WHEN we send a request to get a block

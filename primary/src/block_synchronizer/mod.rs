@@ -45,17 +45,18 @@ const CERTIFICATE_RESPONSES_RATIO_THRESHOLD: f32 = 0.5;
 
 #[derive(Debug, Clone)]
 pub struct BlockHeader<PublicKey: VerifyingKey> {
-    certificate: Certificate<PublicKey>,
+    pub certificate: Certificate<PublicKey>,
     /// It designates whether the requested quantity (either the certificate
     /// or the payload) has been retrieved via the local storage. If true,
     /// the it used the storage. If false, then it has been fetched via
     /// the peers.
-    fetched_from_storage: bool,
+    pub fetched_from_storage: bool,
 }
 
 type ResultSender<T> = Sender<BlockSynchronizeResult<BlockHeader<T>>>;
 type BlockSynchronizeResult<T> = Result<T, SyncError>;
 
+#[derive(Debug)]
 pub enum Command<PublicKey: VerifyingKey> {
     #[allow(dead_code)]
     /// A request to synchronize and output the block headers

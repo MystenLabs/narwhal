@@ -1,8 +1,11 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crate::PrimaryWorkerMessage;
+use crate::{
+    block_synchronizer::{Command, Command::SynchronizeBlockHeaders},
+    PrimaryWorkerMessage,
+};
 use config::Committee;
-use crypto::{traits::VerifyingKey, Digest};
+use crypto::{traits::VerifyingKey, Digest, Hash};
 use futures::{
     future::{try_join_all, BoxFuture},
     stream::{futures_unordered::FuturesUnordered, StreamExt as _},
@@ -17,17 +20,18 @@ use std::{
 };
 use store::Store;
 use tokio::{
-    sync::{mpsc::Receiver, oneshot},
+    sync::{
+        mpsc::{channel, Receiver, Sender},
+        oneshot,
+    },
     time::timeout,
 };
-use tracing::{error, log::debug};
+use tracing::{error, instrument, log::debug};
 use types::{
     BatchDigest, BatchMessage, BlockError, BlockErrorType, BlockResult, Certificate,
     CertificateDigest, Header,
 };
 use Result::*;
-use tokio::sync::mpsc::Sender;
-use crate::block_synchronizer::Command;
 
 const BATCH_RETRIEVE_TIMEOUT: Duration = Duration::from_secs(1);
 
@@ -144,6 +148,7 @@ type RequestKey = Vec<u8>;
 ///     let (tx_commands, rx_commands) = channel(1);
 ///     let (tx_batches, rx_batches) = channel(1);
 ///     let (tx_get_block, mut rx_get_block) = oneshot::channel();
+///     let (tx_block_synchronizer, rx_block_synchronizer) = channel(1);
 ///
 ///     let name = Ed25519PublicKey::default();
 ///     let committee = Committee{ authorities: BTreeMap::new() };
@@ -154,6 +159,7 @@ type RequestKey = Vec<u8>;
 ///         certificate_store.clone(),
 ///         rx_commands,
 ///         rx_batches,
+///         tx_block_synchronizer,
 ///     );
 ///
 ///     // A dummy certificate
@@ -238,6 +244,7 @@ impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
         certificate_store: Store<CertificateDigest, Certificate<PublicKey>>,
         rx_commands: Receiver<BlockCommand>,
         batch_receiver: Receiver<BatchResult>,
+        tx_block_synchronizer: Sender<Command<PublicKey>>,
     ) {
         tokio::spawn(async move {
             Self {
@@ -245,6 +252,7 @@ impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
                 committee,
                 certificate_store,
                 rx_commands,
+                tx_block_synchronizer,
                 pending_get_block: HashMap::new(),
                 worker_network: PrimaryToWorkerNetwork::default(),
                 rx_batch_receiver: batch_receiver,
@@ -331,6 +339,7 @@ impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
         }
     }
 
+    #[instrument(level="debug", skip_all, fields(block_ids = ?ids))]
     async fn handle_get_blocks_command<'a>(
         &mut self,
         ids: Vec<CertificateDigest>,
@@ -356,49 +365,89 @@ impl<PublicKey: VerifyingKey> BlockWaiter<PublicKey> {
             return None;
         }
 
-        match self.certificate_store.read_all(ids.clone()).await {
-            Ok(certificates) => {
-                let (get_block_futures, get_blocks_future) =
-                    self.get_blocks(ids, certificates).await;
+        // fetch the certificates
+        let certificates = self.get_certificates(ids.clone()).await;
 
-                // mark the request as pending
-                self.tx_get_blocks_map
-                    .entry(key)
-                    .or_insert_with(Vec::new)
-                    .push(sender);
+        let (get_block_futures, get_blocks_future) = self.get_blocks(certificates).await;
 
-                return Some((get_block_futures, get_blocks_future));
-            }
-            Err(err) => {
-                error!("{err}");
+        // mark the request as pending
+        self.tx_get_blocks_map
+            .entry(key)
+            .or_insert_with(Vec::new)
+            .push(sender);
+
+        Some((get_block_futures, get_blocks_future))
+    }
+
+    /// Will fetch the certificates via the block_synchronizer. If the
+    /// certificate is missing then we expect the synchronizer to
+    /// fetch it via the peers. Otherwise if available on the storage
+    /// should return the result immediately. The method is blocking to
+    /// retrieve all the results.
+    #[instrument(level = "debug", skip_all)]
+    async fn get_certificates(
+        &mut self,
+        ids: Vec<CertificateDigest>,
+    ) -> Vec<(CertificateDigest, Option<Certificate<PublicKey>>)> {
+        let (tx_block_results, mut rx_block_results) = channel(ids.len());
+        let mut results = Vec::new();
+
+        self.tx_block_synchronizer
+            .send(SynchronizeBlockHeaders {
+                block_ids: ids,
+                respond_to: tx_block_results,
+            })
+            .await
+            .expect("Couldn't send message to block_synchronizer");
+
+        // We want to block and wait until we get all the results back.
+        loop {
+            match rx_block_results.recv().await {
+                None => {
+                    debug!("Channel closed when getting certificates, no more messages to get");
+                    break;
+                }
+                Some(result) => match result {
+                    Ok(block_header) => {
+                        results.push((
+                            block_header.certificate.digest(),
+                            Some(block_header.certificate),
+                        ));
+                    }
+                    Err(err) => {
+                        error!("Failed to get certificate: {}", err);
+                        results.push((err.block_id(), None));
+                    }
+                },
             }
         }
 
-        None
+        results
     }
 
-    async fn get_certificates(&mut self, ids: Vec<CertificateDigest>) {
-
-    }
-
+    /// It triggers fetching the blocks for each provided certificate. The
+    /// method receives the `certificates` vector which is a tuple of the
+    /// certificate id and an Optional with the certificate. If the certificate
+    /// doesn't exist then the Optional will be empty (None) which means that
+    /// we haven't managed to retrieve/find the certificate an error result
+    /// will immediately be sent to the consumer.
     async fn get_blocks<'a>(
         &mut self,
-        ids: Vec<CertificateDigest>,
-        certificates: Vec<Option<Certificate<PublicKey>>>,
+        certificates: Vec<(CertificateDigest, Option<Certificate<PublicKey>>)>,
     ) -> (
         Vec<BoxFuture<'a, BlockResult<GetBlockResponse>>>,
         BoxFuture<'a, BlocksResult>,
     ) {
         let mut get_block_receivers = Vec::new();
         let mut futures = Vec::new();
+        let mut ids = Vec::new();
 
-        for (i, c) in certificates.into_iter().enumerate() {
+        for (id, c) in certificates {
             let (get_block_sender, get_block_receiver) = oneshot::channel();
-            let id = *ids.get(i).unwrap();
+            ids.push(id);
 
             // certificate has been found
-            if c.is_some() {
-                let certificate = c.unwrap();
+            if let Some(certificate) = c {
                 let fut = self.get_block(id, certificate, get_block_sender).await;
 
                 if fut.is_some() {
