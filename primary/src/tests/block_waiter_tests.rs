@@ -1,7 +1,7 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use crate::{
-    block_synchronizer::{mock::MockBlockSynchronizer, BlockHeader, Command, SyncError},
+    block_synchronizer::{mock::MockBlockSynchronizer, BlockHeader, SyncError},
     block_waiter::{
         BatchResult, BlockError, BlockErrorType, BlockResult, GetBlockResponse, GetBlocksResponse,
     },
@@ -293,7 +293,7 @@ async fn test_one_pending_request_for_block_at_time() {
     // AND spawn a new blocks waiter
     let (_, rx_commands) = channel(1);
     let (_, rx_batch_messages) = channel(1);
-    let (tx_block_synchronizer, mut rx_block_synchronizer) = channel(10);
+    let (tx_block_synchronizer, rx_block_synchronizer) = channel(10);
 
     let mut waiter = BlockWaiter {
         name: name.clone(),
@@ -313,30 +313,15 @@ async fn test_one_pending_request_for_block_at_time() {
         tx
     };
 
-    tokio::spawn(async move {
-        for _ in 0..=3 {
-            let command: Command<Ed25519PublicKey> = rx_block_synchronizer.recv().await.unwrap();
-            match command {
-                Command::SynchronizeBlockHeaders {
-                    block_ids,
-                    respond_to,
-                } => {
-                    assert_eq!(*block_ids.first().unwrap(), block_id);
-
-                    respond_to
-                        .send(Ok(BlockHeader {
-                            certificate: certificate.clone(),
-                            fetched_from_storage: true,
-                        }))
-                        .await
-                        .expect("Couldn't send message");
-                }
-                _ => {
-                    panic!("Unexpected command received");
-                }
-            }
-        }
-    });
+    // AND mock the responses from the BlockSynchronizer
+    let mock_synchronizer = MockBlockSynchronizer::new(rx_block_synchronizer);
+    let expected_result = vec![Ok(BlockHeader {
+        certificate,
+        fetched_from_storage: true,
+    })];
+    mock_synchronizer
+        .expect_synchronize_block_headers(vec![block_id], expected_result, 4)
+        .await;
 
     // WHEN we send GetBlock command
     let result_some = waiter
@@ -365,6 +350,8 @@ async fn test_one_pending_request_for_block_at_time() {
             "Expected to not get a future for further work"
         );
     }
+
+    mock_synchronizer.assert_expectations().await;
 }
 
 #[tokio::test]
