@@ -4,7 +4,6 @@
 use crate::error::NetworkError;
 use bytes::Bytes;
 use futures::{sink::SinkExt as _, stream::StreamExt as _};
-use rand::{prelude::SliceRandom as _, rngs::SmallRng, SeedableRng as _};
 use std::{
     cmp::min,
     collections::{HashMap, VecDeque},
@@ -36,8 +35,6 @@ pub type CancelHandler = oneshot::Receiver<Bytes>;
 pub struct ReliableSender {
     /// A map holding the channels to our connections.
     connections: HashMap<SocketAddr, Sender<InnerMessage>>,
-    /// Small RNG just used to shuffle nodes and randomize connections (not crypto related).
-    rng: SmallRng,
 }
 
 impl std::default::Default for ReliableSender {
@@ -50,7 +47,6 @@ impl ReliableSender {
     pub fn new() -> Self {
         Self {
             connections: HashMap::new(),
-            rng: SmallRng::from_entropy(),
         }
     }
 
@@ -89,19 +85,6 @@ impl ReliableSender {
             handlers.push(handler);
         }
         handlers
-    }
-
-    /// Pick a few addresses at random (specified by `nodes`) and send the message only to them.
-    /// It returns a vector of cancel handlers with no specific order.
-    pub async fn lucky_broadcast(
-        &mut self,
-        mut addresses: Vec<SocketAddr>,
-        data: Bytes,
-        nodes: usize,
-    ) -> Vec<CancelHandler> {
-        addresses.shuffle(&mut self.rng);
-        addresses.truncate(nodes);
-        self.broadcast(addresses, data).await
     }
 }
 
