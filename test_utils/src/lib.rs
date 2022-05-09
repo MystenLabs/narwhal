@@ -2,23 +2,20 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use blake2::digest::Update;
-use bytes::Bytes;
-use config::{Authority, Committee, PrimaryAddresses, WorkerAddresses, WorkerId};
+use config::{
+    utils::get_available_port, Authority, Committee, PrimaryAddresses, WorkerAddresses, WorkerId,
+};
 use crypto::{
     ed25519::{Ed25519KeyPair, Ed25519PublicKey, Ed25519Signature},
     traits::{KeyPair, Signer},
     Digest, Hash as _,
 };
-use futures::{sink::SinkExt as _, stream::StreamExt as _, Stream};
+use futures::Stream;
+use multiaddr::Multiaddr;
 use rand::{rngs::StdRng, SeedableRng as _};
-use std::{collections::BTreeMap, net::SocketAddr, pin::Pin};
+use std::{collections::BTreeMap, pin::Pin};
 use store::{rocks, Store};
-use tokio::{
-    net::TcpListener,
-    sync::mpsc::{channel, Receiver, Sender},
-    task::JoinHandle,
-};
-use tokio_util::codec::{Framed, LengthDelimitedCodec};
+use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tonic::Response;
 use types::{
     Batch, BatchDigest, BincodeEncodedPayload, Certificate, Empty, Header, PrimaryToPrimary,
@@ -51,66 +48,107 @@ pub fn committee() -> Committee<Ed25519PublicKey> {
     Committee {
         authorities: keys()
             .iter()
-            .enumerate()
-            .map(|(i, kp)| {
+            .map(|kp| {
                 let id = kp.public();
                 let primary = PrimaryAddresses {
-                    primary_to_primary: format!("127.0.0.1:{}", 100 + i * 10).parse().unwrap(),
-                    worker_to_primary: format!("127.0.0.1:{}", 200 + i * 10).parse().unwrap(),
+                    primary_to_primary: format!("/ip4/127.0.0.1/tcp/{}/http", get_available_port())
+                        .parse()
+                        .unwrap(),
+                    worker_to_primary: format!("/ip4/127.0.0.1/tcp/{}/http", get_available_port())
+                        .parse()
+                        .unwrap(),
                 };
                 let workers = vec![
                     (
                         0,
                         WorkerAddresses {
-                            primary_to_worker: format!("127.0.0.1:{}", 300 + i * 10)
-                                .parse()
-                                .unwrap(),
-                            transactions: format!("127.0.0.1:{}", 400 + i * 10).parse().unwrap(),
-                            worker_to_worker: format!("127.0.0.1:{}", 500 + i * 10)
-                                .parse()
-                                .unwrap(),
+                            primary_to_worker: format!(
+                                "/ip4/127.0.0.1/tcp/{}/http",
+                                get_available_port()
+                            )
+                            .parse()
+                            .unwrap(),
+                            transactions: format!(
+                                "/ip4/127.0.0.1/tcp/{}/http",
+                                get_available_port()
+                            )
+                            .parse()
+                            .unwrap(),
+                            worker_to_worker: format!(
+                                "/ip4/127.0.0.1/tcp/{}/http",
+                                get_available_port()
+                            )
+                            .parse()
+                            .unwrap(),
                         },
                     ),
                     (
                         1,
                         WorkerAddresses {
-                            primary_to_worker: format!("127.0.0.1:{}", 300 + i * 10 + 1)
-                                .parse()
-                                .unwrap(),
-                            transactions: format!("127.0.0.1:{}", 400 + i * 10 + 1)
-                                .parse()
-                                .unwrap(),
-                            worker_to_worker: format!("127.0.0.1:{}", 500 + i * 10 + 1)
-                                .parse()
-                                .unwrap(),
+                            primary_to_worker: format!(
+                                "/ip4/127.0.0.1/tcp/{}/http",
+                                get_available_port()
+                            )
+                            .parse()
+                            .unwrap(),
+                            transactions: format!(
+                                "/ip4/127.0.0.1/tcp/{}/http",
+                                get_available_port()
+                            )
+                            .parse()
+                            .unwrap(),
+                            worker_to_worker: format!(
+                                "/ip4/127.0.0.1/tcp/{}/http",
+                                get_available_port()
+                            )
+                            .parse()
+                            .unwrap(),
                         },
                     ),
                     (
                         2,
                         WorkerAddresses {
-                            primary_to_worker: format!("127.0.0.1:{}", 300 + i * 10 + 2)
-                                .parse()
-                                .unwrap(),
-                            transactions: format!("127.0.0.1:{}", 400 + i * 10 + 2)
-                                .parse()
-                                .unwrap(),
-                            worker_to_worker: format!("127.0.0.1:{}", 500 + i * 10 + 2)
-                                .parse()
-                                .unwrap(),
+                            primary_to_worker: format!(
+                                "/ip4/127.0.0.1/tcp/{}/http",
+                                get_available_port()
+                            )
+                            .parse()
+                            .unwrap(),
+                            transactions: format!(
+                                "/ip4/127.0.0.1/tcp/{}/http",
+                                get_available_port()
+                            )
+                            .parse()
+                            .unwrap(),
+                            worker_to_worker: format!(
+                                "/ip4/127.0.0.1/tcp/{}/http",
+                                get_available_port()
+                            )
+                            .parse()
+                            .unwrap(),
                         },
                     ),
                     (
                         3,
                         WorkerAddresses {
-                            primary_to_worker: format!("127.0.0.1:{}", 300 + i * 10 + 3)
-                                .parse()
-                                .unwrap(),
-                            transactions: format!("127.0.0.1:{}", 400 + i * 10 + 3)
-                                .parse()
-                                .unwrap(),
-                            worker_to_worker: format!("127.0.0.1:{}", 500 + i * 10 + 3)
-                                .parse()
-                                .unwrap(),
+                            primary_to_worker: format!(
+                                "/ip4/127.0.0.1/tcp/{}/http",
+                                get_available_port()
+                            )
+                            .parse()
+                            .unwrap(),
+                            transactions: format!(
+                                "/ip4/127.0.0.1/tcp/{}/http",
+                                get_available_port()
+                            )
+                            .parse()
+                            .unwrap(),
+                            worker_to_worker: format!(
+                                "/ip4/127.0.0.1/tcp/{}/http",
+                                get_available_port()
+                            )
+                            .parse()
+                            .unwrap(),
                         },
                     ),
                 ]
@@ -128,32 +166,6 @@ pub fn committee() -> Committee<Ed25519PublicKey> {
             })
             .collect(),
     }
-}
-
-// Fixture.
-pub fn committee_with_base_port(base_port: u16) -> Committee<Ed25519PublicKey> {
-    let mut committee = committee();
-    for authority in committee.authorities.values_mut() {
-        let primary = &mut authority.primary;
-
-        let port = primary.primary_to_primary.port();
-        primary.primary_to_primary.set_port(base_port + port);
-
-        let port = primary.worker_to_primary.port();
-        primary.worker_to_primary.set_port(base_port + port);
-
-        for worker in authority.workers.values_mut() {
-            let port = worker.primary_to_worker.port();
-            worker.primary_to_worker.set_port(base_port + port);
-
-            let port = worker.transactions.port();
-            worker.transactions.set_port(base_port + port);
-
-            let port = worker.worker_to_worker.port();
-            worker.worker_to_worker.set_port(base_port + port);
-        }
-    }
-    committee
 }
 
 ////////////////////////////////////////////////////////////////
@@ -286,61 +298,25 @@ pub fn certificate(header: &Header<Ed25519PublicKey>) -> Certificate<Ed25519Publ
     }
 }
 
-// Fixture
-pub fn listener(address: SocketAddr) -> JoinHandle<Bytes> {
-    tokio::spawn(async move {
-        let listener = TcpListener::bind(&address).await.unwrap();
-        let (socket, _) = listener.accept().await.unwrap();
-        let transport = Framed::new(socket, LengthDelimitedCodec::new());
-        let (mut writer, mut reader) = transport.split();
-        match reader.next().await {
-            Some(Ok(received)) => {
-                writer.send(Bytes::from("Ack")).await.unwrap();
-                received.freeze()
-            }
-            _ => panic!("Failed to receive network message"),
-        }
-    })
-}
-
-// Fixture
-pub fn expecting_listener(address: SocketAddr, expected: Option<Bytes>) -> JoinHandle<()> {
-    tokio::spawn(async move {
-        let listener = TcpListener::bind(&address).await.unwrap();
-        let (socket, _) = listener.accept().await.unwrap();
-        let transport = Framed::new(socket, LengthDelimitedCodec::new());
-        let (mut writer, mut reader) = transport.split();
-        match reader.next().await {
-            Some(Ok(received)) => {
-                writer.send(Bytes::from("Ack")).await.unwrap();
-                if let Some(expected) = expected {
-                    let rcvd = received.freeze();
-                    assert_eq!(
-                        rcvd.clone(),
-                        expected.clone(),
-                        "expected {} received {}",
-                        hex::encode(expected),
-                        hex::encode(rcvd)
-                    );
-                }
-            }
-            _ => panic!("Failed to receive network message"),
-        }
-    })
-}
-
 pub struct PrimaryToPrimaryMockServer {
     sender: Sender<BincodeEncodedPayload>,
 }
 
 impl PrimaryToPrimaryMockServer {
-    pub fn spawn(address: SocketAddr) -> Receiver<BincodeEncodedPayload> {
+    pub fn spawn(address: Multiaddr) -> Receiver<BincodeEncodedPayload> {
         let (sender, receiver) = channel(1);
-        let mock = Self { sender };
-        let service = tonic::transport::Server::builder()
-            .add_service(PrimaryToPrimaryServer::new(mock))
-            .serve(address);
-        tokio::spawn(service);
+        tokio::spawn(async move {
+            let config = mysten_network::config::Config::new();
+            let mock = Self { sender };
+            config
+                .server_builder()
+                .add_service(PrimaryToPrimaryServer::new(mock))
+                .bind(&address)
+                .await
+                .unwrap()
+                .serve()
+                .await
+        });
         receiver
     }
 }
@@ -361,13 +337,20 @@ pub struct WorkerToPrimaryMockServer {
 }
 
 impl WorkerToPrimaryMockServer {
-    pub fn spawn(address: SocketAddr) -> Receiver<BincodeEncodedPayload> {
+    pub fn spawn(address: Multiaddr) -> Receiver<BincodeEncodedPayload> {
         let (sender, receiver) = channel(1);
-        let mock = Self { sender };
-        let service = tonic::transport::Server::builder()
-            .add_service(WorkerToPrimaryServer::new(mock))
-            .serve(address);
-        tokio::spawn(service);
+        tokio::spawn(async move {
+            let config = mysten_network::config::Config::new();
+            let mock = Self { sender };
+            config
+                .server_builder()
+                .add_service(WorkerToPrimaryServer::new(mock))
+                .bind(&address)
+                .await
+                .unwrap()
+                .serve()
+                .await
+        });
         receiver
     }
 }
@@ -388,13 +371,20 @@ pub struct PrimaryToWorkerMockServer {
 }
 
 impl PrimaryToWorkerMockServer {
-    pub fn spawn(address: SocketAddr) -> Receiver<BincodeEncodedPayload> {
+    pub fn spawn(address: Multiaddr) -> Receiver<BincodeEncodedPayload> {
         let (sender, receiver) = channel(1);
-        let mock = Self { sender };
-        let service = tonic::transport::Server::builder()
-            .add_service(PrimaryToWorkerServer::new(mock))
-            .serve(address);
-        tokio::spawn(service);
+        tokio::spawn(async move {
+            let config = mysten_network::config::Config::new();
+            let mock = Self { sender };
+            config
+                .server_builder()
+                .add_service(PrimaryToWorkerServer::new(mock))
+                .bind(&address)
+                .await
+                .unwrap()
+                .serve()
+                .await
+        });
         receiver
     }
 }
@@ -415,13 +405,20 @@ pub struct WorkerToWorkerMockServer {
 }
 
 impl WorkerToWorkerMockServer {
-    pub fn spawn(address: SocketAddr) -> Receiver<BincodeEncodedPayload> {
+    pub fn spawn(address: Multiaddr) -> Receiver<BincodeEncodedPayload> {
         let (sender, receiver) = channel(1);
-        let mock = Self { sender };
-        let service = tonic::transport::Server::builder()
-            .add_service(WorkerToWorkerServer::new(mock))
-            .serve(address);
-        tokio::spawn(service);
+        tokio::spawn(async move {
+            let config = mysten_network::config::Config::new();
+            let mock = Self { sender };
+            config
+                .server_builder()
+                .add_service(WorkerToWorkerServer::new(mock))
+                .bind(&address)
+                .await
+                .unwrap()
+                .serve()
+                .await
+        });
         receiver
     }
 }
@@ -447,17 +444,13 @@ impl WorkerToWorker for WorkerToWorkerMockServer {
     }
 }
 
-// helper method to get a name and a committee. Special care should be given on
-// the base_port parameter to not collide between tests. It is advisable to
-// provide unique base_port numbers across the tests.
-pub fn resolve_name_and_committee(
-    base_port: u16,
-) -> (Ed25519PublicKey, Committee<Ed25519PublicKey>) {
+// helper method to get a name and a committee.
+pub fn resolve_name_and_committee() -> (Ed25519PublicKey, Committee<Ed25519PublicKey>) {
     let mut keys = keys();
     let _ = keys.pop().unwrap(); // Skip the header' author.
     let kp = keys.pop().unwrap();
     let name = kp.public().clone();
-    let committee = committee_with_base_port(base_port);
+    let committee = committee();
 
     (name, committee)
 }
