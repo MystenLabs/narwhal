@@ -92,16 +92,16 @@ pub enum Command<PublicKey: VerifyingKey> {
 enum State<PublicKey: VerifyingKey> {
     HeadersSynchronized {
         request_id: RequestID,
-        certificates: HashMap<CertificateDigest, Result<BlockHeader<PublicKey>, SyncError>>,
+        certificates: HashMap<CertificateDigest, BlockSynchronizeResult<BlockHeader<PublicKey>>>,
     },
     PayloadAvailabilityReceived {
         request_id: RequestID,
-        certificates: HashMap<CertificateDigest, Result<BlockHeader<PublicKey>, SyncError>>,
+        certificates: HashMap<CertificateDigest, BlockSynchronizeResult<BlockHeader<PublicKey>>>,
         peers: Peers<PublicKey, Certificate<PublicKey>>,
     },
     PayloadSynchronized {
         request_id: RequestID,
-        result: Result<BlockHeader<PublicKey>, SyncError>,
+        result: BlockSynchronizeResult<BlockHeader<PublicKey>>,
     },
 }
 
@@ -478,10 +478,10 @@ impl<PublicKey: VerifyingKey> BlockSynchronizer<PublicKey> {
                 // Reply back directly with the found from storage certificates
                 let futures: Vec<_> = found
                     .into_iter()
-                    .filter(|e| e.1.is_some())
-                    .map(|(_, c)| {
+                    .flat_map(|(_, c)| c)
+                    .map(|c| {
                         respond_to.send(Ok(BlockHeader {
-                            certificate: c.unwrap(),
+                            certificate: c,
                             fetched_from_storage: true,
                         }))
                     })
@@ -543,7 +543,7 @@ impl<PublicKey: VerifyingKey> BlockSynchronizer<PublicKey> {
 
         for r in join_all(futures).await {
             if r.is_err() {
-                error!("Couldn't send message to channel [{:?}]", r.err().unwrap());
+                error!("Couldn't send message to channel {:?}", r.err());
             }
         }
 
@@ -882,14 +882,14 @@ impl<PublicKey: VerifyingKey> BlockSynchronizer<PublicKey> {
         peers: &Peers<PublicKey, Certificate<PublicKey>>,
         block_ids: Vec<CertificateDigest>,
         timeout: bool,
-    ) -> HashMap<CertificateDigest, Result<BlockHeader<PublicKey>, SyncError>> {
+    ) -> HashMap<CertificateDigest, BlockSynchronizeResult<BlockHeader<PublicKey>>> {
         let mut certificates_by_id: HashMap<CertificateDigest, Certificate<PublicKey>> = peers
             .unique_values()
             .into_iter()
             .map(|c| (c.digest(), c))
             .collect();
 
-        let mut result: HashMap<CertificateDigest, Result<BlockHeader<PublicKey>, SyncError>> =
+        let mut result: HashMap<CertificateDigest, BlockSynchronizeResult<BlockHeader<PublicKey>>> =
             HashMap::new();
 
         for block_id in block_ids {
