@@ -488,8 +488,8 @@ impl<PublicKey: VerifyingKey> BlockSynchronizer<PublicKey> {
                     .collect();
 
                 for r in join_all(futures).await {
-                    if r.is_err() {
-                        error!("Couldn't send message to channel [{:?}]", r.err().unwrap());
+                    if let Err(err) = r {
+                        error!("Couldn't send message to channel [{:?}]", err);
                     }
                 }
 
