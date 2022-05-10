@@ -96,8 +96,8 @@ message CollectionRetrievalResult {
     }
 }
 
-message GetCollectionsRequest {
-    // List of collections to be retreived.
+message Collections {
+    // List of collections to be retreived or removed.
     repeated CertificateDigest collection_ids = 1;
 }
 
@@ -120,7 +120,9 @@ message Empty {
 // The consensus to mempool interface for validator actions.
 service Validator {
     // Returns the collection contents for each requested collection
-    rpc GetCollections (GetCollectionsRequest) returns (GetCollectionsResponse);
+    rpc GetCollections (Collections) returns (GetCollectionsResponse);
+    // Removes each collection provided.
+    rpc RemoveCollections (Collections) returns (Empty);
 }
 
 // The primary-to-primary interface

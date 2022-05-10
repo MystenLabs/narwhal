@@ -120,6 +120,9 @@ pub struct ConsensusAPIGrpcParameters {
     /// The timeout configuration when requesting batches from workers.
     #[serde(with = "duration_format")]
     pub get_collections_timeout: Duration,
+    /// The timeout configuration when removing batches from workers.
+    #[serde(with = "duration_format")]
+    pub remove_collections_timeout: Duration,
 }
 
 impl Default for ConsensusAPIGrpcParameters {
@@ -127,6 +130,7 @@ impl Default for ConsensusAPIGrpcParameters {
         Self {
             socket_addr: format!("127.0.0.1:{}", get_available_port()),
             get_collections_timeout: Duration::from_millis(5_000),
+            remove_collections_timeout: Duration::from_millis(5_000),
         }
     }
 }
@@ -216,6 +220,12 @@ impl Parameters {
         info!(
             "Get collections timeout set to {} ms",
             self.consensus_api_grpc.get_collections_timeout.as_millis()
+        );
+        info!(
+            "Remove collections timeout set to {} ms",
+            self.consensus_api_grpc
+                .remove_collections_timeout
+                .as_millis()
         );
         info!(
             "Max concurrent requests set to {}",
@@ -391,7 +401,8 @@ mod tests {
              },
              "consensus_api_grpc": {
                  "socket_addr": "127.0.0.1:0",
-                 "get_collections_timeout": "5_000ms"
+                 "get_collections_timeout": "5_000ms",
+                 "remove_collections_timeout": "5_000ms"
              },
              "max_concurrent_requests": 500000
           }"#;
@@ -439,6 +450,13 @@ mod tests {
                 .as_millis(),
             5_000
         );
+        assert_eq!(
+            params
+                .consensus_api_grpc
+                .remove_collections_timeout
+                .as_millis(),
+            5_000
+        );
     }
 
     #[test]
@@ -471,6 +489,7 @@ mod tests {
             "Consensus API gRPC Server listening on 127.0.0.1"
         ));
         assert!(logs_contain("Get collections timeout set to 5000 ms"));
+        assert!(logs_contain("Remove collections timeout set to 5000 ms"));
         assert!(logs_contain("Max concurrent requests set to 500000"))
     }
 }

@@ -3,7 +3,7 @@
 use std::time::Duration;
 
 use self::validator::NarwhalValidator;
-use crate::BlockCommand;
+use crate::{BlockCommand, BlockRemoverCommand};
 use tokio::sync::mpsc::Sender;
 use tonic::transport::Server;
 use tracing::error;
@@ -15,6 +15,8 @@ pub struct ConsensusAPIGrpc {
     socket_addr: String,
     tx_get_block_commands: Sender<BlockCommand>,
     get_collections_timeout: Duration,
+    tx_block_removal_commands: Sender<BlockRemoverCommand>,
+    remove_collections_timeout: Duration,
 }
 
 impl ConsensusAPIGrpc {
@@ -22,12 +24,16 @@ impl ConsensusAPIGrpc {
         socket_addr: String,
         tx_get_block_commands: Sender<BlockCommand>,
         get_collections_timeout: Duration,
+        tx_block_removal_commands: Sender<BlockRemoverCommand>,
+        remove_collections_timeout: Duration,
     ) {
         tokio::spawn(async move {
             let _ = Self {
                 socket_addr,
                 tx_get_block_commands,
                 get_collections_timeout,
+                tx_block_removal_commands,
+                remove_collections_timeout,
             }
             .run()
             .await
@@ -40,6 +46,8 @@ impl ConsensusAPIGrpc {
         let narwhal = NarwhalValidator::new(
             self.tx_get_block_commands.to_owned(),
             self.get_collections_timeout,
+            self.tx_block_removal_commands.to_owned(),
+            self.remove_collections_timeout,
         );
 
         Server::builder()

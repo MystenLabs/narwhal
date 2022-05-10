@@ -27,6 +27,8 @@ tonic = "0.7"
 prost = "0.10.1"
 rand = { version = "0.7.3", features = ["small_rng"] }
 
+telemetry_subscribers = { git = "https://github.com/MystenLabs/mysten-infra", rev = "a45af6dc28aa12c8cc13521d118c24aadd4c6adf" }
+
 crypto = { path = "../crypto" }
 network = { path = "../network" }
 types = { path = "../types" }

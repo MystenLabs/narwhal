@@ -3,12 +3,13 @@
 use std::time::Duration;
 
 use crate::block_waiter::GetBlockResponse;
-use crate::BlockCommand;
+use crate::{BlockCommand, BlockRemoverCommand};
+use tokio::sync::mpsc::channel;
 use tokio::sync::oneshot;
 use tokio::{sync::mpsc::Sender, time::timeout};
 use tonic::{Request, Response, Status};
 use types::{
-    BatchMessageProto, BlockError, CollectionRetrievalResult, GetCollectionsRequest,
+    BatchMessageProto, BlockError, CollectionRetrievalResult, Collections, Empty,
     GetCollectionsResponse, Validator,
 };
 
@@ -16,25 +17,74 @@ use types::{
 pub struct NarwhalValidator {
     tx_get_block_commands: Sender<BlockCommand>,
     get_collections_timeout: Duration,
+    tx_block_removal_commands: Sender<BlockRemoverCommand>,
+    remove_collections_timeout: Duration,
 }
 
 impl NarwhalValidator {
     pub fn new(
         tx_get_block_commands: Sender<BlockCommand>,
         get_collections_timeout: Duration,
+        tx_block_removal_commands: Sender<BlockRemoverCommand>,
+        remove_collections_timeout: Duration,
     ) -> Self {
         Self {
             tx_get_block_commands,
             get_collections_timeout,
+            tx_block_removal_commands,
+            remove_collections_timeout,
         }
     }
 }
 
 #[tonic::async_trait]
 impl Validator for NarwhalValidator {
+    async fn remove_collections(
+        &self,
+        request: Request<Collections>,
+    ) -> Result<Response<Empty>, Status> {
+        let collection_ids = request.into_inner().collection_ids;
+        let remove_collections_response = if !collection_ids.is_empty() {
+            let (tx_remove_block, mut rx_remove_block) = channel(1);
+            let mut ids = vec![];
+            for collection_id in collection_ids {
+                ids.push(collection_id.try_into().map_err(|err| {
+                    Status::invalid_argument(format!("Could not serialize: {:?}", err))
+                })?);
+            }
+            self.tx_block_removal_commands
+                .send(BlockRemoverCommand::RemoveBlocks {
+                    ids,
+                    sender: tx_remove_block,
+                })
+                .await
+                .map_err(|err| Status::internal(format!("Send Error: {:?}", err)))?;
+            match timeout(self.remove_collections_timeout, rx_remove_block.recv()).await {
+                Ok(Some(result)) => match result {
+                    Ok(_) => Ok(Empty {}),
+                    Err(remove_block_error) => Err(Status::internal(format!(
+                        "Removal Error: {:?}",
+                        remove_block_error.error
+                    ))),
+                },
+                Ok(None) => Err(Status::internal(
+                    "Removal channel closed, no result has been received.",
+                )),
+                Err(_) => Err(Status::internal(
+                    "Timeout, no result has been received in time",
+                )),
+            }
+        } else {
+            Err(Status::invalid_argument(
+                "Attemped to remove no collections!",
+            ))
+        };
+        remove_collections_response.map(Response::new)
+    }
+
     async fn get_collections(
         &self,
-        request: Request<GetCollectionsRequest>,
+        request: Request<Collections>,
     ) -> Result<Response<GetCollectionsResponse>, Status> {
         let collection_ids = request.into_inner().collection_ids;
         let get_collections_response = if !collection_ids.is_empty() {
@@ -51,7 +101,7 @@ impl Validator for NarwhalValidator {
                     sender: tx_get_blocks,
                 })
                 .await
-                .unwrap();
+                .map_err(|err| Status::internal(format!("Send Error: {:?}", err)))?;
             match timeout(self.get_collections_timeout, rx_get_blocks).await {
                 Ok(Ok(result)) => {
                     match result {

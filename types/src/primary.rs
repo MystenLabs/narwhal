@@ -518,6 +518,22 @@ pub struct BatchMessage {
     pub transactions: Batch,
 }
 
+// TODO: refactor BlockRemoverResult and BlockResult into one type shared by get/remove collections.
+pub type BlockRemoverResult<T> = Result<T, BlockRemoverError>;
+
+#[derive(Clone, Debug)]
+pub struct BlockRemoverError {
+    pub ids: Vec<CertificateDigest>,
+    pub error: BlockRemoverErrorType,
+}
+
+// TODO: refactor BlockError & BlockRemoverError to be one type shared by get/remove collections.
+#[derive(Clone, Debug, PartialEq)]
+pub enum BlockRemoverErrorType {
+    Timeout,
+    Failed,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum BlockErrorType {
     BlockNotFound,
@@ -525,13 +541,13 @@ pub enum BlockErrorType {
     BatchError,
 }
 
+pub type BlockResult<T> = Result<T, BlockError>;
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct BlockError {
     pub id: CertificateDigest,
     pub error: BlockErrorType,
 }
-
-pub type BlockResult<T> = Result<T, BlockError>;
 
 impl<T> From<BlockError> for BlockResult<T> {
     fn from(error: BlockError) -> Self {
