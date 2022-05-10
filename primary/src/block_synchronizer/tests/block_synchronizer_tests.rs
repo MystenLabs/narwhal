@@ -18,7 +18,6 @@ use network::{PrimaryNetwork, PrimaryToWorkerNetwork};
 use serde::de::DeserializeOwned;
 use std::{
     collections::{HashMap, HashSet},
-    net::SocketAddr,
     time::Duration,
 };
 use test_utils::{
@@ -37,10 +36,10 @@ use types::{Certificate, CertificateDigest};
 #[tokio::test]
 async fn test_successful_headers_synchronization() {
     // GIVEN
-    let (_, _, payload_store) = create_db_stores();
+    let (_, certificate_store, payload_store) = create_db_stores();
 
     // AND the necessary keys
-    let (name, committee) = resolve_name_and_committee(13600);
+    let (name, committee) = resolve_name_and_committee();
 
     let (tx_commands, rx_commands) = channel(10);
     let (tx_certificate_responses, rx_certificate_responses) = channel(10);
@@ -78,6 +77,7 @@ async fn test_successful_headers_synchronization() {
         rx_payload_availability_responses,
         PrimaryNetwork::default(),
         payload_store.clone(),
+        certificate_store.clone(),
         BlockSynchronizerParameters::default(),
     );
 
@@ -88,7 +88,7 @@ async fn test_successful_headers_synchronization() {
     // of requested certificates.
     let handlers: FuturesUnordered<JoinHandle<Vec<PrimaryMessage<Ed25519PublicKey>>>> = committee
         .others_primaries(&name)
-        .iter()
+        .into_iter()
         .map(|primary| {
             println!("New primary added: {:?}", primary.1.primary_to_primary);
             primary_listener::<PrimaryMessage<Ed25519PublicKey>>(1, primary.1.primary_to_primary)
@@ -166,11 +166,13 @@ async fn test_successful_headers_synchronization() {
                 assert!(result.is_ok(), "Error result received: {:?}", result.err().unwrap());
 
                 if result.is_ok() {
-                    let certificate = result.ok().unwrap();
+                    let block_header = result.ok().unwrap();
+                    let certificate = block_header.certificate;
 
                     println!("Received certificate result: {:?}", certificate.clone());
 
                     assert!(certificates.contains_key(&certificate.digest()));
+                    assert!(!block_header.fetched_from_storage, "Didn't expect to have fetched certificate from storage");
 
                     total_results_received += 1;
                 }
@@ -189,10 +191,10 @@ async fn test_successful_headers_synchronization() {
 #[tokio::test]
 async fn test_successful_payload_synchronization() {
     // GIVEN
-    let (_, _, payload_store) = create_db_stores();
+    let (_, certificate_store, payload_store) = create_db_stores();
 
     // AND the necessary keys
-    let (name, committee) = resolve_name_and_committee(13500);
+    let (name, committee) = resolve_name_and_committee();
 
     let (tx_commands, rx_commands) = channel(10);
     let (_tx_certificate_responses, rx_certificate_responses) = channel(10);
@@ -230,6 +232,7 @@ async fn test_successful_payload_synchronization() {
         rx_payload_availability_responses,
         PrimaryNetwork::default(),
         payload_store.clone(),
+        certificate_store.clone(),
         BlockSynchronizerParameters::default(),
     );
 
@@ -241,7 +244,7 @@ async fn test_successful_payload_synchronization() {
     let handlers_primaries: FuturesUnordered<JoinHandle<Vec<PrimaryMessage<Ed25519PublicKey>>>> =
         committee
             .others_primaries(&name)
-            .iter()
+            .into_iter()
             .map(|primary| {
                 println!("New primary added: {:?}", primary.1.primary_to_primary);
                 primary_listener::<PrimaryMessage<Ed25519PublicKey>>(
@@ -265,7 +268,7 @@ async fn test_successful_payload_synchronization() {
             println!("New worker added: {:?}", worker.1.primary_to_worker);
             worker_listener::<PrimaryWorkerMessage<Ed25519PublicKey>>(
                 -1,
-                worker.1.primary_to_worker,
+                worker.1.primary_to_worker.clone(),
             )
         })
         .collect();
@@ -362,11 +365,13 @@ async fn test_successful_payload_synchronization() {
                 assert!(result.is_ok(), "Error result received: {:?}", result.err().unwrap());
 
                 if result.is_ok() {
-                    let certificate = result.ok().unwrap();
+                    let block_header = result.ok().unwrap();
+                    let certificate = block_header.certificate;
 
                     println!("Received certificate result: {:?}", certificate.clone());
 
                     assert!(certificates.contains_key(&certificate.digest()));
+                    assert!(!block_header.fetched_from_storage, "Didn't expect to have fetched certificate from storage");
 
                     total_results_received += 1;
                 }
@@ -385,8 +390,8 @@ async fn test_successful_payload_synchronization() {
 #[tokio::test]
 async fn test_multiple_overlapping_requests() {
     // GIVEN
-    let (_, _, payload_store) = create_db_stores();
-    let (name, committee) = resolve_name_and_committee(13001);
+    let (_, certificate_store, payload_store) = create_db_stores();
+    let (name, committee) = resolve_name_and_committee();
 
     let (_, rx_commands) = channel(10);
     let (_, rx_certificate_responses) = channel(10);
@@ -423,6 +428,7 @@ async fn test_multiple_overlapping_requests() {
         primary_network: PrimaryNetwork::default(),
         worker_network: PrimaryToWorkerNetwork::default(),
         payload_store,
+        certificate_store,
         certificates_synchronize_timeout: Duration::from_millis(2_000),
         payload_synchronize_timeout: Duration::from_millis(2_000),
         payload_availability_timeout: Duration::from_millis(2_000),
@@ -497,10 +503,10 @@ async fn test_multiple_overlapping_requests() {
 #[tokio::test]
 async fn test_timeout_while_waiting_for_certificates() {
     // GIVEN
-    let (_, _, payload_store) = create_db_stores();
+    let (_, certificate_store, payload_store) = create_db_stores();
 
     // AND the necessary keys
-    let (name, committee) = resolve_name_and_committee(13001);
+    let (name, committee) = resolve_name_and_committee();
     let key = keys().pop().unwrap();
 
     let (tx_commands, rx_commands) = channel(10);
@@ -528,6 +534,7 @@ async fn test_timeout_while_waiting_for_certificates() {
         rx_payload_availability_responses,
         PrimaryNetwork::default(),
         payload_store.clone(),
+        certificate_store.clone(),
         BlockSynchronizerParameters::default(),
     );
 
@@ -580,9 +587,195 @@ async fn test_timeout_while_waiting_for_certificates() {
     }
 }
 
+#[tokio::test]
+async fn test_reply_with_certificates_already_in_storage() {
+    // GIVEN
+    let (_, certificate_store, payload_store) = create_db_stores();
+
+    // AND the necessary keys
+    let (name, committee) = resolve_name_and_committee();
+    let key = keys().pop().unwrap();
+
+    let (_, rx_commands) = channel(10);
+    let (_, rx_certificate_responses) = channel(10);
+    let (_, rx_payload_availability_responses) = channel(10);
+
+    let synchronizer = BlockSynchronizer {
+        name,
+        committee,
+        rx_commands,
+        rx_certificate_responses,
+        rx_payload_availability_responses,
+        pending_requests: Default::default(),
+        map_certificate_responses_senders: Default::default(),
+        map_payload_availability_responses_senders: Default::default(),
+        primary_network: Default::default(),
+        worker_network: Default::default(),
+        certificate_store: certificate_store.clone(),
+        payload_store,
+        certificates_synchronize_timeout: Default::default(),
+        payload_synchronize_timeout: Default::default(),
+        payload_availability_timeout: Default::default(),
+    };
+
+    let mut certificates: HashMap<CertificateDigest, Certificate<Ed25519PublicKey>> =
+        HashMap::new();
+    let mut block_ids = Vec::new();
+    const NUM_OF_MISSING_CERTIFICATES: u32 = 5;
+
+    // AND storing some certificates
+    for i in 1..=8 {
+        let batch = fixture_batch_with_transactions(10);
+
+        let header = fixture_header_builder()
+            .with_payload_batch(batch.clone(), 0)
+            .build(|payload| key.sign(payload));
+
+        let certificate = certificate(&header);
+
+        block_ids.push(certificate.digest());
+        certificates.insert(certificate.clone().digest(), certificate.clone());
+
+        if i > NUM_OF_MISSING_CERTIFICATES {
+            certificate_store
+                .write(certificate.digest(), certificate)
+                .await;
+        }
+    }
+
+    // AND create a dummy sender/receiver
+    let (tx, mut rx) = channel(10);
+
+    // WHEN
+    let missing_certificates = synchronizer
+        .reply_with_certificates_already_in_storage(block_ids, tx)
+        .await;
+
+    // THEN some missing certificates exist
+    assert_eq!(
+        missing_certificates.len() as u32,
+        NUM_OF_MISSING_CERTIFICATES,
+        "Number of expected missing certificates differ."
+    );
+
+    // AND should have received all the block headers
+    for _ in 0..8 - NUM_OF_MISSING_CERTIFICATES {
+        let result = timeout(Duration::from_secs(1), rx.recv())
+            .await
+            .unwrap()
+            .unwrap();
+
+        let block_header = result.unwrap();
+
+        assert!(
+            block_header.fetched_from_storage,
+            "Should have been fetched from storage"
+        );
+        assert!(
+            certificates.contains_key(&block_header.certificate.digest()),
+            "Not found expected certificate"
+        );
+    }
+}
+
+#[tokio::test]
+async fn test_reply_with_payload_already_in_storage() {
+    // GIVEN
+    let (_, certificate_store, payload_store) = create_db_stores();
+
+    // AND the necessary keys
+    let (name, committee) = resolve_name_and_committee();
+    let key = keys().pop().unwrap();
+
+    let (_, rx_commands) = channel(10);
+    let (_, rx_certificate_responses) = channel(10);
+    let (_, rx_payload_availability_responses) = channel(10);
+
+    let synchronizer = BlockSynchronizer {
+        name,
+        committee,
+        rx_commands,
+        rx_certificate_responses,
+        rx_payload_availability_responses,
+        pending_requests: Default::default(),
+        map_certificate_responses_senders: Default::default(),
+        map_payload_availability_responses_senders: Default::default(),
+        primary_network: Default::default(),
+        worker_network: Default::default(),
+        certificate_store: certificate_store.clone(),
+        payload_store: payload_store.clone(),
+        certificates_synchronize_timeout: Default::default(),
+        payload_synchronize_timeout: Default::default(),
+        payload_availability_timeout: Default::default(),
+    };
+
+    let mut certificates_map: HashMap<CertificateDigest, Certificate<Ed25519PublicKey>> =
+        HashMap::new();
+    let mut certificates = Vec::new();
+    const NUM_OF_CERTIFICATES_WITH_MISSING_PAYLOAD: u32 = 5;
+
+    // AND storing some certificates
+    for i in 1..=8 {
+        let batch = fixture_batch_with_transactions(10);
+
+        let header = fixture_header_builder()
+            .with_payload_batch(batch.clone(), 0)
+            .build(|payload| key.sign(payload));
+
+        let certificate: Certificate<Ed25519PublicKey> = certificate(&header);
+
+        certificates.push(certificate.clone());
+        certificates_map.insert(certificate.clone().digest(), certificate.clone());
+
+        if i > NUM_OF_CERTIFICATES_WITH_MISSING_PAYLOAD {
+            certificate_store
+                .write(certificate.digest(), certificate.clone())
+                .await;
+
+            for entry in certificate.header.payload {
+                payload_store.write(entry, 1).await;
+            }
+        }
+    }
+
+    // AND create a dummy sender/receiver
+    let (tx, mut rx) = channel(10);
+
+    // WHEN
+    let missing_certificates = synchronizer
+        .reply_with_payload_already_in_storage(certificates, tx)
+        .await;
+
+    // THEN some certificates with missing payload exist
+    assert_eq!(
+        missing_certificates.len() as u32,
+        NUM_OF_CERTIFICATES_WITH_MISSING_PAYLOAD,
+        "Number of expected missing certificates differ."
+    );
+
+    // AND should have received all the block headers
+    for _ in 0..8 - NUM_OF_CERTIFICATES_WITH_MISSING_PAYLOAD {
+        let result = timeout(Duration::from_secs(1), rx.recv())
+            .await
+            .unwrap()
+            .unwrap();
+
+        let block_header = result.unwrap();
+
+        assert!(
+            block_header.fetched_from_storage,
+            "Should have been fetched from storage"
+        );
+        assert!(
+            certificates_map.contains_key(&block_header.certificate.digest()),
+            "Not found expected certificate"
+        );
+    }
+}
+
 pub fn primary_listener<T>(
     num_of_expected_responses: i32,
-    address: SocketAddr,
+    address: multiaddr::Multiaddr,
 ) -> JoinHandle<Vec<T>>
 where
     T: Send + DeserializeOwned + 'static,
@@ -618,7 +811,10 @@ where
 }
 
 // TODO: remove this duplication with an associated type
-pub fn worker_listener<T>(num_of_expected_responses: i32, address: SocketAddr) -> JoinHandle<Vec<T>>
+pub fn worker_listener<T>(
+    num_of_expected_responses: i32,
+    address: multiaddr::Multiaddr,
+) -> JoinHandle<Vec<T>>
 where
     T: Send + DeserializeOwned + 'static,
 {

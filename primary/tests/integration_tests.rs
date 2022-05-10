@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use config::Parameters;
-use crypto::traits::Signer;
-use crypto::Hash;
-use crypto::{ed25519::Ed25519PublicKey, traits::KeyPair};
+use crypto::{
+    ed25519::Ed25519PublicKey,
+    traits::{KeyPair, Signer},
+    Hash,
+};
 use node::NodeStorage;
-use primary::Primary;
-use primary::CHANNEL_CAPACITY;
+use primary::{Primary, CHANNEL_CAPACITY};
 use std::time::Duration;
 use test_utils::{
-    certificate, committee_with_base_port, fixture_batch_with_transactions, fixture_header_builder,
-    keys, temp_dir,
+    certificate, committee, fixture_batch_with_transactions, fixture_header_builder, keys, temp_dir,
 };
 use tokio::sync::mpsc::channel;
 use tonic::transport::Channel;
@@ -28,17 +28,6 @@ async fn test_get_collections() {
         ..Parameters::default()
     };
     let (_, collection_ids, missing_block) = setup(parameters.clone()).await;
-
-    let max_grpc_connect_retries = 3;
-    let mut grpc_connect_retry_count = 0;
-    let dst = format!("http://{}", parameters.consensus_api_grpc.socket_addr);
-    let mut client = ValidatorClient::connect(dst.to_owned()).await;
-    while client.is_err() {
-        client = ValidatorClient::connect(dst.to_owned()).await;
-        tokio::time::sleep(Duration::from_secs(1)).await;
-        grpc_connect_retry_count += 1;
-        assert!(grpc_connect_retry_count < max_grpc_connect_retries);
-    }
 
     // Test gRPC server with client call
     let mut client = connect_to_validator_client(parameters.clone()).await;
@@ -107,9 +96,7 @@ async fn test_get_collections() {
     );
 }
 
-// TODO: enable tests when I figure out why its failing when all tests are run.
-// #[tokio::test]
-#[allow(unused)]
+#[tokio::test]
 async fn test_remove_collections() {
     // TODO: remove tracing before submitting code
     let config = telemetry_subscribers::TelemetryConfig {
@@ -203,7 +190,7 @@ async fn setup(
     let keypair = keys().pop().unwrap();
     let name = keypair.public().clone();
     let signer = keypair;
-    let committee = committee_with_base_port(11_000);
+    let committee = committee();
 
     // Make the data store.
     let store = NodeStorage::reopen(temp_dir());
@@ -286,19 +273,16 @@ async fn setup(
         store.batch_store.clone(),
     );
 
+    // Wait for tasks to start
+    tokio::time::sleep(Duration::from_secs(1)).await;
+
     (store, block_ids, missing_block)
 }
 
 async fn connect_to_validator_client(parameters: Parameters) -> ValidatorClient<Channel> {
-    let max_grpc_connect_retries = 3;
-    let mut grpc_connect_retry_count = 0;
-    let dst = format!("http://{}", parameters.consensus_api_grpc.socket_addr);
-    let mut client = ValidatorClient::connect(dst.to_owned()).await;
-    while client.is_err() {
-        client = ValidatorClient::connect(dst.to_owned()).await;
-        tokio::time::sleep(Duration::from_secs(1)).await;
-        grpc_connect_retry_count += 1;
-        assert!(grpc_connect_retry_count < max_grpc_connect_retries);
-    }
-    client.unwrap()
+    let config = mysten_network::config::Config::new();
+    let channel = config
+        .connect_lazy(&parameters.consensus_api_grpc.socket_addr)
+        .unwrap();
+    ValidatorClient::new(channel)
 }
