@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Dag","Dag represents the pure dag that is constructed by the certificate of each round without any consensus running on top of it."]]});

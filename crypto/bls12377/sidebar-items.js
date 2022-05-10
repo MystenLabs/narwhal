@@ -1,0 +1,1 @@
+initSidebarItems({"constant":[["CELO_BLS_PRIVATE_KEY_LENGTH",""],["CELO_BLS_PUBLIC_KEY_LENGTH",""],["CELO_BLS_SIGNATURE_LENGTH",""]],"struct":[["BLS12377KeyPair",""],["BLS12377PrivateKey",""],["BLS12377PublicKey",""],["BLS12377Signature",""]]});

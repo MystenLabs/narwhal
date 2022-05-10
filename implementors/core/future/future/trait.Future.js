@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["network"] = [{"text":"impl&lt;T&gt; <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/future/future/trait.Future.html\" title=\"trait core::future::future::Future\">Future</a> for <a class=\"struct\" href=\"network/struct.CancelHandler.html\" title=\"struct network::CancelHandler\">CancelHandler</a>&lt;T&gt;","synthetic":false,"types":["network::CancelHandler"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
