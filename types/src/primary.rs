@@ -520,7 +520,6 @@ pub struct BatchMessage {
     pub transactions: Batch,
 }
 
-// TODO: refactor BlockRemoverResult and BlockResult into one type shared by get/remove collections.
 pub type BlockRemoverResult<T> = Result<T, BlockRemoverError>;
 
 #[derive(Clone, Debug)]

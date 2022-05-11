@@ -9,8 +9,9 @@ use tokio::{
 };
 use tonic::{Request, Response, Status};
 use types::{
-    BatchMessageProto, BlockError, CollectionRetrievalResult, Collections, Empty,
-    GetCollectionsResponse, Validator,
+    BatchMessageProto, BlockError, CertificateDigest, CertificateDigestProto,
+    CollectionRetrievalResult, Empty, GetCollectionsRequest, GetCollectionsResponse,
+    RemoveCollectionsRequest, Validator,
 };
 
 #[derive(Debug)]
@@ -41,17 +42,12 @@ impl NarwhalValidator {
 impl Validator for NarwhalValidator {
     async fn remove_collections(
         &self,
-        request: Request<Collections>,
+        request: Request<RemoveCollectionsRequest>,
     ) -> Result<Response<Empty>, Status> {
         let collection_ids = request.into_inner().collection_ids;
         let remove_collections_response = if !collection_ids.is_empty() {
             let (tx_remove_block, mut rx_remove_block) = channel(1);
-            let mut ids = vec![];
-            for collection_id in collection_ids {
-                ids.push(collection_id.try_into().map_err(|err| {
-                    Status::invalid_argument(format!("Could not serialize: {:?}", err))
-                })?);
-            }
+            let ids = parse_certificate_digests(collection_ids)?;
             self.tx_block_removal_commands
                 .send(BlockRemoverCommand::RemoveBlocks {
                     ids,
@@ -84,17 +80,12 @@ impl Validator for NarwhalValidator {
 
     async fn get_collections(
         &self,
-        request: Request<Collections>,
+        request: Request<GetCollectionsRequest>,
     ) -> Result<Response<GetCollectionsResponse>, Status> {
         let collection_ids = request.into_inner().collection_ids;
         let get_collections_response = if !collection_ids.is_empty() {
             let (tx_get_blocks, rx_get_blocks) = oneshot::channel();
-            let mut ids = vec![];
-            for collection_id in collection_ids {
-                ids.push(collection_id.try_into().map_err(|err| {
-                    Status::invalid_argument(format!("Could not serialize: {:?}", err))
-                })?);
-            }
+            let ids = parse_certificate_digests(collection_ids)?;
             self.tx_get_block_commands
                 .send(BlockCommand::GetBlocks {
                     ids,
@@ -156,4 +147,18 @@ fn get_collection_retrieval_results(
             }]
         }
     }
+}
+
+fn parse_certificate_digests(
+    collection_ids: Vec<CertificateDigestProto>,
+) -> Result<Vec<CertificateDigest>, Status> {
+    let mut ids = vec![];
+    for collection_id in collection_ids {
+        ids.push(
+            collection_id.try_into().map_err(|err| {
+                Status::invalid_argument(format!("Could not serialize: {:?}", err))
+            })?,
+        );
+    }
+    Ok(ids)
 }

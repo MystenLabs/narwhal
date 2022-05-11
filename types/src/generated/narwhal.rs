@@ -87,8 +87,14 @@ pub mod collection_retrieval_result {
     }
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct Collections {
-    /// List of collections to be retreived or removed.
+pub struct GetCollectionsRequest {
+    /// List of collections to be retreived.
+    #[prost(message, repeated, tag="1")]
+    pub collection_ids: ::prost::alloc::vec::Vec<CertificateDigest>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct RemoveCollectionsRequest {
+    /// List of collections to be removed.
     #[prost(message, repeated, tag="1")]
     pub collection_ids: ::prost::alloc::vec::Vec<CertificateDigest>,
 }
@@ -193,7 +199,7 @@ pub mod validator_client {
         /// Returns the collection contents for each requested collection
         pub async fn get_collections(
             &mut self,
-            request: impl tonic::IntoRequest<super::Collections>,
+            request: impl tonic::IntoRequest<super::GetCollectionsRequest>,
         ) -> Result<tonic::Response<super::GetCollectionsResponse>, tonic::Status> {
             self.inner
                 .ready()
@@ -213,7 +219,7 @@ pub mod validator_client {
         /// Removes each collection provided.
         pub async fn remove_collections(
             &mut self,
-            request: impl tonic::IntoRequest<super::Collections>,
+            request: impl tonic::IntoRequest<super::RemoveCollectionsRequest>,
         ) -> Result<tonic::Response<super::Empty>, tonic::Status> {
             self.inner
                 .ready()
@@ -721,12 +727,12 @@ pub mod validator_server {
         /// Returns the collection contents for each requested collection
         async fn get_collections(
             &self,
-            request: tonic::Request<super::Collections>,
+            request: tonic::Request<super::GetCollectionsRequest>,
         ) -> Result<tonic::Response<super::GetCollectionsResponse>, tonic::Status>;
         /// Removes each collection provided.
         async fn remove_collections(
             &self,
-            request: tonic::Request<super::Collections>,
+            request: tonic::Request<super::RemoveCollectionsRequest>,
         ) -> Result<tonic::Response<super::Empty>, tonic::Status>;
     }
     /// The consensus to mempool interface for validator actions.
@@ -780,7 +786,9 @@ pub mod validator_server {
                 "/narwhal.Validator/GetCollections" => {
                     #[allow(non_camel_case_types)]
                     struct GetCollectionsSvc<T: Validator>(pub Arc<T>);
-                    impl<T: Validator> tonic::server::UnaryService<super::Collections>
+                    impl<
+                        T: Validator,
+                    > tonic::server::UnaryService<super::GetCollectionsRequest>
                     for GetCollectionsSvc<T> {
                         type Response = super::GetCollectionsResponse;
                         type Future = BoxFuture<
@@ -789,7 +797,7 @@ pub mod validator_server {
                         >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::Collections>,
+                            request: tonic::Request<super::GetCollectionsRequest>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
                             let fut = async move {
@@ -818,7 +826,9 @@ pub mod validator_server {
                 "/narwhal.Validator/RemoveCollections" => {
                     #[allow(non_camel_case_types)]
                     struct RemoveCollectionsSvc<T: Validator>(pub Arc<T>);
-                    impl<T: Validator> tonic::server::UnaryService<super::Collections>
+                    impl<
+                        T: Validator,
+                    > tonic::server::UnaryService<super::RemoveCollectionsRequest>
                     for RemoveCollectionsSvc<T> {
                         type Response = super::Empty;
                         type Future = BoxFuture<
@@ -827,7 +837,7 @@ pub mod validator_server {
                         >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::Collections>,
+                            request: tonic::Request<super::RemoveCollectionsRequest>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
                             let fut = async move {
