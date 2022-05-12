@@ -100,7 +100,7 @@ async fn test_get_collections() {
         store.payload_store.clone(),
         /* tx_consensus */ tx_new_certificates,
         /* rx_consensus */ rx_feedback,
-        /* external_consensus */ true,
+        /* internal_consensus */ false,
     );
 
     // Spawn a `Worker` instance.
