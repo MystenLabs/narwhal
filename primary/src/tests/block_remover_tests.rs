@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use crate::{
     block_remover::{
-        BlockRemover, BlockRemoverCommand, BlockRemoverErrorType, BlockRemoverResult,
+        BlockRemover, BlockRemoverCommand, BlockRemoverErrorKind, BlockRemoverResult,
         DeleteBatchMessage, DeleteBatchResult, RemoveBlocksResponse, RequestKey,
     },
     common::create_db_stores,
@@ -270,7 +270,7 @@ async fn test_timeout() {
 
             let block_error = result.err().unwrap();
 
-            assert_eq!(block_error.error, BlockRemoverErrorType::Timeout);
+            assert_eq!(block_error.error, BlockRemoverErrorKind::Timeout);
 
             assert_eq!(block_error.ids.len(), block_ids.len());
 

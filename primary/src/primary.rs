@@ -289,8 +289,8 @@ impl Primary {
             ConsensusAPIGrpc::spawn(
                 parameters.consensus_api_grpc.socket_addr,
                 tx_get_block_commands,
-                parameters.consensus_api_grpc.get_collections_timeout,
                 tx_block_removal_commands,
+                parameters.consensus_api_grpc.get_collections_timeout,
                 parameters.consensus_api_grpc.remove_collections_timeout,
             );
         }

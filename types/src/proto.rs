@@ -7,7 +7,7 @@ mod narwhal;
 
 use std::{array::TryFromSliceError, ops::Deref};
 
-use crate::{Batch, BatchMessage, BlockError, BlockErrorType, CertificateDigest};
+use crate::{Batch, BatchMessage, BlockError, BlockErrorKind, CertificateDigest};
 use bytes::Bytes;
 
 pub use narwhal::{
@@ -62,12 +62,12 @@ impl From<BlockError> for CollectionError {
     }
 }
 
-impl From<BlockErrorType> for CollectionErrorType {
-    fn from(error_type: BlockErrorType) -> Self {
+impl From<BlockErrorKind> for CollectionErrorType {
+    fn from(error_type: BlockErrorKind) -> Self {
         match error_type {
-            BlockErrorType::BlockNotFound => CollectionErrorType::CollectionNotFound,
-            BlockErrorType::BatchTimeout => CollectionErrorType::CollectionTimeout,
-            BlockErrorType::BatchError => CollectionErrorType::CollectionError,
+            BlockErrorKind::BlockNotFound => CollectionErrorType::CollectionNotFound,
+            BlockErrorKind::BatchTimeout => CollectionErrorType::CollectionTimeout,
+            BlockErrorKind::BatchError => CollectionErrorType::CollectionError,
         }
     }
 }

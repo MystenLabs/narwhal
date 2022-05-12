@@ -216,7 +216,7 @@ pub mod validator_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
-        /// Removes each collection provided.
+        /// Removes each provided collection.
         pub async fn remove_collections(
             &mut self,
             request: impl tonic::IntoRequest<super::RemoveCollectionsRequest>,
@@ -729,7 +729,7 @@ pub mod validator_server {
             &self,
             request: tonic::Request<super::GetCollectionsRequest>,
         ) -> Result<tonic::Response<super::GetCollectionsResponse>, tonic::Status>;
-        /// Removes each collection provided.
+        /// Removes each provided collection.
         async fn remove_collections(
             &self,
             request: tonic::Request<super::RemoveCollectionsRequest>,
