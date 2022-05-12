@@ -27,7 +27,8 @@ pub use narwhal::{
     Batch as BatchProto, BatchDigest as BatchDigestProto, BatchMessage as BatchMessageProto,
     BincodeEncodedPayload, CertificateDigest as CertificateDigestProto, CollectionError,
     CollectionErrorType, CollectionRetrievalResult, Empty, GetCollectionsRequest,
-    GetCollectionsResponse, RemoveCollectionsRequest, Transaction as TransactionProto,
+    GetCollectionsResponse, ReadCausalRequest, ReadCausalResponse, RemoveCollectionsRequest,
+    Transaction as TransactionProto,
 };
 
 impl From<BatchMessage> for BatchMessageProto {

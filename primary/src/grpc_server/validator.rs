@@ -11,7 +11,7 @@ use tonic::{Request, Response, Status};
 use types::{
     BatchMessageProto, BlockError, CertificateDigest, CertificateDigestProto,
     CollectionRetrievalResult, Empty, GetCollectionsRequest, GetCollectionsResponse,
-    RemoveCollectionsRequest, Validator,
+    ReadCausalRequest, ReadCausalResponse, RemoveCollectionsRequest, Validator,
 };
 
 #[derive(Debug)]
@@ -40,6 +40,13 @@ impl NarwhalValidator {
 
 #[tonic::async_trait]
 impl Validator for NarwhalValidator {
+    async fn read_causal(
+        &self,
+        _request: Request<ReadCausalRequest>,
+    ) -> Result<Response<ReadCausalResponse>, Status> {
+        Err(Status::internal("Not Implemented"))
+    }
+
     async fn remove_collections(
         &self,
         request: Request<RemoveCollectionsRequest>,

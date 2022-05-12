@@ -93,17 +93,29 @@ pub struct GetCollectionsRequest {
     pub collection_ids: ::prost::alloc::vec::Vec<CertificateDigest>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetCollectionsResponse {
+    /// TODO: Revisit this for spec compliance.  
+    /// List of retrieval results of collections.
+    #[prost(message, repeated, tag="1")]
+    pub result: ::prost::alloc::vec::Vec<CollectionRetrievalResult>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct RemoveCollectionsRequest {
     /// List of collections to be removed.
     #[prost(message, repeated, tag="1")]
     pub collection_ids: ::prost::alloc::vec::Vec<CertificateDigest>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct GetCollectionsResponse {
-    /// TODO: Revisit this for spec compliance.  
-    /// List of retrieval results of collections.
+pub struct ReadCausalRequest {
+    /// A collection for which a sequence of related collections are to be retrieved.
+    #[prost(message, optional, tag="1")]
+    pub collection_id: ::core::option::Option<CertificateDigest>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ReadCausalResponse {
+    /// Resulting sequence of collections from DAG walk.
     #[prost(message, repeated, tag="1")]
-    pub result: ::prost::alloc::vec::Vec<CollectionRetrievalResult>,
+    pub collection_ids: ::prost::alloc::vec::Vec<CertificateDigest>,
 }
 /// A bincode encoded payload. This is intended to be used in the short-term
 /// while we don't have good protobuf definitions for Narwhal types
@@ -196,7 +208,7 @@ pub mod validator_client {
             self.inner = self.inner.accept_gzip();
             self
         }
-        /// Returns the collection contents for each requested collection
+        /// Returns collection contents for each requested collection.
         pub async fn get_collections(
             &mut self,
             request: impl tonic::IntoRequest<super::GetCollectionsRequest>,
@@ -216,7 +228,7 @@ pub mod validator_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
-        /// Removes each collection provided.
+        /// Expunges collections from the mempool.
         pub async fn remove_collections(
             &mut self,
             request: impl tonic::IntoRequest<super::RemoveCollectionsRequest>,
@@ -233,6 +245,26 @@ pub mod validator_client {
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/narwhal.Validator/RemoveCollections",
+            );
+            self.inner.unary(request.into_request(), path, codec).await
+        }
+        /// Returns collections along a DAG walk with a well-defined starting point.
+        pub async fn read_causal(
+            &mut self,
+            request: impl tonic::IntoRequest<super::ReadCausalRequest>,
+        ) -> Result<tonic::Response<super::ReadCausalResponse>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/narwhal.Validator/ReadCausal",
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
@@ -724,16 +756,21 @@ pub mod validator_server {
     ///Generated trait containing gRPC methods that should be implemented for use with ValidatorServer.
     #[async_trait]
     pub trait Validator: Send + Sync + 'static {
-        /// Returns the collection contents for each requested collection
+        /// Returns collection contents for each requested collection.
         async fn get_collections(
             &self,
             request: tonic::Request<super::GetCollectionsRequest>,
         ) -> Result<tonic::Response<super::GetCollectionsResponse>, tonic::Status>;
-        /// Removes each collection provided.
+        /// Expunges collections from the mempool.
         async fn remove_collections(
             &self,
             request: tonic::Request<super::RemoveCollectionsRequest>,
         ) -> Result<tonic::Response<super::Empty>, tonic::Status>;
+        /// Returns collections along a DAG walk with a well-defined starting point.
+        async fn read_causal(
+            &self,
+            request: tonic::Request<super::ReadCausalRequest>,
+        ) -> Result<tonic::Response<super::ReadCausalResponse>, tonic::Status>;
     }
     /// The consensus to mempool interface for validator actions.
     #[derive(Debug)]
@@ -852,6 +889,44 @@ pub mod validator_server {
                     let fut = async move {
                         let inner = inner.0;
                         let method = RemoveCollectionsSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/narwhal.Validator/ReadCausal" => {
+                    #[allow(non_camel_case_types)]
+                    struct ReadCausalSvc<T: Validator>(pub Arc<T>);
+                    impl<
+                        T: Validator,
+                    > tonic::server::UnaryService<super::ReadCausalRequest>
+                    for ReadCausalSvc<T> {
+                        type Response = super::ReadCausalResponse;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::ReadCausalRequest>,
+                        ) -> Self::Future {
+                            let inner = self.0.clone();
+                            let fut = async move { (*inner).read_causal(request).await };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = ReadCausalSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

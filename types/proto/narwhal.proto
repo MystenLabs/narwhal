@@ -101,15 +101,25 @@ message GetCollectionsRequest {
     repeated CertificateDigest collection_ids = 1;
 }
 
+message GetCollectionsResponse {
+    // TODO: Revisit this for spec compliance.  
+    // List of retrieval results of collections.
+    repeated CollectionRetrievalResult result = 1;
+}
+
 message RemoveCollectionsRequest {
     // List of collections to be removed.
     repeated CertificateDigest collection_ids = 1;
 }
 
-message GetCollectionsResponse {
-    // TODO: Revisit this for spec compliance.  
-    // List of retrieval results of collections.
-    repeated CollectionRetrievalResult result = 1;
+message ReadCausalRequest {
+    // A collection for which a sequence of related collections are to be retrieved.
+    CertificateDigest collection_id = 1;
+}
+
+message ReadCausalResponse {
+    // Resulting sequence of collections from DAG walk.
+    repeated CertificateDigest collection_ids = 1;
 }
 
 // A bincode encoded payload. This is intended to be used in the short-term
@@ -124,10 +134,12 @@ message Empty {
 
 // The consensus to mempool interface for validator actions.
 service Validator {
-    // Returns the collection contents for each requested collection
+    // Returns collection contents for each requested collection.
     rpc GetCollections (GetCollectionsRequest) returns (GetCollectionsResponse);
-    // Removes each collection provided.
+    // Expunges collections from the mempool.
     rpc RemoveCollections (RemoveCollectionsRequest) returns (Empty);
+    // Returns collections along a DAG walk with a well-defined starting point.
+    rpc ReadCausal (ReadCausalRequest) returns (ReadCausalResponse);
 }
 
 // The primary-to-primary interface
