@@ -276,7 +276,9 @@ async fn test_remove_collections() {
 
     let status = client.remove_collections(request).await.unwrap_err();
 
-    assert!(status.message().contains("Removal Error: Timeout"));
+    assert!(status
+        .message()
+        .contains("Timeout, no result has been received in time"));
     assert!(
         store
             .certificate_store
