@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use arc_swap::ArcSwap;
+use crypto::Digest;
 use dashmap::DashMap;
 use either::Either;
 use once_cell::sync::OnceCell;
@@ -40,6 +41,7 @@ pub trait Affiliated: crypto::Hash {
 /// /!\ Warning /!\: do not drop the heads of the graph without having given them new antecedents,
 /// as this will transitively drop all the nodes they point to and may cause loss of data.
 ///   
+#[derive(Debug)]
 pub struct NodeDag<T: Affiliated> {
     // Not that we should need to ever serialize this (we'd rather rebuild the Dag from a persistent store)
     // but the way to serialize this in key order is using serde_with and an annotation of:
@@ -47,12 +49,12 @@ pub struct NodeDag<T: Affiliated> {
     node_table: DashMap<T::TypedDigest, Either<WeakNodeRef<T>, NodeRef<T>>>,
 }
 
-#[derive(Debug, Error)]
-pub enum DagError<T: crypto::Hash> {
-    #[error("No vertex known by this digest: {0}")]
-    UnknownDigest(T::TypedDigest),
+#[derive(Debug, Error, PartialEq)]
+pub enum NodeDagError {
+    #[error("No vertex known by these digests: {0:?}")]
+    UnknownDigests(Vec<Digest>),
     #[error("The vertex known by this digest was dropped: {0}")]
-    DroppedDigest(T::TypedDigest),
+    DroppedDigest(Digest),
 }
 
 impl<T: Affiliated> NodeDag<T> {
@@ -66,11 +68,11 @@ impl<T: Affiliated> NodeDag<T> {
 
     /// Returns a weak reference to the requested vertex.
     /// This does not prevent the vertex from being dropped off the graph.
-    pub fn get_weak(&self, digest: T::TypedDigest) -> Result<WeakNodeRef<T>, DagError<T>> {
+    pub fn get_weak(&self, digest: T::TypedDigest) -> Result<WeakNodeRef<T>, NodeDagError> {
         let node_ref = self
             .node_table
             .get(&digest)
-            .ok_or(DagError::UnknownDigest(digest))?;
+            .ok_or_else(|| NodeDagError::UnknownDigests(vec![digest.into()]))?;
         match *node_ref {
             Either::Left(ref node) => Ok(node.clone()),
             Either::Right(ref node) => Ok(Arc::downgrade(node)),
@@ -79,24 +81,33 @@ impl<T: Affiliated> NodeDag<T> {
 
     // Returns a strong (`Arc`) reference to the graph node.
     // This bumps the reference count to the vertex and may prevent it from being GC-ed off the graph.
-    pub(crate) fn get(&self, digest: T::TypedDigest) -> Result<NodeRef<T>, DagError<T>> {
+    // This is not publicly accessible, so as to not let wandering references to DAG nodes prevent GC logic
+    pub(crate) fn get(&self, digest: T::TypedDigest) -> Result<NodeRef<T>, NodeDagError> {
         let node_ref = self
             .node_table
             .get(&digest)
-            .ok_or(DagError::UnknownDigest(digest))?;
+            .ok_or_else(|| NodeDagError::UnknownDigests(vec![digest.into()]))?;
         match *node_ref {
-            Either::Left(ref node) => Ok(NodeRef(
-                node.upgrade().ok_or(DagError::DroppedDigest(digest))?,
-            )),
+            Either::Left(ref node) => {
+                Ok(NodeRef(node.upgrade().ok_or_else(|| {
+                    NodeDagError::DroppedDigest(digest.into())
+                })?))
+            }
             // the node is a head of the graph, just return
             Either::Right(ref node) => Ok(node.clone()),
         }
     }
 
-    /// Returns whether the vertex pointed to by the hash passed as an argument is
-    /// contained in the DAG.
+    /// Returns whether the vertex pointed to by the hash passed as an argument was
+    /// contained in the DAG at any point in the past.
     pub fn contains(&self, hash: T::TypedDigest) -> bool {
         self.node_table.contains_key(&hash)
+    }
+
+    /// Returns whether the vertex pointed to by the hash passed as an argument is
+    /// contained in the DAG and still a live (uncompressed) reference.
+    pub fn contains_live(&self, digest: T::TypedDigest) -> bool {
+        self.get(digest).is_ok()
     }
 
     /// Returns whether the vertex pointed to by the hash passed as an argument is a
@@ -104,11 +115,11 @@ impl<T: Affiliated> NodeDag<T> {
     /// to many downward nodes and dropping them might GC large spans of the graph.
     ///
     /// This returns an error if the queried node is unknown
-    pub fn has_head(&self, hash: T::TypedDigest) -> Result<bool, DagError<T>> {
+    pub fn has_head(&self, hash: T::TypedDigest) -> Result<bool, NodeDagError> {
         let node_ref = self
             .node_table
             .get(&hash)
-            .ok_or(DagError::UnknownDigest(hash))?;
+            .ok_or_else(|| NodeDagError::UnknownDigests(vec![hash.into()]))?;
         match *node_ref {
             Either::Right(ref _node) => Ok(true),
             Either::Left(ref _node) => Ok(false),
@@ -119,7 +130,7 @@ impl<T: Affiliated> NodeDag<T> {
     /// Returns true if the node was made compressible, and false if it already was
     ///
     /// This returne an error if the queried node is unknown or dropped from the graph
-    pub fn make_compressible(&self, hash: T::TypedDigest) -> Result<bool, DagError<T>> {
+    pub fn make_compressible(&self, hash: T::TypedDigest) -> Result<bool, NodeDagError> {
         let node_ref = self.get(hash)?;
         Ok(node_ref.make_compressible())
     }
@@ -132,11 +143,11 @@ impl<T: Affiliated> NodeDag<T> {
     /// Note: the dag currently does not do any causal completion. It is an error to insert a node which parents
     /// are unknown by the DAG it's inserted into.
     ///
-    /// This insertion procedure only verifies the invariant that
+    /// This insertion procedure only maintains the invariant that
     /// - insertion should be idempotent
     /// - an unseen node is a head (not pointed) to by any other node.
     ///
-    pub fn try_insert(&mut self, value: T) -> Result<(), DagError<T>> {
+    pub fn try_insert(&mut self, value: T) -> Result<(), NodeDagError> {
         let digest = value.digest();
         // Do we have this node already?
         if self.contains(digest) {
@@ -147,16 +158,39 @@ impl<T: Affiliated> NodeDag<T> {
         let parents = parent_digests
             .iter()
             .map(|hash| self.get(*hash))
-            .flat_map(|res| {
-                match res {
-                    Err(DagError::DroppedDigest(_)) => {
+            // We use Either::Left to collect parent refs, Either::Right to collect missing parents in case we encounter a failure
+            .fold(Either::Left(Vec::new()), |acc, res| {
+                match (acc, res) {
+                    // This node was previously dropped, continue
+                    (acc, Err(NodeDagError::DroppedDigest(_))) => {
                         // TODO : log this properly! The parent is known, but was pruned in the past.
-                        None
+                        acc
                     }
-                    v => Some(v),
+                    // Found a parent with no errors met, collect
+                    (Either::Left(mut v), Ok(parent_ref)) => {
+                        v.push(parent_ref);
+                        Either::Left(v)
+                    }
+                    // We meet our first error! Switch to collecting digests of missing parents
+                    (Either::Left(_), Err(NodeDagError::UnknownDigests(digest_vec))) => {
+                        Either::Right(digest_vec)
+                    }
+                    // Found a parent while we know some are missing, ignore
+                    (acc @ Either::Right(_), Ok(_)) => acc,
+                    // Another missing parent while we know some are missing, collect
+                    (Either::Right(mut v), Err(NodeDagError::UnknownDigests(digest_vec))) => {
+                        v.extend(digest_vec);
+                        Either::Right(v)
+                    }
                 }
-            })
-            .collect::<Result<Vec<_>, _>>()?;
+            });
+        let parents = match parents {
+            Either::Right(missing_parents) => {
+                return Err(NodeDagError::UnknownDigests(missing_parents))
+            }
+            Either::Left(found_parents) => found_parents,
+        };
+
         let compressible: OnceCell<()> = {
             let cell = OnceCell::new();
             if value.compressible() {
@@ -184,6 +218,17 @@ impl<T: Affiliated> NodeDag<T> {
             }
         }
         Ok(())
+    }
+}
+
+impl<T: Affiliated + Sync + Send + std::fmt::Debug> NodeDag<T> {
+    /// Performs a breadth-first traversal of the Dag starting at the given vertex
+    pub fn bft(
+        &self,
+        hash: T::TypedDigest,
+    ) -> Result<impl Iterator<Item = NodeRef<T>>, NodeDagError> {
+        let start = self.get(hash)?;
+        Ok(crate::bfs(start))
     }
 }
 
@@ -312,6 +357,28 @@ mod tests {
 
     proptest! {
         #[test]
+        fn test_insert_missing(
+            digests in prop::collection::vec(arb_test_digest(), 0..10),
+            // Note random_parents must be non-empty, or the insertion will succceed
+            random_parents in prop::collection::vec(arb_test_digest(), 1..10)
+        ) {
+            let nodes = digests.into_iter().map(|digest| {
+
+                TestNode{
+                    digest,
+                    parents: random_parents.clone(),
+                    compressible: false
+                }
+            });
+            let mut nu_dag = NodeDag::new();
+            let random_parents_digests: Vec<Digest> = random_parents.iter().map(|digest| (*digest).into()).collect();
+            let expected_error = NodeDagError::UnknownDigests(random_parents_digests);
+            for node in nodes {
+                assert_eq!(expected_error, nu_dag.try_insert(node).err().unwrap())
+            }
+        }
+
+        #[test]
         fn test_dag_sanity_check(
             dag in arb_dag_complete(10, 10)
         ) {
@@ -397,7 +464,7 @@ mod tests {
             for compressed_node in compressibles {
                 if !heads.contains(&compressed_node) {
                     assert!(
-                        matches!(node_dag.get(compressed_node), Err(DagError::DroppedDigest(_))),
+                        matches!(node_dag.get(compressed_node), Err(NodeDagError::DroppedDigest(_))),
                         "node {compressed_node} should have been compressed yet is still present"
                     );
                 }
@@ -435,7 +502,7 @@ mod tests {
             // and since everything is compressible, all that's left is the heads
             for digest in digests {
                 if !heads.contains(&digest){
-                    assert!(matches!(node_dag.get(digest), Err(DagError::DroppedDigest(_))))
+                    assert!(matches!(node_dag.get(digest), Err(NodeDagError::DroppedDigest(_))))
                 }
             }
         }
