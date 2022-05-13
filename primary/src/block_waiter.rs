@@ -119,15 +119,31 @@ type RequestKey = Vec<u8>;
 /// # use config::Committee;
 /// # use std::collections::BTreeMap;
 /// # use types::Certificate;
-/// # use primary::{BlockWaiter, BlockCommand};
+/// # use primary::{BlockWaiter, BlockHeader, BlockCommand, block_synchronizer::{BlockSynchronizeResult, handler::{Error, Handler}}};
 /// # use types::{BatchMessage, BatchDigest, CertificateDigest, Batch};
 /// # use mockall::*;
-/// # use primary::MockHandler;
+/// # use crypto::traits::VerifyingKey;
+/// # use async_trait::async_trait;
+///
+/// # // A mock implementation of the BlockSynchronizerHandler
+/// struct BlockSynchronizerHandler;
+///
+/// #[async_trait]
+/// impl<PublicKey: VerifyingKey> Handler<PublicKey> for BlockSynchronizerHandler {
+///
+///     async fn get_and_synchronize_block_headers(&self, block_ids: Vec<CertificateDigest>) -> Vec<Result<Certificate<PublicKey>, Error>> {
+///         vec![]
+///     }
+///
+///     async fn get_block_headers(&self, block_ids: Vec<CertificateDigest>) -> Vec<BlockSynchronizeResult<BlockHeader<PublicKey>>> {
+///         vec![]
+///     }
+///
+/// }
 ///
 /// #[tokio::main(flavor = "current_thread")]
 /// # async fn main() {
-///     use primary::{BlockHeader, MockBlockSynchronizer};
-/// let (tx_commands, rx_commands) = channel(1);
+///     let (tx_commands, rx_commands) = channel(1);
 ///     let (tx_batches, rx_batches) = channel(1);
 ///     let (tx_get_block, mut rx_get_block) = oneshot::channel();
 ///
@@ -139,19 +155,12 @@ type RequestKey = Vec<u8>;
 ///
 ///     // Dummy - we expect the BlockSynchronizer to actually respond, here
 ///     // we are using a mock
-///     let mut mock_handler = MockHandler::<Ed25519PublicKey>::new();
-///     mock_handler
-///         .expect_get_and_synchronize_block_headers()
-///         .with(predicate::eq(vec![certificate.digest()]))
-///         .times(1)
-///         .return_const(vec![Ok(certificate.clone())]);
-///
 ///     BlockWaiter::spawn(
 ///         name,
 ///         committee,
 ///         rx_commands,
 ///         rx_batches,
-///         mock_handler,
+///         BlockSynchronizerHandler{},
 ///     );
 ///
 ///     // Send a command to receive a block

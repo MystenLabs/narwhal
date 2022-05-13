@@ -56,7 +56,7 @@ pub struct BlockHeader<PublicKey: VerifyingKey> {
 }
 
 type ResultSender<T> = Sender<BlockSynchronizeResult<BlockHeader<T>>>;
-type BlockSynchronizeResult<T> = Result<T, SyncError>;
+pub type BlockSynchronizeResult<T> = Result<T, SyncError>;
 
 #[derive(Debug)]
 pub enum Command<PublicKey: VerifyingKey> {
