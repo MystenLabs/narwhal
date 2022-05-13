@@ -9,30 +9,30 @@ use tokio::{
 };
 use tonic::{Request, Response, Status};
 use types::{
-    BatchMessageProto, BlockError, CertificateDigest, CertificateDigestProto,
-    CollectionRetrievalResult, Empty, GetCollectionsRequest, GetCollectionsResponse,
-    RemoveCollectionsRequest, Validator,
+    BatchMessageProto, BlockError, BlockRemoverErrorKind, CertificateDigest,
+    CertificateDigestProto, CollectionRetrievalResult, Empty, GetCollectionsRequest,
+    GetCollectionsResponse, RemoveCollectionsRequest, Validator,
 };
 
 #[derive(Debug)]
 pub struct NarwhalValidator {
     tx_get_block_commands: Sender<BlockCommand>,
-    get_collections_timeout: Duration,
     tx_block_removal_commands: Sender<BlockRemoverCommand>,
+    get_collections_timeout: Duration,
     remove_collections_timeout: Duration,
 }
 
 impl NarwhalValidator {
     pub fn new(
         tx_get_block_commands: Sender<BlockCommand>,
-        get_collections_timeout: Duration,
         tx_block_removal_commands: Sender<BlockRemoverCommand>,
+        get_collections_timeout: Duration,
         remove_collections_timeout: Duration,
     ) -> Self {
         Self {
             tx_get_block_commands,
-            get_collections_timeout,
             tx_block_removal_commands,
+            get_collections_timeout,
             remove_collections_timeout,
         }
     }
@@ -54,20 +54,27 @@ impl Validator for NarwhalValidator {
                     sender: tx_remove_block,
                 })
                 .await
-                .map_err(|err| Status::internal(format!("Send Error: {:?}", err)))?;
-            match timeout(self.remove_collections_timeout, rx_remove_block.recv()).await {
-                Ok(Some(result)) => match result {
+                .map_err(|err| Status::internal(format!("Send Error: {err:?}")))?;
+            match timeout(self.remove_collections_timeout, rx_remove_block.recv())
+                .await
+                .map_err(|_err| Status::internal("Timeout, no result has been received in time"))?
+            {
+                Some(result) => match result {
                     Ok(_) => Ok(Empty {}),
+                    Err(remove_block_error)
+                        if remove_block_error.error == BlockRemoverErrorKind::Timeout =>
+                    {
+                        Err(Status::internal(
+                            "Timeout, no result has been received in time",
+                        ))
+                    }
                     Err(remove_block_error) => Err(Status::internal(format!(
                         "Removal Error: {:?}",
                         remove_block_error.error
                     ))),
                 },
-                Ok(None) => Err(Status::internal(
+                None => Err(Status::internal(
                     "Removal channel closed, no result has been received.",
-                )),
-                Err(_) => Err(Status::internal(
-                    "Timeout, no result has been received in time",
                 )),
             }
         } else {
@@ -92,30 +99,24 @@ impl Validator for NarwhalValidator {
                     sender: tx_get_blocks,
                 })
                 .await
-                .map_err(|err| Status::internal(format!("Send Error: {:?}", err)))?;
-            match timeout(self.get_collections_timeout, rx_get_blocks).await {
-                Ok(Ok(result)) => {
-                    match result {
-                        Ok(blocks_response) => {
-                            let mut retrieval_results = vec![];
-                            for block_result in blocks_response.blocks {
-                                retrieval_results.extend(get_collection_retrieval_results(block_result));
-                            }
-                            Ok(GetCollectionsResponse {
-                                result: retrieval_results,
-                            })
-                        },
-                        Err(err) => {
-                            Err(Status::internal(format!("Expected to receive a successful get blocks result, instead got error: {:?}", err)))
-                        }
+                .map_err(|err| Status::internal(format!("Send Error: {err:?}")))?;
+            match timeout(self.get_collections_timeout, rx_get_blocks)
+                .await
+                .map_err(|_err| Status::internal("Timeout, no result has been received in time"))?
+                .map_err(|_err| Status::internal("Fetch Error, no result has been received"))?
+            {
+                Ok(blocks_response) => {
+                    let mut retrieval_results = vec![];
+                    for block_result in blocks_response.blocks {
+                        retrieval_results.extend(get_collection_retrieval_results(block_result));
                     }
+                    Ok(GetCollectionsResponse {
+                        result: retrieval_results,
+                    })
                 }
-                Ok(Err(_)) => Err(Status::internal(
-                    "Fetch Error, no result has been received.",
-                )),
-                Err(_) => Err(Status::internal(
-                    "Timeout, no result has been received in time",
-                )),
+                Err(err) => Err(Status::internal(format!(
+                    "Expected to receive a successful get blocks result, instead got error: {err:?}",
+                ))),
             }
         } else {
             Err(Status::invalid_argument(

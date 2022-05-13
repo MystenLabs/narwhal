@@ -24,7 +24,7 @@ use tokio::{
 };
 use tracing::{debug, error, warn};
 use types::{
-    BatchDigest, BlockRemoverError, BlockRemoverErrorType, BlockRemoverResult, Certificate,
+    BatchDigest, BlockRemoverError, BlockRemoverErrorKind, BlockRemoverResult, Certificate,
     CertificateDigest, Header, HeaderDigest,
 };
 
@@ -297,7 +297,7 @@ impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
                         senders,
                         Err(BlockRemoverError {
                             ids: block_ids,
-                            error: BlockRemoverErrorType::Failed,
+                            error: BlockRemoverErrorKind::Failed,
                         }),
                     )
                     .await;
@@ -442,7 +442,7 @@ impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
                         sender
                             .send(Err(BlockRemoverError {
                                 ids,
-                                error: BlockRemoverErrorType::Failed,
+                                error: BlockRemoverErrorKind::Failed,
                             }))
                             .await
                             .expect("Couldn't send error to channel");
@@ -519,11 +519,11 @@ impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
     async fn wait_for_delete_response(
         request_key: RequestKey,
         rx: oneshot::Receiver<DeleteBatchResult>,
-    ) -> Result<RequestKey, BlockRemoverErrorType> {
+    ) -> Result<RequestKey, BlockRemoverErrorKind> {
         match timeout(BATCH_DELETE_TIMEOUT, rx).await {
             Ok(Ok(_)) => Ok(request_key),
-            Ok(Err(_)) => Err(BlockRemoverErrorType::Failed),
-            Err(_) => Err(BlockRemoverErrorType::Timeout),
+            Ok(Err(_)) => Err(BlockRemoverErrorKind::Failed),
+            Err(_) => Err(BlockRemoverErrorKind::Timeout),
         }
     }
 
