@@ -75,7 +75,7 @@ message RemoveCollectionsRequest {
 }
 
 message NewNetworkInfoRequest {
-    int32 epoch_number = 1;
+    uint32 epoch_number = 1;
     repeated ValidatorData validators = 2;
 }
 

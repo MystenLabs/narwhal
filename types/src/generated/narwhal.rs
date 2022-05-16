@@ -89,8 +89,8 @@ pub struct RemoveCollectionsRequest {
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct NewNetworkInfoRequest {
-    #[prost(int32, tag="1")]
-    pub epoch_number: i32,
+    #[prost(uint32, tag="1")]
+    pub epoch_number: u32,
     #[prost(message, repeated, tag="2")]
     pub validators: ::prost::alloc::vec::Vec<ValidatorData>,
 }
