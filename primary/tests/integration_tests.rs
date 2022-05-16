@@ -1,6 +1,5 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-
 use config::{Parameters, WorkerId};
 use crypto::{
     ed25519::{Ed25519KeyPair, Ed25519PublicKey},
@@ -18,8 +17,9 @@ use tokio::sync::mpsc::channel;
 use tonic::transport::Channel;
 use types::{
     BatchDigest, Certificate, CertificateDigest, CertificateDigestProto, CollectionErrorType,
-    CollectionRetrievalResult, Empty, GetCollectionsRequest, Header, HeaderDigest,
-    RemoveCollectionsRequest, RetrievalResult, ValidatorClient,
+    CollectionRetrievalResult, ConfigurationClient, Empty, GetCollectionsRequest, Header,
+    HeaderDigest, MultiAddrProto, NewNetworkInfoRequest, PublicKeyProto, RemoveCollectionsRequest,
+    RetrievalResult, ValidatorClient, ValidatorData,
 };
 use worker::{SerializedBatchMessage, Worker, WorkerMessage};
 
@@ -364,6 +364,65 @@ async fn test_remove_collections() {
     assert_eq!(Empty {}, actual_result);
 }
 
+#[tokio::test]
+async fn test_new_network_info() {
+    let parameters = Parameters {
+        batch_size: 200, // Two transactions.
+        ..Parameters::default()
+    };
+    let keypair = keys().pop().unwrap();
+    let name = keypair.public().clone();
+    let signer = keypair;
+    let committee = committee();
+
+    // Make the data store.
+    let store = NodeStorage::reopen(temp_dir());
+
+    let (tx_new_certificates, _rx_new_certificates) = channel(CHANNEL_CAPACITY);
+    let (_tx_feedback, rx_feedback) = channel(CHANNEL_CAPACITY);
+
+    Primary::spawn(
+        name.clone(),
+        signer,
+        committee.clone(),
+        parameters.clone(),
+        store.header_store.clone(),
+        store.certificate_store.clone(),
+        store.payload_store.clone(),
+        /* tx_consensus */ tx_new_certificates,
+        /* rx_consensus */ rx_feedback,
+        /* internal_consensus */ false,
+    );
+
+    // Wait for tasks to start
+    tokio::time::sleep(Duration::from_secs(1)).await;
+
+    // Test gRPC server with client call
+    let mut client = connect_to_configuration_client(parameters.clone());
+
+    let public_key = PublicKeyProto::from(name);
+    let stake_weight = 1;
+    let address = MultiAddrProto {
+        address: "/ip4/127.0.0.1".to_string(),
+    };
+
+    let request = tonic::Request::new(NewNetworkInfoRequest {
+        epoch_number: 0,
+        validators: vec![ValidatorData {
+            public_key: Some(public_key),
+            stake_weight,
+            address: Some(address),
+        }],
+    });
+
+    let status = client.new_network_info(request).await.unwrap_err();
+
+    println!("message: {:?}", status.message());
+
+    // Not fully implemented but a 'Not Implemented!' message indicates no parsing errors.
+    assert!(status.message().contains("Not Implemented!"));
+}
+
 /// Here we test the ability on our code to synchronize missing certificates
 /// by requesting them from other peers. On this example we emulate 2 authorities
 /// (2 separate primary nodes) where we store a certificate on each one. Then we
@@ -583,4 +642,12 @@ fn connect_to_validator_client(parameters: Parameters) -> ValidatorClient<Channe
         .connect_lazy(&parameters.consensus_api_grpc.socket_addr)
         .unwrap();
     ValidatorClient::new(channel)
+}
+
+fn connect_to_configuration_client(parameters: Parameters) -> ConfigurationClient<Channel> {
+    let config = mysten_network::config::Config::new();
+    let channel = config
+        .connect_lazy(&parameters.consensus_api_grpc.socket_addr)
+        .unwrap();
+    ConfigurationClient::new(channel)
 }
