@@ -31,10 +31,10 @@ async fn test_get_collections() {
         batch_size: 200, // Two transactions.
         ..Parameters::default()
     };
-    let keypair = keys().pop().unwrap();
+    let keypair = keys(None).pop().unwrap();
     let name = keypair.public().clone();
     let signer = keypair;
-    let committee = committee();
+    let committee = committee(None);
 
     // Make the data store.
     let store = NodeStorage::reopen(temp_dir());
@@ -43,7 +43,7 @@ async fn test_get_collections() {
     let mut header_ids = Vec::new();
     // Blocks/Collections
     let mut collection_ids = Vec::new();
-    let key = keys().pop().unwrap();
+    let key = keys(None).pop().unwrap();
     let mut missing_block = CertificateDigest::new([0; 32]);
 
     // Generate headers
@@ -192,10 +192,10 @@ async fn test_remove_collections() {
         batch_size: 200, // Two transactions.
         ..Parameters::default()
     };
-    let keypair = keys().pop().unwrap();
+    let keypair = keys(None).pop().unwrap();
     let name = keypair.public().clone();
     let signer = keypair;
-    let committee = committee();
+    let committee = committee(None);
 
     // Make the data store.
     let store = NodeStorage::reopen(temp_dir());
@@ -204,7 +204,7 @@ async fn test_remove_collections() {
     let mut header_ids = Vec::new();
     // Blocks/Collections
     let mut collection_ids = Vec::new();
-    let key = keys().pop().unwrap();
+    let key = keys(None).pop().unwrap();
 
     // Make the Dag
     let (tx_new_certificates, rx_new_certificates) = channel(CHANNEL_CAPACITY);
@@ -385,10 +385,10 @@ async fn test_new_network_info() {
         batch_size: 200, // Two transactions.
         ..Parameters::default()
     };
-    let keypair = keys().pop().unwrap();
+    let keypair = keys(None).pop().unwrap();
     let name = keypair.public().clone();
     let signer = keypair;
-    let committee = committee();
+    let committee = committee(None);
 
     // Make the data store.
     let store = NodeStorage::reopen(temp_dir());
@@ -453,7 +453,7 @@ async fn test_new_network_info() {
 #[tokio::test]
 async fn test_get_collections_with_missing_certificates() {
     // GIVEN keys for two primary nodes
-    let mut k = keys();
+    let mut k = keys(None);
 
     let keypair_1 = k.pop().unwrap();
     let name_1 = keypair_1.public().clone();
@@ -461,7 +461,7 @@ async fn test_get_collections_with_missing_certificates() {
     let keypair_2 = k.pop().unwrap();
     let name_2 = keypair_2.public().clone();
 
-    let committee = committee();
+    let committee = committee(None);
     let parameters = Parameters {
         batch_size: 200, // Two transactions.
         ..Parameters::default()
@@ -474,7 +474,7 @@ async fn test_get_collections_with_missing_certificates() {
     let worker_id = 0;
 
     // AND generate and store the certificates
-    let signer_1 = keys().remove(0);
+    let signer_1 = keys(None).remove(0);
 
     // The certificate_1 will be stored in primary 1
     let certificate_1 = fixture_certificate(
@@ -487,7 +487,7 @@ async fn test_get_collections_with_missing_certificates() {
     .await;
 
     // pop first to skip
-    let signer_2 = keys().remove(1);
+    let signer_2 = keys(None).remove(1);
 
     // The certificate_2 will be stored in primary 2
     let certificate_2 = fixture_certificate(
@@ -619,7 +619,7 @@ async fn fixture_certificate(
         .author(key.public().clone())
         .round(1)
         .parents(
-            Certificate::genesis(&committee())
+            Certificate::genesis(&committee(None))
                 .iter()
                 .map(|x| x.digest())
                 .collect(),
