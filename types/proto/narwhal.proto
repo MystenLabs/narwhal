@@ -98,6 +98,7 @@ service Validator {
 }
 
 service Configuration {
+    // Signals a change in networking info
     rpc NewNetworkInfo (NewNetworkInfoRequest) returns (Empty);
 }
 

@@ -283,6 +283,7 @@ pub mod configuration_client {
             self.inner = self.inner.accept_gzip();
             self
         }
+        /// Signals a change in networking info
         pub async fn new_network_info(
             &mut self,
             request: impl tonic::IntoRequest<super::NewNetworkInfoRequest>,
@@ -975,6 +976,7 @@ pub mod configuration_server {
     ///Generated trait containing gRPC methods that should be implemented for use with ConfigurationServer.
     #[async_trait]
     pub trait Configuration: Send + Sync + 'static {
+        /// Signals a change in networking info
         async fn new_network_info(
             &self,
             request: tonic::Request<super::NewNetworkInfoRequest>,
