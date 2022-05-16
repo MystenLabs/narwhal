@@ -5,88 +5,50 @@ syntax = "proto3";
 
 package narwhal;
 
-// TODO: Make this proto the source of truth for all relevant narwhal types.
-
-/* 
- * Proto wrapper for Narwhal type 
- *
- * pub struct CertificateDigest([u8; DIGEST_LEN])
- *
- */
 message CertificateDigest {
     bytes digest = 1;
 }
 
-/* 
- * Proto wrapper for Narwhal type 
- *
- * pub struct BatchDigest(pub [u8; crypto::DIGEST_LEN]);
- *
- */
 message BatchDigest {
     bytes digest = 1;
 }
 
-/* 
- * Proto wrapper for Narwhal type 
- *
- * pub struct Batch(pub Vec<Transaction>);
- *
- */
 message Batch {
     repeated Transaction transaction = 1;
 }
 
-/* 
- * Proto wrapper for Narwhal type 
- *
- * pub type Transaction = Vec<u8>;
- *
- */
 message Transaction {
     bytes transaction = 1;
 }
 
-/*
- * Proto wrapper for Narwhal type 
- *
- * pub enum BlockErrorType {
- *   BlockNotFound,
- *   BatchTimeout,
- *   BatchError,
- * }
- */
  enum CollectionErrorType {
     COLLECTION_NOT_FOUND = 0;
     COLLECTION_TIMEOUT = 1;
     COLLECTION_ERROR = 2;
 }
 
-/*
- * Proto wrapper for Narwhal type 
- *
- * pub struct BlockError {
- *     id: CertificateDigest,
- *     error: BlockErrorType,
- * }
- */
 message CollectionError {
     CertificateDigest id = 1;
     CollectionErrorType error = 2;
 }
 
-/*
- * Proto wrapper for Narwhal type
- *
- * pub struct BatchMessage {
- *   pub id: BatchDigest,
- *   pub transactions: Batch,
- * }
- *
- */
  message BatchMessage {
     BatchDigest id = 1;
     Batch transactions = 2;
+}
+
+message MultiAddr {
+    string address = 1;
+}
+
+message PublicKey {
+    bytes bytes = 1;
+}
+
+message ValidatorData {
+    PublicKey public_key = 1;
+    int64 stake_weight = 2;
+    MultiAddr address = 3;
 }
 
 message CollectionRetrievalResult {
@@ -122,6 +84,11 @@ message ReadCausalResponse {
     repeated CertificateDigest collection_ids = 1;
 }
 
+message NewNetworkInfoRequest {
+    uint32 epoch_number = 1;
+    repeated ValidatorData validators = 2;
+}
+
 // A bincode encoded payload. This is intended to be used in the short-term
 // while we don't have good protobuf definitions for Narwhal types
 message BincodeEncodedPayload {
@@ -140,6 +107,11 @@ service Validator {
     rpc RemoveCollections (RemoveCollectionsRequest) returns (Empty);
     // Returns collections along a DAG walk with a well-defined starting point.
     rpc ReadCausal (ReadCausalRequest) returns (ReadCausalResponse);
+}
+
+service Configuration {
+    // Signals a change in networking info
+    rpc NewNetworkInfo (NewNetworkInfoRequest) returns (Empty);
 }
 
 // The primary-to-primary interface
