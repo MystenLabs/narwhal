@@ -5,14 +5,16 @@
 
 use crate::{utils, PayloadToken, PrimaryWorkerMessage};
 use config::{Committee, WorkerId};
+use consensus::dag::{Dag, ValidatorDagError};
 use crypto::{traits::VerifyingKey, Digest, Hash};
 use futures::{
     future::{join_all, try_join_all, BoxFuture},
     stream::{futures_unordered::FuturesUnordered, StreamExt as _},
     FutureExt,
 };
+use itertools::Either;
 use network::PrimaryToWorkerNetwork;
-use std::{collections::HashMap, time::Duration};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 use store::{rocks::TypedStoreError, Store};
 use tokio::{
     sync::{
@@ -83,12 +85,14 @@ pub struct DeleteBatchMessage {
 /// # use crypto::Digest;
 /// # use crypto::ed25519::Ed25519PublicKey;
 /// # use config::Committee;
+/// # use consensus::dag::Dag;
+/// # use futures::future::join_all;
 /// # use std::collections::BTreeMap;
-/// # use types::Certificate;
+/// # use std::sync::Arc;
 /// # use config::WorkerId;
 /// # use tempfile::tempdir;
 /// # use primary::{BlockRemover, BlockRemoverCommand, DeleteBatchMessage, PayloadToken};
-/// # use types::{BatchDigest, CertificateDigest, HeaderDigest, Header};
+/// # use types::{BatchDigest, Certificate, CertificateDigest, HeaderDigest, Header};
 ///
 /// #[tokio::main(flavor = "current_thread")]
 /// # async fn main() {
@@ -116,6 +120,16 @@ pub struct DeleteBatchMessage {
 ///
 ///     let name = Ed25519PublicKey::default();
 ///     let committee = Committee{ authorities: BTreeMap::new() };
+///     // A dag with genesis for the committee
+///     let (tx_new_certificates, rx_new_certificates) = channel(1);
+///     let dag = Arc::new(Dag::new(rx_new_certificates).1);
+///     // Populate genesis in the Dag
+///     join_all(
+///       Certificate::genesis(&committee)
+///       .iter()
+///       .map(|cert| dag.insert(cert.clone())),
+///     )
+///     .await;
 ///
 ///     BlockRemover::spawn(
 ///         name,
@@ -123,6 +137,7 @@ pub struct DeleteBatchMessage {
 ///         certificate_store.clone(),
 ///         headers_store.clone(),
 ///         payload_store.clone(),
+///         Some(dag),
 ///         PrimaryToWorkerNetwork::default(),
 ///         rx_commands,
 ///         rx_delete_batches,
@@ -173,6 +188,9 @@ pub struct BlockRemover<PublicKey: VerifyingKey> {
     /// The persistent storage for payload markers from workers.
     payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,
 
+    /// The Dag structure for managing the stored certificates
+    dag: Option<Arc<Dag<PublicKey>>>,
+
     /// Network driver allowing to send messages.
     worker_network: PrimaryToWorkerNetwork,
 
@@ -201,6 +219,7 @@ impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
         certificate_store: Store<CertificateDigest, Certificate<PublicKey>>,
         header_store: Store<HeaderDigest, Header<PublicKey>>,
         payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,
+        dag: Option<Arc<Dag<PublicKey>>>,
         worker_network: PrimaryToWorkerNetwork,
         rx_commands: Receiver<BlockRemoverCommand>,
         rx_delete_batches: Receiver<DeleteBatchResult>,
@@ -212,6 +231,7 @@ impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
                 certificate_store,
                 header_store,
                 payload_store,
+                dag,
                 worker_network,
                 rx_commands,
                 pending_removal_requests: HashMap::new(),
@@ -280,7 +300,7 @@ impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
                         if result.is_ok() {
                             self.cleanup_internal_state(certificates, batches_by_worker)
                                 .await
-                                .map_err(|e| ())
+                                .map_err(|err| ())
                         } else {
                             Ok(())
                         }
@@ -327,14 +347,13 @@ impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
         &mut self,
         certificates: Vec<Certificate<PublicKey>>,
         batches_by_worker: HashMap<WorkerId, Vec<BatchDigest>>,
-    ) -> Result<(), TypedStoreError> {
-        let header_ids: Vec<HeaderDigest> = certificates
-            .clone()
-            .into_iter()
-            .map(|c| c.header.id)
-            .collect();
+    ) -> Result<(), Either<TypedStoreError, ValidatorDagError<PublicKey>>> {
+        let header_ids: Vec<HeaderDigest> = certificates.iter().map(|c| c.header.id).collect();
 
-        self.header_store.remove_all(header_ids).await?;
+        self.header_store
+            .remove_all(header_ids)
+            .await
+            .map_err(Either::Left)?;
 
         // delete batch from the payload store as well
         let mut batches_to_cleanup: Vec<(BatchDigest, WorkerId)> = Vec::new();
@@ -343,17 +362,22 @@ impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
                 batches_to_cleanup.push((d, worker_id));
             })
         }
-        self.payload_store.remove_all(batches_to_cleanup).await?;
-
-        /* * * * * * * * * * * * * * * * * * * * * * * * *
-         *         TODO: DAG deletion could go here?
-         * * * * * * * * * * * * * * * * * * * * * * * * */
+        self.payload_store
+            .remove_all(batches_to_cleanup)
+            .await
+            .map_err(Either::Left)?;
 
         // NOTE: delete certificates in the end since if we need to repeat the request
         // we want to be able to find them in storage.
         let certificate_ids: Vec<CertificateDigest> =
             certificates.as_slice().iter().map(|c| c.digest()).collect();
-        self.certificate_store.remove_all(certificate_ids).await?;
+        if let Some(dag) = &self.dag {
+            dag.remove(&certificate_ids).await.map_err(Either::Right)?
+        }
+        self.certificate_store
+            .remove_all(certificate_ids)
+            .await
+            .map_err(Either::Left)?;
 
         Ok(())
     }

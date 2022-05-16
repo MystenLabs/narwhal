@@ -2,8 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crypto::{traits::VerifyingKey, Hash};
-use dag::node_dag::NodeDag;
-use std::{collections::BTreeMap, ops::RangeInclusive, sync::RwLock};
+use dag::node_dag::{NodeDag, NodeDagError};
+use std::{
+    borrow::Borrow,
+    collections::{BTreeMap, HashSet},
+    ops::RangeInclusive,
+    sync::RwLock,
+};
 use thiserror::Error;
 use tokio::{
     sync::{
@@ -27,7 +32,7 @@ pub mod dag_tests;
 /// certified collection by that authority at that round.
 ///
 #[derive(Debug)]
-pub struct InnerDag<PublicKey: VerifyingKey> {
+struct InnerDag<PublicKey: VerifyingKey> {
     /// Receives new certificates from the primary. The primary should send us new certificates only
     /// if it already sent us its whole history.
     rx_primary: Receiver<Certificate<PublicKey>>,
@@ -79,29 +84,12 @@ enum DagCommand<PublicKey: VerifyingKey> {
         oneshot::Sender<Result<Vec<CertificateDigest>, ValidatorDagError<PublicKey>>>,
     ),
     Remove(
-        CertificateDigest,
+        Vec<CertificateDigest>,
         oneshot::Sender<Result<(), ValidatorDagError<PublicKey>>>,
     ),
 }
 
 impl<PublicKey: VerifyingKey> InnerDag<PublicKey> {
-    pub fn spawn(rx_primary: Receiver<Certificate<PublicKey>>) -> (JoinHandle<()>, Dag<PublicKey>) {
-        let (tx_commands, rx_commands) = tokio::sync::mpsc::channel(DEFAULT_CHANNEL_SIZE);
-
-        let handle = tokio::spawn(async move {
-            Self {
-                rx_primary,
-                rx_commands,
-                dag: NodeDag::new(),
-                vertices: RwLock::new(BTreeMap::new()),
-            }
-            .run()
-            .await
-        });
-        let dag = Dag { tx_commands };
-        (handle, dag)
-    }
-
     async fn run(&mut self) {
         loop {
             tokio::select! {
@@ -219,13 +207,43 @@ impl<PublicKey: VerifyingKey> InnerDag<PublicKey> {
         self.read_causal(*start_digest)
     }
 
-    /// Removes a certificate from the Dag, reclaiming memory in the process.
-    fn remove(&mut self, digest: CertificateDigest) -> Result<(), ValidatorDagError<PublicKey>> {
+    /// Removes certificates from the Dag, reclaiming memory in the process.
+    #[instrument(level = "debug", err)]
+    fn remove(
+        &mut self,
+        digests: Vec<CertificateDigest>,
+    ) -> Result<(), ValidatorDagError<PublicKey>> {
         {
             // TODO: lock-free atomicity
             let mut vertices = self.vertices.write().unwrap();
-            if self.dag.make_compressible(digest)? {
-                vertices.retain(|_k, v| v != &digest);
+            // Deduplicate to avoid conflicts in acquiring references
+            let digests = {
+                let mut s = HashSet::new();
+                digests.iter().for_each(|d| {
+                    s.insert(*d);
+                });
+                s
+            };
+            let dag_removal_results = digests
+                .iter()
+                .map(|digest| self.dag.make_compressible(*digest));
+            let (_successes, failures): (_, Vec<_>) = dag_removal_results.partition(Result::is_ok);
+            let failures = failures
+                .into_iter()
+                .filter(|e| !matches!(e, Err(NodeDagError::DroppedDigest(_))))
+                .collect::<Vec<_>>();
+
+            // They're all unknown digest failures at this point,
+            vertices.retain(|_k, v| !digests.contains(v));
+            if !failures.is_empty() {
+                let failure_digests = failures
+                    .into_iter()
+                    .filter_map(
+                        |e| match_opt::match_opt!(e, Err(NodeDagError::UnknownDigests(d)) => d),
+                    )
+                    .flatten()
+                    .collect::<Vec<_>>();
+                return Err(NodeDagError::UnknownDigests(failure_digests).into());
             }
         }
         Ok(())
@@ -259,7 +277,7 @@ impl<PublicKey: VerifyingKey> Dag<PublicKey> {
     /// - all the parents' certificates are recursively valid and have been inserted in the Dag.
     ///
     pub async fn insert(
-        &mut self,
+        &self,
         certificate: Certificate<PublicKey>,
     ) -> Result<(), ValidatorDagError<PublicKey>> {
         let (sender, receiver) = oneshot::channel();
@@ -293,7 +311,7 @@ impl<PublicKey: VerifyingKey> Dag<PublicKey> {
 
     /// Returns the oldest and newest rounds for which a validator has (live) certificates in the DAG
     pub async fn rounds(
-        &mut self,
+        &self,
         origin: PublicKey,
     ) -> Result<std::ops::RangeInclusive<Round>, ValidatorDagError<PublicKey>> {
         let (sender, receiver) = oneshot::channel();
@@ -348,15 +366,22 @@ impl<PublicKey: VerifyingKey> Dag<PublicKey> {
             .expect("Failed to receive reply to NodeReadCausal command from store")
     }
 
-    /// Removes a certificate from the Dag, reclaiming memory in the process.
-    pub async fn remove(
-        &mut self,
-        digest: CertificateDigest,
+    /// Removes certificates from the Dag, reclaiming memory in the process.
+    ///
+    /// Note: If some digests are unkown to the Dag, this will return an error, but will nonetheless delete
+    /// the certificates for known digests which are removable.
+    ///
+    pub async fn remove<J: Borrow<CertificateDigest>>(
+        &self,
+        digest: impl IntoIterator<Item = J>,
     ) -> Result<(), ValidatorDagError<PublicKey>> {
         let (sender, receiver) = oneshot::channel();
         if let Err(e) = self
             .tx_commands
-            .send(DagCommand::Remove(digest, sender))
+            .send(DagCommand::Remove(
+                digest.into_iter().map(|k| *k.borrow()).collect(),
+                sender,
+            ))
             .await
         {
             panic!("Failed to send Remove command to store: {e}");

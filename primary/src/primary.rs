@@ -18,6 +18,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use config::{Committee, Parameters, WorkerId};
+use consensus::dag::Dag;
 use crypto::{
     traits::{EncodeDecodeBase64, Signer, VerifyingKey},
     SignatureService,
@@ -89,7 +90,7 @@ impl Primary {
         payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,
         tx_consensus: Sender<Certificate<PublicKey>>,
         rx_consensus: Receiver<Certificate<PublicKey>>,
-        internal_consensus: bool,
+        dag: Option<Arc<Dag<PublicKey>>>,
     ) {
         let (tx_others_digests, rx_others_digests) = channel(CHANNEL_CAPACITY);
         let (tx_our_digests, rx_our_digests) = channel(CHANNEL_CAPACITY);
@@ -217,6 +218,9 @@ impl Primary {
             ),
         );
 
+        // Indicator variable for the gRPC server
+        let internal_consensus = dag.is_none();
+
         // Orchestrates the removal of blocks across the primary and worker nodes.
         BlockRemover::spawn(
             name.clone(),
@@ -224,6 +228,7 @@ impl Primary {
             certificate_store.clone(),
             header_store,
             payload_store.clone(),
+            dag,
             PrimaryToWorkerNetwork::default(),
             rx_block_removal_commands,
             rx_batch_removal,
