@@ -10,7 +10,7 @@ use crypto::{
 };
 use futures::future::join_all;
 use node::NodeStorage;
-use primary::{PayloadToken, Primary, CHANNEL_CAPACITY};
+use primary::{Ed25519PublicKeyMapper, PayloadToken, Primary, CHANNEL_CAPACITY};
 use std::{
     collections::{BTreeMap, HashMap},
     sync::Arc,
@@ -25,8 +25,8 @@ use tonic::transport::Channel;
 use types::{
     Batch, BatchDigest, Certificate, CertificateDigest, CertificateDigestProto,
     CollectionRetrievalResult, ConfigurationClient, Empty, GetCollectionsRequest, Header,
-    HeaderDigest, MultiAddrProto, NewNetworkInfoRequest, PublicKeyProto, RemoveCollectionsRequest,
-    RetrievalResult, ValidatorClient, ValidatorData,
+    HeaderDigest, MultiAddrProto, NewNetworkInfoRequest, ProposerClient, PublicKeyProto,
+    RemoveCollectionsRequest, RetrievalResult, RoundsRequest, ValidatorClient, ValidatorData,
 };
 use worker::{SerializedBatchMessage, Worker, WorkerMessage};
 
@@ -110,6 +110,7 @@ async fn test_get_collections() {
         /* tx_consensus */ tx_new_certificates,
         /* rx_consensus */ rx_feedback,
         /* dag */ Some(Arc::new(Dag::new(rx_new_certificates).1)),
+        Ed25519PublicKeyMapper {},
     );
 
     // Spawn a `Worker` instance.
@@ -281,6 +282,7 @@ async fn test_remove_collections() {
         /* tx_consensus */ tx_new_certificates,
         /* rx_consensus */ rx_feedback,
         /* dag */ Some(dag.clone()),
+        Ed25519PublicKeyMapper {},
     );
 
     // Wait for tasks to start
@@ -412,6 +414,7 @@ async fn test_new_network_info() {
         /* tx_consensus */ tx_new_certificates,
         /* rx_consensus */ rx_feedback,
         /* dag */ Some(Arc::new(Dag::new(rx_new_certificates).1)),
+        Ed25519PublicKeyMapper {},
     );
 
     // Wait for tasks to start
@@ -525,6 +528,7 @@ async fn test_get_collections_with_missing_certificates() {
         /* tx_consensus */ tx_new_certificates_1,
         /* rx_consensus */ rx_feedback_1,
         /* external_consensus */ Some(Arc::new(Dag::new(rx_new_certificates_1).1)),
+        Ed25519PublicKeyMapper {},
     );
 
     // Spawn a `Worker` instance for primary 1.
@@ -551,6 +555,7 @@ async fn test_get_collections_with_missing_certificates() {
         /* tx_consensus */ tx_new_certificates_2,
         /* rx_consensus */ rx_feedback_2,
         /* external_consensus */ Some(Arc::new(Dag::new(rx_new_certificates_2).1)),
+        Ed25519PublicKeyMapper {},
     );
 
     // Spawn a `Worker` instance for primary 2.
@@ -604,6 +609,63 @@ async fn test_get_collections_with_missing_certificates() {
                 panic!("Expected to have received a batch response");
             }
         }
+    }
+}
+
+#[tokio::test]
+async fn test_rounds_no_certificates_error() {
+    // GIVEN keys for two primary nodes
+    let mut k = keys();
+
+    let keypair = k.pop().unwrap();
+    let name = keypair.public().clone();
+
+    let committee = committee();
+    let parameters = Parameters {
+        batch_size: 200, // Two transactions.
+        ..Parameters::default()
+    };
+
+    // AND create separate data stores
+    let store_primary = NodeStorage::reopen(temp_dir());
+
+    // Spawn the primary
+    let (tx_new_certificates, rx_new_certificates) = channel(CHANNEL_CAPACITY);
+    let (_tx_feedback, rx_feedback) = channel(CHANNEL_CAPACITY);
+
+    Primary::spawn(
+        name.clone(),
+        keypair,
+        committee.clone(),
+        parameters.clone(),
+        store_primary.header_store,
+        store_primary.certificate_store,
+        store_primary.payload_store,
+        /* tx_consensus */ tx_new_certificates,
+        /* rx_consensus */ rx_feedback,
+        /* external_consensus */ Some(Arc::new(Dag::new(rx_new_certificates).1)),
+        Ed25519PublicKeyMapper {},
+    );
+
+    // AND Wait for tasks to start
+    tokio::time::sleep(Duration::from_secs(1)).await;
+
+    // AND
+    let mut client = connect_to_proposer_client(parameters.clone());
+
+    // WHEN we retrieve the rounds
+    let request = tonic::Request::new(RoundsRequest {
+        public_key: Some(PublicKeyProto::from(name)),
+    });
+    let response = client.rounds(request).await;
+
+    // THEN
+    if let Err(err) = response {
+        assert!(err.message().contains(
+            "Couldn't retrieve rounds: No remaining certificates in Dag for this authority"
+        ));
+    } else {
+        panic!("Expected to get an error response!");
     }
 }
 
@@ -679,4 +741,12 @@ fn connect_to_configuration_client(parameters: Parameters) -> ConfigurationClien
         .connect_lazy(&parameters.consensus_api_grpc.socket_addr)
         .unwrap();
     ConfigurationClient::new(channel)
+}
+
+fn connect_to_proposer_client(parameters: Parameters) -> ProposerClient<Channel> {
+    let config = mysten_network::config::Config::new();
+    let channel = config
+        .connect_lazy(&parameters.consensus_api_grpc.socket_addr)
+        .unwrap();
+    ProposerClient::new(channel)
 }

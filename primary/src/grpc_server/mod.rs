@@ -6,6 +6,7 @@ use crate::{
     grpc_server::{proposer::NarwhalProposer, public_key_mapper::PublicKeyMapper},
     BlockCommand, BlockRemoverCommand,
 };
+use config::Committee;
 use consensus::dag::Dag;
 use crypto::traits::VerifyingKey;
 use multiaddr::Multiaddr;
@@ -27,6 +28,7 @@ pub struct ConsensusAPIGrpc<PublicKey: VerifyingKey, KeyMapper: PublicKeyMapper<
     remove_collections_timeout: Duration,
     dag: Option<Arc<Dag<PublicKey>>>,
     public_key_mapper: KeyMapper,
+    committee: Committee<PublicKey>,
 }
 
 impl<PublicKey: VerifyingKey, KeyMapper: PublicKeyMapper<PublicKey>>
@@ -40,6 +42,7 @@ impl<PublicKey: VerifyingKey, KeyMapper: PublicKeyMapper<PublicKey>>
         remove_collections_timeout: Duration,
         dag: Option<Arc<Dag<PublicKey>>>,
         public_key_mapper: KeyMapper,
+        committee: Committee<PublicKey>,
     ) {
         tokio::spawn(async move {
             let _ = Self {
@@ -50,6 +53,7 @@ impl<PublicKey: VerifyingKey, KeyMapper: PublicKeyMapper<PublicKey>>
                 remove_collections_timeout,
                 dag,
                 public_key_mapper,
+                committee,
             }
             .run()
             .await
@@ -65,8 +69,11 @@ impl<PublicKey: VerifyingKey, KeyMapper: PublicKeyMapper<PublicKey>>
             self.remove_collections_timeout,
         );
 
-        let narwhal_proposer =
-            NarwhalProposer::new(self.dag.clone(), self.public_key_mapper.clone());
+        let narwhal_proposer = NarwhalProposer::new(
+            self.dag.clone(),
+            self.public_key_mapper.clone(),
+            self.committee.clone(),
+        );
 
         let narwhal_configuration = NarwhalConfiguration::new();
 

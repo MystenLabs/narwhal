@@ -315,6 +315,7 @@ impl Primary {
                 parameters.consensus_api_grpc.remove_collections_timeout,
                 dag,
                 public_key_mapper,
+                committee.clone(),
             );
         }
 
