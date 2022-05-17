@@ -12,15 +12,19 @@ use crypto::{
 };
 use futures::Stream;
 use multiaddr::Multiaddr;
-use rand::{rngs::StdRng, SeedableRng as _};
-use std::{collections::BTreeMap, pin::Pin};
+use rand::{rngs::StdRng, Rng, SeedableRng as _};
+use std::{
+    collections::{BTreeMap, BTreeSet, VecDeque},
+    pin::Pin,
+};
 use store::{rocks, Store};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tonic::Response;
 use types::{
-    Batch, BatchDigest, BincodeEncodedPayload, Certificate, Empty, Header, PrimaryToPrimary,
-    PrimaryToPrimaryServer, PrimaryToWorker, PrimaryToWorkerServer, Transaction, Vote,
-    WorkerToPrimary, WorkerToPrimaryServer, WorkerToWorker, WorkerToWorkerServer,
+    Batch, BatchDigest, BincodeEncodedPayload, Certificate, CertificateDigest, Empty, Header,
+    PrimaryToPrimary, PrimaryToPrimaryServer, PrimaryToWorker, PrimaryToWorkerServer, Round,
+    Transaction, Vote, WorkerToPrimary, WorkerToPrimaryServer, WorkerToWorker,
+    WorkerToWorkerServer,
 };
 
 pub const HEADERS_CF: &str = "headers";
@@ -529,4 +533,90 @@ pub fn open_batch_store() -> Store<BatchDigest, worker::SerializedBatchMessage> 
     )
     .unwrap();
     Store::new(db)
+}
+
+// Creates one certificate per authority starting and finishing at the specified rounds (inclusive).
+// Outputs a VecDeque of certificates (the certificate with higher round is on the front) and a set
+// of digests to be used as parents for the certificates of the next round.
+pub fn make_optimal_certificates(
+    start: Round,
+    stop: Round,
+    initial_parents: &BTreeSet<CertificateDigest>,
+    keys: &[Ed25519PublicKey],
+) -> (
+    VecDeque<Certificate<Ed25519PublicKey>>,
+    BTreeSet<CertificateDigest>,
+) {
+    make_certificates(start, stop, initial_parents, keys, 0.0)
+}
+
+pub fn make_certificates(
+    start: Round,
+    stop: Round,
+    initial_parents: &BTreeSet<CertificateDigest>,
+    keys: &[Ed25519PublicKey],
+    failure_probability: f64,
+) -> (
+    VecDeque<Certificate<Ed25519PublicKey>>,
+    BTreeSet<CertificateDigest>,
+) {
+    let mut certificates = VecDeque::new();
+    let mut parents = initial_parents.iter().cloned().collect::<BTreeSet<_>>();
+    let mut next_parents = BTreeSet::new();
+
+    fn this_cert_parents(
+        ancestors: &BTreeSet<CertificateDigest>,
+        failure_prob: f64,
+    ) -> BTreeSet<CertificateDigest> {
+        std::iter::from_fn(|| {
+            let f: f64 = rand::thread_rng().gen();
+            if f > failure_prob {
+                Some(true)
+            } else {
+                Some(false)
+            }
+        })
+        .take(ancestors.len())
+        .zip(ancestors)
+        .flat_map(
+            |(parenthood, parent)| {
+                if parenthood {
+                    Some(*parent)
+                } else {
+                    None
+                }
+            },
+        )
+        .collect::<BTreeSet<_>>()
+    }
+
+    for round in start..=stop {
+        next_parents.clear();
+        for name in keys {
+            let this_cert_parents = this_cert_parents(&parents, failure_probability);
+
+            let (digest, certificate) = mock_certificate(name.clone(), round, this_cert_parents);
+            certificates.push_back(certificate);
+            next_parents.insert(digest);
+        }
+        parents = next_parents.clone();
+    }
+    (certificates, next_parents)
+}
+
+pub fn mock_certificate(
+    origin: Ed25519PublicKey,
+    round: Round,
+    parents: BTreeSet<CertificateDigest>,
+) -> (CertificateDigest, Certificate<Ed25519PublicKey>) {
+    let certificate = Certificate {
+        header: Header {
+            author: origin,
+            round,
+            parents,
+            ..Header::default()
+        },
+        ..Certificate::default()
+    };
+    (certificate.digest(), certificate)
 }
