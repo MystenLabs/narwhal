@@ -44,7 +44,10 @@ use types::{
 /// The default channel capacity for each channel of the primary.
 pub const CHANNEL_CAPACITY: usize = 1_000;
 
-use crate::block_synchronizer::handler::BlockSynchronizerHandler;
+use crate::{
+    block_synchronizer::handler::BlockSynchronizerHandler,
+    grpc_server::public_key_mapper::PublicKeyMapper,
+};
 pub use types::{PrimaryMessage, PrimaryWorkerMessage};
 
 /// The messages sent by the workers to their primary.
@@ -80,7 +83,11 @@ pub struct Primary;
 impl Primary {
     const INADDR_ANY: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 0);
 
-    pub fn spawn<PublicKey: VerifyingKey, Signatory: Signer<PublicKey::Sig> + Send + 'static>(
+    pub fn spawn<
+        PublicKey: VerifyingKey,
+        Signatory: Signer<PublicKey::Sig> + Send + 'static,
+        KeyMapper: PublicKeyMapper<PublicKey>,
+    >(
         name: PublicKey,
         signer: Signatory,
         committee: Committee<PublicKey>,
@@ -91,6 +98,7 @@ impl Primary {
         tx_consensus: Sender<Certificate<PublicKey>>,
         rx_consensus: Receiver<Certificate<PublicKey>>,
         dag: Option<Arc<Dag<PublicKey>>>,
+        public_key_mapper: KeyMapper,
     ) {
         let (tx_others_digests, rx_others_digests) = channel(CHANNEL_CAPACITY);
         let (tx_our_digests, rx_our_digests) = channel(CHANNEL_CAPACITY);
@@ -228,7 +236,7 @@ impl Primary {
             certificate_store.clone(),
             header_store,
             payload_store.clone(),
-            dag,
+            dag.clone(),
             PrimaryToWorkerNetwork::default(),
             rx_block_removal_commands,
             rx_batch_removal,
@@ -305,6 +313,8 @@ impl Primary {
                 tx_block_removal_commands,
                 parameters.consensus_api_grpc.get_collections_timeout,
                 parameters.consensus_api_grpc.remove_collections_timeout,
+                dag,
+                public_key_mapper,
             );
         }
 

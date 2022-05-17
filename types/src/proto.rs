@@ -21,6 +21,7 @@ pub use narwhal::{
     primary_to_primary_server::{PrimaryToPrimary, PrimaryToPrimaryServer},
     primary_to_worker_client::PrimaryToWorkerClient,
     primary_to_worker_server::{PrimaryToWorker, PrimaryToWorkerServer},
+    proposer_server::{Proposer, ProposerServer},
     transactions_client::TransactionsClient,
     transactions_server::{Transactions, TransactionsServer},
     validator_client::ValidatorClient,
@@ -33,8 +34,8 @@ pub use narwhal::{
     BincodeEncodedPayload, CertificateDigest as CertificateDigestProto, CollectionError,
     CollectionErrorType, CollectionRetrievalResult, Empty, GetCollectionsRequest,
     GetCollectionsResponse, MultiAddr as MultiAddrProto, NewNetworkInfoRequest,
-    PublicKey as PublicKeyProto, RemoveCollectionsRequest, Transaction as TransactionProto,
-    ValidatorData,
+    PublicKey as PublicKeyProto, RemoveCollectionsRequest, RoundsRequest, RoundsResponse,
+    Transaction as TransactionProto, ValidatorData,
 };
 
 impl From<Ed25519PublicKey> for PublicKeyProto {
