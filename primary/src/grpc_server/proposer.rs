@@ -32,6 +32,28 @@ impl<PublicKey: VerifyingKey, KeyMapper: PublicKeyMapper<PublicKey>>
             committee,
         }
     }
+
+    /// Extracts and verifies the public key provided from the RoundsRequest.
+    /// The method will return a result where the OK() will hold the
+    /// parsed public key. The Err() will hold a Status message with the
+    /// specific error description.
+    fn get_public_key(&self, request: RoundsRequest) -> Result<PublicKey, Status> {
+        let key =
+            self.public_key_mapper
+                .map(request.public_key.ok_or_else(|| {
+                    Status::invalid_argument("Invalid public key: no key provided")
+                })?)
+                .map_err(|_| Status::invalid_argument("Invalid public key: couldn't parse"))?;
+
+        // ensure provided key is part of the committee
+        if self.committee.primary(&key).is_err() {
+            return Err(Status::invalid_argument(
+                "Invalid public key: unknown authority",
+            ));
+        }
+
+        Ok(key)
+    }
 }
 
 #[tonic::async_trait]
@@ -45,20 +67,7 @@ impl<PublicKey: VerifyingKey, KeyMapper: PublicKeyMapper<PublicKey>> Proposer
         &self,
         request: Request<RoundsRequest>,
     ) -> Result<Response<RoundsResponse>, Status> {
-        // convert key
-        let key =
-            self.public_key_mapper
-                .map(request.into_inner().public_key.ok_or_else(|| {
-                    Status::invalid_argument("Invalid public key: no key provided")
-                })?)
-                .map_err(|_| Status::invalid_argument("Invalid public key: couldn't parse"))?;
-
-        // ensure provided key is part of the committee
-        if self.committee.primary(&key).is_err() {
-            return Err(Status::invalid_argument(
-                "Invalid public key: not found amongst committee",
-            ));
-        }
+        let key = self.get_public_key(request.into_inner())?;
 
         // call the dag to retrieve the rounds
         if let Some(dag) = &self.dag {
