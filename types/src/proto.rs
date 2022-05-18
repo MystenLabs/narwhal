@@ -21,8 +21,6 @@ pub use narwhal::{
     primary_to_primary_server::{PrimaryToPrimary, PrimaryToPrimaryServer},
     primary_to_worker_client::PrimaryToWorkerClient,
     primary_to_worker_server::{PrimaryToWorker, PrimaryToWorkerServer},
-    proposer_client::ProposerClient,
-    proposer_server::{Proposer, ProposerServer},
     transactions_client::TransactionsClient,
     transactions_server::{Transactions, TransactionsServer},
     validator_client::ValidatorClient,

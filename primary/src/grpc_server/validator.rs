@@ -1,8 +1,12 @@
+use std::sync::Arc;
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use std::time::Duration;
 
-use crate::{block_waiter::GetBlockResponse, BlockCommand, BlockRemoverCommand};
+use crate::{block_waiter::GetBlockResponse, BlockCommand, BlockRemoverCommand, PublicKeyMapper};
+use config::Committee;
+use consensus::dag::Dag;
+use crypto::traits::VerifyingKey;
 use tokio::{
     sync::{
         mpsc::{channel, Sender},
@@ -14,35 +18,83 @@ use tonic::{Request, Response, Status};
 use types::{
     BatchMessageProto, BlockError, BlockRemoverErrorKind, CertificateDigest,
     CertificateDigestProto, CollectionRetrievalResult, Empty, GetCollectionsRequest,
-    GetCollectionsResponse, RemoveCollectionsRequest, Validator,
+    GetCollectionsResponse, RemoveCollectionsRequest, RoundsRequest, RoundsResponse, Validator,
 };
 
-#[derive(Debug)]
-pub struct NarwhalValidator {
+pub struct NarwhalValidator<PublicKey: VerifyingKey, KeyMapper: PublicKeyMapper<PublicKey>> {
+    /// The channel to send the commands to the block waiter
     tx_get_block_commands: Sender<BlockCommand>,
+
+    /// The channel to send the commands to the block remover
     tx_block_removal_commands: Sender<BlockRemoverCommand>,
+
+    /// Timeout when processing the get_collections request
     get_collections_timeout: Duration,
+
+    /// Timeout when processing the remove_collections request
     remove_collections_timeout: Duration,
+
+    /// The dag that holds the available certificates to propose
+    dag: Option<Arc<Dag<PublicKey>>>,
+
+    /// The mapper to use to convert the PublicKeyProto to the
+    /// corresponding PublicKey type.
+    public_key_mapper: KeyMapper,
+
+    /// The committee
+    committee: Committee<PublicKey>,
 }
 
-impl NarwhalValidator {
+impl<PublicKey: VerifyingKey, KeyMapper: PublicKeyMapper<PublicKey>>
+    NarwhalValidator<PublicKey, KeyMapper>
+{
     pub fn new(
         tx_get_block_commands: Sender<BlockCommand>,
         tx_block_removal_commands: Sender<BlockRemoverCommand>,
         get_collections_timeout: Duration,
         remove_collections_timeout: Duration,
+        dag: Option<Arc<Dag<PublicKey>>>,
+        public_key_mapper: KeyMapper,
+        committee: Committee<PublicKey>,
     ) -> Self {
         Self {
             tx_get_block_commands,
             tx_block_removal_commands,
             get_collections_timeout,
             remove_collections_timeout,
+            dag,
+            public_key_mapper,
+            committee,
         }
+    }
+
+    /// Extracts and verifies the public key provided from the RoundsRequest.
+    /// The method will return a result where the OK() will hold the
+    /// parsed public key. The Err() will hold a Status message with the
+    /// specific error description.
+    fn get_public_key(&self, request: RoundsRequest) -> Result<PublicKey, Status> {
+        let key =
+            self.public_key_mapper
+                .map(request.public_key.ok_or_else(|| {
+                    Status::invalid_argument("Invalid public key: no key provided")
+                })?)
+                .map_err(|_| Status::invalid_argument("Invalid public key: couldn't parse"))?;
+
+        // ensure provided key is part of the committee
+        if self.committee.primary(&key).is_err() {
+            return Err(Status::invalid_argument(
+                "Invalid public key: unknown authority",
+            ));
+        }
+
+        Ok(key)
     }
 }
 
 #[tonic::async_trait]
-impl Validator for NarwhalValidator {
+impl<PublicKey: VerifyingKey, KeyMapper: PublicKeyMapper<PublicKey>> Validator
+    for NarwhalValidator<PublicKey, KeyMapper>
+{
     async fn remove_collections(
         &self,
         request: Request<RemoveCollectionsRequest>,
@@ -127,6 +179,30 @@ impl Validator for NarwhalValidator {
             ))
         };
         get_collections_response.map(Response::new)
+    }
+
+    /// Retrieves the min & max rounds that contain collections available for
+    /// block proposal for the dictated validator.
+    /// by the provided public key.
+    async fn rounds(
+        &self,
+        request: Request<RoundsRequest>,
+    ) -> Result<Response<RoundsResponse>, Status> {
+        let key = self.get_public_key(request.into_inner())?;
+
+        // call the dag to retrieve the rounds
+        if let Some(dag) = &self.dag {
+            let result = match dag.rounds(key).await {
+                Ok(r) => Ok(RoundsResponse {
+                    oldest_round: *r.start() as u64,
+                    newest_round: *r.end() as u64,
+                }),
+                Err(err) => Err(Status::internal(format!("Couldn't retrieve rounds: {err}"))),
+            };
+            return result.map(Response::new);
+        }
+
+        Err(Status::internal("Can not serve request"))
     }
 }
 

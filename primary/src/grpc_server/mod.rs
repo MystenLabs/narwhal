@@ -2,10 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use self::{configuration::NarwhalConfiguration, validator::NarwhalValidator};
-use crate::{
-    grpc_server::{proposer::NarwhalProposer, public_key_mapper::PublicKeyMapper},
-    BlockCommand, BlockRemoverCommand,
-};
+use crate::{grpc_server::public_key_mapper::PublicKeyMapper, BlockCommand, BlockRemoverCommand};
 use config::Committee;
 use consensus::dag::Dag;
 use crypto::traits::VerifyingKey;
@@ -13,10 +10,9 @@ use multiaddr::Multiaddr;
 use std::{sync::Arc, time::Duration};
 use tokio::sync::mpsc::Sender;
 use tracing::error;
-use types::{ConfigurationServer, ProposerServer, ValidatorServer};
+use types::{ConfigurationServer, ValidatorServer};
 
 mod configuration;
-mod proposer;
 pub mod public_key_mapper;
 mod validator;
 
@@ -67,9 +63,6 @@ impl<PublicKey: VerifyingKey, KeyMapper: PublicKeyMapper<PublicKey>>
             self.tx_block_removal_commands.to_owned(),
             self.get_collections_timeout,
             self.remove_collections_timeout,
-        );
-
-        let narwhal_proposer = NarwhalProposer::new(
             self.dag.clone(),
             self.public_key_mapper.clone(),
             self.committee.clone(),
@@ -82,7 +75,6 @@ impl<PublicKey: VerifyingKey, KeyMapper: PublicKeyMapper<PublicKey>>
             .server_builder()
             .add_service(ValidatorServer::new(narwhal_validator))
             .add_service(ConfigurationServer::new(narwhal_configuration))
-            .add_service(ProposerServer::new(narwhal_proposer))
             .bind(&self.socket_addr)
             .await?
             .serve()

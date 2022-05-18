@@ -89,34 +89,30 @@ message BincodeEncodedPayload {
 message Empty {
 }
 
+message RoundsRequest {
+  /// The validator's key for which we want to retrieve
+  /// the available rounds.
+  PublicKey public_key = 1;
+}
+
+message RoundsResponse {
+  /// The oldest round for which the node has available
+  /// blocks to propose for the defined validator.
+  uint64 oldest_round = 1;
+
+  /// The newest (latest) round for which the node has available
+  /// blocks to propose for the defined validator.
+  uint64 newest_round = 2;
+}
+
 // The consensus to mempool interface for validator actions.
 service Validator {
     // Returns the collection contents for each requested collection
     rpc GetCollections (GetCollectionsRequest) returns (GetCollectionsResponse);
     // Removes each provided collection.
     rpc RemoveCollections (RemoveCollectionsRequest) returns (Empty);
-}
-
-message RoundsRequest {
-    /// The validator's key for which we want to retrieve
-    /// the available rounds.
-    PublicKey public_key = 1;
-}
-
-message RoundsResponse {
-    /// The oldest round for which the node has available
-    /// blocks to propose for the defined validator.
-    uint64 oldest_round = 1;
-
-    /// The newest (latest) round for which the node has available
-    /// blocks to propose for the defined validator.
-    uint64 newest_round = 2;
-}
-
-/// The API that hosts the endpoints that should be used to help
-/// proposing a block.
-service Proposer {
-  rpc Rounds (RoundsRequest) returns (RoundsResponse);
+    // Retrieves the rounds range that has available blocks to propose
+    rpc Rounds (RoundsRequest) returns (RoundsResponse);
 }
 
 service Configuration {
