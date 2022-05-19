@@ -1,9 +1,13 @@
+// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
 use super::*;
 
 #[test]
 fn next_transaction() {
     let mut state = ExecutionIndices::default();
-    state.next(/* total_batches */ 10 , /* total_transactions */ 100);
+    state.next(
+        /* total_batches */ 10, /* total_transactions */ 100,
+    );
     assert_eq!(state.next_certificate_index, 0);
     assert_eq!(state.next_batch_index, 0);
     assert_eq!(state.next_transaction_index, 1);
@@ -12,7 +16,7 @@ fn next_transaction() {
 #[test]
 fn next_batch() {
     let mut state = ExecutionIndices::default();
-    state.next(/* total_batches */ 10 , /* total_transactions */ 1);
+    state.next(/* total_batches */ 10, /* total_transactions */ 1);
     assert_eq!(state.next_certificate_index, 0);
     assert_eq!(state.next_batch_index, 1);
     assert_eq!(state.next_transaction_index, 0);
@@ -21,7 +25,7 @@ fn next_batch() {
 #[test]
 fn next_certificate() {
     let mut state = ExecutionIndices::default();
-    state.next(/* total_batches */ 1 , /* total_transactions */ 1);
+    state.next(/* total_batches */ 1, /* total_transactions */ 1);
     assert_eq!(state.next_certificate_index, 1);
     assert_eq!(state.next_batch_index, 0);
     assert_eq!(state.next_transaction_index, 0);
@@ -32,7 +36,7 @@ fn skip_batch() {
     let mut state = ExecutionIndices {
         next_certificate_index: 1,
         next_batch_index: 1,
-        next_transaction_index: 1
+        next_transaction_index: 1,
     };
     state.skip_batch(/* total_batches */ 10);
     assert_eq!(state.next_certificate_index, 1);
@@ -45,7 +49,7 @@ fn skip_certificate() {
     let mut state = ExecutionIndices {
         next_certificate_index: 1,
         next_batch_index: 1,
-        next_transaction_index: 1
+        next_transaction_index: 1,
     };
     state.skip_certificate();
     assert_eq!(state.next_certificate_index, 2);
@@ -58,12 +62,12 @@ fn order_certificate_index() {
     let state_1 = ExecutionIndices {
         next_certificate_index: 0,
         next_batch_index: 1,
-        next_transaction_index: 1
+        next_transaction_index: 1,
     };
     let state_2 = ExecutionIndices {
         next_certificate_index: 1,
         next_batch_index: 0,
-        next_transaction_index: 0
+        next_transaction_index: 0,
     };
 
     assert!(state_2 > state_1);
@@ -74,12 +78,12 @@ fn order_batch_index() {
     let state_1 = ExecutionIndices {
         next_certificate_index: 1,
         next_batch_index: 0,
-        next_transaction_index: 1
+        next_transaction_index: 1,
     };
     let state_2 = ExecutionIndices {
         next_certificate_index: 1,
         next_batch_index: 1,
-        next_transaction_index: 0
+        next_transaction_index: 0,
     };
 
     assert!(state_2 > state_1);
@@ -90,12 +94,12 @@ fn order_transaction_index() {
     let state_1 = ExecutionIndices {
         next_certificate_index: 1,
         next_batch_index: 1,
-        next_transaction_index: 0
+        next_transaction_index: 0,
     };
     let state_2 = ExecutionIndices {
         next_certificate_index: 1,
         next_batch_index: 1,
-        next_transaction_index: 1
+        next_transaction_index: 1,
     };
 
     assert!(state_2 > state_1);
