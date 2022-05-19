@@ -1,3 +1,5 @@
+// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
 use crate::{CertificateDigest, Round};
 use crypto::traits::VerifyingKey;
 use std::{collections::HashMap, ops::RangeInclusive};
