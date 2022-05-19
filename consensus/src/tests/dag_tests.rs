@@ -14,7 +14,7 @@ use super::{Dag, ValidatorDagError};
 #[tokio::test]
 async fn inner_dag_insert_one() {
     // Make certificates for rounds 1 to 4.
-    let keys: Vec<_> = test_utils::keys()
+    let keys: Vec<_> = test_utils::keys(None)
         .into_iter()
         .map(|kp| kp.public().clone())
         .collect();
@@ -41,7 +41,7 @@ async fn inner_dag_insert_one() {
 #[tokio::test]
 async fn dag_mutation_failures() {
     // Make certificates for rounds 1 to 4.
-    let keys: Vec<_> = test_utils::keys()
+    let keys: Vec<_> = test_utils::keys(None)
         .into_iter()
         .map(|kp| kp.public().clone())
         .collect();
@@ -112,7 +112,7 @@ async fn dag_mutation_failures() {
 #[tokio::test]
 async fn dag_insert_one_and_rounds_node_read() {
     // Make certificates for rounds 1 to 4.
-    let keys: Vec<_> = test_utils::keys()
+    let keys: Vec<_> = test_utils::keys(None)
         .into_iter()
         .map(|kp| kp.public().clone())
         .collect();
@@ -160,7 +160,7 @@ async fn dag_insert_one_and_rounds_node_read() {
 #[tokio::test]
 async fn dag_insert_and_remove_reads() {
     // Make certificates for rounds 1 to 4.
-    let keys: Vec<_> = test_utils::keys()
+    let keys: Vec<_> = test_utils::keys(None)
         .into_iter()
         .map(|kp| kp.public().clone())
         .collect();

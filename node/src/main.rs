@@ -16,12 +16,13 @@ use crypto::{ed25519::Ed25519KeyPair, generate_production_keypair, traits::KeyPa
 use executor::{
     ExecutionIndices, ExecutionState, ExecutionStateError, SerializedTransaction, SubscriberResult,
 };
+use futures::future::join_all;
 use node::{Node, NodeStorage};
 use std::sync::Arc;
 use thiserror::Error;
 use tokio::sync::mpsc::{channel, Receiver};
 use tracing::subscriber::set_global_default;
-use tracing_subscriber::filter::EnvFilter;
+use tracing_subscriber::filter::{EnvFilter, LevelFilter};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -62,9 +63,31 @@ async fn main() -> Result<()> {
         3 => "debug",
         _ => "trace",
     };
+    // some of the network is very verbose, so we require more 'v's
+    let network_tracing_level = match matches.occurrences_of("v") {
+        0 | 1 => "error",
+        2 => "warn",
+        3 => "info",
+        4 => "debug",
+        _ => "trace",
+    };
 
-    let env_filter =
-        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(tracing_level));
+    // In benchmarks, transactions are not deserializable => many errors at the debug level
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "benchmark")] {
+            let custom_directive = "executor::core=info";
+        } else {
+            let custom_directive = "";
+        }
+    }
+
+    let filter = EnvFilter::builder()
+        .with_default_directive(LevelFilter::INFO.into())
+        .parse(format!(
+            "{tracing_level},h2::codec={network_tracing_level},{custom_directive}"
+        ))?;
+
+    let env_filter = EnvFilter::try_from_default_env().unwrap_or(filter);
     cfg_if::cfg_if! {
         if #[cfg(feature = "benchmark")] {
             let timer = tracing_subscriber::fmt::time::UtcTime::rfc_3339();
@@ -119,10 +142,10 @@ async fn run(matches: &ArgMatches<'_>) -> Result<()> {
         channel(Node::CHANNEL_CAPACITY);
 
     // Check whether to run a primary, a worker, or an entire authority.
-    match matches.subcommand() {
+    let node_handles = match matches.subcommand() {
         // Spawn the primary and consensus core.
         ("primary", Some(sub_matches)) => {
-            Node::spawn_primary(
+            let handle = Node::spawn_primary(
                 keypair,
                 committee,
                 &store,
@@ -132,6 +155,7 @@ async fn run(matches: &ArgMatches<'_>) -> Result<()> {
                 tx_transaction_confirmation,
             )
             .await?;
+            vec![handle]
         }
 
         // Spawn a single worker.
@@ -149,13 +173,16 @@ async fn run(matches: &ArgMatches<'_>) -> Result<()> {
                 committee,
                 &store,
                 parameters,
-            );
+            )
         }
         _ => unreachable!(),
-    }
+    };
 
     // Analyze the consensus' output.
     analyze(rx_transaction_confirmation).await;
+
+    // Await on the completion handles of all the nodes we have launched
+    join_all(node_handles).await;
 
     // If this expression is reached, the program ends and all other tasks terminate.
     unreachable!();

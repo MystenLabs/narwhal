@@ -1,5 +1,6 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
+use blake2::digest::Update;
 use config::{Parameters, WorkerId};
 use consensus::dag::Dag;
 use crypto::{
@@ -10,7 +11,11 @@ use crypto::{
 use futures::future::join_all;
 use node::NodeStorage;
 use primary::{PayloadToken, Primary, CHANNEL_CAPACITY};
-use std::{collections::BTreeSet, sync::Arc, time::Duration};
+use std::{
+    collections::{BTreeMap, BTreeSet, HashMap},
+    sync::Arc,
+    time::Duration,
+};
 use store::Store;
 use test_utils::{
     certificate, committee, fixture_batch_with_transactions, fixture_header_builder, keys,
@@ -19,7 +24,7 @@ use test_utils::{
 use tokio::sync::mpsc::channel;
 use tonic::transport::Channel;
 use types::{
-    BatchDigest, Certificate, CertificateDigest, CertificateDigestProto, CollectionErrorType,
+    Batch, BatchDigest, Certificate, CertificateDigest, CertificateDigestProto,
     CollectionRetrievalResult, ConfigurationClient, Empty, GetCollectionsRequest, Header,
     HeaderDigest, MultiAddrProto, NewNetworkInfoRequest, PublicKeyProto, ReadCausalRequest,
     RemoveCollectionsRequest, RetrievalResult, ValidatorClient, ValidatorData,
@@ -32,10 +37,10 @@ async fn test_get_collections() {
         batch_size: 200, // Two transactions.
         ..Parameters::default()
     };
-    let keypair = keys().pop().unwrap();
+    let keypair = keys(None).pop().unwrap();
     let name = keypair.public().clone();
     let signer = keypair;
-    let committee = committee();
+    let committee = committee(None);
 
     // Make the data store.
     let store = NodeStorage::reopen(temp_dir());
@@ -44,7 +49,7 @@ async fn test_get_collections() {
     let mut header_ids = Vec::new();
     // Blocks/Collections
     let mut collection_ids = Vec::new();
-    let key = keys().pop().unwrap();
+    let key = keys(None).pop().unwrap();
     let mut missing_block = CertificateDigest::new([0; 32]);
 
     // Generate headers
@@ -193,10 +198,10 @@ async fn test_remove_collections() {
         batch_size: 200, // Two transactions.
         ..Parameters::default()
     };
-    let keypair = keys().pop().unwrap();
+    let keypair = keys(None).pop().unwrap();
     let name = keypair.public().clone();
     let signer = keypair;
-    let committee = committee();
+    let committee = committee(None);
 
     // Make the data store.
     let store = NodeStorage::reopen(temp_dir());
@@ -205,7 +210,7 @@ async fn test_remove_collections() {
     let mut header_ids = Vec::new();
     // Blocks/Collections
     let mut collection_ids = Vec::new();
-    let key = keys().pop().unwrap();
+    let key = keys(None).pop().unwrap();
 
     // Make the Dag
     let (tx_new_certificates, rx_new_certificates) = channel(CHANNEL_CAPACITY);
@@ -382,8 +387,8 @@ async fn test_remove_collections() {
 
 #[tokio::test]
 async fn test_read_causal() {
-    let mut k = keys();
-    let committee = committee();
+    let mut k = keys(None);
+    let committee = committee(None);
 
     let primary_1_parameters = Parameters {
         batch_size: 200, // Two transactions.
@@ -572,10 +577,10 @@ async fn test_new_network_info() {
         batch_size: 200, // Two transactions.
         ..Parameters::default()
     };
-    let keypair = keys().pop().unwrap();
+    let keypair = keys(None).pop().unwrap();
     let name = keypair.public().clone();
     let signer = keypair;
-    let committee = committee();
+    let committee = committee(None);
 
     // Make the data store.
     let store = NodeStorage::reopen(temp_dir());
@@ -632,15 +637,14 @@ async fn test_new_network_info() {
 /// collections for both certificates. Since primary 1 knows only about the
 /// certificate 1 we expect to sync with primary 2 to fetch the unknown
 /// certificate 2 after it has been processed for causal completion & validation.
-///
-/// TODO: the code will not successfully fetch the batches for certificate 2
-/// since we don't block on waiting to sync the batches. That will be included
-/// in a follow up PR (see https://github.com/MystenLabs/narwhal/issues/223).
-/// Then this test will be refactored to test only for successful responses.
+/// We also expect to synchronize the missing batches of the missing certificate
+/// from primary 2. All in all the end goal is to:
+/// * Primary 1 be able to retrieve both certificates 1 & 2 successfully
+/// * Primary 1 be able to fetch the payload for certificates 1 & 2
 #[tokio::test]
 async fn test_get_collections_with_missing_certificates() {
     // GIVEN keys for two primary nodes
-    let mut k = keys();
+    let mut k = keys(None);
 
     let keypair_1 = k.pop().unwrap();
     let name_1 = keypair_1.public().clone();
@@ -648,7 +652,7 @@ async fn test_get_collections_with_missing_certificates() {
     let keypair_2 = k.pop().unwrap();
     let name_2 = keypair_2.public().clone();
 
-    let committee = committee();
+    let committee = committee(None);
     let parameters = Parameters {
         batch_size: 200, // Two transactions.
         ..Parameters::default()
@@ -661,10 +665,10 @@ async fn test_get_collections_with_missing_certificates() {
     let worker_id = 0;
 
     // AND generate and store the certificates
-    let signer_1 = keys().remove(0);
+    let signer_1 = keys(None).remove(0);
 
     // The certificate_1 will be stored in primary 1
-    let certificate_1 = fixture_certificate(
+    let (certificate_1, batch_digest_1, batch_1) = fixture_certificate(
         signer_1,
         store_primary_1.header_store.clone(),
         store_primary_1.certificate_store.clone(),
@@ -674,10 +678,10 @@ async fn test_get_collections_with_missing_certificates() {
     .await;
 
     // pop first to skip
-    let signer_2 = keys().remove(1);
+    let signer_2 = keys(None).remove(1);
 
     // The certificate_2 will be stored in primary 2
-    let certificate_2 = fixture_certificate(
+    let (certificate_2, batch_digest_2, batch_2) = fixture_certificate(
         signer_2,
         store_primary_2.header_store.clone(),
         store_primary_2.certificate_store.clone(),
@@ -685,6 +689,11 @@ async fn test_get_collections_with_missing_certificates() {
         store_primary_2.batch_store.clone(),
     )
     .await;
+
+    // AND keep a map of batches and payload
+    let mut batches_map = HashMap::new();
+    batches_map.insert(batch_digest_1, batch_1);
+    batches_map.insert(batch_digest_2, batch_2);
 
     let block_ids = vec![certificate_1.digest(), certificate_2.digest()];
 
@@ -759,34 +768,28 @@ async fn test_get_collections_with_missing_certificates() {
 
     // We expect to get successfully the batches only for the one collection
     assert_eq!(
-        1,
+        2,
         actual_result
             .iter()
             .filter(|&r| matches!(r.retrieval_result, Some(types::RetrievalResult::Batch(_))))
             .count()
     );
 
-    // The second certificate, which was missing from the primary 1, we expect
-    // to have fetched it but not be able to fetch its payload. So the expected
-    // error would be CollectionError.
-    // TODO: once we plugin the block_synchronizer to sync missing payload as well
-    // then this error shouldn't be thrown anymore
-    // (see https://github.com/MystenLabs/narwhal/issues/223)
-    let error: &CollectionRetrievalResult = actual_result
-        .iter()
-        .find(|&r| matches!(r.retrieval_result, Some(types::RetrievalResult::Error(_))))
-        .unwrap();
+    for result in actual_result {
+        match result.retrieval_result.unwrap() {
+            RetrievalResult::Batch(batch) => {
+                let id: BatchDigest = batch.id.unwrap().into();
+                let result_batch: Batch = batch.transactions.unwrap().into();
 
-    match error.retrieval_result.as_ref().unwrap() {
-        RetrievalResult::Error(err) => {
-            assert_eq!(err.error, CollectionErrorType::CollectionError as i32);
-            assert_eq!(
-                err.id.as_ref().unwrap(),
-                &CertificateDigestProto::from(certificate_2.digest())
-            );
-        }
-        _ => {
-            panic!("Error was expected");
+                if let Some(expected_batch) = batches_map.get(&id) {
+                    assert_eq!(result_batch, *expected_batch, "Batch payload doesn't match");
+                } else {
+                    panic!("Unexpected batch!");
+                }
+            }
+            _ => {
+                panic!("Expected to have received a batch response");
+            }
         }
     }
 }
@@ -797,22 +800,35 @@ async fn fixture_certificate(
     certificate_store: Store<CertificateDigest, Certificate<Ed25519PublicKey>>,
     payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,
     batch_store: Store<BatchDigest, SerializedBatchMessage>,
-) -> Certificate<Ed25519PublicKey> {
+) -> (Certificate<Ed25519PublicKey>, BatchDigest, Batch) {
     let batch = fixture_batch_with_transactions(10);
     let worker_id = 0;
+
+    // We need to make sure that we calculate the batch digest based on the
+    // serialised message rather than the batch it self.
+    // See more info https://github.com/MystenLabs/narwhal/issues/188
+    // TODO: refactor this when the above is changed/fixed.
+    let message = WorkerMessage::<Ed25519PublicKey>::Batch(batch.clone());
+    let serialized_batch = bincode::serialize(&message).unwrap();
+    let batch_digest = BatchDigest::new(crypto::blake2b_256(|hasher| {
+        hasher.update(&serialized_batch)
+    }));
+
+    let mut payload = BTreeMap::new();
+    payload.insert(batch_digest, worker_id);
 
     let builder = types::HeaderBuilder::<Ed25519PublicKey>::default();
     let header = builder
         .author(key.public().clone())
         .round(1)
         .parents(
-            Certificate::genesis(&committee())
+            Certificate::genesis(&committee(None))
                 .iter()
                 .map(|x| x.digest())
                 .collect(),
         )
-        .with_payload_batch(batch.clone(), worker_id)
-        .build(|payload| key.sign(payload));
+        .payload(payload)
+        .build(|p| key.sign(p));
 
     let certificate = certificate(&header);
 
@@ -826,16 +842,14 @@ async fn fixture_certificate(
 
     // Write the batches to payload store
     payload_store
-        .write_all(vec![((batch.clone().digest(), worker_id), 0)])
+        .write_all(vec![((batch_digest, worker_id), 0)])
         .await
         .expect("couldn't store batches");
 
     // Add a batch to the workers store
-    let message = WorkerMessage::<Ed25519PublicKey>::Batch(batch.clone());
-    let serialized_batch = bincode::serialize(&message).unwrap();
-    batch_store.write(batch.digest(), serialized_batch).await;
+    batch_store.write(batch_digest, serialized_batch).await;
 
-    certificate
+    (certificate, batch_digest, batch)
 }
 
 fn connect_to_validator_client(parameters: Parameters) -> ValidatorClient<Channel> {

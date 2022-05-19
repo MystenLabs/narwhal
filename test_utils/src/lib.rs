@@ -43,15 +43,21 @@ pub fn temp_dir() -> std::path::PathBuf {
 ////////////////////////////////////////////////////////////////
 
 // Fixture
-pub fn keys() -> Vec<Ed25519KeyPair> {
-    let mut rng = StdRng::from_seed([0; 32]);
+pub fn keys(rng_seed: impl Into<Option<u64>>) -> Vec<Ed25519KeyPair> {
+    let seed = rng_seed.into().unwrap_or(0u64).to_le_bytes();
+    let mut rng_arg = [0u8; 32];
+    for i in 0..4 {
+        rng_arg[i * 8..(i + 1) * 8].copy_from_slice(&seed[..]);
+    }
+
+    let mut rng = StdRng::from_seed(rng_arg);
     (0..4).map(|_| Ed25519KeyPair::generate(&mut rng)).collect()
 }
 
 // Fixture
-pub fn committee() -> Committee<Ed25519PublicKey> {
+pub fn committee(rng_seed: impl Into<Option<u64>>) -> Committee<Ed25519PublicKey> {
     Committee {
-        authorities: keys()
+        authorities: keys(rng_seed)
             .iter()
             .map(|kp| {
                 let id = kp.public();
@@ -303,11 +309,11 @@ pub fn make_certificates(
 
 // Fixture
 pub fn header() -> Header<Ed25519PublicKey> {
-    let kp = keys().pop().unwrap();
+    let kp = keys(None).pop().unwrap();
     let header = Header {
         author: kp.public().clone(),
         round: 1,
-        parents: Certificate::genesis(&committee())
+        parents: Certificate::genesis(&committee(None))
             .iter()
             .map(|x| x.digest())
             .collect(),
@@ -324,13 +330,13 @@ pub fn header() -> Header<Ed25519PublicKey> {
 
 // Fixture
 pub fn headers() -> Vec<Header<Ed25519PublicKey>> {
-    keys()
+    keys(None)
         .into_iter()
         .map(|kp| {
             let header = Header {
                 author: kp.public().clone(),
                 round: 1,
-                parents: Certificate::genesis(&committee())
+                parents: Certificate::genesis(&committee(None))
                     .iter()
                     .map(|x| x.digest())
                     .collect(),
@@ -348,17 +354,17 @@ pub fn headers() -> Vec<Header<Ed25519PublicKey>> {
 
 #[allow(dead_code)]
 pub fn fixture_header() -> Header<Ed25519PublicKey> {
-    let kp = keys().pop().unwrap();
+    let kp = keys(None).pop().unwrap();
 
     fixture_header_builder().build(|payload| kp.sign(payload))
 }
 
 pub fn fixture_header_builder() -> types::HeaderBuilder<Ed25519PublicKey> {
-    let kp = keys().pop().unwrap();
+    let kp = keys(None).pop().unwrap();
 
     let builder = types::HeaderBuilder::<Ed25519PublicKey>::default();
     builder.author(kp.public().clone()).round(1).parents(
-        Certificate::genesis(&committee())
+        Certificate::genesis(&committee(None))
             .iter()
             .map(|x| x.digest())
             .collect(),
@@ -366,7 +372,7 @@ pub fn fixture_header_builder() -> types::HeaderBuilder<Ed25519PublicKey> {
 }
 
 pub fn fixture_header_with_payload(number_of_batches: u8) -> Header<Ed25519PublicKey> {
-    let kp = keys().pop().unwrap();
+    let kp = keys(None).pop().unwrap();
     let mut payload: BTreeMap<BatchDigest, WorkerId> = BTreeMap::new();
 
     for i in 0..number_of_batches {
@@ -398,7 +404,7 @@ pub fn transaction() -> Transaction {
 
 // Fixture
 pub fn votes(header: &Header<Ed25519PublicKey>) -> Vec<Vote<Ed25519PublicKey>> {
-    keys()
+    keys(None)
         .into_iter()
         .map(|kp| {
             let vote = Vote {
@@ -575,11 +581,11 @@ impl WorkerToWorker for WorkerToWorkerMockServer {
 
 // helper method to get a name and a committee.
 pub fn resolve_name_and_committee() -> (Ed25519PublicKey, Committee<Ed25519PublicKey>) {
-    let mut keys = keys();
+    let mut keys = keys(None);
     let _ = keys.pop().unwrap(); // Skip the header' author.
     let kp = keys.pop().unwrap();
     let name = kp.public().clone();
-    let committee = committee();
+    let committee = committee(None);
 
     (name, committee)
 }
