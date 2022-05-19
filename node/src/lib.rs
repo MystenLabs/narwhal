@@ -1,7 +1,7 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use config::{Committee, Parameters, WorkerId};
-use consensus::{dag::Dag, Consensus, ConsensusStore, SequenceNumber, SubscriberHandler};
+use consensus::{dag::Dag, Consensus, SubscriberHandler};
 use crypto::traits::{KeyPair, Signer, VerifyingKey};
 use executor::{ExecutionState, Executor, SerializedTransaction, SubscriberResult};
 use primary::{PayloadToken, Primary};
@@ -13,7 +13,10 @@ use store::{
 };
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tracing::debug;
-use types::{BatchDigest, Certificate, CertificateDigest, Header, HeaderDigest, Round};
+use types::{
+    BatchDigest, Certificate, CertificateDigest, ConsensusStore, Header, HeaderDigest, Round,
+    SequenceNumber,
+};
 use worker::{SerializedBatchMessage, Worker};
 
 /// All the data stores of the node.

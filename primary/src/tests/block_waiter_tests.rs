@@ -12,7 +12,7 @@ use crypto::{ed25519::Ed25519PublicKey, traits::VerifyingKey, Hash};
 use ed25519_dalek::Signer;
 use mockall::*;
 use network::PrimaryToWorkerNetwork;
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 use test_utils::{
     certificate, fixture_batch_with_transactions, fixture_header_builder,
     fixture_header_with_payload, keys, resolve_name_and_committee, PrimaryToWorkerMockServer,
@@ -80,7 +80,7 @@ async fn test_successfully_retrieve_block() {
         committee.clone(),
         rx_commands,
         rx_batch_messages,
-        mock_handler,
+        Arc::new(mock_handler),
     );
 
     // WHEN we send a request to get a block
@@ -235,7 +235,7 @@ async fn test_successfully_retrieve_multiple_blocks() {
         committee.clone(),
         rx_commands,
         rx_batch_messages,
-        mock_handler,
+        Arc::new(mock_handler),
     );
 
     // WHEN we send a request to get a block
@@ -306,7 +306,7 @@ async fn test_one_pending_request_for_block_at_time() {
         tx_pending_batch: HashMap::new(),
         tx_get_block_map: HashMap::new(),
         tx_get_blocks_map: HashMap::new(),
-        block_synchronizer_handler: mock_handler,
+        block_synchronizer_handler: Arc::new(mock_handler),
     };
 
     // WHEN we send GetBlock command
@@ -370,7 +370,7 @@ async fn test_unlocking_pending_get_block_request_after_response() {
         tx_pending_batch: HashMap::new(),
         tx_get_block_map: HashMap::new(),
         tx_get_blocks_map: HashMap::new(),
-        block_synchronizer_handler: mock_handler,
+        block_synchronizer_handler: Arc::new(mock_handler),
     };
 
     let get_mock_sender = || {
@@ -426,7 +426,7 @@ async fn test_batch_timeout() {
         committee.clone(),
         rx_commands,
         rx_batch_messages,
-        mock_handler,
+        Arc::new(mock_handler),
     );
 
     // WHEN we send a request to get a block
@@ -484,7 +484,7 @@ async fn test_return_error_when_certificate_is_missing() {
         committee.clone(),
         rx_commands,
         rx_batch_messages,
-        mock_handler,
+        Arc::new(mock_handler),
     );
 
     // WHEN we send a request to get a block

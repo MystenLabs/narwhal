@@ -177,7 +177,7 @@ async fn internal_error_execution() {
 
     // Feed a 'killer' transaction to the executor. This is a special test transaction that
     // crashes the test executor engine.
-    let tx00 = 10;
+    let tx00: i32 = 10;
     let tx01 = 11;
     let tx10 = 12;
     let tx11 = KILLER_TRANSACTION;

@@ -6,7 +6,7 @@ use crate::{
     state::ExecutionIndices,
     ExecutionState, SerializedTransaction,
 };
-use consensus::{ConsensusOutput, SequenceNumber};
+use consensus::ConsensusOutput;
 use crypto::traits::VerifyingKey;
 use std::sync::Arc;
 use store::Store;
@@ -15,7 +15,7 @@ use tokio::{
     task::JoinHandle,
 };
 use tracing::debug;
-use types::{Batch, BatchDigest};
+use types::{Batch, BatchDigest, SequenceNumber};
 use worker::{SerializedBatchMessage, WorkerMessage};
 
 #[cfg(test)]

@@ -13,6 +13,7 @@ use std::{
     collections::HashMap,
     fmt,
     fmt::Formatter,
+    sync::Arc,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use tokio::{
@@ -124,6 +125,7 @@ type RequestKey = Vec<u8>;
 /// # use mockall::*;
 /// # use crypto::traits::VerifyingKey;
 /// # use async_trait::async_trait;
+/// # use std::sync::Arc;
 ///
 /// # // A mock implementation of the BlockSynchronizerHandler
 /// struct BlockSynchronizerHandler;
@@ -160,7 +162,7 @@ type RequestKey = Vec<u8>;
 ///         committee,
 ///         rx_commands,
 ///         rx_batches,
-///         BlockSynchronizerHandler{},
+///         Arc::new(BlockSynchronizerHandler{}),
 ///     );
 ///
 ///     // Send a command to receive a block
@@ -229,8 +231,9 @@ pub struct BlockWaiter<
     tx_get_blocks_map: HashMap<RequestKey, Vec<oneshot::Sender<BlocksResult>>>,
 
     /// We use the handler of the block synchronizer to interact with the
-    /// block synchronizer in a synchronous way.
-    block_synchronizer_handler: SynchronizerHandler,
+    /// block synchronizer in a synchronous way. Share a reference of this
+    /// between components.
+    block_synchronizer_handler: Arc<SynchronizerHandler>,
 }
 
 impl<PublicKey: VerifyingKey, SynchronizerHandler: Handler<PublicKey> + Send + Sync + 'static>
@@ -243,7 +246,7 @@ impl<PublicKey: VerifyingKey, SynchronizerHandler: Handler<PublicKey> + Send + S
         committee: Committee<PublicKey>,
         rx_commands: Receiver<BlockCommand>,
         batch_receiver: Receiver<BatchResult>,
-        block_synchronizer_handler: SynchronizerHandler,
+        block_synchronizer_handler: Arc<SynchronizerHandler>,
     ) {
         tokio::spawn(async move {
             Self {

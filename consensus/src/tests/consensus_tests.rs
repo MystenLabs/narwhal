@@ -2,140 +2,18 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use super::*;
-use config::{Authority, PrimaryAddresses};
 use crypto::ed25519::Ed25519PublicKey;
 #[allow(unused_imports)] // WT*?
 use crypto::traits::KeyPair;
-use rand::Rng;
+#[allow(unused_imports)] // WT*?
 use std::collections::{BTreeSet, VecDeque};
 use store::{reopen, rocks, rocks::DBMap};
+use test_utils::{
+    make_consensus_store, make_optimal_certificates, mock_certificate, mock_committee,
+};
 #[allow(unused_imports)] // WT*?
 use tokio::sync::mpsc::channel;
-use types::{CertificateDigest, Header};
-
-// Fixture
-pub fn mock_committee(keys: &[Ed25519PublicKey]) -> Committee<Ed25519PublicKey> {
-    Committee {
-        authorities: keys
-            .iter()
-            .map(|id| {
-                (
-                    id.clone(),
-                    Authority {
-                        stake: 1,
-                        primary: PrimaryAddresses {
-                            primary_to_primary: "/ip4/0.0.0.0/tcp/0/http".parse().unwrap(),
-                            worker_to_primary: "/ip4/0.0.0.0/tcp/0/http".parse().unwrap(),
-                        },
-                        workers: HashMap::default(),
-                    },
-                )
-            })
-            .collect(),
-    }
-}
-
-// Fixture
-pub fn mock_certificate(
-    origin: Ed25519PublicKey,
-    round: Round,
-    parents: BTreeSet<CertificateDigest>,
-) -> (CertificateDigest, Certificate<Ed25519PublicKey>) {
-    let certificate = Certificate {
-        header: Header {
-            author: origin,
-            round,
-            parents,
-            ..Header::default()
-        },
-        ..Certificate::default()
-    };
-    (certificate.digest(), certificate)
-}
-
-// Creates one certificate per authority starting and finishing at the specified rounds (inclusive).
-// Outputs a VecDeque of certificates (the certificate with higher round is on the front) and a set
-// of digests to be used as parents for the certificates of the next round.
-pub fn make_optimal_certificates(
-    start: Round,
-    stop: Round,
-    initial_parents: &BTreeSet<CertificateDigest>,
-    keys: &[Ed25519PublicKey],
-) -> (
-    VecDeque<Certificate<Ed25519PublicKey>>,
-    BTreeSet<CertificateDigest>,
-) {
-    make_certificates(start, stop, initial_parents, keys, 0.0)
-}
-
-pub fn make_certificates(
-    start: Round,
-    stop: Round,
-    initial_parents: &BTreeSet<CertificateDigest>,
-    keys: &[Ed25519PublicKey],
-    failure_probability: f64,
-) -> (
-    VecDeque<Certificate<Ed25519PublicKey>>,
-    BTreeSet<CertificateDigest>,
-) {
-    let mut certificates = VecDeque::new();
-    let mut parents = initial_parents.iter().cloned().collect::<BTreeSet<_>>();
-    let mut next_parents = BTreeSet::new();
-
-    fn this_cert_parents(
-        ancestors: &BTreeSet<CertificateDigest>,
-        failure_prob: f64,
-    ) -> BTreeSet<CertificateDigest> {
-        std::iter::from_fn(|| {
-            let f: f64 = rand::thread_rng().gen();
-            if f > failure_prob {
-                Some(true)
-            } else {
-                Some(false)
-            }
-        })
-        .take(ancestors.len())
-        .zip(ancestors)
-        .flat_map(
-            |(parenthood, parent)| {
-                if parenthood {
-                    Some(*parent)
-                } else {
-                    None
-                }
-            },
-        )
-        .collect::<BTreeSet<_>>()
-    }
-
-    for round in start..=stop {
-        next_parents.clear();
-        for name in keys {
-            let this_cert_parents = this_cert_parents(&parents, failure_probability);
-
-            let (digest, certificate) = mock_certificate(name.clone(), round, this_cert_parents);
-            certificates.push_back(certificate);
-            next_parents.insert(digest);
-        }
-        parents = next_parents.clone();
-    }
-    (certificates, next_parents)
-}
-
-pub fn make_consensus_store(store_path: &std::path::Path) -> Arc<ConsensusStore<Ed25519PublicKey>> {
-    const LAST_COMMITTED_CF: &str = "last_committed";
-    const SEQUENCE_CF: &str = "sequence";
-
-    let rocksdb = rocks::open_cf(store_path, None, &[LAST_COMMITTED_CF, SEQUENCE_CF])
-        .expect("Failed creating database");
-
-    let (last_committed_map, sequence_map) = reopen!(&rocksdb,
-        LAST_COMMITTED_CF;<Ed25519PublicKey, Round>,
-        SEQUENCE_CF;<SequenceNumber, CertificateDigest>
-    );
-
-    Arc::new(ConsensusStore::new(last_committed_map, sequence_map))
-}
+use types::CertificateDigest;
 
 pub fn make_certificate_store(
     store_path: &std::path::Path,

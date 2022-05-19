@@ -6,7 +6,9 @@ use crate::{
 };
 use crypto::{ed25519::Ed25519PublicKey, traits::KeyPair, Hash};
 use std::collections::{BTreeSet, VecDeque};
-use test_utils::keys;
+use test_utils::{
+    keys, make_consensus_store, make_optimal_certificates, mock_certificate, mock_committee,
+};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 
 /// Make enough certificates to commit a leader.
