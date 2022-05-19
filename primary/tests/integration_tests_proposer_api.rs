@@ -19,7 +19,7 @@ use types::{Certificate, ProposerClient, PublicKeyProto, RoundsRequest};
 #[tokio::test]
 async fn test_rounds_errors() {
     // GIVEN keys
-    let keypair = keys().pop().unwrap();
+    let keypair = keys(None).pop().unwrap();
     let name = keypair.public().clone();
 
     struct TestCase {
@@ -48,7 +48,7 @@ async fn test_rounds_errors() {
         },
     ];
 
-    let committee = committee();
+    let committee = committee(None);
     let parameters = Parameters {
         batch_size: 200, // Two transactions.
         ..Parameters::default()
@@ -106,10 +106,10 @@ async fn test_rounds_errors() {
 #[tokio::test]
 async fn test_rounds_return_successful_response() {
     // GIVEN keys
-    let keypair = keys().pop().unwrap();
+    let keypair = keys(None).pop().unwrap();
     let name = keypair.public().clone();
 
-    let committee = committee();
+    let committee = committee(None);
     let parameters = Parameters {
         batch_size: 200, // Two transactions.
         ..Parameters::default()
@@ -143,7 +143,10 @@ async fn test_rounds_return_successful_response() {
 
     // AND create some certificates and insert to DAG
     // Make certificates for rounds 1 to 4.
-    let keys: Vec<_> = keys().into_iter().map(|kp| kp.public().clone()).collect();
+    let keys: Vec<_> = keys(None)
+        .into_iter()
+        .map(|kp| kp.public().clone())
+        .collect();
     let mut genesis_certs = Certificate::genesis(&committee);
     let genesis = genesis_certs
         .iter()
