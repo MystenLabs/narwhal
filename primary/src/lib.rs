@@ -36,7 +36,6 @@ pub use crate::{
         BlockHeader,
     },
     block_waiter::{BlockCommand, BlockWaiter},
-    grpc_server::public_key_mapper::{Ed25519PublicKeyMapper, PublicKeyMapper},
     primary::{
         PayloadToken, Primary, PrimaryWorkerMessage, WorkerPrimaryError, WorkerPrimaryMessage,
         CHANNEL_CAPACITY,

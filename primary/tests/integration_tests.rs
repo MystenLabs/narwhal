@@ -11,7 +11,7 @@ use crypto::{
 };
 use futures::future::join_all;
 use node::NodeStorage;
-use primary::{Ed25519PublicKeyMapper, PayloadToken, Primary, CHANNEL_CAPACITY};
+use primary::{PayloadToken, Primary, CHANNEL_CAPACITY};
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
     sync::Arc,
@@ -112,7 +112,6 @@ async fn test_get_collections() {
         /* tx_consensus */ tx_new_certificates,
         /* rx_consensus */ rx_feedback,
         /* dag */ Some(Arc::new(Dag::new(rx_new_certificates).1)),
-        Ed25519PublicKeyMapper {},
     );
 
     // Spawn a `Worker` instance.
@@ -284,7 +283,6 @@ async fn test_remove_collections() {
         /* tx_consensus */ tx_new_certificates,
         /* rx_consensus */ rx_feedback,
         /* dag */ Some(dag.clone()),
-        Ed25519PublicKeyMapper {},
     );
 
     // Wait for tasks to start
@@ -416,7 +414,6 @@ async fn test_new_network_info() {
         /* tx_consensus */ tx_new_certificates,
         /* rx_consensus */ rx_feedback,
         /* dag */ Some(Arc::new(Dag::new(rx_new_certificates).1)),
-        Ed25519PublicKeyMapper {},
     );
 
     // Wait for tasks to start
@@ -530,7 +527,6 @@ async fn test_get_collections_with_missing_certificates() {
         /* tx_consensus */ tx_new_certificates_1,
         /* rx_consensus */ rx_feedback_1,
         /* external_consensus */ Some(Arc::new(Dag::new(rx_new_certificates_1).1)),
-        Ed25519PublicKeyMapper {},
     );
 
     // Spawn a `Worker` instance for primary 1.
@@ -557,7 +553,6 @@ async fn test_get_collections_with_missing_certificates() {
         /* tx_consensus */ tx_new_certificates_2,
         /* rx_consensus */ rx_feedback_2,
         /* external_consensus */ Some(Arc::new(Dag::new(rx_new_certificates_2).1)),
-        Ed25519PublicKeyMapper {},
     );
 
     // Spawn a `Worker` instance for primary 2.
@@ -670,7 +665,6 @@ async fn test_rounds_errors() {
         /* tx_consensus */ tx_new_certificates,
         /* rx_consensus */ rx_feedback,
         /* external_consensus */ Some(Arc::new(Dag::new(rx_new_certificates).1)),
-        Ed25519PublicKeyMapper {},
     );
 
     // AND Wait for tasks to start
@@ -735,7 +729,6 @@ async fn test_rounds_return_successful_response() {
         /* tx_consensus */ tx_new_certificates,
         /* rx_consensus */ rx_feedback,
         /* external_consensus */ Some(dag.clone()),
-        Ed25519PublicKeyMapper {},
     );
 
     // AND Wait for tasks to start

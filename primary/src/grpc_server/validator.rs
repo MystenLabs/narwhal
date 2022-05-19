@@ -3,7 +3,7 @@ use std::sync::Arc;
 // SPDX-License-Identifier: Apache-2.0
 use std::time::Duration;
 
-use crate::{block_waiter::GetBlockResponse, BlockCommand, BlockRemoverCommand, PublicKeyMapper};
+use crate::{block_waiter::GetBlockResponse, BlockCommand, BlockRemoverCommand};
 use config::Committee;
 use consensus::dag::Dag;
 use crypto::traits::VerifyingKey;
@@ -21,7 +21,7 @@ use types::{
     GetCollectionsResponse, RemoveCollectionsRequest, RoundsRequest, RoundsResponse, Validator,
 };
 
-pub struct NarwhalValidator<PublicKey: VerifyingKey, KeyMapper: PublicKeyMapper<PublicKey>> {
+pub struct NarwhalValidator<PublicKey: VerifyingKey> {
     /// The channel to send the commands to the block waiter
     tx_get_block_commands: Sender<BlockCommand>,
 
@@ -37,24 +37,17 @@ pub struct NarwhalValidator<PublicKey: VerifyingKey, KeyMapper: PublicKeyMapper<
     /// The dag that holds the available certificates to propose
     dag: Option<Arc<Dag<PublicKey>>>,
 
-    /// The mapper to use to convert the PublicKeyProto to the
-    /// corresponding PublicKey type.
-    public_key_mapper: KeyMapper,
-
     /// The committee
     committee: Committee<PublicKey>,
 }
 
-impl<PublicKey: VerifyingKey, KeyMapper: PublicKeyMapper<PublicKey>>
-    NarwhalValidator<PublicKey, KeyMapper>
-{
+impl<PublicKey: VerifyingKey> NarwhalValidator<PublicKey> {
     pub fn new(
         tx_get_block_commands: Sender<BlockCommand>,
         tx_block_removal_commands: Sender<BlockRemoverCommand>,
         get_collections_timeout: Duration,
         remove_collections_timeout: Duration,
         dag: Option<Arc<Dag<PublicKey>>>,
-        public_key_mapper: KeyMapper,
         committee: Committee<PublicKey>,
     ) -> Self {
         Self {
@@ -63,7 +56,6 @@ impl<PublicKey: VerifyingKey, KeyMapper: PublicKeyMapper<PublicKey>>
             get_collections_timeout,
             remove_collections_timeout,
             dag,
-            public_key_mapper,
             committee,
         }
     }
@@ -73,12 +65,11 @@ impl<PublicKey: VerifyingKey, KeyMapper: PublicKeyMapper<PublicKey>>
     /// parsed public key. The Err() will hold a Status message with the
     /// specific error description.
     fn get_public_key(&self, request: RoundsRequest) -> Result<PublicKey, Status> {
-        let key =
-            self.public_key_mapper
-                .map(request.public_key.ok_or_else(|| {
-                    Status::invalid_argument("Invalid public key: no key provided")
-                })?)
-                .map_err(|_| Status::invalid_argument("Invalid public key: couldn't parse"))?;
+        let proto_key = request
+            .public_key
+            .ok_or_else(|| Status::invalid_argument("Invalid public key: no key provided"))?;
+        let key = PublicKey::from_bytes(proto_key.bytes.as_ref())
+            .map_err(|_| Status::invalid_argument("Invalid public key: couldn't parse"))?;
 
         // ensure provided key is part of the committee
         if self.committee.primary(&key).is_err() {
@@ -92,9 +83,7 @@ impl<PublicKey: VerifyingKey, KeyMapper: PublicKeyMapper<PublicKey>>
 }
 
 #[tonic::async_trait]
-impl<PublicKey: VerifyingKey, KeyMapper: PublicKeyMapper<PublicKey>> Validator
-    for NarwhalValidator<PublicKey, KeyMapper>
-{
+impl<PublicKey: VerifyingKey> Validator for NarwhalValidator<PublicKey> {
     async fn remove_collections(
         &self,
         request: Request<RemoveCollectionsRequest>,

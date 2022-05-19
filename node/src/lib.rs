@@ -4,7 +4,7 @@ use config::{Committee, Parameters, WorkerId};
 use consensus::{dag::Dag, Consensus, ConsensusStore, SequenceNumber, SubscriberHandler};
 use crypto::traits::{KeyPair, Signer, VerifyingKey};
 use executor::{ExecutionState, Executor, SerializedTransaction, SubscriberResult};
-use primary::{PayloadToken, Primary, PublicKeyMapper};
+use primary::{PayloadToken, Primary};
 use std::sync::Arc;
 use store::{
     reopen,
@@ -83,7 +83,7 @@ impl Node {
     pub const CHANNEL_CAPACITY: usize = 1_000;
 
     /// Spawn a new primary. Optionally also spawn the consensus and a client executing transactions.
-    pub async fn spawn_primary<Keys, PublicKey, State, KeyMapper: PublicKeyMapper<PublicKey>>(
+    pub async fn spawn_primary<Keys, PublicKey, State>(
         // The private-public key pair of this authority.
         keypair: Keys,
         // The committee information.
@@ -102,8 +102,6 @@ impl Node {
         execution_state: Arc<State>,
         // A channel to output transactions execution confirmations.
         tx_confirmation: Sender<(SubscriberResult<Vec<u8>>, SerializedTransaction)>,
-        // Mapper to convert a proto public key
-        public_key_mapper: KeyMapper,
     ) -> SubscriberResult<()>
     where
         PublicKey: VerifyingKey,
@@ -147,7 +145,6 @@ impl Node {
             /* tx_consensus */ tx_new_certificates,
             /* rx_consensus */ rx_feedback,
             /* dag */ dag,
-            public_key_mapper,
         );
 
         Ok(())
