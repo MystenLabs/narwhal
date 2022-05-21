@@ -526,8 +526,8 @@ pub fn batch_with_transactions(num_of_transactions: usize) -> Batch {
 
 const BATCHES_CF: &str = "batches";
 
-pub fn open_batch_store() -> Store<BatchDigest, worker::SerializedBatchMessage> {
-    let db = rocks::DBMap::<BatchDigest, worker::SerializedBatchMessage>::open(
+pub fn open_batch_store() -> Store<BatchDigest, types::SerializedBatchMessage> {
+    let db = rocks::DBMap::<BatchDigest, types::SerializedBatchMessage>::open(
         temp_dir(),
         None,
         Some(BATCHES_CF),
