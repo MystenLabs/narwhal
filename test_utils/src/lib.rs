@@ -1,7 +1,7 @@
 // Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use blake2::digest::Update;
+
 use config::{
     utils::get_available_port, Authority, Committee, PrimaryAddresses, WorkerAddresses, WorkerId,
 };
@@ -22,10 +22,10 @@ use store::{rocks, Store};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tonic::Response;
 use types::{
-    Batch, BatchDigest, BincodeEncodedPayload, Certificate, CertificateDigest, Empty, Header,
-    HeaderBuilder, PrimaryToPrimary, PrimaryToPrimaryServer, PrimaryToWorker,
-    PrimaryToWorkerServer, Round, Transaction, Vote, WorkerToPrimary, WorkerToPrimaryServer,
-    WorkerToWorker, WorkerToWorkerServer,
+    serialized_batch_digest, Batch, BatchDigest, BincodeEncodedPayload, Certificate,
+    CertificateDigest, Empty, Header, HeaderBuilder, PrimaryToPrimary, PrimaryToPrimaryServer,
+    PrimaryToWorker, PrimaryToWorkerServer, Round, Transaction, Vote, WorkerToPrimary,
+    WorkerToPrimaryServer, WorkerToWorker, WorkerToWorkerServer,
 };
 
 pub const HEADERS_CF: &str = "headers";
@@ -252,9 +252,9 @@ pub fn fixture_header_with_payload(number_of_batches: u8) -> Header<Ed25519Publi
     let mut payload: BTreeMap<BatchDigest, WorkerId> = BTreeMap::new();
 
     for i in 0..number_of_batches {
-        let batch_digest = BatchDigest(crypto::blake2b_256(|hasher| {
-            hasher.update(vec![10u8, 5u8, 8u8, 20u8, i])
-        }));
+        let dummy_serialized_batch = vec![10u8, 5u8, 8u8, 20u8, i];
+        let batch_digest = serialized_batch_digest(&dummy_serialized_batch);
+
         payload.insert(batch_digest, 0);
     }
 
@@ -487,9 +487,7 @@ pub fn digest_batch(batch: Batch) -> BatchDigest {
 
 // Fixture
 pub fn resolve_batch_digest(batch_serialised: Vec<u8>) -> BatchDigest {
-    BatchDigest::new(crypto::blake2b_256(|hasher| {
-        hasher.update(&batch_serialised)
-    }))
+    serialized_batch_digest(&batch_serialised)
 }
 
 // Fixture
