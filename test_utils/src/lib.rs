@@ -477,17 +477,12 @@ pub fn batch() -> Batch {
 
 // Fixture
 pub fn batch_digest() -> BatchDigest {
-    resolve_batch_digest(serialized_batch())
+    serialized_batch_digest(&serialized_batch())
 }
 
 pub fn digest_batch(batch: Batch) -> BatchDigest {
     let serialized_batch = serialize_batch_message(batch);
-    resolve_batch_digest(serialized_batch)
-}
-
-// Fixture
-pub fn resolve_batch_digest(batch_serialised: Vec<u8>) -> BatchDigest {
-    serialized_batch_digest(&batch_serialised)
+    serialized_batch_digest(&serialized_batch)
 }
 
 // Fixture
