@@ -252,7 +252,12 @@ pub fn fixture_header_with_payload(number_of_batches: u8) -> Header<Ed25519Publi
     let mut payload: BTreeMap<BatchDigest, WorkerId> = BTreeMap::new();
 
     for i in 0..number_of_batches {
-        let dummy_serialized_batch = vec![10u8, 5u8, 8u8, 20u8, i];
+        let dummy_serialized_batch = vec![
+            0u8, 0u8, 0u8, 0u8, // enum variant prefix
+            1u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, // num txes
+            5u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, // tx length
+            10u8, 5u8, 8u8, 20u8, i, //tx
+        ];
         let batch_digest = serialized_batch_digest(&dummy_serialized_batch);
 
         payload.insert(batch_digest, 0);
