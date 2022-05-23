@@ -1,0 +1,139 @@
+version: "3.9"
+
+services:
+  # Setup for Authority 0. A primary node and a worker
+  primary_0:
+    build:
+      context: ../
+      dockerfile: ./Docker/Dockerfile
+    image: narwhal-node:latest
+    environment:
+      - NODE_TYPE=primary
+      - AUTHORITY_ID=0
+      - LOG_LEVEL=-vvv
+      - CONSENSUS_DISABLED=--consensus-disabled
+    expose:
+      - "3000"
+      - "3001"
+    ports:
+      - "8000:8000" # expose the gRPC port to be publicly accessible
+    volumes:
+      - ./authorities:/authorities
+  worker_0:
+    build:
+      context: ../
+      dockerfile: ./Docker/Dockerfile
+    image: narwhal-node:latest
+    environment:
+      - NODE_TYPE=worker
+      - AUTHORITY_ID=0
+      - LOG_LEVEL=-vvv
+      - WORKER_ID=0
+    expose:
+      - "4000"
+      - "4001"
+      - "4002"
+    volumes:
+      - ./authorities:/authorities
+  # Setup for Authority 1. A primary node and a worker
+  primary_1:
+    build:
+      context: ../
+      dockerfile: ./Docker/Dockerfile
+    image: narwhal-node:latest
+    environment:
+      - NODE_TYPE=primary
+      - AUTHORITY_ID=1
+      - LOG_LEVEL=-vvv
+      - CONSENSUS_DISABLED=--consensus-disabled
+    expose:
+      - "3000"
+      - "3001"
+    ports:
+      - "8001:8000" # expose the gRPC port to be publicly accessible
+    volumes:
+      - ./authorities:/authorities
+  worker_1:
+    build:
+      context: ../
+      dockerfile: ./Docker/Dockerfile
+    image: narwhal-node:latest
+    environment:
+      - NODE_TYPE=worker
+      - AUTHORITY_ID=1
+      - LOG_LEVEL=-vvv
+      - WORKER_ID=0
+    expose:
+      - "4000"
+      - "4001"
+      - "4002"
+    volumes:
+      - ./authorities:/authorities
+  # Setup for Authority 2. A primary node and a worker
+  primary_2:
+    build:
+      context: ../
+      dockerfile: ./Docker/Dockerfile
+    image: narwhal-node:latest
+    environment:
+      - NODE_TYPE=primary
+      - AUTHORITY_ID=2
+      - LOG_LEVEL=-vvv
+      - CONSENSUS_DISABLED=--consensus-disabled
+    expose:
+      - "3000"
+      - "3001"
+    ports:
+      - "8002:8000" # expose the gRPC port to be publicly accessible
+    volumes:
+      - ./authorities:/authorities
+  worker_2:
+    build:
+      context: ../
+      dockerfile: ./Docker/Dockerfile
+    image: narwhal-node:latest
+    environment:
+      - NODE_TYPE=worker
+      - AUTHORITY_ID=2
+      - LOG_LEVEL=-vvv
+      - WORKER_ID=0
+    expose:
+      - "4000"
+      - "4001"
+      - "4002"
+    volumes:
+      - ./authorities:/authorities
+  # Setup for Authority 3. A primary node and a worker
+  primary_3:
+    build:
+      context: ../
+      dockerfile: ./Docker/Dockerfile
+    image: narwhal-node:latest
+    environment:
+      - NODE_TYPE=primary
+      - AUTHORITY_ID=3
+      - LOG_LEVEL=-vvv
+      - CONSENSUS_DISABLED=--consensus-disabled
+    expose:
+      - "3000"
+      - "3001"
+    ports:
+      - "8003:8000" # expose the gRPC port to be publicly accessible
+    volumes:
+      - ./authorities:/authorities
+  worker_3:
+    build:
+      context: ../
+      dockerfile: ./Docker/Dockerfile
+    image: narwhal-node:latest
+    environment:
+      - NODE_TYPE=worker
+      - AUTHORITY_ID=3
+      - LOG_LEVEL=-vvv
+      - WORKER_ID=0
+    expose:
+      - "4000"
+      - "4001"
+      - "4002"
+    volumes:
+      - ./authorities:/authorities
