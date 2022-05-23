@@ -563,7 +563,7 @@ pub fn make_optimal_signed_certificates(
     make_signed_certificates(range, initial_parents, keys, 0.0)
 }
 
-// Bernouilli-samples from a set of ancestors passed as a argument,
+// Bernoulli-samples from a set of ancestors passed as a argument,
 fn this_cert_parents(
     ancestors: &BTreeSet<CertificateDigest>,
     failure_prob: f64,
