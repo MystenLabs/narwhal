@@ -15,6 +15,7 @@ use multiaddr::Multiaddr;
 use rand::{rngs::StdRng, Rng, SeedableRng as _};
 use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
+    ops::RangeInclusive,
     pin::Pin,
 };
 use store::{rocks, Store};
@@ -540,28 +541,26 @@ pub fn open_batch_store() -> Store<BatchDigest, worker::SerializedBatchMessage> 
 // of digests to be used as parents for the certificates of the next round.
 // Note : the certificates are unsigned
 pub fn make_optimal_certificates(
-    start: Round,
-    stop: Round,
+    range: RangeInclusive<Round>,
     initial_parents: &BTreeSet<CertificateDigest>,
     keys: &[Ed25519PublicKey],
 ) -> (
     VecDeque<Certificate<Ed25519PublicKey>>,
     BTreeSet<CertificateDigest>,
 ) {
-    make_certificates(start, stop, initial_parents, keys, 0.0)
+    make_certificates(range, initial_parents, keys, 0.0)
 }
 
 // Outputs rounds worth of certificates with optimal parents, signed
 pub fn make_optimal_signed_certificates(
-    start: Round,
-    stop: Round,
+    range: RangeInclusive<Round>,
     initial_parents: &BTreeSet<CertificateDigest>,
     keys: &[Ed25519KeyPair],
 ) -> (
     VecDeque<Certificate<Ed25519PublicKey>>,
     BTreeSet<CertificateDigest>,
 ) {
-    make_signed_certificates(start, stop, initial_parents, keys, 0.0)
+    make_signed_certificates(range, initial_parents, keys, 0.0)
 }
 
 // Bernouilli-samples from a set of ancestors passed as a argument,
@@ -582,8 +581,7 @@ fn this_cert_parents(
 // Utility for making several rounds worth of certificates through iterated parenthood sampling.
 // The making of individial certificates once parents are figured out is delegated to the `make_one_certificate` argument
 fn rounds_of_certificates(
-    start: Round,
-    stop: Round,
+    range: RangeInclusive<Round>,
     initial_parents: &BTreeSet<CertificateDigest>,
     keys: &[Ed25519PublicKey],
     failure_probability: f64,
@@ -600,7 +598,7 @@ fn rounds_of_certificates(
     let mut parents = initial_parents.iter().cloned().collect::<BTreeSet<_>>();
     let mut next_parents = BTreeSet::new();
 
-    for round in start..=stop {
+    for round in range {
         next_parents.clear();
         for name in keys {
             let this_cert_parents = this_cert_parents(&parents, failure_probability);
@@ -617,8 +615,7 @@ fn rounds_of_certificates(
 
 // make rounds worth of unsigned certificates with the sampled number of parents
 pub fn make_certificates(
-    start: Round,
-    stop: Round,
+    range: RangeInclusive<Round>,
     initial_parents: &BTreeSet<CertificateDigest>,
     keys: &[Ed25519PublicKey],
     failure_probability: f64,
@@ -627,8 +624,7 @@ pub fn make_certificates(
     BTreeSet<CertificateDigest>,
 ) {
     rounds_of_certificates(
-        start,
-        stop,
+        range,
         initial_parents,
         keys,
         failure_probability,
@@ -638,8 +634,7 @@ pub fn make_certificates(
 
 // make rounds worth of signed certificates with the sampled number of parents
 pub fn make_signed_certificates(
-    start: Round,
-    stop: Round,
+    range: RangeInclusive<Round>,
     initial_parents: &BTreeSet<CertificateDigest>,
     keys: &[Ed25519KeyPair],
     failure_probability: f64,
@@ -651,8 +646,7 @@ pub fn make_signed_certificates(
     let generator = |pk, round, parents| mock_signed_certificate(keys, pk, round, parents);
 
     rounds_of_certificates(
-        start,
-        stop,
+        range,
         initial_parents,
         &public_keys[..],
         failure_probability,
