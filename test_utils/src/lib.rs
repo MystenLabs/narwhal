@@ -1,7 +1,7 @@
 // Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use blake2::digest::Update;
+
 use config::{
     utils::get_available_port, Authority, Committee, PrimaryAddresses, WorkerAddresses, WorkerId,
 };
@@ -13,19 +13,21 @@ use crypto::{
 use futures::Stream;
 use multiaddr::Multiaddr;
 use rand::{rngs::StdRng, Rng, SeedableRng as _};
+use std::sync::Arc;
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap, VecDeque},
+    ops::RangeInclusive,
     pin::Pin,
-    sync::Arc,
 };
 use store::{reopen, rocks, rocks::DBMap, Store};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tonic::Response;
 use types::{
-    Batch, BatchDigest, BincodeEncodedPayload, Certificate, CertificateDigest, ConsensusStore,
-    Empty, Header, PrimaryToPrimary, PrimaryToPrimaryServer, PrimaryToWorker,
-    PrimaryToWorkerServer, Round, SequenceNumber, Transaction, Vote, WorkerToPrimary,
-    WorkerToPrimaryServer, WorkerToWorker, WorkerToWorkerServer,
+    serialized_batch_digest, Batch, BatchDigest, BincodeEncodedPayload, Certificate,
+    CertificateDigest, ConsensusStore, Empty, Header, HeaderBuilder, PrimaryToPrimary,
+    PrimaryToPrimaryServer, PrimaryToWorker, PrimaryToWorkerServer, Round, SequenceNumber,
+    Transaction, Vote, WorkerToPrimary, WorkerToPrimaryServer, WorkerToWorker,
+    WorkerToWorkerServer,
 };
 
 pub const HEADERS_CF: &str = "headers";
@@ -221,93 +223,6 @@ pub fn make_consensus_store(store_path: &std::path::Path) -> Arc<ConsensusStore<
 }
 
 // Fixture
-pub fn mock_certificate(
-    origin: Ed25519PublicKey,
-    round: Round,
-    parents: BTreeSet<CertificateDigest>,
-) -> (CertificateDigest, Certificate<Ed25519PublicKey>) {
-    let certificate = Certificate {
-        header: Header {
-            author: origin,
-            round,
-            parents,
-            ..Header::default()
-        },
-        ..Certificate::default()
-    };
-    (certificate.digest(), certificate)
-}
-
-// Creates one certificate per authority starting and finishing at the specified rounds (inclusive).
-// Outputs a VecDeque of certificates (the certificate with higher round is on the front) and a set
-// of digests to be used as parents for the certificates of the next round.
-pub fn make_optimal_certificates(
-    start: Round,
-    stop: Round,
-    initial_parents: &BTreeSet<CertificateDigest>,
-    keys: &[Ed25519PublicKey],
-) -> (
-    VecDeque<Certificate<Ed25519PublicKey>>,
-    BTreeSet<CertificateDigest>,
-) {
-    make_certificates(start, stop, initial_parents, keys, 0.0)
-}
-
-pub fn make_certificates(
-    start: Round,
-    stop: Round,
-    initial_parents: &BTreeSet<CertificateDigest>,
-    keys: &[Ed25519PublicKey],
-    failure_probability: f64,
-) -> (
-    VecDeque<Certificate<Ed25519PublicKey>>,
-    BTreeSet<CertificateDigest>,
-) {
-    let mut certificates = VecDeque::new();
-    let mut parents = initial_parents.iter().cloned().collect::<BTreeSet<_>>();
-    let mut next_parents = BTreeSet::new();
-
-    fn this_cert_parents(
-        ancestors: &BTreeSet<CertificateDigest>,
-        failure_prob: f64,
-    ) -> BTreeSet<CertificateDigest> {
-        std::iter::from_fn(|| {
-            let f: f64 = rand::thread_rng().gen();
-            if f > failure_prob {
-                Some(true)
-            } else {
-                Some(false)
-            }
-        })
-        .take(ancestors.len())
-        .zip(ancestors)
-        .flat_map(
-            |(parenthood, parent)| {
-                if parenthood {
-                    Some(*parent)
-                } else {
-                    None
-                }
-            },
-        )
-        .collect::<BTreeSet<_>>()
-    }
-
-    for round in start..=stop {
-        next_parents.clear();
-        for name in keys {
-            let this_cert_parents = this_cert_parents(&parents, failure_probability);
-
-            let (digest, certificate) = mock_certificate(name.clone(), round, this_cert_parents);
-            certificates.push_back(certificate);
-            next_parents.insert(digest);
-        }
-        parents = next_parents.clone();
-    }
-    (certificates, next_parents)
-}
-
-// Fixture
 pub fn header() -> Header<Ed25519PublicKey> {
     let kp = keys(None).pop().unwrap();
     let header = Header {
@@ -356,7 +271,7 @@ pub fn headers() -> Vec<Header<Ed25519PublicKey>> {
 pub fn fixture_header() -> Header<Ed25519PublicKey> {
     let kp = keys(None).pop().unwrap();
 
-    fixture_header_builder().build(|payload| kp.sign(payload))
+    fixture_header_builder().build(&kp).unwrap()
 }
 
 pub fn fixture_header_builder() -> types::HeaderBuilder<Ed25519PublicKey> {
@@ -376,14 +291,19 @@ pub fn fixture_header_with_payload(number_of_batches: u8) -> Header<Ed25519Publi
     let mut payload: BTreeMap<BatchDigest, WorkerId> = BTreeMap::new();
 
     for i in 0..number_of_batches {
-        let batch_digest = BatchDigest(crypto::blake2b_256(|hasher| {
-            hasher.update(vec![10u8, 5u8, 8u8, 20u8, i])
-        }));
+        let dummy_serialized_batch = vec![
+            0u8, 0u8, 0u8, 0u8, // enum variant prefix
+            1u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, // num txes
+            5u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, // tx length
+            10u8, 5u8, 8u8, 20u8, i, //tx
+        ];
+        let batch_digest = serialized_batch_digest(&dummy_serialized_batch);
+
         payload.insert(batch_digest, 0);
     }
 
     let builder = fixture_header_builder();
-    builder.payload(payload).build(|payload| kp.sign(payload))
+    builder.payload(payload).build(&kp).unwrap()
 }
 
 // will create a batch with randomly formed transactions
@@ -601,19 +521,12 @@ pub fn batch() -> Batch {
 
 // Fixture
 pub fn batch_digest() -> BatchDigest {
-    resolve_batch_digest(serialized_batch())
+    serialized_batch_digest(&serialized_batch())
 }
 
 pub fn digest_batch(batch: Batch) -> BatchDigest {
     let serialized_batch = serialize_batch_message(batch);
-    resolve_batch_digest(serialized_batch)
-}
-
-// Fixture
-pub fn resolve_batch_digest(batch_serialised: Vec<u8>) -> BatchDigest {
-    BatchDigest::new(crypto::blake2b_256(|hasher| {
-        hasher.update(&batch_serialised)
-    }))
+    serialized_batch_digest(&serialized_batch)
 }
 
 // Fixture
@@ -650,12 +563,177 @@ pub fn batch_with_transactions(num_of_transactions: usize) -> Batch {
 
 const BATCHES_CF: &str = "batches";
 
-pub fn open_batch_store() -> Store<BatchDigest, worker::SerializedBatchMessage> {
-    let db = rocks::DBMap::<BatchDigest, worker::SerializedBatchMessage>::open(
+pub fn open_batch_store() -> Store<BatchDigest, types::SerializedBatchMessage> {
+    let db = rocks::DBMap::<BatchDigest, types::SerializedBatchMessage>::open(
         temp_dir(),
         None,
         Some(BATCHES_CF),
     )
     .unwrap();
     Store::new(db)
+}
+
+// Creates one certificate per authority starting and finishing at the specified rounds (inclusive).
+// Outputs a VecDeque of certificates (the certificate with higher round is on the front) and a set
+// of digests to be used as parents for the certificates of the next round.
+// Note : the certificates are unsigned
+pub fn make_optimal_certificates(
+    range: RangeInclusive<Round>,
+    initial_parents: &BTreeSet<CertificateDigest>,
+    keys: &[Ed25519PublicKey],
+) -> (
+    VecDeque<Certificate<Ed25519PublicKey>>,
+    BTreeSet<CertificateDigest>,
+) {
+    make_certificates(range, initial_parents, keys, 0.0)
+}
+
+// Outputs rounds worth of certificates with optimal parents, signed
+pub fn make_optimal_signed_certificates(
+    range: RangeInclusive<Round>,
+    initial_parents: &BTreeSet<CertificateDigest>,
+    keys: &[Ed25519KeyPair],
+) -> (
+    VecDeque<Certificate<Ed25519PublicKey>>,
+    BTreeSet<CertificateDigest>,
+) {
+    make_signed_certificates(range, initial_parents, keys, 0.0)
+}
+
+// Bernoulli-samples from a set of ancestors passed as a argument,
+fn this_cert_parents(
+    ancestors: &BTreeSet<CertificateDigest>,
+    failure_prob: f64,
+) -> BTreeSet<CertificateDigest> {
+    std::iter::from_fn(|| {
+        let f: f64 = rand::thread_rng().gen();
+        Some(f > failure_prob)
+    })
+    .take(ancestors.len())
+    .zip(ancestors)
+    .flat_map(|(parenthood, parent)| parenthood.then(|| *parent))
+    .collect::<BTreeSet<_>>()
+}
+
+// Utility for making several rounds worth of certificates through iterated parenthood sampling.
+// The making of individial certificates once parents are figured out is delegated to the `make_one_certificate` argument
+fn rounds_of_certificates(
+    range: RangeInclusive<Round>,
+    initial_parents: &BTreeSet<CertificateDigest>,
+    keys: &[Ed25519PublicKey],
+    failure_probability: f64,
+    make_one_certificate: impl Fn(
+        Ed25519PublicKey,
+        Round,
+        BTreeSet<CertificateDigest>,
+    ) -> (CertificateDigest, Certificate<Ed25519PublicKey>),
+) -> (
+    VecDeque<Certificate<Ed25519PublicKey>>,
+    BTreeSet<CertificateDigest>,
+) {
+    let mut certificates = VecDeque::new();
+    let mut parents = initial_parents.iter().cloned().collect::<BTreeSet<_>>();
+    let mut next_parents = BTreeSet::new();
+
+    for round in range {
+        next_parents.clear();
+        for name in keys {
+            let this_cert_parents = this_cert_parents(&parents, failure_probability);
+
+            let (digest, certificate) =
+                make_one_certificate(name.clone(), round, this_cert_parents);
+            certificates.push_back(certificate);
+            next_parents.insert(digest);
+        }
+        parents = next_parents.clone();
+    }
+    (certificates, next_parents)
+}
+
+// make rounds worth of unsigned certificates with the sampled number of parents
+pub fn make_certificates(
+    range: RangeInclusive<Round>,
+    initial_parents: &BTreeSet<CertificateDigest>,
+    keys: &[Ed25519PublicKey],
+    failure_probability: f64,
+) -> (
+    VecDeque<Certificate<Ed25519PublicKey>>,
+    BTreeSet<CertificateDigest>,
+) {
+    rounds_of_certificates(
+        range,
+        initial_parents,
+        keys,
+        failure_probability,
+        mock_certificate,
+    )
+}
+
+// make rounds worth of signed certificates with the sampled number of parents
+pub fn make_signed_certificates(
+    range: RangeInclusive<Round>,
+    initial_parents: &BTreeSet<CertificateDigest>,
+    keys: &[Ed25519KeyPair],
+    failure_probability: f64,
+) -> (
+    VecDeque<Certificate<Ed25519PublicKey>>,
+    BTreeSet<CertificateDigest>,
+) {
+    let public_keys = keys.iter().map(|k| k.public().clone()).collect::<Vec<_>>();
+    let generator = |pk, round, parents| mock_signed_certificate(keys, pk, round, parents);
+
+    rounds_of_certificates(
+        range,
+        initial_parents,
+        &public_keys[..],
+        failure_probability,
+        generator,
+    )
+}
+
+// Creates an unsigned certificate from its given round, origin and parents,
+// Note: the certificate is unsigned
+pub fn mock_certificate(
+    origin: Ed25519PublicKey,
+    round: Round,
+    parents: BTreeSet<CertificateDigest>,
+) -> (CertificateDigest, Certificate<Ed25519PublicKey>) {
+    let certificate = Certificate {
+        header: Header {
+            author: origin,
+            round,
+            parents,
+            ..Header::default()
+        },
+        ..Certificate::default()
+    };
+    (certificate.digest(), certificate)
+}
+
+// Creates one signed certificate from a set of signers - the signers must include the origin
+pub fn mock_signed_certificate(
+    signers: &[Ed25519KeyPair],
+    origin: Ed25519PublicKey,
+    round: Round,
+    parents: BTreeSet<CertificateDigest>,
+) -> (CertificateDigest, Certificate<Ed25519PublicKey>) {
+    let author = signers.iter().find(|kp| *kp.public() == origin).unwrap();
+    let header_builder = HeaderBuilder::default()
+        .author(origin.clone())
+        .round(round)
+        .parents(parents);
+    let header = header_builder.build(author).unwrap();
+    let mut cert = Certificate {
+        header,
+        ..Certificate::default()
+    };
+
+    for signer in signers {
+        let pk = signer.public();
+        let sig = signer
+            .try_sign(Digest::from(cert.header.digest()).as_ref())
+            .unwrap();
+        cert.votes.push((pk.clone(), sig))
+    }
+    (cert.digest(), cert)
 }

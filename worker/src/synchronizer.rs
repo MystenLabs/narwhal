@@ -1,7 +1,6 @@
 // Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crate::worker::{Round, SerializedBatchMessage};
 use config::{Committee, WorkerId};
 use crypto::traits::VerifyingKey;
 use futures::stream::{futures_unordered::FuturesUnordered, StreamExt as _};
@@ -17,7 +16,7 @@ use tokio::{
     time::{sleep, Duration, Instant},
 };
 use tracing::{debug, error};
-use types::{BatchDigest, WorkerMessage};
+use types::{BatchDigest, Round, SerializedBatchMessage, WorkerMessage};
 
 #[cfg(test)]
 #[path = "tests/synchronizer_tests.rs"]

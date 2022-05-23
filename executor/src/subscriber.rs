@@ -17,8 +17,7 @@ use tokio::{
     task::JoinHandle,
 };
 use tracing::debug;
-use types::{BatchDigest, SequenceNumber};
-use worker::SerializedBatchMessage;
+use types::{BatchDigest, SequenceNumber, SerializedBatchMessage};
 
 #[cfg(test)]
 #[path = "tests/subscriber_tests.rs"]

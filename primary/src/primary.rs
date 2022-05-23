@@ -312,6 +312,7 @@ impl Primary {
                 parameters.consensus_api_grpc.remove_collections_timeout,
                 block_synchronizer_handler,
                 dag,
+                committee.clone(),
             );
         }
 

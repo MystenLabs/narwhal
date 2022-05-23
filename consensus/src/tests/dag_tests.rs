@@ -5,9 +5,11 @@ use std::collections::BTreeSet;
 
 use crypto::{traits::KeyPair, Hash};
 use dag::node_dag::NodeDagError;
-use test_utils::{make_optimal_certificates, mock_committee};
+use test_utils::make_optimal_certificates;
 use tokio::sync::mpsc::channel;
 use types::Certificate;
+
+use test_utils::mock_committee;
 
 use super::{Dag, ValidatorDagError};
 
@@ -23,7 +25,7 @@ async fn inner_dag_insert_one() {
         .iter()
         .map(|x| x.digest())
         .collect::<BTreeSet<_>>();
-    let (mut certificates, _next_parents) = make_optimal_certificates(1, 4, &genesis, &keys);
+    let (mut certificates, _next_parents) = make_optimal_certificates(1..=4, &genesis, &keys);
 
     // set up a Dag
     let (tx_cert, rx_cert) = channel(1);
@@ -50,7 +52,7 @@ async fn dag_mutation_failures() {
         .iter()
         .map(|x| x.digest())
         .collect::<BTreeSet<_>>();
-    let (certificates, _next_parents) = make_optimal_certificates(1, 4, &genesis, &keys);
+    let (certificates, _next_parents) = make_optimal_certificates(1..=4, &genesis, &keys);
 
     // set up a Dag
     let (_tx_cert, rx_cert) = channel(1);
@@ -121,7 +123,7 @@ async fn dag_insert_one_and_rounds_node_read() {
         .iter()
         .map(|x| x.digest())
         .collect::<BTreeSet<_>>();
-    let (certificates, _next_parents) = make_optimal_certificates(1, 4, &genesis, &keys);
+    let (certificates, _next_parents) = make_optimal_certificates(1..=4, &genesis, &keys);
 
     // set up a Dag
     let (_tx_cert, rx_cert) = channel(1);
@@ -169,7 +171,7 @@ async fn dag_insert_and_remove_reads() {
         .iter()
         .map(|x| x.digest())
         .collect::<BTreeSet<_>>();
-    let (mut certificates, _next_parents) = make_optimal_certificates(1, 4, &genesis, &keys);
+    let (mut certificates, _next_parents) = make_optimal_certificates(1..=4, &genesis, &keys);
 
     // set up a Dag
     let (_tx_cert, rx_cert) = channel(1);

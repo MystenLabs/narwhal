@@ -18,9 +18,9 @@ use tokio::{
 use tracing::debug;
 use types::{
     BatchDigest, Certificate, CertificateDigest, ConsensusStore, Header, HeaderDigest, Round,
-    SequenceNumber,
+    SequenceNumber, SerializedBatchMessage,
 };
-use worker::{SerializedBatchMessage, Worker};
+use worker::Worker;
 
 /// All the data stores of the node.
 pub struct NodeStorage<PublicKey: VerifyingKey> {

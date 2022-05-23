@@ -1,18 +1,22 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use self::configuration::NarwhalConfiguration;
-use self::validator::NarwhalValidator;
-use crate::{block_synchronizer::handler::Handler, BlockCommand, BlockRemoverCommand};
+use self::{configuration::NarwhalConfiguration, validator::NarwhalValidator};
+use crate::{
+    block_synchronizer::handler::Handler, grpc_server::proposer::NarwhalProposer, BlockCommand,
+    BlockRemoverCommand,
+};
+use config::Committee;
 use consensus::dag::Dag;
 use crypto::traits::VerifyingKey;
 use multiaddr::Multiaddr;
 use std::{sync::Arc, time::Duration};
 use tokio::sync::mpsc::Sender;
 use tracing::error;
-use types::{ConfigurationServer, ValidatorServer};
+use types::{ConfigurationServer, ProposerServer, ValidatorServer};
 
 mod configuration;
+mod proposer;
 mod validator;
 
 pub struct ConsensusAPIGrpc<
@@ -26,6 +30,7 @@ pub struct ConsensusAPIGrpc<
     remove_collections_timeout: Duration,
     block_synchronizer_handler: Arc<SynchronizerHandler>,
     dag: Option<Arc<Dag<PublicKey>>>,
+    committee: Committee<PublicKey>,
 }
 
 impl<PublicKey: VerifyingKey, SynchronizerHandler: Handler<PublicKey> + Send + Sync + 'static>
@@ -39,6 +44,7 @@ impl<PublicKey: VerifyingKey, SynchronizerHandler: Handler<PublicKey> + Send + S
         remove_collections_timeout: Duration,
         block_synchronizer_handler: Arc<SynchronizerHandler>,
         dag: Option<Arc<Dag<PublicKey>>>,
+        committee: Committee<PublicKey>,
     ) {
         tokio::spawn(async move {
             let _ = Self {
@@ -49,6 +55,7 @@ impl<PublicKey: VerifyingKey, SynchronizerHandler: Handler<PublicKey> + Send + S
                 remove_collections_timeout,
                 block_synchronizer_handler,
                 dag,
+                committee,
             }
             .run()
             .await
@@ -66,6 +73,8 @@ impl<PublicKey: VerifyingKey, SynchronizerHandler: Handler<PublicKey> + Send + S
             self.dag.clone(),
         );
 
+        let narwhal_proposer = NarwhalProposer::new(self.dag.clone(), self.committee.clone());
+
         let narwhal_configuration = NarwhalConfiguration::new();
 
         let config = mysten_network::config::Config::default();
@@ -73,6 +82,7 @@ impl<PublicKey: VerifyingKey, SynchronizerHandler: Handler<PublicKey> + Send + S
             .server_builder()
             .add_service(ValidatorServer::new(narwhal_validator))
             .add_service(ConfigurationServer::new(narwhal_configuration))
+            .add_service(ProposerServer::new(narwhal_proposer))
             .bind(&self.socket_addr)
             .await?
             .serve()

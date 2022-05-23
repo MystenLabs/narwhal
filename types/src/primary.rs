@@ -9,12 +9,12 @@ use blake2::{digest::Update, VarBlake2b};
 use bytes::Bytes;
 use config::{Committee, WorkerId};
 use crypto::{
-    ed25519::Ed25519PublicKey,
-    traits::{EncodeDecodeBase64, VerifyingKey},
+    traits::{EncodeDecodeBase64, Signer, VerifyingKey},
     Digest, Hash, SignatureService, DIGEST_LEN,
 };
 use dag::node_dag::Affiliated;
 use derive_builder::Builder;
+use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet, HashSet},
@@ -26,7 +26,7 @@ use std::{
 pub type Round = u64;
 
 pub type Transaction = Vec<u8>;
-#[derive(Clone, Serialize, Deserialize, Default, Debug, PartialEq, Eq)]
+#[derive(Clone, Serialize, Deserialize, Default, Debug, PartialEq, Eq, Arbitrary)]
 pub struct Batch(pub Vec<Transaction>);
 
 #[derive(Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -68,12 +68,9 @@ impl Hash for Batch {
     type TypedDigest = BatchDigest;
 
     fn digest(&self) -> Self::TypedDigest {
-        // While the `WorkerMessage` structure is generic, the parameter has no bearing on this enum variant
-        // TODO: fix in #[246]
-        let message = crate::worker::WorkerMessage::<Ed25519PublicKey>::Batch(self.clone());
-        let serialized = bincode::serialize(&message).expect("Batch serialization should not fail");
-
-        BatchDigest::new(crypto::blake2b_256(|hasher| hasher.update(&serialized)))
+        BatchDigest::new(crypto::blake2b_256(|hasher| {
+            self.0.iter().for_each(|tx| hasher.update(tx))
+        }))
     }
 }
 
@@ -90,10 +87,9 @@ pub struct Header<PublicKey: VerifyingKey> {
 }
 
 impl<PublicKey: VerifyingKey> HeaderBuilder<PublicKey> {
-    #[allow(dead_code)]
-    pub fn build<F>(self, signer: F) -> Header<PublicKey>
+    pub fn build<F>(self, signer: &F) -> Result<Header<PublicKey>, crypto::traits::Error>
     where
-        F: FnOnce(&[u8]) -> PublicKey::Sig,
+        F: Signer<PublicKey::Sig>,
     {
         let h = Header {
             author: self.author.unwrap(),
@@ -104,11 +100,11 @@ impl<PublicKey: VerifyingKey> HeaderBuilder<PublicKey> {
             signature: PublicKey::Sig::default(),
         };
 
-        Header {
+        Ok(Header {
             id: h.digest(),
-            signature: signer(Digest::from(h.digest()).as_ref()),
+            signature: signer.try_sign(Digest::from(h.digest()).as_ref())?,
             ..h
-        }
+        })
     }
 
     // helper method to set directly values to the payload

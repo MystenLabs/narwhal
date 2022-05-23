@@ -398,9 +398,7 @@ mod tests {
     use crypto::traits::KeyPair;
     use rand::Rng;
     use std::collections::BTreeSet;
-    use test_utils::{
-        make_certificates, make_consensus_store, make_optimal_certificates, mock_committee,
-    };
+    use test_utils::{make_consensus_store, mock_committee};
     use types::Certificate;
 
     #[test]
@@ -418,7 +416,8 @@ mod tests {
             .iter()
             .map(|x| x.digest())
             .collect::<BTreeSet<_>>();
-        let (certificates, _next_parents) = make_optimal_certificates(1, rounds, &genesis, &keys);
+        let (certificates, _next_parents) =
+            test_utils::make_optimal_certificates(1..=rounds, &genesis, &keys);
         let committee = mock_committee(&keys);
 
         let store_path = test_utils::temp_dir();
@@ -468,7 +467,8 @@ mod tests {
             .map(|x| x.digest())
             .collect::<BTreeSet<_>>();
         // TODO: evidence that this test fails when `failure_probability` parameter >= 1/3
-        let (certificates, _next_parents) = make_certificates(1, rounds, &genesis, &keys, 0.333);
+        let (certificates, _next_parents) =
+            test_utils::make_certificates(1..=rounds, &genesis, &keys, 0.333);
         let committee = mock_committee(&keys);
 
         let store_path = test_utils::temp_dir();

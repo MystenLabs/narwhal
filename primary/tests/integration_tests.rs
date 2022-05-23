@@ -1,11 +1,11 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use blake2::digest::Update;
+
 use config::{Parameters, WorkerId};
 use consensus::dag::Dag;
 use crypto::{
     ed25519::{Ed25519KeyPair, Ed25519PublicKey},
-    traits::{KeyPair, Signer},
+    traits::KeyPair,
     Hash,
 };
 use futures::future::join_all;
@@ -24,12 +24,13 @@ use test_utils::{
 use tokio::sync::mpsc::channel;
 use tonic::transport::Channel;
 use types::{
-    Batch, BatchDigest, Certificate, CertificateDigest, CertificateDigestProto,
-    CollectionRetrievalResult, ConfigurationClient, Empty, GetCollectionsRequest, Header,
-    HeaderDigest, MultiAddrProto, NewNetworkInfoRequest, PublicKeyProto, ReadCausalRequest,
-    RemoveCollectionsRequest, RetrievalResult, ValidatorClient, ValidatorData,
+    serialized_batch_digest, Batch, BatchDigest, Certificate, CertificateDigest,
+    CertificateDigestProto, CollectionRetrievalResult, ConfigurationClient, Empty,
+    GetCollectionsRequest, Header, HeaderDigest, MultiAddrProto, NewNetworkInfoRequest,
+    PublicKeyProto, ReadCausalRequest, RemoveCollectionsRequest, RetrievalResult,
+    SerializedBatchMessage, ValidatorClient, ValidatorData,
 };
-use worker::{SerializedBatchMessage, Worker, WorkerMessage};
+use worker::{Worker, WorkerMessage};
 
 #[tokio::test]
 async fn test_get_collections() {
@@ -58,7 +59,8 @@ async fn test_get_collections() {
 
         let header = fixture_header_builder()
             .with_payload_batch(batch.clone(), worker_id)
-            .build(|payload| key.sign(payload));
+            .build(&key)
+            .unwrap();
 
         let certificate = certificate(&header);
         let block_id = certificate.digest();
@@ -231,7 +233,8 @@ async fn test_remove_collections() {
 
         let header = fixture_header_builder()
             .with_payload_batch(batch.clone(), worker_id)
-            .build(|payload| key.sign(payload));
+            .build(&key)
+            .unwrap();
 
         let certificate = certificate(&header);
         let block_id = certificate.digest();
@@ -443,8 +446,7 @@ async fn test_read_causal() {
         .collect::<BTreeSet<_>>();
 
     let (certificates, _next_parents) = make_optimal_certificates(
-        1,
-        4,
+        1..=4,
         &genesis,
         &committee
             .authorities
@@ -810,9 +812,7 @@ async fn fixture_certificate(
     // TODO: refactor this when the above is changed/fixed.
     let message = WorkerMessage::<Ed25519PublicKey>::Batch(batch.clone());
     let serialized_batch = bincode::serialize(&message).unwrap();
-    let batch_digest = BatchDigest::new(crypto::blake2b_256(|hasher| {
-        hasher.update(&serialized_batch)
-    }));
+    let batch_digest = serialized_batch_digest(&serialized_batch);
 
     let mut payload = BTreeMap::new();
     payload.insert(batch_digest, worker_id);
@@ -828,7 +828,8 @@ async fn fixture_certificate(
                 .collect(),
         )
         .payload(payload)
-        .build(|p| key.sign(p));
+        .build(&key)
+        .unwrap();
 
     let certificate = certificate(&header);
 
