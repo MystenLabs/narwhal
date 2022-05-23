@@ -5,7 +5,7 @@ use config::Committee;
 use crypto::{traits::VerifyingKey, Digest, Hash};
 use std::fmt::{Display, Formatter};
 use thiserror::Error;
-use tracing::log::{error, warn};
+use tracing::{error, warn};
 use types::{Certificate, CertificateDigest};
 
 // RequestID helps us identify an incoming request and

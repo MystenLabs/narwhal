@@ -68,7 +68,7 @@ impl<PublicKey: VerifyingKey, SynchronizerHandler: Handler<PublicKey> + Send + S
         let collection_id = request
             .into_inner()
             .collection_id
-            .ok_or_else(|| Status::invalid_argument("Missing collection"))?;
+            .ok_or_else(|| Status::invalid_argument("No collection id has been provided"))?;
         let ids = parse_certificate_digests(vec![collection_id])?;
 
         let block_header_results = self
@@ -77,11 +77,10 @@ impl<PublicKey: VerifyingKey, SynchronizerHandler: Handler<PublicKey> + Send + S
             .await;
 
         for result in block_header_results {
-            if result.is_err() {
-                // TODO: Should we capture & return each individual sync error?
+            if let Err(err) = result {
                 return Err(Status::internal(format!(
                     "Error when trying to synchronize block headers: {:?}",
-                    result.unwrap_err()
+                    err
                 )));
             }
         }
@@ -89,17 +88,13 @@ impl<PublicKey: VerifyingKey, SynchronizerHandler: Handler<PublicKey> + Send + S
         if let Some(dag) = &self.dag {
             let result = match dag.read_causal(ids[0]).await {
                 Ok(digests) => Ok(ReadCausalResponse {
-                    collection_ids: digests
-                        .iter()
-                        .map(|digest| digest.to_owned().into())
-                        .collect::<Vec<CertificateDigestProto>>(),
+                    collection_ids: digests.into_iter().map(Into::into).collect(),
                 }),
                 Err(err) => Err(Status::internal(format!("Couldn't read causal: {err}"))),
             };
             return result.map(Response::new);
-        } else {
-            Err(Status::internal("Dag does not exist"))
         }
+        Err(Status::internal("Dag does not exist"))
     }
 
     async fn remove_collections(
