@@ -558,19 +558,16 @@ async fn test_read_causal_signed_certificates() {
         }
     }
 
+    // TODO: Synchronizer fails on certificate validation, figure out how to fix data.
     // Test read causal for missing collection from Primary 1. Expect block synchronizer
     // to handle retrieving the missing collections from Primary 2 before completing the
-    // request for read causal. However because these certificates were not signed
-    // they will not pass validation during fetch.
+    // request for read causal.
     let request = tonic::Request::new(ReadCausalRequest {
         collection_id: Some(collection_ids[0].into()),
     });
 
-    let status = client.read_causal(request).await.unwrap_err();
-
-    assert!(status
-        .message()
-        .contains("Error when trying to synchronize block headers: BlockNotFound"));
+    let response = client.read_causal(request).await.unwrap();
+    assert_eq!(5, response.into_inner().collection_ids.len());
 }
 
 #[tokio::test]
