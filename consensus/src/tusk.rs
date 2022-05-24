@@ -19,7 +19,6 @@ use tokio::{
 use tracing::{debug, warn};
 use types::{Certificate, CertificateDigest, ConsensusStore, Round, StoreResult};
 
-// TODO : readd 'feature = "benchmark"' when import test_utils resolves
 #[cfg(any(test))]
 #[path = "tests/consensus_tests.rs"]
 pub mod consensus_tests;
