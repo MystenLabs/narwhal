@@ -1,4 +1,5 @@
 *.json
+!Docker/**/*.json
 .DS_Store
 .storage_*
 .*storage*
