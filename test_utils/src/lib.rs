@@ -58,8 +58,12 @@ pub fn keys(rng_seed: impl Into<Option<u64>>) -> Vec<Ed25519KeyPair> {
 
 // Fixture
 pub fn committee(rng_seed: impl Into<Option<u64>>) -> Committee<Ed25519PublicKey> {
+    committee_from_keys(&keys(rng_seed))
+}
+
+pub fn committee_from_keys(keys: &[Ed25519KeyPair]) -> Committee<Ed25519PublicKey> {
     Committee {
-        authorities: keys(rng_seed)
+        authorities: keys
             .iter()
             .map(|kp| {
                 let id = kp.public();
@@ -286,8 +290,7 @@ pub fn fixture_header_builder() -> types::HeaderBuilder<Ed25519PublicKey> {
     )
 }
 
-pub fn fixture_header_with_payload(number_of_batches: u8) -> Header<Ed25519PublicKey> {
-    let kp = keys(None).pop().unwrap();
+pub fn fixture_payload(number_of_batches: u8) -> BTreeMap<BatchDigest, WorkerId> {
     let mut payload: BTreeMap<BatchDigest, WorkerId> = BTreeMap::new();
 
     for i in 0..number_of_batches {
@@ -301,6 +304,13 @@ pub fn fixture_header_with_payload(number_of_batches: u8) -> Header<Ed25519Publi
 
         payload.insert(batch_digest, 0);
     }
+
+    payload
+}
+
+pub fn fixture_header_with_payload(number_of_batches: u8) -> Header<Ed25519PublicKey> {
+    let kp = keys(None).pop().unwrap();
+    let payload: BTreeMap<BatchDigest, WorkerId> = fixture_payload(number_of_batches);
 
     let builder = fixture_header_builder();
     builder.payload(payload).build(&kp).unwrap()
@@ -720,6 +730,7 @@ pub fn mock_signed_certificate(
     let author = signers.iter().find(|kp| *kp.public() == origin).unwrap();
     let header_builder = HeaderBuilder::default()
         .author(origin.clone())
+        .payload(fixture_payload(1))
         .round(round)
         .parents(parents);
     let header = header_builder.build(author).unwrap();

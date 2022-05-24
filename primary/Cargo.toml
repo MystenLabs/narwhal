@@ -27,7 +27,7 @@ prost = "0.10.1"
 rand = { version = "0.7.3", features = ["small_rng"] }
 multiaddr = "0.14.0"
 tower = "0.4.12"
-
+telemetry_subscribers = { git = "https://github.com/MystenLabs/mysten-infra", rev = "a45af6dc28aa12c8cc13521d118c24aadd4c6adf" }
 consensus = { path = "../consensus" }
 crypto = { path = "../crypto" }
 network = { path = "../network" }
