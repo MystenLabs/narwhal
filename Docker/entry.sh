@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Capture stack trace
+export RUST_BACKTRACE=1
+
 # Environment variables to use on the script
 NODE_BIN="./bin/node"
 KEYS_PATH="/authorities/authority-$AUTHORITY_ID/key.json"

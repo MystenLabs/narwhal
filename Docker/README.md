@@ -82,7 +82,6 @@ Under this folder someone will find the following
 │   │   └── key.json
 │   ├── committee.json
 │   └── parameters.json
-├── cluster-generator.py
 ├── docker-compose.yml
 └── entry.sh
 ```

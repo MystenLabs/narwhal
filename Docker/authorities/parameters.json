@@ -9,7 +9,7 @@
     "consensus_api_grpc": {
         "get_collections_timeout": "5_000ms",
         "remove_collections_timeout": "5_000ms",
-        "socket_addr": "/ip4/127.0.0.1/tcp/8000/http"
+        "socket_addr": "/ip4/0.0.0.0/tcp/8000/http"
     },
     "gc_depth": 50,
     "header_size": 1000,
