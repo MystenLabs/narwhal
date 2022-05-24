@@ -27,6 +27,30 @@ since the narwhal node binary needs to be built from the source code) and then i
 a cluster for `4 nodes` by doing the necessary setup for `primary` and `worker` nodes. Each
 `primary` node will be connected to `1 worker` node.
 
+The logs for each authority (primary & worker) can be found on the `logs` folder under the corresponding
+authority folder. The `logs` folder will be created once the node is bootstrapped via docker-compose. 
+For example, for the primary node of the authority-0, the logs will be found under
+the folder [logs](authorities/authority-0/logs) and with the name `log-primary.txt`. To monitor the logging
+of a node in real time you can just do something like:
+```
+tail -f authorities/authority-0/logs/log-primary.txt
+```
+
+By default, the development version of the Narwhal node will be compiled when the Docker image is being built.
+To build the Docker image with the production version of it - which will contain all the Rust optimisations,
+you can run the docker-compose command as:
+```
+docker-compose build --build-arg BUILD_MODE=--release
+
+# and then run as
+
+docker-compose up
+```
+
+**Note:** by default each authority's directory will be cleaned up between docker-compose runs when each node
+bootstraps. To preserve those between runs please see the usage of the environment variable `CLEANUP_DISABLED` on
+the [section](#docker-compose-configuration) bellow.
+
 ### Access primary node gRPC endpoint
 
 The nodes by default are running with the `Tusk` algorithm disabled, which basically allow
@@ -77,10 +101,14 @@ The [committee.json](authorities/committee.json) file is shared across all the n
 the information about the authorities (primary & worker nodes), like the public keys, addresses and
 ports available etc.
 
+It has to be noted that the current docker-compose setup is mounting the [Docker/authorities](authorities)
+folder to the service containers in order to share the folders & files in it. That allow us to experiment/change
+configuration without having the need to rebuild the Docker image.
+
 ### Docker-compose configuration
 
 The following environment variables are available to be used for each service on the
-docker-compose.yml file configuration:
+[docker-compose.yml](docker-compose.yml) file configuration:
 * `NODE_TYPE` with values `primary|worker` . Defines the node type to bootstrap
 * `AUTHORITY_ID` with decimal numbers, for current setup available values `0..3`. Defines the
 id of the authority that the node/service corresponds to. Basically this defines which
@@ -91,6 +119,32 @@ levels are defined according to the number of "v"s provided: `0 | 1 => "error", 
 * `CONSENSUS_DISABLED`, this value disables consensus (`Tusk`) for a primary node and enables the
 `gRPC` server. The value that should be passed is `--consensus-disabled`
 * `WORKER_ID` the id, as integer, for service when it runs as a worker
+* `CLEANUP_DISABLED` , when provided with value `true`, it will disable the clean up of the authority folder
+from the database & log data. This is useful to preserve the state between multiple docker compose runs.
 
-On the [docker-compose.yml](docker-compose.yml) file will be found the configuration
-of the deployment for each node. For a 
+### Troubleshooting
+
+#### 1. Compile Errors when building Docker image
+If come across errors while the Docker image is being build, for example errors like:
+```
+error: could not compile `tonic`
+#9 373.3 
+#9 373.3 Caused by:
+#9 373.4   process didn't exit successfully: `rustc --crate-name tonic --edition=2018
+....
+#9 398.4 The following warnings were emitted during compilation:
+#9 398.4 
+#9 398.4 warning: c++: fatal error: Killed signal terminated program cc1plus
+#9 398.4 warning: compilation terminated.
+```
+
+it is possible that the Docker engine is running out of memory and there is no capacity to properly
+compile the code. In this case please try to increase the available RAM at least to 2GB and retry.
+
+#### 2. Mounts denied or cannot start service errors
+
+If you try to spin up the nodes via docker-compose and you come across errors such as `mounts dened`
+or `cannot start service`, please make sure that you allow Docker to share your host's [Docker/authorities](authorities)
+folder with the containers. If you are using Docker Desktop you can find more information of how to do
+that here: [mac](https://docs.docker.com/desktop/mac/#file-sharing), [linux](https://docs.docker.com/desktop/linux/#file-sharing),
+[windows](https://docs.docker.com/desktop/windows/#file-sharing)

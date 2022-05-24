@@ -1,5 +1,12 @@
 FROM lukemathwalker/cargo-chef:latest-rust-1.60.0-slim as builder
 
+# Dictates whether the underlying node should be built as a dev or
+# production binary. If empty, then the development mode will be built.
+# If passed as BUILD_MODE=--release, then the production will be built.
+ARG BUILD_MODE=""
+
+RUN echo "Will build image with mode: ${BUILD_MODE}"
+
 # Install basic dependencies
 RUN apt-get update \
     && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
@@ -25,7 +32,7 @@ WORKDIR "$WORKDIR/build/narwhal"
 COPY . .
 
 # Build the binary named "node"
-RUN cargo build --bin node
+RUN cargo build $BUILD_MODE --bin node
 
 # Creat another layer so we can re-use caching
 FROM ubuntu:focal

@@ -19,6 +19,7 @@ services:
       - "8000:8000" # expose the gRPC port to be publicly accessible
     volumes:
       - ./authorities:/authorities
+      - ./authorities/authority-0/logs:/home/logs
   worker_0:
     build:
       context: ../
@@ -35,6 +36,7 @@ services:
       - "4002"
     volumes:
       - ./authorities:/authorities
+      - ./authorities/authority-0/logs:/home/logs
   # Setup for Authority 1. A primary node and a worker
   primary_1:
     build:
@@ -53,6 +55,7 @@ services:
       - "8001:8000" # expose the gRPC port to be publicly accessible
     volumes:
       - ./authorities:/authorities
+      - ./authorities/authority-1/logs:/home/logs
   worker_1:
     build:
       context: ../
@@ -69,6 +72,7 @@ services:
       - "4002"
     volumes:
       - ./authorities:/authorities
+      - ./authorities/authority-1/logs:/home/logs
   # Setup for Authority 2. A primary node and a worker
   primary_2:
     build:
@@ -87,6 +91,7 @@ services:
       - "8002:8000" # expose the gRPC port to be publicly accessible
     volumes:
       - ./authorities:/authorities
+      - ./authorities/authority-2/logs:/home/logs
   worker_2:
     build:
       context: ../
@@ -103,6 +108,7 @@ services:
       - "4002"
     volumes:
       - ./authorities:/authorities
+      - ./authorities/authority-2/logs:/home/logs
   # Setup for Authority 3. A primary node and a worker
   primary_3:
     build:
@@ -121,6 +127,7 @@ services:
       - "8003:8000" # expose the gRPC port to be publicly accessible
     volumes:
       - ./authorities:/authorities
+      - ./authorities/authority-3/logs:/home/logs
   worker_3:
     build:
       context: ../
@@ -137,3 +144,4 @@ services:
       - "4002"
     volumes:
       - ./authorities:/authorities
+      - ./authorities/authority-3/logs:/home/logs
