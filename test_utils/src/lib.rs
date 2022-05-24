@@ -13,19 +13,21 @@ use crypto::{
 use futures::Stream;
 use multiaddr::Multiaddr;
 use rand::{rngs::StdRng, Rng, SeedableRng as _};
+use std::sync::Arc;
 use std::{
-    collections::{BTreeMap, BTreeSet, VecDeque},
+    collections::{BTreeMap, BTreeSet, HashMap, VecDeque},
     ops::RangeInclusive,
     pin::Pin,
 };
-use store::{rocks, Store};
+use store::{reopen, rocks, rocks::DBMap, Store};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tonic::Response;
 use types::{
     serialized_batch_digest, Batch, BatchDigest, BincodeEncodedPayload, Certificate,
-    CertificateDigest, Empty, Header, HeaderBuilder, PrimaryToPrimary, PrimaryToPrimaryServer,
-    PrimaryToWorker, PrimaryToWorkerServer, Round, Transaction, Vote, WorkerToPrimary,
-    WorkerToPrimaryServer, WorkerToWorker, WorkerToWorkerServer,
+    CertificateDigest, ConsensusStore, Empty, Header, HeaderBuilder, PrimaryToPrimary,
+    PrimaryToPrimaryServer, PrimaryToWorker, PrimaryToWorkerServer, Round, SequenceNumber,
+    Transaction, Vote, WorkerToPrimary, WorkerToPrimaryServer, WorkerToWorker,
+    WorkerToWorkerServer,
 };
 
 pub const HEADERS_CF: &str = "headers";
@@ -56,8 +58,12 @@ pub fn keys(rng_seed: impl Into<Option<u64>>) -> Vec<Ed25519KeyPair> {
 
 // Fixture
 pub fn committee(rng_seed: impl Into<Option<u64>>) -> Committee<Ed25519PublicKey> {
+    committee_from_keys(&keys(rng_seed))
+}
+
+pub fn committee_from_keys(keys: &[Ed25519KeyPair]) -> Committee<Ed25519PublicKey> {
     Committee {
-        authorities: keys(rng_seed)
+        authorities: keys
             .iter()
             .map(|kp| {
                 let id = kp.public();
@@ -184,6 +190,43 @@ pub fn committee(rng_seed: impl Into<Option<u64>>) -> Committee<Ed25519PublicKey
 ////////////////////////////////////////////////////////////////
 
 // Fixture
+pub fn mock_committee(keys: &[Ed25519PublicKey]) -> Committee<Ed25519PublicKey> {
+    Committee {
+        authorities: keys
+            .iter()
+            .map(|id| {
+                (
+                    id.clone(),
+                    Authority {
+                        stake: 1,
+                        primary: PrimaryAddresses {
+                            primary_to_primary: "/ip4/0.0.0.0/tcp/0/http".parse().unwrap(),
+                            worker_to_primary: "/ip4/0.0.0.0/tcp/0/http".parse().unwrap(),
+                        },
+                        workers: HashMap::default(),
+                    },
+                )
+            })
+            .collect(),
+    }
+}
+
+pub fn make_consensus_store(store_path: &std::path::Path) -> Arc<ConsensusStore<Ed25519PublicKey>> {
+    const LAST_COMMITTED_CF: &str = "last_committed";
+    const SEQUENCE_CF: &str = "sequence";
+
+    let rocksdb = rocks::open_cf(store_path, None, &[LAST_COMMITTED_CF, SEQUENCE_CF])
+        .expect("Failed creating database");
+
+    let (last_committed_map, sequence_map) = reopen!(&rocksdb,
+        LAST_COMMITTED_CF;<Ed25519PublicKey, Round>,
+        SEQUENCE_CF;<SequenceNumber, CertificateDigest>
+    );
+
+    Arc::new(ConsensusStore::new(last_committed_map, sequence_map))
+}
+
+// Fixture
 pub fn header() -> Header<Ed25519PublicKey> {
     let kp = keys(None).pop().unwrap();
     let header = Header {
@@ -247,8 +290,7 @@ pub fn fixture_header_builder() -> types::HeaderBuilder<Ed25519PublicKey> {
     )
 }
 
-pub fn fixture_header_with_payload(number_of_batches: u8) -> Header<Ed25519PublicKey> {
-    let kp = keys(None).pop().unwrap();
+pub fn fixture_payload(number_of_batches: u8) -> BTreeMap<BatchDigest, WorkerId> {
     let mut payload: BTreeMap<BatchDigest, WorkerId> = BTreeMap::new();
 
     for i in 0..number_of_batches {
@@ -262,6 +304,13 @@ pub fn fixture_header_with_payload(number_of_batches: u8) -> Header<Ed25519Publi
 
         payload.insert(batch_digest, 0);
     }
+
+    payload
+}
+
+pub fn fixture_header_with_payload(number_of_batches: u8) -> Header<Ed25519PublicKey> {
+    let kp = keys(None).pop().unwrap();
+    let payload: BTreeMap<BatchDigest, WorkerId> = fixture_payload(number_of_batches);
 
     let builder = fixture_header_builder();
     builder.payload(payload).build(&kp).unwrap()
@@ -681,6 +730,7 @@ pub fn mock_signed_certificate(
     let author = signers.iter().find(|kp| *kp.public() == origin).unwrap();
     let header_builder = HeaderBuilder::default()
         .author(origin.clone())
+        .payload(fixture_payload(1))
         .round(round)
         .parents(parents);
     let header = header_builder.build(author).unwrap();
@@ -692,7 +742,7 @@ pub fn mock_signed_certificate(
     for signer in signers {
         let pk = signer.public();
         let sig = signer
-            .try_sign(Digest::from(cert.header.digest()).as_ref())
+            .try_sign(Digest::from(cert.digest()).as_ref())
             .unwrap();
         cert.votes.push((pk.clone(), sig))
     }
