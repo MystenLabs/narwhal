@@ -742,7 +742,7 @@ pub fn mock_signed_certificate(
     for signer in signers {
         let pk = signer.public();
         let sig = signer
-            .try_sign(Digest::from(cert.header.digest()).as_ref())
+            .try_sign(Digest::from(cert.digest()).as_ref())
             .unwrap();
         cert.votes.push((pk.clone(), sig))
     }

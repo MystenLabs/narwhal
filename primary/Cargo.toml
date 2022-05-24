@@ -46,7 +46,5 @@ test_utils = { path = "../test_utils" }
 tracing-test = { version = "0.2.1" }
 worker = { path = "../worker" }
 
-telemetry_subscribers = { git = "https://github.com/MystenLabs/mysten-infra", rev = "a45af6dc28aa12c8cc13521d118c24aadd4c6adf" }
-
 [features]
 benchmark = []

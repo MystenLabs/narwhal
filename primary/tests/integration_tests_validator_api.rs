@@ -390,13 +390,6 @@ async fn test_remove_collections() {
 
 #[tokio::test]
 async fn test_read_causal_signed_certificates() {
-    let config = telemetry_subscribers::TelemetryConfig {
-        service_name: "test_read_causal_signed_certificates".into(),
-        ..Default::default()
-    };
-    #[allow(unused)]
-    let guard = telemetry_subscribers::init(config);
-
     let mut k = keys(None);
 
     let committee = committee_from_keys(&k);
@@ -558,7 +551,6 @@ async fn test_read_causal_signed_certificates() {
         }
     }
 
-    // TODO: Synchronizer fails on certificate validation, figure out how to fix data.
     // Test read causal for missing collection from Primary 1. Expect block synchronizer
     // to handle retrieving the missing collections from Primary 2 before completing the
     // request for read causal.
