@@ -34,6 +34,8 @@ services:
       - "4000"
       - "4001"
       - "4002"
+    ports:
+      - "7001:4001" # expose the port for the worker to accept transactions from clients
     volumes:
       - ./validators:/validators
       - ./validators/validator-0/logs:/home/logs
@@ -70,6 +72,8 @@ services:
       - "4000"
       - "4001"
       - "4002"
+    ports:
+      - "7002:4001" # expose the port for the worker to accept transactions from clients
     volumes:
       - ./validators:/validators
       - ./validators/validator-1/logs:/home/logs
@@ -106,6 +110,8 @@ services:
       - "4000"
       - "4001"
       - "4002"
+    ports:
+      - "7003:4001" # expose the port for the worker to accept transactions from clients
     volumes:
       - ./validators:/validators
       - ./validators/validator-2/logs:/home/logs
@@ -142,6 +148,8 @@ services:
       - "4000"
       - "4001"
       - "4002"
+    ports:
+      - "7004:4001" # expose the port for the worker to accept transactions from clients
     volumes:
       - ./validators:/validators
       - ./validators/validator-3/logs:/home/logs
