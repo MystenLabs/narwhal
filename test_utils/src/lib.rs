@@ -2,8 +2,10 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+use arc_swap::ArcSwap;
 use config::{
-    utils::get_available_port, Authority, Committee, PrimaryAddresses, WorkerAddresses, WorkerId,
+    utils::get_available_port, Authority, Committee, PrimaryAddresses, SharedCommittee,
+    WorkerAddresses, WorkerId,
 };
 use crypto::{
     ed25519::{Ed25519KeyPair, Ed25519PublicKey, Ed25519Signature},
@@ -57,132 +59,139 @@ pub fn keys(rng_seed: impl Into<Option<u64>>) -> Vec<Ed25519KeyPair> {
 }
 
 // Fixture
-pub fn committee(rng_seed: impl Into<Option<u64>>) -> Committee<Ed25519PublicKey> {
+pub fn committee(rng_seed: impl Into<Option<u64>>) -> SharedCommittee<Ed25519PublicKey> {
     committee_from_keys(&keys(rng_seed))
 }
 
-pub fn committee_from_keys(keys: &[Ed25519KeyPair]) -> Committee<Ed25519PublicKey> {
-    Committee {
-        authorities: keys
-            .iter()
-            .map(|kp| {
-                let id = kp.public();
-                let primary = PrimaryAddresses {
-                    primary_to_primary: format!("/ip4/127.0.0.1/tcp/{}/http", get_available_port())
+pub fn committee_from_keys(keys: &[Ed25519KeyPair]) -> SharedCommittee<Ed25519PublicKey> {
+    Arc::new(Committee {
+        authorities: ArcSwap::from_pointee(
+            keys.iter()
+                .map(|kp| {
+                    let id = kp.public();
+                    let primary = PrimaryAddresses {
+                        primary_to_primary: format!(
+                            "/ip4/127.0.0.1/tcp/{}/http",
+                            get_available_port()
+                        )
                         .parse()
                         .unwrap(),
-                    worker_to_primary: format!("/ip4/127.0.0.1/tcp/{}/http", get_available_port())
+                        worker_to_primary: format!(
+                            "/ip4/127.0.0.1/tcp/{}/http",
+                            get_available_port()
+                        )
                         .parse()
                         .unwrap(),
-                };
-                let workers = vec![
+                    };
+                    let workers = vec![
+                        (
+                            0,
+                            WorkerAddresses {
+                                primary_to_worker: format!(
+                                    "/ip4/127.0.0.1/tcp/{}/http",
+                                    get_available_port()
+                                )
+                                .parse()
+                                .unwrap(),
+                                transactions: format!(
+                                    "/ip4/127.0.0.1/tcp/{}/http",
+                                    get_available_port()
+                                )
+                                .parse()
+                                .unwrap(),
+                                worker_to_worker: format!(
+                                    "/ip4/127.0.0.1/tcp/{}/http",
+                                    get_available_port()
+                                )
+                                .parse()
+                                .unwrap(),
+                            },
+                        ),
+                        (
+                            1,
+                            WorkerAddresses {
+                                primary_to_worker: format!(
+                                    "/ip4/127.0.0.1/tcp/{}/http",
+                                    get_available_port()
+                                )
+                                .parse()
+                                .unwrap(),
+                                transactions: format!(
+                                    "/ip4/127.0.0.1/tcp/{}/http",
+                                    get_available_port()
+                                )
+                                .parse()
+                                .unwrap(),
+                                worker_to_worker: format!(
+                                    "/ip4/127.0.0.1/tcp/{}/http",
+                                    get_available_port()
+                                )
+                                .parse()
+                                .unwrap(),
+                            },
+                        ),
+                        (
+                            2,
+                            WorkerAddresses {
+                                primary_to_worker: format!(
+                                    "/ip4/127.0.0.1/tcp/{}/http",
+                                    get_available_port()
+                                )
+                                .parse()
+                                .unwrap(),
+                                transactions: format!(
+                                    "/ip4/127.0.0.1/tcp/{}/http",
+                                    get_available_port()
+                                )
+                                .parse()
+                                .unwrap(),
+                                worker_to_worker: format!(
+                                    "/ip4/127.0.0.1/tcp/{}/http",
+                                    get_available_port()
+                                )
+                                .parse()
+                                .unwrap(),
+                            },
+                        ),
+                        (
+                            3,
+                            WorkerAddresses {
+                                primary_to_worker: format!(
+                                    "/ip4/127.0.0.1/tcp/{}/http",
+                                    get_available_port()
+                                )
+                                .parse()
+                                .unwrap(),
+                                transactions: format!(
+                                    "/ip4/127.0.0.1/tcp/{}/http",
+                                    get_available_port()
+                                )
+                                .parse()
+                                .unwrap(),
+                                worker_to_worker: format!(
+                                    "/ip4/127.0.0.1/tcp/{}/http",
+                                    get_available_port()
+                                )
+                                .parse()
+                                .unwrap(),
+                            },
+                        ),
+                    ]
+                    .iter()
+                    .cloned()
+                    .collect();
                     (
-                        0,
-                        WorkerAddresses {
-                            primary_to_worker: format!(
-                                "/ip4/127.0.0.1/tcp/{}/http",
-                                get_available_port()
-                            )
-                            .parse()
-                            .unwrap(),
-                            transactions: format!(
-                                "/ip4/127.0.0.1/tcp/{}/http",
-                                get_available_port()
-                            )
-                            .parse()
-                            .unwrap(),
-                            worker_to_worker: format!(
-                                "/ip4/127.0.0.1/tcp/{}/http",
-                                get_available_port()
-                            )
-                            .parse()
-                            .unwrap(),
+                        id.clone(),
+                        Authority {
+                            stake: 1,
+                            primary,
+                            workers,
                         },
-                    ),
-                    (
-                        1,
-                        WorkerAddresses {
-                            primary_to_worker: format!(
-                                "/ip4/127.0.0.1/tcp/{}/http",
-                                get_available_port()
-                            )
-                            .parse()
-                            .unwrap(),
-                            transactions: format!(
-                                "/ip4/127.0.0.1/tcp/{}/http",
-                                get_available_port()
-                            )
-                            .parse()
-                            .unwrap(),
-                            worker_to_worker: format!(
-                                "/ip4/127.0.0.1/tcp/{}/http",
-                                get_available_port()
-                            )
-                            .parse()
-                            .unwrap(),
-                        },
-                    ),
-                    (
-                        2,
-                        WorkerAddresses {
-                            primary_to_worker: format!(
-                                "/ip4/127.0.0.1/tcp/{}/http",
-                                get_available_port()
-                            )
-                            .parse()
-                            .unwrap(),
-                            transactions: format!(
-                                "/ip4/127.0.0.1/tcp/{}/http",
-                                get_available_port()
-                            )
-                            .parse()
-                            .unwrap(),
-                            worker_to_worker: format!(
-                                "/ip4/127.0.0.1/tcp/{}/http",
-                                get_available_port()
-                            )
-                            .parse()
-                            .unwrap(),
-                        },
-                    ),
-                    (
-                        3,
-                        WorkerAddresses {
-                            primary_to_worker: format!(
-                                "/ip4/127.0.0.1/tcp/{}/http",
-                                get_available_port()
-                            )
-                            .parse()
-                            .unwrap(),
-                            transactions: format!(
-                                "/ip4/127.0.0.1/tcp/{}/http",
-                                get_available_port()
-                            )
-                            .parse()
-                            .unwrap(),
-                            worker_to_worker: format!(
-                                "/ip4/127.0.0.1/tcp/{}/http",
-                                get_available_port()
-                            )
-                            .parse()
-                            .unwrap(),
-                        },
-                    ),
-                ]
-                .iter()
-                .cloned()
-                .collect();
-                (
-                    id.clone(),
-                    Authority {
-                        stake: 1,
-                        primary,
-                        workers,
-                    },
-                )
-            })
-            .collect(),
-    }
+                    )
+                })
+                .collect(),
+        ),
+    })
 }
 
 ////////////////////////////////////////////////////////////////
@@ -190,25 +199,26 @@ pub fn committee_from_keys(keys: &[Ed25519KeyPair]) -> Committee<Ed25519PublicKe
 ////////////////////////////////////////////////////////////////
 
 // Fixture
-pub fn mock_committee(keys: &[Ed25519PublicKey]) -> Committee<Ed25519PublicKey> {
-    Committee {
-        authorities: keys
-            .iter()
-            .map(|id| {
-                (
-                    id.clone(),
-                    Authority {
-                        stake: 1,
-                        primary: PrimaryAddresses {
-                            primary_to_primary: "/ip4/0.0.0.0/tcp/0/http".parse().unwrap(),
-                            worker_to_primary: "/ip4/0.0.0.0/tcp/0/http".parse().unwrap(),
+pub fn mock_committee(keys: &[Ed25519PublicKey]) -> SharedCommittee<Ed25519PublicKey> {
+    Arc::new(Committee {
+        authorities: ArcSwap::from_pointee(
+            keys.iter()
+                .map(|id| {
+                    (
+                        id.clone(),
+                        Authority {
+                            stake: 1,
+                            primary: PrimaryAddresses {
+                                primary_to_primary: "/ip4/0.0.0.0/tcp/0/http".parse().unwrap(),
+                                worker_to_primary: "/ip4/0.0.0.0/tcp/0/http".parse().unwrap(),
+                            },
+                            workers: HashMap::default(),
                         },
-                        workers: HashMap::default(),
-                    },
-                )
-            })
-            .collect(),
-    }
+                    )
+                })
+                .collect(),
+        ),
+    })
 }
 
 pub fn make_consensus_store(store_path: &std::path::Path) -> Arc<ConsensusStore<Ed25519PublicKey>> {
@@ -510,7 +520,7 @@ impl WorkerToWorker for WorkerToWorkerMockServer {
 }
 
 // helper method to get a name and a committee.
-pub fn resolve_name_and_committee() -> (Ed25519PublicKey, Committee<Ed25519PublicKey>) {
+pub fn resolve_name_and_committee() -> (Ed25519PublicKey, SharedCommittee<Ed25519PublicKey>) {
     let mut keys = keys(None);
     let _ = keys.pop().unwrap(); // Skip the header' author.
     let kp = keys.pop().unwrap();
