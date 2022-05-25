@@ -13,8 +13,8 @@ services:
       - LOG_LEVEL=-vvv
       - CONSENSUS_DISABLED=--consensus-disabled
     expose:
-      - "3000"
-      - "3001"
+      - "3000" # Port to listen on messages from other primary nodes
+      - "3001" # Port to listen on messages from worker nodes
     ports:
       - "8000:8000" # expose the gRPC port to be publicly accessible
     volumes:
@@ -31,9 +31,9 @@ services:
       - LOG_LEVEL=-vvv
       - WORKER_ID=0
     expose:
-      - "4000"
-      - "4001"
-      - "4002"
+      - "4000" # Port to listen on messages from primary nodes
+      - "4001" # Port to listen for transactions from clients
+      - "4002" # Port to listen on messages from worker nodes
     ports:
       - "7001:4001" # expose the port for the worker to accept transactions from clients
     volumes:
@@ -51,8 +51,8 @@ services:
       - LOG_LEVEL=-vvv
       - CONSENSUS_DISABLED=--consensus-disabled
     expose:
-      - "3000"
-      - "3001"
+      - "3000" # Port to listen on messages from other primary nodes
+      - "3001" # Port to listen on messages from worker nodes
     ports:
       - "8001:8000" # expose the gRPC port to be publicly accessible
     volumes:
@@ -69,9 +69,9 @@ services:
       - LOG_LEVEL=-vvv
       - WORKER_ID=0
     expose:
-      - "4000"
-      - "4001"
-      - "4002"
+      - "4000" # Port to listen on messages from primary nodes
+      - "4001" # Port to listen for transactions from clients
+      - "4002" # Port to listen on messages from worker nodes
     ports:
       - "7002:4001" # expose the port for the worker to accept transactions from clients
     volumes:
@@ -89,8 +89,8 @@ services:
       - LOG_LEVEL=-vvv
       - CONSENSUS_DISABLED=--consensus-disabled
     expose:
-      - "3000"
-      - "3001"
+      - "3000" # Port to listen on messages from other primary nodes
+      - "3001" # Port to listen on messages from worker nodes
     ports:
       - "8002:8000" # expose the gRPC port to be publicly accessible
     volumes:
@@ -107,9 +107,9 @@ services:
       - LOG_LEVEL=-vvv
       - WORKER_ID=0
     expose:
-      - "4000"
-      - "4001"
-      - "4002"
+      - "4000" # Port to listen on messages from primary nodes
+      - "4001" # Port to listen for transactions from clients
+      - "4002" # Port to listen on messages from worker nodes
     ports:
       - "7003:4001" # expose the port for the worker to accept transactions from clients
     volumes:
@@ -127,8 +127,8 @@ services:
       - LOG_LEVEL=-vvv
       - CONSENSUS_DISABLED=--consensus-disabled
     expose:
-      - "3000"
-      - "3001"
+      - "3000" # Port to listen on messages from other primary nodes
+      - "3001" # Port to listen on messages from worker nodes
     ports:
       - "8003:8000" # expose the gRPC port to be publicly accessible
     volumes:
@@ -145,9 +145,9 @@ services:
       - LOG_LEVEL=-vvv
       - WORKER_ID=0
     expose:
-      - "4000"
-      - "4001"
-      - "4002"
+      - "4000" # Port to listen on messages from primary nodes
+      - "4001" # Port to listen for transactions from clients
+      - "4002" # Port to listen on messages from worker nodes
     ports:
       - "7004:4001" # expose the port for the worker to accept transactions from clients
     volumes:

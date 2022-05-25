@@ -62,7 +62,7 @@ $ docker-compose build --build-arg BUILD_MODE=debug
 $ docker-compose up
 ```
 
-**Warning:** by default each validator's directory will be cleaned up between docker-compose runs when each node
+**Warning**: by default each validator's directory will be cleaned up between docker-compose runs when each node
 bootstraps. To preserve those between runs please see the usage of the environment variable `CLEANUP_DISABLED` on
 the [section](#docker-compose-configuration) bellow.
 
@@ -174,14 +174,12 @@ compile the code. In this case please try to increase the available RAM at least
 
 #### 2. Mounts denied or cannot start service errors
 
-If you try to spin up the nodes via docker-compose and you come across errors such as `mounts dened`
-or `cannot start service`, please make sure that you allow Docker to share your host's [Docker/validators](validators)
-folder with the containers. If you are using Docker Desktop you can find more information of how to do
+If you try to spin up the nodes via docker-compose and you come across errors such as `mounts denied`
+or `cannot start service` please make sure that you allow Docker to share your host's [Docker/validators](validators) folder 
+with the containers. If you are using Docker Desktop you can find more information of how to do
 that here: [mac](https://docs.docker.com/desktop/mac/#file-sharing), [linux](https://docs.docker.com/desktop/linux/#file-sharing),
-[windows](https://docs.docker.com/desktop/windows/#file-sharing)
+[windows](https://docs.docker.com/desktop/windows/#file-sharing) .
 
-#### 3. Deprecated devicemapper storage driver
-
-If you see errors related to the `Deprecation of the devicemapper storage`, then you might need to
-[migrate to an overlayfs driver](https://docs.docker.com/storage/storagedriver/overlayfs-driver/) . 
+Also please check that you are not using the deprecated `devicemapper storage driver` which might also
+cause you issues. See how to [migrate to an overlayfs driver](https://docs.docker.com/storage/storagedriver/overlayfs-driver/) . 
 More information about the deprecation can be found [here](https://docs.docker.com/engine/deprecated/#device-mapper-storage-driver) 

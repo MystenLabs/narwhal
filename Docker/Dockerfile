@@ -36,7 +36,7 @@ COPY . .
 RUN cargo build --${BUILD_MODE} --bin node
 
 # Creat another layer so we can re-use caching
-FROM ubuntu:focal
+FROM rust:1.60-slim-bullseye
 ARG BUILD_MODE
 
 WORKDIR "$WORKDIR/build"
