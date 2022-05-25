@@ -15,11 +15,11 @@ use crypto::{
 use futures::Stream;
 use multiaddr::Multiaddr;
 use rand::{rngs::StdRng, Rng, SeedableRng as _};
-use std::sync::Arc;
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap, VecDeque},
     ops::RangeInclusive,
     pin::Pin,
+    sync::Arc,
 };
 use store::{reopen, rocks, rocks::DBMap, Store};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
