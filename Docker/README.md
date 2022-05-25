@@ -34,8 +34,14 @@ since the narwhal node binary needs to be built from the source code) and then i
 a cluster for `4 nodes` by doing the necessary setup for `primary` and `worker` nodes. Each
 `primary` node will be connected to `1 worker` node.
 
-The logs for each validator (primary & worker) can be found on the logs folder under the corresponding
+The logs for each validator (primary & worker nodes) can be found on the logs folder under the corresponding
 validator folder.
+_______
+**Validator:** You will find across the codebase the name `Authority` when we basically want to describe
+the entity that is participating on the Narwhal protocol that verifies and signs the produced headers. An 
+authority is consisted of a `primary` node and one or more `worker` nodes. Since `Authority` is not a widely
+used term, we are referring instead to our `primary + worker` node pairs as `Validator`.
+_______
 
 The `logs` folder will be created once the node is bootstrapped via docker-compose. 
 For example, for the primary node of the validator-0, the logs will be found under
