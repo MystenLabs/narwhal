@@ -79,8 +79,6 @@ impl<PublicKey: VerifyingKey> Proposer for NarwhalProposer<PublicKey> {
         let key = self.get_public_key(node_read_causal_request.public_key)?;
         let round = node_read_causal_request.round;
 
-        // TODO: Check if we should add a sync step before attempting to read. i.e BlockSynchronizer
-
         if let Some(dag) = &self.dag {
             let result = match dag.node_read_causal(key, round).await {
                 Ok(digests) => Ok(NodeReadCausalResponse {

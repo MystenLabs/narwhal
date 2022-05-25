@@ -198,7 +198,6 @@ async fn test_rounds_return_successful_response() {
     assert_eq!(4, r.newest_round);
 }
 
-// TODO: Check if there is any validation that happens for node read causal
 #[tokio::test]
 async fn test_node_read_causal_signed_certificates() {
     let mut k = keys(None);
