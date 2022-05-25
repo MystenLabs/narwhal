@@ -1,7 +1,7 @@
 version: "3.9"
 
 services:
-  # Setup for Authority 0. A primary node and a worker
+  # Setup for Validator 0. A primary node and a worker
   primary_0:
     build:
       context: ../
@@ -9,7 +9,7 @@ services:
     image: narwhal-node:latest
     environment:
       - NODE_TYPE=primary
-      - AUTHORITY_ID=0
+      - VALIDATOR_ID=0
       - LOG_LEVEL=-vvv
       - CONSENSUS_DISABLED=--consensus-disabled
     expose:
@@ -18,8 +18,8 @@ services:
     ports:
       - "8000:8000" # expose the gRPC port to be publicly accessible
     volumes:
-      - ./authorities:/authorities
-      - ./authorities/authority-0/logs:/home/logs
+      - ./validators:/validators
+      - ./validators/validator-0/logs:/home/logs
   worker_0:
     build:
       context: ../
@@ -27,7 +27,7 @@ services:
     image: narwhal-node:latest
     environment:
       - NODE_TYPE=worker
-      - AUTHORITY_ID=0
+      - VALIDATOR_ID=0
       - LOG_LEVEL=-vvv
       - WORKER_ID=0
     expose:
@@ -35,9 +35,9 @@ services:
       - "4001"
       - "4002"
     volumes:
-      - ./authorities:/authorities
-      - ./authorities/authority-0/logs:/home/logs
-  # Setup for Authority 1. A primary node and a worker
+      - ./validators:/validators
+      - ./validators/validator-0/logs:/home/logs
+  # Setup for Validator 1. A primary node and a worker
   primary_1:
     build:
       context: ../
@@ -45,7 +45,7 @@ services:
     image: narwhal-node:latest
     environment:
       - NODE_TYPE=primary
-      - AUTHORITY_ID=1
+      - VALIDATOR_ID=1
       - LOG_LEVEL=-vvv
       - CONSENSUS_DISABLED=--consensus-disabled
     expose:
@@ -54,8 +54,8 @@ services:
     ports:
       - "8001:8000" # expose the gRPC port to be publicly accessible
     volumes:
-      - ./authorities:/authorities
-      - ./authorities/authority-1/logs:/home/logs
+      - ./validators:/validators
+      - ./validators/validator-1/logs:/home/logs
   worker_1:
     build:
       context: ../
@@ -63,7 +63,7 @@ services:
     image: narwhal-node:latest
     environment:
       - NODE_TYPE=worker
-      - AUTHORITY_ID=1
+      - VALIDATOR_ID=1
       - LOG_LEVEL=-vvv
       - WORKER_ID=0
     expose:
@@ -71,9 +71,9 @@ services:
       - "4001"
       - "4002"
     volumes:
-      - ./authorities:/authorities
-      - ./authorities/authority-1/logs:/home/logs
-  # Setup for Authority 2. A primary node and a worker
+      - ./validators:/validators
+      - ./validators/validator-1/logs:/home/logs
+  # Setup for Validator 2. A primary node and a worker
   primary_2:
     build:
       context: ../
@@ -81,7 +81,7 @@ services:
     image: narwhal-node:latest
     environment:
       - NODE_TYPE=primary
-      - AUTHORITY_ID=2
+      - VALIDATOR_ID=2
       - LOG_LEVEL=-vvv
       - CONSENSUS_DISABLED=--consensus-disabled
     expose:
@@ -90,8 +90,8 @@ services:
     ports:
       - "8002:8000" # expose the gRPC port to be publicly accessible
     volumes:
-      - ./authorities:/authorities
-      - ./authorities/authority-2/logs:/home/logs
+      - ./validators:/validators
+      - ./validators/validator-2/logs:/home/logs
   worker_2:
     build:
       context: ../
@@ -99,7 +99,7 @@ services:
     image: narwhal-node:latest
     environment:
       - NODE_TYPE=worker
-      - AUTHORITY_ID=2
+      - VALIDATOR_ID=2
       - LOG_LEVEL=-vvv
       - WORKER_ID=0
     expose:
@@ -107,9 +107,9 @@ services:
       - "4001"
       - "4002"
     volumes:
-      - ./authorities:/authorities
-      - ./authorities/authority-2/logs:/home/logs
-  # Setup for Authority 3. A primary node and a worker
+      - ./validators:/validators
+      - ./validators/validator-2/logs:/home/logs
+  # Setup for Validator 3. A primary node and a worker
   primary_3:
     build:
       context: ../
@@ -117,7 +117,7 @@ services:
     image: narwhal-node:latest
     environment:
       - NODE_TYPE=primary
-      - AUTHORITY_ID=3
+      - VALIDATOR_ID=3
       - LOG_LEVEL=-vvv
       - CONSENSUS_DISABLED=--consensus-disabled
     expose:
@@ -126,8 +126,8 @@ services:
     ports:
       - "8003:8000" # expose the gRPC port to be publicly accessible
     volumes:
-      - ./authorities:/authorities
-      - ./authorities/authority-3/logs:/home/logs
+      - ./validators:/validators
+      - ./validators/validator-3/logs:/home/logs
   worker_3:
     build:
       context: ../
@@ -135,7 +135,7 @@ services:
     image: narwhal-node:latest
     environment:
       - NODE_TYPE=worker
-      - AUTHORITY_ID=3
+      - VALIDATOR_ID=3
       - LOG_LEVEL=-vvv
       - WORKER_ID=0
     expose:
@@ -143,5 +143,5 @@ services:
       - "4001"
       - "4002"
     volumes:
-      - ./authorities:/authorities
-      - ./authorities/authority-3/logs:/home/logs
+      - ./validators:/validators
+      - ./validators/validator-3/logs:/home/logs

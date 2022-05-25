@@ -5,21 +5,21 @@ export RUST_BACKTRACE=1
 
 # Environment variables to use on the script
 NODE_BIN="./bin/node"
-KEYS_PATH="/authorities/authority-$AUTHORITY_ID/key.json"
-COMMITTEE_PATH="/authorities/committee.json"
-PARAMETERS_PATH="/authorities/parameters.json"
+KEYS_PATH="/validators/validator-$VALIDATOR_ID/key.json"
+COMMITTEE_PATH="/validators/committee.json"
+PARAMETERS_PATH="/validators/parameters.json"
 
 if [[ "$CLEANUP_DISABLED" = "true" ]]; then
   echo "Will not clean up existing directories..."
 else
   if [[ "$NODE_TYPE" = "primary" ]]; then
     # Clean up only the primary node's data
-    rm -r "/authorities/authority-$AUTHORITY_ID/db-primary"
-    rm -r "/authorities/authority-$AUTHORITY_ID/logs/log-primary.txt"
+    rm -r "/validators/validator-$VALIDATOR_ID/db-primary"
+    rm -r "/validators/validator-$VALIDATOR_ID/logs/log-primary.txt"
   elif [[ "$NODE_TYPE" = "worker" ]]; then
     # Clean up only the specific worker's node data
-    rm -r "/authorities/authority-$AUTHORITY_ID/db-worker-${WORKER_ID}"
-    rm -r "/authorities/authority-$AUTHORITY_ID/logs/log-worker-${WORKER_ID}.txt"
+    rm -r "/validators/validator-$VALIDATOR_ID/db-worker-${WORKER_ID}"
+    rm -r "/validators/validator-$VALIDATOR_ID/logs/log-worker-${WORKER_ID}.txt"
   fi
 fi
 
@@ -30,7 +30,7 @@ if [[ "$NODE_TYPE" = "primary" ]]; then
   $NODE_BIN $LOG_LEVEL run \
   --keys $KEYS_PATH \
   --committee $COMMITTEE_PATH \
-  --store "/authorities/authority-$AUTHORITY_ID/db-primary" \
+  --store "/validators/validator-$VALIDATOR_ID/db-primary" \
   --parameters $PARAMETERS_PATH \
   primary $CONSENSUS_DISABLED >> "/home/logs/log-primary.txt" 2>&1
 elif [[ "$NODE_TYPE" = "worker" ]]; then
@@ -39,7 +39,7 @@ elif [[ "$NODE_TYPE" = "worker" ]]; then
   $NODE_BIN $LOG_LEVEL run \
   --keys $KEYS_PATH \
   --committee $COMMITTEE_PATH \
-  --store "/authorities/authority-$AUTHORITY_ID/db-worker-$WORKER_ID" \
+  --store "/validators/validator-$VALIDATOR_ID/db-worker-$WORKER_ID" \
   --parameters $PARAMETERS_PATH \
   worker --id $WORKER_ID >> "/home/logs/log-worker-$WORKER_ID.txt" 2>&1
 else

@@ -34,29 +34,29 @@ since the narwhal node binary needs to be built from the source code) and then i
 a cluster for `4 nodes` by doing the necessary setup for `primary` and `worker` nodes. Each
 `primary` node will be connected to `1 worker` node.
 
-The logs for each authority (primary & worker) can be found on the logs folder under the corresponding
-authority folder.
+The logs for each validator (primary & worker) can be found on the logs folder under the corresponding
+validator folder.
 
 The `logs` folder will be created once the node is bootstrapped via docker-compose. 
-For example, for the primary node of the authority-0, the logs will be found under
-the folder [logs](authorities/authority-0/logs) and with the name `log-primary.txt`. To monitor the logging
+For example, for the primary node of the validator-0, the logs will be found under
+the folder [logs](validators/validator-0/logs) and with the name `log-primary.txt`. To monitor the logging
 of a node in real time you can just do something like:
 ```
-$ tail -f authorities/authority-0/logs/log-primary.txt
+$ tail -f validators/validator-0/logs/log-primary.txt
 ```
 
-By default, the development version of the Narwhal node will be compiled when the Docker image is being built.
-To build the Docker image with the production version of it - which will contain all the Rust optimisations,
-you can run the docker-compose command as:
+By default, the production (release) version of the Narwhal node will be compiled when the Docker image is being built.
+To build the Docker image with the development version of it, which will lead to smaller compile times and
+smaller binary (and image) size, you can run the docker-compose command as:
 ```
-docker-compose build --build-arg BUILD_MODE=--release
+$ docker-compose build --build-arg BUILD_MODE=debug
 
 # and then run as
 
-docker-compose up
+$ docker-compose up
 ```
 
-**Warning:** by default each authority's directory will be cleaned up between docker-compose runs when each node
+**Warning:** by default each validator's directory will be cleaned up between docker-compose runs when each node
 bootstraps. To preserve those between runs please see the usage of the environment variable `CLEANUP_DISABLED` on
 the [section](#docker-compose-configuration) bellow.
 
@@ -64,7 +64,7 @@ the [section](#docker-compose-configuration) bellow.
 
 To build the Narwhal node image without docker-compose the following command should be used:
 ```
-docker build -f Dockerfile ../
+$ docker build -f Dockerfile ../ --tag narwhal-node:latest
 ```
 
 Since the [Dockerfile](Dockerfile) is located under a different folder other than the source code,
@@ -97,14 +97,14 @@ Under this folder someone will find the following
 ```
 ├── Dockerfile
 ├── README.md
-├── authorities
-│   ├── authority-0
+├── validators
+│   ├── validator-0
 │   │   └── key.json
-│   ├── authority-1
+│   ├── validator-1
 │   │   └── key.json
-│   ├── authority-2
+│   ├── validator-2
 │   │   └── key.json
-│   ├── authority-3
+│   ├── validator-3
 │   │   └── key.json
 │   ├── committee.json
 │   └── parameters.json
@@ -112,21 +112,21 @@ Under this folder someone will find the following
 └── entry.sh
 ```
 
-Under the `authorities` folder will be found the independent configuration
-folder for each authority node (it is reminded that each `authority` is 
+Under the `validators` folder will be found the independent configuration
+folder for each validator node (it is reminded that each `validator` is 
 constituted from one `primary` node and several `worker` nodes).
 
 The `key.json` file contains the private `key` for the corresponding node which
 is associated to this node only.
 
-The [parameters.json](authorities/parameters.json) file is shared across all the nodes and contains
+The [parameters.json](validators/parameters.json) file is shared across all the nodes and contains
 the core parameters for a node.
 
-The [committee.json](authorities/committee.json) file is shared across all the nodes and contains
-the information about the authorities (primary & worker nodes), like the public keys, addresses and
+The [committee.json](validators/committee.json) file is shared across all the nodes and contains
+the information about the validators (primary & worker nodes), like the public keys, addresses and
 ports available etc.
 
-It has to be noted that the current docker-compose setup is mounting the [Docker/authorities](authorities)
+It has to be noted that the current docker-compose setup is mounting the [Docker/validators](validators)
 folder to the service containers in order to share the folders & files in it. That allow us to experiment/change
 configuration without having the need to rebuild the Docker image.
 
@@ -136,15 +136,15 @@ The following environment variables are available to be used for each service on
 [docker-compose.yml](docker-compose.yml) file configuration:
 * `NODE_TYPE` with values `primary|worker` . Defines the node type to bootstrap
 * `AUTHORITY_ID` with decimal numbers, for current setup available values `0..3`. Defines the
-id of the authority that the node/service corresponds to. Basically this defines which
-configuration to use under the `authorities` folder.
+id of the validator that the node/service corresponds to. Basically this defines which
+configuration to use under the `validators` folder.
 * `LOG_LEVEL` the level of logging for the node defined as number of `v` parameters (e.x `-vvv`). The following
 levels are defined according to the number of "v"s provided: `0 | 1 => "error", 2 => "warn", 3 => "info", 
 4 => "debug", 5 => "trace"`.
 * `CONSENSUS_DISABLED`, this value disables consensus (`Tusk`) for a primary node and enables the
 `gRPC` server. The value that should be passed is `--consensus-disabled`
 * `WORKER_ID` the id, as integer, for service when it runs as a worker
-* `CLEANUP_DISABLED` , when provided with value `true`, it will disable the clean up of the authority folder
+* `CLEANUP_DISABLED` , when provided with value `true`, it will disable the clean up of the validator folder
 from the database & log data. This is useful to preserve the state between multiple docker compose runs.
 
 ### Troubleshooting
@@ -169,7 +169,7 @@ compile the code. In this case please try to increase the available RAM at least
 #### 2. Mounts denied or cannot start service errors
 
 If you try to spin up the nodes via docker-compose and you come across errors such as `mounts dened`
-or `cannot start service`, please make sure that you allow Docker to share your host's [Docker/authorities](authorities)
+or `cannot start service`, please make sure that you allow Docker to share your host's [Docker/validators](validators)
 folder with the containers. If you are using Docker Desktop you can find more information of how to do
 that here: [mac](https://docs.docker.com/desktop/mac/#file-sharing), [linux](https://docs.docker.com/desktop/linux/#file-sharing),
 [windows](https://docs.docker.com/desktop/windows/#file-sharing)

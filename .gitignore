@@ -1,7 +1,7 @@
 *.json
 !Docker/**/*.json
-Docker/authorities/**/db-*
-Docker/authorities/**/logs*
+Docker/validators/**/db-*
+Docker/validators/**/logs*
 .DS_Store
 .storage_*
 .*storage*
