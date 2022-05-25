@@ -11,29 +11,38 @@ Under this directory there will be found the following 2 things:
 
 The following dependencies must be installed before continuing further.
 
-#### Docker
-Please find installation info [here](https://docs.docker.com/get-docker/)
-
-#### Docker-compose
-Please find installation info [here](https://docs.docker.com/compose/install/)
+* **Docker:** Please find installation info [here](https://docs.docker.com/get-docker/)
+* **Docker-compose:** Please find installation info [here](https://docs.docker.com/compose/install/)
 
 After having installed `Docker` & `docker-compose`, next step will be to
-start the cluster via the following command:
+start the cluster. 
+
+Before everything **make sure that you are on the `Docker folder`** . On the rest of the
+document we'll assume that we are under this folder.
 ```
-docker-compose -f docker-compose.yml up
+$ cd Docker     # Change to Docker directory
+$ pwd           # Print the current directory 
+narwhal/Docker
+```
+
+then bring up the cluster via the following command:
+```
+$ docker-compose -f docker-compose.yml up
 ```
 The first time this will run, it will build the narwhal docker image (this can take a few minutes
 since the narwhal node binary needs to be built from the source code) and then it will spin up 
 a cluster for `4 nodes` by doing the necessary setup for `primary` and `worker` nodes. Each
 `primary` node will be connected to `1 worker` node.
 
-The logs for each authority (primary & worker) can be found on the `logs` folder under the corresponding
-authority folder. The `logs` folder will be created once the node is bootstrapped via docker-compose. 
+The logs for each authority (primary & worker) can be found on the logs folder under the corresponding
+authority folder.
+
+The `logs` folder will be created once the node is bootstrapped via docker-compose. 
 For example, for the primary node of the authority-0, the logs will be found under
 the folder [logs](authorities/authority-0/logs) and with the name `log-primary.txt`. To monitor the logging
 of a node in real time you can just do something like:
 ```
-tail -f authorities/authority-0/logs/log-primary.txt
+$ tail -f authorities/authority-0/logs/log-primary.txt
 ```
 
 By default, the development version of the Narwhal node will be compiled when the Docker image is being built.
@@ -47,9 +56,20 @@ docker-compose build --build-arg BUILD_MODE=--release
 docker-compose up
 ```
 
-**Note:** by default each authority's directory will be cleaned up between docker-compose runs when each node
+**Warning:** by default each authority's directory will be cleaned up between docker-compose runs when each node
 bootstraps. To preserve those between runs please see the usage of the environment variable `CLEANUP_DISABLED` on
 the [section](#docker-compose-configuration) bellow.
+
+### Build Docker image without docker-compose
+
+To build the Narwhal node image without docker-compose the following command should be used:
+```
+docker build -f Dockerfile ../
+```
+
+Since the [Dockerfile](Dockerfile) is located under a different folder other than the source code,
+it is important to define the context `../` and allow the Dockerfile properly COPY the source
+code to be compiled on later steps.
 
 ### Access primary node gRPC endpoint
 
@@ -57,13 +77,19 @@ The nodes by default are running with the `Tusk` algorithm disabled, which basic
 to user to treat Narwhal as a pure mempool. When that happens, the gRPC server is bootstrapped
 for the primary nodes and that allow someone to interact with the node.
 
-The docker-compose file is exporting for the `primary` nodes the gRPC server's
-port so it can be accessible from the host machine. For the default setup of `4 primary`
-nodes, the `gRPC` ports are the following:
+The gRPC server for a primary node is running on port `8000`. However, by default, a container's port
+is not accessible to hit by the host (local) machine unless it's exported a mapped between a host's
+machine port and the corresponding container's port (e.x for someone to use a gRPC client on their
+computer to hit a primary's node container gRPC server). The [docker-compose](docker-compose.yml) file is 
+exporting the gRPC port for each primary node, so they can be accessible from the host machine. 
+For the default setup of `4 primary` nodes, the gRPC servers are basically listening to the following
+local (machine) ports:
 * `primary_0`: 8000
 * `primary_1`: 8001
 * `primary_2`: 8002
 * `primary_3`: 8003
+
+For example, to send a gRPC request to `primary_1` node, the url `127.0.0.1:8001` should be used.
 
 ### Folder structure
 
@@ -147,3 +173,9 @@ or `cannot start service`, please make sure that you allow Docker to share your 
 folder with the containers. If you are using Docker Desktop you can find more information of how to do
 that here: [mac](https://docs.docker.com/desktop/mac/#file-sharing), [linux](https://docs.docker.com/desktop/linux/#file-sharing),
 [windows](https://docs.docker.com/desktop/windows/#file-sharing)
+
+#### 3. Deprecated devicemapper storage driver
+
+If you see errors related to the `Deprecation of the devicemapper storage`, then you might need to
+[migrate to an overlayfs driver](https://docs.docker.com/storage/storagedriver/overlayfs-driver/) . 
+More information about the deprecation can be found [here](https://docs.docker.com/engine/deprecated/#device-mapper-storage-driver) 
