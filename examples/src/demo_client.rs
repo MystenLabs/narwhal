@@ -7,7 +7,7 @@ use narwhal::{
     ValidatorData,
 };
 
-use base64;
+
 
 pub mod narwhal {
     tonic::include_proto!("narwhal");
