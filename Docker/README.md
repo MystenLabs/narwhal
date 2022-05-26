@@ -81,11 +81,11 @@ code to be compiled on later steps.
 
 The nodes by default are running with the `Tusk` algorithm disabled, which basically allow
 to user to treat Narwhal as a pure mempool. When that happens, the gRPC server is bootstrapped
-for the primary nodes and that allow someone to interact with the node (e.x the consensus layer).
+for the primary nodes and that allow someone to interact with the node (ex the consensus layer).
 
 The gRPC server for a primary node is running on port `8000`. However, by default, a container's port
 is not accessible to hit by the host (local) machine unless it's exported a mapped between a host's
-machine port and the corresponding container's port (e.x for someone to use a gRPC client on their
+machine port and the corresponding container's port (ex for someone to use a gRPC client on their
 computer to hit a primary's node container gRPC server). The [docker-compose](docker-compose.yml) file is 
 exporting the gRPC port for each primary node, so they can be accessible from the host machine. 
 For the default setup of `4 primary` nodes, the gRPC servers are basically listening to the following
@@ -157,7 +157,7 @@ The following environment variables are available to be used for each service on
 * `AUTHORITY_ID` with decimal numbers, for current setup available values `0..3`. Defines the
 id of the validator that the node/service corresponds to. Basically this defines which
 configuration to use under the `validators` folder.
-* `LOG_LEVEL` the level of logging for the node defined as number of `v` parameters (e.x `-vvv`). The following
+* `LOG_LEVEL` the level of logging for the node defined as number of `v` parameters (ex `-vvv`). The following
 levels are defined according to the number of "v"s provided: `0 | 1 => "error", 2 => "warn", 3 => "info", 
 4 => "debug", 5 => "trace"`.
 * `CONSENSUS_DISABLED`, this value disables consensus (`Tusk`) for a primary node and enables the
