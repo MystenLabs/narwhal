@@ -77,11 +77,11 @@ Since the [Dockerfile](Dockerfile) is located under a different folder other tha
 it is important to define the context `../` and allow the Dockerfile properly COPY the source
 code to be compiled on later steps.
 
-### Access primary node gRPC endpoint
+### Access primary node public gRPC endpoints
 
 The nodes by default are running with the `Tusk` algorithm disabled, which basically allow
 to user to treat Narwhal as a pure mempool. When that happens, the gRPC server is bootstrapped
-for the primary nodes and that allow someone to interact with the node.
+for the primary nodes and that allow someone to interact with the node (e.x the consensus layer).
 
 The gRPC server for a primary node is running on port `8000`. However, by default, a container's port
 is not accessible to hit by the host (local) machine unless it's exported a mapped between a host's
@@ -96,6 +96,19 @@ local (machine) ports:
 * `primary_3`: 8003
 
 For example, to send a gRPC request to `primary_1` node, the url `127.0.0.1:8001` should be used.
+
+### Access worker node public gRPC endpoints
+
+Similar to how someone can access the [public gRPC endpoints on a primary node](#access-primary-node-public-grpc-endpoints),
+**to feed transactions** to the Narwhal cluster via the `worker` nodes could be done via the gRPC server that is
+bootstrapped on the worker nodes bind to the local machine port. To send transactions the following local
+ports can be used:
+* `worker_0`: 7001
+* `worker_1`: 7002
+* `worker_2`: 7003
+* `worker_3`: 7004
+
+For example, to send a transaction to the `worker_2` node via gRPC, the url `127.0.0.1:7003` should be used.
 
 ### Folder structure
 
