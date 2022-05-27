@@ -729,6 +729,7 @@ impl<PublicKey: VerifyingKey> BlockSynchronizer<PublicKey> {
         }
     }
 
+    #[instrument(level = "debug", skip_all)]
     async fn handle_certificates_response(&mut self, response: CertificatesResponse<PublicKey>) {
         let sender = self
             .map_certificate_responses_senders
