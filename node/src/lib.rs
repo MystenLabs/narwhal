@@ -2,10 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use config::{Parameters, SharedCommittee, WorkerId};
 use consensus::{dag::Dag, Consensus, SubscriberHandler};
-use crypto::{
-    traits::{KeyPair, Signer, VerifyingKey},
-    Hash,
-};
+use crypto::traits::{KeyPair, Signer, VerifyingKey};
 use executor::{ExecutionState, Executor, SerializedTransaction, SubscriberResult};
 use primary::{PayloadToken, Primary};
 use std::sync::Arc;
@@ -141,16 +138,6 @@ impl Node {
             .await?;
             None
         };
-
-        if dag.is_some() {
-            // populate genesis to certificate store.
-            let genesis = Certificate::genesis(&committee);
-            store
-                .certificate_store
-                .write_all(genesis.into_iter().map(|c| (c.digest(), c)))
-                .await
-                .unwrap();
-        }
 
         // Spawn the primary.
         let primary_handle = Primary::spawn(
