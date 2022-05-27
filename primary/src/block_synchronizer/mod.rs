@@ -355,16 +355,16 @@ impl<PublicKey: VerifyingKey> BlockSynchronizer<PublicKey> {
                 certificates_to_sync.push(certificate);
                 block_ids_to_sync.push(block_id);
             } else {
-                debug!("Nothing to request here, it's already in pending state");
+                trace!("Nothing to request here, it's already in pending state");
             }
         }
 
         // nothing new to sync! just return
         if certificates_to_sync.is_empty() {
-            debug!("No certificates to sync, will now exit");
+            trace!("No certificates to sync, will now exit");
             return None;
         } else {
-            debug!("Certificate payloads need sync");
+            trace!("Certificate payloads need sync");
         }
 
         let key = RequestID::from_iter(certificates_to_sync.iter());
@@ -531,13 +531,13 @@ impl<PublicKey: VerifyingKey> BlockSynchronizer<PublicKey> {
                 certificate.header.payload.clone().into_iter().collect();
 
             let payload_available = if certificate.header.author == self.name {
-                debug!(
+                trace!(
                     "Certificate with id {} is our own, no need to check in storage.",
                     certificate.digest()
                 );
                 true
             } else {
-                debug!(
+                trace!(
                     "Certificate with id {} not our own, checking in storage.",
                     certificate.digest()
                 );
@@ -553,13 +553,13 @@ impl<PublicKey: VerifyingKey> BlockSynchronizer<PublicKey> {
             };
 
             if !payload_available {
-                debug!(
+                trace!(
                     "Payload not available for certificate with id {}",
                     certificate.digest()
                 );
                 missing_payload_certs.push(certificate);
             } else {
-                debug!("Payload is available on storage for certificate with id {}, now replying back immediately", certificate.digest());
+                trace!("Payload is available on storage for certificate with id {}, now replying back immediately", certificate.digest());
                 futures.push(respond_to.send(Ok(BlockHeader {
                     certificate,
                     fetched_from_storage: true,
