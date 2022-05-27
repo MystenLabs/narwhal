@@ -925,7 +925,6 @@ dependencies = [
  "proptest-derive",
  "rayon",
  "serde",
- "serde_with",
  "thiserror",
  "workspace-hack",
 ]
@@ -3221,7 +3220,6 @@ dependencies = [
  "derive_builder",
  "ed25519-dalek",
  "futures",
- "hex",
  "multiaddr",
  "mysten-network",
  "rand 0.7.3",
