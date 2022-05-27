@@ -723,6 +723,7 @@ pub fn mock_certificate(
             author: origin,
             round,
             parents,
+            payload: fixture_payload(1),
             ..Header::default()
         },
         ..Certificate::default()
