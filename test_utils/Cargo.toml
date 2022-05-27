@@ -23,7 +23,6 @@ tokio = { version = "1.17.0", features = ["sync", "rt", "macros"] }
 tokio-util = { version = "0.7.1", features = ["codec"] }
 tonic = "0.7"
 multiaddr = "0.14.0"
-hex = "0.4.3"
 
 config = { path = "../config" }
 crypto = { path = "../crypto" }
