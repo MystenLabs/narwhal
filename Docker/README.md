@@ -103,7 +103,7 @@ For example, to send a gRPC request to the `primary_1` node, use the URL: `127.0
 
 ## Access worker node public gRPC endpoints
 
-As you access the [public gRPC endpoints on a primary node](#access-primary-node-public-grpc-endpoints), you may
+Just as you access the [public gRPC endpoints on a primary node](#access-primary-node-public-grpc-endpoints), you may
 similarly **feed transactions** to the Narwhal cluster via the `worker` nodes with the gRPC server
 bootstrapped on the worker nodes bond to the local machine port. To send transactions, the following local
 ports can be used:
@@ -116,7 +116,8 @@ For example, to send a transaction to the `worker_2` node via gRPC, the url `127
 
 ## Folder structure
 
-Under this folder someone will find the following
+Here is the Docker folder structure:
+
 ```
 ├── Dockerfile
 ├── README.md
@@ -135,45 +136,45 @@ Under this folder someone will find the following
 └── entry.sh
 ```
 
-Under the `validators` folder will be found the independent configuration
-folder for each validator node (it is reminded that each `validator` is 
-constituted from one `primary` node and several `worker` nodes).
+Under the `validators` folder find the independent configuration
+folder for each validator node. (Remember, each `validator` is 
+constituted from one `primary` node and several `worker` nodes.)
 
-The `key.json` file contains the private `key` for the corresponding node which
-is associated to this node only.
+The `key.json` file contains the private `key` for the corresponding node that
+is associated with this node only.
 
 The [parameters.json](validators/parameters.json) file is shared across all the nodes and contains
 the core parameters for a node.
 
 The [committee.json](validators/committee.json) file is shared across all the nodes and contains
-the information about the validators (primary & worker nodes), like the public keys, addresses and
-ports available etc.
+the information about the validators (primary & worker nodes), like the public keys, addresses,
+ports available, etc.
 
-It has to be noted that the current docker-compose setup is mounting the [Docker/validators](validators)
-folder to the service containers in order to share the folders & files in it. That allow us to experiment/change
-configuration without having the need to rebuild the Docker image.
+Note the current `docker-compose` setup is mounting the [Docker/validators](validators)
+folder to the service containers in order to share the folders and files in it. That allows us to experiment/change
+configuration without having to rebuild the Docker image.
 
-## Docker-compose configuration
+## Docker Compose configuration
 
-The following environment variables are available to be used for each service on the
+The following environment variables are available to be used for each service in the
 [docker-compose.yml](docker-compose.yml) file configuration:
-* `NODE_TYPE` with values `primary|worker` . Defines the node type to bootstrap
+* `NODE_TYPE` with values `primary|worker`. Defines the node type to bootstrap.
 * `AUTHORITY_ID` with decimal numbers, for current setup available values `0..3`. Defines the
-id of the validator that the node/service corresponds to. Basically this defines which
+ID of the validator that the node/service corresponds to. This defines which
 configuration to use under the `validators` folder.
-* `LOG_LEVEL` the level of logging for the node defined as number of `v` parameters (ex `-vvv`). The following
+* `LOG_LEVEL` is the level of logging for the node defined as number of `v` parameters (ex `-vvv`). The following
 levels are defined according to the number of "v"s provided: `0 | 1 => "error", 2 => "warn", 3 => "info", 
 4 => "debug", 5 => "trace"`.
-* `CONSENSUS_DISABLED`, this value disables consensus (`Tusk`) for a primary node and enables the
-`gRPC` server. The value that should be passed is `--consensus-disabled`
-* `WORKER_ID` the id, as integer, for service when it runs as a worker
-* `CLEANUP_DISABLED` , when provided with value `true`, it will disable the clean up of the validator folder
-from the database & log data. This is useful to preserve the state between multiple docker compose runs.
+* `CONSENSUS_DISABLED`. This value disables consensus (`Tusk`) for a primary node and enables the
+`gRPC` server. The corresponding argument is: `--consensus-disabled`
+* `WORKER_ID` is the ID, as integer, for service when it runs as a worker.
+* `CLEANUP_DISABLED`, when provided with value `true`, will disable the clean up of the validator folder
+from the database and log data. This is useful to preserve the state between multiple Docker Compose runs.
 
 ## Troubleshooting
 
-#### 1. Compile Errors when building Docker image
-If come across errors while the Docker image is being build, for example errors like:
+#### 1. Compile errors when building Docker image
+If you encounter errors while the Docker image is being built, for example errors like:
 ```
 error: could not compile `tonic`
 #9 373.3 
@@ -186,17 +187,17 @@ error: could not compile `tonic`
 #9 398.4 warning: compilation terminated.
 ```
 
-it is possible that the Docker engine is running out of memory and there is no capacity to properly
-compile the code. In this case please try to increase the available RAM at least to 2GB and retry.
+it is possible that the Docker engine is running out of memory, and there is no capacity to properly
+compile the code. In this case please, increase the available RAM to at least 2GB and retry.
 
 ### 2. Mounts denied or cannot start service errors
 
-If you try to spin up the nodes via docker-compose and you come across errors such as `mounts denied`
-or `cannot start service` please make sure that you allow Docker to share your host's [Docker/validators](validators) folder 
-with the containers. If you are using Docker Desktop you can find more information of how to do
+If you try to spin up the nodes via `docker-compose` and you come across errors such as `mounts denied`
+or `cannot start service`, make sure that you allow Docker to share your host's [Docker/validators](validators) folder 
+with the containers. If you are using Docker Desktop, you can find more information on how to do
 that here: [mac](https://docs.docker.com/desktop/mac/#file-sharing), [linux](https://docs.docker.com/desktop/linux/#file-sharing),
 [windows](https://docs.docker.com/desktop/windows/#file-sharing) .
 
-Also please check that you are not using the deprecated `devicemapper storage driver` which might also
+Also, check that you are not using the deprecated `devicemapper storage driver`, which might also
 cause you issues. See how to [migrate to an overlayfs driver](https://docs.docker.com/storage/storagedriver/overlayfs-driver/) . 
 More information about the deprecation can be found [here](https://docs.docker.com/engine/deprecated/#device-mapper-storage-driver) 
