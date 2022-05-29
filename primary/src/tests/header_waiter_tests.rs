@@ -1,19 +1,15 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use crate::{
-    common::create_db_stores,
+    common::{create_db_stores, worker_listener},
     header_waiter::{HeaderWaiter, WaiterMessage},
     PrimaryWorkerMessage,
 };
-use bincode::deserialize;
 use core::sync::atomic::AtomicU64;
 use crypto::{ed25519::Ed25519PublicKey, Hash};
-use serde::de::DeserializeOwned;
 use std::{sync::Arc, time::Duration};
-use test_utils::{
-    fixture_header_with_payload, resolve_name_and_committee, PrimaryToWorkerMockServer,
-};
-use tokio::{sync::mpsc::channel, task::JoinHandle, time::timeout};
+use test_utils::{fixture_header_with_payload, resolve_name_and_committee};
+use tokio::{sync::mpsc::channel, time::timeout};
 use types::{BatchDigest, Round};
 
 #[tokio::test]
@@ -90,47 +86,4 @@ async fn successfully_synchronize_batches() {
     } else {
         panic!("Messages not received by worker");
     }
-}
-
-pub fn worker_listener<T>(
-    num_of_expected_responses: i32,
-    address: multiaddr::Multiaddr,
-) -> JoinHandle<Vec<T>>
-where
-    T: Send + DeserializeOwned + 'static,
-{
-    tokio::spawn(async move {
-        let mut recv = PrimaryToWorkerMockServer::spawn(address);
-        let mut responses = Vec::new();
-
-        loop {
-            match timeout(Duration::from_secs(1), recv.recv()).await {
-                Err(_) => {
-                    // timeout happened - just return whatever has already
-                    return responses;
-                }
-                Ok(Some(message)) => {
-                    match deserialize::<'_, T>(&message.payload) {
-                        Ok(msg) => {
-                            responses.push(msg);
-
-                            // if -1 is given, then we don't count the number of messages
-                            // but we just rely to receive as many as possible until timeout
-                            // happens when waiting for requests.
-                            if num_of_expected_responses != -1
-                                && responses.len() as i32 == num_of_expected_responses
-                            {
-                                return responses;
-                            }
-                        }
-                        Err(err) => {
-                            panic!("Error occurred {err}");
-                        }
-                    }
-                }
-                //  sender closed
-                _ => panic!("Failed to receive network message"),
-            }
-        }
-    })
 }
