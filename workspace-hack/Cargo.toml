@@ -84,7 +84,7 @@ debugid = { version = "0.7", default-features = false }
 derive_builder = { version = "0.11", features = ["std"] }
 diff = { version = "0.1", default-features = false }
 difflib = { version = "0.4", default-features = false }
-digest = { version = "0.9", default-features = false, features = ["alloc", "std"] }
+digest = { version = "0.10", default-features = false, features = ["alloc", "std"] }
 downcast = { version = "0.11", features = ["std"] }
 ed25519 = { version = "1", default-features = false, features = ["serde", "std"] }
 ed25519-dalek = { version = "1", features = ["batch", "merlin", "rand", "serde", "serde_bytes", "serde_crate", "std", "u64_backend"] }
