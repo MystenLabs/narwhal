@@ -1027,6 +1027,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "demo"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "prost",
+ "tokio",
+ "tonic",
+ "tonic-build",
+ "workspace-hack",
+]
+
+[[package]]
 name = "derivative"
 version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
