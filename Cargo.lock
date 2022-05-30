@@ -1583,9 +1583,9 @@ dependencies = [
 
 [[package]]
 name = "inferno"
-version = "0.11.3"
+version = "0.11.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "16d4bde3a7105e59c66a4104cfe9606453af1c7a0eac78cb7d5bc263eb762a70"
+checksum = "1a3cb215599901c8f491666421d44ffaed08d6872b4c7ced6f425683b951271e"
 dependencies = [
  "ahash",
  "atty",
@@ -1594,7 +1594,7 @@ dependencies = [
  "lazy_static",
  "log",
  "num-format",
- "quick-xml",
+ "quick-xml 0.23.0",
  "rgb",
  "str_stack",
 ]
@@ -1698,9 +1698,9 @@ dependencies = [
 
 [[package]]
 name = "libz-sys"
-version = "1.1.6"
+version = "1.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92e7e15d7610cce1d9752e137625f14e61a28cd45929b6e12e47b50fe154ee2e"
+checksum = "9702761c3935f8cc2f101793272e202c72b99da8f4224a19ddcf1279a6450bbf"
 dependencies = [
  "cc",
  "pkg-config",
@@ -2529,6 +2529,15 @@ name = "quick-xml"
 version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8533f14c8382aaad0d592c812ac3b826162128b65662331e1127b45c3d18536b"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
+name = "quick-xml"
+version = "0.23.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9279fbdacaad3baf559d8cabe0acc3d06e30ea14931af31af79578ac0946decc"
 dependencies = [
  "memchr",
 ]
@@ -4260,7 +4269,7 @@ dependencies = [
  "prost-types",
  "quick-error 1.2.3",
  "quick-error 2.0.1",
- "quick-xml",
+ "quick-xml 0.22.0",
  "quote 0.6.13",
  "quote 1.0.18",
  "rand 0.7.3",
