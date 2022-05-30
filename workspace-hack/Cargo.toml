@@ -49,7 +49,7 @@ bit-vec = { version = "0.6", default-features = false, features = ["std"] }
 bitflags = { version = "1" }
 blake2 = { version = "0.9", features = ["std"] }
 blake2s_simd = { version = "1", features = ["std"] }
-block-buffer = { version = "0.9", default-features = false }
+block-buffer = { version = "0.10", default-features = false }
 bls-crypto = { git = "https://github.com/huitseeker/celo-bls-snark-rs", branch = "updates-2", features = ["compat"] }
 blst = { version = "0.3" }
 bs58 = { version = "0.4", features = ["alloc", "std"] }
