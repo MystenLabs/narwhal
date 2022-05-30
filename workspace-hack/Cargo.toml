@@ -198,7 +198,7 @@ prost-build = { version = "0.10" }
 prost-types = { version = "0.10", default-features = false }
 quick-error-dff4ba8e3ae991db = { package = "quick-error", version = "1", default-features = false }
 quick-error-f595c2ba2a3f28df = { package = "quick-error", version = "2", default-features = false }
-quick-xml = { version = "0.22", default-features = false }
+quick-xml = { version = "0.23", default-features = false }
 quote-dff4ba8e3ae991db = { package = "quote", version = "1", features = ["proc-macro"] }
 rand-ca01ad9e24f5d932 = { package = "rand", version = "0.7", features = ["alloc", "getrandom", "getrandom_package", "libc", "rand_pcg", "small_rng", "std"] }
 rand-c38e5c1d305a1b54 = { package = "rand", version = "0.8", features = ["alloc", "getrandom", "libc", "rand_chacha", "small_rng", "std", "std_rng"] }
@@ -379,7 +379,6 @@ remove_dir_all = { version = "0.5", default-features = false }
 rustc-hash = { version = "1", features = ["std"] }
 rustc_version-468e82937335b1c9 = { package = "rustc_version", version = "0.3", default-features = false }
 rustc_version-9fbad63c4bcf4a8f = { package = "rustc_version", version = "0.4", default-features = false }
-rustversion = { version = "1", default-features = false }
 semver-a6292c17cd707f01 = { package = "semver", version = "0.11" }
 semver-dff4ba8e3ae991db = { package = "semver", version = "1", features = ["std"] }
 semver-parser = { version = "0.10", default-features = false }
