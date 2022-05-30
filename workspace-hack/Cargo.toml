@@ -251,7 +251,7 @@ syn-dff4ba8e3ae991db = { package = "syn", version = "1", features = ["clone-impl
 sync_wrapper = { version = "0.1", default-features = false }
 tempfile = { version = "3", default-features = false }
 termcolor = { version = "1", default-features = false }
-termtree = { version = "0.2", default-features = false }
+termtree = { version = "0.4", default-features = false }
 textwrap-a6292c17cd707f01 = { package = "textwrap", version = "0.11", default-features = false }
 textwrap-3575ec1268b04181 = { package = "textwrap", version = "0.15", default-features = false }
 thiserror = { version = "1", default-features = false }
@@ -379,7 +379,6 @@ remove_dir_all = { version = "0.5", default-features = false }
 rustc-hash = { version = "1", features = ["std"] }
 rustc_version-468e82937335b1c9 = { package = "rustc_version", version = "0.3", default-features = false }
 rustc_version-9fbad63c4bcf4a8f = { package = "rustc_version", version = "0.4", default-features = false }
-rustversion = { version = "1", default-features = false }
 semver-a6292c17cd707f01 = { package = "semver", version = "0.11" }
 semver-dff4ba8e3ae991db = { package = "semver", version = "1", features = ["std"] }
 semver-parser = { version = "0.10", default-features = false }
