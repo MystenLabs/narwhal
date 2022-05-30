@@ -290,7 +290,7 @@ unicode-width = { version = "0.1" }
 unsigned-varint = { version = "0.7", default-features = false, features = ["std"] }
 untrusted = { version = "0.7", default-features = false }
 url = { version = "2", default-features = false }
-uuid = { version = "0.8", features = ["std"] }
+uuid = { version = "1.1", features = ["std"] }
 vec_map = { version = "0.8", default-features = false }
 wait-timeout = { version = "0.2", default-features = false }
 walkdir = { version = "2", default-features = false }
