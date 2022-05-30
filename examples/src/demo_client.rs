@@ -13,12 +13,16 @@ pub mod narwhal {
     tonic::include_proto!("narwhal");
 }
 
+const PRIMARY_0_GRPC_ADDRESS: &str = "http://127.0.0.1:8000";
+const PRIMARY_0_PUBLIC_KEY: &str = "Zy82aSpF8QghKE4wWvyIoTWyLetCuUSfk2gxHEtwdbg=";
+const BLOCK_GAS_LIMIT: usize = 10;
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     /*
 
     println!("\n******************************** Configuration Service ********************************\n");
-    let mut client = ConfigurationClient::connect("http://127.0.0.1:8000").await?;
+    let mut client = ConfigurationClient::connect(PRIMARY_0_GRPC_ADDRESS).await?;
     let stake_weight = 1;
     let address = MultiAddr {
         address: "/ip4/127.0.0.1".to_string(),
@@ -45,9 +49,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!(
         "\n******************************** Proposer Service ********************************\n"
     );
-    let mut client = ProposerClient::connect("http://127.0.0.1:8000").await?;
-    let public_key = base64::decode("Zy82aSpF8QghKE4wWvyIoTWyLetCuUSfk2gxHEtwdbg=").unwrap();
-    let gas_limit = 10;
+    let mut client = ProposerClient::connect(PRIMARY_0_GRPC_ADDRESS).await?;
+    let public_key = base64::decode(PRIMARY_0_PUBLIC_KEY).unwrap();
 
     println!("\n1) Retrieve the range of rounds you have a collection for\n");
     println!("\n---- Use Rounds endpoint ----\n");
@@ -72,7 +75,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n---- Use NodeReadCausal endpoint ----\n");
 
     let mut collection_ids: Vec<CertificateDigest> = vec![];
-    while round < newest_round && collection_ids.len() < gas_limit {
+    while round < newest_round && collection_ids.len() < BLOCK_GAS_LIMIT {
         let request = tonic::Request::new(NodeReadCausalRequest {
             public_key: Some(PublicKey {
                 bytes: public_key.clone(),
@@ -88,12 +91,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let node_read_causal_response = response.unwrap().into_inner();
 
-        if collection_ids.len() + node_read_causal_response.collection_ids.len() <= gas_limit {
+        if collection_ids.len() + node_read_causal_response.collection_ids.len() <= BLOCK_GAS_LIMIT
+        {
             collection_ids.extend(node_read_causal_response.collection_ids);
         } else {
-            println!("Reached gas limit of {gas_limit}, stopping search for more collections\n");
+            println!(
+                "Reached gas limit of {BLOCK_GAS_LIMIT}, stopping search for more collections\n"
+            );
             break;
         }
+
+        round += 1;
     }
 
     println!(
