@@ -1,15 +1,15 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
+use bincode::deserialize;
 use config::WorkerId;
 use crypto::ed25519::Ed25519PublicKey;
+use serde::de::DeserializeOwned;
+use std::time::Duration;
 use store::{reopen, rocks, rocks::DBMap, Store};
 use test_utils::{temp_dir, PrimaryToWorkerMockServer, CERTIFICATES_CF, HEADERS_CF, PAYLOAD_CF};
 use types::{BatchDigest, Certificate, CertificateDigest, Header, HeaderDigest};
 
 use crate::PayloadToken;
-use bincode::deserialize;
-use serde::de::DeserializeOwned;
-use std::time::Duration;
 use tokio::{task::JoinHandle, time::timeout};
 
 pub fn create_db_stores() -> (

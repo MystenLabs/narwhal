@@ -5,7 +5,7 @@ use crate::{
         responses::PayloadAvailabilityResponse, BlockSynchronizer, CertificatesResponse, Command,
         PendingIdentifier, RequestID, SyncError,
     },
-    common::create_db_stores,
+    common::{create_db_stores, worker_listener},
     primary::PrimaryMessage,
     PrimaryWorkerMessage,
 };
@@ -29,7 +29,6 @@ use tokio::{
     time::{sleep, timeout},
 };
 
-use crate::common::worker_listener;
 use tracing::debug;
 use types::{Certificate, CertificateDigest};
 
