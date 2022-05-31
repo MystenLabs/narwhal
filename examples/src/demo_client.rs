@@ -1,16 +1,139 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+use std::fmt;
+use std::fmt::{Display, Formatter};
 use clap::{crate_name, crate_version, App, AppSettings, Arg, SubCommand};
+use tonic::Status;
 use narwhal::proposer_client::ProposerClient;
 use narwhal::validator_client::ValidatorClient;
 use narwhal::{
-    CertificateDigest, GetCollectionsRequest, NodeReadCausalRequest, PublicKey, ReadCausalRequest,
-    RemoveCollectionsRequest, RoundsRequest,
+    CertificateDigest, GetCollectionsRequest, GetCollectionsResponse, NodeReadCausalRequest, PublicKey, ReadCausalRequest,
+    RemoveCollectionsRequest, RoundsRequest, RoundsResponse, collection_retrieval_result::RetrievalResult,
+    BatchDigest, NodeReadCausalResponse,
 };
 
 pub mod narwhal {
     tonic::include_proto!("narwhal");
+}
+
+/// Formatting the requests and responses
+impl std::fmt::Display for GetCollectionsRequest {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let mut result = "*** GetCollectionsRequest ***".to_string();
+        for id in &self.collection_ids {
+            result = format!("{}\nid=\"{}\"", result, id);
+        }
+        write!(f, "{}", result)
+    }
+}
+
+impl std::fmt::Display for RemoveCollectionsRequest {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let mut result = "*** RemoveCollectionsRequest ***".to_string();
+        for id in &self.collection_ids {
+            result = format!("{}\nid=\"{}\"", result, id);
+        }
+        write!(f, "{}", result)
+    }
+}
+
+impl std::fmt::Display for GetCollectionsResponse {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let mut result = "*** GetCollectionsResponse ***".to_string();
+
+        for r in self.result.clone() {
+            match r.retrieval_result.unwrap() {
+                RetrievalResult::Batch(message) => {
+                    let batch_id = &message.id.unwrap();
+                    //let batch_id = &message.id.unwrap();
+                    let mut transactions_size = 0;
+                    let mut num_of_transactions = 0;
+
+                    for t in message.transactions.unwrap().transaction {
+                        transactions_size += t.transaction.len();
+                        num_of_transactions += 1;
+                    }
+
+                    result = format!("{}\nBatch id {}, transactions {}, size: {} bytes", result, batch_id, num_of_transactions, transactions_size);
+                },
+                RetrievalResult::Error(error) => {
+                    //let certificate_id = base64::encode(&error.id.unwrap().digest);
+
+                    result = format!("{}\nError for certificate id {:?}, error: {}", result, &error.id.unwrap(), error.error);
+                }
+            }
+        }
+
+        write!(f, "{}", result)
+    }
+}
+
+impl std::fmt::Display for NodeReadCausalResponse {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let mut result = "*** NodeReadCausalResponse ***".to_string();
+
+        for id in &self.collection_ids {
+            result = format!("{}\nid=\"{}\"", result, id);
+        }
+
+        write!(f, "{}", result)
+    }
+}
+
+impl std::fmt::Display for NodeReadCausalRequest {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let mut result = "**** NodeReadCausalRequest ***".to_string();
+
+        result = format!("{}\nRequest for round {}",result, &self.round);
+        result = format!("{}\nAuthority: {}", result, base64::encode(&self.public_key.clone().unwrap().bytes));
+
+        write!(f, "{}", result)
+    }
+}
+
+impl std::fmt::Display for RoundsRequest {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let mut result = "**** RoundsRequest ***".to_string();
+
+        result = format!("{}\nAuthority: {}", result, base64::encode(&self.public_key.clone().unwrap().bytes));
+
+        write!(f, "{}", result)
+    }
+}
+
+impl std::fmt::Display for RoundsResponse {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let mut result = "**** RoundsResponse ***".to_string();
+        result = format!("{}\noldest_round: {}, newest_round: {}", result, &self.oldest_round, &self.newest_round);
+
+        write!(f, "{}", result)
+    }
+}
+
+impl std::fmt::Display for CertificateDigest {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", base64::encode(&self.digest))
+    }
+}
+
+impl std::fmt::Display for BatchDigest {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", base64::encode(&self.digest))
+    }
+}
+
+fn println_and_into_inner<T>(result: Result<tonic::Response<T>, Status>) -> Option<T> where T: Display {
+    if let Ok(response) = result {
+        let inner = response.into_inner();
+        println!("{}", &inner);
+
+        return Some(inner);
+    } else {
+        println!("{:?}", result.err().unwrap());
+    }
+
+    None
 }
 
 #[tokio::main]
@@ -89,9 +212,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let response = client.rounds(request).await;
 
-    println!("RoundsResponse={:?}\n", response);
-
     let rounds_response = response.unwrap().into_inner();
+
+    // Example 1 - just unwrap and manually print the inner response
+    println!("{}", rounds_response);
+
     let oldest_round = rounds_response.oldest_round;
     let newest_round = rounds_response.newest_round;
     let mut round = oldest_round + 1;
@@ -111,16 +236,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let response = client.node_read_causal(request).await;
 
-        println!("NodeReadCausalResponse={:?}\n", response);
-
-        let node_read_causal_response = response.unwrap().into_inner();
-
-        if collection_ids.len() + node_read_causal_response.collection_ids.len() <= gas_limit {
-            collection_ids.extend(node_read_causal_response.collection_ids);
-        } else {
-            println!("Reached gas limit of {gas_limit}, stopping search for more collections\n");
-            break;
+        // Example 2 - println and get the inner structure
+        // in the same time. Handle the OK / error case
+        // based on the present of the value
+        if let Some(node_read_causal_response) = println_and_into_inner(response) {
+            if collection_ids.len() + node_read_causal_response.collection_ids.len() <= gas_limit {
+                collection_ids.extend(node_read_causal_response.collection_ids);
+            } else {
+                println!("Reached gas limit of {gas_limit}, stopping search for more collections\n");
+                break;
+            }
         }
+
         round += 1;
     }
 
@@ -161,17 +288,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("\n4) Obtain the data payload from collections found.\n");
     println!("\n---- Use GetCollections endpoint ----\n");
-    let request = tonic::Request::new(GetCollectionsRequest {
+    let get_collections_request = GetCollectionsRequest {
         collection_ids: collection_ids.clone(),
-    });
+    };
 
-    println!("GetCollectionsRequest={:?}\n", request);
+    println!("{}", get_collections_request);
+
+    let request = tonic::Request::new(get_collections_request);
 
     let response = client.get_collections(request).await;
 
-    println!("GetCollectionsResponse={:?}\n", response);
-
     let get_collection_response = response.unwrap().into_inner();
+
+    println!("{}", get_collection_response);
 
     // TODO: This doesn't work in Docker yet, figure out why
     println!("Found {} batches", get_collection_response.result.len());
