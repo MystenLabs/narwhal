@@ -1031,6 +1031,7 @@ name = "demo"
 version = "0.1.0"
 dependencies = [
  "base64",
+ "clap 2.34.0",
  "prost",
  "tokio",
  "tonic",
