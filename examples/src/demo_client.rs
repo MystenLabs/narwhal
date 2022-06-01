@@ -160,7 +160,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     // TODO: This doesn't work in Docker yet, figure out why
                     println!("Found {total_num_of_transactions} transactions with a total size of {total_transactions_size} bytes");
 
-                    proposed_block_gas_cost = total_num_of_transactions + proposed_block_gas_cost;
+                    proposed_block_gas_cost += total_num_of_transactions;
                     if proposed_block_gas_cost <= BLOCK_GAS_LIMIT {
                         println!("Adding {total_num_of_transactions} transactions to the proposed block, increasing the block gas cost to {proposed_block_gas_cost}");
                         new_collections.push(collection_id);
@@ -222,7 +222,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Some(node_read_causal_response.collection_ids[0].clone());
         } else {
             println!("Error trying to node read causal at round {max_round} going back another round and retrying...\n");
-            max_round = max_round - 1;
+            max_round -= 1;
         }
     }
 
