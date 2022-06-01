@@ -527,6 +527,39 @@
 <span id="520">520</span>
 <span id="521">521</span>
 <span id="522">522</span>
+<span id="523">523</span>
+<span id="524">524</span>
+<span id="525">525</span>
+<span id="526">526</span>
+<span id="527">527</span>
+<span id="528">528</span>
+<span id="529">529</span>
+<span id="530">530</span>
+<span id="531">531</span>
+<span id="532">532</span>
+<span id="533">533</span>
+<span id="534">534</span>
+<span id="535">535</span>
+<span id="536">536</span>
+<span id="537">537</span>
+<span id="538">538</span>
+<span id="539">539</span>
+<span id="540">540</span>
+<span id="541">541</span>
+<span id="542">542</span>
+<span id="543">543</span>
+<span id="544">544</span>
+<span id="545">545</span>
+<span id="546">546</span>
+<span id="547">547</span>
+<span id="548">548</span>
+<span id="549">549</span>
+<span id="550">550</span>
+<span id="551">551</span>
+<span id="552">552</span>
+<span id="553">553</span>
+<span id="554">554</span>
+<span id="555">555</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 
@@ -638,11 +671,11 @@
     <span class="kw">let</span> <span class="ident">oldest_round</span> <span class="op">=</span> <span class="ident">rounds_response</span>.<span class="ident">oldest_round</span>;
     <span class="kw">let</span> <span class="ident">newest_round</span> <span class="op">=</span> <span class="ident">rounds_response</span>.<span class="ident">newest_round</span>;
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">round</span> <span class="op">=</span> <span class="ident">oldest_round</span> <span class="op">+</span> <span class="number">1</span>;
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">max_round</span> <span class="op">=</span> <span class="ident">round</span>;
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">last_completed_round</span> <span class="op">=</span> <span class="ident">round</span>;
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">proposed_block_gas_cost</span>: <span class="ident">i32</span> <span class="op">=</span> <span class="number">0</span>;
 
     <span class="macro">println!</span>(<span class="string">&quot;\n2) Find collections from earliest round and continue to add collections until gas limit is hit\n&quot;</span>);
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">collection_ids</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">block_proposal_collection_ids</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">extra_collections</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
     <span class="kw">while</span> <span class="ident">round</span> <span class="op">&lt;</span><span class="op">=</span> <span class="ident">newest_round</span> {
         <span class="kw">let</span> <span class="ident">node_read_causal_request</span> <span class="op">=</span> <span class="ident">NodeReadCausalRequest</span> {
@@ -666,7 +699,7 @@
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">new_collections</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
             <span class="kw">let</span> <span class="ident">count_of_retrieved_collections</span> <span class="op">=</span> <span class="ident">node_read_causal_response</span>.<span class="ident">collection_ids</span>.<span class="ident">len</span>();
             <span class="kw">for</span> <span class="ident">collection_id</span> <span class="kw">in</span> <span class="ident">node_read_causal_response</span>.<span class="ident">collection_ids</span> {
-                <span class="kw">if</span> <span class="ident">collection_ids</span>.<span class="ident">contains</span>(<span class="kw-2">&amp;</span><span class="ident">collection_id</span>) {
+                <span class="kw">if</span> <span class="ident">block_proposal_collection_ids</span>.<span class="ident">contains</span>(<span class="kw-2">&amp;</span><span class="ident">collection_id</span>) {
                     <span class="ident">duplicate_collection_count</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
                 } <span class="kw">else</span> {
                     <span class="macro">println!</span>(
@@ -708,10 +741,10 @@
                     <span class="ident">new_collections</span>.<span class="ident">len</span>()
                 );
                 <span class="ident">extra_collections</span>.<span class="ident">extend</span>(<span class="ident">new_collections</span>.<span class="ident">clone</span>());
-                <span class="ident">max_round</span> <span class="op">=</span> <span class="ident">round</span> <span class="op">-</span> <span class="number">1</span>;
+                <span class="ident">last_completed_round</span> <span class="op">=</span> <span class="ident">round</span> <span class="op">-</span> <span class="number">1</span>;
             }
 
-            <span class="ident">collection_ids</span>.<span class="ident">extend</span>(<span class="ident">new_collections</span>);
+            <span class="ident">block_proposal_collection_ids</span>.<span class="ident">extend</span>(<span class="ident">new_collections</span>);
 
             <span class="macro">println!</span>(<span class="string">&quot;\t\tDeduped {:?} collections\n&quot;</span>, <span class="ident">duplicate_collection_count</span>);
         } <span class="kw">else</span> {
@@ -731,11 +764,11 @@
     }
 
     <span class="kw">if</span> <span class="ident">round</span> <span class="op">&gt;</span> <span class="ident">newest_round</span> {
-        <span class="ident">max_round</span> <span class="op">=</span> <span class="ident">newest_round</span>;
+        <span class="ident">last_completed_round</span> <span class="op">=</span> <span class="ident">newest_round</span>;
     }
 
     <span class="macro">println!</span>(
-        <span class="string">&quot;\n2c) Find the first collection returned from node read causal for round {max_round}\n&quot;</span>
+        <span class="string">&quot;\n2c) Find the first collection returned from node read causal for fully completed round {last_completed_round} before gas limit was reached.\n&quot;</span>
     );
     <span class="macro">println!</span>(<span class="string">&quot;---- Use NodeReadCausal endpoint ----\n&quot;</span>);
 
@@ -746,7 +779,7 @@
             <span class="ident">public_key</span>: <span class="prelude-val">Some</span>(<span class="ident">PublicKey</span> {
                 <span class="ident">bytes</span>: <span class="ident">public_key</span>.<span class="ident">clone</span>(),
             }),
-            <span class="ident">round</span>: <span class="ident">max_round</span>,
+            <span class="ident">round</span>: <span class="ident">last_completed_round</span>,
         };
 
         <span class="macro">println!</span>(<span class="string">&quot;\t{}\n&quot;</span>, <span class="ident">node_read_causal_request</span>);
@@ -757,9 +790,12 @@
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">node_read_causal_response</span>) <span class="op">=</span> <span class="ident">println_and_into_inner</span>(<span class="ident">response</span>) {
             <span class="ident">block_proposal_starting_collection</span> <span class="op">=</span>
                 <span class="prelude-val">Some</span>(<span class="ident">node_read_causal_response</span>.<span class="ident">collection_ids</span>[<span class="number">0</span>].<span class="ident">clone</span>());
+            <span class="comment">// NodeReadCausal here will return the expected order of collections for validation versus the deduping we did in our search above.</span>
+            <span class="ident">block_proposal_collection_ids</span> <span class="op">=</span> <span class="ident">node_read_causal_response</span>.<span class="ident">collection_ids</span>.<span class="ident">clone</span>();
+            <span class="ident">block_proposal_collection_ids</span>.<span class="ident">extend</span>(<span class="ident">extra_collections</span>.<span class="ident">clone</span>());
         } <span class="kw">else</span> {
-            <span class="macro">println!</span>(<span class="string">&quot;\tError trying to node read causal at round {max_round} going back another round and retrying...\n&quot;</span>);
-            <span class="ident">max_round</span> <span class="op">-</span><span class="op">=</span> <span class="number">1</span>;
+            <span class="macro">println!</span>(<span class="string">&quot;\tError trying to node read causal at round {last_completed_round} going back another round and retrying...\n&quot;</span>);
+            <span class="ident">last_completed_round</span> <span class="op">-</span><span class="op">=</span> <span class="number">1</span>;
         }
     }
 
@@ -767,12 +803,11 @@
 
     <span class="macro">println!</span>(
         <span class="string">&quot;\n\tProposing a block with {} collections starting from collection {block_proposal_starting_collection}!\n&quot;</span>,
-        <span class="ident">collection_ids</span>.<span class="ident">len</span>()
+        <span class="ident">block_proposal_collection_ids</span>.<span class="ident">len</span>()
     );
 
-    <span class="comment">// TODO: Add extra collections to fill block proposal as per spec.</span>
     <span class="macro">println!</span>(
-        <span class="string">&quot;\tBroadcasting block proposal with starting certificate `H` {block_proposal_starting_collection} from round {round} in DAG + {} extra collections that fit in the block proposal.&quot;</span>, <span class="ident">extra_collections</span>.<span class="ident">len</span>()
+        <span class="string">&quot;\tBroadcasting block proposal with starting certificate `H` {block_proposal_starting_collection} from round {last_completed_round} in DAG + {} extra collections that fit in the block proposal.&quot;</span>, <span class="ident">extra_collections</span>.<span class="ident">len</span>()
     );
     <span class="macro">println!</span>(<span class="string">&quot;\tValidators should call ReadCausal(H) which will return [collections] and call GetCollections([collections] + [{} extra_collections]) &quot;</span>, <span class="ident">extra_collections</span>.<span class="ident">len</span>());
 
@@ -793,7 +828,7 @@
     );
     <span class="macro">println!</span>(<span class="string">&quot;\n\t---- Use ReadCausal endpoint ----\n&quot;</span>);
 
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">block_proposal_collection_ids</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">block_validation_collection_ids</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
     <span class="kw">let</span> <span class="ident">read_causal_request</span> <span class="op">=</span> <span class="ident">ReadCausalRequest</span> {
         <span class="ident">collection_id</span>: <span class="prelude-val">Some</span>(<span class="ident">block_proposal_starting_collection</span>),
     };
@@ -806,19 +841,48 @@
 
     <span class="macro">println!</span>(<span class="string">&quot;\t{}\n&quot;</span>, <span class="ident">read_causal_response</span>);
 
-    <span class="ident">block_proposal_collection_ids</span>.<span class="ident">extend</span>(<span class="ident">read_causal_response</span>.<span class="ident">collection_ids</span>);
+    <span class="ident">block_validation_collection_ids</span>.<span class="ident">extend</span>(<span class="ident">read_causal_response</span>.<span class="ident">collection_ids</span>);
 
-    <span class="macro">println!</span>(<span class="string">&quot;\tFound {} collections from read causal which will be combined with the {} extra collections from the block proposal&quot;</span>, <span class="ident">block_proposal_collection_ids</span>.<span class="ident">len</span>(), <span class="ident">extra_collections</span>.<span class="ident">len</span>());
-    <span class="ident">block_proposal_collection_ids</span>.<span class="ident">extend</span>(<span class="ident">extra_collections</span>);
+    <span class="macro">println!</span>(<span class="string">&quot;\tFound {} collections from read causal which will be combined with the {} extra collections from the block proposal\n&quot;</span>, <span class="ident">block_validation_collection_ids</span>.<span class="ident">len</span>(), <span class="ident">extra_collections</span>.<span class="ident">len</span>());
+
+    <span class="ident">block_validation_collection_ids</span>.<span class="ident">extend</span>(<span class="ident">extra_collections</span>);
+
+    <span class="macro">println!</span>(<span class="string">&quot;\tProposed block included the following collections before compressing proposal:\n&quot;</span>);
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="string">&quot;\t\t*** Block Proposal Collections ***&quot;</span>.<span class="ident">to_string</span>();
+    <span class="kw">for</span> <span class="ident">id</span> <span class="kw">in</span> <span class="ident">block_proposal_collection_ids</span>.<span class="ident">clone</span>() {
+        <span class="ident">result</span> <span class="op">=</span> <span class="macro">format!</span>(<span class="string">&quot;{}\n\t\t|-id=\&quot;{}\&quot;&quot;</span>, <span class="ident">result</span>, <span class="ident">id</span>);
+    }
+    <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">result</span>);
+
+    <span class="macro">println!</span>(
+        <span class="string">&quot;\n\tBlock validation found the following collections after decompressing proposal:\n&quot;</span>
+    );
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="string">&quot;\t\t*** Block Validation Collections ***&quot;</span>.<span class="ident">to_string</span>();
+    <span class="kw">for</span> <span class="ident">id</span> <span class="kw">in</span> <span class="ident">block_validation_collection_ids</span>.<span class="ident">clone</span>() {
+        <span class="ident">result</span> <span class="op">=</span> <span class="macro">format!</span>(<span class="string">&quot;{}\n\t\t|-id=\&quot;{}\&quot;&quot;</span>, <span class="ident">result</span>, <span class="ident">id</span>);
+    }
+    <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">result</span>);
+
+    <span class="comment">// We&#39;re comparing `block_validation_collection_ids` which is a validator determined artifact,</span>
+    <span class="comment">// and `block_proposal_collection_ids` which is a proposer artifact. In production, the</span>
+    <span class="comment">// consensus would not have access to that second artifact at any node but the proposer,</span>
+    <span class="comment">// we are only show this here for didactic purposes.</span>
+    <span class="kw">if</span> <span class="ident">block_proposal_collection_ids</span> <span class="op">==</span> <span class="ident">block_validation_collection_ids</span> {
+        <span class="macro">println!</span>(<span class="string">&quot;\n\tThey match in value and order! Moving on to find the transactions...\n&quot;</span>);
+    } <span class="kw">else</span> {
+        <span class="macro">println!</span>(<span class="string">&quot;\n\tThey dont match! Aborting...\n&quot;</span>);
+        <span class="kw">return</span> <span class="prelude-val">Ok</span>(());
+    }
 
     <span class="macro">println!</span>(
         <span class="string">&quot;\n4) Obtain the data payload for {} collections in block proposal.\n&quot;</span>,
-        <span class="ident">block_proposal_collection_ids</span>.<span class="ident">len</span>()
+        <span class="ident">block_validation_collection_ids</span>.<span class="ident">len</span>()
     );
+
     <span class="macro">println!</span>(<span class="string">&quot;\n\t---- Use GetCollections endpoint ----\n&quot;</span>);
 
     <span class="kw">let</span> <span class="ident">get_collections_request</span> <span class="op">=</span> <span class="ident">GetCollectionsRequest</span> {
-        <span class="ident">collection_ids</span>: <span class="ident">block_proposal_collection_ids</span>.<span class="ident">clone</span>(),
+        <span class="ident">collection_ids</span>: <span class="ident">block_validation_collection_ids</span>.<span class="ident">clone</span>(),
     };
 
     <span class="macro">println!</span>(<span class="string">&quot;\t{}\n&quot;</span>, <span class="ident">get_collections_request</span>);
@@ -841,7 +905,9 @@
     <span class="macro">println!</span>(<span class="string">&quot;\n4) Remove collections that have been voted on and committed.\n&quot;</span>);
     <span class="macro">println!</span>(<span class="string">&quot;\n\t---- Test RemoveCollections endpoint ----\n&quot;</span>);
 
-    <span class="kw">let</span> <span class="ident">remove_collections_request</span> <span class="op">=</span> <span class="ident">RemoveCollectionsRequest</span> { <span class="ident">collection_ids</span> };
+    <span class="kw">let</span> <span class="ident">remove_collections_request</span> <span class="op">=</span> <span class="ident">RemoveCollectionsRequest</span> {
+        <span class="ident">collection_ids</span>: <span class="ident">block_validation_collection_ids</span>.<span class="ident">clone</span>(),
+    };
 
     <span class="macro">println!</span>(<span class="string">&quot;\t{}\n&quot;</span>, <span class="ident">remove_collections_request</span>);
 
