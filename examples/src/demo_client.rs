@@ -113,7 +113,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut proposed_block_gas_cost: i32 = 0;
 
     println!("\n2) Find collections from earliest round and continue to add collections until gas limit is hit\n");
-    //println!("---- Use NodeReadCausal endpoint ----\n");
     let mut collection_ids = Vec::new();
     let mut extra_collections = Vec::new();
     while round <= newest_round {
@@ -144,7 +143,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     println!(
                         "\n\t\t2b) Get collection [{}] payloads to calculate gas cost of proposed block.\n", collection_id
                     );
-                    //println!("\t---- Use GetCollections endpoint ----\n");
 
                     let get_collections_request = GetCollectionsRequest {
                         collection_ids: vec![collection_id.clone()],
