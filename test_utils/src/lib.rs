@@ -310,7 +310,7 @@ pub fn fixture_payload(number_of_batches: u8) -> BTreeMap<BatchDigest, WorkerId>
             5u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, // tx length
             10u8, 5u8, 8u8, 20u8, i, //tx
         ];
-        let batch_digest = serialized_batch_digest(&dummy_serialized_batch);
+        let batch_digest = serialized_batch_digest(&dummy_serialized_batch).unwrap();
 
         payload.insert(batch_digest, 0);
     }
@@ -541,12 +541,12 @@ pub fn batch() -> Batch {
 
 // Fixture
 pub fn batch_digest() -> BatchDigest {
-    serialized_batch_digest(&serialized_batch())
+    serialized_batch_digest(&serialized_batch()).unwrap()
 }
 
 pub fn digest_batch(batch: Batch) -> BatchDigest {
     let serialized_batch = serialize_batch_message(batch);
-    serialized_batch_digest(&serialized_batch)
+    serialized_batch_digest(&serialized_batch).unwrap()
 }
 
 // Fixture
