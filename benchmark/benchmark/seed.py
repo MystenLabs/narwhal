@@ -3,8 +3,6 @@ import subprocess
 from math import ceil
 from os.path import basename, splitext
 from time import sleep
-from pathlib import Path
-import json
 
 from benchmark.commands import CommandMaker
 from benchmark.config import BenchParameters, ConfigError

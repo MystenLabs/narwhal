@@ -1,7 +1,6 @@
 # Copyright(C) Facebook, Inc. and its affiliates.
 from fabric import task
 from benchmark.seed import SeedData
-from pathlib import Path
 
 from benchmark.local import LocalBench
 from benchmark.full_demo import Demo
