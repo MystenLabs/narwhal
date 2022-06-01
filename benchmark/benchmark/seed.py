@@ -33,6 +33,7 @@ class SeedData:
             raise BenchError('Failed to kill testbed', e)
 
     def run(self, starting_data_port):
+        assert isinstance(starting_data_port, int)
         Print.heading('Start seeding data')
         nodes, rate, workers = self.nodes[0], self.rate[0], self.workers
 
