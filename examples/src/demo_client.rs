@@ -301,6 +301,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     println!("{}", result);
 
+    // We're comparing `block_validation_collection_ids` which is a validator determined artifact,
+    // and `block_proposal_collection_ids` which is a proposer artifact. In production, the
+    // consensus would not have access to that second artifact at any node but the proposer,
+    // we are only show this here for didactic purposes.
     if block_proposal_collection_ids == block_validation_collection_ids {
         println!("\n\tThey match in value and order! Moving on to find the transactions...\n");
     } else {
