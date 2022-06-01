@@ -1,1 +1,1 @@
-initSidebarItems({"enum":[["WorkerMessage","The message exchanged between workers."]],"struct":[["Worker",""]],"type":[["SerializedBatchMessage","Indicates a serialized `WorkerMessage::Batch` message."]]});
+initSidebarItems({"enum":[["WorkerMessage","The message exchanged between workers."]],"struct":[["Worker",""]]});

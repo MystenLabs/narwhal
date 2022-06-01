@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["WorkerToWorkerClient","The worker-to-worker interface"]]});

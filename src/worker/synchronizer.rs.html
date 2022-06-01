@@ -3,7 +3,9 @@
         </a><h2 class="location"></h2>
     </nav>
     <nav class="sidebar"><a class="sidebar-logo" href="../../worker/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div>
-        </a></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../../worker/index.html"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></a><nav class="sub"><div class="theme-picker hidden"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu" title="themes"><img width="22" height="22" alt="Pick another theme!" src="../../brush.svg"></button><div id="theme-choices" role="menu"></div></div><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><button type="button" id="help-button" title="help">?</button><a id="settings-menu" href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../wheel.svg"></a></div></form></nav></div><section id="main-content" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">1</span>
+        </a></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../../worker/index.html"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></a><nav class="sub"><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><button type="button" id="help-button" title="help">?</button><div id="settings-menu" tabindex="-1">
+                                <a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../wheel.svg"></a></div>
+                        </div></form></nav></div><section id="main-content" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">1</span>
 <span id="2">2</span>
 <span id="3">3</span>
 <span id="4">4</span>
@@ -278,11 +280,13 @@
 <span id="273">273</span>
 <span id="274">274</span>
 <span id="275">275</span>
+<span id="276">276</span>
+<span id="277">277</span>
+<span id="278">278</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::worker</span>::{<span class="ident">Round</span>, <span class="ident">SerializedBatchMessage</span>};
-<span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">Committee</span>, <span class="ident">WorkerId</span>};
+<span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">SharedCommittee</span>, <span class="ident">WorkerId</span>};
 <span class="kw">use</span> <span class="ident">crypto::traits::VerifyingKey</span>;
 <span class="kw">use</span> <span class="ident">futures::stream</span>::{<span class="ident">futures_unordered::FuturesUnordered</span>, <span class="ident">StreamExt</span> <span class="kw">as</span> <span class="kw">_</span>};
 <span class="kw">use</span> <span class="ident">network::WorkerNetwork</span>;
@@ -297,7 +301,7 @@
     <span class="ident">time</span>::{<span class="ident">sleep</span>, <span class="ident">Duration</span>, <span class="ident">Instant</span>},
 };
 <span class="kw">use</span> <span class="ident">tracing</span>::{<span class="ident">debug</span>, <span class="ident">error</span>};
-<span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">BatchDigest</span>, <span class="ident">WorkerMessage</span>};
+<span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">BatchDigest</span>, <span class="ident">Round</span>, <span class="ident">SerializedBatchMessage</span>, <span class="ident">WorkerMessage</span>};
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="attribute">#[<span class="ident">path</span> <span class="op">=</span> <span class="string">&quot;tests/synchronizer_tests.rs&quot;</span>]</span>
@@ -313,7 +317,7 @@
     <span class="doccomment">/// The id of this worker.</span>
     <span class="ident">id</span>: <span class="ident">WorkerId</span>,
     <span class="doccomment">/// The committee information.</span>
-    <span class="ident">committee</span>: <span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
+    <span class="ident">committee</span>: <span class="ident">SharedCommittee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
     <span class="comment">// The persistent storage.</span>
     <span class="ident">store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">BatchDigest</span>, <span class="ident">SerializedBatchMessage</span><span class="op">&gt;</span>,
     <span class="doccomment">/// The depth of the garbage collection.</span>
@@ -341,7 +345,7 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(
         <span class="ident">name</span>: <span class="ident">PublicKey</span>,
         <span class="ident">id</span>: <span class="ident">WorkerId</span>,
-        <span class="ident">committee</span>: <span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
+        <span class="ident">committee</span>: <span class="ident">SharedCommittee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
         <span class="ident">store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">BatchDigest</span>, <span class="ident">SerializedBatchMessage</span><span class="op">&gt;</span>,
         <span class="ident">gc_depth</span>: <span class="ident">Round</span>,
         <span class="ident">sync_retry_delay</span>: <span class="ident">Duration</span>,
@@ -441,6 +445,9 @@
                                 <span class="kw">continue</span>;
                             }
                         };
+
+                        <span class="macro">debug!</span>(<span class="string">&quot;Sending BatchRequest message to {} for missing batches {:?}&quot;</span>, <span class="ident">address</span>, <span class="ident">missing</span>.<span class="ident">clone</span>());
+
                         <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">WorkerMessage::BatchRequest</span>(<span class="ident">missing</span>, <span class="self">self</span>.<span class="ident">name</span>.<span class="ident">clone</span>());
                         <span class="self">self</span>.<span class="ident">network</span>.<span class="ident">unreliable_send</span>(<span class="ident">address</span>, <span class="kw-2">&amp;</span><span class="ident">message</span>).<span class="kw">await</span>;
                     },
@@ -501,7 +508,8 @@
                     <span class="kw">if</span> <span class="op">!</span><span class="ident">retry</span>.<span class="ident">is_empty</span>() {
                         <span class="kw">let</span> <span class="ident">addresses</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">committee</span>
                             .<span class="ident">others_workers</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">name</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">id</span>)
-                            .<span class="ident">iter</span>().<span class="ident">map</span>(<span class="op">|</span>(<span class="kw">_</span>, <span class="ident">address</span>)<span class="op">|</span> <span class="ident">address</span>.<span class="ident">worker_to_worker</span>)
+                            .<span class="ident">into_iter</span>()
+                            .<span class="ident">map</span>(<span class="op">|</span>(<span class="kw">_</span>, <span class="ident">address</span>)<span class="op">|</span> <span class="ident">address</span>.<span class="ident">worker_to_worker</span>)
                             .<span class="ident">collect</span>();
                         <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">WorkerMessage::BatchRequest</span>(<span class="ident">retry</span>, <span class="self">self</span>.<span class="ident">name</span>.<span class="ident">clone</span>());
                         <span class="self">self</span>.<span class="ident">network</span>
@@ -554,5 +562,5 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.62.0-nightly (88860d547 2022-05-09)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.63.0-nightly (e09449220 2022-05-31)" ></div>
 </body></html>

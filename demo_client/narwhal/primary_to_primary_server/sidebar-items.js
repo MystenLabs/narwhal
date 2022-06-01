@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["PrimaryToPrimaryServer","The primary-to-primary interface"],["_Inner",""]],"trait":[["PrimaryToPrimary","Generated trait containing gRPC methods that should be implemented for use with PrimaryToPrimaryServer."]]});

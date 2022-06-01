@@ -3,7 +3,9 @@
         </a><h2 class="location"></h2>
     </nav>
     <nav class="sidebar"><a class="sidebar-logo" href="../../node/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div>
-        </a></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../../node/index.html"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></a><nav class="sub"><div class="theme-picker hidden"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu" title="themes"><img width="22" height="22" alt="Pick another theme!" src="../../brush.svg"></button><div id="theme-choices" role="menu"></div></div><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><button type="button" id="help-button" title="help">?</button><a id="settings-menu" href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../wheel.svg"></a></div></form></nav></div><section id="main-content" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">1</span>
+        </a></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../../node/index.html"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></a><nav class="sub"><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><button type="button" id="help-button" title="help">?</button><div id="settings-menu" tabindex="-1">
+                                <a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../wheel.svg"></a></div>
+                        </div></form></nav></div><section id="main-content" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">1</span>
 <span id="2">2</span>
 <span id="3">3</span>
 <span id="4">4</span>
@@ -236,10 +238,18 @@
 <span id="231">231</span>
 <span id="232">232</span>
 <span id="233">233</span>
+<span id="234">234</span>
+<span id="235">235</span>
+<span id="236">236</span>
+<span id="237">237</span>
+<span id="238">238</span>
+<span id="239">239</span>
+<span id="240">240</span>
+<span id="241">241</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">Committee</span>, <span class="ident">Parameters</span>, <span class="ident">WorkerId</span>};
-<span class="kw">use</span> <span class="ident">consensus</span>::{<span class="ident">dag::Dag</span>, <span class="ident">Consensus</span>, <span class="ident">ConsensusStore</span>, <span class="ident">SequenceNumber</span>, <span class="ident">SubscriberHandler</span>};
+<span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">Parameters</span>, <span class="ident">SharedCommittee</span>, <span class="ident">WorkerId</span>};
+<span class="kw">use</span> <span class="ident">consensus</span>::{<span class="ident">dag::Dag</span>, <span class="ident">Consensus</span>, <span class="ident">SubscriberHandler</span>};
 <span class="kw">use</span> <span class="ident">crypto::traits</span>::{<span class="ident">KeyPair</span>, <span class="ident">Signer</span>, <span class="ident">VerifyingKey</span>};
 <span class="kw">use</span> <span class="ident">executor</span>::{<span class="ident">ExecutionState</span>, <span class="ident">Executor</span>, <span class="ident">SerializedTransaction</span>, <span class="ident">SubscriberResult</span>};
 <span class="kw">use</span> <span class="ident">primary</span>::{<span class="ident">PayloadToken</span>, <span class="ident">Primary</span>};
@@ -249,10 +259,16 @@
     <span class="ident">rocks</span>::{<span class="ident">open_cf</span>, <span class="ident">DBMap</span>},
     <span class="ident">Store</span>,
 };
-<span class="kw">use</span> <span class="ident">tokio::sync::mpsc</span>::{<span class="ident">channel</span>, <span class="ident">Receiver</span>, <span class="ident">Sender</span>};
+<span class="kw">use</span> <span class="ident">tokio</span>::{
+    <span class="ident">sync::mpsc</span>::{<span class="ident">channel</span>, <span class="ident">Receiver</span>, <span class="ident">Sender</span>},
+    <span class="ident">task::JoinHandle</span>,
+};
 <span class="kw">use</span> <span class="ident">tracing::debug</span>;
-<span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">BatchDigest</span>, <span class="ident">Certificate</span>, <span class="ident">CertificateDigest</span>, <span class="ident">Header</span>, <span class="ident">HeaderDigest</span>, <span class="ident">Round</span>};
-<span class="kw">use</span> <span class="ident">worker</span>::{<span class="ident">SerializedBatchMessage</span>, <span class="ident">Worker</span>};
+<span class="kw">use</span> <span class="ident">types</span>::{
+    <span class="ident">BatchDigest</span>, <span class="ident">Certificate</span>, <span class="ident">CertificateDigest</span>, <span class="ident">ConsensusStore</span>, <span class="ident">Header</span>, <span class="ident">HeaderDigest</span>, <span class="ident">Round</span>,
+    <span class="ident">SequenceNumber</span>, <span class="ident">SerializedBatchMessage</span>,
+};
+<span class="kw">use</span> <span class="ident">worker::Worker</span>;
 
 <span class="doccomment">/// All the data stores of the node.</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">NodeStorage</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> {
@@ -325,7 +341,7 @@
         <span class="comment">// The private-public key pair of this authority.</span>
         <span class="ident">keypair</span>: <span class="ident">Keys</span>,
         <span class="comment">// The committee information.</span>
-        <span class="ident">committee</span>: <span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
+        <span class="ident">committee</span>: <span class="ident">SharedCommittee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
         <span class="comment">// The node&#39;s storage.</span>
         <span class="ident">store</span>: <span class="kw-2">&amp;</span><span class="ident">NodeStorage</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
         <span class="comment">// The configuration parameters.</span>
@@ -335,12 +351,12 @@
         <span class="comment">// If an external consensus will be used, then this bool will also ensure that the</span>
         <span class="comment">// corresponding gRPC server that is used for communication between narwhal and</span>
         <span class="comment">// external consensus is also spawned.</span>
-        <span class="ident">consensus</span>: <span class="ident">bool</span>,
+        <span class="ident">internal_consensus</span>: <span class="ident">bool</span>,
         <span class="comment">// The state used by the client to execute transactions.</span>
         <span class="ident">execution_state</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">State</span><span class="op">&gt;</span>,
         <span class="comment">// A channel to output transactions execution confirmations.</span>
         <span class="ident">tx_confirmation</span>: <span class="ident">Sender</span><span class="op">&lt;</span>(<span class="ident">SubscriberResult</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">SerializedTransaction</span>)<span class="op">&gt;</span>,
-    ) -&gt; <span class="ident">SubscriberResult</span><span class="op">&lt;</span>()<span class="op">&gt;</span>
+    ) -&gt; <span class="ident">SubscriberResult</span><span class="op">&lt;</span><span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span>
     <span class="kw">where</span>
         <span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span>,
         <span class="ident">Keys</span>: <span class="ident">KeyPair</span><span class="op">&lt;</span><span class="ident">PubKey</span> <span class="op">=</span> <span class="ident">PublicKey</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Signer</span><span class="op">&lt;</span><span class="ident">PublicKey::Sig</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
@@ -352,8 +368,27 @@
         <span class="comment">// Compute the public key of this authority.</span>
         <span class="kw">let</span> <span class="ident">name</span> <span class="op">=</span> <span class="ident">keypair</span>.<span class="ident">public</span>().<span class="ident">clone</span>();
 
+        <span class="kw">let</span> <span class="ident">dag</span> <span class="op">=</span> <span class="kw">if</span> <span class="op">!</span><span class="ident">internal_consensus</span> {
+            <span class="macro">debug!</span>(<span class="string">&quot;Consensus is disabled: the primary will run w/o Tusk&quot;</span>);
+            <span class="kw">let</span> (<span class="ident">_handle</span>, <span class="ident">dag</span>) <span class="op">=</span> <span class="ident">Dag::new</span>(<span class="kw-2">&amp;</span><span class="ident">committee</span>, <span class="ident">rx_new_certificates</span>);
+            <span class="prelude-val">Some</span>(<span class="ident">Arc::new</span>(<span class="ident">dag</span>))
+        } <span class="kw">else</span> {
+            <span class="ident"><span class="self">Self</span>::spawn_consensus</span>(
+                <span class="ident">name</span>.<span class="ident">clone</span>(),
+                <span class="ident">committee</span>.<span class="ident">clone</span>(),
+                <span class="ident">store</span>,
+                <span class="ident">parameters</span>.<span class="ident">clone</span>(),
+                <span class="ident">execution_state</span>,
+                <span class="ident">rx_new_certificates</span>,
+                <span class="ident">tx_feedback</span>,
+                <span class="ident">tx_confirmation</span>,
+            )
+            .<span class="kw">await</span><span class="question-mark">?</span>;
+            <span class="prelude-val">None</span>
+        };
+
         <span class="comment">// Spawn the primary.</span>
-        <span class="ident">Primary::spawn</span>(
+        <span class="kw">let</span> <span class="ident">primary_handle</span> <span class="op">=</span> <span class="ident">Primary::spawn</span>(
             <span class="ident">name</span>.<span class="ident">clone</span>(),
             <span class="ident">keypair</span>,
             <span class="ident">committee</span>.<span class="ident">clone</span>(),
@@ -363,36 +398,16 @@
             <span class="ident">store</span>.<span class="ident">payload_store</span>.<span class="ident">clone</span>(),
             <span class="comment">/* tx_consensus */</span> <span class="ident">tx_new_certificates</span>,
             <span class="comment">/* rx_consensus */</span> <span class="ident">rx_feedback</span>,
-            <span class="ident">consensus</span>,
+            <span class="comment">/* dag */</span> <span class="ident">dag</span>,
         );
 
-        <span class="comment">// Check whether to run consensus.</span>
-        <span class="kw">match</span> <span class="ident">consensus</span> {
-            <span class="bool-val">true</span> =&gt; {
-                <span class="ident"><span class="self">Self</span>::spawn_consensus</span>(
-                    <span class="ident">name</span>,
-                    <span class="ident">committee</span>,
-                    <span class="ident">store</span>,
-                    <span class="ident">parameters</span>,
-                    <span class="ident">execution_state</span>,
-                    <span class="ident">rx_new_certificates</span>,
-                    <span class="ident">tx_feedback</span>,
-                    <span class="ident">tx_confirmation</span>,
-                )
-                .<span class="kw">await</span><span class="question-mark">?</span>
-            }
-            <span class="bool-val">false</span> =&gt; {
-                <span class="macro">debug!</span>(<span class="string">&quot;Consensus is disabled: the primary will run on its own&quot;</span>);
-                <span class="ident">Dag::spawn</span>(<span class="ident">rx_new_certificates</span>);
-            }
-        }
-        <span class="prelude-val">Ok</span>(())
+        <span class="prelude-val">Ok</span>(<span class="ident">primary_handle</span>)
     }
 
     <span class="doccomment">/// Spawn the consensus core and the client executing transactions.</span>
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">spawn_consensus</span><span class="op">&lt;</span><span class="ident">PublicKey</span>, <span class="ident">State</span><span class="op">&gt;</span>(
         <span class="ident">name</span>: <span class="ident">PublicKey</span>,
-        <span class="ident">committee</span>: <span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
+        <span class="ident">committee</span>: <span class="ident">SharedCommittee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
         <span class="ident">store</span>: <span class="kw-2">&amp;</span><span class="ident">NodeStorage</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
         <span class="ident">parameters</span>: <span class="ident">Parameters</span>,
         <span class="ident">execution_state</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">State</span><span class="op">&gt;</span>,
@@ -452,23 +467,26 @@
         <span class="comment">// The ids of the validators to spawn.</span>
         <span class="ident">ids</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">WorkerId</span><span class="op">&gt;</span>,
         <span class="comment">// The committee information.</span>
-        <span class="ident">committee</span>: <span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
+        <span class="ident">committee</span>: <span class="ident">SharedCommittee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
         <span class="comment">// The node&#39;s storage,</span>
         <span class="ident">store</span>: <span class="kw-2">&amp;</span><span class="ident">NodeStorage</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
         <span class="comment">// The configuration parameters.</span>
         <span class="ident">parameters</span>: <span class="ident">Parameters</span>,
-    ) {
+    ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">handles</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
+
         <span class="kw">for</span> <span class="ident">id</span> <span class="kw">in</span> <span class="ident">ids</span> {
-            <span class="ident">Worker::spawn</span>(
+            <span class="ident">handles</span>.<span class="ident">push</span>(<span class="ident">Worker::spawn</span>(
                 <span class="ident">name</span>.<span class="ident">clone</span>(),
                 <span class="ident">id</span>,
                 <span class="ident">committee</span>.<span class="ident">clone</span>(),
                 <span class="ident">parameters</span>.<span class="ident">clone</span>(),
                 <span class="ident">store</span>.<span class="ident">batch_store</span>.<span class="ident">clone</span>(),
-            );
+            ));
         }
+        <span class="ident">handles</span>
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="node" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.62.0-nightly (88860d547 2022-05-09)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="node" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.63.0-nightly (e09449220 2022-05-31)" ></div>
 </body></html>

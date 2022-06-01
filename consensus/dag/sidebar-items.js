@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["Dag","Dag represents the pure dag that is constructed by the certificate of each round without any consensus running on top of it."]]});
+initSidebarItems({"enum":[["ValidatorDagError","Represents the errors that can be encountered in this concrete, [`VerifyingKey`], [`Certificate`] and [`Round`]-aware variant of the Dag."]],"struct":[["Dag","The publicly exposed Dag handle, to which one can send commands"]]});

@@ -3,7 +3,9 @@
         </a><h2 class="location"></h2>
     </nav>
     <nav class="sidebar"><a class="sidebar-logo" href="../../worker/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div>
-        </a></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../../worker/index.html"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></a><nav class="sub"><div class="theme-picker hidden"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu" title="themes"><img width="22" height="22" alt="Pick another theme!" src="../../brush.svg"></button><div id="theme-choices" role="menu"></div></div><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><button type="button" id="help-button" title="help">?</button><a id="settings-menu" href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../wheel.svg"></a></div></form></nav></div><section id="main-content" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">1</span>
+        </a></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../../worker/index.html"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></a><nav class="sub"><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><button type="button" id="help-button" title="help">?</button><div id="settings-menu" tabindex="-1">
+                                <a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../wheel.svg"></a></div>
+                        </div></form></nav></div><section id="main-content" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">1</span>
 <span id="2">2</span>
 <span id="3">3</span>
 <span id="4">4</span>
@@ -154,20 +156,16 @@
 <span id="149">149</span>
 <span id="150">150</span>
 <span id="151">151</span>
-<span id="152">152</span>
-<span id="153">153</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">quorum_waiter::QuorumWaiterMessage</span>, <span class="ident">worker::WorkerMessage</span>};
 <span class="kw">use</span> <span class="ident">crypto::traits::VerifyingKey</span>;
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;benchmark&quot;</span>)]</span>
-<span class="kw">use</span> <span class="ident">blake2::digest::Update</span>;
+<span class="kw">use</span> <span class="ident">multiaddr::Multiaddr</span>;
 <span class="kw">use</span> <span class="ident">network::WorkerNetwork</span>;
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;benchmark&quot;</span>)]</span>
 <span class="kw">use</span> <span class="ident">std::convert::TryInto</span> <span class="kw">as</span> <span class="kw">_</span>;
-<span class="kw">use</span> <span class="ident">std::net::SocketAddr</span>;
 <span class="kw">use</span> <span class="ident">tokio</span>::{
     <span class="ident">sync::mpsc</span>::{<span class="ident">Receiver</span>, <span class="ident">Sender</span>},
     <span class="ident">time</span>::{<span class="ident">sleep</span>, <span class="ident">Duration</span>, <span class="ident">Instant</span>},
@@ -175,7 +173,7 @@
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;benchmark&quot;</span>)]</span>
 <span class="kw">use</span> <span class="ident">tracing::info</span>;
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;benchmark&quot;</span>)]</span>
-<span class="kw">use</span> <span class="ident">types::BatchDigest</span>;
+<span class="kw">use</span> <span class="ident">types::serialized_batch_digest</span>;
 <span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">Batch</span>, <span class="ident">Transaction</span>};
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
@@ -193,7 +191,7 @@
     <span class="doccomment">/// Output channel to deliver sealed batches to the `QuorumWaiter`.</span>
     <span class="ident">tx_message</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">QuorumWaiterMessage</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="doccomment">/// The network addresses of the other workers that share our worker id.</span>
-    <span class="ident">workers_addresses</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">PublicKey</span>, <span class="ident">SocketAddr</span>)<span class="op">&gt;</span>,
+    <span class="ident">workers_addresses</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">PublicKey</span>, <span class="ident">Multiaddr</span>)<span class="op">&gt;</span>,
     <span class="doccomment">/// Holds the current batch.</span>
     <span class="ident">current_batch</span>: <span class="ident">Batch</span>,
     <span class="doccomment">/// Holds the size of the current batch (in bytes).</span>
@@ -208,7 +206,7 @@
         <span class="ident">max_batch_delay</span>: <span class="ident">Duration</span>,
         <span class="ident">rx_transaction</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Transaction</span><span class="op">&gt;</span>,
         <span class="ident">tx_message</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">QuorumWaiterMessage</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-        <span class="ident">workers_addresses</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">PublicKey</span>, <span class="ident">SocketAddr</span>)<span class="op">&gt;</span>,
+        <span class="ident">workers_addresses</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">PublicKey</span>, <span class="ident">Multiaddr</span>)<span class="op">&gt;</span>,
     ) {
         <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
             <span class="self">Self</span> {
@@ -281,7 +279,7 @@
         <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;benchmark&quot;</span>)]</span>
         {
             <span class="comment">// NOTE: This is one extra hash that is only needed to print the following log entries.</span>
-            <span class="kw">let</span> <span class="ident">digest</span> <span class="op">=</span> <span class="ident">BatchDigest::new</span>(<span class="ident">crypto::blake2b_256</span>(<span class="op">|</span><span class="ident">hasher</span><span class="op">|</span> <span class="ident">hasher</span>.<span class="ident">update</span>(<span class="kw-2">&amp;</span><span class="ident">serialized</span>)));
+            <span class="kw">let</span> <span class="ident">digest</span> <span class="op">=</span> <span class="ident">serialized_batch_digest</span>(<span class="kw-2">&amp;</span><span class="ident">serialized</span>);
             <span class="kw">for</span> <span class="ident">id</span> <span class="kw">in</span> <span class="ident">tx_ids</span> {
                 <span class="comment">// NOTE: This log entry is used to compute performance.</span>
                 <span class="macro">info!</span>(
@@ -310,5 +308,5 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.62.0-nightly (88860d547 2022-05-09)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.63.0-nightly (e09449220 2022-05-31)" ></div>
 </body></html>

@@ -3,7 +3,9 @@
         </a><h2 class="location"></h2>
     </nav>
     <nav class="sidebar"><a class="sidebar-logo" href="../../config/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div>
-        </a></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../../config/index.html"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></a><nav class="sub"><div class="theme-picker hidden"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu" title="themes"><img width="22" height="22" alt="Pick another theme!" src="../../brush.svg"></button><div id="theme-choices" role="menu"></div></div><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><button type="button" id="help-button" title="help">?</button><a id="settings-menu" href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../wheel.svg"></a></div></form></nav></div><section id="main-content" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">1</span>
+        </a></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../../config/index.html"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></a><nav class="sub"><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><button type="button" id="help-button" title="help">?</button><div id="settings-menu" tabindex="-1">
+                                <a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../wheel.svg"></a></div>
+                        </div></form></nav></div><section id="main-content" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">1</span>
 <span id="2">2</span>
 <span id="3">3</span>
 <span id="4">4</span>
@@ -479,6 +481,134 @@
 <span id="474">474</span>
 <span id="475">475</span>
 <span id="476">476</span>
+<span id="477">477</span>
+<span id="478">478</span>
+<span id="479">479</span>
+<span id="480">480</span>
+<span id="481">481</span>
+<span id="482">482</span>
+<span id="483">483</span>
+<span id="484">484</span>
+<span id="485">485</span>
+<span id="486">486</span>
+<span id="487">487</span>
+<span id="488">488</span>
+<span id="489">489</span>
+<span id="490">490</span>
+<span id="491">491</span>
+<span id="492">492</span>
+<span id="493">493</span>
+<span id="494">494</span>
+<span id="495">495</span>
+<span id="496">496</span>
+<span id="497">497</span>
+<span id="498">498</span>
+<span id="499">499</span>
+<span id="500">500</span>
+<span id="501">501</span>
+<span id="502">502</span>
+<span id="503">503</span>
+<span id="504">504</span>
+<span id="505">505</span>
+<span id="506">506</span>
+<span id="507">507</span>
+<span id="508">508</span>
+<span id="509">509</span>
+<span id="510">510</span>
+<span id="511">511</span>
+<span id="512">512</span>
+<span id="513">513</span>
+<span id="514">514</span>
+<span id="515">515</span>
+<span id="516">516</span>
+<span id="517">517</span>
+<span id="518">518</span>
+<span id="519">519</span>
+<span id="520">520</span>
+<span id="521">521</span>
+<span id="522">522</span>
+<span id="523">523</span>
+<span id="524">524</span>
+<span id="525">525</span>
+<span id="526">526</span>
+<span id="527">527</span>
+<span id="528">528</span>
+<span id="529">529</span>
+<span id="530">530</span>
+<span id="531">531</span>
+<span id="532">532</span>
+<span id="533">533</span>
+<span id="534">534</span>
+<span id="535">535</span>
+<span id="536">536</span>
+<span id="537">537</span>
+<span id="538">538</span>
+<span id="539">539</span>
+<span id="540">540</span>
+<span id="541">541</span>
+<span id="542">542</span>
+<span id="543">543</span>
+<span id="544">544</span>
+<span id="545">545</span>
+<span id="546">546</span>
+<span id="547">547</span>
+<span id="548">548</span>
+<span id="549">549</span>
+<span id="550">550</span>
+<span id="551">551</span>
+<span id="552">552</span>
+<span id="553">553</span>
+<span id="554">554</span>
+<span id="555">555</span>
+<span id="556">556</span>
+<span id="557">557</span>
+<span id="558">558</span>
+<span id="559">559</span>
+<span id="560">560</span>
+<span id="561">561</span>
+<span id="562">562</span>
+<span id="563">563</span>
+<span id="564">564</span>
+<span id="565">565</span>
+<span id="566">566</span>
+<span id="567">567</span>
+<span id="568">568</span>
+<span id="569">569</span>
+<span id="570">570</span>
+<span id="571">571</span>
+<span id="572">572</span>
+<span id="573">573</span>
+<span id="574">574</span>
+<span id="575">575</span>
+<span id="576">576</span>
+<span id="577">577</span>
+<span id="578">578</span>
+<span id="579">579</span>
+<span id="580">580</span>
+<span id="581">581</span>
+<span id="582">582</span>
+<span id="583">583</span>
+<span id="584">584</span>
+<span id="585">585</span>
+<span id="586">586</span>
+<span id="587">587</span>
+<span id="588">588</span>
+<span id="589">589</span>
+<span id="590">590</span>
+<span id="591">591</span>
+<span id="592">592</span>
+<span id="593">593</span>
+<span id="594">594</span>
+<span id="595">595</span>
+<span id="596">596</span>
+<span id="597">597</span>
+<span id="598">598</span>
+<span id="599">599</span>
+<span id="600">600</span>
+<span id="601">601</span>
+<span id="602">602</span>
+<span id="603">603</span>
+<span id="604">604</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -489,14 +619,16 @@
     <span class="ident">rust_2021_compatibility</span>
 )]</span>
 
+<span class="kw">use</span> <span class="ident">arc_swap::ArcSwap</span>;
 <span class="kw">use</span> <span class="ident">crypto::traits</span>::{<span class="ident">EncodeDecodeBase64</span>, <span class="ident">VerifyingKey</span>};
+<span class="kw">use</span> <span class="ident">multiaddr::Multiaddr</span>;
 <span class="kw">use</span> <span class="ident">serde</span>::{<span class="ident">de::DeserializeOwned</span>, <span class="ident">Deserialize</span>, <span class="ident">Serialize</span>};
 <span class="kw">use</span> <span class="ident">std</span>::{
     <span class="ident">collections</span>::{<span class="ident">BTreeMap</span>, <span class="ident">HashMap</span>},
     <span class="ident">fs</span>::{<span class="self">self</span>, <span class="ident">OpenOptions</span>},
     <span class="ident">io</span>::{<span class="ident">BufWriter</span>, <span class="ident">Write</span> <span class="kw">as</span> <span class="kw">_</span>},
-    <span class="ident">net::SocketAddr</span>,
     <span class="ident">ops::Deref</span>,
+    <span class="ident">sync::Arc</span>,
     <span class="ident">time::Duration</span>,
 };
 <span class="kw">use</span> <span class="ident">thiserror::Error</span>;
@@ -504,7 +636,7 @@
 <span class="kw">use</span> <span class="ident">utils::get_available_port</span>;
 
 <span class="kw">mod</span> <span class="ident">duration_format</span>;
-<span class="kw">mod</span> <span class="ident">utils</span>;
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">utils</span>;
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Error</span>, <span class="ident">Debug</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">ConfigError</span> {
@@ -519,6 +651,18 @@
 
     <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Failed to write config file &#39;{file}&#39;: {message}&quot;</span>)]</span>
     <span class="ident">ExportError</span> { <span class="ident">file</span>: <span class="ident">String</span>, <span class="ident">message</span>: <span class="ident">String</span> },
+}
+
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Error</span>, <span class="ident">Debug</span>)]</span>
+<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">ComitteeUpdateError</span> {
+    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Node {0} is not in the committee&quot;</span>)]</span>
+    <span class="ident">NotInCommittee</span>(<span class="ident">String</span>),
+
+    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Node {0} was not in the update&quot;</span>)]</span>
+    <span class="ident">MissingFromUpdate</span>(<span class="ident">String</span>),
+
+    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Node {0} has a different stake than expected&quot;</span>)]</span>
+    <span class="ident">DifferentStake</span>(<span class="ident">String</span>),
 }
 
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">Import</span>: <span class="ident">DeserializeOwned</span> {
@@ -558,11 +702,11 @@
 <span class="kw">pub</span> <span class="kw">type</span> <span class="ident">Stake</span> <span class="op">=</span> <span class="ident">u32</span>;
 <span class="kw">pub</span> <span class="kw">type</span> <span class="ident">WorkerId</span> <span class="op">=</span> <span class="ident">u32</span>;
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Deserialize</span>, <span class="ident">Clone</span>)]</span>
 <span class="doccomment">/// Holds all the node properties. An example is provided to</span>
 <span class="doccomment">/// showcase the usage and deserialization from a json file.</span>
 <span class="doccomment">/// To define a Duration on the property file can use either</span>
 <span class="doccomment">/// miliseconds or seconds (e.x 5s, 10ms , 2000ms).</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">Deserialize</span>, <span class="ident">Serialize</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Parameters</span> {
     <span class="doccomment">/// The preferred header size. The primary creates a new header when it has enough parents and</span>
     <span class="doccomment">/// enough batches&#39; digests to reach `header_size`. Denominated in bytes.</span>
@@ -594,25 +738,31 @@
     <span class="kw">pub</span> <span class="ident">max_concurrent_requests</span>: <span class="ident">usize</span>,
 }
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Deserialize</span>, <span class="ident">Clone</span>)]</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">Deserialize</span>, <span class="ident">Serialize</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ConsensusAPIGrpcParameters</span> {
     <span class="doccomment">/// Socket address the server should be listening to.</span>
-    <span class="kw">pub</span> <span class="ident">socket_addr</span>: <span class="ident">String</span>,
+    <span class="kw">pub</span> <span class="ident">socket_addr</span>: <span class="ident">Multiaddr</span>,
     <span class="doccomment">/// The timeout configuration when requesting batches from workers.</span>
     <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">with</span> <span class="op">=</span> <span class="string">&quot;duration_format&quot;</span>)]</span>
     <span class="kw">pub</span> <span class="ident">get_collections_timeout</span>: <span class="ident">Duration</span>,
+    <span class="doccomment">/// The timeout configuration when removing batches from workers.</span>
+    <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">with</span> <span class="op">=</span> <span class="string">&quot;duration_format&quot;</span>)]</span>
+    <span class="kw">pub</span> <span class="ident">remove_collections_timeout</span>: <span class="ident">Duration</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">Default</span> <span class="kw">for</span> <span class="ident">ConsensusAPIGrpcParameters</span> {
     <span class="kw">fn</span> <span class="ident">default</span>() -&gt; <span class="self">Self</span> {
         <span class="self">Self</span> {
-            <span class="ident">socket_addr</span>: <span class="macro">format!</span>(<span class="string">&quot;127.0.0.1:{}&quot;</span>, <span class="ident">get_available_port</span>()),
+            <span class="ident">socket_addr</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_available_port</span>())
+                .<span class="ident">parse</span>()
+                .<span class="ident">unwrap</span>(),
             <span class="ident">get_collections_timeout</span>: <span class="ident">Duration::from_millis</span>(<span class="number">5_000</span>),
+            <span class="ident">remove_collections_timeout</span>: <span class="ident">Duration::from_millis</span>(<span class="number">5_000</span>),
         }
     }
 }
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Deserialize</span>, <span class="ident">Clone</span>)]</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">Deserialize</span>, <span class="ident">Serialize</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BlockSynchronizerParameters</span> {
     <span class="doccomment">/// The timeout configuration when requesting certificates from peers.</span>
     <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">with</span> <span class="op">=</span> <span class="string">&quot;duration_format&quot;</span>)]</span>
@@ -625,6 +775,14 @@
     <span class="doccomment">/// discover who has the payload available for the dictated certificates.</span>
     <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">with</span> <span class="op">=</span> <span class="string">&quot;duration_format&quot;</span>)]</span>
     <span class="kw">pub</span> <span class="ident">payload_availability_timeout</span>: <span class="ident">Duration</span>,
+    <span class="doccomment">/// When a certificate is fetched on the fly from peers, it is submitted</span>
+    <span class="doccomment">/// from the block synchronizer handler for further processing to core</span>
+    <span class="doccomment">/// to validate and ensure parents are available and history is causal</span>
+    <span class="doccomment">/// complete. This property is the timeout while we wait for core to</span>
+    <span class="doccomment">/// perform this processes and the certificate to become available to</span>
+    <span class="doccomment">/// the handler to consume.</span>
+    <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">with</span> <span class="op">=</span> <span class="string">&quot;duration_format&quot;</span>)]</span>
+    <span class="kw">pub</span> <span class="ident">handler_certificate_deliver_timeout</span>: <span class="ident">Duration</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">Default</span> <span class="kw">for</span> <span class="ident">BlockSynchronizerParameters</span> {
@@ -633,6 +791,7 @@
             <span class="ident">certificates_synchronize_timeout</span>: <span class="ident">Duration::from_millis</span>(<span class="number">2_000</span>),
             <span class="ident">payload_synchronize_timeout</span>: <span class="ident">Duration::from_millis</span>(<span class="number">2_000</span>),
             <span class="ident">payload_availability_timeout</span>: <span class="ident">Duration::from_millis</span>(<span class="number">2_000</span>),
+            <span class="ident">handler_certificate_deliver_timeout</span>: <span class="ident">Duration::from_millis</span>(<span class="number">2_000</span>),
         }
     }
 }
@@ -691,12 +850,24 @@
                 .<span class="ident">as_millis</span>()
         );
         <span class="macro">info!</span>(
-            <span class="string">&quot;Consensus API gRPC Server listening on {}&quot;</span>,
+            <span class="string">&quot;Consensus API gRPC Server set to listen on on {}&quot;</span>,
             <span class="self">self</span>.<span class="ident">consensus_api_grpc</span>.<span class="ident">socket_addr</span>
         );
         <span class="macro">info!</span>(
             <span class="string">&quot;Get collections timeout set to {} ms&quot;</span>,
             <span class="self">self</span>.<span class="ident">consensus_api_grpc</span>.<span class="ident">get_collections_timeout</span>.<span class="ident">as_millis</span>()
+        );
+        <span class="macro">info!</span>(
+            <span class="string">&quot;Remove collections timeout set to {} ms&quot;</span>,
+            <span class="self">self</span>.<span class="ident">consensus_api_grpc</span>
+                .<span class="ident">remove_collections_timeout</span>
+                .<span class="ident">as_millis</span>()
+        );
+        <span class="macro">info!</span>(
+            <span class="string">&quot;Handler certificate deliver timeout set to {} ms&quot;</span>,
+            <span class="self">self</span>.<span class="ident">block_synchronizer</span>
+                .<span class="ident">handler_certificate_deliver_timeout</span>
+                .<span class="ident">as_millis</span>()
         );
         <span class="macro">info!</span>(
             <span class="string">&quot;Max concurrent requests set to {}&quot;</span>,
@@ -705,22 +876,22 @@
     }
 }
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>)]</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">PrimaryAddresses</span> {
     <span class="doccomment">/// Address to receive messages from other primaries (WAN).</span>
-    <span class="kw">pub</span> <span class="ident">primary_to_primary</span>: <span class="ident">SocketAddr</span>,
+    <span class="kw">pub</span> <span class="ident">primary_to_primary</span>: <span class="ident">Multiaddr</span>,
     <span class="doccomment">/// Address to receive messages from our workers (LAN).</span>
-    <span class="kw">pub</span> <span class="ident">worker_to_primary</span>: <span class="ident">SocketAddr</span>,
+    <span class="kw">pub</span> <span class="ident">worker_to_primary</span>: <span class="ident">Multiaddr</span>,
 }
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>, <span class="ident">Eq</span>, <span class="ident">Hash</span>, <span class="ident">PartialEq</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">WorkerAddresses</span> {
     <span class="doccomment">/// Address to receive client transactions (WAN).</span>
-    <span class="kw">pub</span> <span class="ident">transactions</span>: <span class="ident">SocketAddr</span>,
+    <span class="kw">pub</span> <span class="ident">transactions</span>: <span class="ident">Multiaddr</span>,
     <span class="doccomment">/// Address to receive messages from other workers (WAN).</span>
-    <span class="kw">pub</span> <span class="ident">worker_to_worker</span>: <span class="ident">SocketAddr</span>,
+    <span class="kw">pub</span> <span class="ident">worker_to_worker</span>: <span class="ident">Multiaddr</span>,
     <span class="doccomment">/// Address to receive messages from our primary (LAN).</span>
-    <span class="kw">pub</span> <span class="ident">primary_to_worker</span>: <span class="ident">SocketAddr</span>,
+    <span class="kw">pub</span> <span class="ident">primary_to_worker</span>: <span class="ident">Multiaddr</span>,
 }
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>)]</span>
@@ -733,39 +904,36 @@
     <span class="kw">pub</span> <span class="ident">workers</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">WorkerId</span>, <span class="ident">WorkerAddresses</span><span class="op">&gt;</span>,
 }
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>)]</span>
-<span class="attribute">#[<span class="ident">serde</span>(<span class="ident">bound</span>(<span class="ident">deserialize</span> <span class="op">=</span> <span class="string">&quot;PublicKey: DeserializeOwned&quot;</span>))]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> {
-    <span class="kw">pub</span> <span class="ident">authorities</span>: <span class="ident">BTreeMap</span><span class="op">&lt;</span><span class="ident">PublicKey</span>, <span class="ident">Authority</span><span class="op">&gt;</span>,
+<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">SharedCommittee</span><span class="op">&lt;</span><span class="ident">PK</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">PK</span><span class="op">&gt;</span><span class="op">&gt;</span>;
+
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Serialize</span>, <span class="ident">Deserialize</span>)]</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span> {
+    <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">bound</span>(
+        <span class="ident">serialize</span> <span class="op">=</span> <span class="string">&quot;PublicKey:Ord + Serialize&quot;</span>,
+        <span class="ident">deserialize</span> <span class="op">=</span> <span class="string">&quot;PublicKey:Ord + DeserializeOwned&quot;</span>
+    ))]</span>
+    <span class="kw">pub</span> <span class="ident">authorities</span>: <span class="ident">ArcSwap</span><span class="op">&lt;</span><span class="ident">BTreeMap</span><span class="op">&lt;</span><span class="ident">PublicKey</span>, <span class="ident">Authority</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> <span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span> {
     <span class="doccomment">/// Returns the number of authorities.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">size</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">usize</span> {
-        <span class="self">self</span>.<span class="ident">authorities</span>.<span class="ident">len</span>()
+        <span class="self">self</span>.<span class="ident">authorities</span>.<span class="ident">load</span>().<span class="ident">len</span>()
     }
 
     <span class="doccomment">/// Return the stake of a specific authority.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">stake</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">name</span>: <span class="kw-2">&amp;</span><span class="ident">PublicKey</span>) -&gt; <span class="ident">Stake</span> {
         <span class="self">self</span>.<span class="ident">authorities</span>
+            .<span class="ident">load</span>()
             .<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">name</span>.<span class="ident">clone</span>())
             .<span class="ident">map_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="number">0</span>, <span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="ident">stake</span>)
-    }
-
-    <span class="doccomment">/// Returns the stake of all authorities except `myself`.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">others_stake</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">myself</span>: <span class="kw-2">&amp;</span><span class="ident">PublicKey</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">PublicKey</span>, <span class="ident">Stake</span>)<span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">authorities</span>
-            .<span class="ident">iter</span>()
-            .<span class="ident">filter</span>(<span class="op">|</span>(<span class="ident">name</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="kw-2">*</span><span class="ident">name</span> <span class="op">!</span><span class="op">=</span> <span class="ident">myself</span>)
-            .<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">name</span>, <span class="ident">authority</span>)<span class="op">|</span> (<span class="ident">name</span>.<span class="ident">deref</span>().<span class="ident">clone</span>(), <span class="ident">authority</span>.<span class="ident">stake</span>))
-            .<span class="ident">collect</span>()
     }
 
     <span class="doccomment">/// Returns the stake required to reach a quorum (2f+1).</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">quorum_threshold</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Stake</span> {
         <span class="comment">// If N = 3f + 1 + k (0 &lt;= k &lt; 3)</span>
         <span class="comment">// then (2 N + 3) / 3 = 2f + 1 + (2k + 2)/3 = 2f + 1 + k = N - f</span>
-        <span class="kw">let</span> <span class="ident">total_votes</span>: <span class="ident">Stake</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">authorities</span>.<span class="ident">values</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="ident">stake</span>).<span class="ident">sum</span>();
+        <span class="kw">let</span> <span class="ident">total_votes</span>: <span class="ident">Stake</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">authorities</span>.<span class="ident">load</span>().<span class="ident">values</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="ident">stake</span>).<span class="ident">sum</span>();
         <span class="number">2</span> <span class="op">*</span> <span class="ident">total_votes</span> <span class="op">/</span> <span class="number">3</span> <span class="op">+</span> <span class="number">1</span>
     }
 
@@ -773,13 +941,14 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">validity_threshold</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Stake</span> {
         <span class="comment">// If N = 3f + 1 + k (0 &lt;= k &lt; 3)</span>
         <span class="comment">// then (N + 2) / 3 = f + 1 + k/3 = f + 1</span>
-        <span class="kw">let</span> <span class="ident">total_votes</span>: <span class="ident">Stake</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">authorities</span>.<span class="ident">values</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="ident">stake</span>).<span class="ident">sum</span>();
+        <span class="kw">let</span> <span class="ident">total_votes</span>: <span class="ident">Stake</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">authorities</span>.<span class="ident">load</span>().<span class="ident">values</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="ident">stake</span>).<span class="ident">sum</span>();
         (<span class="ident">total_votes</span> <span class="op">+</span> <span class="number">2</span>) <span class="op">/</span> <span class="number">3</span>
     }
 
     <span class="doccomment">/// Returns the primary addresses of the target primary.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">primary</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">to</span>: <span class="kw-2">&amp;</span><span class="ident">PublicKey</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">PrimaryAddresses</span>, <span class="ident">ConfigError</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">authorities</span>
+            .<span class="ident">load</span>()
             .<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">to</span>.<span class="ident">clone</span>())
             .<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="ident">primary</span>.<span class="ident">clone</span>())
             .<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">ConfigError::NotInCommittee</span>((<span class="kw-2">*</span><span class="ident">to</span>).<span class="ident">encode_base64</span>()))
@@ -788,6 +957,7 @@
     <span class="doccomment">/// Returns the addresses of all primaries except `myself`.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">others_primaries</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">myself</span>: <span class="kw-2">&amp;</span><span class="ident">PublicKey</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">PublicKey</span>, <span class="ident">PrimaryAddresses</span>)<span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">authorities</span>
+            .<span class="ident">load</span>()
             .<span class="ident">iter</span>()
             .<span class="ident">filter</span>(<span class="op">|</span>(<span class="ident">name</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="kw-2">*</span><span class="ident">name</span> <span class="op">!</span><span class="op">=</span> <span class="ident">myself</span>)
             .<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">name</span>, <span class="ident">authority</span>)<span class="op">|</span> (<span class="ident">name</span>.<span class="ident">deref</span>().<span class="ident">clone</span>(), <span class="ident">authority</span>.<span class="ident">primary</span>.<span class="ident">clone</span>()))
@@ -797,6 +967,7 @@
     <span class="doccomment">/// Returns the addresses of a specific worker (`id`) of a specific authority (`to`).</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">worker</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">to</span>: <span class="kw-2">&amp;</span><span class="ident">PublicKey</span>, <span class="ident">id</span>: <span class="kw-2">&amp;</span><span class="ident">WorkerId</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">WorkerAddresses</span>, <span class="ident">ConfigError</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">authorities</span>
+            .<span class="ident">load</span>()
             .<span class="ident">iter</span>()
             .<span class="ident">find</span>(<span class="op">|</span>(<span class="ident">name</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="kw-2">*</span><span class="ident">name</span> <span class="op">==</span> <span class="ident">to</span>)
             .<span class="ident">map</span>(<span class="op">|</span>(<span class="kw">_</span>, <span class="ident">authority</span>)<span class="op">|</span> <span class="ident">authority</span>)
@@ -814,6 +985,7 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">our_workers</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">myself</span>: <span class="kw-2">&amp;</span><span class="ident">PublicKey</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">WorkerAddresses</span><span class="op">&gt;</span>, <span class="ident">ConfigError</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="self">self</span>
             .<span class="ident">authorities</span>
+            .<span class="ident">load</span>()
             .<span class="ident">iter</span>()
             .<span class="ident">find</span>(<span class="op">|</span>(<span class="ident">name</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="kw-2">*</span><span class="ident">name</span> <span class="op">==</span> <span class="ident">myself</span>)
             .<span class="ident">map</span>(<span class="op">|</span>(<span class="kw">_</span>, <span class="ident">authority</span>)<span class="op">|</span> <span class="ident">authority</span>)
@@ -833,6 +1005,7 @@
         <span class="ident">id</span>: <span class="kw-2">&amp;</span><span class="ident">WorkerId</span>,
     ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">PublicKey</span>, <span class="ident">WorkerAddresses</span>)<span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">authorities</span>
+            .<span class="ident">load</span>()
             .<span class="ident">iter</span>()
             .<span class="ident">filter</span>(<span class="op">|</span>(<span class="ident">name</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="kw-2">*</span><span class="ident">name</span> <span class="op">!</span><span class="op">=</span> <span class="ident">myself</span>)
             .<span class="ident">filter_map</span>(<span class="op">|</span>(<span class="ident">name</span>, <span class="ident">authority</span>)<span class="op">|</span> {
@@ -843,6 +1016,75 @@
                     .<span class="ident">map</span>(<span class="op">|</span>(<span class="kw">_</span>, <span class="ident">addresses</span>)<span class="op">|</span> (<span class="ident">name</span>.<span class="ident">deref</span>().<span class="ident">clone</span>(), <span class="ident">addresses</span>.<span class="ident">clone</span>()))
             })
             .<span class="ident">collect</span>()
+    }
+
+    <span class="doccomment">/// Update the networking information of some of the primaries. The arguments are a full vector of</span>
+    <span class="doccomment">/// authorities which Public key and Stake must match the one stored in the current Comitttee. Any discrepancy</span>
+    <span class="doccomment">/// will generate no update and return a vector of errors.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">update_primary_network_info</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="kw-2">mut</span> <span class="ident">new_info</span>: <span class="ident">BTreeMap</span><span class="op">&lt;</span><span class="ident">PublicKey</span>, (<span class="ident">Stake</span>, <span class="ident">PrimaryAddresses</span>)<span class="op">&gt;</span>,
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">ComitteeUpdateError</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">errors</span> <span class="op">=</span> <span class="prelude-val">None</span>;
+
+        <span class="self">self</span>.<span class="ident">authorities</span>.<span class="ident">rcu</span>(<span class="op">|</span><span class="ident">table</span><span class="op">|</span> {
+            <span class="kw">let</span> <span class="ident">push_error_and_return</span> <span class="op">=</span> <span class="op">|</span><span class="ident">acc</span>, <span class="ident">error</span><span class="op">|</span> {
+                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">error_table</span> <span class="op">=</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">errors</span>) <span class="op">=</span> <span class="ident">acc</span> {
+                    <span class="ident">errors</span>
+                } <span class="kw">else</span> {
+                    <span class="ident">Vec::new</span>()
+                };
+                <span class="ident">error_table</span>.<span class="ident">push</span>(<span class="ident">error</span>);
+                <span class="prelude-val">Err</span>(<span class="ident">error_table</span>)
+            };
+
+            <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">table</span>
+                .<span class="ident">iter</span>()
+                .<span class="ident">fold</span>(<span class="prelude-val">Ok</span>(<span class="ident">BTreeMap::new</span>()), <span class="op">|</span><span class="ident">acc</span>, (<span class="ident">pk</span>, <span class="ident">authority</span>)<span class="op">|</span> {
+                    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">stake</span>, <span class="ident">addresses</span>)) <span class="op">=</span> <span class="ident">new_info</span>.<span class="ident">remove</span>(<span class="ident">pk</span>) {
+                        <span class="kw">if</span> <span class="ident">stake</span> <span class="op">==</span> <span class="ident">authority</span>.<span class="ident">stake</span> {
+                            <span class="kw">match</span> <span class="ident">acc</span> {
+                                <span class="comment">// No error met yet, update the accumulator</span>
+                                <span class="prelude-val">Ok</span>(<span class="kw-2">mut</span> <span class="ident">bmap</span>) =&gt; {
+                                    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">authority</span>.<span class="ident">clone</span>();
+                                    <span class="ident">res</span>.<span class="ident">primary</span> <span class="op">=</span> <span class="ident">addresses</span>;
+                                    <span class="ident">bmap</span>.<span class="ident">insert</span>(<span class="ident">pk</span>.<span class="ident">clone</span>(), <span class="ident">res</span>);
+                                    <span class="prelude-val">Ok</span>(<span class="ident">bmap</span>)
+                                }
+                                <span class="comment">// in error mode, continue</span>
+                                <span class="kw">_</span> =&gt; <span class="ident">acc</span>,
+                            }
+                        } <span class="kw">else</span> {
+                            <span class="comment">// Stake does not match: create or append error</span>
+                            <span class="ident">push_error_and_return</span>(
+                                <span class="ident">acc</span>,
+                                <span class="ident">ComitteeUpdateError::DifferentStake</span>(<span class="ident">pk</span>.<span class="ident">to_string</span>()),
+                            )
+                        }
+                    } <span class="kw">else</span> {
+                        <span class="comment">// This key is absent from new information</span>
+                        <span class="ident">push_error_and_return</span>(
+                            <span class="ident">acc</span>,
+                            <span class="ident">ComitteeUpdateError::MissingFromUpdate</span>(<span class="ident">pk</span>.<span class="ident">to_string</span>()),
+                        )
+                    }
+                });
+
+            <span class="comment">// If there are elements left in new_info, they are not in the original table</span>
+            <span class="comment">// If new_info is empty, this is a no-op.</span>
+            <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">new_info</span>.<span class="ident">iter</span>().<span class="ident">fold</span>(<span class="ident">res</span>, <span class="op">|</span><span class="ident">acc</span>, (<span class="ident">pk</span>, <span class="kw">_</span>)<span class="op">|</span> {
+                <span class="ident">push_error_and_return</span>(<span class="ident">acc</span>, <span class="ident">ComitteeUpdateError::NotInCommittee</span>(<span class="ident">pk</span>.<span class="ident">to_string</span>()))
+            });
+
+            <span class="kw">match</span> <span class="ident">res</span> {
+                <span class="prelude-val">Ok</span>(<span class="ident">new_table</span>) =&gt; <span class="ident">Arc::new</span>(<span class="ident">new_table</span>),
+                <span class="prelude-val">Err</span>(<span class="ident">errs</span>) =&gt; {
+                    <span class="ident">errors</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">errs</span>);
+                    <span class="ident">table</span>.<span class="ident">clone</span>()
+                }
+            }
+        });
+        <span class="ident">errors</span>.<span class="ident">map</span>(<span class="prelude-val">Err</span>).<span class="ident">unwrap_or</span>(<span class="prelude-val">Ok</span>(()))
     }
 }
 
@@ -868,11 +1110,13 @@
              &quot;block_synchronizer&quot;: {
                  &quot;certificates_synchronize_timeout&quot;: &quot;2s&quot;,
                  &quot;payload_synchronize_timeout&quot;: &quot;3_000ms&quot;,
-                 &quot;payload_availability_timeout&quot;: &quot;4_000ms&quot;
+                 &quot;payload_availability_timeout&quot;: &quot;4_000ms&quot;,
+                 &quot;handler_certificate_deliver_timeout&quot;: &quot;1_000ms&quot;
              },
              &quot;consensus_api_grpc&quot;: {
-                 &quot;socket_addr&quot;: &quot;127.0.0.1:0&quot;,
-                 &quot;get_collections_timeout&quot;: &quot;5_000ms&quot;
+                 &quot;socket_addr&quot;: &quot;/ip4/127.0.0.1/tcp/0/http&quot;,
+                 &quot;get_collections_timeout&quot;: &quot;5_000ms&quot;,
+                 &quot;remove_collections_timeout&quot;: &quot;5_000ms&quot;
              },
              &quot;max_concurrent_requests&quot;: 500000
           }&quot;#</span>;
@@ -912,11 +1156,21 @@
                 .<span class="ident">as_millis</span>(),
             <span class="number">4_000</span>
         );
-        <span class="macro">assert!</span>(<span class="ident">params</span>.<span class="ident">consensus_api_grpc</span>.<span class="ident">socket_addr</span>.<span class="ident">contains</span>(<span class="string">&quot;127.0.0.1:&quot;</span>));
+        <span class="macro">assert_eq!</span>(
+            <span class="ident">params</span>.<span class="ident">consensus_api_grpc</span>.<span class="ident">socket_addr</span>,
+            <span class="string">&quot;/ip4/127.0.0.1/tcp/0/http&quot;</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>(),
+        );
         <span class="macro">assert_eq!</span>(
             <span class="ident">params</span>
                 .<span class="ident">consensus_api_grpc</span>
                 .<span class="ident">get_collections_timeout</span>
+                .<span class="ident">as_millis</span>(),
+            <span class="number">5_000</span>
+        );
+        <span class="macro">assert_eq!</span>(
+            <span class="ident">params</span>
+                .<span class="ident">consensus_api_grpc</span>
+                .<span class="ident">remove_collections_timeout</span>
                 .<span class="ident">as_millis</span>(),
             <span class="number">5_000</span>
         );
@@ -949,12 +1203,16 @@
             <span class="string">&quot;Synchronize payload (batches) timeout set to 2000 ms&quot;</span>
         ));
         <span class="macro">assert!</span>(<span class="ident">logs_contain</span>(
-            <span class="string">&quot;Consensus API gRPC Server listening on 127.0.0.1&quot;</span>
+            <span class="string">&quot;Handler certificate deliver timeout set to 2000 ms&quot;</span>
+        ));
+        <span class="macro">assert!</span>(<span class="ident">logs_contain</span>(
+            <span class="string">&quot;Consensus API gRPC Server set to listen on on /ip4/127.0.0.1/tcp&quot;</span>
         ));
         <span class="macro">assert!</span>(<span class="ident">logs_contain</span>(<span class="string">&quot;Get collections timeout set to 5000 ms&quot;</span>));
+        <span class="macro">assert!</span>(<span class="ident">logs_contain</span>(<span class="string">&quot;Remove collections timeout set to 5000 ms&quot;</span>));
         <span class="macro">assert!</span>(<span class="ident">logs_contain</span>(<span class="string">&quot;Max concurrent requests set to 500000&quot;</span>))
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="config" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.62.0-nightly (88860d547 2022-05-09)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="config" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.63.0-nightly (e09449220 2022-05-31)" ></div>
 </body></html>
