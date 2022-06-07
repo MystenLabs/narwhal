@@ -39,7 +39,7 @@ a cluster for *four nodes* by doing the necessary setup for `primary` and `worke
 The logs for each validator (primary & worker nodes) can be found in the `logs` folder under the corresponding
 validator folder.
 
-> **Important:** You will find across the codebase the name *Authority* when we describe
+> **Note**: You will find across the codebase the name *Authority* when we describe
 > the entity participating in the Narwhal protocol that verifies and signs the produced headers. An 
 > authority is composed of a `primary` node and one or more `worker` nodes. Since Authority is not a widely
 > used term, we are referring instead to our *primary + worker* node pairs as **Validator**.
