@@ -105,7 +105,7 @@ For example, to send a gRPC request to the `primary_1` node, use the URL: `127.0
 
 Just as you access the [public gRPC endpoints on a primary node](#access-primary-node-public-grpc-endpoints), you may
 similarly **feed transactions** to the Narwhal cluster via the `worker` nodes with the gRPC server
-bootstrapped on the worker nodes bond to the local machine port. To send transactions, the following local
+bootstrapped on the worker nodes bind to the local machine port. To send transactions, the following local
 ports can be used:
 * `worker_0`: 7001
 * `worker_1`: 7002
