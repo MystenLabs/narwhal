@@ -19,7 +19,7 @@ rand = "0.7.3"
 serde = { version = "1.0.137", features = ["derive"] }
 tempfile = "3.3.0"
 thiserror = "1.0.31"
-tokio = { version = "1.18.2", features = ["sync", "rt", "macros"] }
+tokio = { version = "1.19.2", features = ["sync", "rt", "macros"] }
 tokio-util = { version = "0.7.2", features = ["codec"] }
 tonic = "0.7.2"
 multiaddr = "0.14.0"
