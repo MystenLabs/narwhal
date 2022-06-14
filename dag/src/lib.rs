@@ -245,47 +245,30 @@ impl<T: Sync + Send + std::fmt::Debug> Node<T> {
         }
 
         // create set of initial compressible and incompressible nodes
-        let (compressible, incompressible): (Vec<NodeRef<T>>, Vec<NodeRef<T>>) = self
+        let (mut compressible, mut incompressible): (Vec<NodeRef<T>>, Vec<NodeRef<T>>) = self
             .raw_parents_snapshot()
             .into_iter()
             .partition(|p| p.is_compressible());
 
-        // recurse to get compressed set
-        let compressed = Self::parents_inner(compressible, incompressible);
-
-        // deduplicate compressed set and save
-        let res: Vec<NodeRef<T>> = compressed
-            .into_iter()
-            .unique_by(|arc| Arc::as_ptr(arc))
-            .collect();
-        self.parents.store(Arc::new(res));
-        debug_assert!(self.is_trivial());
-        self.raw_parents_snapshot()
-    }
-
-    /// recursive inner function of parents()
-    pub fn parents_inner(
-        compressible: Vec<NodeRef<T>>,
-        incompressible: Vec<NodeRef<T>>,
-    ) -> Vec<NodeRef<T>> {
-        // base case: no more compressible nodes
-        if compressible.is_empty() {
-            return incompressible;
+        while compressible.len() > 0 {
+            let curr = compressible.pop().unwrap();
+            let (curr_compressible, curr_incompressible): (Vec<NodeRef<T>>, Vec<NodeRef<T>>) = curr
+                .raw_parents_snapshot()
+                .into_iter()
+                .partition(|p| p.is_compressible());
+            compressible.extend(curr_compressible);
+            incompressible.extend(curr_incompressible);
+            // deduplicate
+            incompressible = incompressible
+                .into_iter()
+                .unique_by(|arc| Arc::as_ptr(arc))
+                .collect();
         }
 
-        // for all the compressible nodes, replace it with its parents
-        let new_parents: Vec<NodeRef<T>> = compressible
-            .par_iter()
-            .flat_map_iter(|node| node.parents())
-            .collect();
-
-        let (new_compressible, mut new_incompressible): (Vec<NodeRef<T>>, Vec<NodeRef<T>>) =
-            new_parents.into_iter().partition(|p| p.is_compressible());
-
-        new_incompressible.extend(incompressible);
-
-        // recurse with the new set of compressible and incompressible nodes
-        return Self::parents_inner(new_compressible, new_incompressible);
+        // save compressed set
+        self.parents.store(Arc::new(incompressible));
+        debug_assert!(self.is_trivial());
+        self.raw_parents_snapshot()
     }
 }
 
