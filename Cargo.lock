@@ -4339,7 +4339,6 @@ dependencies = [
  "thiserror",
  "thiserror-impl",
  "thread_local",
- "threadpool",
  "time",
  "tinytemplate",
  "tinyvec",
