@@ -177,7 +177,7 @@
 
         <span class="kw">let</span> <span class="ident">narwhal_proposer</span> <span class="op">=</span> <span class="ident">NarwhalProposer::new</span>(<span class="self">self</span>.<span class="ident">dag</span>.<span class="ident">clone</span>(), <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">committee</span>));
 
-        <span class="kw">let</span> <span class="ident">narwhal_configuration</span> <span class="op">=</span> <span class="ident">NarwhalConfiguration::new</span>();
+        <span class="kw">let</span> <span class="ident">narwhal_configuration</span> <span class="op">=</span> <span class="ident">NarwhalConfiguration::new</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">committee</span>));
 
         <span class="kw">let</span> <span class="ident">config</span> <span class="op">=</span> <span class="ident">mysten_network::config::Config::default</span>();
         <span class="kw">let</span> <span class="ident">server</span> <span class="op">=</span> <span class="ident">config</span>
@@ -196,5 +196,5 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.63.0-nightly (ca122c7eb 2022-06-13)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.63.0-nightly (1f34da9ec 2022-06-14)" ></div>
 </body></html>
