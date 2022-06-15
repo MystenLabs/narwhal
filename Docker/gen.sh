@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -xe
+set -e
 # number of primary+worker instances to start.
 num=$1
 if [ -z "${num}" ]; then
