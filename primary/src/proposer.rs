@@ -1,7 +1,7 @@
 // Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use config::{SharedCommittee, WorkerId};
+use config::{Epoch, SharedCommittee, WorkerId};
 use crypto::{traits::VerifyingKey, Digest, Hash as _, SignatureService};
 use tokio::{
     sync::mpsc::{Receiver, Sender},
@@ -30,7 +30,7 @@ pub struct Proposer<PublicKey: VerifyingKey> {
     max_header_delay: Duration,
 
     /// Receives the parents to include in the next header (along with their round number).
-    rx_core: Receiver<(Vec<CertificateDigest>, Round)>,
+    rx_core: Receiver<(Vec<CertificateDigest>, Round, Epoch)>,
     /// Receives the batches' digests from our workers.
     rx_workers: Receiver<(BatchDigest, WorkerId)>,
     /// Sends newly created headers to the `Core`.
@@ -53,7 +53,7 @@ impl<PublicKey: VerifyingKey> Proposer<PublicKey> {
         signature_service: SignatureService<PublicKey::Sig>,
         header_size: usize,
         max_header_delay: Duration,
-        rx_core: Receiver<(Vec<CertificateDigest>, Round)>,
+        rx_core: Receiver<(Vec<CertificateDigest>, Round, Epoch)>,
         rx_workers: Receiver<(BatchDigest, WorkerId)>,
         tx_core: Sender<Header<PublicKey>>,
     ) {
@@ -135,8 +135,15 @@ impl<PublicKey: VerifyingKey> Proposer<PublicKey> {
             }
 
             tokio::select! {
-                Some((parents, round)) = self.rx_core.recv() => {
-                    if round < self.round {
+                Some((parents, round, epoch)) = self.rx_core.recv() => {
+                    // If the core already moved to the next epoch we should pull the next
+                    // committee as well.
+                    if epoch > self.committee.epoch() {
+                        // TODO
+                    }
+
+                    // Ignore parents from lower rounds or epochs.
+                    if round < self.round || epoch < self.committee.epoch() {
                         continue;
                     }
 
