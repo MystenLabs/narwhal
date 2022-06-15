@@ -1,21 +1,44 @@
+use config::SharedCommittee;
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crypto::{ed25519::Ed25519PublicKey, traits::ToFromBytes};
+use crypto::traits::VerifyingKey;
 use multiaddr::Multiaddr;
 use tonic::{Request, Response, Status};
-use types::{Configuration, Empty, NewEpochRequest, NewNetworkInfoRequest};
+use types::{Configuration, Empty, NewEpochRequest, NewNetworkInfoRequest, PublicKeyProto};
 
-#[derive(Debug)]
-pub struct NarwhalConfiguration {}
+pub struct NarwhalConfiguration<PublicKey: VerifyingKey> {
+    /// The committee
+    committee: SharedCommittee<PublicKey>,
+}
 
-impl NarwhalConfiguration {
-    pub fn new() -> Self {
-        Self {}
+impl<PublicKey: VerifyingKey> NarwhalConfiguration<PublicKey> {
+    pub fn new(committee: SharedCommittee<PublicKey>) -> Self {
+        Self { committee }
+    }
+
+    /// Extracts and verifies the public key provided from the RoundsRequest.
+    /// The method will return a result where the OK() will hold the
+    /// parsed public key. The Err() will hold a Status message with the
+    /// specific error description.
+    fn get_public_key(&self, request: Option<&PublicKeyProto>) -> Result<PublicKey, Status> {
+        let proto_key = request
+            .ok_or_else(|| Status::invalid_argument("Invalid public key: no key provided"))?;
+        let key = PublicKey::from_bytes(proto_key.bytes.as_ref())
+            .map_err(|_| Status::invalid_argument("Invalid public key: couldn't parse"))?;
+
+        // ensure provided key is part of the committee
+        if self.committee.primary(&key).is_err() {
+            return Err(Status::invalid_argument(
+                "Invalid public key: unknown authority",
+            ));
+        }
+
+        Ok(key)
     }
 }
 
 #[tonic::async_trait]
-impl Configuration for NarwhalConfiguration {
+impl<PublicKey: VerifyingKey> Configuration for NarwhalConfiguration<PublicKey> {
     async fn new_epoch(
         &self,
         request: Request<NewEpochRequest>,
@@ -25,14 +48,7 @@ impl Configuration for NarwhalConfiguration {
         let validators = new_epoch_request.validators;
         let mut parsed_input = vec![];
         for validator in validators.iter() {
-            let proto_key = validator
-                .public_key
-                .as_ref()
-                .ok_or_else(|| Status::invalid_argument("Missing public key"))?;
-            let public_key: Ed25519PublicKey =
-                Ed25519PublicKey::from_bytes(proto_key.bytes.as_ref()).map_err(|err| {
-                    Status::invalid_argument(format!("Could not serialize: {:?}", err))
-                })?;
+            let public_key = self.get_public_key(validator.public_key.as_ref())?;
 
             let stake_weight = validator.stake_weight;
             let address: Multiaddr = validator
@@ -64,14 +80,7 @@ impl Configuration for NarwhalConfiguration {
         let validators = new_network_info_request.validators;
         let mut parsed_input = vec![];
         for validator in validators.iter() {
-            let proto_key = validator
-                .public_key
-                .as_ref()
-                .ok_or_else(|| Status::invalid_argument("Missing public key"))?;
-            let public_key: Ed25519PublicKey =
-                Ed25519PublicKey::from_bytes(proto_key.bytes.as_ref()).map_err(|err| {
-                    Status::invalid_argument(format!("Could not serialize: {:?}", err))
-                })?;
+            let public_key = self.get_public_key(validator.public_key.as_ref())?;
 
             let stake_weight = validator.stake_weight;
             let address: Multiaddr = validator
