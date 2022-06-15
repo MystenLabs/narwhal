@@ -14,6 +14,6 @@ mod primary_connector;
 mod processor;
 mod quorum_waiter;
 mod synchronizer;
+mod task;
 mod worker;
-
 pub use crate::worker::{Worker, WorkerMessage};
