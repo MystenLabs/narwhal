@@ -15,5 +15,5 @@ mod processor;
 mod quorum_waiter;
 mod synchronizer;
 mod worker;
-
+mod task;
 pub use crate::worker::{Worker, WorkerMessage};
