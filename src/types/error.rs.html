@@ -66,10 +66,15 @@
 <span id="59">59</span>
 <span id="60">60</span>
 <span id="61">61</span>
+<span id="62">62</span>
+<span id="63">63</span>
+<span id="64">64</span>
+<span id="65">65</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">HeaderDigest</span>, <span class="ident">Round</span>};
+<span class="kw">use</span> <span class="ident">config::Epoch</span>;
 <span class="kw">use</span> <span class="ident">crypto</span>::{<span class="ident">CryptoError</span>, <span class="ident">Digest</span>};
 <span class="kw">use</span> <span class="ident">store::StoreError</span>;
 <span class="kw">use</span> <span class="ident">thiserror::Error</span>;
@@ -126,7 +131,10 @@
 
     <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Message {0} (round {1}) too old&quot;</span>)]</span>
     <span class="ident">TooOld</span>(<span class="ident">Digest</span>, <span class="ident">Round</span>),
+
+    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Invalid epoch (expected {received}, received {received})&quot;</span>)]</span>
+    <span class="ident">InvalidEpoch</span> { <span class="ident">expected</span>: <span class="ident">Epoch</span>, <span class="ident">received</span>: <span class="ident">Epoch</span> },
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.63.0-nightly (1f34da9ec 2022-06-14)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.63.0-nightly (b31f9cc22 2022-06-15)" ></div>
 </body></html>

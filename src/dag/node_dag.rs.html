@@ -576,7 +576,6 @@
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Affiliated</span><span class="op">&gt;</span> <span class="ident">NodeDag</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
     <span class="doccomment">/// Creates a new Node dag</span>
-    <span class="doccomment">///</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>() -&gt; <span class="ident">NodeDag</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
         <span class="ident">NodeDag</span> {
             <span class="ident">node_table</span>: <span class="ident">DashMap::new</span>(),
@@ -646,7 +645,7 @@
     <span class="doccomment">/// Marks the node passed as argument as compressible, leaving it to be reaped by path compression.</span>
     <span class="doccomment">/// Returns true if the node was made compressible, and false if it already was</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// This returne an error if the queried node is unknown or dropped from the graph</span>
+    <span class="doccomment">/// This return an error if the queried node is unknown or dropped from the graph</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">make_compressible</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">hash</span>: <span class="ident">T::TypedDigest</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">bool</span>, <span class="ident">NodeDagError</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">node_ref</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">get</span>(<span class="ident">hash</span>)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(<span class="ident">node_ref</span>.<span class="ident">make_compressible</span>())
@@ -876,7 +875,7 @@
         <span class="attribute">#[<span class="ident">test</span>]</span>
         <span class="kw">fn</span> <span class="ident">test_insert_missing</span>(
             <span class="ident">digests</span> <span class="kw">in</span> <span class="ident">prop::collection::vec</span>(<span class="ident">arb_test_digest</span>(), <span class="number">0</span>..<span class="number">10</span>),
-            <span class="comment">// Note random_parents must be non-empty, or the insertion will succceed</span>
+            <span class="comment">// Note random_parents must be non-empty, or the insertion will succeed</span>
             <span class="ident">random_parents</span> <span class="kw">in</span> <span class="ident">prop::collection::vec</span>(<span class="ident">arb_test_digest</span>(), <span class="number">1</span>..<span class="number">10</span>)
         ) {
             <span class="kw">let</span> <span class="ident">nodes</span> <span class="op">=</span> <span class="ident">digests</span>.<span class="ident">into_iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">digest</span><span class="op">|</span> {
@@ -896,6 +895,7 @@
         }
 
         <span class="attribute">#[<span class="ident">test</span>]</span>
+        <span class="attribute">#[<span class="ident">ignore</span> <span class="op">=</span> <span class="string">&quot;Issue #375&quot;</span>]</span>
         <span class="kw">fn</span> <span class="ident">test_dag_sanity_check</span>(
             <span class="ident">dag</span> <span class="kw">in</span> <span class="ident">arb_dag_complete</span>(<span class="number">10</span>, <span class="number">10</span>)
         ) {
@@ -908,7 +908,7 @@
         ) {
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">node_dag</span> <span class="op">=</span> <span class="ident">NodeDag::new</span>();
             <span class="kw">for</span> <span class="ident">node</span> <span class="kw">in</span> <span class="ident">dag</span>.<span class="ident">into_iter</span>() {
-                <span class="comment">// the elements are generated in order &amp; with no missing parents =&gt; no suprises</span>
+                <span class="comment">// the elements are generated in order &amp; with no missing parents =&gt; no surprises</span>
                 <span class="macro">assert!</span>(<span class="ident">node_dag</span>.<span class="ident">try_insert</span>(<span class="ident">node</span>).<span class="ident">is_ok</span>());
             }
             <span class="kw">for</span> <span class="ident">ref_multi</span> <span class="kw">in</span> <span class="ident">node_dag</span>.<span class="ident">node_table</span>.<span class="ident">iter</span>() {
@@ -1026,5 +1026,5 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="dag" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.63.0-nightly (1f34da9ec 2022-06-14)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="dag" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.63.0-nightly (b31f9cc22 2022-06-15)" ></div>
 </body></html>

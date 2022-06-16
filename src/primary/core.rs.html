@@ -446,6 +446,27 @@
 <span id="439">439</span>
 <span id="440">440</span>
 <span id="441">441</span>
+<span id="442">442</span>
+<span id="443">443</span>
+<span id="444">444</span>
+<span id="445">445</span>
+<span id="446">446</span>
+<span id="447">447</span>
+<span id="448">448</span>
+<span id="449">449</span>
+<span id="450">450</span>
+<span id="451">451</span>
+<span id="452">452</span>
+<span id="453">453</span>
+<span id="454">454</span>
+<span id="455">455</span>
+<span id="456">456</span>
+<span id="457">457</span>
+<span id="458">458</span>
+<span id="459">459</span>
+<span id="460">460</span>
+<span id="461">461</span>
+<span id="462">462</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -782,6 +803,13 @@
 
     <span class="kw">fn</span> <span class="ident">sanitize_header</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">header</span>: <span class="kw-2">&amp;</span><span class="ident">Header</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>) -&gt; <span class="ident">DagResult</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="macro">ensure!</span>(
+            <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">epoch</span>() <span class="op">==</span> <span class="ident">header</span>.<span class="ident">epoch</span>,
+            <span class="ident">DagError::InvalidEpoch</span> {
+                <span class="ident">expected</span>: <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">epoch</span>(),
+                <span class="ident">received</span>: <span class="ident">header</span>.<span class="ident">epoch</span>
+            }
+        );
+        <span class="macro">ensure!</span>(
             <span class="self">self</span>.<span class="ident">gc_round</span> <span class="op">&lt;</span> <span class="ident">header</span>.<span class="ident">round</span>,
             <span class="ident">DagError::TooOld</span>(<span class="ident">header</span>.<span class="ident">id</span>.<span class="ident">into</span>(), <span class="ident">header</span>.<span class="ident">round</span>)
         );
@@ -795,6 +823,13 @@
     }
 
     <span class="kw">fn</span> <span class="ident">sanitize_vote</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">vote</span>: <span class="kw-2">&amp;</span><span class="ident">Vote</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>) -&gt; <span class="ident">DagResult</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+        <span class="macro">ensure!</span>(
+            <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">epoch</span>() <span class="op">==</span> <span class="ident">vote</span>.<span class="ident">epoch</span>,
+            <span class="ident">DagError::InvalidEpoch</span> {
+                <span class="ident">expected</span>: <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">epoch</span>(),
+                <span class="ident">received</span>: <span class="ident">vote</span>.<span class="ident">epoch</span>
+            }
+        );
         <span class="macro">ensure!</span>(
             <span class="self">self</span>.<span class="ident">current_header</span>.<span class="ident">round</span> <span class="op">&lt;</span><span class="op">=</span> <span class="ident">vote</span>.<span class="ident">round</span>,
             <span class="ident">DagError::TooOld</span>(<span class="ident">vote</span>.<span class="ident">digest</span>().<span class="ident">into</span>(), <span class="ident">vote</span>.<span class="ident">round</span>)
@@ -813,6 +848,13 @@
     }
 
     <span class="kw">fn</span> <span class="ident">sanitize_certificate</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">certificate</span>: <span class="kw-2">&amp;</span><span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>) -&gt; <span class="ident">DagResult</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+        <span class="macro">ensure!</span>(
+            <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">epoch</span>() <span class="op">==</span> <span class="ident">certificate</span>.<span class="ident">epoch</span>(),
+            <span class="ident">DagError::InvalidEpoch</span> {
+                <span class="ident">expected</span>: <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">epoch</span>(),
+                <span class="ident">received</span>: <span class="ident">certificate</span>.<span class="ident">epoch</span>()
+            }
+        );
         <span class="macro">ensure!</span>(
             <span class="self">self</span>.<span class="ident">gc_round</span> <span class="op">&lt;</span> <span class="ident">certificate</span>.<span class="ident">round</span>(),
             <span class="ident">DagError::TooOld</span>(<span class="ident">certificate</span>.<span class="ident">digest</span>().<span class="ident">into</span>(), <span class="ident">certificate</span>.<span class="ident">round</span>())
@@ -870,7 +912,7 @@
                     <span class="macro">error!</span>(<span class="string">&quot;{e}&quot;</span>);
                     <span class="macro">panic!</span>(<span class="string">&quot;Storage failure: killing node.&quot;</span>);
                 }
-                <span class="prelude-val">Err</span>(<span class="ident">e</span> @ <span class="ident">DagError::TooOld</span>(..)) =&gt; <span class="macro">debug!</span>(<span class="string">&quot;{e}&quot;</span>),
+                <span class="prelude-val">Err</span>(<span class="ident">e</span> @ <span class="ident">DagError::TooOld</span>(..) <span class="op">|</span> <span class="ident">e</span> @ <span class="ident">DagError::InvalidEpoch</span> { .. }) =&gt; <span class="macro">debug!</span>(<span class="string">&quot;{e}&quot;</span>),
                 <span class="prelude-val">Err</span>(<span class="ident">e</span>) =&gt; <span class="macro">warn!</span>(<span class="string">&quot;{e}&quot;</span>),
             }
 
@@ -888,5 +930,5 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.63.0-nightly (1f34da9ec 2022-06-14)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.63.0-nightly (b31f9cc22 2022-06-15)" ></div>
 </body></html>

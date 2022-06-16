@@ -944,7 +944,7 @@
 <span class="doccomment">///     let (tx_get_block, mut rx_get_block) = oneshot::channel();</span>
 <span class="doccomment">///</span>
 <span class="doccomment">///     let name = Ed25519PublicKey::default();</span>
-<span class="doccomment">///     let committee = Arc::new(Committee{ authorities: ArcSwap::from_pointee(BTreeMap::new()) });</span>
+<span class="doccomment">///     let committee = Arc::new(Committee{ epoch: 0, authorities: ArcSwap::from_pointee(BTreeMap::new()) });</span>
 <span class="doccomment">///</span>
 <span class="doccomment">///     // A dummy certificate</span>
 <span class="doccomment">///     let certificate = Certificate::&lt;Ed25519PublicKey&gt;::default();</span>
@@ -1570,5 +1570,5 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.63.0-nightly (1f34da9ec 2022-06-14)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.63.0-nightly (b31f9cc22 2022-06-15)" ></div>
 </body></html>
