@@ -3,11 +3,13 @@ use futures::Future;
 use once_cell::sync::OnceCell;
 use parking_lot::Mutex;
 use std::collections::BTreeMap;
+use std::thread;
 use std::{pin::Pin, sync::Arc};
 use tokio::task::JoinHandle;
 use tracing::{error, info, warn};
 
 #[derive(Clone, PartialEq)]
+#[allow(dead_code)]
 enum TaskTrackerState {
     Running,
     ShutdownStarted,
@@ -15,6 +17,7 @@ enum TaskTrackerState {
 }
 
 #[derive(Clone)]
+#[allow(dead_code)]
 struct Task {
     task_id: u64,
     tag: Option<String>,
@@ -25,6 +28,10 @@ struct Task {
 #[allow(dead_code)]
 pub type Error = tokio::sync::oneshot::error::TryRecvError;
 
+/// Wraps a [`JoinHandle`] to shutdown the underlying task when dropped
+/// unless it is detached first. Also contains a shutdown token to signal
+/// shutdown to the task
+#[allow(dead_code)]
 pub struct TaskHandle<T> {
     id: u64,
     shutdown: Shutdown,
@@ -32,14 +39,21 @@ pub struct TaskHandle<T> {
     detached: bool,
 }
 
+#[allow(dead_code)]
 impl<T> TaskHandle<T> {
+    /// Signal shutdown and return future to the
+    /// caller to wait for shutdown completion
     pub async fn stop(&self) {
         self.shutdown.shutdown();
         self.shutdown.wait_shutdown_complete().await;
     }
+    /// Signal shutdown and return
     pub fn stop_no_wait(&self) {
         self.shutdown.shutdown();
     }
+    /// Run task in detached mode which means
+    /// [`TaskHandle`] can be dropped without shutting
+    /// down the task
     pub fn detach(&mut self) {
         self.detached = true;
     }
@@ -70,12 +84,12 @@ impl<T> Drop for TaskHandle<T> {
 }
 
 /// TaskTracker is a wrapper around tokio for asynchronous tasks and futures.
-/// This class adds the following functionalities which are not present in tokio:
-/// * Tokio does not provide a way to selectively wait for certain tasks to
-///   finish executing while cancelling others during system shutdown in an easy
-///   way without keeping track of all join handles
-/// * Tokio does not provide an api to run some cleanup code when cancelling a task
-/// * TaskTracker provides an easy api to cancel a bunch of spawned tasks with a user
+/// This class adds the following functionalities which are not present in
+/// tokio today:
+/// * Tokio does not provide a way to track all spawned tasks in a central
+///   place where we can signal shutdown to some tasks and wait for their
+///   shutdown sequence to finish executing during system shutdown
+/// * TaskTracker provides an api to cancel a bunch of spawned tasks with a user
 ///   provided tag which would otherwise be difficult to do by keeping track of
 ///   tokio returned join handles
 ///
@@ -89,46 +103,92 @@ impl<T> Drop for TaskHandle<T> {
 ///
 /// # Examples
 ///
-/// // Create task tracker in your main function or use the global singleton
-/// // a task which will be cancelled on shutdown        
-/// let task1 = TaskTracker::global_singleton().spawn_cancel(
-///   Some("test".to_string()),
-///   async move {
-///     tokio::time::sleep(std::time::Duration::from_secs(600)).await;
-///     42
-///   }
-/// );
-/// // a task which will be waited on for completion on shutdown
-/// let task2 = TaskTracker::global_singleton().spawn_cancel(
-///   Some("test".to_string()),
-///   async move {
-///     tokio::time::sleep(std::time::Duration::from_secs(600)).await;
-///     42
-///   }
-/// );
-/// // a task which will be canceled and instead run cleanup on shutdown
-/// let task3 = TaskTracker::global_singleton().spawn_cancel_and_wait(
-///    "test3".to_string(),
-///    Some("test".to_string()),
-///    // This future will be cancelled on shutdown
-///    async move {
-///        tokio::time::sleep(std::time::Duration::from_secs(600)).await;
-///        42
-///    },
-/// // This future will be run on shutdown after cancelling the one
-/// // above
-///    async move { 43 },
-/// );
-/// // Do not forget to call shutdown_and_wait
-/// TaskTracker::global_singleton().shutdown_and_wait().await;
-/// drop(tracker);
+/// ```rust
 ///
+/// async fn spawn_long_running_tasks() {   
+///     // A task which is safe to just cancel on shutdown
+///     let task1 = TaskTracker::get().spawn_cancel(
+///         Some("test".to_string()),
+///         async move {
+///             tokio::time::sleep(std::time::Duration::from_secs(6000)).await;
+///             42
+///         }
+///     );
+///     // A task which needs to be waited on during shutdown
+///     let task2 = TaskTracker::get().spawn_wait(
+///         Some("test".to_string()),
+///         async move {
+///             tokio::time::sleep(std::time::Duration::from_secs(6000)).await;
+///             42
+///         }
+///     );
+///     // A task which needs to suspend its normal execution during shutdown and
+///     // run a shutdown sequence
+///     let task3 = TaskTracker::get().spawn_cancel_and_wait(
+///         Some("test".to_string()),
+///         // normal execution
+///         async move {
+///             tokio::time::sleep(std::time::Duration::from_secs(6000)).await;
+///             42
+///         },
+///         // shutdown sequence
+///         async move {
+///             tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+///             43
+///         },
+///     );
+///    // A task which wants to control the shutdown in a custom way will pass
+///    // in its own shutdown token
+///    let token = Shutdown::new();
+///    let task4 = TaskTracker::get().spawn(
+///         Some("test".to_string()),
+///         async move {
+///             tokio::select! {
+///                 _ = token.clone().wrap_cancel(future::pending::<()>()) => {
+///                     // shutdown sequence
+///                     43
+///                 }
+///                 _ = tokio::time::sleep(std::time::Duration::from_secs(6000)) => {
+///                     // normal execution
+///                     42
+///                 }
+///             }
+///         },
+///         token.clone(),
+///     );
+///   
+///     join_all(vec![task1, task2, task3, task3])
+/// }
+/// async fn request_shutdown() -> {
+///  // Do other shutdown steps
+///  // Send shutdown signal to all spawned tasks
+///   TaskTracker::get().shutdown_and_wait().await;  
+/// }
+/// #[tokio::main]
+/// fn main () -> {
+///     // Spawn a task to wait for CTRL+C and trigger a shutdown.
+///     tokio::spawn({
+///         async move {
+///             if let Err(e) = tokio::signal::ctrl_c().await {
+///                 eprintln!("Failed to wait for CTRL+C: {}", e);
+///                 std::process::exit(1);
+///             } else {
+///                 eprintln!("\nReceived interrupt signal. Shutting down server...");
+///                 request_shutdown().await;
+///             }
+///         }
+///     });
+///     spawn_long_running_tasks().await;
+/// }
+///```
 ///
 #[derive(Clone)]
 pub struct TaskTracker {
     state: Arc<Mutex<State>>,
 }
 
+/// The type of error that is returned from tasks in this module
+#[allow(dead_code)]
 struct State {
     name: String,
     tasks: BTreeMap<u64, Task>,
@@ -190,7 +250,7 @@ impl TaskTracker {
             detached: false,
         }
     }
-    pub fn global_singleton() -> &'static TaskTracker {
+    pub fn get() -> &'static TaskTracker {
         static TASK_TRACKER: OnceCell<TaskTracker> = OnceCell::new();
         TASK_TRACKER.get_or_init(|| TaskTracker::new("global".to_string()))
     }
@@ -354,6 +414,8 @@ impl TaskTracker {
         {
             let mut state = self.state.lock();
             if state.tasks.contains_key(&state.next_task_id) {
+                // This should never really happen as task ids are assigned
+                // by incrementing a counter within a lock
                 panic!("Task tracker already running a task with id: `{{state.next_task_id}}`");
             }
             task_id = state.next_task_id;
@@ -501,7 +563,13 @@ impl Drop for TaskTracker {
         if !state.tasks.is_empty() && state.task_tracker_state != TaskTrackerState::ShutdownComplete
         {
             let name = &state.name;
-            panic!("Dropping task tracker {name} without calling shutdown_and_wait!");
+            if thread::panicking() {
+                // If the thread is already panicking, it likely did not get to invoking
+                // shutdown_and_wait
+                error!("Dropping task tracker {name} without calling shutdown_and_wait!");
+            } else {
+                panic!("Dropping task tracker {name} without calling shutdown_and_wait!");
+            }
         }
     }
 }
