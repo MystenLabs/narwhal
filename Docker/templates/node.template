@@ -1,7 +1,7 @@
   primary_{counter}:
     build:
       context: ../
-      dockerfile: ./Docker/Dockerfile
+      dockerfile: ./Dockerfile
     image: narwhal-node:latest
     environment:
       - NODE_TYPE=primary
