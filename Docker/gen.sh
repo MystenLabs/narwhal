@@ -1,21 +1,25 @@
 #!/usr/bin/env bash
 set -e
+
 # number of primary+worker instances to start.
 num=$1
+
 if [ -z "${num}" ]; then
     echo usage: $0 number_of_instances
     exit 1
 fi
+
 if [ ! -x ../target/release/node ]; then
     echo no narwhal node command found.
     exit 1
 fi
-node=../target/release/node
 
-./gen.compose.py -n ${num} -t node.template > docker-compose-${num}.yaml
+node=../target/release/node
 
 target=validators-${num}
 mkdir -p $target
+
+./scripts/gen.compose.py -n ${num} -t templates/node.template > ${target}/docker-compose.yaml
 
 t=$(($num - 1))
 for i in $(seq -f %02g 0 ${t})
@@ -49,5 +53,6 @@ cat > ${target}/parameters.json <<EOF
 }
 EOF
 
-./gen.committee.py -n ${num} -d ${target} > ${target}/committee.json
+./scripts/gen.committee.py -n ${num} -d ${target} > ${target}/committee.json
 
+cp -r templates/{grafana,prometheus} ${target}/
