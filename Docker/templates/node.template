@@ -1,7 +1,7 @@
   primary_{counter}:
     build:
-      context: ../
-      dockerfile: ./Dockerfile
+      context: ../../
+      dockerfile: ./Docker/Dockerfile
     image: narwhal-node:latest
     environment:
       - NODE_TYPE=primary
@@ -18,8 +18,8 @@
       - ./validator-{counter}/logs:/home/logs
   worker_{counter}:
     build:
-      context: ../
-      dockerfile: ./Dockerfile
+      context: ../../
+      dockerfile: ./Docker/Dockerfile
     depends_on:
       - primary_{counter}
     image: narwhal-node:latest
