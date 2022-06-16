@@ -195,6 +195,13 @@ docker compose logs -f
 
 ```
 
+Note within the validators-#/ directory that the `committee.json` file is generated.
+The `parameters.json` is (so far) a static template and just dropped into that dir.
+
+Also note that the primaries are created with only 1 worker node currently.
+When multiple workers are needed we'll add that feature.
+
+
 ## Grafana and prometheus
 
 The grafana instance is exposed at http://localhost:3000/
