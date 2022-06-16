@@ -171,6 +171,38 @@ levels are defined according to the number of "v"s provided: `0 | 1 => "error", 
 * `CLEANUP_DISABLED`, when provided with value `true`, will disable the clean up of the validator folder
 from the database and log data. This is useful to preserve the state between multiple Docker Compose runs.
 
+## How to run more than the default 4 nodes with docker compose.
+### Prerequisites:
+ - python3
+ - You must build the narwhal `node` binary at top level:
+
+   ```cargo build --release --all-features```
+   
+   That binary is necessary for generating the keys for the validators and the committee.json seed file.
+   
+### Running the `gen.sh #` script to generate a larger cluster.
+
+
+```
+./gen.sh 6
+
+# That will create a docker-compose.yaml file in ./validators-6/docker-compose.yaml
+
+cd validators-6
+
+docker compose up -d
+docker compose logs -f
+
+```
+
+## Grafana and prometheus
+
+The grafana instance is exposed at http://localhost:3000/
+
+Default user/pass is admin/admin.
+
+You can 'skip' changing that since it's always regenerated.
+
 ## Troubleshooting
 
 #### 1. Compile errors when building Docker image
