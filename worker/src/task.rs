@@ -509,6 +509,8 @@ impl Drop for TaskTracker {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use futures::future;
+    use std::sync::atomic::{AtomicU64, Ordering};
 
     #[tokio::test]
     async fn basic() {
@@ -570,6 +572,104 @@ mod tests {
 
         assert_eq!(task1.await.is_err(), true);
         assert_eq!(task2.await.unwrap(), 42);
+    }
+
+    #[tokio::test]
+    async fn test_select() {
+        let tracker = TaskTracker::new("task_tracker".to_string());
+        let shutdown = Shutdown::new();
+        let shutdown_token = shutdown.clone();
+        let counter = Arc::new(AtomicU64::new(0));
+        let cloned_counter = counter.clone();
+        // task is a future which increments a counter in a loop
+        // but on receiving shutdown, we need to reset it to 0
+        let task = tracker.spawn(
+            Some("tagA".to_string()),
+            async move {
+                loop {
+                    let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+                    // Adding this wait here will block the shutdown_token.shutdown_and_wait().await call
+                    // until the shutdown code block has completed execution
+                    let wrapped_rx = shutdown_token.clone().wrap_wait(rx).unwrap();
+                    tokio::select! {
+                        _ = shutdown_token.clone().wrap_cancel(future::pending::<()>()) => {
+                            // ---------------shutdown code block------------------
+                            // reset the counter on shutdown
+                            cloned_counter.as_ref().store(0, Ordering::SeqCst);
+                            tx.send(());
+                            wrapped_rx.await;
+                            break;
+                        }
+                        _ = tokio::time::sleep(std::time::Duration::from_secs(1)) => {
+                            // -----------normal computation code block------------
+                            // increment the counter
+                            cloned_counter.as_ref().fetch_add(1, Ordering::SeqCst);
+                            ()
+                        }
+                    }
+                }
+                ()
+            },
+            shutdown.clone(),
+        );
+        // Wait for 10 seconds, so the above loop can run a few times
+        // and increment the counter
+        tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+        // Check the counter, it should be > 0
+        assert!(counter.clone().load(Ordering::SeqCst) > 5);
+        // Shutdown everything. This will wait until the shutdown code
+        // block has completed execution and done with cleanup
+        tracker.shutdown_and_wait().await;
+        assert_eq!(counter.clone().load(Ordering::SeqCst), 0);
+    }
+
+    #[tokio::test]
+    async fn test_select_with_no_wait() {
+        let tracker = TaskTracker::new("task_tracker".to_string());
+        let shutdown = Shutdown::new();
+        let shutdown_token = shutdown.clone();
+        let counter = Arc::new(AtomicU64::new(0));
+        let cloned_counter = counter.clone();
+        // task is a future which increments a counter in a loop
+        // but on receiving shutdown, we need to reset it to 0
+        let task = tracker.spawn(
+            Some("tagA".to_string()),
+            async move {
+                loop {
+                    tokio::select! {
+                        _ = shutdown_token.clone().wrap_cancel(future::pending::<()>()) => {
+                            // ---------------shutdown code block------------------
+                            // reset the counter on shutdown
+                            cloned_counter.as_ref().store(0, Ordering::SeqCst);
+                            break;
+                        }
+                        _ = tokio::time::sleep(std::time::Duration::from_secs(1)) => {
+                            // -----------normal computation code block------------
+                            // increment the counter
+                            cloned_counter.as_ref().fetch_add(1, Ordering::SeqCst);
+                            ()
+                        }
+                    }
+                }
+                ()
+            },
+            shutdown.clone(),
+        );
+        // Wait for 10 seconds
+        tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+        // Check the counter, it should be > 0
+        assert!(counter.clone().load(Ordering::SeqCst) > 5);
+        // Shutdown everything. We sent the signal to terminate
+        // the loop above and reset the counter but since we did
+        // not set up a waiter on completion of the shutdown code
+        // block execution, this does not guarantee the counter
+        // is reset by the time `tracker.shutdown_and_wait().await`
+        // completes
+        tracker.shutdown_and_wait().await;
+        // Wait outside for a few seconds, and then check the value
+        // of counter
+        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+        assert_eq!(counter.clone().load(Ordering::SeqCst), 0);
     }
 
     #[tokio::test]
