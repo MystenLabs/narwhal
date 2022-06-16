@@ -2,6 +2,7 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+use config::SharedCommittee;
 use crypto::traits::VerifyingKey;
 use futures::{
     future::try_join_all,
@@ -15,7 +16,10 @@ use std::{
     },
 };
 use store::Store;
-use tokio::sync::mpsc::{channel, Receiver, Sender};
+use tokio::sync::{
+    mpsc::{channel, Receiver, Sender},
+    watch,
+};
 use tracing::error;
 use types::{
     error::{DagError, DagResult},
@@ -31,6 +35,8 @@ pub struct CertificateWaiter<PublicKey: VerifyingKey> {
     consensus_round: Arc<AtomicU64>,
     /// The depth of the garbage collector.
     gc_depth: Round,
+    /// Watch channel notifying of epoch changes, it is only used for cleanup.
+    rx_committee: watch::Receiver<SharedCommittee<PublicKey>>,
     /// Receives sync commands from the `Synchronizer`.
     rx_synchronizer: Receiver<Certificate<PublicKey>>,
     /// Loops back to the core certificates for which we got all parents.
@@ -46,6 +52,7 @@ impl<PublicKey: VerifyingKey> CertificateWaiter<PublicKey> {
         store: Store<CertificateDigest, Certificate<PublicKey>>,
         consensus_round: Arc<AtomicU64>,
         gc_depth: Round,
+        rx_committee: watch::Receiver<SharedCommittee<PublicKey>>,
         rx_synchronizer: Receiver<Certificate<PublicKey>>,
         tx_core: Sender<Certificate<PublicKey>>,
     ) {
@@ -54,6 +61,7 @@ impl<PublicKey: VerifyingKey> CertificateWaiter<PublicKey> {
                 store,
                 consensus_round,
                 gc_depth,
+                rx_committee,
                 rx_synchronizer,
                 tx_core,
                 pending: HashMap::new(),
@@ -120,6 +128,10 @@ impl<PublicKey: VerifyingKey> CertificateWaiter<PublicKey> {
                         panic!("Storage failure: killing node.");
                     }
                 },
+                result = self.rx_committee.changed() => {
+                    result.expect("Committee channel dropped");
+                    self.pending.clear();
+                }
             }
 
             // Cleanup internal state. Deliver the certificates waiting on garbage collected ancestors.

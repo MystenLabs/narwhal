@@ -20,7 +20,10 @@ use std::{
 };
 use store::Store;
 use tokio::{
-    sync::mpsc::{channel, Receiver, Sender},
+    sync::{
+        mpsc::{channel, Receiver, Sender},
+        watch,
+    },
     time::{sleep, Duration, Instant},
 };
 use tracing::{debug, error};
@@ -63,6 +66,8 @@ pub struct HeaderWaiter<PublicKey: VerifyingKey> {
     /// Determine with how many nodes to sync when re-trying to send sync-request.
     sync_retry_nodes: usize,
 
+    /// Watch channel to reconfigure the committee.
+    rx_committee: watch::Receiver<SharedCommittee<PublicKey>>,
     /// Receives sync commands from the `Synchronizer`.
     rx_synchronizer: Receiver<WaiterMessage<PublicKey>>,
     /// Loops back to the core headers for which we got all parents and batches.
@@ -92,6 +97,7 @@ impl<PublicKey: VerifyingKey> HeaderWaiter<PublicKey> {
         gc_depth: Round,
         sync_retry_delay: Duration,
         sync_retry_nodes: usize,
+        rx_committee: watch::Receiver<SharedCommittee<PublicKey>>,
         rx_synchronizer: Receiver<WaiterMessage<PublicKey>>,
         tx_core: Sender<Header<PublicKey>>,
     ) {
@@ -105,6 +111,7 @@ impl<PublicKey: VerifyingKey> HeaderWaiter<PublicKey> {
                 gc_depth,
                 sync_retry_delay,
                 sync_retry_nodes,
+                rx_committee,
                 rx_synchronizer,
                 tx_core,
                 primary_network: Default::default(),
@@ -116,6 +123,15 @@ impl<PublicKey: VerifyingKey> HeaderWaiter<PublicKey> {
             .run()
             .await;
         });
+    }
+
+    /// Update the committee and cleanup internal state.
+    fn update_committee(&mut self, committee: SharedCommittee<PublicKey>) {
+        self.pending.clear();
+        self.batch_requests.clear();
+        self.parent_requests.clear();
+
+        self.committee = committee;
     }
 
     /// Helper function. It waits for particular data to become available in the storage
@@ -156,6 +172,12 @@ impl<PublicKey: VerifyingKey> HeaderWaiter<PublicKey> {
                             let round = header.round;
                             let author = header.author.clone();
 
+                            // Update the committee now if the core already did so.
+                            if header.epoch > self.committee.epoch() {
+                                let new_committee = self.rx_committee.borrow_and_update().clone();
+                                self.update_committee(new_committee);
+                            }
+
                             // Ensure we sync only once per header.
                             if self.pending.contains_key(&header_id) {
                                 continue;
@@ -195,6 +217,12 @@ impl<PublicKey: VerifyingKey> HeaderWaiter<PublicKey> {
                             let header_id = header.id;
                             let round = header.round;
                             let author = header.author.clone();
+
+                            // Update the committee now if the core already did so.
+                            if header.epoch > self.committee.epoch() {
+                                let new_committee = self.rx_committee.borrow_and_update().clone();
+                                self.update_committee(new_committee);
+                            }
 
                             // Ensure we sync only once per header.
                             if self.pending.contains_key(&header_id) {
@@ -284,7 +312,7 @@ impl<PublicKey: VerifyingKey> HeaderWaiter<PublicKey> {
                     }
                     // Reschedule the timer.
                     timer.as_mut().reset(Instant::now() + Duration::from_millis(TIMER_RESOLUTION));
-                }
+                },
             }
 
             // Cleanup internal state.

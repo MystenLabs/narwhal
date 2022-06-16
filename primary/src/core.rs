@@ -19,7 +19,10 @@ use std::{
 };
 use store::Store;
 use tokio::{
-    sync::mpsc::{Receiver, Sender},
+    sync::{
+        mpsc::{Receiver, Sender},
+        watch,
+    },
     task::JoinHandle,
 };
 use tracing::{debug, error, instrument, warn};
@@ -51,6 +54,8 @@ pub struct Core<PublicKey: VerifyingKey> {
     /// The depth of the garbage collector.
     gc_depth: Round,
 
+    /// Watch channel to reconfigure the committee.
+    rx_committee: watch::Receiver<SharedCommittee<PublicKey>>,
     /// Receiver for dag messages (headers, votes, certificates).
     rx_primaries: Receiver<PrimaryMessage<PublicKey>>,
     /// Receives loopback headers from the `HeaderWaiter`.
@@ -92,6 +97,7 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
         signature_service: SignatureService<PublicKey::Sig>,
         consensus_round: Arc<AtomicU64>,
         gc_depth: Round,
+        rx_committee: watch::Receiver<SharedCommittee<PublicKey>>,
         rx_primaries: Receiver<PrimaryMessage<PublicKey>>,
         rx_header_waiter: Receiver<Header<PublicKey>>,
         rx_certificate_waiter: Receiver<Certificate<PublicKey>>,
@@ -109,6 +115,7 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
                 signature_service,
                 consensus_round,
                 gc_depth,
+                rx_committee,
                 rx_primaries,
                 rx_header_waiter,
                 rx_certificate_waiter,
@@ -131,6 +138,12 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
 
     #[instrument(level = "debug", skip_all)]
     async fn process_own_header(&mut self, header: Header<PublicKey>) -> DagResult<()> {
+        // Update the committee now if the proposer already did so.
+        if header.epoch > self.committee.epoch() {
+            let new_committee = self.rx_committee.borrow_and_update().clone();
+            self.update_committee(new_committee);
+        }
+
         // Reset the votes aggregator.
         self.current_header = header.clone();
         self.votes_aggregator = VotesAggregator::new();
@@ -395,6 +408,17 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
         certificate.verify(&self.committee).map_err(DagError::from)
     }
 
+    /// Update the committee and cleanup internal state.
+    fn update_committee(&mut self, committee: SharedCommittee<PublicKey>) {
+        self.last_voted.clear();
+        self.processing.clear();
+        self.certificates_aggregators.clear();
+        self.cancel_handlers.clear();
+
+        self.committee = committee;
+        self.synchronizer.update_genesis(&self.committee);
+    }
+
     // Main loop listening to incoming messages.
     pub async fn run(&mut self) {
         loop {
@@ -436,6 +460,14 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
 
                 // We also receive here our new headers created by the `Proposer`.
                 Some(header) = self.rx_proposer.recv() => self.process_own_header(header).await,
+
+                // Check whether the committee changed.
+                result = self.rx_committee.changed() => {
+                    result.expect("Committee channel dropped");
+                    let new_committee = self.rx_committee.borrow().clone();
+                    self.update_committee(new_committee);
+                    Ok(())
+                }
             };
             match result {
                 Ok(()) => (),

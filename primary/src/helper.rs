@@ -7,7 +7,7 @@ use crypto::traits::{EncodeDecodeBase64, VerifyingKey};
 use network::PrimaryNetwork;
 use store::{Store, StoreError};
 use thiserror::Error;
-use tokio::sync::mpsc::Receiver;
+use tokio::sync::{mpsc::Receiver, watch};
 use tracing::{error, instrument};
 use types::{BatchDigest, Certificate, CertificateDigest};
 
@@ -38,6 +38,8 @@ pub struct Helper<PublicKey: VerifyingKey> {
     certificate_store: Store<CertificateDigest, Certificate<PublicKey>>,
     /// The payloads (batches) persistent storage.
     payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,
+    /// Watch channel to reconfigure the committee.
+    rx_committee: watch::Receiver<SharedCommittee<PublicKey>>,
     /// Input channel to receive requests.
     rx_primaries: Receiver<PrimaryMessage<PublicKey>>,
     /// A network sender to reply to the sync requests.
@@ -50,6 +52,7 @@ impl<PublicKey: VerifyingKey> Helper<PublicKey> {
         committee: SharedCommittee<PublicKey>,
         certificate_store: Store<CertificateDigest, Certificate<PublicKey>>,
         payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,
+        rx_committee: watch::Receiver<SharedCommittee<PublicKey>>,
         rx_primaries: Receiver<PrimaryMessage<PublicKey>>,
     ) {
         tokio::spawn(async move {
@@ -58,6 +61,7 @@ impl<PublicKey: VerifyingKey> Helper<PublicKey> {
                 committee,
                 certificate_store,
                 payload_store,
+                rx_committee,
                 rx_primaries,
                 primary_network: PrimaryNetwork::default(),
             }
@@ -67,37 +71,45 @@ impl<PublicKey: VerifyingKey> Helper<PublicKey> {
     }
 
     async fn run(&mut self) {
-        while let Some(request) = self.rx_primaries.recv().await {
-            match request {
-                // The CertificatesRequest will find any certificates that exist in
-                // the data source (dictated by the digests parameter). The results
-                // will be emitted one by one to the consumer.
-                PrimaryMessage::CertificatesRequest(digests, origin) => {
-                    let _ = self.process_certificates(digests, origin, false).await;
-                }
-                // The CertificatesBatchRequest will find any certificates that exist in
-                // the data source (dictated by the digests parameter). The results will
-                // be sent though back to the consumer as a batch - one message.
-                PrimaryMessage::CertificatesBatchRequest {
-                    certificate_ids,
-                    requestor,
-                } => {
-                    let _ = self
-                        .process_certificates(certificate_ids, requestor, true)
-                        .await;
-                }
-                // A request that another primary sends us to ask whether we
-                // can serve batch data for the provided certificate_ids.
-                PrimaryMessage::PayloadAvailabilityRequest {
-                    certificate_ids,
-                    requestor,
-                } => {
-                    let _ = self
-                        .process_payload_availability(certificate_ids, requestor)
-                        .await;
-                }
-                _ => {
-                    panic!("Received unexpected message!");
+        loop {
+            tokio::select! {
+                Some(request) = self.rx_primaries.recv() => match request {
+                    // The CertificatesRequest will find any certificates that exist in
+                    // the data source (dictated by the digests parameter). The results
+                    // will be emitted one by one to the consumer.
+                    PrimaryMessage::CertificatesRequest(digests, origin) => {
+                        let _ = self.process_certificates(digests, origin, false).await;
+                    }
+                    // The CertificatesBatchRequest will find any certificates that exist in
+                    // the data source (dictated by the digests parameter). The results will
+                    // be sent though back to the consumer as a batch - one message.
+                    PrimaryMessage::CertificatesBatchRequest {
+                        certificate_ids,
+                        requestor,
+                    } => {
+                        let _ = self
+                            .process_certificates(certificate_ids, requestor, true)
+                            .await;
+                    }
+                    // A request that another primary sends us to ask whether we
+                    // can serve batch data for the provided certificate_ids.
+                    PrimaryMessage::PayloadAvailabilityRequest {
+                        certificate_ids,
+                        requestor,
+                    } => {
+                        let _ = self
+                            .process_payload_availability(certificate_ids, requestor)
+                            .await;
+                    }
+                    _ => {
+                        panic!("Received unexpected message!");
+                    }
+                },
+
+                result = self.rx_committee.changed() => {
+                    result.expect("Committee channel dropped");
+                    let new_committee = self.rx_committee.borrow().clone();
+                    self.committee = new_committee;
                 }
             }
         }

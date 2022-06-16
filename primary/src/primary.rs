@@ -33,7 +33,10 @@ use std::{
 use store::Store;
 use thiserror::Error;
 use tokio::{
-    sync::mpsc::{channel, Receiver, Sender},
+    sync::{
+        mpsc::{channel, Receiver, Sender},
+        watch,
+    },
     task::JoinHandle,
 };
 use tonic::{Request, Response, Status};
@@ -95,6 +98,8 @@ impl Primary {
         rx_consensus: Receiver<Certificate<PublicKey>>,
         dag: Option<Arc<Dag<PublicKey>>>,
     ) -> JoinHandle<()> {
+        let (tx_committee, rx_committee) = watch::channel(committee.clone());
+
         let (tx_others_digests, rx_others_digests) = channel(CHANNEL_CAPACITY);
         let (tx_our_digests, rx_our_digests) = channel(CHANNEL_CAPACITY);
         let (tx_parents, rx_parents) = channel(CHANNEL_CAPACITY);
@@ -187,6 +192,7 @@ impl Primary {
             signature_service.clone(),
             consensus_round.clone(),
             parameters.gc_depth,
+            tx_committee.subscribe(),
             /* rx_primaries */ rx_primary_messages,
             /* rx_header_waiter */ rx_headers_loopback,
             /* rx_certificate_waiter */ rx_certificates_loopback,
@@ -194,9 +200,6 @@ impl Primary {
             tx_consensus,
             /* tx_proposer */ tx_parents,
         );
-
-        // Keeps track of the latest consensus round and allows other tasks to clean up their their internal state
-        GarbageCollector::spawn(&name, &committee, consensus_round.clone(), rx_consensus);
 
         // Receives batch digests from other workers. They are only used to validate headers.
         PayloadReceiver::spawn(
@@ -235,6 +238,7 @@ impl Primary {
             payload_store.clone(),
             dag.clone(),
             PrimaryToWorkerNetwork::default(),
+            tx_committee.subscribe(),
             rx_block_removal_commands,
             rx_batch_removal,
         );
@@ -265,6 +269,7 @@ impl Primary {
             parameters.gc_depth,
             parameters.sync_retry_delay,
             parameters.sync_retry_nodes,
+            tx_committee.subscribe(),
             /* rx_synchronizer */ rx_sync_headers,
             /* tx_core */ tx_headers_loopback,
         );
@@ -273,8 +278,9 @@ impl Primary {
         // `Core` for further processing.
         CertificateWaiter::spawn(
             certificate_store.clone(),
-            consensus_round,
+            consensus_round.clone(),
             parameters.gc_depth,
+            tx_committee.subscribe(),
             /* rx_synchronizer */ rx_sync_certificates,
             /* tx_core */ tx_certificates_loopback,
         );
@@ -287,6 +293,7 @@ impl Primary {
             signature_service,
             parameters.header_size,
             parameters.max_header_delay,
+            tx_committee.subscribe(),
             /* rx_core */ rx_parents,
             /* rx_workers */ rx_our_digests,
             /* tx_core */ tx_headers,
@@ -299,6 +306,7 @@ impl Primary {
             committee.clone(),
             certificate_store,
             payload_store,
+            tx_committee.subscribe(),
             rx_helper_requests,
         );
 
@@ -315,6 +323,15 @@ impl Primary {
                 committee.clone(),
             );
         }
+
+        // Keeps track of the latest consensus round and allows other tasks to clean up their their internal state
+        GarbageCollector::spawn(
+            name.clone(),
+            committee.clone(),
+            consensus_round,
+            rx_consensus,
+            tx_committee,
+        );
 
         // NOTE: This log entry is used to compute performance.
         info!(

@@ -4,7 +4,10 @@
 use config::{Epoch, SharedCommittee, WorkerId};
 use crypto::{traits::VerifyingKey, Digest, Hash as _, SignatureService};
 use tokio::{
-    sync::mpsc::{Receiver, Sender},
+    sync::{
+        mpsc::{Receiver, Sender},
+        watch,
+    },
     time::{sleep, Duration, Instant},
 };
 use tracing::debug;
@@ -29,6 +32,8 @@ pub struct Proposer<PublicKey: VerifyingKey> {
     /// The maximum delay to wait for batches' digests.
     max_header_delay: Duration,
 
+    /// Watch channel to reconfigure the committee.
+    rx_committee: watch::Receiver<SharedCommittee<PublicKey>>,
     /// Receives the parents to include in the next header (along with their round number).
     rx_core: Receiver<(Vec<CertificateDigest>, Round, Epoch)>,
     /// Receives the batches' digests from our workers.
@@ -53,6 +58,7 @@ impl<PublicKey: VerifyingKey> Proposer<PublicKey> {
         signature_service: SignatureService<PublicKey::Sig>,
         header_size: usize,
         max_header_delay: Duration,
+        rx_committee: watch::Receiver<SharedCommittee<PublicKey>>,
         rx_core: Receiver<(Vec<CertificateDigest>, Round, Epoch)>,
         rx_workers: Receiver<(BatchDigest, WorkerId)>,
         tx_core: Sender<Header<PublicKey>>,
@@ -69,6 +75,7 @@ impl<PublicKey: VerifyingKey> Proposer<PublicKey> {
                 committee,
                 header_size,
                 max_header_delay,
+                rx_committee,
                 rx_core,
                 rx_workers,
                 tx_core,
@@ -108,6 +115,16 @@ impl<PublicKey: VerifyingKey> Proposer<PublicKey> {
             .expect("Failed to send header");
     }
 
+    /// Update the committee and cleanup internal state.
+    fn update_committee(&mut self, committee: SharedCommittee<PublicKey>) {
+        self.committee = committee;
+        self.round = 0;
+        self.last_parents = Certificate::genesis(&self.committee)
+            .iter()
+            .map(|x| x.digest())
+            .collect();
+    }
+
     // Main loop listening to incoming messages.
     pub async fn run(&mut self) {
         debug!("Dag starting at round {}", self.round);
@@ -135,11 +152,13 @@ impl<PublicKey: VerifyingKey> Proposer<PublicKey> {
             }
 
             tokio::select! {
+                // receive potential parents from the core.
                 Some((parents, round, epoch)) = self.rx_core.recv() => {
                     // If the core already moved to the next epoch we should pull the next
                     // committee as well.
                     if epoch > self.committee.epoch() {
-                        // TODO
+                        let new_committee = self.rx_committee.borrow_and_update().clone();
+                        self.update_committee(new_committee);
                     }
 
                     // Ignore parents from lower rounds or epochs.
@@ -154,12 +173,23 @@ impl<PublicKey: VerifyingKey> Proposer<PublicKey> {
                     // Signal that we have enough parent certificates to propose a new header.
                     self.last_parents = parents;
                 }
+
+                // Receive digests from our workers.
                 Some((digest, worker_id)) = self.rx_workers.recv() => {
                     self.payload_size += Digest::from(digest).size();
                     self.digests.push((digest, worker_id));
                 }
+
+                // Check whether the timer expired.
                 () = &mut timer => {
                     // Nothing to do.
+                }
+
+                // Check whether the committee changed.
+                result = self.rx_committee.changed() => {
+                    result.expect("Committee channel dropped");
+                    let new_committee = self.rx_committee.borrow().clone();
+                    self.update_committee(new_committee);
                 }
             }
         }

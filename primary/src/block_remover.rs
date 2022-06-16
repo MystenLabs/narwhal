@@ -19,7 +19,7 @@ use store::{rocks::TypedStoreError, Store};
 use tokio::{
     sync::{
         mpsc::{Receiver, Sender},
-        oneshot,
+        oneshot, watch,
     },
     task::JoinHandle,
     time::timeout,
@@ -195,6 +195,9 @@ pub struct BlockRemover<PublicKey: VerifyingKey> {
     /// Network driver allowing to send messages.
     worker_network: PrimaryToWorkerNetwork,
 
+    /// Watch channel to reconfigure the committee.
+    rx_committee: watch::Receiver<SharedCommittee<PublicKey>>,
+
     /// Receives the commands to execute against
     rx_commands: Receiver<BlockRemoverCommand>,
 
@@ -222,6 +225,7 @@ impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
         payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,
         dag: Option<Arc<Dag<PublicKey>>>,
         worker_network: PrimaryToWorkerNetwork,
+        rx_committee: watch::Receiver<SharedCommittee<PublicKey>>,
         rx_commands: Receiver<BlockRemoverCommand>,
         rx_delete_batches: Receiver<DeleteBatchResult>,
     ) -> JoinHandle<()> {
@@ -234,6 +238,7 @@ impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
                 payload_store,
                 dag,
                 worker_network,
+                rx_committee,
                 rx_commands,
                 pending_removal_requests: HashMap::new(),
                 map_tx_removal_results: HashMap::new(),
@@ -260,6 +265,11 @@ impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
                 },
                 Some(result) = waiting.next() => {
                     self.handle_remove_waiting_result(result).await;
+                },
+                result = self.rx_committee.changed() => {
+                    result.expect("Committee channel dropped");
+                    let new_committee = self.rx_committee.borrow().clone();
+                    self.committee = new_committee;
                 }
             }
         }
