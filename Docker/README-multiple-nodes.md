@@ -14,3 +14,9 @@ docker compose up -d
 docker compose logs -f
 
 ```
+
+
+The grafana instance is exposed at http://localhost:3000/
+
+Default user/pass is admin/admin.  You can 'skip' changing that since it's always
+regenerated.
