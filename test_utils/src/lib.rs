@@ -1,10 +1,9 @@
 // Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-
 use arc_swap::ArcSwap;
 use config::{
-    utils::get_available_port, Authority, Committee, PrimaryAddresses, SharedCommittee,
+    utils::get_available_port, Authority, Committee, Epoch, PrimaryAddresses, SharedCommittee,
     WorkerAddresses, WorkerId,
 };
 use crypto::{
@@ -65,6 +64,7 @@ pub fn committee(rng_seed: impl Into<Option<u64>>) -> SharedCommittee<Ed25519Pub
 
 pub fn committee_from_keys(keys: &[Ed25519KeyPair]) -> SharedCommittee<Ed25519PublicKey> {
     Arc::new(Committee {
+        epoch: Epoch::default(),
         authorities: ArcSwap::from_pointee(
             keys.iter()
                 .map(|kp| {
@@ -201,6 +201,7 @@ pub fn committee_from_keys(keys: &[Ed25519KeyPair]) -> SharedCommittee<Ed25519Pu
 // Fixture
 pub fn mock_committee(keys: &[Ed25519PublicKey]) -> SharedCommittee<Ed25519PublicKey> {
     Arc::new(Committee {
+        epoch: Epoch::default(),
         authorities: ArcSwap::from_pointee(
             keys.iter()
                 .map(|id| {
@@ -292,12 +293,16 @@ pub fn fixture_header_builder() -> types::HeaderBuilder<Ed25519PublicKey> {
     let kp = keys(None).pop().unwrap();
 
     let builder = types::HeaderBuilder::<Ed25519PublicKey>::default();
-    builder.author(kp.public().clone()).round(1).parents(
-        Certificate::genesis(&committee(None))
-            .iter()
-            .map(|x| x.digest())
-            .collect(),
-    )
+    builder
+        .author(kp.public().clone())
+        .round(1)
+        .epoch(0)
+        .parents(
+            Certificate::genesis(&committee(None))
+                .iter()
+                .map(|x| x.digest())
+                .collect(),
+        )
 }
 
 pub fn fixture_payload(number_of_batches: u8) -> BTreeMap<BatchDigest, WorkerId> {
@@ -350,6 +355,7 @@ pub fn votes(header: &Header<Ed25519PublicKey>) -> Vec<Vote<Ed25519PublicKey>> {
             let vote = Vote {
                 id: header.id,
                 round: header.round,
+                epoch: header.epoch,
                 origin: header.author.clone(),
                 author: kp.public().clone(),
                 signature: Ed25519Signature::default(),
@@ -743,6 +749,7 @@ pub fn mock_signed_certificate(
         .author(origin.clone())
         .payload(fixture_payload(1))
         .round(round)
+        .epoch(0)
         .parents(parents);
     let header = header_builder.build(author).unwrap();
     let mut cert = Certificate {
