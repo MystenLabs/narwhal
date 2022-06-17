@@ -180,11 +180,11 @@ from the database and log data. This is useful to preserve the state between mul
    
    That binary is necessary for generating the keys for the validators and the committee.json seed file.
    
-### Running the `gen.sh #` script to generate a larger cluster.
+### Running the `gen.validators.sh #` script to generate a larger cluster.
 
 
 ```
-./gen.sh 6
+./gen.validators.sh 6
 
 # That will create a docker-compose.yaml file in ./validators-6/docker-compose.yaml
 
