@@ -1,5 +1,5 @@
 use async_shutdown::Shutdown;
-use futures::Future;
+use futures::{future, Future};
 use once_cell::sync::OnceCell;
 use parking_lot::Mutex;
 use std::collections::BTreeMap;
@@ -83,7 +83,56 @@ impl<T> Drop for TaskHandle<T> {
     }
 }
 
-/// TaskTracker is a wrapper around tokio for asynchronous tasks and futures.
+#[derive(Clone)]
+pub struct ShutdownToken {
+    internal: Shutdown,
+}
+
+pub type CancelToken = async_shutdown::WrapCancel<future::Pending<()>>;
+pub struct WaitToken {
+    internal: (
+        tokio::sync::oneshot::Sender<()>,
+        async_shutdown::WrapWait<tokio::sync::oneshot::Receiver<()>>,
+    ),
+}
+
+impl WaitToken {
+    pub fn new(
+        token: (
+            tokio::sync::oneshot::Sender<()>,
+            async_shutdown::WrapWait<tokio::sync::oneshot::Receiver<()>>,
+        ),
+    ) -> Self {
+        Self { internal: token }
+    }
+    pub async fn notify_done(self) {
+        self.internal.0.send(());
+        self.internal.1.await;
+    }
+}
+
+impl ShutdownToken {
+    pub fn new() -> Self {
+        Self {
+            internal: Shutdown::new(),
+        }
+    }
+    pub fn get_wait_token(&self) -> WaitToken {
+        let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+        // Adding this wait here will block the shutdown_token.shutdown_and_wait().await call
+        // until the shutdown code block has completed execution
+        let wrapped_rx = self.internal.wrap_wait(rx);
+        if wrapped_rx.is_err() {
+            panic!("Failed to get wait token!");
+        }
+        WaitToken::new((tx, wrapped_rx.unwrap()))
+    }
+    pub fn cancelled(&self) -> CancelToken {
+        self.internal.clone().wrap_cancel(future::pending::<()>())
+    }
+}
+
+/// TaskTracker is a wrapper around tokio for long running tasks and futures.
 /// This class adds the following functionalities which are not present in
 /// tokio today:
 /// * Tokio does not provide a way to track all spawned tasks in a central
@@ -122,7 +171,7 @@ impl<T> Drop for TaskHandle<T> {
 ///             42
 ///         }
 ///     );
-///     // A task which needs to suspend its normal execution during shutdown and
+///     // A task which needs to suspend its normal execution and
 ///     // run a shutdown sequence
 ///     let task3 = TaskTracker::get().spawn_cancel_and_wait(
 ///         Some("test".to_string()),
@@ -138,13 +187,14 @@ impl<T> Drop for TaskHandle<T> {
 ///         },
 ///     );
 ///    // A task which wants to control the shutdown in a custom way will pass
-///    // in its own shutdown token
-///    let token = Shutdown::new();
+///    // its own shutdown token
+///    let token = ShutdownToken::new();
+///    let cloned_token = token.clone();
 ///    let task4 = TaskTracker::get().spawn(
 ///         Some("test".to_string()),
 ///         async move {
 ///             tokio::select! {
-///                 _ = token.clone().wrap_cancel(future::pending::<()>()) => {
+///                 _ = cloned_token.clone().cancelled() => {
 ///                     // shutdown sequence
 ///                     43
 ///                 }
@@ -157,7 +207,7 @@ impl<T> Drop for TaskHandle<T> {
 ///         token.clone(),
 ///     );
 ///   
-///     join_all(vec![task1, task2, task3, task3])
+///     join_all(vec![task1, task2, task3, task4])
 /// }
 /// async fn request_shutdown() -> {
 ///  // Do other shutdown steps
@@ -250,6 +300,25 @@ impl TaskTracker {
             detached: false,
         }
     }
+    fn next_task_id(&self) -> (u64, bool) {
+        let task_id;
+        let detached;
+        {
+            let mut state = self.state.lock();
+            if state.tasks.contains_key(&state.next_task_id) {
+                panic!(
+                    "Task tracker already running a task with next id: `{{state.next_task_id}}`"
+                );
+            }
+            task_id = state.next_task_id;
+            detached = state.task_tracker_state != TaskTrackerState::Running;
+            if detached {
+                warn!("Task arrived after task tracking is shutdown, will start as detached");
+            }
+            state.next_task_id = task_id + 1;
+        }
+        (task_id, detached)
+    }
     pub fn get() -> &'static TaskTracker {
         static TASK_TRACKER: OnceCell<TaskTracker> = OnceCell::new();
         TASK_TRACKER.get_or_init(|| TaskTracker::new("global".to_string()))
@@ -284,28 +353,13 @@ impl TaskTracker {
         &self,
         tag: Option<String>,
         run: T,
-        shutdown_token: Shutdown,
+        shutdown_token: ShutdownToken,
     ) -> TaskHandle<T::Output>
     where
         T: Future + Send + 'static,
         T::Output: Send + 'static,
     {
-        let task_id;
-        let detached;
-        {
-            let mut state = self.state.lock();
-            if state.tasks.contains_key(&state.next_task_id) {
-                panic!(
-                    "Task tracker already running a task with next id: `{{state.next_task_id}}`"
-                );
-            }
-            task_id = state.next_task_id;
-            detached = state.task_tracker_state != TaskTrackerState::Running;
-            if detached {
-                warn!("Task arrived after task tracking is shutdown, will start as detached");
-            }
-            state.next_task_id = task_id + 1;
-        }
+        let (task_id, detached) = self.next_task_id();
         let (tx, rx) = tokio::sync::oneshot::channel::<T::Output>();
         let fut = Box::pin(async move {
             info!("Starting task with task_id {task_id}");
@@ -315,29 +369,14 @@ impl TaskTracker {
             }
             ()
         });
-        self.get_task_handle::<T>(tag, task_id, shutdown_token, fut, detached, rx)
+        self.get_task_handle::<T>(tag, task_id, shutdown_token.internal, fut, detached, rx)
     }
     pub fn spawn_cancel<T>(&self, tag: Option<String>, run: T) -> TaskHandle<T::Output>
     where
         T: Future + Send + 'static,
         T::Output: Send + 'static,
     {
-        let task_id;
-        let detached;
-        {
-            let mut state = self.state.lock();
-            if state.tasks.contains_key(&state.next_task_id) {
-                panic!(
-                    "Task tracker already running a task with next id: `{{state.next_task_id}}`"
-                );
-            }
-            task_id = state.next_task_id;
-            detached = state.task_tracker_state != TaskTrackerState::Running;
-            if detached {
-                warn!("Task arrived after task tracking is shutdown, will start as detached");
-            }
-            state.next_task_id = task_id + 1;
-        }
+        let (task_id, detached) = self.next_task_id();
         let shutdown_token = Shutdown::new();
         let cloned_token = shutdown_token.clone();
         let (tx, rx) = tokio::sync::oneshot::channel::<T::Output>();
@@ -362,22 +401,7 @@ impl TaskTracker {
         T: Future + Send + 'static,
         T::Output: Send + 'static,
     {
-        let task_id;
-        let detached;
-        {
-            let mut state = self.state.lock();
-            if state.tasks.contains_key(&state.next_task_id) {
-                panic!(
-                    "Task tracker already running a task with next id: `{{state.next_task_id}}`"
-                );
-            }
-            task_id = state.next_task_id;
-            detached = state.task_tracker_state != TaskTrackerState::Running;
-            if detached {
-                warn!("Task arrived after task tracking is shutdown, will start as detached");
-            }
-            state.next_task_id = task_id + 1;
-        }
+        let (task_id, detached) = self.next_task_id();
         let shutdown_token = Shutdown::new();
         let cloned_token = shutdown_token.clone();
         let (tx, rx) = tokio::sync::oneshot::channel::<T::Output>();
@@ -409,22 +433,7 @@ impl TaskTracker {
         U: Future + Send + 'static,
         U::Output: Send + 'static,
     {
-        let task_id;
-        let detached;
-        {
-            let mut state = self.state.lock();
-            if state.tasks.contains_key(&state.next_task_id) {
-                // This should never really happen as task ids are assigned
-                // by incrementing a counter within a lock
-                panic!("Task tracker already running a task with id: `{{state.next_task_id}}`");
-            }
-            task_id = state.next_task_id;
-            detached = state.task_tracker_state != TaskTrackerState::Running;
-            if detached {
-                warn!("Task arrived after task tracking is shutdown, will start as detached");
-            }
-            state.next_task_id = task_id + 1;
-        }
+        let (task_id, detached) = self.next_task_id();
         let shutdown_token = Shutdown::new();
         let shutdown_cloned = shutdown_token.clone();
         let (tx, mut rx) = tokio::sync::oneshot::channel::<Result<T::Output, U::Output>>();
@@ -604,17 +613,14 @@ mod tests {
             // Future will be run on shutdown
             async move { 43 },
         );
-        let shutdown_token = Shutdown::new();
+        let shutdown_token = ShutdownToken::new();
         let cloned = shutdown_token.clone();
         let task4 = tracker.spawn(
             Some("tagB".to_string()),
             async move {
                 // long running task inside our closure which we want to cancel
                 // when shutdown signal arrives
-                match cloned
-                    .wrap_cancel(tokio::time::sleep(std::time::Duration::from_secs(600)))
-                    .await
-                {
+                match cloned.cancelled().await {
                     Some(_) => {
                         // This value is returned when we return normally after completing
                         // execution
@@ -645,8 +651,10 @@ mod tests {
     #[tokio::test]
     async fn test_select() {
         let tracker = TaskTracker::new("task_tracker".to_string());
-        let shutdown = Shutdown::new();
+
+        let shutdown = ShutdownToken::new();
         let shutdown_token = shutdown.clone();
+
         let counter = Arc::new(AtomicU64::new(0));
         let cloned_counter = counter.clone();
         // task is a future which increments a counter in a loop
@@ -655,17 +663,13 @@ mod tests {
             Some("tagA".to_string()),
             async move {
                 loop {
-                    let (tx, rx) = tokio::sync::oneshot::channel::<()>();
-                    // Adding this wait here will block the shutdown_token.shutdown_and_wait().await call
-                    // until the shutdown code block has completed execution
-                    let wrapped_rx = shutdown_token.clone().wrap_wait(rx).unwrap();
+                    let wait_token = shutdown_token.clone().get_wait_token();
                     tokio::select! {
-                        _ = shutdown_token.clone().wrap_cancel(future::pending::<()>()) => {
+                        _ = shutdown_token.clone().cancelled() => {
                             // ---------------shutdown code block------------------
                             // reset the counter on shutdown
                             cloned_counter.as_ref().store(0, Ordering::SeqCst);
-                            tx.send(());
-                            wrapped_rx.await;
+                            wait_token.notify_done().await;
                             break;
                         }
                         _ = tokio::time::sleep(std::time::Duration::from_secs(1)) => {
@@ -686,7 +690,7 @@ mod tests {
         // Check the counter, it should be > 0
         assert!(counter.clone().load(Ordering::SeqCst) > 5);
         // Shutdown everything. This will wait until the shutdown code
-        // block has completed execution and done with cleanup
+        // block has completed execution and wait token notifies
         tracker.shutdown_and_wait().await;
         assert_eq!(counter.clone().load(Ordering::SeqCst), 0);
     }
@@ -694,8 +698,10 @@ mod tests {
     #[tokio::test]
     async fn test_select_with_no_wait() {
         let tracker = TaskTracker::new("task_tracker".to_string());
-        let shutdown = Shutdown::new();
+
+        let shutdown = ShutdownToken::new();
         let shutdown_token = shutdown.clone();
+
         let counter = Arc::new(AtomicU64::new(0));
         let cloned_counter = counter.clone();
         // task is a future which increments a counter in a loop
@@ -705,7 +711,7 @@ mod tests {
             async move {
                 loop {
                     tokio::select! {
-                        _ = shutdown_token.clone().wrap_cancel(future::pending::<()>()) => {
+                        _ = shutdown_token.clone().cancelled() => {
                             // ---------------shutdown code block------------------
                             // reset the counter on shutdown
                             cloned_counter.as_ref().store(0, Ordering::SeqCst);
@@ -729,8 +735,8 @@ mod tests {
         assert!(counter.clone().load(Ordering::SeqCst) > 5);
         // Shutdown everything. We sent the signal to terminate
         // the loop above and reset the counter but since we did
-        // not set up a waiter on completion of the shutdown code
-        // block execution, this does not guarantee the counter
+        // not set up a wait token to block task tracker from
+        // moving forward, this does not guarantee the counter
         // is reset by the time `tracker.shutdown_and_wait().await`
         // completes
         tracker.shutdown_and_wait().await;
