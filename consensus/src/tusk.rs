@@ -287,15 +287,13 @@ impl<PublicKey: VerifyingKey> Consensus<PublicKey> {
         #[cfg(test)]
         let coin = 0;
         #[cfg(not(test))]
-        let coin = round;
+        let coin = round as usize;
 
         // Elect the leader.
-        let mut keys: Vec<_> = committee.authorities.load().keys().cloned().collect();
-        keys.sort();
-        let leader = &keys[coin as usize % committee.size()];
+        let leader = committee.leader(coin);
 
         // Return its certificate and the certificate's digest.
-        dag.get(&round).and_then(|x| x.get(leader))
+        dag.get(&round).and_then(|x| x.get(&leader))
     }
 
     /// Order the past leaders that we didn't already commit.
