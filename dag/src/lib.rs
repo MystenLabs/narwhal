@@ -4,7 +4,6 @@
 use arc_swap::ArcSwap;
 use itertools::Itertools;
 use once_cell::sync::OnceCell;
-use rayon::prelude::*;
 use std::{
     ops::Deref,
     sync::{Arc, Weak},
@@ -250,7 +249,7 @@ impl<T: Sync + Send + std::fmt::Debug> Node<T> {
             .into_iter()
             .partition(|p| p.is_compressible());
 
-        while compressible.len() > 0 {
+        while !compressible.is_empty() {
             let curr = compressible.pop().unwrap();
             let (curr_compressible, curr_incompressible): (Vec<NodeRef<T>>, Vec<NodeRef<T>>) = curr
                 .raw_parents_snapshot()
