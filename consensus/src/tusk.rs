@@ -1,14 +1,13 @@
 // Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crate::{ConsensusOutput, SequenceNumber};
+use crate::{ConsensusOutput, ConsensusState, Dag, SequenceNumber};
 use config::{Committee, SharedCommittee, Stake};
 use crypto::{
     traits::{EncodeDecodeBase64, VerifyingKey},
     Hash,
 };
 use std::{
-    cmp::max,
     collections::{HashMap, HashSet},
     sync::Arc,
 };
@@ -22,66 +21,6 @@ use types::{Certificate, CertificateDigest, ConsensusStore, Round, StoreResult};
 #[cfg(any(test))]
 #[path = "tests/consensus_tests.rs"]
 pub mod consensus_tests;
-
-/// The representation of the DAG in memory.
-type Dag<PublicKey> =
-    HashMap<Round, HashMap<PublicKey, (CertificateDigest, Certificate<PublicKey>)>>;
-
-/// The state that needs to be persisted for crash-recovery.
-pub struct State<PublicKey: VerifyingKey> {
-    /// The last committed round.
-    last_committed_round: Round,
-    // Keeps the last committed round for each authority. This map is used to clean up the dag and
-    // ensure we don't commit twice the same certificate.
-    last_committed: HashMap<PublicKey, Round>,
-    /// Keeps the latest committed certificate (and its parents) for every authority. Anything older
-    /// must be regularly cleaned up through the function `update`.
-    dag: Dag<PublicKey>,
-}
-
-impl<PublicKey: VerifyingKey> State<PublicKey> {
-    pub fn new(genesis: Vec<Certificate<PublicKey>>) -> Self {
-        let genesis = genesis
-            .into_iter()
-            .map(|x| (x.origin(), (x.digest(), x)))
-            .collect::<HashMap<_, _>>();
-
-        Self {
-            last_committed_round: 0,
-            last_committed: genesis
-                .iter()
-                .map(|(x, (_, y))| (x.clone(), y.round()))
-                .collect(),
-            dag: [(0, genesis)]
-                .iter()
-                .cloned()
-                .collect::<HashMap<_, HashMap<_, _>>>(),
-        }
-    }
-
-    /// Update and clean up internal state base on committed certificates.
-    fn update(&mut self, certificate: &Certificate<PublicKey>, gc_depth: Round) {
-        self.last_committed
-            .entry(certificate.origin())
-            .and_modify(|r| *r = max(*r, certificate.round()))
-            .or_insert_with(|| certificate.round());
-
-        let last_committed_round = *std::iter::Iterator::max(self.last_committed.values()).unwrap();
-        self.last_committed_round = last_committed_round;
-
-        // We purge all certificates past the gc depth
-        self.dag.retain(|r, _| r + gc_depth >= last_committed_round);
-        for (name, round) in &self.last_committed {
-            self.dag.retain(|r, authorities| {
-                // We purge certificates for `name` prior to its latest commit
-                if r < round {
-                    authorities.retain(|n, _| n != name);
-                }
-                !authorities.is_empty()
-            });
-        }
-    }
-}
 
 pub struct Consensus<PublicKey: VerifyingKey> {
     /// The committee information.
@@ -135,7 +74,7 @@ impl<PublicKey: VerifyingKey> Consensus<PublicKey> {
 
     async fn run(&mut self) -> StoreResult<()> {
         // The consensus state (everything else is immutable).
-        let mut state = State::new(self.genesis.clone());
+        let mut state = ConsensusState::new(self.genesis.clone());
 
         // Listen to incoming certificates.
         while let Some(certificate) = self.rx_primary.recv().await {
@@ -182,7 +121,7 @@ impl<PublicKey: VerifyingKey> Consensus<PublicKey> {
         committee: &Committee<PublicKey>,
         store: &Arc<ConsensusStore<PublicKey>>,
         gc_depth: Round,
-        state: &mut State<PublicKey>,
+        state: &mut ConsensusState<PublicKey>,
         consensus_index: SequenceNumber,
         certificate: Certificate<PublicKey>,
     ) -> StoreResult<Vec<ConsensusOutput<PublicKey>>> {
@@ -300,7 +239,7 @@ impl<PublicKey: VerifyingKey> Consensus<PublicKey> {
     fn order_leaders(
         committee: &Committee<PublicKey>,
         leader: &Certificate<PublicKey>,
-        state: &State<PublicKey>,
+        state: &ConsensusState<PublicKey>,
     ) -> Vec<Certificate<PublicKey>> {
         let mut to_commit = vec![leader.clone()];
         let mut leader = leader;
@@ -347,7 +286,7 @@ impl<PublicKey: VerifyingKey> Consensus<PublicKey> {
     fn order_dag(
         gc_depth: Round,
         leader: &Certificate<PublicKey>,
-        state: &State<PublicKey>,
+        state: &ConsensusState<PublicKey>,
     ) -> Vec<Certificate<PublicKey>> {
         debug!("Processing sub-dag of {:?}", leader);
         let mut ordered = Vec::new();
