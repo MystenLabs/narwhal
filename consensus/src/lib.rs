@@ -11,6 +11,7 @@
 pub mod dag;
 pub mod subscriber;
 pub mod tusk;
+mod utils;
 
 pub use crate::{subscriber::SubscriberHandler, tusk::Consensus};
 use crypto::{traits::VerifyingKey, Hash};

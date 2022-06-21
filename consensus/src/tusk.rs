@@ -1,16 +1,13 @@
 // Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crate::{ConsensusOutput, ConsensusState, Dag, SequenceNumber};
+use crate::{utils, ConsensusOutput, ConsensusState, Dag, SequenceNumber};
 use config::{Committee, SharedCommittee, Stake};
 use crypto::{
     traits::{EncodeDecodeBase64, VerifyingKey},
     Hash,
 };
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-};
+use std::{collections::HashMap, sync::Arc};
 use tokio::{
     sync::mpsc::{Receiver, Sender},
     task::JoinHandle,
@@ -177,12 +174,12 @@ impl<PublicKey: VerifyingKey> Consensus<PublicKey> {
         // Get an ordered list of past leaders that are linked to the current leader.
         debug!("Leader {:?} has enough support", leader);
         let mut sequence = Vec::new();
-        for leader in Consensus::order_leaders(committee, leader, state)
+        for leader in utils::order_leaders(committee, leader, state, Self::leader)
             .iter()
             .rev()
         {
             // Starting from the oldest leader, flatten the sub-dag referenced by the leader.
-            for x in Consensus::order_dag(gc_depth, leader, state) {
+            for x in utils::order_dag(gc_depth, leader, state) {
                 let digest = x.digest();
 
                 // Update and clean up internal state.
@@ -234,99 +231,6 @@ impl<PublicKey: VerifyingKey> Consensus<PublicKey> {
         // Return its certificate and the certificate's digest.
         dag.get(&round).and_then(|x| x.get(&leader))
     }
-
-    /// Order the past leaders that we didn't already commit.
-    fn order_leaders(
-        committee: &Committee<PublicKey>,
-        leader: &Certificate<PublicKey>,
-        state: &ConsensusState<PublicKey>,
-    ) -> Vec<Certificate<PublicKey>> {
-        let mut to_commit = vec![leader.clone()];
-        let mut leader = leader;
-        for r in (state.last_committed_round + 2..leader.round())
-            .rev()
-            .step_by(2)
-        {
-            // Get the certificate proposed by the previous leader.
-            let (_, prev_leader) = match Consensus::leader(committee, r, &state.dag) {
-                Some(x) => x,
-                None => continue,
-            };
-
-            // Check whether there is a path between the last two leaders.
-            if Consensus::linked(leader, prev_leader, &state.dag) {
-                to_commit.push(prev_leader.clone());
-                leader = prev_leader;
-            }
-        }
-        to_commit
-    }
-
-    /// Checks if there is a path between two leaders.
-    fn linked(
-        leader: &Certificate<PublicKey>,
-        prev_leader: &Certificate<PublicKey>,
-        dag: &Dag<PublicKey>,
-    ) -> bool {
-        let mut parents = vec![leader];
-        for r in (prev_leader.round()..leader.round()).rev() {
-            parents = dag
-                .get(&(r))
-                .expect("We should have the whole history by now")
-                .values()
-                .filter(|(digest, _)| parents.iter().any(|x| x.header.parents.contains(digest)))
-                .map(|(_, certificate)| certificate)
-                .collect();
-        }
-        parents.contains(&prev_leader)
-    }
-
-    /// Flatten the dag referenced by the input certificate. This is a classic depth-first search (pre-order):
-    /// https://en.wikipedia.org/wiki/Tree_traversal#Pre-order
-    fn order_dag(
-        gc_depth: Round,
-        leader: &Certificate<PublicKey>,
-        state: &ConsensusState<PublicKey>,
-    ) -> Vec<Certificate<PublicKey>> {
-        debug!("Processing sub-dag of {:?}", leader);
-        let mut ordered = Vec::new();
-        let mut already_ordered = HashSet::new();
-
-        let mut buffer = vec![leader];
-        while let Some(x) = buffer.pop() {
-            debug!("Sequencing {:?}", x);
-            ordered.push(x.clone());
-            for parent in &x.header.parents {
-                let (digest, certificate) = match state
-                    .dag
-                    .get(&(x.round() - 1))
-                    .and_then(|x| x.values().find(|(x, _)| x == parent))
-                {
-                    Some(x) => x,
-                    None => continue, // We already ordered or GC up to here.
-                };
-
-                // We skip the certificate if we (1) already processed it or (2) we reached a round that we already
-                // committed for this authority.
-                let mut skip = already_ordered.contains(&digest);
-                skip |= state
-                    .last_committed
-                    .get(&certificate.origin())
-                    .map_or_else(|| false, |r| r == &certificate.round());
-                if !skip {
-                    buffer.push(certificate);
-                    already_ordered.insert(digest);
-                }
-            }
-        }
-
-        // Ensure we do not commit garbage collected certificates.
-        ordered.retain(|x| x.round() + gc_depth >= state.last_committed_round);
-
-        // Ordering the output by round is not really necessary but it makes the commit sequence prettier.
-        ordered.sort_by_key(|x| x.round());
-        ordered
-    }
 }
 
 #[cfg(test)]
@@ -361,7 +265,7 @@ mod tests {
         let store = make_consensus_store(&store_path);
 
         let consensus_index = 0;
-        let mut state = State::new(Certificate::genesis(&mock_committee(&keys[..])));
+        let mut state = ConsensusState::new(Certificate::genesis(&mock_committee(&keys[..])));
         for certificate in certificates {
             Consensus::process_certificate(
                 &committee,
@@ -411,7 +315,7 @@ mod tests {
         let store_path = test_utils::temp_dir();
         let store = make_consensus_store(&store_path);
 
-        let mut state = State::new(Certificate::genesis(&mock_committee(&keys[..])));
+        let mut state = ConsensusState::new(Certificate::genesis(&mock_committee(&keys[..])));
         let consensus_index = 0;
         for certificate in certificates {
             Consensus::process_certificate(
