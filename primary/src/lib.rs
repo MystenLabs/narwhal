@@ -19,6 +19,7 @@ mod garbage_collector;
 mod grpc_server;
 mod header_waiter;
 mod helper;
+mod part_sync_proposer;
 mod payload_receiver;
 mod primary;
 mod synchronizer;
@@ -37,7 +38,7 @@ pub use crate::{
     },
     block_waiter::{BlockCommand, BlockWaiter},
     primary::{
-        PayloadToken, Primary, PrimaryWorkerMessage, WorkerPrimaryError, WorkerPrimaryMessage,
-        CHANNEL_CAPACITY,
+        NetworkModel, PayloadToken, Primary, PrimaryWorkerMessage, WorkerPrimaryError,
+        WorkerPrimaryMessage, CHANNEL_CAPACITY,
     },
 };

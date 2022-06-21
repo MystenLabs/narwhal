@@ -4,7 +4,7 @@ use config::{Parameters, SharedCommittee, WorkerId};
 use consensus::{dag::Dag, Consensus, SubscriberHandler};
 use crypto::traits::{KeyPair, Signer, VerifyingKey};
 use executor::{ExecutionState, Executor, SerializedTransaction, SubscriberResult};
-use primary::{PayloadToken, Primary};
+use primary::{NetworkModel, PayloadToken, Primary};
 use std::sync::Arc;
 use store::{
     reopen,
@@ -151,6 +151,7 @@ impl Node {
             /* tx_consensus */ tx_new_certificates,
             /* rx_consensus */ rx_feedback,
             /* dag */ dag,
+            NetworkModel::Asynchronous,
         );
 
         Ok(primary_handle)
