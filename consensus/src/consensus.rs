@@ -9,7 +9,6 @@ use tokio::{
     sync::mpsc::{Receiver, Sender},
     task::JoinHandle,
 };
-use tracing::{debug, warn};
 use types::{Certificate, CertificateDigest, ConsensusStore, Round, StoreResult};
 
 /// The representation of the DAG in memory.
@@ -151,7 +150,7 @@ where
                 let certificate = &output.certificate;
                 #[cfg(not(feature = "benchmark"))]
                 if output.consensus_index % 5_000 == 0 {
-                    debug!("Committed {}", certificate.header);
+                    tracing::debug!("Committed {}", certificate.header);
                 }
 
                 #[cfg(feature = "benchmark")]
@@ -166,7 +165,7 @@ where
                     .expect("Failed to send certificate to primary");
 
                 if let Err(e) = self.tx_output.send(output).await {
-                    warn!("Failed to output certificate: {e}");
+                    tracing::warn!("Failed to output certificate: {e}");
                 }
             }
         }
