@@ -1,7 +1,7 @@
 // Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crate::{ConsensusState, Dag};
+use crate::consensus::{ConsensusState, Dag};
 use config::Committee;
 use crypto::traits::VerifyingKey;
 use std::collections::HashSet;
@@ -44,7 +44,7 @@ where
 }
 
 /// Checks if there is a path between two leaders.
-pub fn linked<PublicKey: VerifyingKey>(
+fn linked<PublicKey: VerifyingKey>(
     leader: &Certificate<PublicKey>,
     prev_leader: &Certificate<PublicKey>,
     dag: &Dag<PublicKey>,
