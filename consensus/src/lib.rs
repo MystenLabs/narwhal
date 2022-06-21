@@ -8,7 +8,7 @@
 )]
 
 pub mod bullshark;
-mod consensus;
+pub mod consensus;
 pub mod dag;
 pub mod subscriber;
 pub mod tusk;

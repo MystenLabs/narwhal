@@ -72,11 +72,15 @@ impl<PublicKey: VerifyingKey> ConsensusState<PublicKey> {
     }
 }
 
+/// Describe how to sequence input certificates.
 pub trait ConsensusProtocol<PublicKey: VerifyingKey> {
     fn process_certificate(
         &mut self,
+        // The state of the consensus protocol.
         state: &mut ConsensusState<PublicKey>,
+        // The latest consensus index.
         consensus_index: SequenceNumber,
+        // The new certificate.
         certificate: Certificate<PublicKey>,
     ) -> StoreResult<Vec<ConsensusOutput<PublicKey>>>;
 }

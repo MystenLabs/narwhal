@@ -215,7 +215,7 @@ async fn not_enough_support() {
     parents = next_parents.clone();
 
     // Rounds 4: Fully connected graph.
-    let nodes: Vec<_> = keys.iter().cloned().collect();
+    let nodes: Vec<_> = keys.to_vec();
     let (out, parents) = test_utils::make_optimal_certificates(4..=4, &parents, &nodes);
     certificates.extend(out);
 

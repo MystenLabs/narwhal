@@ -20,11 +20,11 @@ pub mod bullshark_tests;
 
 pub struct Bullshark<PublicKey: VerifyingKey> {
     /// The committee information.
-    committee: SharedCommittee<PublicKey>,
+    pub committee: SharedCommittee<PublicKey>,
     /// Persistent storage to safe ensure crash-recovery.
-    store: Arc<ConsensusStore<PublicKey>>,
+    pub store: Arc<ConsensusStore<PublicKey>>,
     /// The depth of the garbage collector.
-    gc_depth: Round,
+    pub gc_depth: Round,
 }
 
 impl<PublicKey: VerifyingKey> ConsensusProtocol<PublicKey> for Bullshark<PublicKey> {
@@ -145,6 +145,6 @@ impl<PublicKey: VerifyingKey> Bullshark<PublicKey> {
         let leader = committee.leader(seed as usize);
 
         // Return its certificate and the certificate's digest.
-        dag.get(&round).map(|x| x.get(&leader)).flatten()
+        dag.get(&round).and_then(|x| x.get(&leader))
     }
 }
