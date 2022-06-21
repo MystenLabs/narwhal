@@ -9,6 +9,7 @@
 )]
 
 mod aggregators;
+mod async_proposer;
 mod block_remover;
 pub mod block_synchronizer;
 mod block_waiter;
@@ -20,7 +21,6 @@ mod header_waiter;
 mod helper;
 mod payload_receiver;
 mod primary;
-mod proposer;
 mod synchronizer;
 mod utils;
 

@@ -2,6 +2,7 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use crate::{
+    async_proposer::AsyncProposer,
     block_remover::DeleteBatchResult,
     block_synchronizer::BlockSynchronizer,
     block_waiter::{BatchMessageError, BatchResult, BlockWaiter},
@@ -12,7 +13,6 @@ use crate::{
     header_waiter::HeaderWaiter,
     helper::Helper,
     payload_receiver::PayloadReceiver,
-    proposer::Proposer,
     synchronizer::Synchronizer,
     BlockRemover, CertificatesResponse, DeleteBatchMessage, PayloadAvailabilityResponse,
 };
@@ -281,7 +281,7 @@ impl Primary {
 
         // When the `Core` collects enough parent certificates, the `Proposer` generates a new header with new batch
         // digests from our workers and it back to the `Core`.
-        Proposer::spawn(
+        AsyncProposer::spawn(
             name.clone(),
             committee.clone(),
             signature_service,

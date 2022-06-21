@@ -13,11 +13,11 @@ use tracing::info;
 use types::{BatchDigest, Certificate, CertificateDigest, Header, Round};
 
 #[cfg(test)]
-#[path = "tests/proposer_tests.rs"]
-pub mod proposer_tests;
+#[path = "tests/async_proposer_tests.rs"]
+pub mod async_proposer_tests;
 
 /// The proposer creates new headers and send them to the core for broadcasting and further processing.
-pub struct Proposer<PublicKey: VerifyingKey> {
+pub struct AsyncProposer<PublicKey: VerifyingKey> {
     /// The public key of this primary.
     name: PublicKey,
     /// The committee information.
@@ -46,7 +46,7 @@ pub struct Proposer<PublicKey: VerifyingKey> {
     payload_size: usize,
 }
 
-impl<PublicKey: VerifyingKey> Proposer<PublicKey> {
+impl<PublicKey: VerifyingKey> AsyncProposer<PublicKey> {
     pub fn spawn(
         name: PublicKey,
         committee: SharedCommittee<PublicKey>,
