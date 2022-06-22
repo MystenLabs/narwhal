@@ -8,7 +8,7 @@ use criterion::{
     criterion_group, criterion_main, BenchmarkId, Criterion, SamplingMode, Throughput,
 };
 use crypto::{traits::KeyPair, Hash};
-use pprof::criterion::{Output, PProfProfiler};
+// use pprof::criterion::{Output, PProfProfiler};
 use std::collections::BTreeSet;
 use test_utils::{keys, make_optimal_certificates, temp_dir};
 use types::{Certificate, Round};
@@ -68,9 +68,9 @@ pub fn process_certificates(c: &mut Criterion) {
     }
 }
 
-criterion_group! {
-    name = consensus_group;
-    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
-    targets = process_certificates
-}
+// criterion_group! {
+//     name = consensus_group;
+//     config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+//     targets = process_certificates
+// }
 criterion_main!(consensus_group);
