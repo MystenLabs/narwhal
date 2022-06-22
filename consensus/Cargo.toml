@@ -16,7 +16,7 @@ rand = { version = "0.7.3", optional = true }
 rocksdb = { version = "0.18.0", features = ["snappy", "lz4", "zstd", "zlib"], default-features = false }
 serde = { version = "1.0.137", features = ["derive"] }
 serde_bytes = "0.11.6"
-store = { git = "https://github.com/mystenlabs/mysten-infra.git", package = "typed-store", rev = "7c247967e5a5abd59ecaa75bc62b05bcdf4503fe" }
+store = { git = "https://github.com/mystenlabs/mysten-infra.git", package = "typed-store", rev = "c9e66a5b0325084104155cc6590f33cc7b006d72" }
 thiserror = "1.0.31"
 tokio = { version = "1.19.2", features = ["sync"] }
 tracing = "0.1.34"

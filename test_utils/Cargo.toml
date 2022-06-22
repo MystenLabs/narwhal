@@ -29,6 +29,6 @@ crypto = { path = "../crypto" }
 types = { path = "../types" }
 worker = { path = "../worker"}
 
-store = { git = "https://github.com/mystenlabs/mysten-infra.git", package = "typed-store", rev = "7c247967e5a5abd59ecaa75bc62b05bcdf4503fe" }
-mysten-network = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "7c247967e5a5abd59ecaa75bc62b05bcdf4503fe" }
+store = { git = "https://github.com/mystenlabs/mysten-infra.git", package = "typed-store", rev = "c9e66a5b0325084104155cc6590f33cc7b006d72" }
+mysten-network = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "c9e66a5b0325084104155cc6590f33cc7b006d72" }
 workspace-hack = { version = "0.1", path = "../workspace-hack" }
