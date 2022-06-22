@@ -1,1 +1,1 @@
-initSidebarItems({"enum":[["CertificatesResponseError",""]],"struct":[["CertificatesResponse",""],["PayloadAvailabilityResponse",""],["RequestID",""]]});
+window.SIDEBAR_ITEMS = {"enum":[["CertificatesResponseError",""]],"struct":[["CertificatesResponse",""],["PayloadAvailabilityResponse",""],["RequestID",""]]};

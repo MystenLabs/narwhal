@@ -1,1 +1,1 @@
-initSidebarItems({"enum":[["RetrievalResult",""]]});
+window.SIDEBAR_ITEMS = {"enum":[["RetrievalResult",""]]};

@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["WorkerToWorkerServer","The worker-to-worker interface"],["_Inner",""]],"trait":[["WorkerToWorker","Generated trait containing gRPC methods that should be implemented for use with WorkerToWorkerServer."]]});
+window.SIDEBAR_ITEMS = {"struct":[["WorkerToWorkerServer","The worker-to-worker interface"],["_Inner",""]],"trait":[["WorkerToWorker","Generated trait containing gRPC methods that should be implemented for use with WorkerToWorkerServer."]]};

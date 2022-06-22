@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["ValidatorClient","The consensus to mempool interface for validator actions."]]});
+window.SIDEBAR_ITEMS = {"struct":[["ValidatorClient","The consensus to mempool interface for validator actions."]]};

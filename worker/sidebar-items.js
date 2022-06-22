@@ -1,1 +1,1 @@
-initSidebarItems({"enum":[["WorkerMessage","The message exchanged between workers."]],"struct":[["Worker",""]]});
+window.SIDEBAR_ITEMS = {"enum":[["WorkerMessage","The message exchanged between workers."]],"struct":[["Worker",""]]};

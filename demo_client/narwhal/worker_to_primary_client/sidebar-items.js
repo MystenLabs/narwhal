@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["WorkerToPrimaryClient","The worker-to-primary interface"]]});
+window.SIDEBAR_ITEMS = {"struct":[["WorkerToPrimaryClient","The worker-to-primary interface"]]};

@@ -1,1 +1,1 @@
-initSidebarItems({"enum":[["DagError",""]],"type":[["DagResult",""]]});
+window.SIDEBAR_ITEMS = {"enum":[["DagError",""]],"type":[["DagResult",""]]};

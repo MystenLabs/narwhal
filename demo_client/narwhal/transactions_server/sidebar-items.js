@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["TransactionsServer",""],["_Inner",""]],"trait":[["Transactions","Generated trait containing gRPC methods that should be implemented for use with TransactionsServer."]]});
+window.SIDEBAR_ITEMS = {"struct":[["TransactionsServer",""],["_Inner",""]],"trait":[["Transactions","Generated trait containing gRPC methods that should be implemented for use with TransactionsServer."]]};

@@ -1,1 +1,1 @@
-initSidebarItems({"enum":[["ValidatorDagError","Represents the errors that can be encountered in this concrete, [`VerifyingKey`], [`Certificate`] and [`Round`]-aware variant of the Dag."]],"struct":[["Dag","The publicly exposed Dag handle, to which one can send commands"]]});
+window.SIDEBAR_ITEMS = {"enum":[["ValidatorDagError","Represents the errors that can be encountered in this concrete, [`VerifyingKey`], [`Certificate`] and [`Round`]-aware variant of the Dag."]],"struct":[["Dag","The publicly exposed Dag handle, to which one can send commands"]]};

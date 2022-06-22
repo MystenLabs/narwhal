@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["MockBlockSynchronizer","A mock helper for the BlockSynchronizer to help us mock the responses eliminating the need to wire in the actual BlockSynchronizer when needed for other components."]]});
+window.SIDEBAR_ITEMS = {"struct":[["MockBlockSynchronizer","A mock helper for the BlockSynchronizer to help us mock the responses eliminating the need to wire in the actual BlockSynchronizer when needed for other components."]]};
