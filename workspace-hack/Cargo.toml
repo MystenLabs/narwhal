@@ -184,7 +184,7 @@ pin-utils = { version = "0.1", default-features = false }
 plotters = { version = "0.3", default-features = false, features = ["area_series", "line_series", "plotters-svg", "svg_backend"] }
 plotters-backend = { version = "0.3", default-features = false }
 plotters-svg = { version = "0.3", default-features = false }
-pprof = { version = "0.9", features = ["backtrace", "backtrace-rs", "cpp", "criterion", "flamegraph", "inferno"] }
+# pprof = { version = "0.9", features = ["backtrace", "backtrace-rs", "cpp", "criterion", "flamegraph", "inferno"] }
 ppv-lite86 = { version = "0.2", default-features = false, features = ["simd", "std"] }
 predicates = { version = "2", features = ["diff", "difflib", "float-cmp", "normalize-line-endings", "regex"] }
 predicates-core = { version = "1", default-features = false }

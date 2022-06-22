@@ -690,7 +690,6 @@ dependencies = [
  "dag",
  "ed25519-dalek",
  "match_opt",
- "pprof",
  "rand 0.7.3",
  "rocksdb",
  "serde",
@@ -2264,28 +2263,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "521fa9638fa597e1dc53e9412a4f9cefb01187ee1f7413076f9e6749e2885ba9"
 dependencies = [
  "plotters-backend",
-]
-
-[[package]]
-name = "pprof"
-version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a97149c0eacaa6b8f8cedea99f68bb3a0517fa20f8de8d8c24c1a810f38d235d"
-dependencies = [
- "backtrace",
- "cfg-if",
- "criterion",
- "findshlibs",
- "inferno",
- "libc",
- "log",
- "nix",
- "once_cell",
- "parking_lot",
- "smallvec",
- "symbolic-demangle",
- "tempfile",
- "thiserror",
 ]
 
 [[package]]
@@ -4246,7 +4223,6 @@ dependencies = [
  "plotters",
  "plotters-backend",
  "plotters-svg",
- "pprof",
  "ppv-lite86",
  "predicates",
  "predicates-core",
