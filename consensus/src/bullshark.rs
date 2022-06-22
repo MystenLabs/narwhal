@@ -46,7 +46,7 @@ impl<PublicKey: VerifyingKey> ConsensusProtocol<PublicKey> for Bullshark<PublicK
             .insert(certificate.origin(), (certificate.digest(), certificate));
 
         // Try to order the dag to commit. Start from the highest round for which we have at least
-        // 2f+1 certificates. This is because we need them to reveal the common coin.
+        // f+1 certificates. This is because we need them to reveal the common coin.
         let r = round - 1;
 
         // We only elect leaders for even round numbers.

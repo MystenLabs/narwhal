@@ -162,7 +162,7 @@ async fn dead_node() {
 }
 
 // Run for 5 dag rounds. The leader of round 2 does not have enough support, but the leader of
-// round 4 does. The leader of rounds 2 and 4 should thus be committed.
+// round 4 does. The leader of rounds 2 and 4 should thus be committed (because they are linked).
 #[tokio::test]
 async fn not_enough_support() {
     let mut keys: Vec<_> = test_utils::keys(None)
@@ -214,7 +214,7 @@ async fn not_enough_support() {
 
     parents = next_parents.clone();
 
-    // Rounds 4: Fully connected graph.
+    // Rounds 4: Fully connected graph. This is the where we "boost" the leader.
     let nodes: Vec<_> = keys.to_vec();
     let (out, parents) = test_utils::make_optimal_certificates(4..=4, &parents, &nodes);
     certificates.extend(out);

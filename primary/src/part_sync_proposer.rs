@@ -109,7 +109,7 @@ impl<PublicKey: VerifyingKey> PartiallySyncProposer<PublicKey> {
             .expect("Failed to send header");
     }
 
-    /// Update the last leader.
+    /// Update the last leader certificate.
     fn update_leader(&mut self) -> bool {
         let leader_name = self.committee.leader(self.round as usize);
         self.last_leader = self

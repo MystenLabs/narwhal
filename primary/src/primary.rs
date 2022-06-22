@@ -288,7 +288,7 @@ impl Primary {
         );
 
         // When the `Core` collects enough parent certificates, the `Proposer` generates a new header with new batch
-        // digests from our workers and it back to the `Core`.
+        // digests from our workers and sends it back to the `Core`.
         match network_model {
             NetworkModel::PartiallySynchronous => PartiallySyncProposer::spawn(
                 name.clone(),
