@@ -163,7 +163,7 @@ impl<PublicKey: VerifyingKey> Proposer<PublicKey> {
 
     /// Whether we can advance the DAG or need to wait for the leader/more votes. This is only relevant in
     /// partial synchrony. Note that if we timeout, we ignore this check and advance anyway.
-    fn is_ready(&mut self) -> bool {
+    fn ready(&mut self) -> bool {
         match self.network_model {
             // In asynchrony we advance immediately.
             NetworkModel::Asynchronous => true,
@@ -236,7 +236,7 @@ impl<PublicKey: VerifyingKey> Proposer<PublicKey> {
 
                     // Check whether we can advance to the next round. Note that if we timeout,
                     // we ignore this check and advance anyway.
-                    advance = self.is_ready();
+                    advance = self.ready();
                 }
                 Some((digest, worker_id)) = self.rx_workers.recv() => {
                     self.payload_size += Digest::from(digest).size();
