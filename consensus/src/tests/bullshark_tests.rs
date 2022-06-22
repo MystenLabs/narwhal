@@ -161,7 +161,7 @@ async fn dead_node() {
     assert_eq!(output.certificate.round(), 8);
 }
 
-// Run for 5 dag rounds. The leaders of round 2 does not have enough support, but the leader of
+// Run for 5 dag rounds. The leader of round 2 does not have enough support, but the leader of
 // round 4 does. The leader of rounds 2 and 4 should thus be committed.
 #[tokio::test]
 async fn not_enough_support() {
