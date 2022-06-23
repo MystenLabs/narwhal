@@ -81,6 +81,12 @@ pub enum WorkerPrimaryError {
 // A type alias marking the "payload" tokens sent by workers to their primary as batch acknowledgements
 pub type PayloadToken = u8;
 
+/// The network model in which the primary operates.
+pub enum NetworkModel {
+    PartiallySynchronous,
+    Asynchronous,
+}
+
 pub struct Primary;
 
 impl Primary {
@@ -97,6 +103,7 @@ impl Primary {
         tx_consensus: Sender<Certificate<PublicKey>>,
         rx_consensus: Receiver<Certificate<PublicKey>>,
         dag: Option<Arc<Dag<PublicKey>>>,
+        network_model: NetworkModel,
     ) -> JoinHandle<()> {
         let (tx_committee, rx_committee) = watch::channel(committee.clone());
 
@@ -286,13 +293,14 @@ impl Primary {
         );
 
         // When the `Core` collects enough parent certificates, the `Proposer` generates a new header with new batch
-        // digests from our workers and it back to the `Core`.
+        // digests from our workers and sends it back to the `Core`.
         Proposer::spawn(
             name.clone(),
             committee.clone(),
             signature_service,
             parameters.header_size,
             parameters.max_header_delay,
+            network_model,
             tx_committee.subscribe(),
             /* rx_core */ rx_parents,
             /* rx_workers */ rx_our_digests,

@@ -3,15 +3,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use config::{Committee, Stake};
-use crypto::{
-    traits::{EncodeDecodeBase64, VerifyingKey},
-    Hash as _,
-};
+use crypto::traits::{EncodeDecodeBase64, VerifyingKey};
 use std::collections::HashSet;
 use types::{
     ensure,
     error::{DagError, DagResult},
-    Certificate, CertificateDigest, Header, Vote,
+    Certificate, Header, Vote,
 };
 
 /// Aggregates votes for a particular header into a certificate.
@@ -60,7 +57,7 @@ impl<PublicKey: VerifyingKey> VotesAggregator<PublicKey> {
 /// Aggregate certificates and check if we reach a quorum.
 pub struct CertificatesAggregator<PublicKey: VerifyingKey> {
     weight: Stake,
-    certificates: Vec<CertificateDigest>,
+    certificates: Vec<Certificate<PublicKey>>,
     used: HashSet<PublicKey>,
 }
 
@@ -77,7 +74,7 @@ impl<PublicKey: VerifyingKey> CertificatesAggregator<PublicKey> {
         &mut self,
         certificate: Certificate<PublicKey>,
         committee: &Committee<PublicKey>,
-    ) -> Option<Vec<CertificateDigest>> {
+    ) -> Option<Vec<Certificate<PublicKey>>> {
         let origin = certificate.origin();
 
         // Ensure it is the first time this authority votes.
@@ -85,10 +82,13 @@ impl<PublicKey: VerifyingKey> CertificatesAggregator<PublicKey> {
             return None;
         }
 
-        self.certificates.push(certificate.digest());
+        self.certificates.push(certificate);
         self.weight += committee.stake(&origin);
         if self.weight >= committee.quorum_threshold() {
-            self.weight = 0; // Ensures quorum is only reached once.
+            // Note that we do not reset the weight here. If this function is called again and
+            // the proposer didn't yet advance round, we can add extra certificates as parents.
+            // This is required when running Bullshark as consensus and does not harm when running
+            // Tusk or an external consensus protocol.
             return Some(self.certificates.drain(..).collect());
         }
         None

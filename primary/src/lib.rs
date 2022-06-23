@@ -37,7 +37,7 @@ pub use crate::{
     },
     block_waiter::{BlockCommand, BlockWaiter},
     primary::{
-        PayloadToken, Primary, PrimaryWorkerMessage, WorkerPrimaryError, WorkerPrimaryMessage,
-        CHANNEL_CAPACITY,
+        NetworkModel, PayloadToken, Primary, PrimaryWorkerMessage, WorkerPrimaryError,
+        WorkerPrimaryMessage, CHANNEL_CAPACITY,
     },
 };
