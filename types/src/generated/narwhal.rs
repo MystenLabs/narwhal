@@ -1,159 +1,160 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-#[derive(Clone, Eq, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CertificateDigest {
-    #[prost(bytes = "bytes", tag = "1")]
+    #[prost(bytes="bytes", tag="1")]
     pub digest: ::prost::bytes::Bytes,
 }
-#[derive(Clone, Eq, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct BatchDigest {
-    #[prost(bytes = "bytes", tag = "1")]
+    #[prost(bytes="bytes", tag="1")]
     pub digest: ::prost::bytes::Bytes,
 }
-#[derive(Clone, Eq, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Batch {
-    #[prost(message, repeated, tag = "1")]
+    #[prost(message, repeated, tag="1")]
     pub transaction: ::prost::alloc::vec::Vec<Transaction>,
 }
-#[derive(Clone, Eq, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Transaction {
-    #[prost(bytes = "bytes", tag = "1")]
+    #[prost(bytes="bytes", tag="1")]
     pub transaction: ::prost::bytes::Bytes,
 }
-#[derive(Clone, Eq, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CollectionError {
-    #[prost(message, optional, tag = "1")]
+    #[prost(message, optional, tag="1")]
     pub id: ::core::option::Option<CertificateDigest>,
-    #[prost(enumeration = "CollectionErrorType", tag = "2")]
+    #[prost(enumeration="CollectionErrorType", tag="2")]
     pub error: i32,
 }
-#[derive(Clone, Eq, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct BatchMessage {
-    #[prost(message, optional, tag = "1")]
+    #[prost(message, optional, tag="1")]
     pub id: ::core::option::Option<BatchDigest>,
-    #[prost(message, optional, tag = "2")]
+    #[prost(message, optional, tag="2")]
     pub transactions: ::core::option::Option<Batch>,
 }
-#[derive(Clone, Eq, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct MultiAddr {
-    #[prost(string, tag = "1")]
+    #[prost(string, tag="1")]
     pub address: ::prost::alloc::string::String,
 }
-#[derive(Clone, Eq, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PublicKey {
-    #[prost(bytes = "bytes", tag = "1")]
+    #[prost(bytes="bytes", tag="1")]
     pub bytes: ::prost::bytes::Bytes,
 }
-#[derive(Clone, Eq, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ValidatorData {
-    #[prost(message, optional, tag = "1")]
+    #[prost(message, optional, tag="1")]
     pub public_key: ::core::option::Option<PublicKey>,
-    #[prost(int64, tag = "2")]
+    #[prost(int64, tag="2")]
     pub stake_weight: i64,
-    #[prost(message, optional, tag = "3")]
+    #[prost(message, optional, tag="3")]
     pub address: ::core::option::Option<MultiAddr>,
 }
-#[derive(Clone, Eq, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CollectionRetrievalResult {
-    #[prost(oneof = "collection_retrieval_result::RetrievalResult", tags = "1, 2")]
+    #[prost(oneof="collection_retrieval_result::RetrievalResult", tags="1, 2")]
     pub retrieval_result: ::core::option::Option<collection_retrieval_result::RetrievalResult>,
 }
 /// Nested message and enum types in `CollectionRetrievalResult`.
 pub mod collection_retrieval_result {
-    #[derive(Clone, Eq, PartialEq, ::prost::Oneof)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum RetrievalResult {
-        #[prost(message, tag = "1")]
+        #[prost(message, tag="1")]
         Batch(super::BatchMessage),
-        #[prost(message, tag = "2")]
+        #[prost(message, tag="2")]
         Error(super::CollectionError),
     }
 }
-#[derive(Clone, Eq, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetCollectionsRequest {
     /// List of collections to be retreived.
-    #[prost(message, repeated, tag = "1")]
+    #[prost(message, repeated, tag="1")]
     pub collection_ids: ::prost::alloc::vec::Vec<CertificateDigest>,
 }
-#[derive(Clone, Eq, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetCollectionsResponse {
     /// TODO: Revisit this for spec compliance.  
     /// List of retrieval results of collections.
-    #[prost(message, repeated, tag = "1")]
+    #[prost(message, repeated, tag="1")]
     pub result: ::prost::alloc::vec::Vec<CollectionRetrievalResult>,
 }
-#[derive(Clone, Eq, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct RemoveCollectionsRequest {
     /// List of collections to be removed.
-    #[prost(message, repeated, tag = "1")]
+    #[prost(message, repeated, tag="1")]
     pub collection_ids: ::prost::alloc::vec::Vec<CertificateDigest>,
 }
-#[derive(Clone, Eq, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ReadCausalRequest {
     /// A collection for which a sequence of related collections are to be retrieved.
-    #[prost(message, optional, tag = "1")]
+    #[prost(message, optional, tag="1")]
     pub collection_id: ::core::option::Option<CertificateDigest>,
 }
-#[derive(Clone, Eq, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ReadCausalResponse {
     /// Resulting sequence of collections from DAG walk.
-    #[prost(message, repeated, tag = "1")]
+    #[prost(message, repeated, tag="1")]
     pub collection_ids: ::prost::alloc::vec::Vec<CertificateDigest>,
 }
-#[derive(Clone, Eq, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct RoundsRequest {
     //// The validator's key for which we want to retrieve
     //// the available rounds.
-    #[prost(message, optional, tag = "1")]
+    #[prost(message, optional, tag="1")]
     pub public_key: ::core::option::Option<PublicKey>,
 }
-#[derive(Clone, Eq, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct RoundsResponse {
     //// The oldest round for which the node has available
     //// blocks to propose for the defined validator.
-    #[prost(uint64, tag = "1")]
+    #[prost(uint64, tag="1")]
     pub oldest_round: u64,
     //// The newest (latest) round for which the node has available
     //// blocks to propose for the defined validator.
-    #[prost(uint64, tag = "2")]
+    #[prost(uint64, tag="2")]
     pub newest_round: u64,
 }
-#[derive(Clone, Eq, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct NodeReadCausalRequest {
-    #[prost(message, optional, tag = "1")]
+    #[prost(message, optional, tag="1")]
     pub public_key: ::core::option::Option<PublicKey>,
-    #[prost(uint64, tag = "2")]
+    #[prost(uint64, tag="2")]
     pub round: u64,
 }
-#[derive(Clone, Eq, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct NodeReadCausalResponse {
     /// Resulting sequence of collections from DAG walk.
-    #[prost(message, repeated, tag = "1")]
+    #[prost(message, repeated, tag="1")]
     pub collection_ids: ::prost::alloc::vec::Vec<CertificateDigest>,
 }
-#[derive(Clone, Eq, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct NewNetworkInfoRequest {
-    #[prost(uint32, tag = "1")]
+    #[prost(uint32, tag="1")]
     pub epoch_number: u32,
-    #[prost(message, repeated, tag = "2")]
+    #[prost(message, repeated, tag="2")]
     pub validators: ::prost::alloc::vec::Vec<ValidatorData>,
 }
-#[derive(Clone, Eq, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct NewEpochRequest {
-    #[prost(uint32, tag = "1")]
+    #[prost(uint32, tag="1")]
     pub epoch_number: u32,
-    #[prost(message, repeated, tag = "2")]
+    #[prost(message, repeated, tag="2")]
     pub validators: ::prost::alloc::vec::Vec<ValidatorData>,
 }
 /// A bincode encoded payload. This is intended to be used in the short-term
 /// while we don't have good protobuf definitions for Narwhal types
-#[derive(Clone, Eq, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct BincodeEncodedPayload {
-    #[prost(bytes = "bytes", tag = "1")]
+    #[prost(bytes="bytes", tag="1")]
     pub payload: ::prost::bytes::Bytes,
 }
 /// Empty message for when we don't have anything to return
-#[derive(Clone, Eq, PartialEq, ::prost::Message)]
-pub struct Empty {}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Empty {
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum CollectionErrorType {
@@ -205,8 +206,9 @@ pub mod validator_client {
                     <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
                 >,
             >,
-            <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
-                Into<StdError> + Send + Sync,
+            <T as tonic::codegen::Service<
+                http::Request<tonic::body::BoxBody>,
+            >>::Error: Into<StdError> + Send + Sync,
         {
             ValidatorClient::new(InterceptedService::new(inner, interceptor))
         }
@@ -230,14 +232,19 @@ pub mod validator_client {
             &mut self,
             request: impl tonic::IntoRequest<super::GetCollectionsRequest>,
         ) -> Result<tonic::Response<super::GetCollectionsResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::Unknown,
-                    format!("Service was not ready: {}", e.into()),
-                )
-            })?;
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/narwhal.Validator/GetCollections");
+            let path = http::uri::PathAndQuery::from_static(
+                "/narwhal.Validator/GetCollections",
+            );
             self.inner.unary(request.into_request(), path, codec).await
         }
         /// Expunges collections from the mempool.
@@ -245,14 +252,19 @@ pub mod validator_client {
             &mut self,
             request: impl tonic::IntoRequest<super::RemoveCollectionsRequest>,
         ) -> Result<tonic::Response<super::Empty>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::Unknown,
-                    format!("Service was not ready: {}", e.into()),
-                )
-            })?;
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/narwhal.Validator/RemoveCollections");
+            let path = http::uri::PathAndQuery::from_static(
+                "/narwhal.Validator/RemoveCollections",
+            );
             self.inner.unary(request.into_request(), path, codec).await
         }
         /// Returns collections along a DAG walk with a well-defined starting point.
@@ -260,14 +272,19 @@ pub mod validator_client {
             &mut self,
             request: impl tonic::IntoRequest<super::ReadCausalRequest>,
         ) -> Result<tonic::Response<super::ReadCausalResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::Unknown,
-                    format!("Service was not ready: {}", e.into()),
-                )
-            })?;
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/narwhal.Validator/ReadCausal");
+            let path = http::uri::PathAndQuery::from_static(
+                "/narwhal.Validator/ReadCausal",
+            );
             self.inner.unary(request.into_request(), path, codec).await
         }
     }
@@ -317,8 +334,9 @@ pub mod proposer_client {
                     <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
                 >,
             >,
-            <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
-                Into<StdError> + Send + Sync,
+            <T as tonic::codegen::Service<
+                http::Request<tonic::body::BoxBody>,
+            >>::Error: Into<StdError> + Send + Sync,
         {
             ProposerClient::new(InterceptedService::new(inner, interceptor))
         }
@@ -341,12 +359,15 @@ pub mod proposer_client {
             &mut self,
             request: impl tonic::IntoRequest<super::RoundsRequest>,
         ) -> Result<tonic::Response<super::RoundsResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::Unknown,
-                    format!("Service was not ready: {}", e.into()),
-                )
-            })?;
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static("/narwhal.Proposer/Rounds");
             self.inner.unary(request.into_request(), path, codec).await
@@ -357,14 +378,19 @@ pub mod proposer_client {
             &mut self,
             request: impl tonic::IntoRequest<super::NodeReadCausalRequest>,
         ) -> Result<tonic::Response<super::NodeReadCausalResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::Unknown,
-                    format!("Service was not ready: {}", e.into()),
-                )
-            })?;
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/narwhal.Proposer/NodeReadCausal");
+            let path = http::uri::PathAndQuery::from_static(
+                "/narwhal.Proposer/NodeReadCausal",
+            );
             self.inner.unary(request.into_request(), path, codec).await
         }
     }
@@ -412,8 +438,9 @@ pub mod configuration_client {
                     <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
                 >,
             >,
-            <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
-                Into<StdError> + Send + Sync,
+            <T as tonic::codegen::Service<
+                http::Request<tonic::body::BoxBody>,
+            >>::Error: Into<StdError> + Send + Sync,
         {
             ConfigurationClient::new(InterceptedService::new(inner, interceptor))
         }
@@ -437,14 +464,19 @@ pub mod configuration_client {
             &mut self,
             request: impl tonic::IntoRequest<super::NewEpochRequest>,
         ) -> Result<tonic::Response<super::Empty>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::Unknown,
-                    format!("Service was not ready: {}", e.into()),
-                )
-            })?;
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/narwhal.Configuration/NewEpoch");
+            let path = http::uri::PathAndQuery::from_static(
+                "/narwhal.Configuration/NewEpoch",
+            );
             self.inner.unary(request.into_request(), path, codec).await
         }
         /// Signals a change in networking info
@@ -452,15 +484,19 @@ pub mod configuration_client {
             &mut self,
             request: impl tonic::IntoRequest<super::NewNetworkInfoRequest>,
         ) -> Result<tonic::Response<super::Empty>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::Unknown,
-                    format!("Service was not ready: {}", e.into()),
-                )
-            })?;
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/narwhal.Configuration/NewNetworkInfo");
+            let path = http::uri::PathAndQuery::from_static(
+                "/narwhal.Configuration/NewNetworkInfo",
+            );
             self.inner.unary(request.into_request(), path, codec).await
         }
     }
@@ -509,8 +545,9 @@ pub mod primary_to_primary_client {
                     <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
                 >,
             >,
-            <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
-                Into<StdError> + Send + Sync,
+            <T as tonic::codegen::Service<
+                http::Request<tonic::body::BoxBody>,
+            >>::Error: Into<StdError> + Send + Sync,
         {
             PrimaryToPrimaryClient::new(InterceptedService::new(inner, interceptor))
         }
@@ -534,15 +571,19 @@ pub mod primary_to_primary_client {
             &mut self,
             request: impl tonic::IntoRequest<super::BincodeEncodedPayload>,
         ) -> Result<tonic::Response<super::Empty>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::Unknown,
-                    format!("Service was not ready: {}", e.into()),
-                )
-            })?;
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/narwhal.PrimaryToPrimary/SendMessage");
+            let path = http::uri::PathAndQuery::from_static(
+                "/narwhal.PrimaryToPrimary/SendMessage",
+            );
             self.inner.unary(request.into_request(), path, codec).await
         }
     }
@@ -591,8 +632,9 @@ pub mod worker_to_worker_client {
                     <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
                 >,
             >,
-            <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
-                Into<StdError> + Send + Sync,
+            <T as tonic::codegen::Service<
+                http::Request<tonic::body::BoxBody>,
+            >>::Error: Into<StdError> + Send + Sync,
         {
             WorkerToWorkerClient::new(InterceptedService::new(inner, interceptor))
         }
@@ -616,14 +658,19 @@ pub mod worker_to_worker_client {
             &mut self,
             request: impl tonic::IntoRequest<super::BincodeEncodedPayload>,
         ) -> Result<tonic::Response<super::Empty>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::Unknown,
-                    format!("Service was not ready: {}", e.into()),
-                )
-            })?;
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/narwhal.WorkerToWorker/SendMessage");
+            let path = http::uri::PathAndQuery::from_static(
+                "/narwhal.WorkerToWorker/SendMessage",
+            );
             self.inner.unary(request.into_request(), path, codec).await
         }
         /// requests a number of batches that the service then streams back to the client
@@ -634,18 +681,20 @@ pub mod worker_to_worker_client {
             tonic::Response<tonic::codec::Streaming<super::BincodeEncodedPayload>>,
             tonic::Status,
         > {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::Unknown,
-                    format!("Service was not ready: {}", e.into()),
-                )
-            })?;
-            let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/narwhal.WorkerToWorker/ClientBatchRequest");
             self.inner
-                .server_streaming(request.into_request(), path, codec)
+                .ready()
                 .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/narwhal.WorkerToWorker/ClientBatchRequest",
+            );
+            self.inner.server_streaming(request.into_request(), path, codec).await
         }
     }
 }
@@ -693,8 +742,9 @@ pub mod worker_to_primary_client {
                     <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
                 >,
             >,
-            <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
-                Into<StdError> + Send + Sync,
+            <T as tonic::codegen::Service<
+                http::Request<tonic::body::BoxBody>,
+            >>::Error: Into<StdError> + Send + Sync,
         {
             WorkerToPrimaryClient::new(InterceptedService::new(inner, interceptor))
         }
@@ -718,14 +768,19 @@ pub mod worker_to_primary_client {
             &mut self,
             request: impl tonic::IntoRequest<super::BincodeEncodedPayload>,
         ) -> Result<tonic::Response<super::Empty>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::Unknown,
-                    format!("Service was not ready: {}", e.into()),
-                )
-            })?;
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/narwhal.WorkerToPrimary/SendMessage");
+            let path = http::uri::PathAndQuery::from_static(
+                "/narwhal.WorkerToPrimary/SendMessage",
+            );
             self.inner.unary(request.into_request(), path, codec).await
         }
     }
@@ -774,8 +829,9 @@ pub mod primary_to_worker_client {
                     <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
                 >,
             >,
-            <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
-                Into<StdError> + Send + Sync,
+            <T as tonic::codegen::Service<
+                http::Request<tonic::body::BoxBody>,
+            >>::Error: Into<StdError> + Send + Sync,
         {
             PrimaryToWorkerClient::new(InterceptedService::new(inner, interceptor))
         }
@@ -799,14 +855,19 @@ pub mod primary_to_worker_client {
             &mut self,
             request: impl tonic::IntoRequest<super::BincodeEncodedPayload>,
         ) -> Result<tonic::Response<super::Empty>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::Unknown,
-                    format!("Service was not ready: {}", e.into()),
-                )
-            })?;
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/narwhal.PrimaryToWorker/SendMessage");
+            let path = http::uri::PathAndQuery::from_static(
+                "/narwhal.PrimaryToWorker/SendMessage",
+            );
             self.inner.unary(request.into_request(), path, codec).await
         }
     }
@@ -854,8 +915,9 @@ pub mod transactions_client {
                     <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
                 >,
             >,
-            <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
-                Into<StdError> + Send + Sync,
+            <T as tonic::codegen::Service<
+                http::Request<tonic::body::BoxBody>,
+            >>::Error: Into<StdError> + Send + Sync,
         {
             TransactionsClient::new(InterceptedService::new(inner, interceptor))
         }
@@ -879,15 +941,19 @@ pub mod transactions_client {
             &mut self,
             request: impl tonic::IntoRequest<super::Transaction>,
         ) -> Result<tonic::Response<super::Empty>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::Unknown,
-                    format!("Service was not ready: {}", e.into()),
-                )
-            })?;
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/narwhal.Transactions/SubmitTransaction");
+            let path = http::uri::PathAndQuery::from_static(
+                "/narwhal.Transactions/SubmitTransaction",
+            );
             self.inner.unary(request.into_request(), path, codec).await
         }
         /// Submit a Transactions
@@ -895,12 +961,15 @@ pub mod transactions_client {
             &mut self,
             request: impl tonic::IntoStreamingRequest<Message = super::Transaction>,
         ) -> Result<tonic::Response<super::Empty>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::Unknown,
-                    format!("Service was not ready: {}", e.into()),
-                )
-            })?;
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/narwhal.Transactions/SubmitTransactionStream",
@@ -954,7 +1023,10 @@ pub mod validator_server {
                 send_compression_encodings: Default::default(),
             }
         }
-        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
+        pub fn with_interceptor<F>(
+            inner: T,
+            interceptor: F,
+        ) -> InterceptedService<Self, F>
         where
             F: tonic::service::Interceptor,
         {
@@ -970,7 +1042,10 @@ pub mod validator_server {
         type Response = http::Response<tonic::body::BoxBody>;
         type Error = std::convert::Infallible;
         type Future = BoxFuture<Self::Response, Self::Error>;
-        fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        fn poll_ready(
+            &mut self,
+            _cx: &mut Context<'_>,
+        ) -> Poll<Result<(), Self::Error>> {
             Poll::Ready(Ok(()))
         }
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
@@ -979,17 +1054,23 @@ pub mod validator_server {
                 "/narwhal.Validator/GetCollections" => {
                     #[allow(non_camel_case_types)]
                     struct GetCollectionsSvc<T: Validator>(pub Arc<T>);
-                    impl<T: Validator> tonic::server::UnaryService<super::GetCollectionsRequest>
-                        for GetCollectionsSvc<T>
-                    {
+                    impl<
+                        T: Validator,
+                    > tonic::server::UnaryService<super::GetCollectionsRequest>
+                    for GetCollectionsSvc<T> {
                         type Response = super::GetCollectionsResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetCollectionsRequest>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
-                            let fut = async move { (*inner).get_collections(request).await };
+                            let fut = async move {
+                                (*inner).get_collections(request).await
+                            };
                             Box::pin(fut)
                         }
                     }
@@ -1000,10 +1081,11 @@ pub mod validator_server {
                         let inner = inner.0;
                         let method = GetCollectionsSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
-                            accept_compression_encodings,
-                            send_compression_encodings,
-                        );
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
@@ -1012,17 +1094,23 @@ pub mod validator_server {
                 "/narwhal.Validator/RemoveCollections" => {
                     #[allow(non_camel_case_types)]
                     struct RemoveCollectionsSvc<T: Validator>(pub Arc<T>);
-                    impl<T: Validator> tonic::server::UnaryService<super::RemoveCollectionsRequest>
-                        for RemoveCollectionsSvc<T>
-                    {
+                    impl<
+                        T: Validator,
+                    > tonic::server::UnaryService<super::RemoveCollectionsRequest>
+                    for RemoveCollectionsSvc<T> {
                         type Response = super::Empty;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::RemoveCollectionsRequest>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
-                            let fut = async move { (*inner).remove_collections(request).await };
+                            let fut = async move {
+                                (*inner).remove_collections(request).await
+                            };
                             Box::pin(fut)
                         }
                     }
@@ -1033,10 +1121,11 @@ pub mod validator_server {
                         let inner = inner.0;
                         let method = RemoveCollectionsSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
-                            accept_compression_encodings,
-                            send_compression_encodings,
-                        );
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
@@ -1045,9 +1134,15 @@ pub mod validator_server {
                 "/narwhal.Validator/ReadCausal" => {
                     #[allow(non_camel_case_types)]
                     struct ReadCausalSvc<T: Validator>(pub Arc<T>);
-                    impl<T: Validator> tonic::server::UnaryService<super::ReadCausalRequest> for ReadCausalSvc<T> {
+                    impl<
+                        T: Validator,
+                    > tonic::server::UnaryService<super::ReadCausalRequest>
+                    for ReadCausalSvc<T> {
                         type Response = super::ReadCausalResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::ReadCausalRequest>,
@@ -1064,23 +1159,28 @@ pub mod validator_server {
                         let inner = inner.0;
                         let method = ReadCausalSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
-                            accept_compression_encodings,
-                            send_compression_encodings,
-                        );
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
                     Box::pin(fut)
                 }
-                _ => Box::pin(async move {
-                    Ok(http::Response::builder()
-                        .status(200)
-                        .header("grpc-status", "12")
-                        .header("content-type", "application/grpc")
-                        .body(empty_body())
-                        .unwrap())
-                }),
+                _ => {
+                    Box::pin(async move {
+                        Ok(
+                            http::Response::builder()
+                                .status(200)
+                                .header("grpc-status", "12")
+                                .header("content-type", "application/grpc")
+                                .body(empty_body())
+                                .unwrap(),
+                        )
+                    })
+                }
             }
         }
     }
@@ -1147,7 +1247,10 @@ pub mod proposer_server {
                 send_compression_encodings: Default::default(),
             }
         }
-        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
+        pub fn with_interceptor<F>(
+            inner: T,
+            interceptor: F,
+        ) -> InterceptedService<Self, F>
         where
             F: tonic::service::Interceptor,
         {
@@ -1163,7 +1266,10 @@ pub mod proposer_server {
         type Response = http::Response<tonic::body::BoxBody>;
         type Error = std::convert::Infallible;
         type Future = BoxFuture<Self::Response, Self::Error>;
-        fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        fn poll_ready(
+            &mut self,
+            _cx: &mut Context<'_>,
+        ) -> Poll<Result<(), Self::Error>> {
             Poll::Ready(Ok(()))
         }
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
@@ -1172,9 +1278,13 @@ pub mod proposer_server {
                 "/narwhal.Proposer/Rounds" => {
                     #[allow(non_camel_case_types)]
                     struct RoundsSvc<T: Proposer>(pub Arc<T>);
-                    impl<T: Proposer> tonic::server::UnaryService<super::RoundsRequest> for RoundsSvc<T> {
+                    impl<T: Proposer> tonic::server::UnaryService<super::RoundsRequest>
+                    for RoundsSvc<T> {
                         type Response = super::RoundsResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::RoundsRequest>,
@@ -1191,10 +1301,11 @@ pub mod proposer_server {
                         let inner = inner.0;
                         let method = RoundsSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
-                            accept_compression_encodings,
-                            send_compression_encodings,
-                        );
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
@@ -1203,17 +1314,23 @@ pub mod proposer_server {
                 "/narwhal.Proposer/NodeReadCausal" => {
                     #[allow(non_camel_case_types)]
                     struct NodeReadCausalSvc<T: Proposer>(pub Arc<T>);
-                    impl<T: Proposer> tonic::server::UnaryService<super::NodeReadCausalRequest>
-                        for NodeReadCausalSvc<T>
-                    {
+                    impl<
+                        T: Proposer,
+                    > tonic::server::UnaryService<super::NodeReadCausalRequest>
+                    for NodeReadCausalSvc<T> {
                         type Response = super::NodeReadCausalResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::NodeReadCausalRequest>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
-                            let fut = async move { (*inner).node_read_causal(request).await };
+                            let fut = async move {
+                                (*inner).node_read_causal(request).await
+                            };
                             Box::pin(fut)
                         }
                     }
@@ -1224,23 +1341,28 @@ pub mod proposer_server {
                         let inner = inner.0;
                         let method = NodeReadCausalSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
-                            accept_compression_encodings,
-                            send_compression_encodings,
-                        );
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
                     Box::pin(fut)
                 }
-                _ => Box::pin(async move {
-                    Ok(http::Response::builder()
-                        .status(200)
-                        .header("grpc-status", "12")
-                        .header("content-type", "application/grpc")
-                        .body(empty_body())
-                        .unwrap())
-                }),
+                _ => {
+                    Box::pin(async move {
+                        Ok(
+                            http::Response::builder()
+                                .status(200)
+                                .header("grpc-status", "12")
+                                .header("content-type", "application/grpc")
+                                .body(empty_body())
+                                .unwrap(),
+                        )
+                    })
+                }
             }
         }
     }
@@ -1305,7 +1427,10 @@ pub mod configuration_server {
                 send_compression_encodings: Default::default(),
             }
         }
-        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
+        pub fn with_interceptor<F>(
+            inner: T,
+            interceptor: F,
+        ) -> InterceptedService<Self, F>
         where
             F: tonic::service::Interceptor,
         {
@@ -1321,7 +1446,10 @@ pub mod configuration_server {
         type Response = http::Response<tonic::body::BoxBody>;
         type Error = std::convert::Infallible;
         type Future = BoxFuture<Self::Response, Self::Error>;
-        fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        fn poll_ready(
+            &mut self,
+            _cx: &mut Context<'_>,
+        ) -> Poll<Result<(), Self::Error>> {
             Poll::Ready(Ok(()))
         }
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
@@ -1330,9 +1458,15 @@ pub mod configuration_server {
                 "/narwhal.Configuration/NewEpoch" => {
                     #[allow(non_camel_case_types)]
                     struct NewEpochSvc<T: Configuration>(pub Arc<T>);
-                    impl<T: Configuration> tonic::server::UnaryService<super::NewEpochRequest> for NewEpochSvc<T> {
+                    impl<
+                        T: Configuration,
+                    > tonic::server::UnaryService<super::NewEpochRequest>
+                    for NewEpochSvc<T> {
                         type Response = super::Empty;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::NewEpochRequest>,
@@ -1349,10 +1483,11 @@ pub mod configuration_server {
                         let inner = inner.0;
                         let method = NewEpochSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
-                            accept_compression_encodings,
-                            send_compression_encodings,
-                        );
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
@@ -1361,17 +1496,23 @@ pub mod configuration_server {
                 "/narwhal.Configuration/NewNetworkInfo" => {
                     #[allow(non_camel_case_types)]
                     struct NewNetworkInfoSvc<T: Configuration>(pub Arc<T>);
-                    impl<T: Configuration> tonic::server::UnaryService<super::NewNetworkInfoRequest>
-                        for NewNetworkInfoSvc<T>
-                    {
+                    impl<
+                        T: Configuration,
+                    > tonic::server::UnaryService<super::NewNetworkInfoRequest>
+                    for NewNetworkInfoSvc<T> {
                         type Response = super::Empty;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::NewNetworkInfoRequest>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
-                            let fut = async move { (*inner).new_network_info(request).await };
+                            let fut = async move {
+                                (*inner).new_network_info(request).await
+                            };
                             Box::pin(fut)
                         }
                     }
@@ -1382,23 +1523,28 @@ pub mod configuration_server {
                         let inner = inner.0;
                         let method = NewNetworkInfoSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
-                            accept_compression_encodings,
-                            send_compression_encodings,
-                        );
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
                     Box::pin(fut)
                 }
-                _ => Box::pin(async move {
-                    Ok(http::Response::builder()
-                        .status(200)
-                        .header("grpc-status", "12")
-                        .header("content-type", "application/grpc")
-                        .body(empty_body())
-                        .unwrap())
-                }),
+                _ => {
+                    Box::pin(async move {
+                        Ok(
+                            http::Response::builder()
+                                .status(200)
+                                .header("grpc-status", "12")
+                                .header("content-type", "application/grpc")
+                                .body(empty_body())
+                                .unwrap(),
+                        )
+                    })
+                }
             }
         }
     }
@@ -1459,7 +1605,10 @@ pub mod primary_to_primary_server {
                 send_compression_encodings: Default::default(),
             }
         }
-        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
+        pub fn with_interceptor<F>(
+            inner: T,
+            interceptor: F,
+        ) -> InterceptedService<Self, F>
         where
             F: tonic::service::Interceptor,
         {
@@ -1475,7 +1624,10 @@ pub mod primary_to_primary_server {
         type Response = http::Response<tonic::body::BoxBody>;
         type Error = std::convert::Infallible;
         type Future = BoxFuture<Self::Response, Self::Error>;
-        fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        fn poll_ready(
+            &mut self,
+            _cx: &mut Context<'_>,
+        ) -> Poll<Result<(), Self::Error>> {
             Poll::Ready(Ok(()))
         }
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
@@ -1484,18 +1636,23 @@ pub mod primary_to_primary_server {
                 "/narwhal.PrimaryToPrimary/SendMessage" => {
                     #[allow(non_camel_case_types)]
                     struct SendMessageSvc<T: PrimaryToPrimary>(pub Arc<T>);
-                    impl<T: PrimaryToPrimary>
-                        tonic::server::UnaryService<super::BincodeEncodedPayload>
-                        for SendMessageSvc<T>
-                    {
+                    impl<
+                        T: PrimaryToPrimary,
+                    > tonic::server::UnaryService<super::BincodeEncodedPayload>
+                    for SendMessageSvc<T> {
                         type Response = super::Empty;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::BincodeEncodedPayload>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
-                            let fut = async move { (*inner).send_message(request).await };
+                            let fut = async move {
+                                (*inner).send_message(request).await
+                            };
                             Box::pin(fut)
                         }
                     }
@@ -1506,23 +1663,28 @@ pub mod primary_to_primary_server {
                         let inner = inner.0;
                         let method = SendMessageSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
-                            accept_compression_encodings,
-                            send_compression_encodings,
-                        );
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
                     Box::pin(fut)
                 }
-                _ => Box::pin(async move {
-                    Ok(http::Response::builder()
-                        .status(200)
-                        .header("grpc-status", "12")
-                        .header("content-type", "application/grpc")
-                        .body(empty_body())
-                        .unwrap())
-                }),
+                _ => {
+                    Box::pin(async move {
+                        Ok(
+                            http::Response::builder()
+                                .status(200)
+                                .header("grpc-status", "12")
+                                .header("content-type", "application/grpc")
+                                .body(empty_body())
+                                .unwrap(),
+                        )
+                    })
+                }
             }
         }
     }
@@ -1546,7 +1708,8 @@ pub mod primary_to_primary_server {
             write!(f, "{:?}", self.0)
         }
     }
-    impl<T: PrimaryToPrimary> tonic::transport::NamedService for PrimaryToPrimaryServer<T> {
+    impl<T: PrimaryToPrimary> tonic::transport::NamedService
+    for PrimaryToPrimaryServer<T> {
         const NAME: &'static str = "narwhal.PrimaryToPrimary";
     }
 }
@@ -1563,7 +1726,9 @@ pub mod worker_to_worker_server {
             request: tonic::Request<super::BincodeEncodedPayload>,
         ) -> Result<tonic::Response<super::Empty>, tonic::Status>;
         ///Server streaming response type for the ClientBatchRequest method.
-        type ClientBatchRequestStream: futures_core::Stream<Item = Result<super::BincodeEncodedPayload, tonic::Status>>
+        type ClientBatchRequestStream: futures_core::Stream<
+                Item = Result<super::BincodeEncodedPayload, tonic::Status>,
+            >
             + Send
             + 'static;
         /// requests a number of batches that the service then streams back to the client
@@ -1592,7 +1757,10 @@ pub mod worker_to_worker_server {
                 send_compression_encodings: Default::default(),
             }
         }
-        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
+        pub fn with_interceptor<F>(
+            inner: T,
+            interceptor: F,
+        ) -> InterceptedService<Self, F>
         where
             F: tonic::service::Interceptor,
         {
@@ -1608,7 +1776,10 @@ pub mod worker_to_worker_server {
         type Response = http::Response<tonic::body::BoxBody>;
         type Error = std::convert::Infallible;
         type Future = BoxFuture<Self::Response, Self::Error>;
-        fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        fn poll_ready(
+            &mut self,
+            _cx: &mut Context<'_>,
+        ) -> Poll<Result<(), Self::Error>> {
             Poll::Ready(Ok(()))
         }
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
@@ -1617,18 +1788,23 @@ pub mod worker_to_worker_server {
                 "/narwhal.WorkerToWorker/SendMessage" => {
                     #[allow(non_camel_case_types)]
                     struct SendMessageSvc<T: WorkerToWorker>(pub Arc<T>);
-                    impl<T: WorkerToWorker>
-                        tonic::server::UnaryService<super::BincodeEncodedPayload>
-                        for SendMessageSvc<T>
-                    {
+                    impl<
+                        T: WorkerToWorker,
+                    > tonic::server::UnaryService<super::BincodeEncodedPayload>
+                    for SendMessageSvc<T> {
                         type Response = super::Empty;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::BincodeEncodedPayload>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
-                            let fut = async move { (*inner).send_message(request).await };
+                            let fut = async move {
+                                (*inner).send_message(request).await
+                            };
                             Box::pin(fut)
                         }
                     }
@@ -1639,10 +1815,11 @@ pub mod worker_to_worker_server {
                         let inner = inner.0;
                         let method = SendMessageSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
-                            accept_compression_encodings,
-                            send_compression_encodings,
-                        );
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
@@ -1651,20 +1828,24 @@ pub mod worker_to_worker_server {
                 "/narwhal.WorkerToWorker/ClientBatchRequest" => {
                     #[allow(non_camel_case_types)]
                     struct ClientBatchRequestSvc<T: WorkerToWorker>(pub Arc<T>);
-                    impl<T: WorkerToWorker>
-                        tonic::server::ServerStreamingService<super::BincodeEncodedPayload>
-                        for ClientBatchRequestSvc<T>
-                    {
+                    impl<
+                        T: WorkerToWorker,
+                    > tonic::server::ServerStreamingService<super::BincodeEncodedPayload>
+                    for ClientBatchRequestSvc<T> {
                         type Response = super::BincodeEncodedPayload;
                         type ResponseStream = T::ClientBatchRequestStream;
-                        type Future =
-                            BoxFuture<tonic::Response<Self::ResponseStream>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::ResponseStream>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::BincodeEncodedPayload>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
-                            let fut = async move { (*inner).client_batch_request(request).await };
+                            let fut = async move {
+                                (*inner).client_batch_request(request).await
+                            };
                             Box::pin(fut)
                         }
                     }
@@ -1675,23 +1856,28 @@ pub mod worker_to_worker_server {
                         let inner = inner.0;
                         let method = ClientBatchRequestSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
-                            accept_compression_encodings,
-                            send_compression_encodings,
-                        );
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
                         let res = grpc.server_streaming(method, req).await;
                         Ok(res)
                     };
                     Box::pin(fut)
                 }
-                _ => Box::pin(async move {
-                    Ok(http::Response::builder()
-                        .status(200)
-                        .header("grpc-status", "12")
-                        .header("content-type", "application/grpc")
-                        .body(empty_body())
-                        .unwrap())
-                }),
+                _ => {
+                    Box::pin(async move {
+                        Ok(
+                            http::Response::builder()
+                                .status(200)
+                                .header("grpc-status", "12")
+                                .header("content-type", "application/grpc")
+                                .body(empty_body())
+                                .unwrap(),
+                        )
+                    })
+                }
             }
         }
     }
@@ -1752,7 +1938,10 @@ pub mod worker_to_primary_server {
                 send_compression_encodings: Default::default(),
             }
         }
-        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
+        pub fn with_interceptor<F>(
+            inner: T,
+            interceptor: F,
+        ) -> InterceptedService<Self, F>
         where
             F: tonic::service::Interceptor,
         {
@@ -1768,7 +1957,10 @@ pub mod worker_to_primary_server {
         type Response = http::Response<tonic::body::BoxBody>;
         type Error = std::convert::Infallible;
         type Future = BoxFuture<Self::Response, Self::Error>;
-        fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        fn poll_ready(
+            &mut self,
+            _cx: &mut Context<'_>,
+        ) -> Poll<Result<(), Self::Error>> {
             Poll::Ready(Ok(()))
         }
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
@@ -1777,18 +1969,23 @@ pub mod worker_to_primary_server {
                 "/narwhal.WorkerToPrimary/SendMessage" => {
                     #[allow(non_camel_case_types)]
                     struct SendMessageSvc<T: WorkerToPrimary>(pub Arc<T>);
-                    impl<T: WorkerToPrimary>
-                        tonic::server::UnaryService<super::BincodeEncodedPayload>
-                        for SendMessageSvc<T>
-                    {
+                    impl<
+                        T: WorkerToPrimary,
+                    > tonic::server::UnaryService<super::BincodeEncodedPayload>
+                    for SendMessageSvc<T> {
                         type Response = super::Empty;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::BincodeEncodedPayload>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
-                            let fut = async move { (*inner).send_message(request).await };
+                            let fut = async move {
+                                (*inner).send_message(request).await
+                            };
                             Box::pin(fut)
                         }
                     }
@@ -1799,23 +1996,28 @@ pub mod worker_to_primary_server {
                         let inner = inner.0;
                         let method = SendMessageSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
-                            accept_compression_encodings,
-                            send_compression_encodings,
-                        );
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
                     Box::pin(fut)
                 }
-                _ => Box::pin(async move {
-                    Ok(http::Response::builder()
-                        .status(200)
-                        .header("grpc-status", "12")
-                        .header("content-type", "application/grpc")
-                        .body(empty_body())
-                        .unwrap())
-                }),
+                _ => {
+                    Box::pin(async move {
+                        Ok(
+                            http::Response::builder()
+                                .status(200)
+                                .header("grpc-status", "12")
+                                .header("content-type", "application/grpc")
+                                .body(empty_body())
+                                .unwrap(),
+                        )
+                    })
+                }
             }
         }
     }
@@ -1839,7 +2041,8 @@ pub mod worker_to_primary_server {
             write!(f, "{:?}", self.0)
         }
     }
-    impl<T: WorkerToPrimary> tonic::transport::NamedService for WorkerToPrimaryServer<T> {
+    impl<T: WorkerToPrimary> tonic::transport::NamedService
+    for WorkerToPrimaryServer<T> {
         const NAME: &'static str = "narwhal.WorkerToPrimary";
     }
 }
@@ -1876,7 +2079,10 @@ pub mod primary_to_worker_server {
                 send_compression_encodings: Default::default(),
             }
         }
-        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
+        pub fn with_interceptor<F>(
+            inner: T,
+            interceptor: F,
+        ) -> InterceptedService<Self, F>
         where
             F: tonic::service::Interceptor,
         {
@@ -1892,7 +2098,10 @@ pub mod primary_to_worker_server {
         type Response = http::Response<tonic::body::BoxBody>;
         type Error = std::convert::Infallible;
         type Future = BoxFuture<Self::Response, Self::Error>;
-        fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        fn poll_ready(
+            &mut self,
+            _cx: &mut Context<'_>,
+        ) -> Poll<Result<(), Self::Error>> {
             Poll::Ready(Ok(()))
         }
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
@@ -1901,18 +2110,23 @@ pub mod primary_to_worker_server {
                 "/narwhal.PrimaryToWorker/SendMessage" => {
                     #[allow(non_camel_case_types)]
                     struct SendMessageSvc<T: PrimaryToWorker>(pub Arc<T>);
-                    impl<T: PrimaryToWorker>
-                        tonic::server::UnaryService<super::BincodeEncodedPayload>
-                        for SendMessageSvc<T>
-                    {
+                    impl<
+                        T: PrimaryToWorker,
+                    > tonic::server::UnaryService<super::BincodeEncodedPayload>
+                    for SendMessageSvc<T> {
                         type Response = super::Empty;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::BincodeEncodedPayload>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
-                            let fut = async move { (*inner).send_message(request).await };
+                            let fut = async move {
+                                (*inner).send_message(request).await
+                            };
                             Box::pin(fut)
                         }
                     }
@@ -1923,23 +2137,28 @@ pub mod primary_to_worker_server {
                         let inner = inner.0;
                         let method = SendMessageSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
-                            accept_compression_encodings,
-                            send_compression_encodings,
-                        );
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
                     Box::pin(fut)
                 }
-                _ => Box::pin(async move {
-                    Ok(http::Response::builder()
-                        .status(200)
-                        .header("grpc-status", "12")
-                        .header("content-type", "application/grpc")
-                        .body(empty_body())
-                        .unwrap())
-                }),
+                _ => {
+                    Box::pin(async move {
+                        Ok(
+                            http::Response::builder()
+                                .status(200)
+                                .header("grpc-status", "12")
+                                .header("content-type", "application/grpc")
+                                .body(empty_body())
+                                .unwrap(),
+                        )
+                    })
+                }
             }
         }
     }
@@ -1963,7 +2182,8 @@ pub mod primary_to_worker_server {
             write!(f, "{:?}", self.0)
         }
     }
-    impl<T: PrimaryToWorker> tonic::transport::NamedService for PrimaryToWorkerServer<T> {
+    impl<T: PrimaryToWorker> tonic::transport::NamedService
+    for PrimaryToWorkerServer<T> {
         const NAME: &'static str = "narwhal.PrimaryToWorker";
     }
 }
@@ -2004,7 +2224,10 @@ pub mod transactions_server {
                 send_compression_encodings: Default::default(),
             }
         }
-        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
+        pub fn with_interceptor<F>(
+            inner: T,
+            interceptor: F,
+        ) -> InterceptedService<Self, F>
         where
             F: tonic::service::Interceptor,
         {
@@ -2020,7 +2243,10 @@ pub mod transactions_server {
         type Response = http::Response<tonic::body::BoxBody>;
         type Error = std::convert::Infallible;
         type Future = BoxFuture<Self::Response, Self::Error>;
-        fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        fn poll_ready(
+            &mut self,
+            _cx: &mut Context<'_>,
+        ) -> Poll<Result<(), Self::Error>> {
             Poll::Ready(Ok(()))
         }
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
@@ -2029,15 +2255,21 @@ pub mod transactions_server {
                 "/narwhal.Transactions/SubmitTransaction" => {
                     #[allow(non_camel_case_types)]
                     struct SubmitTransactionSvc<T: Transactions>(pub Arc<T>);
-                    impl<T: Transactions> tonic::server::UnaryService<super::Transaction> for SubmitTransactionSvc<T> {
+                    impl<T: Transactions> tonic::server::UnaryService<super::Transaction>
+                    for SubmitTransactionSvc<T> {
                         type Response = super::Empty;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::Transaction>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
-                            let fut = async move { (*inner).submit_transaction(request).await };
+                            let fut = async move {
+                                (*inner).submit_transaction(request).await
+                            };
                             Box::pin(fut)
                         }
                     }
@@ -2048,10 +2280,11 @@ pub mod transactions_server {
                         let inner = inner.0;
                         let method = SubmitTransactionSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
-                            accept_compression_encodings,
-                            send_compression_encodings,
-                        );
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
@@ -2060,18 +2293,23 @@ pub mod transactions_server {
                 "/narwhal.Transactions/SubmitTransactionStream" => {
                     #[allow(non_camel_case_types)]
                     struct SubmitTransactionStreamSvc<T: Transactions>(pub Arc<T>);
-                    impl<T: Transactions> tonic::server::ClientStreamingService<super::Transaction>
-                        for SubmitTransactionStreamSvc<T>
-                    {
+                    impl<
+                        T: Transactions,
+                    > tonic::server::ClientStreamingService<super::Transaction>
+                    for SubmitTransactionStreamSvc<T> {
                         type Response = super::Empty;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<tonic::Streaming<super::Transaction>>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
-                            let fut =
-                                async move { (*inner).submit_transaction_stream(request).await };
+                            let fut = async move {
+                                (*inner).submit_transaction_stream(request).await
+                            };
                             Box::pin(fut)
                         }
                     }
@@ -2082,23 +2320,28 @@ pub mod transactions_server {
                         let inner = inner.0;
                         let method = SubmitTransactionStreamSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
-                            accept_compression_encodings,
-                            send_compression_encodings,
-                        );
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
                         let res = grpc.client_streaming(method, req).await;
                         Ok(res)
                     };
                     Box::pin(fut)
                 }
-                _ => Box::pin(async move {
-                    Ok(http::Response::builder()
-                        .status(200)
-                        .header("grpc-status", "12")
-                        .header("content-type", "application/grpc")
-                        .body(empty_body())
-                        .unwrap())
-                }),
+                _ => {
+                    Box::pin(async move {
+                        Ok(
+                            http::Response::builder()
+                                .status(200)
+                                .header("grpc-status", "12")
+                                .header("content-type", "application/grpc")
+                                .body(empty_body())
+                                .unwrap(),
+                        )
+                    })
+                }
             }
         }
     }
