@@ -557,7 +557,7 @@
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">PrimaryMessage</span>, <span class="ident">PrimaryWorkerMessage</span>};
 
 <span class="doccomment">/// The messages sent by the workers to their primary.</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>, <span class="ident">PartialEq</span>)]</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">WorkerPrimaryMessage</span> {
     <span class="doccomment">/// The worker indicates it sealed a new batch.</span>
     <span class="ident">OurBatch</span>(<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>),
@@ -572,7 +572,7 @@
     <span class="ident">Error</span>(<span class="ident">WorkerPrimaryError</span>),
 }
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>, <span class="ident">Error</span>, <span class="ident">Clone</span>, <span class="ident">PartialEq</span>)]</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>, <span class="ident">Error</span>, <span class="ident">Clone</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">WorkerPrimaryError</span> {
     <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Batch with id {0} has not been found&quot;</span>)]</span>
     <span class="ident">RequestedBatchNotFound</span>(<span class="ident">BatchDigest</span>),

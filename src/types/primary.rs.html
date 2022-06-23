@@ -1209,7 +1209,7 @@
     <span class="ident">DeleteBatches</span>(<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">BatchDigest</span><span class="op">&gt;</span>),
 }
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Default</span>, <span class="ident">Debug</span>, <span class="ident">PartialEq</span>)]</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Default</span>, <span class="ident">Debug</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BatchMessage</span> {
     <span class="comment">// TODO: revisit including the id here [see #188]</span>
     <span class="kw">pub</span> <span class="ident">id</span>: <span class="ident">BatchDigest</span>,
@@ -1225,14 +1225,14 @@
 }
 
 <span class="comment">// TODO: refactor BlockError &amp; BlockRemoverError to be one type shared by get/remove collections.</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">PartialEq</span>)]</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">BlockRemoverErrorKind</span> {
     <span class="ident">Timeout</span>,
     <span class="ident">Failed</span>,
     <span class="ident">StorageFailure</span>,
 }
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>, <span class="ident">PartialEq</span>)]</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">BlockErrorKind</span> {
     <span class="ident">BlockNotFound</span>,
     <span class="ident">BatchTimeout</span>,
@@ -1241,7 +1241,7 @@
 
 <span class="kw">pub</span> <span class="kw">type</span> <span class="ident">BlockResult</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">BlockError</span><span class="op">&gt;</span>;
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>, <span class="ident">PartialEq</span>)]</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BlockError</span> {
     <span class="kw">pub</span> <span class="ident">id</span>: <span class="ident">CertificateDigest</span>,
     <span class="kw">pub</span> <span class="ident">error</span>: <span class="ident">BlockErrorKind</span>,
