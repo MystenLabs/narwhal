@@ -8,7 +8,7 @@
     rust_2021_compatibility
 )]
 
-use arc_swap::ArcSwap;
+use arc_swap::{access::Access, ArcSwap};
 use crypto::traits::{EncodeDecodeBase64, VerifyingKey};
 use multiaddr::Multiaddr;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -423,6 +423,12 @@ impl<PublicKey: VerifyingKey> Committee<PublicKey> {
                     .map(|(_, addresses)| (name.deref().clone(), addresses.clone()))
             })
             .collect()
+    }
+
+    pub fn update_committee(&mut self, new_committee: Self) {
+        self.epoch = new_committee.epoch;
+        self.authorities
+            .store(new_committee.authorities.load_full());
     }
 
     /// Update the networking information of some of the primaries. The arguments are a full vector of
