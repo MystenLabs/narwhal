@@ -256,6 +256,7 @@ impl Primary {
         BlockSynchronizer::spawn(
             name.clone(),
             committee.clone(),
+            tx_committee.subscribe(),
             rx_block_synchronizer_commands,
             rx_certificate_responses,
             rx_payload_availability_responses,

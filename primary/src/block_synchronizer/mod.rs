@@ -25,7 +25,10 @@ use std::{
 use store::Store;
 use thiserror::Error;
 use tokio::{
-    sync::mpsc::{channel, Receiver, Sender},
+    sync::{
+        mpsc::{channel, Receiver, Sender},
+        watch,
+    },
     time::{sleep, timeout},
 };
 use tracing::{debug, error, instrument, trace, warn};
@@ -148,6 +151,9 @@ pub struct BlockSynchronizer<PublicKey: VerifyingKey> {
     /// The committee information.
     committee: SharedCommittee<PublicKey>,
 
+    /// Watch channel to reconfigure the committee.
+    rx_committee: watch::Receiver<SharedCommittee<PublicKey>>,
+
     /// Receive the commands for the synchronizer
     rx_commands: Receiver<Command<PublicKey>>,
 
@@ -192,6 +198,7 @@ impl<PublicKey: VerifyingKey> BlockSynchronizer<PublicKey> {
     pub fn spawn(
         name: PublicKey,
         committee: SharedCommittee<PublicKey>,
+        rx_committee: watch::Receiver<SharedCommittee<PublicKey>>,
         rx_commands: Receiver<Command<PublicKey>>,
         rx_certificate_responses: Receiver<CertificatesResponse<PublicKey>>,
         rx_payload_availability_responses: Receiver<PayloadAvailabilityResponse<PublicKey>>,
@@ -204,6 +211,7 @@ impl<PublicKey: VerifyingKey> BlockSynchronizer<PublicKey> {
             Self {
                 name,
                 committee,
+                rx_committee,
                 rx_commands,
                 rx_certificate_responses,
                 rx_payload_availability_responses,
@@ -290,6 +298,12 @@ impl<PublicKey: VerifyingKey> BlockSynchronizer<PublicKey> {
                             self.notify_requestors_for_result(Payload(id), result).await;
                         },
                     }
+                }
+
+                // Check whether the committee changed.
+                result = self.rx_committee.changed() => {
+                    result.expect("Committee channel dropped");
+                    self.committee = self.rx_committee.borrow().clone();
                 }
             }
         }
