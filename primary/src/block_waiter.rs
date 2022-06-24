@@ -17,7 +17,7 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use tokio::{
-    sync::{mpsc::Receiver, oneshot},
+    sync::{mpsc::Receiver, oneshot, watch},
     time::timeout,
 };
 use tracing::{debug, error, instrument, warn};
@@ -216,6 +216,9 @@ pub struct BlockWaiter<
     /// Network driver allowing to send messages.
     worker_network: PrimaryToWorkerNetwork,
 
+    /// Watch channel to reconfigure the committee.
+    rx_committee: watch::Receiver<SharedCommittee<PublicKey>>,
+
     /// The batch receive channel is listening for received
     /// messages for batches that have been requested
     rx_batch_receiver: Receiver<BatchResult>,
@@ -249,6 +252,7 @@ impl<PublicKey: VerifyingKey, SynchronizerHandler: Handler<PublicKey> + Send + S
     pub fn spawn(
         name: PublicKey,
         committee: SharedCommittee<PublicKey>,
+        rx_committee: watch::Receiver<SharedCommittee<PublicKey>>,
         rx_commands: Receiver<BlockCommand>,
         batch_receiver: Receiver<BatchResult>,
         block_synchronizer_handler: Arc<SynchronizerHandler>,
@@ -260,6 +264,7 @@ impl<PublicKey: VerifyingKey, SynchronizerHandler: Handler<PublicKey> + Send + S
                 rx_commands,
                 pending_get_block: HashMap::new(),
                 worker_network: PrimaryToWorkerNetwork::default(),
+                rx_committee,
                 rx_batch_receiver: batch_receiver,
                 tx_pending_batch: HashMap::new(),
                 tx_get_block_map: HashMap::new(),
@@ -313,6 +318,13 @@ impl<PublicKey: VerifyingKey, SynchronizerHandler: Handler<PublicKey> + Send + S
                 },
                 Some(result) = waiting_get_blocks.next() => {
                     self.handle_get_blocks_waiting_result(result).await;
+                }
+
+                // Check whether the committee changed. If the network address of our workers changed upon trying
+                // to send them a request, we will timeout and the caller will have to retry.
+                result = self.rx_committee.changed() => {
+                    result.expect("Committee channel dropped");
+                    self.committee = self.rx_committee.borrow().clone();
                 }
             }
         }

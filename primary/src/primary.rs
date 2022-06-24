@@ -228,6 +228,7 @@ impl Primary {
         BlockWaiter::spawn(
             name.clone(),
             committee.clone(),
+            tx_committee.subscribe(),
             rx_get_block_commands,
             rx_batches,
             block_synchronizer_handler.clone(),
