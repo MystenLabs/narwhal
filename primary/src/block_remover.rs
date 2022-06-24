@@ -268,8 +268,7 @@ impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
                 },
                 result = self.rx_committee.changed() => {
                     result.expect("Committee channel dropped");
-                    let new_committee = self.rx_committee.borrow().clone();
-                    self.committee = new_committee;
+                    self.committee = self.rx_committee.borrow().clone();
                 }
             }
         }
