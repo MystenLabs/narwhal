@@ -17,7 +17,7 @@ use crate::{
     BlockRemover, CertificatesResponse, DeleteBatchMessage, PayloadAvailabilityResponse,
 };
 use async_trait::async_trait;
-use config::{Committee, Parameters, SharedCommittee, WorkerId};
+use config::{Parameters, SharedCommittee, WorkerId};
 use consensus::dag::Dag;
 use crypto::{
     traits::{EncodeDecodeBase64, Signer, VerifyingKey},
@@ -43,7 +43,7 @@ use tonic::{Request, Response, Status};
 use tracing::info;
 use types::{
     Batch, BatchDigest, BatchMessage, BincodeEncodedPayload, Certificate, CertificateDigest, Empty,
-    Header, HeaderDigest, PrimaryToPrimary, PrimaryToPrimaryServer, WorkerToPrimary,
+    Header, HeaderDigest, PrimaryToPrimary, PrimaryToPrimaryServer, ShutdownToken, WorkerToPrimary,
     WorkerToPrimaryServer,
 };
 
@@ -51,17 +51,7 @@ use types::{
 pub const CHANNEL_CAPACITY: usize = 1_000;
 
 use crate::block_synchronizer::handler::BlockSynchronizerHandler;
-pub use types::{PrimaryMessage, PrimaryWorkerMessage};
-
-/// Shutdown token dropped when a task is properly shut down.
-pub type ShutdownToken = Sender<()>;
-
-/// Message send by the consensus to the primary.
-pub enum ConsensusToPrimary<PublicKey: VerifyingKey> {
-    Sequenced(Certificate<PublicKey>),
-    Committee(Committee<PublicKey>),
-    Shutdown(ShutdownToken),
-}
+pub use types::{ConsensusPrimaryMessage, PrimaryMessage, PrimaryWorkerMessage};
 
 /// Message to reconfigure tasks.
 #[derive(Clone, Debug)]
@@ -120,7 +110,7 @@ impl Primary {
         certificate_store: Store<CertificateDigest, Certificate<PublicKey>>,
         payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,
         tx_consensus: Sender<Certificate<PublicKey>>,
-        rx_consensus: Receiver<ConsensusToPrimary<PublicKey>>,
+        rx_consensus: Receiver<ConsensusPrimaryMessage<PublicKey>>,
         dag: Option<Arc<Dag<PublicKey>>>,
         network_model: NetworkModel,
     ) -> JoinHandle<()> {

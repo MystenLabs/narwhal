@@ -2,7 +2,7 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use crate::{
-    primary::{PrimaryMessage, Reconfigure, ShutdownToken},
+    primary::{PrimaryMessage, Reconfigure},
     PayloadToken,
 };
 use config::{SharedCommittee, WorkerId};
@@ -12,7 +12,7 @@ use store::{Store, StoreError};
 use thiserror::Error;
 use tokio::sync::{mpsc::Receiver, watch};
 use tracing::{error, instrument};
-use types::{BatchDigest, Certificate, CertificateDigest};
+use types::{BatchDigest, Certificate, CertificateDigest, ShutdownToken};
 
 #[cfg(test)]
 #[path = "tests/helper_tests.rs"]

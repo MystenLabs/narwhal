@@ -3,10 +3,7 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
 
-use crate::{
-    primary::{Reconfigure, ShutdownToken},
-    utils, PayloadToken, PrimaryWorkerMessage,
-};
+use crate::{primary::Reconfigure, utils, PayloadToken, PrimaryWorkerMessage};
 use config::{SharedCommittee, WorkerId};
 use consensus::dag::{Dag, ValidatorDagError};
 use crypto::{traits::VerifyingKey, Digest, Hash};
@@ -30,7 +27,7 @@ use tokio::{
 use tracing::{debug, error, instrument, warn};
 use types::{
     BatchDigest, BlockRemoverError, BlockRemoverErrorKind, BlockRemoverResult, Certificate,
-    CertificateDigest, Header, HeaderDigest,
+    CertificateDigest, Header, HeaderDigest, ShutdownToken,
 };
 
 const BATCH_DELETE_TIMEOUT: Duration = Duration::from_secs(2);

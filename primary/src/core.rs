@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use crate::{
     aggregators::{CertificatesAggregator, VotesAggregator},
-    primary::{PrimaryMessage, Reconfigure, ShutdownToken},
+    primary::{PrimaryMessage, Reconfigure},
     synchronizer::Synchronizer,
 };
 use async_recursion::async_recursion;
@@ -29,7 +29,7 @@ use tracing::{debug, error, instrument, warn};
 use types::{
     ensure,
     error::{DagError, DagResult},
-    Certificate, CertificateDigest, Header, HeaderDigest, Round, Vote,
+    Certificate, CertificateDigest, Header, HeaderDigest, Round, ShutdownToken, Vote,
 };
 
 #[cfg(test)]

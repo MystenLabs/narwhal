@@ -1,9 +1,7 @@
 // Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crate::primary::{
-    PayloadToken, PrimaryMessage, PrimaryWorkerMessage, Reconfigure, ShutdownToken,
-};
+use crate::primary::{PayloadToken, PrimaryMessage, PrimaryWorkerMessage, Reconfigure};
 use config::{SharedCommittee, WorkerId};
 use crypto::traits::VerifyingKey;
 use futures::{
@@ -31,7 +29,7 @@ use tokio::{
 use tracing::{debug, error};
 use types::{
     error::{DagError, DagResult},
-    BatchDigest, Certificate, CertificateDigest, Header, HeaderDigest, Round,
+    BatchDigest, Certificate, CertificateDigest, Header, HeaderDigest, Round, ShutdownToken,
 };
 
 #[cfg(test)]

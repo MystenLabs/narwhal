@@ -1,10 +1,6 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crate::{
-    block_synchronizer::handler::Handler,
-    primary::{Reconfigure, ShutdownToken},
-    PrimaryWorkerMessage,
-};
+use crate::{block_synchronizer::handler::Handler, primary::Reconfigure, PrimaryWorkerMessage};
 use config::SharedCommittee;
 use crypto::{traits::VerifyingKey, Digest, Hash};
 use futures::{
@@ -27,7 +23,7 @@ use tokio::{
 use tracing::{debug, error, instrument, warn};
 use types::{
     BatchDigest, BatchMessage, BlockError, BlockErrorKind, BlockResult, Certificate,
-    CertificateDigest, Header,
+    CertificateDigest, Header, ShutdownToken,
 };
 use Result::*;
 

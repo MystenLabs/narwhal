@@ -1,7 +1,7 @@
 // Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crate::primary::{ConsensusToPrimary, PrimaryWorkerMessage, Reconfigure};
+use crate::primary::{ConsensusPrimaryMessage, PrimaryWorkerMessage, Reconfigure};
 use config::{Committee, SharedCommittee};
 use crypto::traits::VerifyingKey;
 use network::PrimaryToWorkerNetwork;
@@ -21,7 +21,7 @@ pub struct GarbageCollector<PublicKey: VerifyingKey> {
     /// The current consensus round (used for cleanup).
     consensus_round: Arc<AtomicU64>,
     /// Receives the ordered certificates from consensus.
-    rx_consensus: Receiver<ConsensusToPrimary<PublicKey>>,
+    rx_consensus: Receiver<ConsensusPrimaryMessage<PublicKey>>,
     /// Channel to signal committee changes.
     tx_reconfigure: watch::Sender<Reconfigure<PublicKey>>,
     /// The latest round committed by consensus.
@@ -35,7 +35,7 @@ impl<PublicKey: VerifyingKey> GarbageCollector<PublicKey> {
         name: PublicKey,
         committee: SharedCommittee<PublicKey>,
         consensus_round: Arc<AtomicU64>,
-        rx_consensus: Receiver<ConsensusToPrimary<PublicKey>>,
+        rx_consensus: Receiver<ConsensusPrimaryMessage<PublicKey>>,
         tx_reconfigure: watch::Sender<Reconfigure<PublicKey>>,
     ) {
         tokio::spawn(async move {
@@ -83,10 +83,10 @@ impl<PublicKey: VerifyingKey> GarbageCollector<PublicKey> {
     async fn run(&mut self) {
         while let Some(message) = self.rx_consensus.recv().await {
             match message {
-                ConsensusToPrimary::Sequenced(certificate) => {
+                ConsensusPrimaryMessage::Sequenced(certificate) => {
                     self.handle_sequenced(certificate).await;
                 }
-                ConsensusToPrimary::Committee(committee) => {
+                ConsensusPrimaryMessage::Committee(committee) => {
                     // Update the committee.
                     self.update_committee(committee);
 
@@ -99,7 +99,7 @@ impl<PublicKey: VerifyingKey> GarbageCollector<PublicKey> {
                         .send(message)
                         .expect("Reconfigure channel dropped");
                 }
-                ConsensusToPrimary::Shutdown(token) => {
+                ConsensusPrimaryMessage::Shutdown(token) => {
                     let message = Reconfigure::Shutdown(token.clone());
                     self.tx_reconfigure
                         .send(message)

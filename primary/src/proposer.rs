@@ -1,10 +1,7 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crate::{
-    primary::{Reconfigure, ShutdownToken},
-    NetworkModel,
-};
+use crate::{primary::Reconfigure, NetworkModel};
 use config::{Epoch, SharedCommittee, WorkerId};
 use crypto::{traits::VerifyingKey, Digest, Hash as _, SignatureService};
 use std::cmp::Ordering;
@@ -18,7 +15,7 @@ use tokio::{
 use tracing::{debug, warn};
 use types::{
     error::{DagError, DagResult},
-    BatchDigest, Certificate, Header, Round,
+    BatchDigest, Certificate, Header, Round, ShutdownToken,
 };
 
 #[cfg(test)]
