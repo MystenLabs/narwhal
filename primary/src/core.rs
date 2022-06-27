@@ -88,6 +88,7 @@ pub struct Core<PublicKey: VerifyingKey> {
 }
 
 impl<PublicKey: VerifyingKey> Core<PublicKey> {
+    #[allow(clippy::too_many_arguments)]
     pub fn spawn(
         name: PublicKey,
         committee: SharedCommittee<PublicKey>,
@@ -146,15 +147,10 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
             .expect("Reconfigure channel dropped")
         {
             let message = self.rx_reconfigure.borrow().clone();
-            match message {
-                Reconfigure::NewCommittee(new_committee) => {
-                    self.update_committee(new_committee);
-                    // Mark the value as seen.
-                    let _ = self.rx_reconfigure.borrow_and_update();
-                }
-                _ => {
-                    // The main loop will handle shutdown.
-                }
+            if let Reconfigure::NewCommittee(new_committee) = message {
+                self.update_committee(new_committee);
+                // Mark the value as seen.
+                let _ = self.rx_reconfigure.borrow_and_update();
             }
         }
 

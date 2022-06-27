@@ -326,7 +326,7 @@ impl Primary {
             committee.clone(),
             certificate_store,
             payload_store,
-            tx_reconfigure.subscribe(),
+            rx_reconfigure,
             rx_helper_requests,
         );
 

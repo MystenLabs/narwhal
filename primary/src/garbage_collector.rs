@@ -100,7 +100,7 @@ impl<PublicKey: VerifyingKey> GarbageCollector<PublicKey> {
                         .expect("Reconfigure channel dropped");
                 }
                 ConsensusPrimaryMessage::Shutdown(token) => {
-                    let message = Reconfigure::Shutdown(token.clone());
+                    let message = Reconfigure::Shutdown(token);
                     self.tx_reconfigure
                         .send(message)
                         .expect("Reconfigure channel dropped");
