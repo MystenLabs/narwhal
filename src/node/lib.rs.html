@@ -251,6 +251,7 @@
 <span id="245">245</span>
 <span id="246">246</span>
 <span id="247">247</span>
+<span id="248">248</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">Parameters</span>, <span class="ident">SharedCommittee</span>, <span class="ident">WorkerId</span>};
@@ -368,7 +369,7 @@
         <span class="ident">State</span>: <span class="ident">ExecutionState</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
     {
         <span class="kw">let</span> (<span class="ident">tx_new_certificates</span>, <span class="ident">rx_new_certificates</span>) <span class="op">=</span> <span class="ident">channel</span>(<span class="ident"><span class="self">Self</span>::CHANNEL_CAPACITY</span>);
-        <span class="kw">let</span> (<span class="ident">tx_feedback</span>, <span class="ident">rx_feedback</span>) <span class="op">=</span> <span class="ident">channel</span>(<span class="ident"><span class="self">Self</span>::CHANNEL_CAPACITY</span>);
+        <span class="kw">let</span> (<span class="ident">tx_consensus</span>, <span class="ident">rx_consensus</span>) <span class="op">=</span> <span class="ident">channel</span>(<span class="ident"><span class="self">Self</span>::CHANNEL_CAPACITY</span>);
 
         <span class="comment">// Compute the public key of this authority.</span>
         <span class="kw">let</span> <span class="ident">name</span> <span class="op">=</span> <span class="ident">keypair</span>.<span class="ident">public</span>().<span class="ident">clone</span>();
@@ -385,7 +386,7 @@
                 <span class="ident">parameters</span>.<span class="ident">clone</span>(),
                 <span class="ident">execution_state</span>,
                 <span class="ident">rx_new_certificates</span>,
-                <span class="ident">tx_feedback</span>,
+                <span class="ident">tx_consensus</span>.<span class="ident">clone</span>(),
                 <span class="ident">tx_confirmation</span>,
             )
             .<span class="kw">await</span><span class="question-mark">?</span>;
@@ -402,9 +403,10 @@
             <span class="ident">store</span>.<span class="ident">certificate_store</span>.<span class="ident">clone</span>(),
             <span class="ident">store</span>.<span class="ident">payload_store</span>.<span class="ident">clone</span>(),
             <span class="comment">/* tx_consensus */</span> <span class="ident">tx_new_certificates</span>,
-            <span class="comment">/* rx_consensus */</span> <span class="ident">rx_feedback</span>,
+            <span class="comment">/* rx_consensus */</span> <span class="ident">rx_consensus</span>,
             <span class="comment">/* dag */</span> <span class="ident">dag</span>,
             <span class="ident">network_model</span>,
+            <span class="ident">tx_consensus</span>,
         );
 
         <span class="prelude-val">Ok</span>(<span class="ident">primary_handle</span>)
