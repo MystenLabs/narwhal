@@ -1,7 +1,9 @@
 // Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crate::primary::{PayloadToken, PrimaryMessage, PrimaryWorkerMessage};
+use crate::primary::{
+    PayloadToken, PrimaryMessage, PrimaryWorkerMessage, Reconfigure, ShutdownToken,
+};
 use config::{SharedCommittee, WorkerId};
 use crypto::traits::VerifyingKey;
 use futures::{
@@ -67,7 +69,7 @@ pub struct HeaderWaiter<PublicKey: VerifyingKey> {
     sync_retry_nodes: usize,
 
     /// Watch channel to reconfigure the committee.
-    rx_committee: watch::Receiver<SharedCommittee<PublicKey>>,
+    rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
     /// Receives sync commands from the `Synchronizer`.
     rx_synchronizer: Receiver<WaiterMessage<PublicKey>>,
     /// Loops back to the core headers for which we got all parents and batches.
@@ -97,12 +99,12 @@ impl<PublicKey: VerifyingKey> HeaderWaiter<PublicKey> {
         gc_depth: Round,
         sync_retry_delay: Duration,
         sync_retry_nodes: usize,
-        rx_committee: watch::Receiver<SharedCommittee<PublicKey>>,
+        rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
         rx_synchronizer: Receiver<WaiterMessage<PublicKey>>,
         tx_core: Sender<Header<PublicKey>>,
     ) {
         tokio::spawn(async move {
-            Self {
+            let shutdown_token = Self {
                 name,
                 committee,
                 certificate_store,
@@ -111,7 +113,7 @@ impl<PublicKey: VerifyingKey> HeaderWaiter<PublicKey> {
                 gc_depth,
                 sync_retry_delay,
                 sync_retry_nodes,
-                rx_committee,
+                rx_reconfigure,
                 rx_synchronizer,
                 tx_core,
                 primary_network: Default::default(),
@@ -122,6 +124,7 @@ impl<PublicKey: VerifyingKey> HeaderWaiter<PublicKey> {
             }
             .run()
             .await;
+            drop(shutdown_token);
         });
     }
 
@@ -156,7 +159,7 @@ impl<PublicKey: VerifyingKey> HeaderWaiter<PublicKey> {
     }
 
     /// Main loop listening to the `Synchronizer` messages.
-    async fn run(&mut self) {
+    async fn run(&mut self) -> ShutdownToken {
         let mut waiting: FuturesUnordered<BoxFuture<'_, _>> = FuturesUnordered::new();
 
         let timer = sleep(Duration::from_millis(TIMER_RESOLUTION));
@@ -173,9 +176,14 @@ impl<PublicKey: VerifyingKey> HeaderWaiter<PublicKey> {
                             let author = header.author.clone();
 
                             // Update the committee now if the core already did so.
-                            if header.epoch > self.committee.epoch() {
-                                let new_committee = self.rx_committee.borrow_and_update().clone();
-                                self.update_committee(new_committee);
+                            if self.rx_reconfigure.has_changed().expect("Reconfigure channel dropped") {
+                                let message = self.rx_reconfigure.borrow_and_update().clone();
+                                match message {
+                                    Reconfigure::NewCommittee(new_committee) => {
+                                        self.update_committee(new_committee);
+                                    }
+                                    Reconfigure::Shutdown(token) => return token
+                                }
                             }
 
                             // Ensure we sync only once per header.
@@ -219,10 +227,16 @@ impl<PublicKey: VerifyingKey> HeaderWaiter<PublicKey> {
                             let author = header.author.clone();
 
                             // Update the committee now if the core already did so.
-                            if header.epoch > self.committee.epoch() {
-                                let new_committee = self.rx_committee.borrow_and_update().clone();
-                                self.update_committee(new_committee);
+                            if self.rx_reconfigure.has_changed().expect("Reconfigure channel dropped") {
+                                let message = self.rx_reconfigure.borrow_and_update().clone();
+                                match message {
+                                    Reconfigure::NewCommittee(new_committee) => {
+                                        self.update_committee(new_committee);
+                                    }
+                                    Reconfigure::Shutdown(token) => return token
+                                }
                             }
+
 
                             // Ensure we sync only once per header.
                             if self.pending.contains_key(&header_id) {
@@ -273,7 +287,9 @@ impl<PublicKey: VerifyingKey> HeaderWaiter<PublicKey> {
                         for x in &header.parents {
                             let _ = self.parent_requests.remove(x);
                         }
-                        self.tx_core.send(header).await.expect("Failed to send header");
+                        if self.tx_core.send(header).await.is_err() {
+                           debug!("{}", DagError::ShuttingDown)
+                        }
                     },
                     Ok(None) => {
                         // This request has been canceled.

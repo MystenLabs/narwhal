@@ -1,22 +1,16 @@
 // Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crate::primary::PrimaryWorkerMessage;
+use crate::primary::{ConsensusToPrimary, PrimaryWorkerMessage, Reconfigure};
 use config::{Committee, SharedCommittee};
 use crypto::traits::VerifyingKey;
-use multiaddr::Multiaddr;
 use network::PrimaryToWorkerNetwork;
 use std::sync::{
     atomic::{AtomicU64, Ordering},
     Arc,
 };
 use tokio::sync::{mpsc::Receiver, watch};
-use types::{Certificate, PublicKeyProto, Round};
-
-pub enum StateHandlerMessage<PublicKey: VerifyingKey> {
-    Sequenced(Certificate<PublicKey>),
-    Committee(Committee<PublicKey>),
-}
+use types::{Certificate, Round};
 
 /// Receives the highest round reached by consensus and update it for all tasks.
 pub struct GarbageCollector<PublicKey: VerifyingKey> {
@@ -27,9 +21,9 @@ pub struct GarbageCollector<PublicKey: VerifyingKey> {
     /// The current consensus round (used for cleanup).
     consensus_round: Arc<AtomicU64>,
     /// Receives the ordered certificates from consensus.
-    rx_consensus: Receiver<StateHandlerMessage<PublicKey>>,
+    rx_consensus: Receiver<ConsensusToPrimary<PublicKey>>,
     /// Channel to signal committee changes.
-    tx_committee: watch::Sender<SharedCommittee<PublicKey>>,
+    tx_reconfigure: watch::Sender<Reconfigure<PublicKey>>,
     /// The latest round committed by consensus.
     last_committed_round: Round,
     /// A network sender to notify our workers of cleanup events.
@@ -41,8 +35,8 @@ impl<PublicKey: VerifyingKey> GarbageCollector<PublicKey> {
         name: PublicKey,
         committee: SharedCommittee<PublicKey>,
         consensus_round: Arc<AtomicU64>,
-        rx_consensus: Receiver<StateHandlerMessage<PublicKey>>,
-        tx_committee: watch::Sender<SharedCommittee<PublicKey>>,
+        rx_consensus: Receiver<ConsensusToPrimary<PublicKey>>,
+        tx_reconfigure: watch::Sender<Reconfigure<PublicKey>>,
     ) {
         tokio::spawn(async move {
             Self {
@@ -50,7 +44,7 @@ impl<PublicKey: VerifyingKey> GarbageCollector<PublicKey> {
                 committee,
                 consensus_round,
                 rx_consensus,
-                tx_committee,
+                tx_reconfigure,
                 last_committed_round: 0,
                 worker_network: Default::default(),
             }
@@ -84,17 +78,33 @@ impl<PublicKey: VerifyingKey> GarbageCollector<PublicKey> {
 
     fn update_committee(&mut self, new_committee: Committee<PublicKey>) {
         self.committee.update_committee(new_committee);
-        self.tx_committee.send(self.committee.clone());
     }
 
     async fn run(&mut self) {
         while let Some(message) = self.rx_consensus.recv().await {
             match message {
-                StateHandlerMessage::Sequenced(certificate) => {
+                ConsensusToPrimary::Sequenced(certificate) => {
                     self.handle_sequenced(certificate).await;
                 }
-                StateHandlerMessage::Committee(committee) => {
+                ConsensusToPrimary::Committee(committee) => {
+                    // Update the committee.
                     self.update_committee(committee);
+
+                    // Trigger cleanup on the primary.
+                    self.consensus_round.store(0, Ordering::Relaxed);
+
+                    // Notify all other tasks.
+                    let message = Reconfigure::NewCommittee(self.committee.clone());
+                    self.tx_reconfigure
+                        .send(message)
+                        .expect("Reconfigure channel dropped");
+                }
+                ConsensusToPrimary::Shutdown(token) => {
+                    let message = Reconfigure::Shutdown(token.clone());
+                    self.tx_reconfigure
+                        .send(message)
+                        .expect("Reconfigure channel dropped");
+                    break;
                 }
             }
         }

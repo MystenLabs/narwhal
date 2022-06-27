@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use crate::{
     aggregators::{CertificatesAggregator, VotesAggregator},
-    primary::PrimaryMessage,
+    primary::{PrimaryMessage, Reconfigure, ShutdownToken},
     synchronizer::Synchronizer,
 };
 use async_recursion::async_recursion;
@@ -55,7 +55,7 @@ pub struct Core<PublicKey: VerifyingKey> {
     gc_depth: Round,
 
     /// Watch channel to reconfigure the committee.
-    rx_committee: watch::Receiver<SharedCommittee<PublicKey>>,
+    rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
     /// Receiver for dag messages (headers, votes, certificates).
     rx_primaries: Receiver<PrimaryMessage<PublicKey>>,
     /// Receives loopback headers from the `HeaderWaiter`.
@@ -97,7 +97,7 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
         signature_service: SignatureService<PublicKey::Sig>,
         consensus_round: Arc<AtomicU64>,
         gc_depth: Round,
-        rx_committee: watch::Receiver<SharedCommittee<PublicKey>>,
+        rx_committee: watch::Receiver<Reconfigure<PublicKey>>,
         rx_primaries: Receiver<PrimaryMessage<PublicKey>>,
         rx_header_waiter: Receiver<Header<PublicKey>>,
         rx_certificate_waiter: Receiver<Certificate<PublicKey>>,
@@ -106,7 +106,7 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
         tx_proposer: Sender<(Vec<Certificate<PublicKey>>, Round, Epoch)>,
     ) -> JoinHandle<()> {
         tokio::spawn(async move {
-            Self {
+            let shutdown_token = Self {
                 name,
                 committee,
                 header_store,
@@ -115,7 +115,7 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
                 signature_service,
                 consensus_round,
                 gc_depth,
-                rx_committee,
+                rx_reconfigure: rx_committee,
                 rx_primaries,
                 rx_header_waiter,
                 rx_certificate_waiter,
@@ -133,15 +133,29 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
             }
             .run()
             .await;
+            drop(shutdown_token);
         })
     }
 
     #[instrument(level = "debug", skip_all)]
     async fn process_own_header(&mut self, header: Header<PublicKey>) -> DagResult<()> {
         // Update the committee now if the proposer already did so.
-        if header.epoch > self.committee.epoch() {
-            let new_committee = self.rx_committee.borrow_and_update().clone();
-            self.update_committee(new_committee);
+        if self
+            .rx_reconfigure
+            .has_changed()
+            .expect("Reconfigure channel dropped")
+        {
+            let message = self.rx_reconfigure.borrow().clone();
+            match message {
+                Reconfigure::NewCommittee(new_committee) => {
+                    self.update_committee(new_committee);
+                    // Mark the value as seen.
+                    let _ = self.rx_reconfigure.borrow_and_update();
+                }
+                _ => {
+                    // The main loop will handle shutdown.
+                }
+            }
         }
 
         // Reset the votes aggregator.
@@ -331,7 +345,7 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
             self.tx_proposer
                 .send((parents, certificate.round(), certificate.epoch()))
                 .await
-                .expect("Failed to send certificate");
+                .map_err(|_| DagError::ShuttingDown)?;
         }
 
         // Send it to the consensus layer.
@@ -420,7 +434,7 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
     }
 
     // Main loop listening to incoming messages.
-    pub async fn run(&mut self) {
+    pub async fn run(&mut self) -> ShutdownToken {
         loop {
             let result = tokio::select! {
                 // We receive here messages from other primaries.
@@ -462,15 +476,21 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
                 Some(header) = self.rx_proposer.recv() => self.process_own_header(header).await,
 
                 // Check whether the committee changed.
-                result = self.rx_committee.changed() => {
+                result = self.rx_reconfigure.changed() => {
                     result.expect("Committee channel dropped");
-                    let new_committee = self.rx_committee.borrow().clone();
-                    self.update_committee(new_committee);
-                    Ok(())
+                    let message = self.rx_reconfigure.borrow().clone();
+                    match message {
+                        Reconfigure::NewCommittee(new_committee) => {
+                            self.update_committee(new_committee);
+                            Ok(())
+                        },
+                        Reconfigure::Shutdown(token) => return token
+                    }
                 }
             };
             match result {
                 Ok(()) => (),
+                Err(e @ DagError::ShuttingDown) => debug!("{e}"),
                 Err(DagError::StoreError(e)) => {
                     error!("{e}");
                     panic!("Storage failure: killing node.");

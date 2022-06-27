@@ -8,7 +8,7 @@
     rust_2021_compatibility
 )]
 
-use arc_swap::{access::Access, ArcSwap};
+use arc_swap::ArcSwap;
 use crypto::traits::{EncodeDecodeBase64, VerifyingKey};
 use multiaddr::Multiaddr;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -276,7 +276,7 @@ pub struct PrimaryAddresses {
     pub worker_to_primary: Multiaddr,
 }
 
-#[derive(Clone, Serialize, Deserialize, Eq, Hash, PartialEq)]
+#[derive(Clone, Serialize, Deserialize, Eq, Hash, PartialEq, Debug)]
 pub struct WorkerAddresses {
     /// Address to receive client transactions (WAN).
     pub transactions: Multiaddr,
@@ -286,7 +286,7 @@ pub struct WorkerAddresses {
     pub primary_to_worker: Multiaddr,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Authority {
     /// The voting power of this authority.
     pub stake: Stake,
@@ -298,7 +298,7 @@ pub struct Authority {
 
 pub type SharedCommittee<PK> = Arc<Committee<PK>>;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Committee<PublicKey> {
     /// The authorities of epoch.
     #[serde(bound(
@@ -307,13 +307,13 @@ pub struct Committee<PublicKey> {
     ))]
     pub authorities: ArcSwap<BTreeMap<PublicKey, Authority>>,
     /// The epoch number of this committee
-    pub epoch: Epoch,
+    pub epoch: ArcSwap<Epoch>,
 }
 
 impl<PublicKey: VerifyingKey> Committee<PublicKey> {
     /// Returns the number of authorities.
     pub fn epoch(&self) -> Epoch {
-        self.epoch
+        *self.epoch.load().clone()
     }
 
     /// Returns the number of authorities.
@@ -425,8 +425,8 @@ impl<PublicKey: VerifyingKey> Committee<PublicKey> {
             .collect()
     }
 
-    pub fn update_committee(&mut self, new_committee: Self) {
-        self.epoch = new_committee.epoch;
+    pub fn update_committee(&self, new_committee: Self) {
+        self.epoch.store(new_committee.epoch.load_full());
         self.authorities
             .store(new_committee.authorities.load_full());
     }

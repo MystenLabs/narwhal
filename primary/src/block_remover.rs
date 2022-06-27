@@ -3,7 +3,10 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
 
-use crate::{utils, PayloadToken, PrimaryWorkerMessage};
+use crate::{
+    primary::{Reconfigure, ShutdownToken},
+    utils, PayloadToken, PrimaryWorkerMessage,
+};
 use config::{SharedCommittee, WorkerId};
 use consensus::dag::{Dag, ValidatorDagError};
 use crypto::{traits::VerifyingKey, Digest, Hash};
@@ -196,7 +199,7 @@ pub struct BlockRemover<PublicKey: VerifyingKey> {
     worker_network: PrimaryToWorkerNetwork,
 
     /// Watch channel to reconfigure the committee.
-    rx_committee: watch::Receiver<SharedCommittee<PublicKey>>,
+    rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
 
     /// Receives the commands to execute against
     rx_commands: Receiver<BlockRemoverCommand>,
@@ -225,12 +228,12 @@ impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
         payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,
         dag: Option<Arc<Dag<PublicKey>>>,
         worker_network: PrimaryToWorkerNetwork,
-        rx_committee: watch::Receiver<SharedCommittee<PublicKey>>,
+        rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
         rx_commands: Receiver<BlockRemoverCommand>,
         rx_delete_batches: Receiver<DeleteBatchResult>,
     ) -> JoinHandle<()> {
         tokio::spawn(async move {
-            Self {
+            let shutdown_token = Self {
                 name,
                 committee,
                 certificate_store,
@@ -238,7 +241,7 @@ impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
                 payload_store,
                 dag,
                 worker_network,
-                rx_committee,
+                rx_reconfigure,
                 rx_commands,
                 pending_removal_requests: HashMap::new(),
                 map_tx_removal_results: HashMap::new(),
@@ -247,10 +250,11 @@ impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
             }
             .run()
             .await;
+            drop(shutdown_token);
         })
     }
 
-    async fn run(&mut self) {
+    async fn run(&mut self) -> ShutdownToken {
         let mut waiting = FuturesUnordered::new();
 
         loop {
@@ -266,9 +270,15 @@ impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
                 Some(result) = waiting.next() => {
                     self.handle_remove_waiting_result(result).await;
                 },
-                result = self.rx_committee.changed() => {
+                result = self.rx_reconfigure.changed() => {
                     result.expect("Committee channel dropped");
-                    self.committee = self.rx_committee.borrow().clone();
+                    let message = self.rx_reconfigure.borrow().clone();
+                    match message {
+                        Reconfigure::NewCommittee(new_committee) => {
+                            self.committee = new_committee;
+                        }
+                        Reconfigure::Shutdown(token) => return token
+                    }
                 }
             }
         }

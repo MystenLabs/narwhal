@@ -17,7 +17,7 @@ use crate::{
     BlockRemover, CertificatesResponse, DeleteBatchMessage, PayloadAvailabilityResponse,
 };
 use async_trait::async_trait;
-use config::{Parameters, SharedCommittee, WorkerId};
+use config::{Committee, Parameters, SharedCommittee, WorkerId};
 use consensus::dag::Dag;
 use crypto::{
     traits::{EncodeDecodeBase64, Signer, VerifyingKey},
@@ -52,6 +52,25 @@ pub const CHANNEL_CAPACITY: usize = 1_000;
 
 use crate::block_synchronizer::handler::BlockSynchronizerHandler;
 pub use types::{PrimaryMessage, PrimaryWorkerMessage};
+
+/// Shutdown token dropped when a task is properly shut down.
+pub type ShutdownToken = Sender<()>;
+
+/// Message send by the consensus to the primary.
+pub enum ConsensusToPrimary<PublicKey: VerifyingKey> {
+    Sequenced(Certificate<PublicKey>),
+    Committee(Committee<PublicKey>),
+    Shutdown(ShutdownToken),
+}
+
+/// Message to reconfigure tasks.
+#[derive(Clone, Debug)]
+pub enum Reconfigure<PublicKey: VerifyingKey> {
+    /// Indicates the committee has been updated.
+    NewCommittee(SharedCommittee<PublicKey>),
+    /// Indicate a shutdown.
+    Shutdown(ShutdownToken),
+}
 
 /// The messages sent by the workers to their primary.
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -101,11 +120,12 @@ impl Primary {
         certificate_store: Store<CertificateDigest, Certificate<PublicKey>>,
         payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,
         tx_consensus: Sender<Certificate<PublicKey>>,
-        rx_consensus: Receiver<Certificate<PublicKey>>,
+        rx_consensus: Receiver<ConsensusToPrimary<PublicKey>>,
         dag: Option<Arc<Dag<PublicKey>>>,
         network_model: NetworkModel,
     ) -> JoinHandle<()> {
-        let (tx_committee, rx_committee) = watch::channel(committee.clone());
+        let initial_committee = Reconfigure::NewCommittee(committee.clone());
+        let (tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
 
         let (tx_others_digests, rx_others_digests) = channel(CHANNEL_CAPACITY);
         let (tx_our_digests, rx_our_digests) = channel(CHANNEL_CAPACITY);
@@ -199,7 +219,7 @@ impl Primary {
             signature_service.clone(),
             consensus_round.clone(),
             parameters.gc_depth,
-            tx_committee.subscribe(),
+            tx_reconfigure.subscribe(),
             /* rx_primaries */ rx_primary_messages,
             /* rx_header_waiter */ rx_headers_loopback,
             /* rx_certificate_waiter */ rx_certificates_loopback,
@@ -228,7 +248,7 @@ impl Primary {
         BlockWaiter::spawn(
             name.clone(),
             committee.clone(),
-            tx_committee.subscribe(),
+            tx_reconfigure.subscribe(),
             rx_get_block_commands,
             rx_batches,
             block_synchronizer_handler.clone(),
@@ -246,7 +266,7 @@ impl Primary {
             payload_store.clone(),
             dag.clone(),
             PrimaryToWorkerNetwork::default(),
-            tx_committee.subscribe(),
+            tx_reconfigure.subscribe(),
             rx_block_removal_commands,
             rx_batch_removal,
         );
@@ -256,7 +276,7 @@ impl Primary {
         BlockSynchronizer::spawn(
             name.clone(),
             committee.clone(),
-            tx_committee.subscribe(),
+            tx_reconfigure.subscribe(),
             rx_block_synchronizer_commands,
             rx_certificate_responses,
             rx_payload_availability_responses,
@@ -278,7 +298,7 @@ impl Primary {
             parameters.gc_depth,
             parameters.sync_retry_delay,
             parameters.sync_retry_nodes,
-            tx_committee.subscribe(),
+            tx_reconfigure.subscribe(),
             /* rx_synchronizer */ rx_sync_headers,
             /* tx_core */ tx_headers_loopback,
         );
@@ -289,7 +309,7 @@ impl Primary {
             certificate_store.clone(),
             consensus_round.clone(),
             parameters.gc_depth,
-            tx_committee.subscribe(),
+            tx_reconfigure.subscribe(),
             /* rx_synchronizer */ rx_sync_certificates,
             /* tx_core */ tx_certificates_loopback,
         );
@@ -303,7 +323,7 @@ impl Primary {
             parameters.header_size,
             parameters.max_header_delay,
             network_model,
-            tx_committee.subscribe(),
+            tx_reconfigure.subscribe(),
             /* rx_core */ rx_parents,
             /* rx_workers */ rx_our_digests,
             /* tx_core */ tx_headers,
@@ -316,7 +336,7 @@ impl Primary {
             committee.clone(),
             certificate_store,
             payload_store,
-            tx_committee.subscribe(),
+            tx_reconfigure.subscribe(),
             rx_helper_requests,
         );
 
@@ -340,7 +360,7 @@ impl Primary {
             committee.clone(),
             consensus_round,
             rx_consensus,
-            tx_committee,
+            tx_reconfigure,
         );
 
         // NOTE: This log entry is used to compute performance.

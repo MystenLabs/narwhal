@@ -1,7 +1,10 @@
 // Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crate::{primary::PrimaryMessage, PayloadToken};
+use crate::{
+    primary::{PrimaryMessage, Reconfigure, ShutdownToken},
+    PayloadToken,
+};
 use config::{SharedCommittee, WorkerId};
 use crypto::traits::{EncodeDecodeBase64, VerifyingKey};
 use network::PrimaryNetwork;
@@ -39,7 +42,7 @@ pub struct Helper<PublicKey: VerifyingKey> {
     /// The payloads (batches) persistent storage.
     payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,
     /// Watch channel to reconfigure the committee.
-    rx_committee: watch::Receiver<SharedCommittee<PublicKey>>,
+    rx_committee: watch::Receiver<Reconfigure<PublicKey>>,
     /// Input channel to receive requests.
     rx_primaries: Receiver<PrimaryMessage<PublicKey>>,
     /// A network sender to reply to the sync requests.
@@ -52,11 +55,11 @@ impl<PublicKey: VerifyingKey> Helper<PublicKey> {
         committee: SharedCommittee<PublicKey>,
         certificate_store: Store<CertificateDigest, Certificate<PublicKey>>,
         payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,
-        rx_committee: watch::Receiver<SharedCommittee<PublicKey>>,
+        rx_committee: watch::Receiver<Reconfigure<PublicKey>>,
         rx_primaries: Receiver<PrimaryMessage<PublicKey>>,
     ) {
         tokio::spawn(async move {
-            Self {
+            let shutdown_token = Self {
                 name,
                 committee,
                 certificate_store,
@@ -67,10 +70,11 @@ impl<PublicKey: VerifyingKey> Helper<PublicKey> {
             }
             .run()
             .await;
+            drop(shutdown_token);
         });
     }
 
-    async fn run(&mut self) {
+    async fn run(&mut self) -> ShutdownToken {
         loop {
             tokio::select! {
                 Some(request) = self.rx_primaries.recv() => match request {
@@ -108,8 +112,13 @@ impl<PublicKey: VerifyingKey> Helper<PublicKey> {
 
                 result = self.rx_committee.changed() => {
                     result.expect("Committee channel dropped");
-                    let new_committee = self.rx_committee.borrow().clone();
-                    self.committee = new_committee;
+                    let message = self.rx_committee.borrow().clone();
+                    match message {
+                        Reconfigure::NewCommittee(new_committee) => {
+                            self.committee = new_committee;
+                        },
+                        Reconfigure::Shutdown(token) => return token
+                    }
                 }
             }
         }

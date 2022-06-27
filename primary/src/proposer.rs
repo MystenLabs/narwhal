@@ -1,7 +1,10 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crate::NetworkModel;
+use crate::{
+    primary::{Reconfigure, ShutdownToken},
+    NetworkModel,
+};
 use config::{Epoch, SharedCommittee, WorkerId};
 use crypto::{traits::VerifyingKey, Digest, Hash as _, SignatureService};
 use std::cmp::Ordering;
@@ -13,7 +16,10 @@ use tokio::{
     time::{sleep, Duration, Instant},
 };
 use tracing::{debug, warn};
-use types::{BatchDigest, Certificate, Header, Round};
+use types::{
+    error::{DagError, DagResult},
+    BatchDigest, Certificate, Header, Round,
+};
 
 #[cfg(test)]
 #[path = "tests/proposer_tests.rs"]
@@ -35,7 +41,7 @@ pub struct Proposer<PublicKey: VerifyingKey> {
     network_model: NetworkModel,
 
     /// Watch channel to reconfigure the committee.
-    rx_committee: watch::Receiver<SharedCommittee<PublicKey>>,
+    rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
     /// Receives the parents to include in the next header (along with their round number).
     rx_core: Receiver<(Vec<Certificate<PublicKey>>, Round, Epoch)>,
     /// Receives the batches' digests from our workers.
@@ -64,21 +70,21 @@ impl<PublicKey: VerifyingKey> Proposer<PublicKey> {
         header_size: usize,
         max_header_delay: Duration,
         network_model: NetworkModel,
-        rx_committee: watch::Receiver<SharedCommittee<PublicKey>>,
+        rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
         rx_core: Receiver<(Vec<Certificate<PublicKey>>, Round, Epoch)>,
         rx_workers: Receiver<(BatchDigest, WorkerId)>,
         tx_core: Sender<Header<PublicKey>>,
     ) {
         let genesis = Certificate::genesis(&committee);
         tokio::spawn(async move {
-            Self {
+            let shutdown_token = Self {
                 name,
                 committee,
                 signature_service,
                 header_size,
                 max_header_delay,
                 network_model,
-                rx_committee,
+                rx_reconfigure,
                 rx_core,
                 rx_workers,
                 tx_core,
@@ -90,10 +96,11 @@ impl<PublicKey: VerifyingKey> Proposer<PublicKey> {
             }
             .run()
             .await;
+            drop(shutdown_token);
         });
     }
 
-    async fn make_header(&mut self) {
+    async fn make_header(&mut self) -> DagResult<()> {
         // Make a new header.
         let header = Header::new(
             self.name.clone(),
@@ -116,7 +123,7 @@ impl<PublicKey: VerifyingKey> Proposer<PublicKey> {
         self.tx_core
             .send(header)
             .await
-            .expect("Failed to send header");
+            .map_err(|_| DagError::ShuttingDown)
     }
 
     /// Update the committee and cleanup internal state.
@@ -192,7 +199,7 @@ impl<PublicKey: VerifyingKey> Proposer<PublicKey> {
     }
 
     /// Main loop listening to incoming messages.
-    pub async fn run(&mut self) {
+    pub async fn run(&mut self) -> ShutdownToken {
         debug!("Dag starting at round {}", self.round);
         let mut advance = true;
 
@@ -221,7 +228,11 @@ impl<PublicKey: VerifyingKey> Proposer<PublicKey> {
                 debug!("Dag moved to round {}", self.round);
 
                 // Make a new header.
-                self.make_header().await;
+                match self.make_header().await {
+                    Err(e @ DagError::ShuttingDown) => debug!("{e}"),
+                    Err(e) => panic!("Unexpected error: {e}"),
+                    Ok(()) => (),
+                }
                 self.payload_size = 0;
 
                 // Reschedule the timer.
@@ -235,13 +246,19 @@ impl<PublicKey: VerifyingKey> Proposer<PublicKey> {
                     // committee as well.
                     match epoch.cmp(&self.committee.epoch()) {
                         Ordering::Greater => {
-                            let new_committee = self.rx_committee.borrow_and_update().clone();
-                            self.update_committee(new_committee);
+                            let message = self.rx_reconfigure.borrow_and_update().clone();
+                            match message  {
+                                Reconfigure::NewCommittee(new_committee) => {
+                                    self.update_committee(new_committee);
+                                },
+                                Reconfigure::Shutdown(token) => return token,
+                            }
+
                         }
                         Ordering::Less => {
                             // We already updated committee but the core is slow. Ignore the parents
                             // from older epochs.
-                            continue;
+                            continue
                         },
                         Ordering::Equal => {
                             // Nothing to do, we can proceed.
@@ -284,10 +301,15 @@ impl<PublicKey: VerifyingKey> Proposer<PublicKey> {
                 }
 
                 // Check whether the committee changed.
-                result = self.rx_committee.changed() => {
+                result = self.rx_reconfigure.changed() => {
                     result.expect("Committee channel dropped");
-                    let new_committee = self.rx_committee.borrow().clone();
-                    self.update_committee(new_committee);
+                    let message = self.rx_reconfigure.borrow().clone();
+                    match message {
+                        Reconfigure::NewCommittee(new_committee) => {
+                            self.update_committee(new_committee);
+                        },
+                        Reconfigure::Shutdown(token) => return token,
+                    }
                 }
             }
         }

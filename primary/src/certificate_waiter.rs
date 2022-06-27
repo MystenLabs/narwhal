@@ -1,8 +1,6 @@
 // Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-
-use config::SharedCommittee;
 use crypto::traits::VerifyingKey;
 use futures::{
     future::try_join_all,
@@ -26,6 +24,8 @@ use types::{
     Certificate, CertificateDigest, HeaderDigest, Round,
 };
 
+use crate::primary::{Reconfigure, ShutdownToken};
+
 /// Waits to receive all the ancestors of a certificate before looping it back to the `Core`
 /// for further processing.
 pub struct CertificateWaiter<PublicKey: VerifyingKey> {
@@ -36,7 +36,7 @@ pub struct CertificateWaiter<PublicKey: VerifyingKey> {
     /// The depth of the garbage collector.
     gc_depth: Round,
     /// Watch channel notifying of epoch changes, it is only used for cleanup.
-    rx_committee: watch::Receiver<SharedCommittee<PublicKey>>,
+    rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
     /// Receives sync commands from the `Synchronizer`.
     rx_synchronizer: Receiver<Certificate<PublicKey>>,
     /// Loops back to the core certificates for which we got all parents.
@@ -52,22 +52,23 @@ impl<PublicKey: VerifyingKey> CertificateWaiter<PublicKey> {
         store: Store<CertificateDigest, Certificate<PublicKey>>,
         consensus_round: Arc<AtomicU64>,
         gc_depth: Round,
-        rx_committee: watch::Receiver<SharedCommittee<PublicKey>>,
+        rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
         rx_synchronizer: Receiver<Certificate<PublicKey>>,
         tx_core: Sender<Certificate<PublicKey>>,
     ) {
         tokio::spawn(async move {
-            Self {
+            let shutdown_token = Self {
                 store,
                 consensus_round,
                 gc_depth,
-                rx_committee,
+                rx_reconfigure,
                 rx_synchronizer,
                 tx_core,
                 pending: HashMap::new(),
             }
             .run()
-            .await
+            .await;
+            drop(shutdown_token);
         });
     }
 
@@ -90,7 +91,7 @@ impl<PublicKey: VerifyingKey> CertificateWaiter<PublicKey> {
         }
     }
 
-    async fn run(&mut self) {
+    async fn run(&mut self) -> ShutdownToken {
         let mut waiting = FuturesUnordered::new();
 
         loop {
@@ -128,9 +129,18 @@ impl<PublicKey: VerifyingKey> CertificateWaiter<PublicKey> {
                         panic!("Storage failure: killing node.");
                     }
                 },
-                result = self.rx_committee.changed() => {
+                result = self.rx_reconfigure.changed() => {
                     result.expect("Committee channel dropped");
-                    self.pending.clear();
+                    let message = self.rx_reconfigure.borrow_and_update().clone();
+                    match message {
+                        Reconfigure::NewCommittee(_) => {
+                            self.pending.clear();
+                        },
+                        Reconfigure::Shutdown(token) => {
+                            break token
+                        }
+                    }
+
                 }
             }
 

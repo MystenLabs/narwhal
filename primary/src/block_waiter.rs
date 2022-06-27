@@ -1,6 +1,10 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crate::{block_synchronizer::handler::Handler, PrimaryWorkerMessage};
+use crate::{
+    block_synchronizer::handler::Handler,
+    primary::{Reconfigure, ShutdownToken},
+    PrimaryWorkerMessage,
+};
 use config::SharedCommittee;
 use crypto::{traits::VerifyingKey, Digest, Hash};
 use futures::{
@@ -217,7 +221,7 @@ pub struct BlockWaiter<
     worker_network: PrimaryToWorkerNetwork,
 
     /// Watch channel to reconfigure the committee.
-    rx_committee: watch::Receiver<SharedCommittee<PublicKey>>,
+    rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
 
     /// The batch receive channel is listening for received
     /// messages for batches that have been requested
@@ -252,19 +256,19 @@ impl<PublicKey: VerifyingKey, SynchronizerHandler: Handler<PublicKey> + Send + S
     pub fn spawn(
         name: PublicKey,
         committee: SharedCommittee<PublicKey>,
-        rx_committee: watch::Receiver<SharedCommittee<PublicKey>>,
+        rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
         rx_commands: Receiver<BlockCommand>,
         batch_receiver: Receiver<BatchResult>,
         block_synchronizer_handler: Arc<SynchronizerHandler>,
     ) {
         tokio::spawn(async move {
-            Self {
+            let shutdown_token = Self {
                 name,
                 committee,
                 rx_commands,
                 pending_get_block: HashMap::new(),
                 worker_network: PrimaryToWorkerNetwork::default(),
-                rx_committee,
+                rx_reconfigure,
                 rx_batch_receiver: batch_receiver,
                 tx_pending_batch: HashMap::new(),
                 tx_get_block_map: HashMap::new(),
@@ -273,10 +277,11 @@ impl<PublicKey: VerifyingKey, SynchronizerHandler: Handler<PublicKey> + Send + S
             }
             .run()
             .await;
+            drop(shutdown_token);
         });
     }
 
-    async fn run(&mut self) {
+    async fn run(&mut self) -> ShutdownToken {
         let mut waiting_get_block = FuturesUnordered::new();
         let mut waiting_get_blocks = FuturesUnordered::new();
 
@@ -322,9 +327,15 @@ impl<PublicKey: VerifyingKey, SynchronizerHandler: Handler<PublicKey> + Send + S
 
                 // Check whether the committee changed. If the network address of our workers changed upon trying
                 // to send them a request, we will timeout and the caller will have to retry.
-                result = self.rx_committee.changed() => {
+                result = self.rx_reconfigure.changed() => {
                     result.expect("Committee channel dropped");
-                    self.committee = self.rx_committee.borrow().clone();
+                    let message = self.rx_reconfigure.borrow().clone();
+                    match message {
+                        Reconfigure::NewCommittee(new_committee) => {
+                            self.committee = new_committee;
+                        }
+                        Reconfigure::Shutdown(token) => return token,
+                    }
                 }
             }
         }
