@@ -5,6 +5,7 @@ use crate::{
     block_waiter::{
         BatchResult, BlockError, BlockErrorKind, BlockResult, GetBlockResponse, GetBlocksResponse,
     },
+    primary::Reconfigure,
     BlockCommand, BlockWaiter, PrimaryWorkerMessage,
 };
 use bincode::deserialize;
@@ -19,7 +20,7 @@ use test_utils::{
 use tokio::{
     sync::{
         mpsc::{channel, Sender},
-        oneshot,
+        oneshot, watch,
     },
     task::JoinHandle,
     time::{sleep, timeout, Duration},
@@ -37,6 +38,7 @@ async fn test_successfully_retrieve_block() {
     let block_id = certificate.digest();
 
     // AND spawn a new blocks waiter
+    let (_, rx_reconfigure) = watch::channel(Reconfigure::NewCommittee(committee.clone()));
     let (tx_commands, rx_commands) = channel(1);
     let (tx_get_block, rx_get_block) = oneshot::channel();
     let (tx_batch_messages, rx_batch_messages) = channel(10);
@@ -83,6 +85,7 @@ async fn test_successfully_retrieve_block() {
     BlockWaiter::spawn(
         name.clone(),
         committee.clone(),
+        rx_reconfigure,
         rx_commands,
         rx_batch_messages,
         Arc::new(mock_handler),
@@ -205,6 +208,7 @@ async fn test_successfully_retrieve_multiple_blocks() {
     };
 
     // AND spawn a new blocks waiter
+    let (_, rx_reconfigure) = watch::channel(Reconfigure::NewCommittee(committee.clone()));
     let (tx_commands, rx_commands) = channel(1);
     let (tx_get_blocks, rx_get_blocks) = oneshot::channel();
     let (tx_batch_messages, rx_batch_messages) = channel(10);
@@ -245,6 +249,7 @@ async fn test_successfully_retrieve_multiple_blocks() {
     BlockWaiter::spawn(
         name.clone(),
         committee.clone(),
+        rx_reconfigure,
         rx_commands,
         rx_batch_messages,
         Arc::new(mock_handler),
@@ -292,6 +297,7 @@ async fn test_one_pending_request_for_block_at_time() {
     let block_id = certificate.digest();
 
     // AND
+    let (_, rx_reconfigure) = watch::channel(Reconfigure::NewCommittee(committee.clone()));
     let (_, rx_commands) = channel(1);
     let (_, rx_batch_messages) = channel(1);
 
@@ -320,6 +326,7 @@ async fn test_one_pending_request_for_block_at_time() {
         rx_commands,
         pending_get_block: HashMap::new(),
         worker_network: PrimaryToWorkerNetwork::default(),
+        rx_reconfigure,
         rx_batch_receiver: rx_batch_messages,
         tx_pending_batch: HashMap::new(),
         tx_get_block_map: HashMap::new(),
@@ -367,6 +374,7 @@ async fn test_unlocking_pending_get_block_request_after_response() {
     let block_id = certificate.digest();
 
     // AND spawn a new blocks waiter
+    let (_, rx_reconfigure) = watch::channel(Reconfigure::NewCommittee(committee.clone()));
     let (_, rx_commands) = channel(1);
     let (_, rx_batch_messages) = channel(1);
 
@@ -390,6 +398,7 @@ async fn test_unlocking_pending_get_block_request_after_response() {
         rx_commands,
         pending_get_block: HashMap::new(),
         worker_network: PrimaryToWorkerNetwork::default(),
+        rx_reconfigure,
         rx_batch_receiver: rx_batch_messages,
         tx_pending_batch: HashMap::new(),
         tx_get_block_map: HashMap::new(),
@@ -433,6 +442,7 @@ async fn test_batch_timeout() {
     let block_id = certificate.digest();
 
     // AND spawn a new blocks waiter
+    let (_, rx_reconfigure) = watch::channel(Reconfigure::NewCommittee(committee.clone()));
     let (tx_commands, rx_commands) = channel(1);
     let (tx_get_block, rx_get_block) = oneshot::channel();
     let (_, rx_batch_messages) = channel(10);
@@ -454,6 +464,7 @@ async fn test_batch_timeout() {
     BlockWaiter::spawn(
         name.clone(),
         committee.clone(),
+        rx_reconfigure,
         rx_commands,
         rx_batch_messages,
         Arc::new(mock_handler),
@@ -497,6 +508,7 @@ async fn test_return_error_when_certificate_is_missing() {
     let block_id = certificate.digest();
 
     // AND spawn a new blocks waiter
+    let (_, rx_reconfigure) = watch::channel(Reconfigure::NewCommittee(committee.clone()));
     let (tx_commands, rx_commands) = channel(1);
     let (tx_get_block, rx_get_block) = oneshot::channel();
     let (_, rx_batch_messages) = channel(10);
@@ -512,6 +524,7 @@ async fn test_return_error_when_certificate_is_missing() {
     BlockWaiter::spawn(
         name.clone(),
         committee.clone(),
+        rx_reconfigure,
         rx_commands,
         rx_batch_messages,
         Arc::new(mock_handler),
@@ -555,6 +568,7 @@ async fn test_return_error_when_certificate_is_missing_when_get_blocks() {
     let block_id = certificate.digest();
 
     // AND spawn a new blocks waiter
+    let (_, rx_reconfigure) = watch::channel(Reconfigure::NewCommittee(committee.clone()));
     let (tx_commands, rx_commands) = channel(1);
     let (tx_get_blocks, rx_get_blocks) = oneshot::channel();
     let (_, rx_batch_messages) = channel(10);
@@ -578,6 +592,7 @@ async fn test_return_error_when_certificate_is_missing_when_get_blocks() {
     BlockWaiter::spawn(
         name.clone(),
         committee.clone(),
+        rx_reconfigure,
         rx_commands,
         rx_batch_messages,
         Arc::new(mock_handler),

@@ -20,6 +20,7 @@ async fn process_header() {
 
     let committee = committee(None);
 
+    let (_, rx_reconfigure) = watch::channel(Reconfigure::NewCommittee(committee.clone()));
     let (tx_sync_headers, _rx_sync_headers) = channel(1);
     let (tx_sync_certificates, _rx_sync_certificates) = channel(1);
     let (tx_primary_messages, rx_primary_messages) = channel(1);
@@ -62,6 +63,7 @@ async fn process_header() {
         signature_service,
         /* consensus_round */ Arc::new(AtomicU64::new(0)),
         /* gc_depth */ 50,
+        rx_reconfigure,
         /* rx_primaries */ rx_primary_messages,
         /* rx_header_waiter */ rx_headers_loopback,
         /* rx_certificate_waiter */ rx_certificates_loopback,
@@ -94,6 +96,7 @@ async fn process_header_missing_parent() {
     let name = kp.public().clone();
     let signature_service = SignatureService::new(kp);
 
+    let (_, rx_reconfigure) = watch::channel(Reconfigure::NewCommittee(committee(None)));
     let (tx_sync_headers, _rx_sync_headers) = channel(1);
     let (tx_sync_certificates, _rx_sync_certificates) = channel(1);
     let (tx_primary_messages, rx_primary_messages) = channel(1);
@@ -126,6 +129,7 @@ async fn process_header_missing_parent() {
         signature_service,
         /* consensus_round */ Arc::new(AtomicU64::new(0)),
         /* gc_depth */ 50,
+        rx_reconfigure,
         /* rx_primaries */ rx_primary_messages,
         /* rx_header_waiter */ rx_headers_loopback,
         /* rx_certificate_waiter */ rx_certificates_loopback,
@@ -155,6 +159,7 @@ async fn process_header_missing_payload() {
     let name = kp.public().clone();
     let signature_service = SignatureService::new(kp);
 
+    let (_, rx_reconfigure) = watch::channel(Reconfigure::NewCommittee(committee(None)));
     let (tx_sync_headers, _rx_sync_headers) = channel(1);
     let (tx_sync_certificates, _rx_sync_certificates) = channel(1);
     let (tx_primary_messages, rx_primary_messages) = channel(1);
@@ -187,6 +192,7 @@ async fn process_header_missing_payload() {
         signature_service,
         /* consensus_round */ Arc::new(AtomicU64::new(0)),
         /* gc_depth */ 50,
+        rx_reconfigure,
         /* rx_primaries */ rx_primary_messages,
         /* rx_header_waiter */ rx_headers_loopback,
         /* rx_certificate_waiter */ rx_certificates_loopback,
@@ -218,6 +224,7 @@ async fn process_votes() {
 
     let committee = committee(None);
 
+    let (_, rx_reconfigure) = watch::channel(Reconfigure::NewCommittee(committee.clone()));
     let (tx_sync_headers, _rx_sync_headers) = channel(1);
     let (tx_sync_certificates, _rx_sync_certificates) = channel(1);
     let (tx_primary_messages, rx_primary_messages) = channel(1);
@@ -250,6 +257,7 @@ async fn process_votes() {
         signature_service,
         /* consensus_round */ Arc::new(AtomicU64::new(0)),
         /* gc_depth */ 50,
+        rx_reconfigure,
         /* rx_primaries */ rx_primary_messages,
         /* rx_header_waiter */ rx_headers_loopback,
         /* rx_certificate_waiter */ rx_certificates_loopback,
@@ -292,6 +300,7 @@ async fn process_certificates() {
     let name = kp.public().clone();
     let signature_service = SignatureService::new(kp);
 
+    let (_, rx_reconfigure) = watch::channel(Reconfigure::NewCommittee(committee(None)));
     let (tx_sync_headers, _rx_sync_headers) = channel(1);
     let (tx_sync_certificates, _rx_sync_certificates) = channel(1);
     let (tx_primary_messages, rx_primary_messages) = channel(3);
@@ -324,6 +333,7 @@ async fn process_certificates() {
         signature_service,
         /* consensus_round */ Arc::new(AtomicU64::new(0)),
         /* gc_depth */ 50,
+        rx_reconfigure,
         /* rx_primaries */ rx_primary_messages,
         /* rx_header_waiter */ rx_headers_loopback,
         /* rx_certificate_waiter */ rx_certificates_loopback,
@@ -344,7 +354,7 @@ async fn process_certificates() {
 
     // Ensure the core sends the parents of the certificates to the proposer.
     let received = rx_parents.recv().await.unwrap();
-    assert_eq!(received, (certificates.clone(), 1));
+    assert_eq!(received, (certificates.clone(), 1, 0));
 
     // Ensure the core sends the certificates to the consensus.
     for x in certificates.clone() {

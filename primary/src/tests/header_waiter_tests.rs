@@ -3,13 +3,17 @@
 use crate::{
     common::{create_db_stores, worker_listener},
     header_waiter::{HeaderWaiter, WaiterMessage},
+    primary::Reconfigure,
     PrimaryWorkerMessage,
 };
 use core::sync::atomic::AtomicU64;
 use crypto::{ed25519::Ed25519PublicKey, Hash};
 use std::{sync::Arc, time::Duration};
 use test_utils::{fixture_header_with_payload, resolve_name_and_committee};
-use tokio::{sync::mpsc::channel, time::timeout};
+use tokio::{
+    sync::{mpsc::channel, watch},
+    time::timeout,
+};
 use types::{BatchDigest, Round};
 
 #[tokio::test]
@@ -19,6 +23,7 @@ async fn successfully_synchronize_batches() {
     let (_, certificate_store, payload_store) = create_db_stores();
     let consensus_round = Arc::new(AtomicU64::new(0));
     let gc_depth: Round = 1;
+    let (_, rx_reconfigure) = watch::channel(Reconfigure::NewCommittee(committee.clone()));
     let (tx_synchronizer, rx_synchronizer) = channel(10);
     let (tx_core, mut rx_core) = channel(10);
 
@@ -31,6 +36,7 @@ async fn successfully_synchronize_batches() {
         gc_depth,
         /* sync_retry_delay */ Duration::from_secs(5),
         /* sync_retry_nodes */ 3,
+        rx_reconfigure,
         rx_synchronizer,
         tx_core,
     );
