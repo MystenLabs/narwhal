@@ -64,7 +64,7 @@ pub fn committee(rng_seed: impl Into<Option<u64>>) -> SharedCommittee<Ed25519Pub
 
 pub fn committee_from_keys(keys: &[Ed25519KeyPair]) -> SharedCommittee<Ed25519PublicKey> {
     Arc::new(Committee {
-        epoch: Epoch::default(),
+        epoch: ArcSwap::new(Arc::new(Epoch::default())),
         authorities: ArcSwap::from_pointee(
             keys.iter()
                 .map(|kp| {
@@ -201,7 +201,7 @@ pub fn committee_from_keys(keys: &[Ed25519KeyPair]) -> SharedCommittee<Ed25519Pu
 // Fixture
 pub fn mock_committee(keys: &[Ed25519PublicKey]) -> SharedCommittee<Ed25519PublicKey> {
     Arc::new(Committee {
-        epoch: Epoch::default(),
+        epoch: ArcSwap::new(Arc::new(Epoch::default())),
         authorities: ArcSwap::from_pointee(
             keys.iter()
                 .map(|id| {
