@@ -420,6 +420,22 @@
 <span id="414">414</span>
 <span id="415">415</span>
 <span id="416">416</span>
+<span id="417">417</span>
+<span id="418">418</span>
+<span id="419">419</span>
+<span id="420">420</span>
+<span id="421">421</span>
+<span id="422">422</span>
+<span id="423">423</span>
+<span id="424">424</span>
+<span id="425">425</span>
+<span id="426">426</span>
+<span id="427">427</span>
+<span id="428">428</span>
+<span id="429">429</span>
+<span id="430">430</span>
+<span id="431">431</span>
+<span id="432">432</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 
@@ -599,7 +615,23 @@
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">origin</span>: <span class="ident">PublicKey</span>,
     ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">std::ops::RangeInclusive</span><span class="op">&lt;</span><span class="ident">Round</span><span class="op">&gt;</span>, <span class="ident">ValidatorDagError</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="comment">// Our garbage collection is a mark-and-sweep algorithm, where the mark part is in `make_compressible` and</span>
+        <span class="comment">// `read_causal` triggers a sweep.</span>
+        <span class="comment">// To make sure we don&#39;t return rounds as live when wouldn&#39;t be seen as such from a subsequent `read_causal`</span>
+        <span class="comment">// we need to trigger the sweep in the first place.</span>
+
+        <span class="comment">// Look for the heads of the graph, then trigger the sweep</span>
+        <span class="kw">for</span> <span class="ident">digest</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">dag</span>.<span class="ident">head_digests</span>() {
+            <span class="kw">let</span> <span class="ident">_res</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">read_causal</span>(<span class="ident">digest</span>).<span class="ident">map</span>(<span class="op">|</span><span class="ident">iter</span><span class="op">|</span> <span class="ident">iter</span>.<span class="ident">last</span>());
+        }
+        <span class="comment">// TODO: this may become a big source of latency if the sweep has a lot of work to do! Make sure read_causal</span>
+        <span class="comment">// calls are triggered from heads of the DAG in a background thread, and scheduled after calling remove.</span>
+        <span class="comment">// - Subsequent `read_causal` calls will be cheaper,</span>
+        <span class="comment">// - those background read_causals should flip a dirty bit here, so we maintain the invariant of at most one graph sweep</span>
+        <span class="comment">//   between a remove_collections and a `rounds` call</span>
+
         <span class="kw">let</span> (<span class="ident">earliest</span>, <span class="ident">latest</span>) <span class="op">=</span> {
+            <span class="comment">// Perform the actual round probe</span>
             <span class="kw">let</span> <span class="ident">vertices</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">vertices</span>.<span class="ident">read</span>().<span class="ident">unwrap</span>();
             <span class="kw">let</span> <span class="ident">range</span> <span class="op">=</span> <span class="ident">vertices</span>.<span class="ident">range</span>((<span class="ident">origin</span>.<span class="ident">clone</span>(), <span class="ident">Round::MIN</span>)..(<span class="ident">origin</span>.<span class="ident">clone</span>(), <span class="ident">Round::MAX</span>));
 
@@ -607,7 +639,7 @@
             <span class="comment">// yet this can&#39;t be a take_while because the DAG removal may be non-contiguous.</span>
             <span class="comment">//</span>
             <span class="comment">// Hence we rely on removals cleaning the secondary index.</span>
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">strong_references</span> <span class="op">=</span> <span class="ident">range</span>.<span class="ident">flat_map</span>(<span class="op">|</span>((<span class="ident">_key</span>, <span class="ident">round</span>), <span class="ident">val</span>)<span class="op">|</span> {
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">strong_reference_rounds</span> <span class="op">=</span> <span class="ident">range</span>.<span class="ident">flat_map</span>(<span class="op">|</span>((<span class="ident">_key</span>, <span class="ident">round</span>), <span class="ident">val</span>)<span class="op">|</span> {
                 <span class="kw">if</span> <span class="self">self</span>.<span class="ident">contains</span>(<span class="kw-2">*</span><span class="ident">val</span>) {
                     <span class="prelude-val">Some</span>(<span class="ident">round</span>)
                 } <span class="kw">else</span> {
@@ -615,8 +647,8 @@
                 }
             });
 
-            <span class="kw">let</span> <span class="ident">earliest</span> <span class="op">=</span> <span class="ident">strong_references</span>.<span class="ident">next</span>().<span class="ident">cloned</span>();
-            <span class="kw">let</span> <span class="ident">latest</span> <span class="op">=</span> <span class="ident">strong_references</span>.<span class="ident">last</span>().<span class="ident">cloned</span>().<span class="ident">or</span>(<span class="ident">earliest</span>);
+            <span class="kw">let</span> <span class="ident">earliest</span> <span class="op">=</span> <span class="ident">strong_reference_rounds</span>.<span class="ident">next</span>().<span class="ident">cloned</span>();
+            <span class="kw">let</span> <span class="ident">latest</span> <span class="op">=</span> <span class="ident">strong_reference_rounds</span>.<span class="ident">last</span>().<span class="ident">cloned</span>().<span class="ident">or</span>(<span class="ident">earliest</span>);
             (<span class="ident">earliest</span>, <span class="ident">latest</span>)
         };
         <span class="kw">match</span> (<span class="ident">earliest</span>, <span class="ident">latest</span>) {
