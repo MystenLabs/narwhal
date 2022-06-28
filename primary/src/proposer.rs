@@ -9,7 +9,7 @@ use tokio::{
     sync::mpsc::{Receiver, Sender},
     time::{sleep, Duration, Instant},
 };
-use tracing::{debug, warn};
+use tracing::debug;
 use types::{BatchDigest, Certificate, Header, Round};
 
 #[cfg(test)]
