@@ -407,7 +407,7 @@ async fn shutdown_core() {
     );
 
     // Spawn the core.
-    Core::spawn(
+    let handle = Core::spawn(
         name,
         committee,
         header_store,
@@ -426,10 +426,10 @@ async fn shutdown_core() {
     );
 
     // Shutdown the core.
-    let (token, mut rx) = channel(1);
+    let (token, _rx) = channel(1);
     let shutdown = Reconfigure::Shutdown(token);
     tx_reconfigure.send(shutdown).unwrap();
-    rx.recv().await;
+    assert!(handle.await.is_ok());
 }
 
 #[tokio::test]

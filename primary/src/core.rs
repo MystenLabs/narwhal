@@ -29,7 +29,7 @@ use tracing::{debug, error, instrument, warn};
 use types::{
     ensure,
     error::{DagError, DagResult},
-    Certificate, CertificateDigest, Header, HeaderDigest, Round, ShutdownToken, Vote,
+    Certificate, CertificateDigest, Header, HeaderDigest, Round, Vote,
 };
 
 #[cfg(test)]
@@ -107,7 +107,7 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
         tx_proposer: Sender<(Vec<Certificate<PublicKey>>, Round, Epoch)>,
     ) -> JoinHandle<()> {
         tokio::spawn(async move {
-            let shutdown_token = Self {
+            Self {
                 name,
                 committee,
                 header_store,
@@ -134,7 +134,6 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
             }
             .run()
             .await;
-            drop(shutdown_token);
         })
     }
 
@@ -450,7 +449,7 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
     }
 
     // Main loop listening to incoming messages.
-    pub async fn run(&mut self) -> ShutdownToken {
+    pub async fn run(&mut self) {
         loop {
             let result = tokio::select! {
                 // We receive here messages from other primaries.
@@ -500,7 +499,7 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
                             self.update_committee(new_committee);
                             Ok(())
                         },
-                        Reconfigure::Shutdown(token) => return token
+                        Reconfigure::Shutdown(_token) => return
                     }
                 }
             };
