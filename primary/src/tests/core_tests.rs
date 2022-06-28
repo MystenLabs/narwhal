@@ -20,7 +20,8 @@ async fn process_header() {
 
     let committee = committee(None);
 
-    let (_, rx_reconfigure) = watch::channel(Reconfigure::NewCommittee(committee.clone()));
+    let (_tx_reconfigure, rx_reconfigure) =
+        watch::channel(Reconfigure::NewCommittee(committee.clone()));
     let (tx_sync_headers, _rx_sync_headers) = channel(1);
     let (tx_sync_certificates, _rx_sync_certificates) = channel(1);
     let (tx_primary_messages, rx_primary_messages) = channel(1);
@@ -224,7 +225,8 @@ async fn process_votes() {
 
     let committee = committee(None);
 
-    let (_, rx_reconfigure) = watch::channel(Reconfigure::NewCommittee(committee.clone()));
+    let (_tx_reconfigure, rx_reconfigure) =
+        watch::channel(Reconfigure::NewCommittee(committee.clone()));
     let (tx_sync_headers, _rx_sync_headers) = channel(1);
     let (tx_sync_certificates, _rx_sync_certificates) = channel(1);
     let (tx_primary_messages, rx_primary_messages) = channel(1);
@@ -300,7 +302,8 @@ async fn process_certificates() {
     let name = kp.public().clone();
     let signature_service = SignatureService::new(kp);
 
-    let (_, rx_reconfigure) = watch::channel(Reconfigure::NewCommittee(committee(None)));
+    let (_tx_reconfigure, rx_reconfigure) =
+        watch::channel(Reconfigure::NewCommittee(committee(None)));
     let (tx_sync_headers, _rx_sync_headers) = channel(1);
     let (tx_sync_certificates, _rx_sync_certificates) = channel(1);
     let (tx_primary_messages, rx_primary_messages) = channel(3);

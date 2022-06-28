@@ -23,7 +23,8 @@ async fn successfully_synchronize_batches() {
     let (_, certificate_store, payload_store) = create_db_stores();
     let consensus_round = Arc::new(AtomicU64::new(0));
     let gc_depth: Round = 1;
-    let (_, rx_reconfigure) = watch::channel(Reconfigure::NewCommittee(committee.clone()));
+    let (_tx_reconfigure, rx_reconfigure) =
+        watch::channel(Reconfigure::NewCommittee(committee.clone()));
     let (tx_synchronizer, rx_synchronizer) = channel(10);
     let (tx_core, mut rx_core) = channel(10);
 

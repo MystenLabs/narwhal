@@ -41,7 +41,8 @@ async fn test_successful_headers_synchronization() {
     // AND the necessary keys
     let (name, committee) = resolve_name_and_committee();
 
-    let (_, rx_reconfigure) = watch::channel(Reconfigure::NewCommittee(committee.clone()));
+    let (_tx_reconfigure, rx_reconfigure) =
+        watch::channel(Reconfigure::NewCommittee(committee.clone()));
     let (tx_commands, rx_commands) = channel(10);
     let (tx_certificate_responses, rx_certificate_responses) = channel(10);
     let (_, rx_payload_availability_responses) = channel(10);
@@ -199,7 +200,8 @@ async fn test_successful_payload_synchronization() {
     // AND the necessary keys
     let (name, committee) = resolve_name_and_committee();
 
-    let (_, rx_reconfigure) = watch::channel(Reconfigure::NewCommittee(committee.clone()));
+    let (_tx_reconfigure, rx_reconfigure) =
+        watch::channel(Reconfigure::NewCommittee(committee.clone()));
     let (tx_commands, rx_commands) = channel(10);
     let (_tx_certificate_responses, rx_certificate_responses) = channel(10);
     let (tx_payload_availability_responses, rx_payload_availability_responses) = channel(10);
@@ -518,7 +520,8 @@ async fn test_timeout_while_waiting_for_certificates() {
     let (name, committee) = resolve_name_and_committee();
     let key = keys(None).pop().unwrap();
 
-    let (_, rx_reconfigure) = watch::channel(Reconfigure::NewCommittee(committee.clone()));
+    let (_tx_reconfigure, rx_reconfigure) =
+        watch::channel(Reconfigure::NewCommittee(committee.clone()));
     let (tx_commands, rx_commands) = channel(10);
     let (_, rx_certificate_responses) = channel(10);
     let (_, rx_payload_availability_responses) = channel(10);

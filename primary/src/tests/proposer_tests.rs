@@ -12,7 +12,8 @@ async fn propose_empty() {
     let name = kp.public().clone();
     let signature_service = SignatureService::new(kp);
 
-    let (_, rx_reconfigure) = watch::channel(Reconfigure::NewCommittee(committee(None)));
+    let (_tx_reconfigure, rx_reconfigure) =
+        watch::channel(Reconfigure::NewCommittee(committee(None)));
     let (_tx_parents, rx_parents) = channel(1);
     let (_tx_our_digests, rx_our_digests) = channel(1);
     let (tx_headers, mut rx_headers) = channel(1);
@@ -44,7 +45,8 @@ async fn propose_payload() {
     let name = kp.public().clone();
     let signature_service = SignatureService::new(kp);
 
-    let (_, rx_reconfigure) = watch::channel(Reconfigure::NewCommittee(committee(None)));
+    let (_tx_reconfigure, rx_reconfigure) =
+        watch::channel(Reconfigure::NewCommittee(committee(None)));
     let (_tx_parents, rx_parents) = channel(1);
     let (tx_our_digests, rx_our_digests) = channel(1);
     let (tx_headers, mut rx_headers) = channel(1);
