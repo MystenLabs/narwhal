@@ -157,7 +157,7 @@ impl ShutdownToken {
 ///
 /// async fn spawn_long_running_tasks() {   
 ///     // A task which is safe to just cancel on shutdown
-///     let task1 = TaskTracker::get().spawn_cancel(
+///     let task1 = TaskTracker::spawn_cancel(
 ///         Some("test".to_string()),
 ///         async move {
 ///             tokio::time::sleep(std::time::Duration::from_secs(6000)).await;
@@ -165,7 +165,7 @@ impl ShutdownToken {
 ///         }
 ///     );
 ///     // A task which needs to be waited on during shutdown
-///     let task2 = TaskTracker::get().spawn_wait(
+///     let task2 = TaskTracker::spawn_wait(
 ///         Some("test".to_string()),
 ///         async move {
 ///             tokio::time::sleep(std::time::Duration::from_secs(6000)).await;
@@ -174,7 +174,7 @@ impl ShutdownToken {
 ///     );
 ///     // A task which needs to suspend its normal execution and
 ///     // run a shutdown sequence
-///     let task3 = TaskTracker::get().spawn_cancel_and_wait(
+///     let task3 = TaskTracker::spawn_cancel_and_wait(
 ///         Some("test".to_string()),
 ///         // normal execution
 ///         async move {
@@ -191,7 +191,7 @@ impl ShutdownToken {
 ///    // its own shutdown token
 ///    let token = ShutdownToken::new();
 ///    let cloned_token = token.clone();
-///    let task4 = TaskTracker::get().spawn(
+///    let task4 = TaskTracker::spawn(
 ///         Some("test".to_string()),
 ///         async move {
 ///             tokio::select! {
@@ -213,7 +213,7 @@ impl ShutdownToken {
 /// async fn request_shutdown() -> {
 ///  // Do other shutdown steps
 ///  // Send shutdown signal to all spawned tasks
-///   TaskTracker::get().shutdown_and_wait().await;  
+///   TaskTracker::shutdown_and_wait().await;  
 /// }
 /// #[tokio::main]
 /// fn main () -> {
