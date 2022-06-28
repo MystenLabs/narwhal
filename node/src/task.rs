@@ -1,4 +1,5 @@
 use async_shutdown::Shutdown;
+use futures::future::BoxFuture;
 use futures::{future, Future};
 use once_cell::sync::OnceCell;
 use parking_lot::Mutex;
@@ -85,7 +86,7 @@ impl<T> Drop for TaskHandle<T> {
 
 #[derive(Clone)]
 pub struct ShutdownToken {
-    internal: Shutdown,
+    pub internal: Shutdown,
 }
 
 pub type CancelToken = async_shutdown::WrapCancel<future::Pending<()>>;
@@ -335,7 +336,10 @@ impl TaskTracker {
             state: Arc::new(Mutex::new(state)),
         }
     }
-    pub async fn cancel(&self, task_id: u64) {
+    pub async fn cancel(task_id: u64) {
+        TaskTracker::get().call_cancel(task_id).await
+    }
+    pub async fn call_cancel(&self, task_id: u64) {
         let task;
         {
             let mut state = self.state.lock();
@@ -350,6 +354,17 @@ impl TaskTracker {
         }
     }
     pub fn spawn<T>(
+        tag: Option<String>,
+        run: T,
+        shutdown_token: ShutdownToken,
+    ) -> TaskHandle<T::Output>
+    where
+        T: Future + Send + 'static,
+        T::Output: Send + 'static,
+    {
+        TaskTracker::get().call_spawn(tag, run, shutdown_token)
+    }
+    pub fn call_spawn<T>(
         &self,
         tag: Option<String>,
         run: T,
@@ -371,7 +386,14 @@ impl TaskTracker {
         });
         self.get_task_handle::<T>(tag, task_id, shutdown_token.internal, fut, detached, rx)
     }
-    pub fn spawn_cancel<T>(&self, tag: Option<String>, run: T) -> TaskHandle<T::Output>
+    pub fn spawn_cancel<T>(tag: Option<String>, run: T) -> TaskHandle<T::Output>
+    where
+        T: Future + Send + 'static,
+        T::Output: Send + 'static,
+    {
+        TaskTracker::get().call_spawn_cancel(tag, run)
+    }
+    pub fn call_spawn_cancel<T>(&self, tag: Option<String>, run: T) -> TaskHandle<T::Output>
     where
         T: Future + Send + 'static,
         T::Output: Send + 'static,
@@ -396,7 +418,14 @@ impl TaskTracker {
         });
         self.get_task_handle::<T>(tag, task_id, cloned_token, fut, detached, rx)
     }
-    pub fn spawn_wait<T>(&self, tag: Option<String>, run: T) -> TaskHandle<T::Output>
+    pub fn spawn_wait<T>(tag: Option<String>, run: T) -> TaskHandle<T::Output>
+    where
+        T: Future + Send + 'static,
+        T::Output: Send + 'static,
+    {
+        TaskTracker::get().call_spawn_wait(tag, run)
+    }
+    pub fn call_spawn_wait<T>(&self, tag: Option<String>, run: T) -> TaskHandle<T::Output>
     where
         T: Future + Send + 'static,
         T::Output: Send + 'static,
@@ -422,6 +451,19 @@ impl TaskTracker {
         self.get_task_handle::<T>(tag, task_id, cloned_token, fut, detached, rx)
     }
     pub fn spawn_cancel_and_wait<T, U>(
+        tag: Option<String>,
+        run: T,
+        cleanup: U,
+    ) -> TaskHandle<Result<T::Output, U::Output>>
+    where
+        T: Future + Send + 'static,
+        T::Output: Send + 'static,
+        U: Future + Send + 'static,
+        U::Output: Send + 'static,
+    {
+        TaskTracker::get().call_spawn_cancel_and_wait(tag, run, cleanup)
+    }
+    pub fn call_spawn_cancel_and_wait<T, U>(
         &self,
         tag: Option<String>,
         run: T,
@@ -514,8 +556,11 @@ impl TaskTracker {
             detached: false,
         }
     }
+    pub async fn shutdown_and_wait() {
+        TaskTracker::get().call_shutdown_and_wait().await
+    }
     /// signals shutdown of this executor and any Clones
-    pub async fn shutdown_and_wait(&self) {
+    pub async fn call_shutdown_and_wait(&self) {
         // hang up the channel which will cause the dedicated thread
         // to quit
         let mut shutdown_started = false;
@@ -534,7 +579,10 @@ impl TaskTracker {
             }
         }
     }
-    pub async fn stop_task(&self, task_id: u64) {
+    pub async fn stop_task(task_id: u64) {
+        TaskTracker::get().call_stop_task(task_id).await
+    }
+    pub async fn call_stop_task(&self, task_id: u64) {
         let task;
         {
             let mut state = self.state.lock();
@@ -548,9 +596,12 @@ impl TaskTracker {
             shutdown.clone().wait_shutdown_complete().await;
         }
     }
-    pub async fn stop_tagged_tasks(&self, tag: String) {
+    pub async fn stop_tagged_tasks(tag: String) {
+        TaskTracker::get().call_stop_tagged_tasks(tag).await
+    }
+    pub async fn call_stop_tagged_tasks(&self, tag: String) {
         let mut task_ids: Vec<u64> = vec![];
-        let mut futures: Vec<Pin<Box<dyn Future<Output = ()>>>> = vec![];
+        let mut futures: Vec<BoxFuture<()>> = vec![];
         {
             let state = self.state.lock();
             for (task_id, task) in state.tasks.iter() {
@@ -560,7 +611,7 @@ impl TaskTracker {
             }
         }
         for task_id in task_ids {
-            futures.push(Box::pin(self.stop_task(task_id)));
+            futures.push(Box::pin(self.call_stop_task(task_id)));
         }
         futures::future::join_all(futures).await;
     }
@@ -586,24 +637,23 @@ impl Drop for TaskTracker {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use futures::future;
     use std::sync::atomic::{AtomicU64, Ordering};
 
     #[tokio::test]
     async fn basic() {
-        let mut tracker = TaskTracker::new("task_tracker".to_string());
+        let tracker = TaskTracker::new("task_tracker".to_string());
         // a task which will be cancelled on shutdown
-        let task1 = tracker.spawn_cancel(Some("tagA".to_string()), async move {
+        let task1 = tracker.call_spawn_cancel(Some("tagA".to_string()), async move {
             tokio::time::sleep(std::time::Duration::from_secs(600)).await;
             42
         });
         // a task which we will wait for completion on shutdown
-        let task2 = tracker.spawn_wait(Some("tagA".to_string()), async move {
+        let task2 = tracker.call_spawn_wait(Some("tagA".to_string()), async move {
             tokio::time::sleep(std::time::Duration::from_secs(20)).await;
             42
         });
         // a task which will be canceled and cleanup on shutdown
-        let task3 = tracker.spawn_cancel_and_wait(
+        let task3 = tracker.call_spawn_cancel_and_wait(
             Some("tagB".to_string()),
             // Future will be cancelled on shutdown
             async move {
@@ -615,7 +665,7 @@ mod tests {
         );
         let shutdown_token = ShutdownToken::new();
         let cloned = shutdown_token.clone();
-        let task4 = tracker.spawn(
+        let task4 = tracker.call_spawn(
             Some("tagB".to_string()),
             async move {
                 // long running task inside our closure which we want to cancel
@@ -636,12 +686,12 @@ mod tests {
         );
 
         // shutdown tasks with tagB
-        tracker.stop_tagged_tasks("tagB".to_string()).await;
+        tracker.call_stop_tagged_tasks("tagB".to_string()).await;
         assert_eq!(task3.await.unwrap(), Err(43));
         assert_eq!(task4.await.unwrap(), 43);
 
         // shutdown all tasks
-        tracker.shutdown_and_wait().await;
+        tracker.call_shutdown_and_wait().await;
         drop(tracker);
 
         assert_eq!(task1.await.is_err(), true);
@@ -659,7 +709,7 @@ mod tests {
         let cloned_counter = counter.clone();
         // task is a future which increments a counter in a loop
         // but on receiving shutdown, we need to reset it to 0
-        let task = tracker.spawn(
+        let task = tracker.call_spawn(
             Some("tagA".to_string()),
             async move {
                 loop {
@@ -691,7 +741,7 @@ mod tests {
         assert!(counter.clone().load(Ordering::SeqCst) > 5);
         // Shutdown everything. This will wait until the shutdown code
         // block has completed execution and wait token notifies
-        tracker.shutdown_and_wait().await;
+        tracker.call_shutdown_and_wait().await;
         assert_eq!(counter.clone().load(Ordering::SeqCst), 0);
     }
 
@@ -706,7 +756,7 @@ mod tests {
         let cloned_counter = counter.clone();
         // task is a future which increments a counter in a loop
         // but on receiving shutdown, we need to reset it to 0
-        let task = tracker.spawn(
+        let task = tracker.call_spawn(
             Some("tagA".to_string()),
             async move {
                 loop {
@@ -739,7 +789,7 @@ mod tests {
         // moving forward, this does not guarantee the counter
         // is reset by the time `tracker.shutdown_and_wait().await`
         // completes
-        tracker.shutdown_and_wait().await;
+        tracker.call_shutdown_and_wait().await;
         // Wait outside for a few seconds, and then check the value
         // of counter
         tokio::time::sleep(std::time::Duration::from_secs(5)).await;
@@ -748,27 +798,27 @@ mod tests {
 
     #[tokio::test]
     async fn test_clone() {
-        let mut tracker = TaskTracker::new("task_tracker".to_string());
+        let tracker = TaskTracker::new("task_tracker".to_string());
         let cloned = tracker.clone();
-        let task = cloned.spawn_wait(Some("tagA".to_string()), async move {
+        let task = cloned.call_spawn_wait(Some("tagA".to_string()), async move {
             tokio::time::sleep(std::time::Duration::from_secs(20)).await;
             42
         });
         task.stop().await;
         assert_eq!(task.await.unwrap(), 42);
-        cloned.shutdown_and_wait().await;
+        cloned.call_shutdown_and_wait().await;
     }
 
     #[tokio::test]
     async fn test_multiple_shudowns() {
         let mut tracker = TaskTracker::new("task_tracker".to_string());
-        let task = tracker.spawn_wait(Some("tagA".to_string()), async move {
+        let task = tracker.call_spawn_wait(Some("tagA".to_string()), async move {
             tokio::time::sleep(std::time::Duration::from_secs(20)).await;
             42
         });
-        tracker.shutdown_and_wait().await;
-        tracker.shutdown_and_wait().await;
-        tracker.shutdown_and_wait().await;
+        tracker.call_shutdown_and_wait().await;
+        tracker.call_shutdown_and_wait().await;
+        tracker.call_shutdown_and_wait().await;
         assert_eq!(task.await.unwrap(), 42);
     }
 }

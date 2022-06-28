@@ -21,9 +21,6 @@ tonic = "0.7.2"
 tokio-stream = "0.1.8"
 tower = "0.4.12"
 multiaddr = "0.14.0"
-async-shutdown = "0.1.2"
-parking_lot = "0.11.2"
-once_cell = "1.12.0"
 
 config = { path = "../config" }
 crypto = { path = "../crypto" }

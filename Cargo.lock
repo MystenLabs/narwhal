@@ -1989,6 +1989,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "arc-swap",
+ "async-shutdown",
  "async-trait",
  "bincode",
  "bytes",
@@ -2001,6 +2002,8 @@ dependencies = [
  "executor",
  "futures",
  "hex",
+ "once_cell",
+ "parking_lot 0.11.2",
  "pretty_assertions",
  "primary",
  "rand 0.7.3",
@@ -4041,7 +4044,6 @@ name = "worker"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "async-shutdown",
  "async-trait",
  "bincode",
  "blake2",
@@ -4053,8 +4055,6 @@ dependencies = [
  "multiaddr",
  "mysten-network",
  "network",
- "once_cell",
- "parking_lot 0.11.2",
  "primary",
  "rand 0.7.3",
  "serde",

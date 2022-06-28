@@ -24,6 +24,9 @@ tracing = "0.1.34"
 tracing-log = "0.1.3"
 tracing-subscriber = { version = "0.3.11", features = ["time", "env-filter"] }
 url = "2.2.2"
+async-shutdown = "0.1.2"
+parking_lot = "0.11.2"
+once_cell = "1.12.0"
 
 config = { path = "../config" }
 consensus = { path = "../consensus" }

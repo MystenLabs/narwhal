@@ -22,6 +22,7 @@ use types::{
 };
 use worker::Worker;
 
+mod task;
 /// All the data stores of the node.
 pub struct NodeStorage<PublicKey: VerifyingKey> {
     pub header_store: Store<HeaderDigest, Header<PublicKey>>,
