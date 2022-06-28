@@ -546,6 +546,9 @@
 <span id="540">540</span>
 <span id="541">541</span>
 <span id="542">542</span>
+<span id="543">543</span>
+<span id="544">544</span>
+<span id="545">545</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 
@@ -933,11 +936,14 @@
         }
 
         <span class="attribute">#[<span class="ident">test</span>]</span>
-        <span class="attribute">#[<span class="ident">ignore</span> <span class="op">=</span> <span class="string">&quot;Issue #375&quot;</span>]</span>
         <span class="kw">fn</span> <span class="ident">test_dag_sanity_check</span>(
             <span class="ident">dag</span> <span class="kw">in</span> <span class="ident">arb_dag_complete</span>(<span class="number">10</span>, <span class="number">10</span>)
         ) {
-            <span class="macro">assert!</span>(<span class="ident">dag</span>.<span class="ident">len</span>() <span class="op">&lt;</span><span class="op">=</span> <span class="number">100</span>);
+            <span class="comment">// the `prop_recursive` combinator used in `arb_dag_complete` is actually probabilistic, see:</span>
+            <span class="comment">// https://github.com/AltSysrq/proptest/blob/master/proptest/src/strategy/recursive.rs#L83-L110</span>
+            <span class="comment">// so we can&#39;t test for our desired size here (100), we rather test for something that will pass</span>
+            <span class="comment">// with overwhelming probability</span>
+            <span class="macro">assert!</span>(<span class="ident">dag</span>.<span class="ident">len</span>() <span class="op">&lt;</span><span class="op">=</span> <span class="number">200</span>);
         }
 
         <span class="attribute">#[<span class="ident">test</span>]</span>
