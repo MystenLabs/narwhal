@@ -26,7 +26,7 @@ thiserror = "1.0.31"
 tokio = { version = "1.19.2", features = ["sync", "rt", "macros"] }
 tokio-util = { version = "0.7.3", features = ["codec"] }
 tonic = "0.7.2"
-tower = "0.4.12"
+tower = "0.4.13"
 tracing = "0.1.34"
 
 consensus = { path = "../consensus" }
