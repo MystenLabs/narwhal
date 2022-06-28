@@ -230,7 +230,7 @@ impl<PublicKey: VerifyingKey> fmt::Debug for Header<PublicKey> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(
             f,
-            "{}: B{}({}, {}, {})",
+            "{}: B{}({}, E{}, {}B)",
             self.id,
             self.round,
             self.author.encode_base64(),
@@ -350,7 +350,7 @@ impl<PublicKey: VerifyingKey> fmt::Debug for Vote<PublicKey> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(
             f,
-            "{}: V{}({}, {}, {})",
+            "{}: V{}({}, {}, E{})",
             self.digest(),
             self.round,
             self.author.encode_base64(),

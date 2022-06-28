@@ -239,23 +239,7 @@ pub fn make_consensus_store(store_path: &std::path::Path) -> Arc<ConsensusStore<
 
 // Fixture
 pub fn header() -> Header<Ed25519PublicKey> {
-    let kp = keys(None).pop().unwrap();
-    let header = Header {
-        author: kp.public().clone(),
-        round: 1,
-        parents: Certificate::genesis(&committee(None))
-            .iter()
-            .map(|x| x.digest())
-            .collect(),
-        ..Header::default()
-    };
-
-    let header_digest = header.digest();
-    Header {
-        id: header_digest,
-        signature: kp.sign(Digest::from(header_digest).as_ref()),
-        ..header
-    }
+    header_with_epoch(&committee(None))
 }
 
 // Fixture
@@ -280,6 +264,28 @@ pub fn headers() -> Vec<Header<Ed25519PublicKey>> {
             }
         })
         .collect()
+}
+
+// Fixture
+pub fn header_with_epoch(committee: &Committee<Ed25519PublicKey>) -> Header<Ed25519PublicKey> {
+    let kp = keys(None).pop().unwrap();
+    let header = Header {
+        author: kp.public().clone(),
+        round: 1,
+        epoch: committee.epoch(),
+        parents: Certificate::genesis(&committee)
+            .iter()
+            .map(|x| x.digest())
+            .collect(),
+        ..Header::default()
+    };
+
+    let header_digest = header.digest();
+    Header {
+        id: header_digest,
+        signature: kp.sign(Digest::from(header_digest).as_ref()),
+        ..header
+    }
 }
 
 #[allow(dead_code)]

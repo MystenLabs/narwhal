@@ -140,19 +140,12 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
 
     #[instrument(level = "debug", skip_all)]
     async fn process_own_header(&mut self, header: Header<PublicKey>) -> DagResult<()> {
-        // Update the committee now if the proposer already did so.
-        if self
-            .rx_reconfigure
-            .has_changed()
-            .expect("Reconfigure channel dropped")
-        {
-            let message = self.rx_reconfigure.borrow().clone();
-            if let Reconfigure::NewCommittee(new_committee) = message {
-                self.update_committee(new_committee);
-                // Mark the value as seen.
-                let _ = self.rx_reconfigure.borrow_and_update();
-            }
+        if header.epoch < self.committee.epoch() {
+            return Ok(());
         }
+
+        // Update the committee now if the proposer already did so.
+        self.try_update_committee();
 
         // Reset the votes aggregator.
         self.current_header = header.clone();
@@ -356,6 +349,9 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
     }
 
     fn sanitize_header(&mut self, header: &Header<PublicKey>) -> DagResult<()> {
+        if header.epoch > self.committee.epoch() {
+            self.try_update_committee();
+        }
         ensure!(
             self.committee.epoch() == header.epoch,
             DagError::InvalidEpoch {
@@ -377,6 +373,9 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
     }
 
     fn sanitize_vote(&mut self, vote: &Vote<PublicKey>) -> DagResult<()> {
+        if vote.epoch > self.committee.epoch() {
+            self.try_update_committee();
+        }
         ensure!(
             self.committee.epoch() == vote.epoch,
             DagError::InvalidEpoch {
@@ -402,6 +401,9 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
     }
 
     fn sanitize_certificate(&mut self, certificate: &Certificate<PublicKey>) -> DagResult<()> {
+        if certificate.epoch() > self.committee.epoch() {
+            self.try_update_committee();
+        }
         ensure!(
             self.committee.epoch() == certificate.epoch(),
             DagError::InvalidEpoch {
@@ -418,8 +420,25 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
         certificate.verify(&self.committee).map_err(DagError::from)
     }
 
+    /// If a new committee is available, update our internal state.
+    fn try_update_committee(&mut self) {
+        if self
+            .rx_reconfigure
+            .has_changed()
+            .expect("Reconfigure channel dropped")
+        {
+            let message = self.rx_reconfigure.borrow().clone();
+            if let Reconfigure::NewCommittee(new_committee) = message {
+                self.update_committee(new_committee);
+                // Mark the value as seen.
+                let _ = self.rx_reconfigure.borrow_and_update();
+            }
+        }
+    }
+
     /// Update the committee and cleanup internal state.
     fn update_committee(&mut self, committee: SharedCommittee<PublicKey>) {
+        tracing::info!("Committee updated to epoch {}", committee.epoch);
         self.last_voted.clear();
         self.processing.clear();
         self.certificates_aggregators.clear();
