@@ -233,7 +233,7 @@ pub fn header_with_epoch(committee: &Committee<Ed25519PublicKey>) -> Header<Ed25
         author: kp.public().clone(),
         round: 1,
         epoch: committee.epoch(),
-        parents: Certificate::genesis(&committee)
+        parents: Certificate::genesis(committee)
             .iter()
             .map(|x| x.digest())
             .collect(),
