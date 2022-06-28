@@ -112,8 +112,7 @@ type RequestKey = Vec<u8>;
 /// the result of it.
 ///
 /// ```rust
-/// # use tokio::sync::mpsc::{channel};
-/// # use tokio::sync::oneshot;
+/// # use tokio::sync::{mpsc::{channel}, watch, oneshot};
 /// # use arc_swap::ArcSwap;
 /// # use crypto::Hash;
 /// # use std::env::temp_dir;
@@ -155,7 +154,8 @@ type RequestKey = Vec<u8>;
 ///     let (tx_get_block, mut rx_get_block) = oneshot::channel();
 ///
 ///     let name = Ed25519PublicKey::default();
-///     let committee = Arc::new(Committee{ epoch: 0, authorities: ArcSwap::from_pointee(BTreeMap::new()) });
+///     let committee = Arc::new(Committee{ epoch: ArcSwap::new(Arc::new(0)), authorities: ArcSwap::from_pointee(BTreeMap::new()) });
+///     let (_tx_reconfigure, rx_reconfigure) = watch::channel(committee);
 ///
 ///     // A dummy certificate
 ///     let certificate = Certificate::<Ed25519PublicKey>::default();
@@ -165,6 +165,7 @@ type RequestKey = Vec<u8>;
 ///     BlockWaiter::spawn(
 ///         name,
 ///         committee,
+///         rx_reconfigure,
 ///         rx_commands,
 ///         rx_batches,
 ///         Arc::new(BlockSynchronizerHandler{}),

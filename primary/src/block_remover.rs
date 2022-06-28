@@ -79,7 +79,7 @@ pub struct DeleteBatchMessage {
 /// ```rust
 /// # use store::{reopen, rocks, rocks::DBMap, Store};
 /// # use network::PrimaryToWorkerNetwork;
-/// # use tokio::sync::mpsc::{channel};
+/// # use tokio::sync::{mpsc::{channel}, watch};
 /// # use arc_swap::ArcSwap;
 /// # use crypto::Hash;
 /// # use std::env::temp_dir;
@@ -120,7 +120,8 @@ pub struct DeleteBatchMessage {
 ///     let (tx_delete_block_result, mut rx_delete_block_result) = channel(1);
 ///
 ///     let name = Ed25519PublicKey::default();
-///     let committee = Arc::new(Committee{ epoch: 0, authorities: ArcSwap::from_pointee(BTreeMap::new()) });
+///     let committee = Arc::new(Committee{ epoch: ArcSwap::new(Arc::new(0)), authorities: ArcSwap::from_pointee(BTreeMap::new()) });
+///     let (_tx_reconfigure, rx_reconfigure) = watch::channel(committee.clone());
 ///     // A dag with genesis for the committee
 ///     let (tx_new_certificates, rx_new_certificates) = channel(1);
 ///     let dag = Arc::new(Dag::new(&committee, rx_new_certificates).1);
@@ -139,6 +140,7 @@ pub struct DeleteBatchMessage {
 ///         headers_store.clone(),
 ///         payload_store.clone(),
 ///         Some(dag),
+///         rx_reconfigure,
 ///         PrimaryToWorkerNetwork::default(),
 ///         rx_commands,
 ///         rx_delete_batches,
