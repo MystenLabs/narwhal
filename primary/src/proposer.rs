@@ -196,6 +196,11 @@ impl<PublicKey: VerifyingKey> Proposer<PublicKey> {
             let timer_expired = timer.is_elapsed();
 
             if (timer_expired || (enough_digests && advance)) && enough_parents {
+                if timer_expired && matches!(self.network_model, NetworkModel::PartiallySynchronous)
+                {
+                    debug!("Timer expired for round {}", self.round);
+                }
+
                 // Advance to the next round.
                 self.round += 1;
                 debug!("Dag moved to round {}", self.round);
