@@ -1,3 +1,4 @@
+use arc_swap::ArcSwap;
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use config::{Authority, Committee, Epoch, PrimaryAddresses, WorkerAddresses};
@@ -13,7 +14,7 @@ use types::{Batch, BatchDigest, Certificate, CertificateDigest, Header, HeaderDi
 
 use rand::{prelude::StdRng, SeedableRng};
 use serde_reflection::{Registry, Result, Samples, Tracer, TracerConfig};
-use std::{fs::File, io::Write};
+use std::{fs::File, io::Write, sync::Arc};
 use structopt::{clap::arg_enum, StructOpt};
 
 fn get_registry() -> Result<Registry> {
@@ -37,7 +38,7 @@ fn get_registry() -> Result<Registry> {
     // Trace the correspondng header
     let keys: Vec<_> = (0..4).map(|_| Ed25519KeyPair::generate(&mut rng)).collect();
     let committee = Committee {
-        epoch: Epoch::default(),
+        epoch: ArcSwap::new(Arc::new(Epoch::default())),
         authorities: arc_swap::ArcSwap::from_pointee(
             keys.iter()
                 .enumerate()
