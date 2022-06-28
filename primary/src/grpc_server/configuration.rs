@@ -93,8 +93,13 @@ impl<PublicKey: VerifyingKey> Configuration for NarwhalConfiguration<PublicKey> 
         request: Request<NewNetworkInfoRequest>,
     ) -> Result<Response<Empty>, Status> {
         let new_network_info_request = request.into_inner();
-        // TODO: Figure out how to verify network data against current epoch.
-        let _epoch_number = new_network_info_request.epoch_number;
+        let epoch_number: u64 = new_network_info_request.epoch_number.into();
+        if epoch_number != self.committee.epoch {
+            return Err(Status::invalid_argument(format!(
+                "Passed in epoch {epoch_number} does not match current epoch {}",
+                self.committee.epoch
+            )));
+        }
         let validators = new_network_info_request.validators;
         let mut new_network_info = BTreeMap::new();
         for validator in validators.iter() {

@@ -144,6 +144,17 @@ async fn test_new_network_info() {
     }
 
     let request = tonic::Request::new(NewNetworkInfoRequest {
+        epoch_number: 1,
+        validators: validators.clone(),
+    });
+
+    let status = client.new_network_info(request).await.unwrap_err();
+
+    assert!(status
+        .message()
+        .contains("Passed in epoch 1 does not match current epoch 0"));
+
+    let request = tonic::Request::new(NewNetworkInfoRequest {
         epoch_number: 0,
         validators,
     });
