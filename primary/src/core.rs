@@ -152,16 +152,12 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
         self.votes_aggregator = VotesAggregator::new();
 
         // Broadcast the new header in a reliable manner.
-        let addresses: Vec<_> = self
+        let addresses = self
             .committee
             .others_primaries(&self.name)
             .into_iter()
             .map(|(_, x)| x.primary_to_primary)
             .collect();
-
-        let mut x: Vec<_> = addresses.iter().map(|x| x.clone()).collect();
-        x.sort();
-        println!("Sending new header to {:?}", x);
 
         let message = PrimaryMessage::Header(header.clone());
         let handlers = self.network.broadcast(addresses, &message).await;
@@ -178,7 +174,6 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
     #[instrument(level = "debug", skip_all)]
     async fn process_header(&mut self, header: &Header<PublicKey>) -> DagResult<()> {
         debug!("Processing {:?}", header);
-        println!("Processing {:?}", header);
         // Indicate that we are processing this header.
         self.processing
             .entry(header.round)
@@ -264,7 +259,6 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
     #[instrument(level = "debug", skip_all)]
     async fn process_vote(&mut self, vote: Vote<PublicKey>) -> DagResult<()> {
         debug!("Processing {:?}", vote);
-        println!("Processing {:?}", vote);
 
         // Add it to the votes' aggregator and try to make a new certificate.
         if let Some(certificate) =
@@ -299,7 +293,6 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
     #[instrument(level = "debug", skip_all)]
     async fn process_certificate(&mut self, certificate: Certificate<PublicKey>) -> DagResult<()> {
         debug!("Processing {:?}", certificate);
-        println!("Processing {:?}", certificate);
 
         // Process the header embedded in the certificate if we haven't already voted for it (if we already
         // voted, it means we already processed it). Since this header got certified, we are sure that all
@@ -357,7 +350,6 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
     }
 
     fn sanitize_header(&mut self, header: &Header<PublicKey>) -> DagResult<()> {
-        println!("Sanitize header 1 -- {:?}", header);
         if header.epoch > self.committee.epoch() {
             self.try_update_committee();
         }
@@ -375,8 +367,6 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
 
         // Verify the header's signature.
         header.verify(&self.committee)?;
-
-        println!("Sanitize header 2 -- {:?}", header);
 
         // TODO [issue #3]: Prevent bad nodes from sending junk headers with high round numbers.
 
@@ -457,10 +447,6 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
 
         self.committee = committee;
         self.synchronizer.update_genesis(&self.committee);
-        println!(
-            "Core: Committee updated to epoch {}",
-            self.committee.epoch()
-        );
     }
 
     // Main loop listening to incoming messages.
@@ -469,7 +455,6 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
             let result = tokio::select! {
                 // We receive here messages from other primaries.
                 Some(message) = self.rx_primaries.recv() => {
-                    println!("Received {:?}", message);
                     match message {
                         PrimaryMessage::Header(header) => {
                             match self.sanitize_header(&header) {

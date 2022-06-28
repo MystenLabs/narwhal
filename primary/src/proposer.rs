@@ -128,10 +128,6 @@ impl<PublicKey: VerifyingKey> Proposer<PublicKey> {
         self.committee = committee;
         self.round = 0;
         self.last_parents = Certificate::genesis(&self.committee);
-        println!(
-            "Proposer: Committee updated to epoch {}",
-            self.committee.epoch()
-        );
     }
 
     // Main loop listening to incoming messages.
