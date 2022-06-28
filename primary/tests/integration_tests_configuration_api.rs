@@ -11,8 +11,8 @@ use test_utils::{committee, keys, temp_dir};
 use tokio::sync::mpsc::channel;
 use tonic::transport::Channel;
 use types::{
-    ConfigurationClient, MultiAddrProto, NewEpochRequest, NewNetworkInfoRequest, PublicKeyProto,
-    ValidatorData,
+    ConfigurationClient, ConsensusPrimaryMessage, MultiAddrProto, NewEpochRequest,
+    NewNetworkInfoRequest, PublicKeyProto, ValidatorData,
 };
 
 #[tokio::test]
@@ -141,4 +141,94 @@ fn connect_to_configuration_client(parameters: Parameters) -> ConfigurationClien
         .connect_lazy(&parameters.consensus_api_grpc.socket_addr)
         .unwrap();
     ConfigurationClient::new(channel)
+}
+
+#[tokio::test]
+async fn test_reconfigure() {
+    let parameters = Parameters {
+        batch_size: 200, // Two transactions.
+        ..Parameters::default()
+    };
+
+    // Make the first committee.
+    let committee = committee(None);
+
+    // Spawn the committee.
+    let mut rx_channels = Vec::new();
+    let mut tx_channels = Vec::new();
+    for keypair in keys(None) {
+        let name = keypair.public().clone();
+        let signer = keypair;
+
+        let (tx_new_certificates, rx_new_certificates) = channel(CHANNEL_CAPACITY);
+        rx_channels.push(rx_new_certificates);
+        let (tx_feedback, rx_feedback) = channel(CHANNEL_CAPACITY);
+        tx_channels.push(tx_feedback);
+
+        let store = NodeStorage::reopen(temp_dir());
+
+        Primary::spawn(
+            name,
+            signer,
+            committee.clone(),
+            parameters.clone(),
+            store.header_store.clone(),
+            store.certificate_store.clone(),
+            store.payload_store.clone(),
+            /* tx_consensus */ tx_new_certificates,
+            /* rx_consensus */ rx_feedback,
+            /* dag */ None,
+            NetworkModel::Asynchronous,
+        );
+    }
+
+    // Wait for tasks to start.
+    // tokio::time::sleep(Duration::from_secs(1)).await;
+
+    // for rx in rx_channels.iter_mut() {
+    let rx = &mut rx_channels[0];
+    loop {
+        let certificate = rx.recv().await.unwrap();
+        assert_eq!(certificate.epoch(), 0);
+        println!("{certificate:?}");
+        if certificate.round() == 10 {
+            break;
+        }
+    }
+    // }
+
+    println!("\n\n");
+
+    // Make a new committee.
+    let new_committee = test_utils::pure_committee_from_keys(&keys(None));
+    new_committee.epoch.swap(Arc::new(1));
+
+    let mut addresses = new_committee
+        .authorities
+        .load()
+        .iter()
+        .map(|(_, authority)| authority.primary.primary_to_primary.clone())
+        .collect::<Vec<_>>();
+    addresses.sort();
+    println!("New Committee: {:?}", addresses);
+
+    // Change the committee to epoch 1.
+    for tx in &tx_channels {
+        tx.send(ConsensusPrimaryMessage::Committee(new_committee.clone()))
+            .await
+            .unwrap();
+    }
+
+    println!("\n\n");
+
+    // for rx in rx_channels.iter_mut() {
+    let rx = &mut rx_channels[0];
+    loop {
+        let certificate = rx.recv().await.unwrap();
+        println!("{certificate:?}");
+        if certificate.epoch() == 1 && certificate.round() == 10 {
+            break;
+        }
+    }
+    // }
 }

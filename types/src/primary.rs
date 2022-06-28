@@ -499,7 +499,7 @@ impl<PublicKey: VerifyingKey> fmt::Debug for Certificate<PublicKey> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(
             f,
-            "{}: C{}({}, {}, {})",
+            "{}: C{}({}, {}, E{})",
             self.digest(),
             self.round(),
             self.origin().encode_base64(),

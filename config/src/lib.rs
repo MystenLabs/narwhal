@@ -432,7 +432,7 @@ impl<PublicKey: VerifyingKey> Committee<PublicKey> {
     }
 
     /// Update the networking information of some of the primaries. The arguments are a full vector of
-    /// authorities which Public key and Stake must match the one stored in the current Comitttee. Any discrepancy
+    /// authorities which Public key and Stake must match the one stored in the current Committee. Any discrepancy
     /// will generate no update and return a vector of errors.
     pub fn update_primary_network_info(
         &self,
@@ -498,6 +498,15 @@ impl<PublicKey: VerifyingKey> Committee<PublicKey> {
             }
         });
         errors.map(Err).unwrap_or(Ok(()))
+    }
+}
+
+impl<PublicKey: VerifyingKey> Clone for Committee<PublicKey> {
+    fn clone(&self) -> Self {
+        Self {
+            authorities: ArcSwap::new(self.authorities.load().clone()),
+            epoch: ArcSwap::new(Arc::new(self.epoch())),
+        }
     }
 }
 

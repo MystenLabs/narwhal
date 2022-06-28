@@ -108,7 +108,7 @@ impl<PublicKey: VerifyingKey> Proposer<PublicKey> {
             &mut self.signature_service,
         )
         .await;
-        debug!("Created {:?}", header);
+        debug!("Created {header:?}");
 
         #[cfg(feature = "benchmark")]
         for digest in header.payload.keys() {
@@ -128,6 +128,10 @@ impl<PublicKey: VerifyingKey> Proposer<PublicKey> {
         self.committee = committee;
         self.round = 0;
         self.last_parents = Certificate::genesis(&self.committee);
+        println!(
+            "Proposer: Committee updated to epoch {}",
+            self.committee.epoch()
+        );
     }
 
     // Main loop listening to incoming messages.
