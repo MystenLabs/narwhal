@@ -1,21 +1,19 @@
-use arc_swap::ArcSwap;
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
+use arc_swap::ArcSwap;
 use config::{Authority, Committee, Epoch, PrimaryAddresses, WorkerAddresses};
 use crypto::{
     ed25519::{Ed25519KeyPair, Ed25519PublicKey},
     traits::{KeyPair, Signer},
     Digest, Hash,
 };
-
 use pretty_assertions::assert_str_eq;
 use primary::{PrimaryWorkerMessage, WorkerPrimaryError, WorkerPrimaryMessage};
-use types::{Batch, BatchDigest, Certificate, CertificateDigest, Header, HeaderDigest};
-
 use rand::{prelude::StdRng, SeedableRng};
 use serde_reflection::{Registry, Result, Samples, Tracer, TracerConfig};
 use std::{fs::File, io::Write, sync::Arc};
 use structopt::{clap::arg_enum, StructOpt};
+use types::{Batch, BatchDigest, Certificate, CertificateDigest, Header, HeaderDigest};
 
 fn get_registry() -> Result<Registry> {
     let mut tracer = Tracer::new(TracerConfig::default());
