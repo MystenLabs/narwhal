@@ -61,9 +61,11 @@ async fn test_dag_read_notify() {
         .map(|c| (c.digest(), c.clone()));
     // set up a Dag
     let (_tx_cert, rx_cert) = channel(1);
-    let arc = Arc::new(Dag::new(&committee, rx_cert));
+    let metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
+    let arc = Arc::new(Dag::new(&committee, rx_cert, metrics));
     let cloned = arc.clone();
     let handle = tokio::spawn(async move {
+        let _ = &arc;
         for (digest, cert) in certs {
             match arc.1.notify_read(digest).await {
                 Ok(v) => assert_eq!(v, cert),
