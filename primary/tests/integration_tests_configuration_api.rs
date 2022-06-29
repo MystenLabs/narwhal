@@ -142,8 +142,9 @@ fn connect_to_configuration_client(parameters: Parameters) -> ConfigurationClien
     ConfigurationClient::new(channel)
 }
 
+/// The epoch changes but the stake distribution and network addresses stay the same.
 #[tokio::test]
-async fn epoch_change() {
+async fn simple_epoch_change() {
     let parameters = Parameters {
         batch_size: 200, // Two transactions.
         ..Parameters::default()
