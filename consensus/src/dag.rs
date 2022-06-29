@@ -164,7 +164,7 @@ impl<PublicKey: VerifyingKey> InnerDag<PublicKey> {
                                 let _ = sender.send(Ok((*node_ref.value()).clone()));
                             } else {
                                 obligations
-                                    .entry(dig.clone())
+                                    .entry(dig)
                                     .or_insert_with(VecDeque::new)
                                     .push_back(sender);
                             }
@@ -473,7 +473,8 @@ impl<PublicKey: VerifyingKey> Dag<PublicKey> {
             .await
             .expect("Failed to receive reply to Remove command from store")
     }
-
+    /// Returns the certificate for the digest by waiting until it is
+    /// avaialable in the dag
     pub async fn notify_read(
         &self,
         digest: CertificateDigest,
@@ -484,10 +485,10 @@ impl<PublicKey: VerifyingKey> Dag<PublicKey> {
             .send(DagCommand::NotifyRead(digest, sender))
             .await
         {
-            panic!("Failed to send NotifyRead command to store: {e}");
+            panic!("Failed to send NotifyRead command: {e}");
         }
         receiver
             .await
-            .expect("Failed to receive reply to NotifyRead command from store")
+            .expect("Failed to receive reply to NotifyRead command")
     }
 }
