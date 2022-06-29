@@ -2,6 +2,7 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use crate::primary::Reconfigure;
+use config::Committee;
 use crypto::traits::VerifyingKey;
 use futures::{
     future::try_join_all,
@@ -22,12 +23,14 @@ use tokio::sync::{
 use tracing::error;
 use types::{
     error::{DagError, DagResult},
-    Certificate, CertificateDigest, HeaderDigest, Round, ShutdownToken,
+    Certificate, CertificateDigest, HeaderDigest, Round,
 };
 
 /// Waits to receive all the ancestors of a certificate before looping it back to the `Core`
 /// for further processing.
 pub struct CertificateWaiter<PublicKey: VerifyingKey> {
+    /// The committee information.
+    committee: Committee<PublicKey>,
     /// The persistent storage.
     store: Store<CertificateDigest, Certificate<PublicKey>>,
     /// The current consensus round (used for cleanup).
@@ -48,6 +51,7 @@ pub struct CertificateWaiter<PublicKey: VerifyingKey> {
 
 impl<PublicKey: VerifyingKey> CertificateWaiter<PublicKey> {
     pub fn spawn(
+        committee: Committee<PublicKey>,
         store: Store<CertificateDigest, Certificate<PublicKey>>,
         consensus_round: Arc<AtomicU64>,
         gc_depth: Round,
@@ -56,7 +60,8 @@ impl<PublicKey: VerifyingKey> CertificateWaiter<PublicKey> {
         tx_core: Sender<Certificate<PublicKey>>,
     ) {
         tokio::spawn(async move {
-            let shutdown_token = Self {
+            Self {
+                committee,
                 store,
                 consensus_round,
                 gc_depth,
@@ -67,7 +72,6 @@ impl<PublicKey: VerifyingKey> CertificateWaiter<PublicKey> {
             }
             .run()
             .await;
-            drop(shutdown_token);
         });
     }
 
@@ -90,15 +94,18 @@ impl<PublicKey: VerifyingKey> CertificateWaiter<PublicKey> {
         }
     }
 
-    async fn run(&mut self) -> ShutdownToken {
+    async fn run(&mut self) {
         let mut waiting = FuturesUnordered::new();
 
         loop {
             tokio::select! {
                 Some(certificate) = self.rx_synchronizer.recv() => {
-                    let header_id = certificate.header.id;
+                    if certificate.epoch() < self.committee.epoch() {
+                        continue;
+                    }
 
                     // Ensure we process only once this certificate.
+                    let header_id = certificate.header.id;
                     if self.pending.contains_key(&header_id) {
                         continue;
                     }
@@ -132,12 +139,11 @@ impl<PublicKey: VerifyingKey> CertificateWaiter<PublicKey> {
                     result.expect("Committee channel dropped");
                     let message = self.rx_reconfigure.borrow_and_update().clone();
                     match message {
-                        Reconfigure::NewCommittee(_) => {
+                        Reconfigure::NewCommittee(committee) => {
+                            self.committee = committee;
                             self.pending.clear();
                         },
-                        Reconfigure::Shutdown(token) => {
-                            break token
-                        }
+                        Reconfigure::Shutdown(_token) => ()
                     }
 
                 }

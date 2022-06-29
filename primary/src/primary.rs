@@ -296,6 +296,7 @@ impl Primary {
         // The `CertificateWaiter` waits to receive all the ancestors of a certificate before looping it back to the
         // `Core` for further processing.
         CertificateWaiter::spawn(
+            (&*committee).clone(),
             certificate_store.clone(),
             consensus_round.clone(),
             parameters.gc_depth,
