@@ -2,7 +2,7 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use crate::{primary::Reconfigure, NetworkModel};
-use config::{Epoch, SharedCommittee, WorkerId};
+use config::{Committee, Epoch, WorkerId};
 use crypto::{traits::VerifyingKey, Digest, Hash as _, SignatureService};
 use std::cmp::Ordering;
 use tokio::{
@@ -27,7 +27,7 @@ pub struct Proposer<PublicKey: VerifyingKey> {
     /// The public key of this primary.
     name: PublicKey,
     /// The committee information.
-    committee: SharedCommittee<PublicKey>,
+    committee: Committee<PublicKey>,
     /// Service to sign headers.
     signature_service: SignatureService<PublicKey::Sig>,
     /// The size of the headers' payload.
@@ -62,7 +62,7 @@ impl<PublicKey: VerifyingKey> Proposer<PublicKey> {
     #[allow(clippy::too_many_arguments)]
     pub fn spawn(
         name: PublicKey,
-        committee: SharedCommittee<PublicKey>,
+        committee: Committee<PublicKey>,
         signature_service: SignatureService<PublicKey::Sig>,
         header_size: usize,
         max_header_delay: Duration,
@@ -124,7 +124,7 @@ impl<PublicKey: VerifyingKey> Proposer<PublicKey> {
     }
 
     /// Update the committee and cleanup internal state.
-    fn update_committee(&mut self, committee: SharedCommittee<PublicKey>) {
+    fn update_committee(&mut self, committee: Committee<PublicKey>) {
         self.committee = committee;
         self.round = 0;
         self.last_parents = Certificate::genesis(&self.committee);

@@ -7,7 +7,7 @@ use crate::{
     synchronizer::Synchronizer,
 };
 use async_recursion::async_recursion;
-use config::{Epoch, SharedCommittee};
+use config::{Committee, Epoch};
 use crypto::{traits::VerifyingKey, Hash as _, SignatureService};
 use network::{CancelHandler, PrimaryNetwork};
 use std::{
@@ -40,7 +40,7 @@ pub struct Core<PublicKey: VerifyingKey> {
     /// The public key of this primary.
     name: PublicKey,
     /// The committee information.
-    committee: SharedCommittee<PublicKey>,
+    committee: Committee<PublicKey>,
     /// The persistent storage keyed to headers.
     header_store: Store<HeaderDigest, Header<PublicKey>>,
     /// The persistent storage keyed to certificates.
@@ -91,7 +91,7 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
     #[allow(clippy::too_many_arguments)]
     pub fn spawn(
         name: PublicKey,
-        committee: SharedCommittee<PublicKey>,
+        committee: Committee<PublicKey>,
         header_store: Store<HeaderDigest, Header<PublicKey>>,
         certificate_store: Store<CertificateDigest, Certificate<PublicKey>>,
         synchronizer: Synchronizer<PublicKey>,
@@ -437,7 +437,7 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
     }
 
     /// Update the committee and cleanup internal state.
-    fn update_committee(&mut self, committee: SharedCommittee<PublicKey>) {
+    fn update_committee(&mut self, committee: Committee<PublicKey>) {
         tracing::info!("Committee updated to epoch {}", committee.epoch);
         self.last_voted.clear();
         self.processing.clear();

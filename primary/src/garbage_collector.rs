@@ -88,13 +88,13 @@ impl<PublicKey: VerifyingKey> GarbageCollector<PublicKey> {
                 }
                 ConsensusPrimaryMessage::Committee(committee) => {
                     // Update the committee.
-                    self.update_committee(committee);
+                    self.update_committee(committee.clone());
 
                     // Trigger cleanup on the primary.
                     self.consensus_round.store(0, Ordering::Relaxed);
 
                     // Notify all other tasks.
-                    let message = Reconfigure::NewCommittee(self.committee.clone());
+                    let message = Reconfigure::NewCommittee(committee);
                     self.tx_reconfigure
                         .send(message)
                         .expect("Reconfigure channel dropped");

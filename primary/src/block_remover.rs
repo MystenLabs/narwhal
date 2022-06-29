@@ -4,7 +4,7 @@
 #![allow(unused_variables)]
 
 use crate::{primary::Reconfigure, utils, PayloadToken, PrimaryWorkerMessage};
-use config::{SharedCommittee, WorkerId};
+use config::{Committee, WorkerId};
 use consensus::dag::{Dag, ValidatorDagError};
 use crypto::{traits::VerifyingKey, Digest, Hash};
 use futures::{
@@ -180,7 +180,7 @@ pub struct BlockRemover<PublicKey: VerifyingKey> {
     name: PublicKey,
 
     /// The committee information.
-    committee: SharedCommittee<PublicKey>,
+    committee: Committee<PublicKey>,
 
     /// Storage that keeps the Certificates by their digest id.
     certificate_store: Store<CertificateDigest, Certificate<PublicKey>>,
@@ -221,7 +221,7 @@ pub struct BlockRemover<PublicKey: VerifyingKey> {
 impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
     pub fn spawn(
         name: PublicKey,
-        committee: SharedCommittee<PublicKey>,
+        committee: Committee<PublicKey>,
         certificate_store: Store<CertificateDigest, Certificate<PublicKey>>,
         header_store: Store<HeaderDigest, Header<PublicKey>>,
         payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,

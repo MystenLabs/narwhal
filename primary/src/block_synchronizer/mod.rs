@@ -9,7 +9,7 @@ use crate::{
     primary::{PrimaryMessage, Reconfigure},
     utils, PayloadToken, PrimaryWorkerMessage, CHANNEL_CAPACITY,
 };
-use config::{BlockSynchronizerParameters, SharedCommittee, WorkerId};
+use config::{BlockSynchronizerParameters, Committee, WorkerId};
 use crypto::{traits::VerifyingKey, Hash};
 use futures::{
     future::{join_all, BoxFuture},
@@ -149,7 +149,7 @@ pub struct BlockSynchronizer<PublicKey: VerifyingKey> {
     name: PublicKey,
 
     /// The committee information.
-    committee: SharedCommittee<PublicKey>,
+    committee: Committee<PublicKey>,
 
     /// Watch channel to reconfigure the committee.
     rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
@@ -197,7 +197,7 @@ pub struct BlockSynchronizer<PublicKey: VerifyingKey> {
 impl<PublicKey: VerifyingKey> BlockSynchronizer<PublicKey> {
     pub fn spawn(
         name: PublicKey,
-        committee: SharedCommittee<PublicKey>,
+        committee: Committee<PublicKey>,
         rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
         rx_commands: Receiver<Command<PublicKey>>,
         rx_certificate_responses: Receiver<CertificatesResponse<PublicKey>>,
@@ -768,7 +768,7 @@ impl<PublicKey: VerifyingKey> BlockSynchronizer<PublicKey> {
     async fn wait_for_certificate_responses(
         fetch_certificates_timeout: Duration,
         request_id: RequestID,
-        committee: SharedCommittee<PublicKey>,
+        committee: Committee<PublicKey>,
         block_ids: Vec<CertificateDigest>,
         primaries_sent_requests_to: Vec<PublicKey>,
         mut receiver: Receiver<CertificatesResponse<PublicKey>>,

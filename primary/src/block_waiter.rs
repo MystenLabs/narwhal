@@ -1,7 +1,7 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use crate::{block_synchronizer::handler::Handler, primary::Reconfigure, PrimaryWorkerMessage};
-use config::SharedCommittee;
+use config::Committee;
 use crypto::{traits::VerifyingKey, Digest, Hash};
 use futures::{
     future::{try_join_all, BoxFuture},
@@ -202,7 +202,7 @@ pub struct BlockWaiter<
     name: PublicKey,
 
     /// The committee information.
-    committee: SharedCommittee<PublicKey>,
+    committee: Committee<PublicKey>,
 
     /// Receive all the requests to get a block
     rx_commands: Receiver<BlockCommand>,
@@ -252,7 +252,7 @@ impl<PublicKey: VerifyingKey, SynchronizerHandler: Handler<PublicKey> + Send + S
     // commands to fetch a block
     pub fn spawn(
         name: PublicKey,
-        committee: SharedCommittee<PublicKey>,
+        committee: Committee<PublicKey>,
         rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
         rx_commands: Receiver<BlockCommand>,
         batch_receiver: Receiver<BatchResult>,

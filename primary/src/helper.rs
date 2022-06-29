@@ -5,7 +5,7 @@ use crate::{
     primary::{PrimaryMessage, Reconfigure},
     PayloadToken,
 };
-use config::{SharedCommittee, WorkerId};
+use config::{Committee, WorkerId};
 use crypto::traits::{EncodeDecodeBase64, VerifyingKey};
 use network::PrimaryNetwork;
 use store::{Store, StoreError};
@@ -36,7 +36,7 @@ pub struct Helper<PublicKey: VerifyingKey> {
     /// The node's name
     name: PublicKey,
     /// The committee information.
-    committee: SharedCommittee<PublicKey>,
+    committee: Committee<PublicKey>,
     /// The certificate persistent storage.
     certificate_store: Store<CertificateDigest, Certificate<PublicKey>>,
     /// The payloads (batches) persistent storage.
@@ -52,7 +52,7 @@ pub struct Helper<PublicKey: VerifyingKey> {
 impl<PublicKey: VerifyingKey> Helper<PublicKey> {
     pub fn spawn(
         name: PublicKey,
-        committee: SharedCommittee<PublicKey>,
+        committee: Committee<PublicKey>,
         certificate_store: Store<CertificateDigest, Certificate<PublicKey>>,
         payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,
         rx_committee: watch::Receiver<Reconfigure<PublicKey>>,

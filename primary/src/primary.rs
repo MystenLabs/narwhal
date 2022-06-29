@@ -17,7 +17,7 @@ use crate::{
     BlockRemover, CertificatesResponse, DeleteBatchMessage, PayloadAvailabilityResponse,
 };
 use async_trait::async_trait;
-use config::{Parameters, SharedCommittee, WorkerId};
+use config::{Committee, Parameters, SharedCommittee, WorkerId};
 use consensus::dag::Dag;
 use crypto::{
     traits::{EncodeDecodeBase64, Signer, VerifyingKey},
@@ -57,7 +57,7 @@ pub use types::{ConsensusPrimaryMessage, PrimaryMessage, PrimaryWorkerMessage};
 #[derive(Clone, Debug)]
 pub enum Reconfigure<PublicKey: VerifyingKey> {
     /// Indicates the committee has been updated.
-    NewCommittee(SharedCommittee<PublicKey>),
+    NewCommittee(Committee<PublicKey>),
     /// Indicate a shutdown.
     Shutdown(ShutdownToken),
 }
@@ -114,7 +114,7 @@ impl Primary {
         dag: Option<Arc<Dag<PublicKey>>>,
         network_model: NetworkModel,
     ) -> JoinHandle<()> {
-        let initial_committee = Reconfigure::NewCommittee(committee.clone());
+        let initial_committee = Reconfigure::NewCommittee((&*committee).clone());
         let (tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
 
         let (tx_others_digests, rx_others_digests) = channel(CHANNEL_CAPACITY);
@@ -202,7 +202,7 @@ impl Primary {
         // The `Core` receives and handles headers, votes, and certificates from the other primaries.
         let primary_handle = Core::spawn(
             name.clone(),
-            committee.clone(),
+            (&*committee).clone(),
             header_store.clone(),
             certificate_store.clone(),
             synchronizer,
@@ -237,7 +237,7 @@ impl Primary {
         // underlying batches and their transactions.
         BlockWaiter::spawn(
             name.clone(),
-            committee.clone(),
+            (&*committee).clone(),
             tx_reconfigure.subscribe(),
             rx_get_block_commands,
             rx_batches,
@@ -250,7 +250,7 @@ impl Primary {
         // Orchestrates the removal of blocks across the primary and worker nodes.
         BlockRemover::spawn(
             name.clone(),
-            committee.clone(),
+            (&*committee).clone(),
             certificate_store.clone(),
             header_store,
             payload_store.clone(),
@@ -265,7 +265,7 @@ impl Primary {
         // them from the primary peers by synchronizing also their batches.
         BlockSynchronizer::spawn(
             name.clone(),
-            committee.clone(),
+            (&*committee).clone(),
             tx_reconfigure.subscribe(),
             rx_block_synchronizer_commands,
             rx_certificate_responses,
@@ -281,7 +281,7 @@ impl Primary {
         // re-schedule execution of the header once we have all missing data.
         HeaderWaiter::spawn(
             name.clone(),
-            committee.clone(),
+            (&*committee).clone(),
             certificate_store.clone(),
             payload_store.clone(),
             consensus_round.clone(),
@@ -308,7 +308,7 @@ impl Primary {
         // digests from our workers and sends it back to the `Core`.
         Proposer::spawn(
             name.clone(),
-            committee.clone(),
+            (&*committee).clone(),
             signature_service,
             parameters.header_size,
             parameters.max_header_delay,
@@ -323,7 +323,7 @@ impl Primary {
         // from other primaries.
         Helper::spawn(
             name.clone(),
-            committee.clone(),
+            (&*committee).clone(),
             certificate_store,
             payload_store,
             rx_reconfigure,
