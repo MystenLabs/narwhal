@@ -310,6 +310,21 @@ pub struct Committee<PublicKey> {
     pub epoch: ArcSwap<Epoch>,
 }
 
+impl<PublicKey: VerifyingKey> std::fmt::Display for Committee<PublicKey> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Committee E{}: {:?}",
+            self.epoch(),
+            self.authorities
+                .load()
+                .keys()
+                .map(|x| { x.encode_base64().get(0..16).unwrap().to_string() })
+                .collect::<Vec<_>>()
+        )
+    }
+}
+
 impl<PublicKey: VerifyingKey> Committee<PublicKey> {
     /// Returns the number of authorities.
     pub fn epoch(&self) -> Epoch {

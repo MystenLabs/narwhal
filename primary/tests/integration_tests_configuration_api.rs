@@ -269,49 +269,48 @@ async fn partial_committee_change() {
     }
 
     // Run for a while in epoch 0.
-    // for rx in rx_channels.iter_mut() {
-    let rx = &mut epoch_0_rx_channels[0];
-    loop {
-        let certificate = rx.recv().await.unwrap();
-        assert_eq!(certificate.epoch(), 0);
-        println!("{certificate:?}");
-        if certificate.round() == 10 {
-            break;
+    for rx in epoch_0_rx_channels.iter_mut() {
+        loop {
+            let certificate = rx.recv().await.unwrap();
+            assert_eq!(certificate.epoch(), 0);
+            if certificate.round() == 10 {
+                break;
+            }
         }
     }
-    // }
-
-    println!("\n\n\n\n");
 
     // Make the committee of epoch 1.
     let mut to_spawn = Vec::new();
 
-    let keys_1 = keys(None);
+    let keys_0 = keys(None);
+    let keys_1 = keys(Some(1));
     let mut total_stake = 0;
     let authorities_1: BTreeMap<_, _> = authorities_0
         .into_iter()
+        .zip(keys_0.into_iter())
         .zip(keys_1.into_iter())
-        .map(|(authority, key)| {
-            let pk = key.public().clone();
+        .map(|((authority, key_0), key_1)| {
             let stake = authority.stake;
             let x = if total_stake < committee_0.validity_threshold() {
-                authority
+                let pk = key_0.public().clone();
+                (pk, authority)
             } else {
                 let new_authority = make_authority();
-                to_spawn.push(key);
-                new_authority
+                let pk = key_1.public().clone();
+                to_spawn.push(key_1);
+                (pk, new_authority)
             };
             total_stake += stake;
-            (pk, x)
+            x
         })
         .collect();
 
     let committee_1 = Committee {
-        epoch: ArcSwap::new(Arc::new(Epoch::default())),
+        epoch: ArcSwap::new(Arc::new(Epoch::default() + 1)),
         authorities: ArcSwap::from_pointee(authorities_1),
     };
 
-    // Spawn the committee of epoch 0.
+    // Spawn the committee of epoch 1 (only the node not already booted).
     let mut epoch_1_rx_channels = Vec::new();
     let mut epoch_1_tx_channels = Vec::new();
     for keypair in to_spawn {
@@ -340,7 +339,7 @@ async fn partial_committee_change() {
         );
     }
 
-    // Move to epoch 1.
+    // Tell the nodes of epoch 0 to transition to epoch 1.
     for tx in &epoch_0_tx_channels {
         tx.send(ConsensusPrimaryMessage::Committee(committee_1.clone()))
             .await
@@ -348,14 +347,12 @@ async fn partial_committee_change() {
     }
 
     // Run for a while in epoch 1.
-    // for rx in rx_channels.iter_mut() {
-    let rx = &mut epoch_1_rx_channels[0];
-    loop {
-        let certificate = rx.recv().await.unwrap();
-        println!("{certificate:?}");
-        if certificate.epoch() == 1 && certificate.round() == 10 {
-            break;
+    for rx in epoch_1_rx_channels.iter_mut() {
+        loop {
+            let certificate = rx.recv().await.unwrap();
+            if certificate.epoch() == 1 && certificate.round() == 10 {
+                break;
+            }
         }
     }
-    // }
 }

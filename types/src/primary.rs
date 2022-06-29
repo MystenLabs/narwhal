@@ -257,7 +257,6 @@ impl<PublicKey: VerifyingKey> PartialEq for Header<PublicKey> {
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(bound(deserialize = "PublicKey: VerifyingKey"))] // bump the bound to VerifyingKey as soon as you include a sig
-
 pub struct Vote<PublicKey: VerifyingKey> {
     pub id: HeaderDigest,
     pub round: Round,
