@@ -1,12 +1,13 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use config::Parameters;
+use arc_swap::ArcSwap;
+use config::{Committee, Epoch, Parameters};
 use consensus::dag::Dag;
 use crypto::traits::KeyPair;
 use node::NodeStorage;
 use primary::{NetworkModel, Primary, CHANNEL_CAPACITY};
-use std::{sync::Arc, time::Duration};
-use test_utils::{committee, keys, pure_committee_from_keys, temp_dir};
+use std::{collections::BTreeMap, sync::Arc, time::Duration};
+use test_utils::{committee, keys, make_authority, pure_committee_from_keys, temp_dir};
 use tokio::sync::mpsc::channel;
 use tonic::transport::Channel;
 use types::{
@@ -217,149 +218,144 @@ async fn simple_epoch_change() {
     }
 }
 
-// #[tokio::test]
-// async fn partial_committee_change() {
-//     let parameters = Parameters {
-//         batch_size: 200, // Two transactions.
-//         ..Parameters::default()
-//     };
+#[tokio::test]
+async fn partial_committee_change() {
+    let parameters = Parameters {
+        batch_size: 200, // Two transactions.
+        ..Parameters::default()
+    };
 
-//     // Make the committee of epoch 0.
-//     let keys_0 = keys(None);
-//     let authorities_0: Vec<_> = keys_0.iter().map(|_| make_authority()).collect();
-//     let committee_0 = Committee {
-//         epoch: ArcSwap::new(Arc::new(Epoch::default())),
-//         authorities: ArcSwap::from_pointee(
-//             keys_0
-//                 .iter()
-//                 .zip(authorities_0.clone().into_iter())
-//                 .map(|(kp, authority)| (kp.public().clone(), authority))
-//                 .collect(),
-//         ),
-//     };
+    // Make the committee of epoch 0.
+    let keys_0 = keys(None);
+    let authorities_0: Vec<_> = keys_0.iter().map(|_| make_authority()).collect();
+    let committee_0 = Committee {
+        epoch: ArcSwap::new(Arc::new(Epoch::default())),
+        authorities: ArcSwap::from_pointee(
+            keys_0
+                .iter()
+                .zip(authorities_0.clone().into_iter())
+                .map(|(kp, authority)| (kp.public().clone(), authority))
+                .collect(),
+        ),
+    };
 
-//     // Spawn the committee of epoch 0.
-//     let mut epoch_0_rx_channels = Vec::new();
-//     let mut epoch_0_tx_channels = Vec::new();
-//     for keypair in keys_0 {
-//         let name = keypair.public().clone();
-//         let signer = keypair;
+    // Spawn the committee of epoch 0.
+    let mut epoch_0_rx_channels = Vec::new();
+    let mut epoch_0_tx_channels = Vec::new();
+    for keypair in keys_0 {
+        let name = keypair.public().clone();
+        let signer = keypair;
 
-//         let (tx_new_certificates, rx_new_certificates) = channel(CHANNEL_CAPACITY);
-//         epoch_0_rx_channels.push(rx_new_certificates);
-//         let (tx_feedback, rx_feedback) = channel(CHANNEL_CAPACITY);
-//         epoch_0_tx_channels.push(tx_feedback);
+        let (tx_new_certificates, rx_new_certificates) = channel(CHANNEL_CAPACITY);
+        epoch_0_rx_channels.push(rx_new_certificates);
+        let (tx_feedback, rx_feedback) = channel(CHANNEL_CAPACITY);
+        epoch_0_tx_channels.push(tx_feedback);
 
-//         let store = NodeStorage::reopen(temp_dir());
+        let store = NodeStorage::reopen(temp_dir());
 
-//         Primary::spawn(
-//             name,
-//             signer,
-//             Arc::new(committee_0.clone()),
-//             parameters.clone(),
-//             store.header_store.clone(),
-//             store.certificate_store.clone(),
-//             store.payload_store.clone(),
-//             /* tx_consensus */ tx_new_certificates,
-//             /* rx_consensus */ rx_feedback,
-//             /* dag */ None,
-//             NetworkModel::Asynchronous,
-//         );
-//     }
+        Primary::spawn(
+            name,
+            signer,
+            Arc::new(committee_0.clone()),
+            parameters.clone(),
+            store.header_store.clone(),
+            store.certificate_store.clone(),
+            store.payload_store.clone(),
+            /* tx_consensus */ tx_new_certificates,
+            /* rx_consensus */ rx_feedback,
+            /* dag */ None,
+            NetworkModel::Asynchronous,
+        );
+    }
 
-//     // Run for a while in epoch 0.
-//     // for rx in rx_channels.iter_mut() {
-//     let rx = &mut epoch_0_rx_channels[0];
-//     loop {
-//         let certificate = rx.recv().await.unwrap();
-//         assert_eq!(certificate.epoch(), 0);
-//         println!("{certificate:?}");
-//         if certificate.round() == 10 {
-//             break;
-//         }
-//     }
-//     // }
+    // Run for a while in epoch 0.
+    // for rx in rx_channels.iter_mut() {
+    let rx = &mut epoch_0_rx_channels[0];
+    loop {
+        let certificate = rx.recv().await.unwrap();
+        assert_eq!(certificate.epoch(), 0);
+        println!("{certificate:?}");
+        if certificate.round() == 10 {
+            break;
+        }
+    }
+    // }
 
-//     println!("\n\n\n\n");
+    println!("\n\n\n\n");
 
-//     // Make the committee of epoch 1.
-//     let mut to_spawn = Vec::new();
+    // Make the committee of epoch 1.
+    let mut to_spawn = Vec::new();
 
-//     let keys_1 = keys(None);
-//     let mut stake = 0;
-//     let authorities_1 = authorities_0
-//         .into_iter()
-//         .zip(keys_1.iter())
-//         .map(|(authority, key)| {
-//             let x = if stake < committee_0.validity_threshold() {
-//                 authority
-//             } else {
-//                 let new_authority = make_authority();
-//                 to_spawn.push(key);
-//                 new_authority
-//             };
-//             let x = make_authority();
-//             stake += authority.stake;
-//             x
-//         })
-//         .collect();
+    let keys_1 = keys(None);
+    let mut total_stake = 0;
+    let authorities_1: BTreeMap<_, _> = authorities_0
+        .into_iter()
+        .zip(keys_1.into_iter())
+        .map(|(authority, key)| {
+            let pk = key.public().clone();
+            let stake = authority.stake;
+            let x = if total_stake < committee_0.validity_threshold() {
+                authority
+            } else {
+                let new_authority = make_authority();
+                to_spawn.push(key);
+                new_authority
+            };
+            total_stake += stake;
+            (pk, x)
+        })
+        .collect();
 
-//     let committee_1 = Committee {
-//         epoch: ArcSwap::new(Arc::new(Epoch::default())),
-//         authorities: ArcSwap::from_pointee(
-//             keys_1
-//                 .iter()
-//                 .zip(authorities_1.into_iter())
-//                 .map(|(kp, authority)| (kp.public().clone(), authority))
-//                 .collect(),
-//         ),
-//     };
+    let committee_1 = Committee {
+        epoch: ArcSwap::new(Arc::new(Epoch::default())),
+        authorities: ArcSwap::from_pointee(authorities_1),
+    };
 
-//     // Spawn the committee of epoch 0.
-//     let mut epoch_1_rx_channels = Vec::new();
-//     let mut epoch_1_tx_channels = Vec::new();
-//     for keypair in to_spawn {
-//         let name = keypair.public().clone();
-//         let signer = keypair;
+    // Spawn the committee of epoch 0.
+    let mut epoch_1_rx_channels = Vec::new();
+    let mut epoch_1_tx_channels = Vec::new();
+    for keypair in to_spawn {
+        let name = keypair.public().clone();
+        let signer = keypair;
 
-//         let (tx_new_certificates, rx_new_certificates) = channel(CHANNEL_CAPACITY);
-//         epoch_1_rx_channels.push(rx_new_certificates);
-//         let (tx_feedback, rx_feedback) = channel(CHANNEL_CAPACITY);
-//         epoch_1_tx_channels.push(tx_feedback);
+        let (tx_new_certificates, rx_new_certificates) = channel(CHANNEL_CAPACITY);
+        epoch_1_rx_channels.push(rx_new_certificates);
+        let (tx_feedback, rx_feedback) = channel(CHANNEL_CAPACITY);
+        epoch_1_tx_channels.push(tx_feedback);
 
-//         let store = NodeStorage::reopen(temp_dir());
+        let store = NodeStorage::reopen(temp_dir());
 
-//         Primary::spawn(
-//             name,
-//             signer,
-//             Arc::new(committee_1.clone()),
-//             parameters.clone(),
-//             store.header_store.clone(),
-//             store.certificate_store.clone(),
-//             store.payload_store.clone(),
-//             /* tx_consensus */ tx_new_certificates,
-//             /* rx_consensus */ rx_feedback,
-//             /* dag */ None,
-//             NetworkModel::Asynchronous,
-//         );
-//     }
+        Primary::spawn(
+            name,
+            signer,
+            Arc::new(committee_1.clone()),
+            parameters.clone(),
+            store.header_store.clone(),
+            store.certificate_store.clone(),
+            store.payload_store.clone(),
+            /* tx_consensus */ tx_new_certificates,
+            /* rx_consensus */ rx_feedback,
+            /* dag */ None,
+            NetworkModel::Asynchronous,
+        );
+    }
 
-//     // Move to epoch 1.
-//     for tx in &epoch_0_tx_channels {
-//         tx.send(ConsensusPrimaryMessage::Committee(committee_1))
-//             .await
-//             .unwrap();
-//     }
+    // Move to epoch 1.
+    for tx in &epoch_0_tx_channels {
+        tx.send(ConsensusPrimaryMessage::Committee(committee_1.clone()))
+            .await
+            .unwrap();
+    }
 
-//     // Run for a while in epoch 1.
-//     // for rx in rx_channels.iter_mut() {
-//     let rx = &mut epoch_1_rx_channels[0];
-//     loop {
-//         let certificate = rx.recv().await.unwrap();
-//         println!("{certificate:?}");
-//         if certificate.epoch() == 1 && certificate.round() == 10 {
-//             break;
-//         }
-//     }
-//     // }
-// }
+    // Run for a while in epoch 1.
+    // for rx in rx_channels.iter_mut() {
+    let rx = &mut epoch_1_rx_channels[0];
+    loop {
+        let certificate = rx.recv().await.unwrap();
+        println!("{certificate:?}");
+        if certificate.epoch() == 1 && certificate.round() == 10 {
+            break;
+        }
+    }
+    // }
+}
