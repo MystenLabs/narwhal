@@ -13,7 +13,7 @@ use tokio::sync::{mpsc::Receiver, watch};
 use types::{Certificate, Round};
 
 /// Receives the highest round reached by consensus and update it for all tasks.
-pub struct GarbageCollector<PublicKey: VerifyingKey> {
+pub struct StateHandler<PublicKey: VerifyingKey> {
     /// The public key of this authority.
     name: PublicKey,
     /// The committee information.
@@ -30,7 +30,7 @@ pub struct GarbageCollector<PublicKey: VerifyingKey> {
     worker_network: PrimaryToWorkerNetwork,
 }
 
-impl<PublicKey: VerifyingKey> GarbageCollector<PublicKey> {
+impl<PublicKey: VerifyingKey> StateHandler<PublicKey> {
     pub fn spawn(
         name: PublicKey,
         committee: SharedCommittee<PublicKey>,

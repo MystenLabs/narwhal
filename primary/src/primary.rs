@@ -7,12 +7,12 @@ use crate::{
     block_waiter::{BatchMessageError, BatchResult, BlockWaiter},
     certificate_waiter::CertificateWaiter,
     core::Core,
-    garbage_collector::GarbageCollector,
     grpc_server::ConsensusAPIGrpc,
     header_waiter::HeaderWaiter,
     helper::Helper,
     payload_receiver::PayloadReceiver,
     proposer::Proposer,
+    state_handler::StateHandler,
     synchronizer::Synchronizer,
     BlockRemover, CertificatesResponse, DeleteBatchMessage, PayloadAvailabilityResponse,
 };
@@ -345,7 +345,7 @@ impl Primary {
         }
 
         // Keeps track of the latest consensus round and allows other tasks to clean up their their internal state
-        GarbageCollector::spawn(
+        StateHandler::spawn(
             name.clone(),
             committee.clone(),
             consensus_round,
