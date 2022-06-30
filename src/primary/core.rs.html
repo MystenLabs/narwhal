@@ -466,11 +466,66 @@
 <span id="460">460</span>
 <span id="461">461</span>
 <span id="462">462</span>
+<span id="463">463</span>
+<span id="464">464</span>
+<span id="465">465</span>
+<span id="466">466</span>
+<span id="467">467</span>
+<span id="468">468</span>
+<span id="469">469</span>
+<span id="470">470</span>
+<span id="471">471</span>
+<span id="472">472</span>
+<span id="473">473</span>
+<span id="474">474</span>
+<span id="475">475</span>
+<span id="476">476</span>
+<span id="477">477</span>
+<span id="478">478</span>
+<span id="479">479</span>
+<span id="480">480</span>
+<span id="481">481</span>
+<span id="482">482</span>
+<span id="483">483</span>
+<span id="484">484</span>
+<span id="485">485</span>
+<span id="486">486</span>
+<span id="487">487</span>
+<span id="488">488</span>
+<span id="489">489</span>
+<span id="490">490</span>
+<span id="491">491</span>
+<span id="492">492</span>
+<span id="493">493</span>
+<span id="494">494</span>
+<span id="495">495</span>
+<span id="496">496</span>
+<span id="497">497</span>
+<span id="498">498</span>
+<span id="499">499</span>
+<span id="500">500</span>
+<span id="501">501</span>
+<span id="502">502</span>
+<span id="503">503</span>
+<span id="504">504</span>
+<span id="505">505</span>
+<span id="506">506</span>
+<span id="507">507</span>
+<span id="508">508</span>
+<span id="509">509</span>
+<span id="510">510</span>
+<span id="511">511</span>
+<span id="512">512</span>
+<span id="513">513</span>
+<span id="514">514</span>
+<span id="515">515</span>
+<span id="516">516</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="kw">crate</span>::{
     <span class="ident">aggregators</span>::{<span class="ident">CertificatesAggregator</span>, <span class="ident">VotesAggregator</span>},
+    <span class="ident">metrics::PrimaryMetrics</span>,
     <span class="ident">primary::PrimaryMessage</span>,
     <span class="ident">synchronizer::Synchronizer</span>,
 };
@@ -484,6 +539,7 @@
         <span class="ident">atomic</span>::{<span class="ident">AtomicU64</span>, <span class="ident">Ordering</span>},
         <span class="ident">Arc</span>,
     },
+    <span class="ident">time::Instant</span>,
 };
 <span class="kw">use</span> <span class="ident">store::Store</span>;
 <span class="kw">use</span> <span class="ident">tokio</span>::{
@@ -548,6 +604,8 @@
     <span class="ident">network</span>: <span class="ident">PrimaryNetwork</span>,
     <span class="doccomment">/// Keeps the cancel handlers of the messages we sent.</span>
     <span class="ident">cancel_handlers</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">Round</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">CancelHandler</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="doccomment">/// Metrics handler</span>
+    <span class="ident">metrics</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">PrimaryMetrics</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> <span class="ident">Core</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span> {
@@ -566,6 +624,7 @@
         <span class="ident">rx_proposer</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Header</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">tx_consensus</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">tx_proposer</span>: <span class="ident">Sender</span><span class="op">&lt;</span>(<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">Round</span>)<span class="op">&gt;</span>,
+        <span class="ident">metrics</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">PrimaryMetrics</span><span class="op">&gt;</span>,
     ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
             <span class="self">Self</span> {
@@ -591,6 +650,7 @@
                 <span class="ident">certificates_aggregators</span>: <span class="ident">HashMap::with_capacity</span>(<span class="number">2</span> <span class="op">*</span> <span class="ident">gc_depth</span> <span class="kw">as</span> <span class="ident">usize</span>),
                 <span class="ident">network</span>: <span class="ident">Default::default</span>(),
                 <span class="ident">cancel_handlers</span>: <span class="ident">HashMap::with_capacity</span>(<span class="number">2</span> <span class="op">*</span> <span class="ident">gc_depth</span> <span class="kw">as</span> <span class="ident">usize</span>),
+                <span class="ident">metrics</span>,
             }
             .<span class="ident">run</span>()
             .<span class="kw">await</span>;
@@ -635,6 +695,10 @@
         <span class="comment">// no points in trying to synchronize them or vote for the header. We just need to gather the payload.</span>
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">gc_round</span> <span class="op">&gt;</span><span class="op">=</span> <span class="ident">header</span>.<span class="ident">round</span> {
             <span class="kw">if</span> <span class="self">self</span>.<span class="ident">synchronizer</span>.<span class="ident">missing_payload</span>(<span class="ident">header</span>).<span class="kw">await</span><span class="question-mark">?</span> {
+                <span class="self">self</span>.<span class="ident">metrics</span>
+                    .<span class="ident">headers_suspended</span>
+                    .<span class="ident">with_label_values</span>(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="ident">header</span>.<span class="ident">epoch</span>.<span class="ident">to_string</span>(), <span class="string">&quot;missing_payload&quot;</span>])
+                    .<span class="ident">inc</span>();
                 <span class="macro">debug!</span>(<span class="string">&quot;Downloading the payload of {header}&quot;</span>);
             }
             <span class="kw">return</span> <span class="prelude-val">Ok</span>(());
@@ -645,6 +709,10 @@
         <span class="comment">// reschedule processing of this header.</span>
         <span class="kw">let</span> <span class="ident">parents</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">synchronizer</span>.<span class="ident">get_parents</span>(<span class="ident">header</span>).<span class="kw">await</span><span class="question-mark">?</span>;
         <span class="kw">if</span> <span class="ident">parents</span>.<span class="ident">is_empty</span>() {
+            <span class="self">self</span>.<span class="ident">metrics</span>
+                .<span class="ident">headers_suspended</span>
+                .<span class="ident">with_label_values</span>(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="ident">header</span>.<span class="ident">epoch</span>.<span class="ident">to_string</span>(), <span class="string">&quot;missing_parents&quot;</span>])
+                .<span class="ident">inc</span>();
             <span class="macro">debug!</span>(<span class="string">&quot;Processing of {} suspended: missing parent(s)&quot;</span>, <span class="ident">header</span>.<span class="ident">id</span>);
             <span class="kw">return</span> <span class="prelude-val">Ok</span>(());
         }
@@ -666,12 +734,26 @@
         <span class="comment">// Ensure we have the payload. If we don&#39;t, the synchronizer will ask our workers to get it, and then</span>
         <span class="comment">// reschedule processing of this header once we have it.</span>
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">synchronizer</span>.<span class="ident">missing_payload</span>(<span class="ident">header</span>).<span class="kw">await</span><span class="question-mark">?</span> {
+            <span class="self">self</span>.<span class="ident">metrics</span>
+                .<span class="ident">headers_suspended</span>
+                .<span class="ident">with_label_values</span>(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="ident">header</span>.<span class="ident">epoch</span>.<span class="ident">to_string</span>(), <span class="string">&quot;missing_payload&quot;</span>])
+                .<span class="ident">inc</span>();
             <span class="macro">debug!</span>(<span class="string">&quot;Processing of {header} suspended: missing payload&quot;</span>);
             <span class="kw">return</span> <span class="prelude-val">Ok</span>(());
         }
 
         <span class="comment">// Store the header.</span>
         <span class="self">self</span>.<span class="ident">header_store</span>.<span class="ident">write</span>(<span class="ident">header</span>.<span class="ident">id</span>, <span class="ident">header</span>.<span class="ident">clone</span>()).<span class="kw">await</span>;
+
+        <span class="kw">let</span> <span class="ident">header_source</span> <span class="op">=</span> <span class="kw">if</span> <span class="self">self</span>.<span class="ident">name</span>.<span class="ident">eq</span>(<span class="kw-2">&amp;</span><span class="ident">header</span>.<span class="ident">author</span>) {
+            <span class="string">&quot;own&quot;</span>
+        } <span class="kw">else</span> {
+            <span class="string">&quot;other&quot;</span>
+        };
+        <span class="self">self</span>.<span class="ident">metrics</span>
+            .<span class="ident">headers_processed</span>
+            .<span class="ident">with_label_values</span>(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="ident">header</span>.<span class="ident">epoch</span>.<span class="ident">to_string</span>(), <span class="ident">header_source</span>])
+            .<span class="ident">inc</span>();
 
         <span class="comment">// Check if we can vote for this header.</span>
         <span class="kw">if</span> <span class="self">self</span>
@@ -732,6 +814,11 @@
                 .<span class="ident">or_insert_with</span>(<span class="ident">Vec::new</span>)
                 .<span class="ident">extend</span>(<span class="ident">handlers</span>);
 
+            <span class="self">self</span>.<span class="ident">metrics</span>
+                .<span class="ident">certificates_created</span>
+                .<span class="ident">with_label_values</span>(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="ident">certificate</span>.<span class="ident">epoch</span>().<span class="ident">to_string</span>()])
+                .<span class="ident">inc</span>();
+
             <span class="comment">// Process the new certificate.</span>
             <span class="self">self</span>.<span class="ident">process_certificate</span>(<span class="ident">certificate</span>)
                 .<span class="kw">await</span>
@@ -767,6 +854,10 @@
                 <span class="string">&quot;Processing of {:?} suspended: missing ancestors&quot;</span>,
                 <span class="ident">certificate</span>
             );
+            <span class="self">self</span>.<span class="ident">metrics</span>
+                .<span class="ident">certificates_suspended</span>
+                .<span class="ident">with_label_values</span>(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="ident">certificate</span>.<span class="ident">epoch</span>().<span class="ident">to_string</span>(), <span class="string">&quot;missing_parents&quot;</span>])
+                .<span class="ident">inc</span>();
             <span class="kw">return</span> <span class="prelude-val">Ok</span>(());
         }
 
@@ -774,6 +865,16 @@
         <span class="self">self</span>.<span class="ident">certificate_store</span>
             .<span class="ident">write</span>(<span class="ident">certificate</span>.<span class="ident">digest</span>(), <span class="ident">certificate</span>.<span class="ident">clone</span>())
             .<span class="kw">await</span>;
+
+        <span class="kw">let</span> <span class="ident">certificate_source</span> <span class="op">=</span> <span class="kw">if</span> <span class="self">self</span>.<span class="ident">name</span>.<span class="ident">eq</span>(<span class="kw-2">&amp;</span><span class="ident">certificate</span>.<span class="ident">header</span>.<span class="ident">author</span>) {
+            <span class="string">&quot;own&quot;</span>
+        } <span class="kw">else</span> {
+            <span class="string">&quot;other&quot;</span>
+        };
+        <span class="self">self</span>.<span class="ident">metrics</span>
+            .<span class="ident">certificates_processed</span>
+            .<span class="ident">with_label_values</span>(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="ident">certificate</span>.<span class="ident">epoch</span>().<span class="ident">to_string</span>(), <span class="ident">certificate_source</span>])
+            .<span class="ident">inc</span>();
 
         <span class="comment">// Check if we have enough certificates to enter a new dag round and propose a header.</span>
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">parents</span>) <span class="op">=</span> <span class="self">self</span>
@@ -918,16 +1019,23 @@
             <span class="comment">// Cleanup internal state.</span>
             <span class="kw">let</span> <span class="ident">round</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">consensus_round</span>.<span class="ident">load</span>(<span class="ident">Ordering::Relaxed</span>);
             <span class="kw">if</span> <span class="ident">round</span> <span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">gc_depth</span> {
+                <span class="kw">let</span> <span class="ident">now</span> <span class="op">=</span> <span class="ident">Instant::now</span>();
+
                 <span class="kw">let</span> <span class="ident">gc_round</span> <span class="op">=</span> <span class="ident">round</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">gc_depth</span>;
                 <span class="self">self</span>.<span class="ident">last_voted</span>.<span class="ident">retain</span>(<span class="op">|</span><span class="ident">k</span>, <span class="kw">_</span><span class="op">|</span> <span class="ident">k</span> <span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">gc_round</span>);
                 <span class="self">self</span>.<span class="ident">processing</span>.<span class="ident">retain</span>(<span class="op">|</span><span class="ident">k</span>, <span class="kw">_</span><span class="op">|</span> <span class="ident">k</span> <span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">gc_round</span>);
                 <span class="self">self</span>.<span class="ident">certificates_aggregators</span>.<span class="ident">retain</span>(<span class="op">|</span><span class="ident">k</span>, <span class="kw">_</span><span class="op">|</span> <span class="ident">k</span> <span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">gc_round</span>);
                 <span class="self">self</span>.<span class="ident">cancel_handlers</span>.<span class="ident">retain</span>(<span class="op">|</span><span class="ident">k</span>, <span class="kw">_</span><span class="op">|</span> <span class="ident">k</span> <span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">gc_round</span>);
                 <span class="self">self</span>.<span class="ident">gc_round</span> <span class="op">=</span> <span class="ident">gc_round</span>;
+
+                <span class="self">self</span>.<span class="ident">metrics</span>
+                    .<span class="ident">gc_core_latency</span>
+                    .<span class="ident">with_label_values</span>(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">epoch</span>.<span class="ident">to_string</span>()])
+                    .<span class="ident">observe</span>(<span class="ident">now</span>.<span class="ident">elapsed</span>().<span class="ident">as_secs_f64</span>());
             }
         }
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (2f3ddd9f5 2022-06-27)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (ddcbba036 2022-06-29)" ></div>
 </body></html>

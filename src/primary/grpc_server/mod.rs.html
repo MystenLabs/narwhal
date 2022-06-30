@@ -99,13 +99,18 @@
 <span id="93">93</span>
 <span id="94">94</span>
 <span id="95">95</span>
+<span id="96">96</span>
+<span id="97">97</span>
+<span id="98">98</span>
+<span id="99">99</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 
 <span class="kw">use</span> <span class="self">self</span>::{<span class="ident">configuration::NarwhalConfiguration</span>, <span class="ident">validator::NarwhalValidator</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::{
-    <span class="ident">block_synchronizer::handler::Handler</span>, <span class="ident">grpc_server::proposer::NarwhalProposer</span>, <span class="ident">BlockCommand</span>,
-    <span class="ident">BlockRemoverCommand</span>,
+    <span class="ident">block_synchronizer::handler::Handler</span>,
+    <span class="ident">grpc_server</span>::{<span class="ident">metrics::EndpointMetrics</span>, <span class="ident">proposer::NarwhalProposer</span>},
+    <span class="ident">BlockCommand</span>, <span class="ident">BlockRemoverCommand</span>,
 };
 <span class="kw">use</span> <span class="ident">config::SharedCommittee</span>;
 <span class="kw">use</span> <span class="ident">consensus::dag::Dag</span>;
@@ -117,6 +122,7 @@
 <span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">ConfigurationServer</span>, <span class="ident">ProposerServer</span>, <span class="ident">ValidatorServer</span>};
 
 <span class="kw">mod</span> <span class="ident">configuration</span>;
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">metrics</span>;
 <span class="kw">mod</span> <span class="ident">proposer</span>;
 <span class="kw">mod</span> <span class="ident">validator</span>;
 
@@ -132,6 +138,7 @@
     <span class="ident">block_synchronizer_handler</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SynchronizerHandler</span><span class="op">&gt;</span>,
     <span class="ident">dag</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Dag</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">committee</span>: <span class="ident">SharedCommittee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
+    <span class="ident">endpoints_metrics</span>: <span class="ident">EndpointMetrics</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span>, <span class="ident">SynchronizerHandler</span>: <span class="ident">Handler</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span>
@@ -146,6 +153,7 @@
         <span class="ident">block_synchronizer_handler</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SynchronizerHandler</span><span class="op">&gt;</span>,
         <span class="ident">dag</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Dag</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">committee</span>: <span class="ident">SharedCommittee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
+        <span class="ident">endpoints_metrics</span>: <span class="ident">EndpointMetrics</span>,
     ) {
         <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
             <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">Self</span> {
@@ -157,6 +165,7 @@
                 <span class="ident">block_synchronizer_handler</span>,
                 <span class="ident">dag</span>,
                 <span class="ident">committee</span>,
+                <span class="ident">endpoints_metrics</span>,
             }
             .<span class="ident">run</span>()
             .<span class="kw">await</span>
@@ -175,12 +184,11 @@
         );
 
         <span class="kw">let</span> <span class="ident">narwhal_proposer</span> <span class="op">=</span> <span class="ident">NarwhalProposer::new</span>(<span class="self">self</span>.<span class="ident">dag</span>.<span class="ident">clone</span>(), <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">committee</span>));
-
         <span class="kw">let</span> <span class="ident">narwhal_configuration</span> <span class="op">=</span> <span class="ident">NarwhalConfiguration::new</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">committee</span>));
 
         <span class="kw">let</span> <span class="ident">config</span> <span class="op">=</span> <span class="ident">mysten_network::config::Config::default</span>();
         <span class="kw">let</span> <span class="ident">server</span> <span class="op">=</span> <span class="ident">config</span>
-            .<span class="ident">server_builder</span>()
+            .<span class="ident">server_builder_with_metrics</span>(<span class="self">self</span>.<span class="ident">endpoints_metrics</span>.<span class="ident">clone</span>())
             .<span class="ident">add_service</span>(<span class="ident">ValidatorServer::new</span>(<span class="ident">narwhal_validator</span>))
             .<span class="ident">add_service</span>(<span class="ident">ConfigurationServer::new</span>(<span class="ident">narwhal_configuration</span>))
             .<span class="ident">add_service</span>(<span class="ident">ProposerServer::new</span>(<span class="ident">narwhal_proposer</span>))
@@ -195,5 +203,5 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (2f3ddd9f5 2022-06-27)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (ddcbba036 2022-06-29)" ></div>
 </body></html>

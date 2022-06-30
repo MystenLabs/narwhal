@@ -506,6 +506,30 @@
 <span id="500">500</span>
 <span id="501">501</span>
 <span id="502">502</span>
+<span id="503">503</span>
+<span id="504">504</span>
+<span id="505">505</span>
+<span id="506">506</span>
+<span id="507">507</span>
+<span id="508">508</span>
+<span id="509">509</span>
+<span id="510">510</span>
+<span id="511">511</span>
+<span id="512">512</span>
+<span id="513">513</span>
+<span id="514">514</span>
+<span id="515">515</span>
+<span id="516">516</span>
+<span id="517">517</span>
+<span id="518">518</span>
+<span id="519">519</span>
+<span id="520">520</span>
+<span id="521">521</span>
+<span id="522">522</span>
+<span id="523">523</span>
+<span id="524">524</span>
+<span id="525">525</span>
+<span id="526">526</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -533,6 +557,7 @@
 };
 <span class="kw">use</span> <span class="ident">multiaddr</span>::{<span class="ident">Multiaddr</span>, <span class="ident">Protocol</span>};
 <span class="kw">use</span> <span class="ident">network</span>::{<span class="ident">PrimaryNetwork</span>, <span class="ident">PrimaryToWorkerNetwork</span>};
+<span class="kw">use</span> <span class="ident">prometheus::Registry</span>;
 <span class="kw">use</span> <span class="ident">serde</span>::{<span class="ident">Deserialize</span>, <span class="ident">Serialize</span>};
 <span class="kw">use</span> <span class="ident">std</span>::{
     <span class="ident">net::Ipv4Addr</span>,
@@ -555,7 +580,10 @@
 <span class="doccomment">/// The default channel capacity for each channel of the primary.</span>
 <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">CHANNEL_CAPACITY</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">1_000</span>;
 
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::block_synchronizer::handler::BlockSynchronizerHandler</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::{
+    <span class="ident">block_synchronizer::handler::BlockSynchronizerHandler</span>,
+    <span class="ident">metrics</span>::{<span class="ident">initialise_metrics</span>, <span class="ident">PrimaryMetrics</span>},
+};
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">PrimaryMessage</span>, <span class="ident">PrimaryWorkerMessage</span>};
 
 <span class="doccomment">/// The messages sent by the workers to their primary.</span>
@@ -610,6 +638,7 @@
         <span class="ident">dag</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Dag</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">network_model</span>: <span class="ident">NetworkModel</span>,
         <span class="ident">tx_committed_certificates</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">registry</span>: <span class="kw-2">&amp;</span><span class="ident">Registry</span>,
     ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="kw">let</span> (<span class="ident">tx_others_digests</span>, <span class="ident">rx_others_digests</span>) <span class="op">=</span> <span class="ident">channel</span>(<span class="ident">CHANNEL_CAPACITY</span>);
         <span class="kw">let</span> (<span class="ident">tx_our_digests</span>, <span class="ident">rx_our_digests</span>) <span class="op">=</span> <span class="ident">channel</span>(<span class="ident">CHANNEL_CAPACITY</span>);
@@ -633,6 +662,11 @@
 
         <span class="comment">// Write the parameters to the logs.</span>
         <span class="ident">parameters</span>.<span class="ident">tracing</span>();
+
+        <span class="comment">// Initialise the metrics</span>
+        <span class="kw">let</span> <span class="ident">metrics</span> <span class="op">=</span> <span class="ident">initialise_metrics</span>(<span class="ident">registry</span>);
+        <span class="kw">let</span> <span class="ident">endpoint_metrics</span> <span class="op">=</span> <span class="ident">metrics</span>.<span class="ident">endpoint_metrics</span>.<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">node_metrics</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">metrics</span>.<span class="ident">node_metrics</span>.<span class="ident">unwrap</span>());
 
         <span class="comment">// Atomic variable use to synchronize all tasks with the latest consensus round. This is only</span>
         <span class="comment">// used for cleanup. The only task that write into this variable is `GarbageCollector`.</span>
@@ -672,6 +706,7 @@
             <span class="ident">tx_others_digests</span>,
             <span class="ident">tx_batches</span>,
             <span class="ident">tx_batch_removal</span>,
+            <span class="ident">metrics</span>: <span class="ident">node_metrics</span>.<span class="ident">clone</span>(),
         }
         .<span class="ident">spawn</span>(<span class="ident">address</span>.<span class="ident">clone</span>());
         <span class="macro">info!</span>(
@@ -709,6 +744,7 @@
             <span class="comment">/* rx_proposer */</span> <span class="ident">rx_headers</span>,
             <span class="ident">tx_consensus</span>,
             <span class="comment">/* tx_proposer */</span> <span class="ident">tx_parents</span>,
+            <span class="ident">node_metrics</span>,
         );
 
         <span class="comment">// Keeps track of the latest consensus round and allows other tasks to clean up their their internal state</span>
@@ -831,6 +867,7 @@
                 <span class="ident">block_synchronizer_handler</span>,
                 <span class="ident">dag</span>,
                 <span class="ident">committee</span>.<span class="ident">clone</span>(),
+                <span class="ident">endpoint_metrics</span>,
             );
         }
 
@@ -938,6 +975,7 @@
     <span class="ident">tx_others_digests</span>: <span class="ident">Sender</span><span class="op">&lt;</span>(<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>)<span class="op">&gt;</span>,
     <span class="ident">tx_batches</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">BatchResult</span><span class="op">&gt;</span>,
     <span class="ident">tx_batch_removal</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">DeleteBatchResult</span><span class="op">&gt;</span>,
+    <span class="ident">metrics</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">PrimaryMetrics</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">WorkerReceiverHandler</span> {
@@ -968,16 +1006,26 @@
             .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">Status::invalid_argument</span>(<span class="ident">e</span>.<span class="ident">to_string</span>()))<span class="question-mark">?</span>;
 
         <span class="kw">match</span> <span class="ident">message</span> {
-            <span class="ident">WorkerPrimaryMessage::OurBatch</span>(<span class="ident">digest</span>, <span class="ident">worker_id</span>) =&gt; <span class="self">self</span>
-                .<span class="ident">tx_our_digests</span>
-                .<span class="ident">send</span>((<span class="ident">digest</span>, <span class="ident">worker_id</span>))
-                .<span class="kw">await</span>
-                .<span class="ident">expect</span>(<span class="string">&quot;Failed to send workers&#39; digests&quot;</span>),
-            <span class="ident">WorkerPrimaryMessage::OthersBatch</span>(<span class="ident">digest</span>, <span class="ident">worker_id</span>) =&gt; <span class="self">self</span>
-                .<span class="ident">tx_others_digests</span>
-                .<span class="ident">send</span>((<span class="ident">digest</span>, <span class="ident">worker_id</span>))
-                .<span class="kw">await</span>
-                .<span class="ident">expect</span>(<span class="string">&quot;Failed to send workers&#39; digests&quot;</span>),
+            <span class="ident">WorkerPrimaryMessage::OurBatch</span>(<span class="ident">digest</span>, <span class="ident">worker_id</span>) =&gt; {
+                <span class="self">self</span>.<span class="ident">metrics</span>
+                    .<span class="ident">batches_received</span>
+                    .<span class="ident">with_label_values</span>(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="ident">worker_id</span>.<span class="ident">to_string</span>(), <span class="string">&quot;our_batch&quot;</span>])
+                    .<span class="ident">inc</span>();
+                <span class="self">self</span>.<span class="ident">tx_our_digests</span>
+                    .<span class="ident">send</span>((<span class="ident">digest</span>, <span class="ident">worker_id</span>))
+                    .<span class="kw">await</span>
+                    .<span class="ident">expect</span>(<span class="string">&quot;Failed to send workers&#39; digests&quot;</span>)
+            }
+            <span class="ident">WorkerPrimaryMessage::OthersBatch</span>(<span class="ident">digest</span>, <span class="ident">worker_id</span>) =&gt; {
+                <span class="self">self</span>.<span class="ident">metrics</span>
+                    .<span class="ident">batches_received</span>
+                    .<span class="ident">with_label_values</span>(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="ident">worker_id</span>.<span class="ident">to_string</span>(), <span class="string">&quot;others_batch&quot;</span>])
+                    .<span class="ident">inc</span>();
+                <span class="self">self</span>.<span class="ident">tx_others_digests</span>
+                    .<span class="ident">send</span>((<span class="ident">digest</span>, <span class="ident">worker_id</span>))
+                    .<span class="kw">await</span>
+                    .<span class="ident">expect</span>(<span class="string">&quot;Failed to send workers&#39; digests&quot;</span>)
+            }
             <span class="ident">WorkerPrimaryMessage::RequestedBatch</span>(<span class="ident">digest</span>, <span class="ident">transactions</span>) =&gt; <span class="self">self</span>
                 .<span class="ident">tx_batches</span>
                 .<span class="ident">send</span>(<span class="prelude-val">Ok</span>(<span class="ident">BatchMessage</span> {
@@ -1009,5 +1057,5 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (2f3ddd9f5 2022-06-27)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (ddcbba036 2022-06-29)" ></div>
 </body></html>

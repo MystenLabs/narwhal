@@ -626,6 +626,40 @@
 <span id="620">620</span>
 <span id="621">621</span>
 <span id="622">622</span>
+<span id="623">623</span>
+<span id="624">624</span>
+<span id="625">625</span>
+<span id="626">626</span>
+<span id="627">627</span>
+<span id="628">628</span>
+<span id="629">629</span>
+<span id="630">630</span>
+<span id="631">631</span>
+<span id="632">632</span>
+<span id="633">633</span>
+<span id="634">634</span>
+<span id="635">635</span>
+<span id="636">636</span>
+<span id="637">637</span>
+<span id="638">638</span>
+<span id="639">639</span>
+<span id="640">640</span>
+<span id="641">641</span>
+<span id="642">642</span>
+<span id="643">643</span>
+<span id="644">644</span>
+<span id="645">645</span>
+<span id="646">646</span>
+<span id="647">647</span>
+<span id="648">648</span>
+<span id="649">649</span>
+<span id="650">650</span>
+<span id="651">651</span>
+<span id="652">652</span>
+<span id="653">653</span>
+<span id="654">654</span>
+<span id="655">655</span>
+<span id="656">656</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -644,6 +678,7 @@
     <span class="ident">collections</span>::{<span class="ident">BTreeMap</span>, <span class="ident">HashMap</span>},
     <span class="ident">fs</span>::{<span class="self">self</span>, <span class="ident">OpenOptions</span>},
     <span class="ident">io</span>::{<span class="ident">BufWriter</span>, <span class="ident">Write</span> <span class="kw">as</span> <span class="kw">_</span>},
+    <span class="ident">net::SocketAddr</span>,
     <span class="ident">ops::Deref</span>,
     <span class="ident">sync::Arc</span>,
     <span class="ident">time::Duration</span>,
@@ -756,6 +791,24 @@
     <span class="kw">pub</span> <span class="ident">consensus_api_grpc</span>: <span class="ident">ConsensusAPIGrpcParameters</span>,
     <span class="doccomment">/// The maximum number of concurrent requests for messages accepted from an un-trusted entity</span>
     <span class="kw">pub</span> <span class="ident">max_concurrent_requests</span>: <span class="ident">usize</span>,
+    <span class="doccomment">/// Properties for the prometheus metrics</span>
+    <span class="kw">pub</span> <span class="ident">prometheus_metrics</span>: <span class="ident">PrometheusMetricsParameters</span>,
+}
+
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">Deserialize</span>, <span class="ident">Serialize</span>)]</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">PrometheusMetricsParameters</span> {
+    <span class="doccomment">/// Socket address the server should be listening to.</span>
+    <span class="kw">pub</span> <span class="ident">socket_addr</span>: <span class="ident">SocketAddr</span>,
+}
+
+<span class="kw">impl</span> <span class="ident">Default</span> <span class="kw">for</span> <span class="ident">PrometheusMetricsParameters</span> {
+    <span class="kw">fn</span> <span class="ident">default</span>() -&gt; <span class="self">Self</span> {
+        <span class="self">Self</span> {
+            <span class="ident">socket_addr</span>: <span class="macro">format!</span>(<span class="string">&quot;127.0.0.1:{}&quot;</span>, <span class="ident">get_available_port</span>())
+                .<span class="ident">parse</span>()
+                .<span class="ident">unwrap</span>(),
+        }
+    }
 }
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">Deserialize</span>, <span class="ident">Serialize</span>)]</span>
@@ -829,6 +882,7 @@
             <span class="ident">block_synchronizer</span>: <span class="ident">BlockSynchronizerParameters::default</span>(),
             <span class="ident">consensus_api_grpc</span>: <span class="ident">ConsensusAPIGrpcParameters::default</span>(),
             <span class="ident">max_concurrent_requests</span>: <span class="number">500_000</span>,
+            <span class="ident">prometheus_metrics</span>: <span class="ident">PrometheusMetricsParameters::default</span>(),
         }
     }
 }
@@ -892,7 +946,11 @@
         <span class="macro">info!</span>(
             <span class="string">&quot;Max concurrent requests set to {}&quot;</span>,
             <span class="self">self</span>.<span class="ident">max_concurrent_requests</span>
-        )
+        );
+        <span class="macro">info!</span>(
+            <span class="string">&quot;Prometheus metrics server will run on {}&quot;</span>,
+            <span class="self">self</span>.<span class="ident">prometheus_metrics</span>.<span class="ident">socket_addr</span>
+        );
     }
 }
 
@@ -1153,7 +1211,10 @@
                  &quot;get_collections_timeout&quot;: &quot;5_000ms&quot;,
                  &quot;remove_collections_timeout&quot;: &quot;5_000ms&quot;
              },
-             &quot;max_concurrent_requests&quot;: 500000
+             &quot;max_concurrent_requests&quot;: 500000,
+             &quot;prometheus_metrics&quot;: {
+                 &quot;socket_addr&quot;: &quot;127.0.0.1:0&quot;
+             }
           }&quot;#</span>;
 
         <span class="comment">// AND temporary file</span>
@@ -1209,6 +1270,10 @@
                 .<span class="ident">as_millis</span>(),
             <span class="number">5_000</span>
         );
+        <span class="macro">assert_eq!</span>(
+            <span class="ident">params</span>.<span class="ident">prometheus_metrics</span>.<span class="ident">socket_addr</span>.<span class="ident">to_string</span>(),
+            <span class="string">&quot;127.0.0.1:0&quot;</span>,
+        );
     }
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
@@ -1245,9 +1310,12 @@
         ));
         <span class="macro">assert!</span>(<span class="ident">logs_contain</span>(<span class="string">&quot;Get collections timeout set to 5000 ms&quot;</span>));
         <span class="macro">assert!</span>(<span class="ident">logs_contain</span>(<span class="string">&quot;Remove collections timeout set to 5000 ms&quot;</span>));
-        <span class="macro">assert!</span>(<span class="ident">logs_contain</span>(<span class="string">&quot;Max concurrent requests set to 500000&quot;</span>))
+        <span class="macro">assert!</span>(<span class="ident">logs_contain</span>(<span class="string">&quot;Max concurrent requests set to 500000&quot;</span>));
+        <span class="macro">assert!</span>(<span class="ident">logs_contain</span>(
+            <span class="string">&quot;Prometheus metrics server will run on 127.0.0.1&quot;</span>
+        ));
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="config" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (2f3ddd9f5 2022-06-27)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="config" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (ddcbba036 2022-06-29)" ></div>
 </body></html>
