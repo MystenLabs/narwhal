@@ -29,7 +29,7 @@ use tokio::{
 use tracing::{debug, error};
 use types::{
     error::{DagError, DagResult},
-    BatchDigest, Certificate, CertificateDigest, Header, HeaderDigest, Round, ShutdownToken,
+    BatchDigest, Certificate, CertificateDigest, Header, HeaderDigest, Round,
 };
 
 #[cfg(test)]
@@ -102,7 +102,7 @@ impl<PublicKey: VerifyingKey> HeaderWaiter<PublicKey> {
         tx_core: Sender<Header<PublicKey>>,
     ) {
         tokio::spawn(async move {
-            let shutdown_token = Self {
+            Self {
                 name,
                 committee,
                 certificate_store,
@@ -122,7 +122,6 @@ impl<PublicKey: VerifyingKey> HeaderWaiter<PublicKey> {
             }
             .run()
             .await;
-            drop(shutdown_token);
         });
     }
 
@@ -157,7 +156,7 @@ impl<PublicKey: VerifyingKey> HeaderWaiter<PublicKey> {
     }
 
     /// Main loop listening to the `Synchronizer` messages.
-    async fn run(&mut self) -> ShutdownToken {
+    async fn run(&mut self) {
         let mut waiting: FuturesUnordered<BoxFuture<'_, _>> = FuturesUnordered::new();
 
         let timer = sleep(Duration::from_millis(TIMER_RESOLUTION));
@@ -172,17 +171,6 @@ impl<PublicKey: VerifyingKey> HeaderWaiter<PublicKey> {
                             let header_id = header.id;
                             let round = header.round;
                             let author = header.author.clone();
-
-                            // Update the committee now if the core already did so.
-                            if self.rx_reconfigure.has_changed().expect("Reconfigure channel dropped") {
-                                let message = self.rx_reconfigure.borrow_and_update().clone();
-                                match message {
-                                    Reconfigure::NewCommittee(new_committee) => {
-                                        self.update_committee(new_committee);
-                                    }
-                                    Reconfigure::Shutdown(token) => return token
-                                }
-                            }
 
                             // Ensure we sync only once per header.
                             if self.pending.contains_key(&header_id) {
@@ -213,6 +201,9 @@ impl<PublicKey: VerifyingKey> HeaderWaiter<PublicKey> {
                                     .worker(&self.name, &worker_id)
                                     .expect("Author of valid header is not in the committee")
                                     .primary_to_worker;
+
+                                // TODO [issue #423]: This network transmission needs to be reliable. The worker may crash-recover
+                                // or a committee change may change the worker's IP address.
                                 let message = PrimaryWorkerMessage::Synchronize(digests, author.clone());
                                 self.worker_network.send(address, &message).await;
                             }
@@ -223,18 +214,6 @@ impl<PublicKey: VerifyingKey> HeaderWaiter<PublicKey> {
                             let header_id = header.id;
                             let round = header.round;
                             let author = header.author.clone();
-
-                            // Update the committee now if the core already did so.
-                            if self.rx_reconfigure.has_changed().expect("Reconfigure channel dropped") {
-                                let message = self.rx_reconfigure.borrow_and_update().clone();
-                                match message {
-                                    Reconfigure::NewCommittee(new_committee) => {
-                                        self.update_committee(new_committee);
-                                    }
-                                    Reconfigure::Shutdown(token) => return token
-                                }
-                            }
-
 
                             // Ensure we sync only once per header.
                             if self.pending.contains_key(&header_id) {
@@ -327,6 +306,18 @@ impl<PublicKey: VerifyingKey> HeaderWaiter<PublicKey> {
                     // Reschedule the timer.
                     timer.as_mut().reset(Instant::now() + Duration::from_millis(TIMER_RESOLUTION));
                 },
+
+                // Check whether the committee changed.
+                result = self.rx_reconfigure.changed() => {
+                    result.expect("Committee channel dropped");
+                    let message = self.rx_reconfigure.borrow().clone();
+                    match message {
+                        Reconfigure::NewCommittee(new_committee) => {
+                            self.update_committee(new_committee);
+                        },
+                        Reconfigure::Shutdown(_token) => return
+                    }
+                }
             }
 
             // Cleanup internal state.
