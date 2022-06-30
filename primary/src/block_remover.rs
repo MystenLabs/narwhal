@@ -92,7 +92,7 @@ pub struct DeleteBatchMessage {
 /// # use std::sync::Arc;
 /// # use config::WorkerId;
 /// # use tempfile::tempdir;
-/// # use primary::{BlockRemover, BlockRemoverCommand, DeleteBatchMessage, PayloadToken};
+/// # use primary::{BlockRemover, BlockRemoverCommand, DeleteBatchMessage, PayloadToken, Reconfigure};
 /// # use types::{BatchDigest, Certificate, CertificateDigest, HeaderDigest, Header};
 ///
 /// #[tokio::main(flavor = "current_thread")]
@@ -121,8 +121,8 @@ pub struct DeleteBatchMessage {
 ///     let (tx_delete_block_result, mut rx_delete_block_result) = channel(1);
 ///
 ///     let name = Ed25519PublicKey::default();
-///     let committee = Arc::new(Committee{ epoch: ArcSwap::new(Arc::new(0)), authorities: ArcSwap::from_pointee(BTreeMap::new()) });
-///     let (_tx_reconfigure, rx_reconfigure) = watch::channel(committee.clone());
+///     let committee = Committee{ epoch: ArcSwap::new(Arc::new(0)), authorities: ArcSwap::from_pointee(BTreeMap::new()) };
+///     let (_tx_reconfigure, rx_reconfigure) = watch::channel(Reconfigure::NewCommittee(committee.clone()));
 ///     // A dag with genesis for the committee
 ///     let (tx_new_certificates, rx_new_certificates) = channel(1);
 ///     let dag = Arc::new(Dag::new(&committee, rx_new_certificates).1);
