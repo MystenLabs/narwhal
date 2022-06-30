@@ -12,10 +12,10 @@ use tokio::{
     },
     time::{sleep, Duration, Instant},
 };
-use tracing::{debug, warn};
+use tracing::debug;
 use types::{
     error::{DagError, DagResult},
-    BatchDigest, Certificate, Header, Round, ShutdownToken,
+    BatchDigest, Certificate, Header, Round,
 };
 
 #[cfg(test)]
@@ -74,7 +74,7 @@ impl<PublicKey: VerifyingKey> Proposer<PublicKey> {
     ) {
         let genesis = Certificate::genesis(&committee);
         tokio::spawn(async move {
-            let shutdown_token = Self {
+            Self {
                 name,
                 committee,
                 signature_service,
@@ -93,7 +93,6 @@ impl<PublicKey: VerifyingKey> Proposer<PublicKey> {
             }
             .run()
             .await;
-            drop(shutdown_token);
         });
     }
 
@@ -196,7 +195,7 @@ impl<PublicKey: VerifyingKey> Proposer<PublicKey> {
     }
 
     /// Main loop listening to incoming messages.
-    pub async fn run(&mut self) -> ShutdownToken {
+    pub async fn run(&mut self) {
         debug!("Dag starting at round {}", self.round);
         let mut advance = true;
 
@@ -217,7 +216,7 @@ impl<PublicKey: VerifyingKey> Proposer<PublicKey> {
             if (timer_expired || (enough_digests && advance)) && enough_parents {
                 if timer_expired && matches!(self.network_model, NetworkModel::PartiallySynchronous)
                 {
-                    warn!("Timer expired for round {}", self.round);
+                    debug!("Timer expired for round {}", self.round);
                 }
 
                 // Advance to the next round.
@@ -248,7 +247,7 @@ impl<PublicKey: VerifyingKey> Proposer<PublicKey> {
                                 Reconfigure::NewCommittee(new_committee) => {
                                     self.update_committee(new_committee);
                                 },
-                                Reconfigure::Shutdown(token) => return token,
+                                Reconfigure::Shutdown(_token) => return,
                             }
 
                         }
@@ -305,7 +304,7 @@ impl<PublicKey: VerifyingKey> Proposer<PublicKey> {
                         Reconfigure::NewCommittee(new_committee) => {
                             self.update_committee(new_committee);
                         },
-                        Reconfigure::Shutdown(token) => return token,
+                        Reconfigure::Shutdown(_token) => return,
                     }
                 }
             }

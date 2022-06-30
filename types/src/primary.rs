@@ -572,7 +572,7 @@ pub enum PrimaryWorkerMessage<PublicKey> {
     DeleteBatches(Vec<BatchDigest>),
 }
 
-#[derive(Clone, Default, Debug, PartialEq)]
+#[derive(Clone, Default, Debug, Eq, PartialEq)]
 pub struct BatchMessage {
     // TODO: revisit including the id here [see #188]
     pub id: BatchDigest,
@@ -588,14 +588,14 @@ pub struct BlockRemoverError {
 }
 
 // TODO: refactor BlockError & BlockRemoverError to be one type shared by get/remove collections.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum BlockRemoverErrorKind {
     Timeout,
     Failed,
     StorageFailure,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum BlockErrorKind {
     BlockNotFound,
     BatchTimeout,
@@ -604,7 +604,7 @@ pub enum BlockErrorKind {
 
 pub type BlockResult<T> = Result<T, BlockError>;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct BlockError {
     pub id: CertificateDigest,
     pub error: BlockErrorKind,

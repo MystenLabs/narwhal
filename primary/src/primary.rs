@@ -3,13 +3,14 @@
 // SPDX-License-Identifier: Apache-2.0
 use crate::{
     block_remover::DeleteBatchResult,
-    block_synchronizer::BlockSynchronizer,
+    block_synchronizer::{handler::BlockSynchronizerHandler, BlockSynchronizer},
     block_waiter::{BatchMessageError, BatchResult, BlockWaiter},
     certificate_waiter::CertificateWaiter,
     core::Core,
     grpc_server::ConsensusAPIGrpc,
     header_waiter::HeaderWaiter,
     helper::Helper,
+    metrics::{initialise_metrics, PrimaryMetrics},
     payload_receiver::PayloadReceiver,
     proposer::Proposer,
     state_handler::StateHandler,
@@ -25,6 +26,7 @@ use crypto::{
 };
 use multiaddr::{Multiaddr, Protocol};
 use network::{PrimaryNetwork, PrimaryToWorkerNetwork};
+use prometheus::Registry;
 use serde::{Deserialize, Serialize};
 use std::{
     net::Ipv4Addr,
@@ -46,12 +48,10 @@ use types::{
     Header, HeaderDigest, PrimaryToPrimary, PrimaryToPrimaryServer, ShutdownToken, WorkerToPrimary,
     WorkerToPrimaryServer,
 };
+pub use types::{ConsensusPrimaryMessage, PrimaryMessage, PrimaryWorkerMessage};
 
 /// The default channel capacity for each channel of the primary.
 pub const CHANNEL_CAPACITY: usize = 1_000;
-
-use crate::block_synchronizer::handler::BlockSynchronizerHandler;
-pub use types::{ConsensusPrimaryMessage, PrimaryMessage, PrimaryWorkerMessage};
 
 /// Message to reconfigure tasks.
 #[derive(Clone, Debug)]
@@ -63,7 +63,7 @@ pub enum Reconfigure<PublicKey: VerifyingKey> {
 }
 
 /// The messages sent by the workers to their primary.
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
 pub enum WorkerPrimaryMessage {
     /// The worker indicates it sealed a new batch.
     OurBatch(BatchDigest, WorkerId),
@@ -78,7 +78,7 @@ pub enum WorkerPrimaryMessage {
     Error(WorkerPrimaryError),
 }
 
-#[derive(Debug, Serialize, Deserialize, Error, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Error, Clone, Eq, PartialEq)]
 pub enum WorkerPrimaryError {
     #[error("Batch with id {0} has not been found")]
     RequestedBatchNotFound(BatchDigest),
@@ -113,6 +113,8 @@ impl Primary {
         rx_consensus: Receiver<ConsensusPrimaryMessage<PublicKey>>,
         dag: Option<Arc<Dag<PublicKey>>>,
         network_model: NetworkModel,
+        tx_committed_certificates: Sender<ConsensusPrimaryMessage<PublicKey>>,
+        registry: &Registry,
     ) -> JoinHandle<()> {
         let initial_committee = Reconfigure::NewCommittee((&*committee).clone());
         let (tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
@@ -139,6 +141,11 @@ impl Primary {
 
         // Write the parameters to the logs.
         parameters.tracing();
+
+        // Initialise the metrics
+        let metrics = initialise_metrics(registry);
+        let endpoint_metrics = metrics.endpoint_metrics.unwrap();
+        let node_metrics = Arc::new(metrics.node_metrics.unwrap());
 
         // Atomic variable use to synchronize all tasks with the latest consensus round. This is only
         // used for cleanup. The only task that write into this variable is `GarbageCollector`.
@@ -178,6 +185,7 @@ impl Primary {
             tx_others_digests,
             tx_batches,
             tx_batch_removal,
+            metrics: node_metrics.clone(),
         }
         .spawn(address.clone());
         info!(
@@ -216,6 +224,7 @@ impl Primary {
             /* rx_proposer */ rx_headers,
             tx_consensus,
             /* tx_proposer */ tx_parents,
+            node_metrics,
         );
 
         // Receives batch digests from other workers. They are only used to validate headers.
@@ -259,6 +268,7 @@ impl Primary {
             tx_reconfigure.subscribe(),
             rx_block_removal_commands,
             rx_batch_removal,
+            tx_committed_certificates,
         );
 
         // Responsible for finding missing blocks (certificates) and fetching
@@ -342,6 +352,7 @@ impl Primary {
                 block_synchronizer_handler,
                 dag,
                 committee.clone(),
+                endpoint_metrics,
             );
         }
 
@@ -458,6 +469,7 @@ struct WorkerReceiverHandler {
     tx_others_digests: Sender<(BatchDigest, WorkerId)>,
     tx_batches: Sender<BatchResult>,
     tx_batch_removal: Sender<DeleteBatchResult>,
+    metrics: Arc<PrimaryMetrics>,
 }
 
 impl WorkerReceiverHandler {
@@ -488,16 +500,26 @@ impl WorkerToPrimary for WorkerReceiverHandler {
             .map_err(|e| Status::invalid_argument(e.to_string()))?;
 
         match message {
-            WorkerPrimaryMessage::OurBatch(digest, worker_id) => self
-                .tx_our_digests
-                .send((digest, worker_id))
-                .await
-                .expect("Failed to send workers' digests"),
-            WorkerPrimaryMessage::OthersBatch(digest, worker_id) => self
-                .tx_others_digests
-                .send((digest, worker_id))
-                .await
-                .expect("Failed to send workers' digests"),
+            WorkerPrimaryMessage::OurBatch(digest, worker_id) => {
+                self.metrics
+                    .batches_received
+                    .with_label_values(&[&worker_id.to_string(), "our_batch"])
+                    .inc();
+                self.tx_our_digests
+                    .send((digest, worker_id))
+                    .await
+                    .expect("Failed to send workers' digests")
+            }
+            WorkerPrimaryMessage::OthersBatch(digest, worker_id) => {
+                self.metrics
+                    .batches_received
+                    .with_label_values(&[&worker_id.to_string(), "others_batch"])
+                    .inc();
+                self.tx_others_digests
+                    .send((digest, worker_id))
+                    .await
+                    .expect("Failed to send workers' digests")
+            }
             WorkerPrimaryMessage::RequestedBatch(digest, transactions) => self
                 .tx_batches
                 .send(Ok(BatchMessage {

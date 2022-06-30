@@ -6,7 +6,7 @@ authors = ["Mysten Labs <build@mystenlabs.com>"]
 edition = "2021"
 
 [dependencies]
-anyhow = "1.0.57"
+anyhow = "1.0.58"
 async-trait = "0.1.56"
 bincode = "1.3.3"
 blake2 = "0.9"
@@ -28,8 +28,8 @@ network = { path = "../network" }
 primary = { path = "../primary" }
 types = { path = "../types" }
 
-store = { git = "https://github.com/mystenlabs/mysten-infra.git", package = "typed-store", rev = "7c247967e5a5abd59ecaa75bc62b05bcdf4503fe" }
-mysten-network = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "7c247967e5a5abd59ecaa75bc62b05bcdf4503fe" }
+store = { git = "https://github.com/mystenlabs/mysten-infra.git", package = "typed-store", rev = "16f00004fc7673f84b40615be19f907a0b3e1d5b" }
+mysten-network = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "16f00004fc7673f84b40615be19f907a0b3e1d5b" }
 workspace-hack = { version = "0.1", path = "../workspace-hack" }
 
 [dev-dependencies]

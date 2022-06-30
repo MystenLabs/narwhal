@@ -31,13 +31,14 @@ use tokio::{
     task::JoinHandle,
     time::{sleep, timeout},
 };
-use types::{BatchDigest, Certificate};
+use types::{BatchDigest, Certificate, ConsensusPrimaryMessage};
 
 #[tokio::test]
 async fn test_successful_blocks_delete() {
     // GIVEN
     let (header_store, certificate_store, payload_store) = create_db_stores();
     let (_tx_consensus, rx_consensus) = channel(1);
+    let (tx_removed_certificates, mut rx_removed_certificates) = channel(10);
     let (tx_commands, rx_commands) = channel(10);
     let (tx_remove_block, mut rx_remove_block) = channel(1);
     let (tx_delete_batches, rx_delete_batches) = channel(10);
@@ -61,6 +62,7 @@ async fn test_successful_blocks_delete() {
         rx_reconfigure,
         rx_commands,
         rx_delete_batches,
+        tx_removed_certificates,
     );
 
     let mut block_ids = Vec::new();
@@ -164,7 +166,7 @@ async fn test_successful_blocks_delete() {
             assert_eq!(block.ids.len(), block_ids.len());
 
             // ensure that certificates have been deleted from store
-            for block_id in block_ids {
+            for block_id in block_ids.clone() {
                 assert!(certificate_store.read(block_id).await.unwrap().is_none(), "Certificate shouldn't exist");
             }
 
@@ -184,6 +186,22 @@ async fn test_successful_blocks_delete() {
             panic!("Timeout, no result has been received in time")
         }
     }
+
+    // ensure deleted certificates have been populated to output channel
+    let mut total_deleted = 0;
+    while let Ok(Some(c)) = timeout(Duration::from_secs(1), rx_removed_certificates.recv()).await {
+        let certificate = match c {
+            ConsensusPrimaryMessage::Sequenced(c) => c,
+            _ => panic!("Unexpected protocol message"),
+        };
+        assert!(
+            block_ids.contains(&certificate.digest()),
+            "Deleted certificate not found"
+        );
+        total_deleted += 1;
+    }
+
+    assert_eq!(total_deleted, block_ids.len());
 }
 
 #[tokio::test]
@@ -194,6 +212,7 @@ async fn test_timeout() {
     let (tx_remove_block, mut rx_remove_block) = channel(1);
     let (_tx_consensus, rx_consensus) = channel(1);
     let (tx_delete_batches, rx_delete_batches) = channel(10);
+    let (tx_removed_certificates, _rx_removed_certificates) = channel(10);
 
     // AND the necessary keys
     let (name, committee) = resolve_name_and_committee();
@@ -214,6 +233,7 @@ async fn test_timeout() {
         rx_reconfigure,
         rx_commands,
         rx_delete_batches,
+        tx_removed_certificates,
     );
 
     let mut block_ids = Vec::new();
@@ -328,6 +348,7 @@ async fn test_unlocking_pending_requests() {
     let (tx_commands, rx_commands) = channel(10);
     let (_tx_consensus, rx_consensus) = channel(1);
     let (tx_delete_batches, rx_delete_batches) = channel(10);
+    let (tx_removed_certificates, _rx_removed_certificates) = channel(10);
 
     // AND the necessary keys
     let (name, committee) = resolve_name_and_committee();
@@ -351,6 +372,7 @@ async fn test_unlocking_pending_requests() {
         map_tx_removal_results: HashMap::new(),
         map_tx_worker_removal_results: HashMap::new(),
         rx_delete_batches,
+        tx_removed_certificates,
     };
 
     let mut block_ids = Vec::new();

@@ -5,6 +5,7 @@ use consensus::{bullshark::Bullshark, dag::Dag, Consensus, SubscriberHandler};
 use crypto::traits::{KeyPair, Signer, VerifyingKey};
 use executor::{ExecutionState, Executor, SerializedTransaction, SubscriberResult};
 use primary::{NetworkModel, PayloadToken, Primary};
+use prometheus::Registry;
 use std::sync::Arc;
 use store::{
     reopen,
@@ -21,6 +22,8 @@ use types::{
     HeaderDigest, Round, SequenceNumber, SerializedBatchMessage,
 };
 use worker::Worker;
+
+pub mod metrics;
 
 /// All the data stores of the node.
 pub struct NodeStorage<PublicKey: VerifyingKey> {
@@ -108,6 +111,8 @@ impl Node {
         execution_state: Arc<State>,
         // A channel to output transactions execution confirmations.
         tx_confirmation: Sender<(SubscriberResult<Vec<u8>>, SerializedTransaction)>,
+        // A prometheus exporter Registry to use for the metrics
+        registry: &Registry,
     ) -> SubscriberResult<JoinHandle<()>>
     where
         PublicKey: VerifyingKey,
@@ -115,7 +120,7 @@ impl Node {
         State: ExecutionState + Send + Sync + 'static,
     {
         let (tx_new_certificates, rx_new_certificates) = channel(Self::CHANNEL_CAPACITY);
-        let (tx_feedback, rx_feedback) = channel(Self::CHANNEL_CAPACITY);
+        let (tx_consensus, rx_consensus) = channel(Self::CHANNEL_CAPACITY);
 
         // Compute the public key of this authority.
         let name = keypair.public().clone();
@@ -132,7 +137,7 @@ impl Node {
                 parameters.clone(),
                 execution_state,
                 rx_new_certificates,
-                tx_feedback,
+                tx_consensus.clone(),
                 tx_confirmation,
             )
             .await?;
@@ -149,9 +154,11 @@ impl Node {
             store.certificate_store.clone(),
             store.payload_store.clone(),
             /* tx_consensus */ tx_new_certificates,
-            /* rx_consensus */ rx_feedback,
+            /* rx_consensus */ rx_consensus,
             /* dag */ dag,
             network_model,
+            tx_consensus,
+            registry,
         );
 
         Ok(primary_handle)
@@ -230,6 +237,8 @@ impl Node {
         store: &NodeStorage<PublicKey>,
         // The configuration parameters.
         parameters: Parameters,
+        // The prometheus metrics Registry
+        _registry: &Registry,
     ) -> Vec<JoinHandle<()>> {
         let mut handles = Vec::new();
 

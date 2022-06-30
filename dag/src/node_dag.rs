@@ -49,7 +49,7 @@ pub struct NodeDag<T: Affiliated> {
     node_table: DashMap<T::TypedDigest, Either<WeakNodeRef<T>, NodeRef<T>>>,
 }
 
-#[derive(Debug, Error, PartialEq)]
+#[derive(Debug, Error, Eq, PartialEq)]
 pub enum NodeDagError {
     #[error("No vertex known by these digests: {0:?}")]
     UnknownDigests(Vec<Digest>),
@@ -107,6 +107,13 @@ impl<T: Affiliated> NodeDag<T> {
     /// contained in the DAG and still a live (uncompressed) reference.
     pub fn contains_live(&self, digest: T::TypedDigest) -> bool {
         self.get(digest).is_ok()
+    }
+
+    /// Returns an iterator over the digests of the heads of the graph, i.e. the nodes which do not have a child.
+    pub fn head_digests(&self) -> impl Iterator<Item = T::TypedDigest> + '_ {
+        self.node_table
+            .iter()
+            .flat_map(|node_ref| node_ref.as_ref().right().map(|node| node.value().digest()))
     }
 
     /// Returns whether the vertex pointed to by the hash passed as an argument is a
@@ -378,11 +385,14 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "Issue #375"]
         fn test_dag_sanity_check(
             dag in arb_dag_complete(10, 10)
         ) {
-            assert!(dag.len() <= 100);
+            // the `prop_recursive` combinator used in `arb_dag_complete` is actually probabilistic, see:
+            // https://github.com/AltSysrq/proptest/blob/master/proptest/src/strategy/recursive.rs#L83-L110
+            // so we can't test for our desired size here (100), we rather test for something that will pass
+            // with overwhelming probability
+            assert!(dag.len() <= 200);
         }
 
         #[test]
@@ -428,6 +438,31 @@ mod tests {
             // check heads have nothing pointing to them
             for node in dag.into_iter() {
                 assert!(node.parents().iter().all(|parent| !heads.contains(parent)))
+            }
+        }
+
+        #[test]
+        fn test_dag_head_digests(
+            dag in arb_dag_complete(10, 10)
+        ) {
+            let mut node_dag = NodeDag::new();
+            let mut digests = Vec::new();
+            for node in dag.iter() {
+                digests.push(node.digest());
+                // the elements are generated in order & with no missing parents => no suprises
+                assert!(node_dag.try_insert(node.clone()).is_ok());
+            }
+            let mut heads = HashSet::new();
+            for hash in digests {
+                // all insertions are reflected
+                assert!(node_dag.contains(hash));
+                if node_dag.has_head(hash).unwrap() {
+                    heads.insert(hash);
+                }
+            }
+            // check this matches head_digests
+            for head_digest in node_dag.head_digests() {
+                assert!(heads.contains(&head_digest));
             }
         }
 
