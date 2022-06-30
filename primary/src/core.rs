@@ -140,6 +140,7 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
     #[instrument(level = "debug", skip_all)]
     async fn process_own_header(&mut self, header: Header<PublicKey>) -> DagResult<()> {
         if header.epoch < self.committee.epoch() {
+            debug!("Proposer outdated");
             return Ok(());
         }
 
