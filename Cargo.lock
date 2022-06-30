@@ -325,6 +325,8 @@ dependencies = [
  "percent-encoding",
  "pin-project-lite",
  "serde",
+ "serde_json",
+ "serde_urlencoded",
  "sync_wrapper",
  "tokio",
  "tower",
@@ -1929,7 +1931,7 @@ checksum = "e5ce46fe64a9d73be07dcbe690a38ce1b293be448fd8ce1e6c1b8062c9f72c6a"
 [[package]]
 name = "mysten-network"
 version = "0.1.0"
-source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=af52637e73332eba7c8844e9bcdeb5b48854eabf#af52637e73332eba7c8844e9bcdeb5b48854eabf"
+source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=16f00004fc7673f84b40615be19f907a0b3e1d5b#16f00004fc7673f84b40615be19f907a0b3e1d5b"
 dependencies = [
  "anyhow",
  "bincode",
@@ -1942,6 +1944,8 @@ dependencies = [
  "tonic",
  "tonic-health",
  "tower",
+ "tower-http",
+ "tracing",
 ]
 
 [[package]]
@@ -1985,6 +1989,7 @@ dependencies = [
  "anyhow",
  "arc-swap",
  "async-trait",
+ "axum",
  "bincode",
  "bytes",
  "cfg-if",
@@ -1998,6 +2003,7 @@ dependencies = [
  "hex",
  "pretty_assertions",
  "primary",
+ "prometheus",
  "rand 0.7.3",
  "serde-reflection",
  "serde_yaml",
@@ -2369,6 +2375,8 @@ dependencies = [
  "mysten-network",
  "network",
  "node",
+ "once_cell",
+ "prometheus",
  "prost",
  "rand 0.7.3",
  "serde",
@@ -2437,6 +2445,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c54b25569025b7fc9651de43004ae593a75ad88543b17178aa5e1b9c4f15f56f"
 dependencies = [
  "unicode-ident",
+]
+
+[[package]]
+name = "prometheus"
+version = "0.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cface98dfa6d645ea4c789839f176e4b072265d085bfcc48eaa8d137f58d3c39"
+dependencies = [
+ "cfg-if",
+ "fnv",
+ "lazy_static",
+ "memchr",
+ "parking_lot",
+ "protobuf",
+ "thiserror",
 ]
 
 [[package]]
@@ -2524,6 +2547,12 @@ dependencies = [
  "bytes",
  "prost",
 ]
+
+[[package]]
+name = "protobuf"
+version = "2.27.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cf7e6d18738ecd0902d30d1ad232c9125985a3422929b16c65517b38adc14f96"
 
 [[package]]
 name = "quick-error"
@@ -2952,6 +2981,18 @@ version = "1.0.137"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fe196827aea34242c314d2f0dd49ed00a129225e80dda71b0dbf65d54d25628d"
 dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "serde_urlencoded"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d3491c14715ca2294c4d6a88f15e84739788c1d030eed8c110436aafdaa2f3fd"
+dependencies = [
+ "form_urlencoded",
+ "itoa 1.0.2",
+ "ryu",
  "serde",
 ]
 
@@ -3516,6 +3557,7 @@ dependencies = [
  "tower",
  "tower-layer",
  "tower-service",
+ "tracing",
 ]
 
 [[package]]
@@ -3645,7 +3687,7 @@ checksum = "59547bce71d9c38b83d9c0e92b6066c4253371f15005def0c30d9657f50c7642"
 [[package]]
 name = "typed-store"
 version = "0.1.0"
-source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=af52637e73332eba7c8844e9bcdeb5b48854eabf#af52637e73332eba7c8844e9bcdeb5b48854eabf"
+source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=16f00004fc7673f84b40615be19f907a0b3e1d5b#16f00004fc7673f84b40615be19f907a0b3e1d5b"
 dependencies = [
  "bincode",
  "collectable",
@@ -4243,12 +4285,14 @@ dependencies = [
  "proc-macro-error-attr",
  "proc-macro2 0.4.30",
  "proc-macro2 1.0.39",
+ "prometheus",
  "proptest",
  "proptest-derive",
  "prost",
  "prost-build",
  "prost-derive",
  "prost-types",
+ "protobuf",
  "quick-error 1.2.3",
  "quick-error 2.0.1",
  "quote 0.6.13",
@@ -4289,6 +4333,7 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "serde_test",
+ "serde_urlencoded",
  "serde_with",
  "serde_with_macros",
  "serde_yaml",
