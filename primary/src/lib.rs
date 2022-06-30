@@ -39,7 +39,7 @@ pub use crate::{
     block_waiter::{BlockCommand, BlockWaiter},
     grpc_server::metrics::EndpointMetrics,
     primary::{
-        NetworkModel, PayloadToken, Primary, PrimaryWorkerMessage, WorkerPrimaryError,
+        NetworkModel, PayloadToken, Primary, PrimaryWorkerMessage, Reconfigure, WorkerPrimaryError,
         WorkerPrimaryMessage, CHANNEL_CAPACITY,
     },
 };
