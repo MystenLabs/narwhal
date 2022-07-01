@@ -17,7 +17,7 @@ use tokio::{
     time::{sleep, Duration, Instant},
 };
 use tracing::{debug, error};
-use types::{BatchDigest, Round, SerializedBatchMessage, WorkerMessage};
+use types::{BatchDigest, PrimaryWorkerReconfigure, Round, SerializedBatchMessage, WorkerMessage};
 
 #[cfg(test)]
 #[path = "tests/synchronizer_tests.rs"]
@@ -184,6 +184,22 @@ impl<PublicKey: VerifyingKey> Synchronizer<PublicKey> {
                         }
                         self.pending.retain(|_, (r, _, _)| r > &mut gc_round);
                     },
+                    PrimaryWorkerMessage::Reconfigure(command) => {
+                        // Reconfigure this task.
+                        if let PrimaryWorkerReconfigure::NewCommittee(new_committee) = &command {
+                            self.committee.update_committee(new_committee.clone());
+                            self.pending.clear();
+                            self.round = 0;
+                        }
+
+                        // Notify the other tasks of the reconfiguration.
+                        todo!();
+
+                        // In case of shutdown, wait for all other tasks to shutdown before exit.
+                        if matches!(command, PrimaryWorkerReconfigure::Shutdown) {
+                            todo!();
+                        }
+                    }
                     PrimaryWorkerMessage::RequestBatch(digest) => {
                         self.handle_request_batch(digest).await;
                     },

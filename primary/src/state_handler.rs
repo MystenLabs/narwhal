@@ -2,7 +2,7 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use crate::primary::{ConsensusPrimaryMessage, PrimaryWorkerMessage, ReconfigurePrimary};
-use config::{Committee, SharedCommittee};
+use config::SharedCommittee;
 use crypto::traits::VerifyingKey;
 use network::PrimaryToWorkerNetwork;
 use std::sync::{
@@ -79,10 +79,6 @@ impl<PublicKey: VerifyingKey> StateHandler<PublicKey> {
         }
     }
 
-    fn update_committee(&mut self, new_committee: Committee<PublicKey>) {
-        self.committee.update_committee(new_committee);
-    }
-
     async fn run(&mut self) {
         while let Some(message) = self.rx_consensus.recv().await {
             match message {
@@ -91,7 +87,7 @@ impl<PublicKey: VerifyingKey> StateHandler<PublicKey> {
                 }
                 ConsensusPrimaryMessage::Committee(committee) => {
                     // Update the committee.
-                    self.update_committee(committee.clone());
+                    self.committee.update_committee(committee.clone());
 
                     // Trigger cleanup on the primary.
                     self.consensus_round.store(0, Ordering::Relaxed);
