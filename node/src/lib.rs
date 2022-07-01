@@ -243,13 +243,14 @@ impl Node {
         let mut handles = Vec::new();
 
         for id in ids {
-            handles.push(Worker::spawn(
+            let worker_handles = Worker::spawn(
                 name.clone(),
                 id,
                 committee.clone(),
                 parameters.clone(),
                 store.batch_store.clone(),
-            ));
+            );
+            handles.extend(worker_handles);
         }
         handles
     }
