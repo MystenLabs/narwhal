@@ -633,7 +633,6 @@
 <span id="627">627</span>
 <span id="628">628</span>
 <span id="629">629</span>
-<span id="630">630</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -866,7 +865,7 @@
     <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">fmt::Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">fmt::Error</span><span class="op">&gt;</span> {
         <span class="macro">write!</span>(
             <span class="ident">f</span>,
-            <span class="string">&quot;{}: B{}({}, {}, {})&quot;</span>,
+            <span class="string">&quot;{}: B{}({}, E{}, {}B)&quot;</span>,
             <span class="self">self</span>.<span class="ident">id</span>,
             <span class="self">self</span>.<span class="ident">round</span>,
             <span class="self">self</span>.<span class="ident">author</span>.<span class="ident">encode_base64</span>(),
@@ -893,7 +892,6 @@
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>)]</span>
 <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">bound</span>(<span class="ident">deserialize</span> <span class="op">=</span> <span class="string">&quot;PublicKey: VerifyingKey&quot;</span>))]</span> <span class="comment">// bump the bound to VerifyingKey as soon as you include a sig</span>
-
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Vote</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> {
     <span class="kw">pub</span> <span class="ident">id</span>: <span class="ident">HeaderDigest</span>,
     <span class="kw">pub</span> <span class="ident">round</span>: <span class="ident">Round</span>,
@@ -986,7 +984,7 @@
     <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">fmt::Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">fmt::Error</span><span class="op">&gt;</span> {
         <span class="macro">write!</span>(
             <span class="ident">f</span>,
-            <span class="string">&quot;{}: V{}({}, {}, {})&quot;</span>,
+            <span class="string">&quot;{}: V{}({}, {}, E{})&quot;</span>,
             <span class="self">self</span>.<span class="ident">digest</span>(),
             <span class="self">self</span>.<span class="ident">round</span>,
             <span class="self">self</span>.<span class="ident">author</span>.<span class="ident">encode_base64</span>(),
@@ -1135,7 +1133,7 @@
     <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">fmt::Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">fmt::Error</span><span class="op">&gt;</span> {
         <span class="macro">write!</span>(
             <span class="ident">f</span>,
-            <span class="string">&quot;{}: C{}({}, {}, {})&quot;</span>,
+            <span class="string">&quot;{}: C{}({}, {}, E{})&quot;</span>,
             <span class="self">self</span>.<span class="ident">digest</span>(),
             <span class="self">self</span>.<span class="ident">round</span>(),
             <span class="self">self</span>.<span class="ident">origin</span>().<span class="ident">encode_base64</span>(),
@@ -1265,5 +1263,5 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (ddcbba036 2022-06-29)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (7425fb293 2022-06-30)" ></div>
 </body></html>

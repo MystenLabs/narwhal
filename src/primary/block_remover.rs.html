@@ -615,13 +615,32 @@
 <span id="609">609</span>
 <span id="610">610</span>
 <span id="611">611</span>
+<span id="612">612</span>
+<span id="613">613</span>
+<span id="614">614</span>
+<span id="615">615</span>
+<span id="616">616</span>
+<span id="617">617</span>
+<span id="618">618</span>
+<span id="619">619</span>
+<span id="620">620</span>
+<span id="621">621</span>
+<span id="622">622</span>
+<span id="623">623</span>
+<span id="624">624</span>
+<span id="625">625</span>
+<span id="626">626</span>
+<span id="627">627</span>
+<span id="628">628</span>
+<span id="629">629</span>
+<span id="630">630</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="attribute">#![<span class="ident">allow</span>(<span class="ident">dead_code</span>)]</span>
 <span class="attribute">#![<span class="ident">allow</span>(<span class="ident">unused_variables</span>)]</span>
 
-<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">utils</span>, <span class="ident">PayloadToken</span>, <span class="ident">PrimaryWorkerMessage</span>};
-<span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">SharedCommittee</span>, <span class="ident">WorkerId</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">primary::Reconfigure</span>, <span class="ident">utils</span>, <span class="ident">PayloadToken</span>, <span class="ident">PrimaryWorkerMessage</span>};
+<span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">Committee</span>, <span class="ident">WorkerId</span>};
 <span class="kw">use</span> <span class="ident">consensus::dag</span>::{<span class="ident">Dag</span>, <span class="ident">ValidatorDagError</span>};
 <span class="kw">use</span> <span class="ident">crypto</span>::{<span class="ident">traits::VerifyingKey</span>, <span class="ident">Digest</span>, <span class="ident">Hash</span>};
 <span class="kw">use</span> <span class="ident">futures</span>::{
@@ -636,7 +655,7 @@
 <span class="kw">use</span> <span class="ident">tokio</span>::{
     <span class="ident">sync</span>::{
         <span class="ident">mpsc</span>::{<span class="ident">Receiver</span>, <span class="ident">Sender</span>},
-        <span class="ident">oneshot</span>,
+        <span class="ident">oneshot</span>, <span class="ident">watch</span>,
     },
     <span class="ident">task::JoinHandle</span>,
     <span class="ident">time::timeout</span>,
@@ -644,7 +663,7 @@
 <span class="kw">use</span> <span class="ident">tracing</span>::{<span class="ident">debug</span>, <span class="ident">error</span>, <span class="ident">instrument</span>, <span class="ident">warn</span>};
 <span class="kw">use</span> <span class="ident">types</span>::{
     <span class="ident">BatchDigest</span>, <span class="ident">BlockRemoverError</span>, <span class="ident">BlockRemoverErrorKind</span>, <span class="ident">BlockRemoverResult</span>, <span class="ident">Certificate</span>,
-    <span class="ident">CertificateDigest</span>, <span class="ident">Header</span>, <span class="ident">HeaderDigest</span>,
+    <span class="ident">CertificateDigest</span>, <span class="ident">ConsensusPrimaryMessage</span>, <span class="ident">Header</span>, <span class="ident">HeaderDigest</span>, <span class="ident">ShutdownToken</span>,
 };
 
 <span class="kw">const</span> <span class="ident">BATCH_DELETE_TIMEOUT</span>: <span class="ident">Duration</span> <span class="op">=</span> <span class="ident">Duration::from_secs</span>(<span class="number">2</span>);
@@ -696,7 +715,7 @@
 <span class="doccomment">/// ```rust</span>
 <span class="doccomment">/// # use store::{reopen, rocks, rocks::DBMap, Store};</span>
 <span class="doccomment">/// # use network::PrimaryToWorkerNetwork;</span>
-<span class="doccomment">/// # use tokio::sync::mpsc::{channel};</span>
+<span class="doccomment">/// # use tokio::sync::{mpsc::{channel}, watch};</span>
 <span class="doccomment">/// # use arc_swap::ArcSwap;</span>
 <span class="doccomment">/// # use crypto::Hash;</span>
 <span class="doccomment">/// # use std::env::temp_dir;</span>
@@ -709,7 +728,7 @@
 <span class="doccomment">/// # use std::sync::Arc;</span>
 <span class="doccomment">/// # use config::WorkerId;</span>
 <span class="doccomment">/// # use tempfile::tempdir;</span>
-<span class="doccomment">/// # use primary::{BlockRemover, BlockRemoverCommand, DeleteBatchMessage, PayloadToken};</span>
+<span class="doccomment">/// # use primary::{BlockRemover, BlockRemoverCommand, DeleteBatchMessage, PayloadToken, Reconfigure};</span>
 <span class="doccomment">/// # use types::{BatchDigest, Certificate, CertificateDigest, HeaderDigest, Header};</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// #[tokio::main(flavor = &quot;current_thread&quot;)]</span>
@@ -738,7 +757,8 @@
 <span class="doccomment">///     let (tx_delete_block_result, mut rx_delete_block_result) = channel(1);</span>
 <span class="doccomment">///</span>
 <span class="doccomment">///     let name = Ed25519PublicKey::default();</span>
-<span class="doccomment">///     let committee = Arc::new(Committee{ epoch: 0, authorities: ArcSwap::from_pointee(BTreeMap::new()) });</span>
+<span class="doccomment">///     let committee = Committee{ epoch: ArcSwap::new(Arc::new(0)), authorities: ArcSwap::from_pointee(BTreeMap::new()) };</span>
+<span class="doccomment">///     let (_tx_reconfigure, rx_reconfigure) = watch::channel(Reconfigure::NewCommittee(committee.clone()));</span>
 <span class="doccomment">///     // A dag with genesis for the committee</span>
 <span class="doccomment">///     let (tx_new_certificates, rx_new_certificates) = channel(1);</span>
 <span class="doccomment">///     let dag = Arc::new(Dag::new(&amp;committee, rx_new_certificates).1);</span>
@@ -758,6 +778,7 @@
 <span class="doccomment">///         payload_store.clone(),</span>
 <span class="doccomment">///         Some(dag),</span>
 <span class="doccomment">///         PrimaryToWorkerNetwork::default(),</span>
+<span class="doccomment">///         rx_reconfigure,</span>
 <span class="doccomment">///         rx_commands,</span>
 <span class="doccomment">///         rx_delete_batches,</span>
 <span class="doccomment">///         tx_removed_certificates,</span>
@@ -797,7 +818,7 @@
     <span class="ident">name</span>: <span class="ident">PublicKey</span>,
 
     <span class="doccomment">/// The committee information.</span>
-    <span class="ident">committee</span>: <span class="ident">SharedCommittee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
+    <span class="ident">committee</span>: <span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
 
     <span class="doccomment">/// Storage that keeps the Certificates by their digest id.</span>
     <span class="ident">certificate_store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
@@ -813,6 +834,9 @@
 
     <span class="doccomment">/// Network driver allowing to send messages.</span>
     <span class="ident">worker_network</span>: <span class="ident">PrimaryToWorkerNetwork</span>,
+
+    <span class="doccomment">/// Watch channel to reconfigure the committee.</span>
+    <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">Reconfigure</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 
     <span class="doccomment">/// Receives the commands to execute against</span>
     <span class="ident">rx_commands</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">BlockRemoverCommand</span><span class="op">&gt;</span>,
@@ -832,24 +856,25 @@
     <span class="ident">rx_delete_batches</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">DeleteBatchResult</span><span class="op">&gt;</span>,
 
     <span class="doccomment">/// Outputs all the successfully deleted certificates</span>
-    <span class="ident">tx_removed_certificates</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">tx_removed_certificates</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">ConsensusPrimaryMessage</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> <span class="ident">BlockRemover</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(
         <span class="ident">name</span>: <span class="ident">PublicKey</span>,
-        <span class="ident">committee</span>: <span class="ident">SharedCommittee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
+        <span class="ident">committee</span>: <span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
         <span class="ident">certificate_store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">header_store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">HeaderDigest</span>, <span class="ident">Header</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">payload_store</span>: <span class="ident">Store</span><span class="op">&lt;</span>(<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>), <span class="ident">PayloadToken</span><span class="op">&gt;</span>,
         <span class="ident">dag</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Dag</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">worker_network</span>: <span class="ident">PrimaryToWorkerNetwork</span>,
+        <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">Reconfigure</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">rx_commands</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">BlockRemoverCommand</span><span class="op">&gt;</span>,
         <span class="ident">rx_delete_batches</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">DeleteBatchResult</span><span class="op">&gt;</span>,
-        <span class="ident">removed_certificates</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">removed_certificates</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">ConsensusPrimaryMessage</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
-            <span class="self">Self</span> {
+            <span class="kw">let</span> <span class="ident">shutdown_token</span> <span class="op">=</span> <span class="self">Self</span> {
                 <span class="ident">name</span>,
                 <span class="ident">committee</span>,
                 <span class="ident">certificate_store</span>,
@@ -857,6 +882,7 @@
                 <span class="ident">payload_store</span>,
                 <span class="ident">dag</span>,
                 <span class="ident">worker_network</span>,
+                <span class="ident">rx_reconfigure</span>,
                 <span class="ident">rx_commands</span>,
                 <span class="ident">pending_removal_requests</span>: <span class="ident">HashMap::new</span>(),
                 <span class="ident">map_tx_removal_results</span>: <span class="ident">HashMap::new</span>(),
@@ -866,10 +892,11 @@
             }
             .<span class="ident">run</span>()
             .<span class="kw">await</span>;
+            <span class="ident">drop</span>(<span class="ident">shutdown_token</span>);
         })
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">run</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">run</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) -&gt; <span class="ident">ShutdownToken</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">waiting</span> <span class="op">=</span> <span class="ident">FuturesUnordered::new</span>();
 
         <span class="kw">loop</span> {
@@ -884,6 +911,16 @@
                 },
                 <span class="prelude-val">Some</span>(<span class="ident">result</span>) <span class="op">=</span> <span class="ident">waiting</span>.<span class="ident">next</span>() =&gt; {
                     <span class="self">self</span>.<span class="ident">handle_remove_waiting_result</span>(<span class="ident">result</span>).<span class="kw">await</span>;
+                },
+                <span class="ident">result</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">rx_reconfigure</span>.<span class="ident">changed</span>() =&gt; {
+                    <span class="ident">result</span>.<span class="ident">expect</span>(<span class="string">&quot;Committee channel dropped&quot;</span>);
+                    <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">rx_reconfigure</span>.<span class="ident">borrow</span>().<span class="ident">clone</span>();
+                    <span class="kw">match</span> <span class="ident">message</span> {
+                        <span class="ident">Reconfigure::NewCommittee</span>(<span class="ident">new_committee</span>) =&gt; {
+                            <span class="self">self</span>.<span class="ident">committee</span> <span class="op">=</span> <span class="ident">new_committee</span>;
+                        }
+                        <span class="ident">Reconfigure::Shutdown</span>(<span class="ident">token</span>) =&gt; <span class="kw">return</span> <span class="ident">token</span>
+                    }
                 }
             }
         }
@@ -1007,8 +1044,9 @@
 
         <span class="comment">// Now output all the removed certificates</span>
         <span class="kw">for</span> <span class="ident">certificate</span> <span class="kw">in</span> <span class="ident">certificates</span>.<span class="ident">clone</span>() {
+            <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">ConsensusPrimaryMessage::Sequenced</span>(<span class="ident">certificate</span>.<span class="ident">clone</span>());
             <span class="self">self</span>.<span class="ident">tx_removed_certificates</span>
-                .<span class="ident">send</span>(<span class="ident">certificate</span>)
+                .<span class="ident">send</span>(<span class="ident">message</span>)
                 .<span class="kw">await</span>
                 .<span class="ident">expect</span>(<span class="string">&quot;Couldn&#39;t forward removed certificates to channel&quot;</span>);
         }
@@ -1227,5 +1265,5 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (ddcbba036 2022-06-29)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (7425fb293 2022-06-30)" ></div>
 </body></html>

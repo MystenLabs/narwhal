@@ -246,7 +246,7 @@
     ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Response</span><span class="op">&lt;</span><span class="ident">Empty</span><span class="op">&gt;</span>, <span class="ident">Status</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">new_network_info_request</span> <span class="op">=</span> <span class="ident">request</span>.<span class="ident">into_inner</span>();
         <span class="kw">let</span> <span class="ident">epoch_number</span>: <span class="ident">u64</span> <span class="op">=</span> <span class="ident">new_network_info_request</span>.<span class="ident">epoch_number</span>.<span class="ident">into</span>();
-        <span class="kw">if</span> <span class="ident">epoch_number</span> <span class="op">!</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">epoch</span> {
+        <span class="kw">if</span> <span class="ident">epoch_number</span> <span class="op">!</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">epoch</span>() {
             <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Status::invalid_argument</span>(<span class="macro">format!</span>(
                 <span class="string">&quot;Passed in epoch {epoch_number} does not match current epoch {}&quot;</span>,
                 <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">epoch</span>
@@ -297,5 +297,5 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (ddcbba036 2022-06-29)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (7425fb293 2022-06-30)" ></div>
 </body></html>

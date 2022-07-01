@@ -971,6 +971,27 @@
 <span id="965">965</span>
 <span id="966">966</span>
 <span id="967">967</span>
+<span id="968">968</span>
+<span id="969">969</span>
+<span id="970">970</span>
+<span id="971">971</span>
+<span id="972">972</span>
+<span id="973">973</span>
+<span id="974">974</span>
+<span id="975">975</span>
+<span id="976">976</span>
+<span id="977">977</span>
+<span id="978">978</span>
+<span id="979">979</span>
+<span id="980">980</span>
+<span id="981">981</span>
+<span id="982">982</span>
+<span id="983">983</span>
+<span id="984">984</span>
+<span id="985">985</span>
+<span id="986">986</span>
+<span id="987">987</span>
+<span id="988">988</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="kw">crate</span>::{
@@ -979,10 +1000,10 @@
         <span class="ident">responses</span>::{<span class="ident">CertificatesResponse</span>, <span class="ident">PayloadAvailabilityResponse</span>, <span class="ident">RequestID</span>},
         <span class="ident">PendingIdentifier</span>::{<span class="ident">Header</span>, <span class="ident">Payload</span>},
     },
-    <span class="ident">primary::PrimaryMessage</span>,
+    <span class="ident">primary</span>::{<span class="ident">PrimaryMessage</span>, <span class="ident">Reconfigure</span>},
     <span class="ident">utils</span>, <span class="ident">PayloadToken</span>, <span class="ident">PrimaryWorkerMessage</span>, <span class="ident">CHANNEL_CAPACITY</span>,
 };
-<span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">BlockSynchronizerParameters</span>, <span class="ident">SharedCommittee</span>, <span class="ident">WorkerId</span>};
+<span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">BlockSynchronizerParameters</span>, <span class="ident">Committee</span>, <span class="ident">WorkerId</span>};
 <span class="kw">use</span> <span class="ident">crypto</span>::{<span class="ident">traits::VerifyingKey</span>, <span class="ident">Hash</span>};
 <span class="kw">use</span> <span class="ident">futures</span>::{
     <span class="ident">future</span>::{<span class="ident">join_all</span>, <span class="ident">BoxFuture</span>},
@@ -998,7 +1019,10 @@
 <span class="kw">use</span> <span class="ident">store::Store</span>;
 <span class="kw">use</span> <span class="ident">thiserror::Error</span>;
 <span class="kw">use</span> <span class="ident">tokio</span>::{
-    <span class="ident">sync::mpsc</span>::{<span class="ident">channel</span>, <span class="ident">Receiver</span>, <span class="ident">Sender</span>},
+    <span class="ident">sync</span>::{
+        <span class="ident">mpsc</span>::{<span class="ident">channel</span>, <span class="ident">Receiver</span>, <span class="ident">Sender</span>},
+        <span class="ident">watch</span>,
+    },
     <span class="ident">time</span>::{<span class="ident">sleep</span>, <span class="ident">timeout</span>},
 };
 <span class="kw">use</span> <span class="ident">tracing</span>::{<span class="ident">debug</span>, <span class="ident">error</span>, <span class="ident">instrument</span>, <span class="ident">trace</span>, <span class="ident">warn</span>};
@@ -1119,7 +1143,10 @@
     <span class="ident">name</span>: <span class="ident">PublicKey</span>,
 
     <span class="doccomment">/// The committee information.</span>
-    <span class="ident">committee</span>: <span class="ident">SharedCommittee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
+    <span class="ident">committee</span>: <span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
+
+    <span class="doccomment">/// Watch channel to reconfigure the committee.</span>
+    <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">Reconfigure</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 
     <span class="doccomment">/// Receive the commands for the synchronizer</span>
     <span class="ident">rx_commands</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Command</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
@@ -1164,7 +1191,8 @@
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> <span class="ident">BlockSynchronizer</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(
         <span class="ident">name</span>: <span class="ident">PublicKey</span>,
-        <span class="ident">committee</span>: <span class="ident">SharedCommittee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
+        <span class="ident">committee</span>: <span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
+        <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">Reconfigure</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">rx_commands</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Command</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">rx_certificate_responses</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">CertificatesResponse</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">rx_payload_availability_responses</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">PayloadAvailabilityResponse</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
@@ -1177,6 +1205,7 @@
             <span class="self">Self</span> {
                 <span class="ident">name</span>,
                 <span class="ident">committee</span>,
+                <span class="ident">rx_reconfigure</span>,
                 <span class="ident">rx_commands</span>,
                 <span class="ident">rx_certificate_responses</span>,
                 <span class="ident">rx_payload_availability_responses</span>,
@@ -1206,7 +1235,7 @@
         <span class="comment">// processing.</span>
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">waiting</span> <span class="op">=</span> <span class="ident">FuturesUnordered::new</span>();
 
-        <span class="kw">loop</span> {
+        <span class="kw">let</span> <span class="ident">shutdown_token</span> <span class="op">=</span> <span class="kw">loop</span> {
             <span class="macro">tokio::select!</span> {
                 <span class="prelude-val">Some</span>(<span class="ident">command</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">rx_commands</span>.<span class="ident">recv</span>() =&gt; {
                     <span class="kw">match</span> <span class="ident">command</span> {
@@ -1264,8 +1293,21 @@
                         },
                     }
                 }
+
+                <span class="comment">// Check whether the committee changed.</span>
+                <span class="ident">result</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">rx_reconfigure</span>.<span class="ident">changed</span>() =&gt; {
+                    <span class="ident">result</span>.<span class="ident">expect</span>(<span class="string">&quot;Committee channel dropped&quot;</span>);
+                    <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">rx_reconfigure</span>.<span class="ident">borrow</span>().<span class="ident">clone</span>();
+                    <span class="kw">match</span> <span class="ident">message</span> {
+                        <span class="ident">Reconfigure::NewCommittee</span>(<span class="ident">new_committee</span>) =&gt; {
+                            <span class="self">self</span>.<span class="ident">committee</span> <span class="op">=</span> <span class="ident">new_committee</span>;
+                        },
+                        <span class="ident">Reconfigure::Shutdown</span>(<span class="ident">token</span>) =&gt; <span class="kw">break</span> <span class="ident">token</span>
+                    }
+                }
             }
-        }
+        };
+        <span class="ident">drop</span>(<span class="ident">shutdown_token</span>)
     }
 
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">notify_requestors_for_result</span>(
@@ -1720,7 +1762,7 @@
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">wait_for_certificate_responses</span>(
         <span class="ident">fetch_certificates_timeout</span>: <span class="ident">Duration</span>,
         <span class="ident">request_id</span>: <span class="ident">RequestID</span>,
-        <span class="ident">committee</span>: <span class="ident">SharedCommittee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
+        <span class="ident">committee</span>: <span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
         <span class="ident">block_ids</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span><span class="op">&gt;</span>,
         <span class="ident">primaries_sent_requests_to</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
         <span class="kw-2">mut</span> <span class="ident">receiver</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">CertificatesResponse</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
@@ -1939,5 +1981,5 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (ddcbba036 2022-06-29)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (7425fb293 2022-06-30)" ></div>
 </body></html>

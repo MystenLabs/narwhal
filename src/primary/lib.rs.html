@@ -65,13 +65,13 @@
 <span class="kw">mod</span> <span class="ident">block_waiter</span>;
 <span class="kw">mod</span> <span class="ident">certificate_waiter</span>;
 <span class="kw">mod</span> <span class="ident">core</span>;
-<span class="kw">mod</span> <span class="ident">garbage_collector</span>;
 <span class="kw">mod</span> <span class="ident">grpc_server</span>;
 <span class="kw">mod</span> <span class="ident">header_waiter</span>;
 <span class="kw">mod</span> <span class="ident">helper</span>;
 <span class="kw">mod</span> <span class="ident">payload_receiver</span>;
 <span class="kw">mod</span> <span class="ident">primary</span>;
 <span class="kw">mod</span> <span class="ident">proposer</span>;
+<span class="kw">mod</span> <span class="ident">state_handler</span>;
 <span class="kw">mod</span> <span class="ident">synchronizer</span>;
 <span class="kw">mod</span> <span class="ident">utils</span>;
 
@@ -90,10 +90,10 @@
     <span class="ident">block_waiter</span>::{<span class="ident">BlockCommand</span>, <span class="ident">BlockWaiter</span>},
     <span class="ident">grpc_server::metrics::EndpointMetrics</span>,
     <span class="ident">primary</span>::{
-        <span class="ident">NetworkModel</span>, <span class="ident">PayloadToken</span>, <span class="ident">Primary</span>, <span class="ident">PrimaryWorkerMessage</span>, <span class="ident">WorkerPrimaryError</span>,
+        <span class="ident">NetworkModel</span>, <span class="ident">PayloadToken</span>, <span class="ident">Primary</span>, <span class="ident">PrimaryWorkerMessage</span>, <span class="ident">Reconfigure</span>, <span class="ident">WorkerPrimaryError</span>,
         <span class="ident">WorkerPrimaryMessage</span>, <span class="ident">CHANNEL_CAPACITY</span>,
     },
 };
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (ddcbba036 2022-06-29)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (7425fb293 2022-06-30)" ></div>
 </body></html>

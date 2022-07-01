@@ -786,10 +786,30 @@
 <span id="780">780</span>
 <span id="781">781</span>
 <span id="782">782</span>
+<span id="783">783</span>
+<span id="784">784</span>
+<span id="785">785</span>
+<span id="786">786</span>
+<span id="787">787</span>
+<span id="788">788</span>
+<span id="789">789</span>
+<span id="790">790</span>
+<span id="791">791</span>
+<span id="792">792</span>
+<span id="793">793</span>
+<span id="794">794</span>
+<span id="795">795</span>
+<span id="796">796</span>
+<span id="797">797</span>
+<span id="798">798</span>
+<span id="799">799</span>
+<span id="800">800</span>
+<span id="801">801</span>
+<span id="802">802</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">block_synchronizer::handler::Handler</span>, <span class="ident">PrimaryWorkerMessage</span>};
-<span class="kw">use</span> <span class="ident">config::SharedCommittee</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">block_synchronizer::handler::Handler</span>, <span class="ident">primary::Reconfigure</span>, <span class="ident">PrimaryWorkerMessage</span>};
+<span class="kw">use</span> <span class="ident">config::Committee</span>;
 <span class="kw">use</span> <span class="ident">crypto</span>::{<span class="ident">traits::VerifyingKey</span>, <span class="ident">Digest</span>, <span class="ident">Hash</span>};
 <span class="kw">use</span> <span class="ident">futures</span>::{
     <span class="ident">future</span>::{<span class="ident">try_join_all</span>, <span class="ident">BoxFuture</span>},
@@ -805,13 +825,13 @@
     <span class="ident">time</span>::{<span class="ident">Duration</span>, <span class="ident">SystemTime</span>, <span class="ident">UNIX_EPOCH</span>},
 };
 <span class="kw">use</span> <span class="ident">tokio</span>::{
-    <span class="ident">sync</span>::{<span class="ident">mpsc::Receiver</span>, <span class="ident">oneshot</span>},
+    <span class="ident">sync</span>::{<span class="ident">mpsc::Receiver</span>, <span class="ident">oneshot</span>, <span class="ident">watch</span>},
     <span class="ident">time::timeout</span>,
 };
 <span class="kw">use</span> <span class="ident">tracing</span>::{<span class="ident">debug</span>, <span class="ident">error</span>, <span class="ident">instrument</span>, <span class="ident">warn</span>};
 <span class="kw">use</span> <span class="ident">types</span>::{
     <span class="ident">BatchDigest</span>, <span class="ident">BatchMessage</span>, <span class="ident">BlockError</span>, <span class="ident">BlockErrorKind</span>, <span class="ident">BlockResult</span>, <span class="ident">Certificate</span>,
-    <span class="ident">CertificateDigest</span>, <span class="ident">Header</span>,
+    <span class="ident">CertificateDigest</span>, <span class="ident">Header</span>, <span class="ident">ShutdownToken</span>,
 };
 <span class="kw">use</span> <span class="prelude-ty">Result</span>::<span class="kw-2">*</span>;
 
@@ -900,8 +920,7 @@
 <span class="doccomment">/// the result of it.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// ```rust</span>
-<span class="doccomment">/// # use tokio::sync::mpsc::{channel};</span>
-<span class="doccomment">/// # use tokio::sync::oneshot;</span>
+<span class="doccomment">/// # use tokio::sync::{mpsc::{channel}, watch, oneshot};</span>
 <span class="doccomment">/// # use arc_swap::ArcSwap;</span>
 <span class="doccomment">/// # use crypto::Hash;</span>
 <span class="doccomment">/// # use std::env::temp_dir;</span>
@@ -909,7 +928,7 @@
 <span class="doccomment">/// # use config::Committee;</span>
 <span class="doccomment">/// # use std::collections::BTreeMap;</span>
 <span class="doccomment">/// # use types::Certificate;</span>
-<span class="doccomment">/// # use primary::{BlockWaiter, BlockHeader, BlockCommand, block_synchronizer::{BlockSynchronizeResult, handler::{Error, Handler}}};</span>
+<span class="doccomment">/// # use primary::{BlockWaiter, BlockHeader, BlockCommand, block_synchronizer::{BlockSynchronizeResult, handler::{Error, Handler}}, Reconfigure};</span>
 <span class="doccomment">/// # use types::{BatchMessage, BatchDigest, CertificateDigest, Batch};</span>
 <span class="doccomment">/// # use mockall::*;</span>
 <span class="doccomment">/// # use crypto::traits::VerifyingKey;</span>
@@ -943,7 +962,8 @@
 <span class="doccomment">///     let (tx_get_block, mut rx_get_block) = oneshot::channel();</span>
 <span class="doccomment">///</span>
 <span class="doccomment">///     let name = Ed25519PublicKey::default();</span>
-<span class="doccomment">///     let committee = Arc::new(Committee{ epoch: 0, authorities: ArcSwap::from_pointee(BTreeMap::new()) });</span>
+<span class="doccomment">///     let committee = Committee{ epoch: ArcSwap::new(Arc::new(0)), authorities: ArcSwap::from_pointee(BTreeMap::new()) };</span>
+<span class="doccomment">///     let (_tx_reconfigure, rx_reconfigure) = watch::channel(Reconfigure::NewCommittee(committee.clone()));</span>
 <span class="doccomment">///</span>
 <span class="doccomment">///     // A dummy certificate</span>
 <span class="doccomment">///     let certificate = Certificate::&lt;Ed25519PublicKey&gt;::default();</span>
@@ -953,6 +973,7 @@
 <span class="doccomment">///     BlockWaiter::spawn(</span>
 <span class="doccomment">///         name,</span>
 <span class="doccomment">///         committee,</span>
+<span class="doccomment">///         rx_reconfigure,</span>
 <span class="doccomment">///         rx_commands,</span>
 <span class="doccomment">///         rx_batches,</span>
 <span class="doccomment">///         Arc::new(BlockSynchronizerHandler{}),</span>
@@ -989,7 +1010,7 @@
     <span class="ident">name</span>: <span class="ident">PublicKey</span>,
 
     <span class="doccomment">/// The committee information.</span>
-    <span class="ident">committee</span>: <span class="ident">SharedCommittee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
+    <span class="ident">committee</span>: <span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
 
     <span class="doccomment">/// Receive all the requests to get a block</span>
     <span class="ident">rx_commands</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">BlockCommand</span><span class="op">&gt;</span>,
@@ -1003,6 +1024,9 @@
 
     <span class="doccomment">/// Network driver allowing to send messages.</span>
     <span class="ident">worker_network</span>: <span class="ident">PrimaryToWorkerNetwork</span>,
+
+    <span class="doccomment">/// Watch channel to reconfigure the committee.</span>
+    <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">Reconfigure</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 
     <span class="doccomment">/// The batch receive channel is listening for received</span>
     <span class="doccomment">/// messages for batches that have been requested</span>
@@ -1036,18 +1060,20 @@
     <span class="comment">// commands to fetch a block</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(
         <span class="ident">name</span>: <span class="ident">PublicKey</span>,
-        <span class="ident">committee</span>: <span class="ident">SharedCommittee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
+        <span class="ident">committee</span>: <span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
+        <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">Reconfigure</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">rx_commands</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">BlockCommand</span><span class="op">&gt;</span>,
         <span class="ident">batch_receiver</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">BatchResult</span><span class="op">&gt;</span>,
         <span class="ident">block_synchronizer_handler</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SynchronizerHandler</span><span class="op">&gt;</span>,
     ) {
         <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
-            <span class="self">Self</span> {
+            <span class="kw">let</span> <span class="ident">shutdown_token</span> <span class="op">=</span> <span class="self">Self</span> {
                 <span class="ident">name</span>,
                 <span class="ident">committee</span>,
                 <span class="ident">rx_commands</span>,
                 <span class="ident">pending_get_block</span>: <span class="ident">HashMap::new</span>(),
                 <span class="ident">worker_network</span>: <span class="ident">PrimaryToWorkerNetwork::default</span>(),
+                <span class="ident">rx_reconfigure</span>,
                 <span class="ident">rx_batch_receiver</span>: <span class="ident">batch_receiver</span>,
                 <span class="ident">tx_pending_batch</span>: <span class="ident">HashMap::new</span>(),
                 <span class="ident">tx_get_block_map</span>: <span class="ident">HashMap::new</span>(),
@@ -1056,10 +1082,11 @@
             }
             .<span class="ident">run</span>()
             .<span class="kw">await</span>;
+            <span class="ident">drop</span>(<span class="ident">shutdown_token</span>);
         });
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">run</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">run</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) -&gt; <span class="ident">ShutdownToken</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">waiting_get_block</span> <span class="op">=</span> <span class="ident">FuturesUnordered::new</span>();
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">waiting_get_blocks</span> <span class="op">=</span> <span class="ident">FuturesUnordered::new</span>();
 
@@ -1101,6 +1128,19 @@
                 },
                 <span class="prelude-val">Some</span>(<span class="ident">result</span>) <span class="op">=</span> <span class="ident">waiting_get_blocks</span>.<span class="ident">next</span>() =&gt; {
                     <span class="self">self</span>.<span class="ident">handle_get_blocks_waiting_result</span>(<span class="ident">result</span>).<span class="kw">await</span>;
+                }
+
+                <span class="comment">// Check whether the committee changed. If the network address of our workers changed upon trying</span>
+                <span class="comment">// to send them a request, we will timeout and the caller will have to retry.</span>
+                <span class="ident">result</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">rx_reconfigure</span>.<span class="ident">changed</span>() =&gt; {
+                    <span class="ident">result</span>.<span class="ident">expect</span>(<span class="string">&quot;Committee channel dropped&quot;</span>);
+                    <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">rx_reconfigure</span>.<span class="ident">borrow</span>().<span class="ident">clone</span>();
+                    <span class="kw">match</span> <span class="ident">message</span> {
+                        <span class="ident">Reconfigure::NewCommittee</span>(<span class="ident">new_committee</span>) =&gt; {
+                            <span class="self">self</span>.<span class="ident">committee</span> <span class="op">=</span> <span class="ident">new_committee</span>;
+                        }
+                        <span class="ident">Reconfigure::Shutdown</span>(<span class="ident">token</span>) =&gt; <span class="kw">return</span> <span class="ident">token</span>,
+                    }
                 }
             }
         }
@@ -1569,5 +1609,5 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (ddcbba036 2022-06-29)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (7425fb293 2022-06-30)" ></div>
 </body></html>

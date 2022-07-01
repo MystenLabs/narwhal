@@ -530,26 +530,53 @@
 <span id="524">524</span>
 <span id="525">525</span>
 <span id="526">526</span>
+<span id="527">527</span>
+<span id="528">528</span>
+<span id="529">529</span>
+<span id="530">530</span>
+<span id="531">531</span>
+<span id="532">532</span>
+<span id="533">533</span>
+<span id="534">534</span>
+<span id="535">535</span>
+<span id="536">536</span>
+<span id="537">537</span>
+<span id="538">538</span>
+<span id="539">539</span>
+<span id="540">540</span>
+<span id="541">541</span>
+<span id="542">542</span>
+<span id="543">543</span>
+<span id="544">544</span>
+<span id="545">545</span>
+<span id="546">546</span>
+<span id="547">547</span>
+<span id="548">548</span>
+<span id="549">549</span>
+<span id="550">550</span>
+<span id="551">551</span>
+<span id="552">552</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="kw">crate</span>::{
     <span class="ident">block_remover::DeleteBatchResult</span>,
-    <span class="ident">block_synchronizer::BlockSynchronizer</span>,
+    <span class="ident">block_synchronizer</span>::{<span class="ident">handler::BlockSynchronizerHandler</span>, <span class="ident">BlockSynchronizer</span>},
     <span class="ident">block_waiter</span>::{<span class="ident">BatchMessageError</span>, <span class="ident">BatchResult</span>, <span class="ident">BlockWaiter</span>},
     <span class="ident">certificate_waiter::CertificateWaiter</span>,
     <span class="ident">core::Core</span>,
-    <span class="ident">garbage_collector::GarbageCollector</span>,
     <span class="ident">grpc_server::ConsensusAPIGrpc</span>,
     <span class="ident">header_waiter::HeaderWaiter</span>,
     <span class="ident">helper::Helper</span>,
+    <span class="ident">metrics</span>::{<span class="ident">initialise_metrics</span>, <span class="ident">PrimaryMetrics</span>},
     <span class="ident">payload_receiver::PayloadReceiver</span>,
     <span class="ident">proposer::Proposer</span>,
+    <span class="ident">state_handler::StateHandler</span>,
     <span class="ident">synchronizer::Synchronizer</span>,
     <span class="ident">BlockRemover</span>, <span class="ident">CertificatesResponse</span>, <span class="ident">DeleteBatchMessage</span>, <span class="ident">PayloadAvailabilityResponse</span>,
 };
 <span class="kw">use</span> <span class="ident">async_trait::async_trait</span>;
-<span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">Parameters</span>, <span class="ident">SharedCommittee</span>, <span class="ident">WorkerId</span>};
+<span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">Committee</span>, <span class="ident">Parameters</span>, <span class="ident">SharedCommittee</span>, <span class="ident">WorkerId</span>};
 <span class="kw">use</span> <span class="ident">consensus::dag::Dag</span>;
 <span class="kw">use</span> <span class="ident">crypto</span>::{
     <span class="ident">traits</span>::{<span class="ident">EncodeDecodeBase64</span>, <span class="ident">Signer</span>, <span class="ident">VerifyingKey</span>},
@@ -566,25 +593,32 @@
 <span class="kw">use</span> <span class="ident">store::Store</span>;
 <span class="kw">use</span> <span class="ident">thiserror::Error</span>;
 <span class="kw">use</span> <span class="ident">tokio</span>::{
-    <span class="ident">sync::mpsc</span>::{<span class="ident">channel</span>, <span class="ident">Receiver</span>, <span class="ident">Sender</span>},
+    <span class="ident">sync</span>::{
+        <span class="ident">mpsc</span>::{<span class="ident">channel</span>, <span class="ident">Receiver</span>, <span class="ident">Sender</span>},
+        <span class="ident">watch</span>,
+    },
     <span class="ident">task::JoinHandle</span>,
 };
 <span class="kw">use</span> <span class="ident">tonic</span>::{<span class="ident">Request</span>, <span class="ident">Response</span>, <span class="ident">Status</span>};
 <span class="kw">use</span> <span class="ident">tracing::info</span>;
 <span class="kw">use</span> <span class="ident">types</span>::{
     <span class="ident">Batch</span>, <span class="ident">BatchDigest</span>, <span class="ident">BatchMessage</span>, <span class="ident">BincodeEncodedPayload</span>, <span class="ident">Certificate</span>, <span class="ident">CertificateDigest</span>, <span class="ident">Empty</span>,
-    <span class="ident">Header</span>, <span class="ident">HeaderDigest</span>, <span class="ident">PrimaryToPrimary</span>, <span class="ident">PrimaryToPrimaryServer</span>, <span class="ident">WorkerToPrimary</span>,
+    <span class="ident">Header</span>, <span class="ident">HeaderDigest</span>, <span class="ident">PrimaryToPrimary</span>, <span class="ident">PrimaryToPrimaryServer</span>, <span class="ident">ShutdownToken</span>, <span class="ident">WorkerToPrimary</span>,
     <span class="ident">WorkerToPrimaryServer</span>,
 };
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">ConsensusPrimaryMessage</span>, <span class="ident">PrimaryMessage</span>, <span class="ident">PrimaryWorkerMessage</span>};
 
 <span class="doccomment">/// The default channel capacity for each channel of the primary.</span>
 <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">CHANNEL_CAPACITY</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">1_000</span>;
 
-<span class="kw">use</span> <span class="kw">crate</span>::{
-    <span class="ident">block_synchronizer::handler::BlockSynchronizerHandler</span>,
-    <span class="ident">metrics</span>::{<span class="ident">initialise_metrics</span>, <span class="ident">PrimaryMetrics</span>},
-};
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">PrimaryMessage</span>, <span class="ident">PrimaryWorkerMessage</span>};
+<span class="doccomment">/// Message to reconfigure tasks.</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>)]</span>
+<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">Reconfigure</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> {
+    <span class="doccomment">/// Indicates the committee has been updated.</span>
+    <span class="ident">NewCommittee</span>(<span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>),
+    <span class="doccomment">/// Indicate a shutdown.</span>
+    <span class="ident">Shutdown</span>(<span class="ident">ShutdownToken</span>),
+}
 
 <span class="doccomment">/// The messages sent by the workers to their primary.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>)]</span>
@@ -634,12 +668,15 @@
         <span class="ident">certificate_store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">payload_store</span>: <span class="ident">Store</span><span class="op">&lt;</span>(<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>), <span class="ident">PayloadToken</span><span class="op">&gt;</span>,
         <span class="ident">tx_consensus</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-        <span class="ident">rx_consensus</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">rx_consensus</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">ConsensusPrimaryMessage</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">dag</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Dag</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">network_model</span>: <span class="ident">NetworkModel</span>,
-        <span class="ident">tx_committed_certificates</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">tx_committed_certificates</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">ConsensusPrimaryMessage</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">registry</span>: <span class="kw-2">&amp;</span><span class="ident">Registry</span>,
     ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">initial_committee</span> <span class="op">=</span> <span class="ident">Reconfigure::NewCommittee</span>((<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">committee</span>).<span class="ident">clone</span>());
+        <span class="kw">let</span> (<span class="ident">tx_reconfigure</span>, <span class="ident">rx_reconfigure</span>) <span class="op">=</span> <span class="ident">watch::channel</span>(<span class="ident">initial_committee</span>);
+
         <span class="kw">let</span> (<span class="ident">tx_others_digests</span>, <span class="ident">rx_others_digests</span>) <span class="op">=</span> <span class="ident">channel</span>(<span class="ident">CHANNEL_CAPACITY</span>);
         <span class="kw">let</span> (<span class="ident">tx_our_digests</span>, <span class="ident">rx_our_digests</span>) <span class="op">=</span> <span class="ident">channel</span>(<span class="ident">CHANNEL_CAPACITY</span>);
         <span class="kw">let</span> (<span class="ident">tx_parents</span>, <span class="ident">rx_parents</span>) <span class="op">=</span> <span class="ident">channel</span>(<span class="ident">CHANNEL_CAPACITY</span>);
@@ -731,13 +768,14 @@
         <span class="comment">// The `Core` receives and handles headers, votes, and certificates from the other primaries.</span>
         <span class="kw">let</span> <span class="ident">primary_handle</span> <span class="op">=</span> <span class="ident">Core::spawn</span>(
             <span class="ident">name</span>.<span class="ident">clone</span>(),
-            <span class="ident">committee</span>.<span class="ident">clone</span>(),
+            (<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">committee</span>).<span class="ident">clone</span>(),
             <span class="ident">header_store</span>.<span class="ident">clone</span>(),
             <span class="ident">certificate_store</span>.<span class="ident">clone</span>(),
             <span class="ident">synchronizer</span>,
             <span class="ident">signature_service</span>.<span class="ident">clone</span>(),
             <span class="ident">consensus_round</span>.<span class="ident">clone</span>(),
             <span class="ident">parameters</span>.<span class="ident">gc_depth</span>,
+            <span class="ident">tx_reconfigure</span>.<span class="ident">subscribe</span>(),
             <span class="comment">/* rx_primaries */</span> <span class="ident">rx_primary_messages</span>,
             <span class="comment">/* rx_header_waiter */</span> <span class="ident">rx_headers_loopback</span>,
             <span class="comment">/* rx_certificate_waiter */</span> <span class="ident">rx_certificates_loopback</span>,
@@ -746,9 +784,6 @@
             <span class="comment">/* tx_proposer */</span> <span class="ident">tx_parents</span>,
             <span class="ident">node_metrics</span>,
         );
-
-        <span class="comment">// Keeps track of the latest consensus round and allows other tasks to clean up their their internal state</span>
-        <span class="ident">GarbageCollector::spawn</span>(<span class="kw-2">&amp;</span><span class="ident">name</span>, <span class="kw-2">&amp;</span><span class="ident">committee</span>, <span class="ident">consensus_round</span>.<span class="ident">clone</span>(), <span class="ident">rx_consensus</span>);
 
         <span class="comment">// Receives batch digests from other workers. They are only used to validate headers.</span>
         <span class="ident">PayloadReceiver::spawn</span>(
@@ -769,7 +804,8 @@
         <span class="comment">// underlying batches and their transactions.</span>
         <span class="ident">BlockWaiter::spawn</span>(
             <span class="ident">name</span>.<span class="ident">clone</span>(),
-            <span class="ident">committee</span>.<span class="ident">clone</span>(),
+            (<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">committee</span>).<span class="ident">clone</span>(),
+            <span class="ident">tx_reconfigure</span>.<span class="ident">subscribe</span>(),
             <span class="ident">rx_get_block_commands</span>,
             <span class="ident">rx_batches</span>,
             <span class="ident">block_synchronizer_handler</span>.<span class="ident">clone</span>(),
@@ -781,12 +817,13 @@
         <span class="comment">// Orchestrates the removal of blocks across the primary and worker nodes.</span>
         <span class="ident">BlockRemover::spawn</span>(
             <span class="ident">name</span>.<span class="ident">clone</span>(),
-            <span class="ident">committee</span>.<span class="ident">clone</span>(),
+            (<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">committee</span>).<span class="ident">clone</span>(),
             <span class="ident">certificate_store</span>.<span class="ident">clone</span>(),
             <span class="ident">header_store</span>,
             <span class="ident">payload_store</span>.<span class="ident">clone</span>(),
             <span class="ident">dag</span>.<span class="ident">clone</span>(),
             <span class="ident">PrimaryToWorkerNetwork::default</span>(),
+            <span class="ident">tx_reconfigure</span>.<span class="ident">subscribe</span>(),
             <span class="ident">rx_block_removal_commands</span>,
             <span class="ident">rx_batch_removal</span>,
             <span class="ident">tx_committed_certificates</span>,
@@ -796,7 +833,8 @@
         <span class="comment">// them from the primary peers by synchronizing also their batches.</span>
         <span class="ident">BlockSynchronizer::spawn</span>(
             <span class="ident">name</span>.<span class="ident">clone</span>(),
-            <span class="ident">committee</span>.<span class="ident">clone</span>(),
+            (<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">committee</span>).<span class="ident">clone</span>(),
+            <span class="ident">tx_reconfigure</span>.<span class="ident">subscribe</span>(),
             <span class="ident">rx_block_synchronizer_commands</span>,
             <span class="ident">rx_certificate_responses</span>,
             <span class="ident">rx_payload_availability_responses</span>,
@@ -811,13 +849,14 @@
         <span class="comment">// re-schedule execution of the header once we have all missing data.</span>
         <span class="ident">HeaderWaiter::spawn</span>(
             <span class="ident">name</span>.<span class="ident">clone</span>(),
-            <span class="ident">committee</span>.<span class="ident">clone</span>(),
+            (<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">committee</span>).<span class="ident">clone</span>(),
             <span class="ident">certificate_store</span>.<span class="ident">clone</span>(),
             <span class="ident">payload_store</span>.<span class="ident">clone</span>(),
             <span class="ident">consensus_round</span>.<span class="ident">clone</span>(),
             <span class="ident">parameters</span>.<span class="ident">gc_depth</span>,
             <span class="ident">parameters</span>.<span class="ident">sync_retry_delay</span>,
             <span class="ident">parameters</span>.<span class="ident">sync_retry_nodes</span>,
+            <span class="ident">tx_reconfigure</span>.<span class="ident">subscribe</span>(),
             <span class="comment">/* rx_synchronizer */</span> <span class="ident">rx_sync_headers</span>,
             <span class="comment">/* tx_core */</span> <span class="ident">tx_headers_loopback</span>,
         );
@@ -825,9 +864,11 @@
         <span class="comment">// The `CertificateWaiter` waits to receive all the ancestors of a certificate before looping it back to the</span>
         <span class="comment">// `Core` for further processing.</span>
         <span class="ident">CertificateWaiter::spawn</span>(
+            (<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">committee</span>).<span class="ident">clone</span>(),
             <span class="ident">certificate_store</span>.<span class="ident">clone</span>(),
-            <span class="ident">consensus_round</span>,
+            <span class="ident">consensus_round</span>.<span class="ident">clone</span>(),
             <span class="ident">parameters</span>.<span class="ident">gc_depth</span>,
+            <span class="ident">tx_reconfigure</span>.<span class="ident">subscribe</span>(),
             <span class="comment">/* rx_synchronizer */</span> <span class="ident">rx_sync_certificates</span>,
             <span class="comment">/* tx_core */</span> <span class="ident">tx_certificates_loopback</span>,
         );
@@ -836,11 +877,12 @@
         <span class="comment">// digests from our workers and sends it back to the `Core`.</span>
         <span class="ident">Proposer::spawn</span>(
             <span class="ident">name</span>.<span class="ident">clone</span>(),
-            <span class="ident">committee</span>.<span class="ident">clone</span>(),
+            (<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">committee</span>).<span class="ident">clone</span>(),
             <span class="ident">signature_service</span>,
             <span class="ident">parameters</span>.<span class="ident">header_size</span>,
             <span class="ident">parameters</span>.<span class="ident">max_header_delay</span>,
             <span class="ident">network_model</span>,
+            <span class="ident">tx_reconfigure</span>.<span class="ident">subscribe</span>(),
             <span class="comment">/* rx_core */</span> <span class="ident">rx_parents</span>,
             <span class="comment">/* rx_workers */</span> <span class="ident">rx_our_digests</span>,
             <span class="comment">/* tx_core */</span> <span class="ident">tx_headers</span>,
@@ -850,9 +892,10 @@
         <span class="comment">// from other primaries.</span>
         <span class="ident">Helper::spawn</span>(
             <span class="ident">name</span>.<span class="ident">clone</span>(),
-            <span class="ident">committee</span>.<span class="ident">clone</span>(),
+            (<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">committee</span>).<span class="ident">clone</span>(),
             <span class="ident">certificate_store</span>,
             <span class="ident">payload_store</span>,
+            <span class="ident">rx_reconfigure</span>,
             <span class="ident">rx_helper_requests</span>,
         );
 
@@ -870,6 +913,15 @@
                 <span class="ident">endpoint_metrics</span>,
             );
         }
+
+        <span class="comment">// Keeps track of the latest consensus round and allows other tasks to clean up their their internal state</span>
+        <span class="ident">StateHandler::spawn</span>(
+            <span class="ident">name</span>.<span class="ident">clone</span>(),
+            <span class="ident">committee</span>.<span class="ident">clone</span>(),
+            <span class="ident">consensus_round</span>,
+            <span class="ident">rx_consensus</span>,
+            <span class="ident">tx_reconfigure</span>,
+        );
 
         <span class="comment">// NOTE: This log entry is used to compute performance.</span>
         <span class="macro">info!</span>(
@@ -1057,5 +1109,5 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (ddcbba036 2022-06-29)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (7425fb293 2022-06-30)" ></div>
 </body></html>

@@ -252,18 +252,42 @@
 <span id="246">246</span>
 <span id="247">247</span>
 <span id="248">248</span>
+<span id="249">249</span>
+<span id="250">250</span>
+<span id="251">251</span>
+<span id="252">252</span>
+<span id="253">253</span>
+<span id="254">254</span>
+<span id="255">255</span>
+<span id="256">256</span>
+<span id="257">257</span>
+<span id="258">258</span>
+<span id="259">259</span>
+<span id="260">260</span>
+<span id="261">261</span>
+<span id="262">262</span>
+<span id="263">263</span>
+<span id="264">264</span>
+<span id="265">265</span>
+<span id="266">266</span>
+<span id="267">267</span>
+<span id="268">268</span>
+<span id="269">269</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">primary::PrimaryMessage</span>, <span class="ident">PayloadToken</span>};
-<span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">SharedCommittee</span>, <span class="ident">WorkerId</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::{
+    <span class="ident">primary</span>::{<span class="ident">PrimaryMessage</span>, <span class="ident">Reconfigure</span>},
+    <span class="ident">PayloadToken</span>,
+};
+<span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">Committee</span>, <span class="ident">WorkerId</span>};
 <span class="kw">use</span> <span class="ident">crypto::traits</span>::{<span class="ident">EncodeDecodeBase64</span>, <span class="ident">VerifyingKey</span>};
 <span class="kw">use</span> <span class="ident">network::PrimaryNetwork</span>;
 <span class="kw">use</span> <span class="ident">store</span>::{<span class="ident">Store</span>, <span class="ident">StoreError</span>};
 <span class="kw">use</span> <span class="ident">thiserror::Error</span>;
-<span class="kw">use</span> <span class="ident">tokio::sync::mpsc::Receiver</span>;
+<span class="kw">use</span> <span class="ident">tokio::sync</span>::{<span class="ident">mpsc::Receiver</span>, <span class="ident">watch</span>};
 <span class="kw">use</span> <span class="ident">tracing</span>::{<span class="ident">error</span>, <span class="ident">instrument</span>};
-<span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">BatchDigest</span>, <span class="ident">Certificate</span>, <span class="ident">CertificateDigest</span>};
+<span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">BatchDigest</span>, <span class="ident">Certificate</span>, <span class="ident">CertificateDigest</span>, <span class="ident">ShutdownToken</span>};
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="attribute">#[<span class="ident">path</span> <span class="op">=</span> <span class="string">&quot;tests/helper_tests.rs&quot;</span>]</span>
@@ -287,11 +311,13 @@
     <span class="doccomment">/// The node&#39;s name</span>
     <span class="ident">name</span>: <span class="ident">PublicKey</span>,
     <span class="doccomment">/// The committee information.</span>
-    <span class="ident">committee</span>: <span class="ident">SharedCommittee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
+    <span class="ident">committee</span>: <span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
     <span class="doccomment">/// The certificate persistent storage.</span>
     <span class="ident">certificate_store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="doccomment">/// The payloads (batches) persistent storage.</span>
     <span class="ident">payload_store</span>: <span class="ident">Store</span><span class="op">&lt;</span>(<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>), <span class="ident">PayloadToken</span><span class="op">&gt;</span>,
+    <span class="doccomment">/// Watch channel to reconfigure the committee.</span>
+    <span class="ident">rx_committee</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">Reconfigure</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="doccomment">/// Input channel to receive requests.</span>
     <span class="ident">rx_primaries</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">PrimaryMessage</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="doccomment">/// A network sender to reply to the sync requests.</span>
@@ -301,57 +327,73 @@
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> <span class="ident">Helper</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(
         <span class="ident">name</span>: <span class="ident">PublicKey</span>,
-        <span class="ident">committee</span>: <span class="ident">SharedCommittee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
+        <span class="ident">committee</span>: <span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
         <span class="ident">certificate_store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">payload_store</span>: <span class="ident">Store</span><span class="op">&lt;</span>(<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>), <span class="ident">PayloadToken</span><span class="op">&gt;</span>,
+        <span class="ident">rx_committee</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">Reconfigure</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">rx_primaries</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">PrimaryMessage</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     ) {
         <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
-            <span class="self">Self</span> {
+            <span class="kw">let</span> <span class="ident">shutdown_token</span> <span class="op">=</span> <span class="self">Self</span> {
                 <span class="ident">name</span>,
                 <span class="ident">committee</span>,
                 <span class="ident">certificate_store</span>,
                 <span class="ident">payload_store</span>,
+                <span class="ident">rx_committee</span>,
                 <span class="ident">rx_primaries</span>,
                 <span class="ident">primary_network</span>: <span class="ident">PrimaryNetwork::default</span>(),
             }
             .<span class="ident">run</span>()
             .<span class="kw">await</span>;
+            <span class="ident">drop</span>(<span class="ident">shutdown_token</span>);
         });
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">run</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
-        <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">request</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">rx_primaries</span>.<span class="ident">recv</span>().<span class="kw">await</span> {
-            <span class="kw">match</span> <span class="ident">request</span> {
-                <span class="comment">// The CertificatesRequest will find any certificates that exist in</span>
-                <span class="comment">// the data source (dictated by the digests parameter). The results</span>
-                <span class="comment">// will be emitted one by one to the consumer.</span>
-                <span class="ident">PrimaryMessage::CertificatesRequest</span>(<span class="ident">digests</span>, <span class="ident">origin</span>) =&gt; {
-                    <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">process_certificates</span>(<span class="ident">digests</span>, <span class="ident">origin</span>, <span class="bool-val">false</span>).<span class="kw">await</span>;
-                }
-                <span class="comment">// The CertificatesBatchRequest will find any certificates that exist in</span>
-                <span class="comment">// the data source (dictated by the digests parameter). The results will</span>
-                <span class="comment">// be sent though back to the consumer as a batch - one message.</span>
-                <span class="ident">PrimaryMessage::CertificatesBatchRequest</span> {
-                    <span class="ident">certificate_ids</span>,
-                    <span class="ident">requestor</span>,
-                } =&gt; {
-                    <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>
-                        .<span class="ident">process_certificates</span>(<span class="ident">certificate_ids</span>, <span class="ident">requestor</span>, <span class="bool-val">true</span>)
-                        .<span class="kw">await</span>;
-                }
-                <span class="comment">// A request that another primary sends us to ask whether we</span>
-                <span class="comment">// can serve batch data for the provided certificate_ids.</span>
-                <span class="ident">PrimaryMessage::PayloadAvailabilityRequest</span> {
-                    <span class="ident">certificate_ids</span>,
-                    <span class="ident">requestor</span>,
-                } =&gt; {
-                    <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>
-                        .<span class="ident">process_payload_availability</span>(<span class="ident">certificate_ids</span>, <span class="ident">requestor</span>)
-                        .<span class="kw">await</span>;
-                }
-                <span class="kw">_</span> =&gt; {
-                    <span class="macro">panic!</span>(<span class="string">&quot;Received unexpected message!&quot;</span>);
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">run</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) -&gt; <span class="ident">ShutdownToken</span> {
+        <span class="kw">loop</span> {
+            <span class="macro">tokio::select!</span> {
+                <span class="prelude-val">Some</span>(<span class="ident">request</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">rx_primaries</span>.<span class="ident">recv</span>() =&gt; <span class="kw">match</span> <span class="ident">request</span> {
+                    <span class="comment">// The CertificatesRequest will find any certificates that exist in</span>
+                    <span class="comment">// the data source (dictated by the digests parameter). The results</span>
+                    <span class="comment">// will be emitted one by one to the consumer.</span>
+                    <span class="ident">PrimaryMessage::CertificatesRequest</span>(<span class="ident">digests</span>, <span class="ident">origin</span>) =&gt; {
+                        <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">process_certificates</span>(<span class="ident">digests</span>, <span class="ident">origin</span>, <span class="bool-val">false</span>).<span class="kw">await</span>;
+                    }
+                    <span class="comment">// The CertificatesBatchRequest will find any certificates that exist in</span>
+                    <span class="comment">// the data source (dictated by the digests parameter). The results will</span>
+                    <span class="comment">// be sent though back to the consumer as a batch - one message.</span>
+                    <span class="ident">PrimaryMessage::CertificatesBatchRequest</span> {
+                        <span class="ident">certificate_ids</span>,
+                        <span class="ident">requestor</span>,
+                    } =&gt; {
+                        <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>
+                            .<span class="ident">process_certificates</span>(<span class="ident">certificate_ids</span>, <span class="ident">requestor</span>, <span class="bool-val">true</span>)
+                            .<span class="kw">await</span>;
+                    }
+                    <span class="comment">// A request that another primary sends us to ask whether we</span>
+                    <span class="comment">// can serve batch data for the provided certificate_ids.</span>
+                    <span class="ident">PrimaryMessage::PayloadAvailabilityRequest</span> {
+                        <span class="ident">certificate_ids</span>,
+                        <span class="ident">requestor</span>,
+                    } =&gt; {
+                        <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>
+                            .<span class="ident">process_payload_availability</span>(<span class="ident">certificate_ids</span>, <span class="ident">requestor</span>)
+                            .<span class="kw">await</span>;
+                    }
+                    <span class="kw">_</span> =&gt; {
+                        <span class="macro">panic!</span>(<span class="string">&quot;Received unexpected message!&quot;</span>);
+                    }
+                },
+
+                <span class="ident">result</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">rx_committee</span>.<span class="ident">changed</span>() =&gt; {
+                    <span class="ident">result</span>.<span class="ident">expect</span>(<span class="string">&quot;Committee channel dropped&quot;</span>);
+                    <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">rx_committee</span>.<span class="ident">borrow</span>().<span class="ident">clone</span>();
+                    <span class="kw">match</span> <span class="ident">message</span> {
+                        <span class="ident">Reconfigure::NewCommittee</span>(<span class="ident">new_committee</span>) =&gt; {
+                            <span class="self">self</span>.<span class="ident">committee</span> <span class="op">=</span> <span class="ident">new_committee</span>;
+                        },
+                        <span class="ident">Reconfigure::Shutdown</span>(<span class="ident">token</span>) =&gt; <span class="kw">return</span> <span class="ident">token</span>
+                    }
                 }
             }
         }
@@ -501,5 +543,5 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (ddcbba036 2022-06-29)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (7425fb293 2022-06-30)" ></div>
 </body></html>

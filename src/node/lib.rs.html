@@ -280,8 +280,8 @@
 };
 <span class="kw">use</span> <span class="ident">tracing::debug</span>;
 <span class="kw">use</span> <span class="ident">types</span>::{
-    <span class="ident">BatchDigest</span>, <span class="ident">Certificate</span>, <span class="ident">CertificateDigest</span>, <span class="ident">ConsensusStore</span>, <span class="ident">Header</span>, <span class="ident">HeaderDigest</span>, <span class="ident">Round</span>,
-    <span class="ident">SequenceNumber</span>, <span class="ident">SerializedBatchMessage</span>,
+    <span class="ident">BatchDigest</span>, <span class="ident">Certificate</span>, <span class="ident">CertificateDigest</span>, <span class="ident">ConsensusPrimaryMessage</span>, <span class="ident">ConsensusStore</span>, <span class="ident">Header</span>,
+    <span class="ident">HeaderDigest</span>, <span class="ident">Round</span>, <span class="ident">SequenceNumber</span>, <span class="ident">SerializedBatchMessage</span>,
 };
 <span class="kw">use</span> <span class="ident">worker::Worker</span>;
 
@@ -434,7 +434,7 @@
         <span class="ident">parameters</span>: <span class="ident">Parameters</span>,
         <span class="ident">execution_state</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">State</span><span class="op">&gt;</span>,
         <span class="ident">rx_new_certificates</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-        <span class="ident">tx_feedback</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">tx_feedback</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">ConsensusPrimaryMessage</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">tx_confirmation</span>: <span class="ident">Sender</span><span class="op">&lt;</span>(<span class="ident">SubscriberResult</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">SerializedTransaction</span>)<span class="op">&gt;</span>,
     ) -&gt; <span class="ident">SubscriberResult</span><span class="op">&lt;</span>()<span class="op">&gt;</span>
     <span class="kw">where</span>
@@ -517,5 +517,5 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="node" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (ddcbba036 2022-06-29)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="node" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (7425fb293 2022-06-30)" ></div>
 </body></html>
