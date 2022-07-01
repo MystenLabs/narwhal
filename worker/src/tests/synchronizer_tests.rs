@@ -1,3 +1,4 @@
+use prometheus::Registry;
 // Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -23,6 +24,8 @@ async fn synchronize() {
     // Create a new test store.
     let store = open_batch_store();
 
+    let metrics = Arc::new(WorkerMetrics::new(&Registry::new()));
+
     // Spawn a `Synchronizer` instance.
     Synchronizer::spawn(
         name.clone(),
@@ -35,6 +38,7 @@ async fn synchronize() {
         /* sync_retry_nodes */ 3, // Not used in this test.
         rx_message,
         tx_primary,
+        metrics,
     );
 
     // Spawn a listener to receive our batch requests.
@@ -66,6 +70,8 @@ async fn test_successful_request_batch() {
     // Create a new test store.
     let store = open_batch_store();
 
+    let metrics = Arc::new(WorkerMetrics::new(&Registry::new()));
+
     // Spawn a `Synchronizer` instance.
     Synchronizer::spawn(
         name.clone(),
@@ -78,6 +84,7 @@ async fn test_successful_request_batch() {
         /* sync_retry_nodes */ 3, // Not used in this test.
         rx_message,
         tx_primary,
+        metrics,
     );
 
     // Create a dummy batch and store
@@ -121,6 +128,8 @@ async fn test_request_batch_not_found() {
     // Create a new test store.
     let store = open_batch_store();
 
+    let metrics = Arc::new(WorkerMetrics::new(&Registry::new()));
+
     // Spawn a `Synchronizer` instance.
     Synchronizer::spawn(
         name.clone(),
@@ -133,6 +142,7 @@ async fn test_request_batch_not_found() {
         /* sync_retry_nodes */ 3, // Not used in this test.
         rx_message,
         tx_primary,
+        metrics,
     );
 
     // The non existing batch id
@@ -175,6 +185,8 @@ async fn test_successful_batch_delete() {
     // Create a new test store.
     let store = open_batch_store();
 
+    let metrics = Arc::new(WorkerMetrics::new(&Registry::new()));
+
     // Spawn a `Synchronizer` instance.
     Synchronizer::spawn(
         name.clone(),
@@ -187,6 +199,7 @@ async fn test_successful_batch_delete() {
         /* sync_retry_nodes */ 3, // Not used in this test.
         rx_message,
         tx_primary,
+        metrics,
     );
 
     // Create dummy batches and store them

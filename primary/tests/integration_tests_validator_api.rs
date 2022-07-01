@@ -9,7 +9,7 @@ use crypto::{
 };
 use node::NodeStorage;
 use primary::{NetworkModel, PayloadToken, Primary, CHANNEL_CAPACITY};
-use prometheus::default_registry;
+use prometheus::{default_registry, Registry};
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
     sync::Arc,
@@ -29,7 +29,10 @@ use types::{
     ReadCausalRequest, RemoveCollectionsRequest, RetrievalResult, SerializedBatchMessage,
     ValidatorClient,
 };
-use worker::{Worker, WorkerMessage};
+use worker::{
+    metrics::{Metrics, WorkerMetrics},
+    Worker, WorkerMessage,
+};
 
 #[tokio::test]
 async fn test_get_collections() {
@@ -117,6 +120,10 @@ async fn test_get_collections() {
         default_registry(),
     );
 
+    let metrics = Metrics {
+        worker_metrics: Some(WorkerMetrics::new(&Registry::new())),
+    };
+
     // Spawn a `Worker` instance.
     Worker::spawn(
         name.clone(),
@@ -124,6 +131,7 @@ async fn test_get_collections() {
         committee.clone(),
         parameters.clone(),
         store.batch_store.clone(),
+        metrics,
     );
 
     // Wait for tasks to start
@@ -312,6 +320,10 @@ async fn test_remove_collections() {
         "Certificate should still exist"
     );
 
+    let metrics = Metrics {
+        worker_metrics: Some(WorkerMetrics::new(&Registry::new())),
+    };
+
     // Spawn a `Worker` instance.
     Worker::spawn(
         name.clone(),
@@ -319,6 +331,7 @@ async fn test_remove_collections() {
         committee.clone(),
         parameters.clone(),
         store.batch_store.clone(),
+        metrics,
     );
 
     // Test remove no collections
@@ -825,6 +838,10 @@ async fn test_get_collections_with_missing_certificates() {
         default_registry(),
     );
 
+    let metrics_1 = Metrics {
+        worker_metrics: Some(WorkerMetrics::new(&Registry::new())),
+    };
+
     // Spawn a `Worker` instance for primary 1.
     Worker::spawn(
         name_1,
@@ -832,6 +849,7 @@ async fn test_get_collections_with_missing_certificates() {
         committee.clone(),
         parameters.clone(),
         store_primary_1.batch_store,
+        metrics_1,
     );
 
     // Spawn the primary 2 - a peer to fetch missing certificates from
@@ -855,6 +873,10 @@ async fn test_get_collections_with_missing_certificates() {
         default_registry(),
     );
 
+    let metrics_2 = Metrics {
+        worker_metrics: Some(WorkerMetrics::new(&Registry::new())),
+    };
+
     // Spawn a `Worker` instance for primary 2.
     Worker::spawn(
         name_2,
@@ -862,6 +884,7 @@ async fn test_get_collections_with_missing_certificates() {
         committee.clone(),
         parameters.clone(),
         store_primary_2.batch_store,
+        metrics_2,
     );
 
     // Wait for tasks to start
