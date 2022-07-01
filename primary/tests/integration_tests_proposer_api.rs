@@ -1,6 +1,6 @@
-use arc_swap::ArcSwap;
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
+use arc_swap::ArcSwap;
 use bytes::Bytes;
 use config::{Epoch, Parameters};
 use consensus::dag::Dag;
