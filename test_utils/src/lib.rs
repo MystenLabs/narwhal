@@ -61,137 +61,97 @@ pub fn keys(rng_seed: impl Into<Option<u64>>) -> Vec<Ed25519KeyPair> {
 pub fn committee(rng_seed: impl Into<Option<u64>>) -> SharedCommittee<Ed25519PublicKey> {
     committee_from_keys(&keys(rng_seed))
 }
-
 pub fn committee_from_keys(keys: &[Ed25519KeyPair]) -> SharedCommittee<Ed25519PublicKey> {
-    Arc::new(Committee {
-        epoch: Epoch::default(),
+    Arc::new(pure_committee_from_keys(keys))
+}
+
+pub fn make_authority() -> Authority {
+    let primary = PrimaryAddresses {
+        primary_to_primary: format!("/ip4/127.0.0.1/tcp/{}/http", get_available_port())
+            .parse()
+            .unwrap(),
+        worker_to_primary: format!("/ip4/127.0.0.1/tcp/{}/http", get_available_port())
+            .parse()
+            .unwrap(),
+    };
+    let workers = vec![
+        (
+            0,
+            WorkerAddresses {
+                primary_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_available_port())
+                    .parse()
+                    .unwrap(),
+                transactions: format!("/ip4/127.0.0.1/tcp/{}/http", get_available_port())
+                    .parse()
+                    .unwrap(),
+                worker_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_available_port())
+                    .parse()
+                    .unwrap(),
+            },
+        ),
+        (
+            1,
+            WorkerAddresses {
+                primary_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_available_port())
+                    .parse()
+                    .unwrap(),
+                transactions: format!("/ip4/127.0.0.1/tcp/{}/http", get_available_port())
+                    .parse()
+                    .unwrap(),
+                worker_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_available_port())
+                    .parse()
+                    .unwrap(),
+            },
+        ),
+        (
+            2,
+            WorkerAddresses {
+                primary_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_available_port())
+                    .parse()
+                    .unwrap(),
+                transactions: format!("/ip4/127.0.0.1/tcp/{}/http", get_available_port())
+                    .parse()
+                    .unwrap(),
+                worker_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_available_port())
+                    .parse()
+                    .unwrap(),
+            },
+        ),
+        (
+            3,
+            WorkerAddresses {
+                primary_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_available_port())
+                    .parse()
+                    .unwrap(),
+                transactions: format!("/ip4/127.0.0.1/tcp/{}/http", get_available_port())
+                    .parse()
+                    .unwrap(),
+                worker_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_available_port())
+                    .parse()
+                    .unwrap(),
+            },
+        ),
+    ]
+    .iter()
+    .cloned()
+    .collect();
+
+    Authority {
+        stake: 1,
+        primary,
+        workers,
+    }
+}
+
+pub fn pure_committee_from_keys(keys: &[Ed25519KeyPair]) -> Committee<Ed25519PublicKey> {
+    Committee {
+        epoch: ArcSwap::new(Arc::new(Epoch::default())),
         authorities: ArcSwap::from_pointee(
             keys.iter()
-                .map(|kp| {
-                    let id = kp.public();
-                    let primary = PrimaryAddresses {
-                        primary_to_primary: format!(
-                            "/ip4/127.0.0.1/tcp/{}/http",
-                            get_available_port()
-                        )
-                        .parse()
-                        .unwrap(),
-                        worker_to_primary: format!(
-                            "/ip4/127.0.0.1/tcp/{}/http",
-                            get_available_port()
-                        )
-                        .parse()
-                        .unwrap(),
-                    };
-                    let workers = vec![
-                        (
-                            0,
-                            WorkerAddresses {
-                                primary_to_worker: format!(
-                                    "/ip4/127.0.0.1/tcp/{}/http",
-                                    get_available_port()
-                                )
-                                .parse()
-                                .unwrap(),
-                                transactions: format!(
-                                    "/ip4/127.0.0.1/tcp/{}/http",
-                                    get_available_port()
-                                )
-                                .parse()
-                                .unwrap(),
-                                worker_to_worker: format!(
-                                    "/ip4/127.0.0.1/tcp/{}/http",
-                                    get_available_port()
-                                )
-                                .parse()
-                                .unwrap(),
-                            },
-                        ),
-                        (
-                            1,
-                            WorkerAddresses {
-                                primary_to_worker: format!(
-                                    "/ip4/127.0.0.1/tcp/{}/http",
-                                    get_available_port()
-                                )
-                                .parse()
-                                .unwrap(),
-                                transactions: format!(
-                                    "/ip4/127.0.0.1/tcp/{}/http",
-                                    get_available_port()
-                                )
-                                .parse()
-                                .unwrap(),
-                                worker_to_worker: format!(
-                                    "/ip4/127.0.0.1/tcp/{}/http",
-                                    get_available_port()
-                                )
-                                .parse()
-                                .unwrap(),
-                            },
-                        ),
-                        (
-                            2,
-                            WorkerAddresses {
-                                primary_to_worker: format!(
-                                    "/ip4/127.0.0.1/tcp/{}/http",
-                                    get_available_port()
-                                )
-                                .parse()
-                                .unwrap(),
-                                transactions: format!(
-                                    "/ip4/127.0.0.1/tcp/{}/http",
-                                    get_available_port()
-                                )
-                                .parse()
-                                .unwrap(),
-                                worker_to_worker: format!(
-                                    "/ip4/127.0.0.1/tcp/{}/http",
-                                    get_available_port()
-                                )
-                                .parse()
-                                .unwrap(),
-                            },
-                        ),
-                        (
-                            3,
-                            WorkerAddresses {
-                                primary_to_worker: format!(
-                                    "/ip4/127.0.0.1/tcp/{}/http",
-                                    get_available_port()
-                                )
-                                .parse()
-                                .unwrap(),
-                                transactions: format!(
-                                    "/ip4/127.0.0.1/tcp/{}/http",
-                                    get_available_port()
-                                )
-                                .parse()
-                                .unwrap(),
-                                worker_to_worker: format!(
-                                    "/ip4/127.0.0.1/tcp/{}/http",
-                                    get_available_port()
-                                )
-                                .parse()
-                                .unwrap(),
-                            },
-                        ),
-                    ]
-                    .iter()
-                    .cloned()
-                    .collect();
-                    (
-                        id.clone(),
-                        Authority {
-                            stake: 1,
-                            primary,
-                            workers,
-                        },
-                    )
-                })
+                .map(|kp| (kp.public().clone(), make_authority()))
                 .collect(),
         ),
-    })
+    }
 }
 
 ////////////////////////////////////////////////////////////////
@@ -201,7 +161,7 @@ pub fn committee_from_keys(keys: &[Ed25519KeyPair]) -> SharedCommittee<Ed25519Pu
 // Fixture
 pub fn mock_committee(keys: &[Ed25519PublicKey]) -> SharedCommittee<Ed25519PublicKey> {
     Arc::new(Committee {
-        epoch: Epoch::default(),
+        epoch: ArcSwap::new(Arc::new(Epoch::default())),
         authorities: ArcSwap::from_pointee(
             keys.iter()
                 .map(|id| {
@@ -239,23 +199,7 @@ pub fn make_consensus_store(store_path: &std::path::Path) -> Arc<ConsensusStore<
 
 // Fixture
 pub fn header() -> Header<Ed25519PublicKey> {
-    let kp = keys(None).pop().unwrap();
-    let header = Header {
-        author: kp.public().clone(),
-        round: 1,
-        parents: Certificate::genesis(&committee(None))
-            .iter()
-            .map(|x| x.digest())
-            .collect(),
-        ..Header::default()
-    };
-
-    let header_digest = header.digest();
-    Header {
-        id: header_digest,
-        signature: kp.sign(Digest::from(header_digest).as_ref()),
-        ..header
-    }
+    header_with_epoch(&committee(None))
 }
 
 // Fixture
@@ -280,6 +224,28 @@ pub fn headers() -> Vec<Header<Ed25519PublicKey>> {
             }
         })
         .collect()
+}
+
+// Fixture
+pub fn header_with_epoch(committee: &Committee<Ed25519PublicKey>) -> Header<Ed25519PublicKey> {
+    let kp = keys(None).pop().unwrap();
+    let header = Header {
+        author: kp.public().clone(),
+        round: 1,
+        epoch: committee.epoch(),
+        parents: Certificate::genesis(committee)
+            .iter()
+            .map(|x| x.digest())
+            .collect(),
+        ..Header::default()
+    };
+
+    let header_digest = header.digest();
+    Header {
+        id: header_digest,
+        signature: kp.sign(Digest::from(header_digest).as_ref()),
+        ..header
+    }
 }
 
 #[allow(dead_code)]
