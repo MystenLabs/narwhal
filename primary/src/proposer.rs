@@ -1,7 +1,7 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crate::{primary::Reconfigure, NetworkModel};
+use crate::{primary::ReconfigurePrimary, NetworkModel};
 use config::{Committee, Epoch, WorkerId};
 use crypto::{traits::VerifyingKey, Digest, Hash as _, SignatureService};
 use std::cmp::Ordering;
@@ -39,7 +39,7 @@ pub struct Proposer<PublicKey: VerifyingKey> {
     network_model: NetworkModel,
 
     /// Watch channel to reconfigure the committee.
-    rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
+    rx_reconfigure: watch::Receiver<ReconfigurePrimary<PublicKey>>,
     /// Receives the parents to include in the next header (along with their round number).
     rx_core: Receiver<(Vec<Certificate<PublicKey>>, Round, Epoch)>,
     /// Receives the batches' digests from our workers.
@@ -68,7 +68,7 @@ impl<PublicKey: VerifyingKey> Proposer<PublicKey> {
         header_size: usize,
         max_header_delay: Duration,
         network_model: NetworkModel,
-        rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
+        rx_reconfigure: watch::Receiver<ReconfigurePrimary<PublicKey>>,
         rx_core: Receiver<(Vec<Certificate<PublicKey>>, Round, Epoch)>,
         rx_workers: Receiver<(BatchDigest, WorkerId)>,
         tx_core: Sender<Header<PublicKey>>,
@@ -245,10 +245,10 @@ impl<PublicKey: VerifyingKey> Proposer<PublicKey> {
                         Ordering::Greater => {
                             let message = self.rx_reconfigure.borrow_and_update().clone();
                             match message  {
-                                Reconfigure::NewCommittee(new_committee) => {
+                                ReconfigurePrimary::NewCommittee(new_committee) => {
                                     self.update_committee(new_committee);
                                 },
-                                Reconfigure::Shutdown(_token) => return,
+                                ReconfigurePrimary::Shutdown(_token) => return,
                             }
 
                         }
@@ -302,10 +302,10 @@ impl<PublicKey: VerifyingKey> Proposer<PublicKey> {
                     result.expect("Committee channel dropped");
                     let message = self.rx_reconfigure.borrow().clone();
                     match message {
-                        Reconfigure::NewCommittee(new_committee) => {
+                        ReconfigurePrimary::NewCommittee(new_committee) => {
                             self.update_committee(new_committee);
                         },
-                        Reconfigure::Shutdown(_token) => return,
+                        ReconfigurePrimary::Shutdown(_token) => return,
                     }
                 }
             }

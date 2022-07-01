@@ -6,7 +6,7 @@ use crate::{
         responses::{CertificatesResponse, PayloadAvailabilityResponse, RequestID},
         PendingIdentifier::{Header, Payload},
     },
-    primary::{PrimaryMessage, Reconfigure},
+    primary::{PrimaryMessage, ReconfigurePrimary},
     utils, PayloadToken, PrimaryWorkerMessage, CHANNEL_CAPACITY,
 };
 use config::{BlockSynchronizerParameters, Committee, WorkerId};
@@ -153,7 +153,7 @@ pub struct BlockSynchronizer<PublicKey: VerifyingKey> {
     committee: Committee<PublicKey>,
 
     /// Watch channel to reconfigure the committee.
-    rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
+    rx_reconfigure: watch::Receiver<ReconfigurePrimary<PublicKey>>,
 
     /// Receive the commands for the synchronizer
     rx_commands: Receiver<Command<PublicKey>>,
@@ -199,7 +199,7 @@ impl<PublicKey: VerifyingKey> BlockSynchronizer<PublicKey> {
     pub fn spawn(
         name: PublicKey,
         committee: Committee<PublicKey>,
-        rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
+        rx_reconfigure: watch::Receiver<ReconfigurePrimary<PublicKey>>,
         rx_commands: Receiver<Command<PublicKey>>,
         rx_certificate_responses: Receiver<CertificatesResponse<PublicKey>>,
         rx_payload_availability_responses: Receiver<PayloadAvailabilityResponse<PublicKey>>,
@@ -306,10 +306,10 @@ impl<PublicKey: VerifyingKey> BlockSynchronizer<PublicKey> {
                     result.expect("Committee channel dropped");
                     let message = self.rx_reconfigure.borrow().clone();
                     match message {
-                        Reconfigure::NewCommittee(new_committee) => {
+                        ReconfigurePrimary::NewCommittee(new_committee) => {
                             self.committee = new_committee;
                         },
-                        Reconfigure::Shutdown(token) => break token
+                        ReconfigurePrimary::Shutdown(token) => break token
                     }
                 }
             }

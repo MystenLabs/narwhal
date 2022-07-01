@@ -6,7 +6,7 @@ use crate::{
         DeleteBatchMessage, DeleteBatchResult, RemoveBlocksResponse, RequestKey,
     },
     common::create_db_stores,
-    primary::Reconfigure,
+    primary::ReconfigurePrimary,
     PrimaryWorkerMessage,
 };
 use bincode::deserialize;
@@ -46,7 +46,7 @@ async fn test_successful_blocks_delete() {
     // AND the necessary keys
     let (name, committee) = resolve_name_and_committee();
     let (_tx_reconfigure, rx_reconfigure) =
-        watch::channel(Reconfigure::NewCommittee((&*committee).clone()));
+        watch::channel(ReconfigurePrimary::NewCommittee((&*committee).clone()));
     // AND a Dag with genesis populated
     let dag = Arc::new(Dag::new(&committee, rx_consensus).1);
     populate_genesis(&dag, &committee).await;
@@ -217,7 +217,7 @@ async fn test_timeout() {
     // AND the necessary keys
     let (name, committee) = resolve_name_and_committee();
     let (_tx_reconfigure, rx_reconfigure) =
-        watch::channel(Reconfigure::NewCommittee((&*committee).clone()));
+        watch::channel(ReconfigurePrimary::NewCommittee((&*committee).clone()));
     // AND a Dag with genesis populated
     let dag = Arc::new(Dag::new(&committee, rx_consensus).1);
     populate_genesis(&dag, &committee).await;
@@ -352,7 +352,8 @@ async fn test_unlocking_pending_requests() {
 
     // AND the necessary keys
     let (name, committee) = resolve_name_and_committee();
-    let (_, rx_reconfigure) = watch::channel(Reconfigure::NewCommittee((&*committee).clone()));
+    let (_, rx_reconfigure) =
+        watch::channel(ReconfigurePrimary::NewCommittee((&*committee).clone()));
 
     // AND a Dag with genesis populated
     let dag = Arc::new(Dag::new(&committee, rx_consensus).1);

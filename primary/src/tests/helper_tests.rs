@@ -3,7 +3,7 @@
 use crate::{
     common::create_db_stores,
     helper::Helper,
-    primary::{PrimaryMessage, Reconfigure},
+    primary::{PrimaryMessage, ReconfigurePrimary},
     PayloadToken,
 };
 use bincode::Options;
@@ -34,7 +34,7 @@ async fn test_process_certificates_stream_mode() {
     let key = keys(None).pop().unwrap();
     let (name, committee) = resolve_name_and_committee();
     let (_tx_reconfigure, rx_reconfigure) =
-        watch::channel(Reconfigure::NewCommittee((&*committee).clone()));
+        watch::channel(ReconfigurePrimary::NewCommittee((&*committee).clone()));
     let (tx_primaries, rx_primaries) = channel(10);
 
     // AND a helper
@@ -108,7 +108,7 @@ async fn test_process_certificates_batch_mode() {
     let key = keys(None).pop().unwrap();
     let (name, committee) = resolve_name_and_committee();
     let (_tx_reconfigure, rx_reconfigure) =
-        watch::channel(Reconfigure::NewCommittee((&*committee).clone()));
+        watch::channel(ReconfigurePrimary::NewCommittee((&*committee).clone()));
     let (tx_primaries, rx_primaries) = channel(10);
 
     // AND a helper
@@ -203,7 +203,7 @@ async fn test_process_payload_availability_success() {
     let key = keys(None).pop().unwrap();
     let (name, committee) = resolve_name_and_committee();
     let (_tx_reconfigure, rx_reconfigure) =
-        watch::channel(Reconfigure::NewCommittee((&*committee).clone()));
+        watch::channel(ReconfigurePrimary::NewCommittee((&*committee).clone()));
     let (tx_primaries, rx_primaries) = channel(10);
 
     // AND a helper
@@ -318,7 +318,7 @@ async fn test_process_payload_availability_when_failures() {
     let key = keys(None).pop().unwrap();
     let (name, committee) = resolve_name_and_committee();
     let (_tx_reconfigure, rx_reconfigure) =
-        watch::channel(Reconfigure::NewCommittee((&*committee).clone()));
+        watch::channel(ReconfigurePrimary::NewCommittee((&*committee).clone()));
     let (tx_primaries, rx_primaries) = channel(10);
 
     // AND a helper

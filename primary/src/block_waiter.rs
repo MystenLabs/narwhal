@@ -1,6 +1,8 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crate::{block_synchronizer::handler::Handler, primary::Reconfigure, PrimaryWorkerMessage};
+use crate::{
+    block_synchronizer::handler::Handler, primary::ReconfigurePrimary, PrimaryWorkerMessage,
+};
 use config::Committee;
 use crypto::{traits::VerifyingKey, Digest, Hash};
 use futures::{
@@ -219,7 +221,7 @@ pub struct BlockWaiter<
     worker_network: PrimaryToWorkerNetwork,
 
     /// Watch channel to reconfigure the committee.
-    rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
+    rx_reconfigure: watch::Receiver<ReconfigurePrimary<PublicKey>>,
 
     /// The batch receive channel is listening for received
     /// messages for batches that have been requested
@@ -254,7 +256,7 @@ impl<PublicKey: VerifyingKey, SynchronizerHandler: Handler<PublicKey> + Send + S
     pub fn spawn(
         name: PublicKey,
         committee: Committee<PublicKey>,
-        rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
+        rx_reconfigure: watch::Receiver<ReconfigurePrimary<PublicKey>>,
         rx_commands: Receiver<BlockCommand>,
         batch_receiver: Receiver<BatchResult>,
         block_synchronizer_handler: Arc<SynchronizerHandler>,
@@ -329,10 +331,10 @@ impl<PublicKey: VerifyingKey, SynchronizerHandler: Handler<PublicKey> + Send + S
                     result.expect("Committee channel dropped");
                     let message = self.rx_reconfigure.borrow().clone();
                     match message {
-                        Reconfigure::NewCommittee(new_committee) => {
+                        ReconfigurePrimary::NewCommittee(new_committee) => {
                             self.committee = new_committee;
                         }
-                        Reconfigure::Shutdown(token) => return token,
+                        ReconfigurePrimary::Shutdown(token) => return token,
                     }
                 }
             }

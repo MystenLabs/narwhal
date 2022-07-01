@@ -23,7 +23,7 @@ async fn process_header() {
     let committee = committee(None);
 
     let (_tx_reconfigure, rx_reconfigure) =
-        watch::channel(Reconfigure::NewCommittee((&*committee).clone()));
+        watch::channel(ReconfigurePrimary::NewCommittee((&*committee).clone()));
     let (tx_sync_headers, _rx_sync_headers) = channel(1);
     let (tx_sync_certificates, _rx_sync_certificates) = channel(1);
     let (tx_primary_messages, rx_primary_messages) = channel(1);
@@ -110,8 +110,9 @@ async fn process_header_missing_parent() {
     let name = kp.public().clone();
     let signature_service = SignatureService::new(kp);
 
-    let (_, rx_reconfigure) =
-        watch::channel(Reconfigure::NewCommittee((&*committee(None)).clone()));
+    let (_, rx_reconfigure) = watch::channel(ReconfigurePrimary::NewCommittee(
+        (&*committee(None)).clone(),
+    ));
     let (tx_sync_headers, _rx_sync_headers) = channel(1);
     let (tx_sync_certificates, _rx_sync_certificates) = channel(1);
     let (tx_primary_messages, rx_primary_messages) = channel(1);
@@ -184,8 +185,9 @@ async fn process_header_missing_payload() {
     let name = kp.public().clone();
     let signature_service = SignatureService::new(kp);
 
-    let (_, rx_reconfigure) =
-        watch::channel(Reconfigure::NewCommittee((&*committee(None)).clone()));
+    let (_, rx_reconfigure) = watch::channel(ReconfigurePrimary::NewCommittee(
+        (&*committee(None)).clone(),
+    ));
     let (tx_sync_headers, _rx_sync_headers) = channel(1);
     let (tx_sync_certificates, _rx_sync_certificates) = channel(1);
     let (tx_primary_messages, rx_primary_messages) = channel(1);
@@ -271,7 +273,7 @@ async fn process_votes() {
     let committee = committee(None);
 
     let (_tx_reconfigure, rx_reconfigure) =
-        watch::channel(Reconfigure::NewCommittee((&*committee).clone()));
+        watch::channel(ReconfigurePrimary::NewCommittee((&*committee).clone()));
     let (tx_sync_headers, _rx_sync_headers) = channel(1);
     let (tx_sync_certificates, _rx_sync_certificates) = channel(1);
     let (tx_primary_messages, rx_primary_messages) = channel(1);
@@ -361,8 +363,9 @@ async fn process_certificates() {
     let name = kp.public().clone();
     let signature_service = SignatureService::new(kp);
 
-    let (_tx_reconfigure, rx_reconfigure) =
-        watch::channel(Reconfigure::NewCommittee((&*committee(None)).clone()));
+    let (_tx_reconfigure, rx_reconfigure) = watch::channel(ReconfigurePrimary::NewCommittee(
+        (&*committee(None)).clone(),
+    ));
     let (tx_sync_headers, _rx_sync_headers) = channel(1);
     let (tx_sync_certificates, _rx_sync_certificates) = channel(1);
     let (tx_primary_messages, rx_primary_messages) = channel(3);
@@ -457,7 +460,7 @@ async fn shutdown_core() {
     let committee = committee(None);
 
     let (tx_reconfigure, rx_reconfigure) =
-        watch::channel(Reconfigure::NewCommittee((&*committee).clone()));
+        watch::channel(ReconfigurePrimary::NewCommittee((&*committee).clone()));
     let (tx_sync_headers, _rx_sync_headers) = channel(1);
     let (tx_sync_certificates, _rx_sync_certificates) = channel(1);
     let (_tx_primary_messages, rx_primary_messages) = channel(1);
@@ -502,7 +505,7 @@ async fn shutdown_core() {
 
     // Shutdown the core.
     let (token, _rx) = channel(1);
-    let shutdown = Reconfigure::Shutdown(token);
+    let shutdown = ReconfigurePrimary::Shutdown(token);
     tx_reconfigure.send(shutdown).unwrap();
     assert!(handle.await.is_ok());
 }
@@ -522,7 +525,7 @@ async fn reconfigure_core() {
 
     // All the channels to interface with the core.
     let (tx_reconfigure, rx_reconfigure) =
-        watch::channel(Reconfigure::NewCommittee((&*committee).clone()));
+        watch::channel(ReconfigurePrimary::NewCommittee((&*committee).clone()));
     let (tx_sync_headers, _rx_sync_headers) = channel(1);
     let (tx_sync_certificates, _rx_sync_certificates) = channel(1);
     let (tx_primary_messages, rx_primary_messages) = channel(1);
@@ -577,7 +580,7 @@ async fn reconfigure_core() {
     );
 
     // Change committee
-    let message = Reconfigure::NewCommittee((&*new_committee).clone());
+    let message = ReconfigurePrimary::NewCommittee((&*new_committee).clone());
     tx_reconfigure.send(message).unwrap();
 
     // Send a header to the core.

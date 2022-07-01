@@ -1,7 +1,7 @@
 // Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crate::primary::Reconfigure;
+use crate::primary::ReconfigurePrimary;
 use config::Committee;
 use crypto::traits::VerifyingKey;
 use futures::{
@@ -41,7 +41,7 @@ pub struct CertificateWaiter<PublicKey: VerifyingKey> {
     /// The depth of the garbage collector.
     gc_depth: Round,
     /// Watch channel notifying of epoch changes, it is only used for cleanup.
-    rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
+    rx_reconfigure: watch::Receiver<ReconfigurePrimary<PublicKey>>,
     /// Receives sync commands from the `Synchronizer`.
     rx_synchronizer: Receiver<Certificate<PublicKey>>,
     /// Loops back to the core certificates for which we got all parents.
@@ -58,7 +58,7 @@ impl<PublicKey: VerifyingKey> CertificateWaiter<PublicKey> {
         store: Store<CertificateDigest, Certificate<PublicKey>>,
         consensus_round: Arc<AtomicU64>,
         gc_depth: Round,
-        rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
+        rx_reconfigure: watch::Receiver<ReconfigurePrimary<PublicKey>>,
         rx_synchronizer: Receiver<Certificate<PublicKey>>,
         tx_core: Sender<Certificate<PublicKey>>,
     ) -> JoinHandle<()> {
@@ -142,11 +142,11 @@ impl<PublicKey: VerifyingKey> CertificateWaiter<PublicKey> {
                     result.expect("Committee channel dropped");
                     let message = self.rx_reconfigure.borrow_and_update().clone();
                     match message {
-                        Reconfigure::NewCommittee(committee) => {
+                        ReconfigurePrimary::NewCommittee(committee) => {
                             self.committee = committee;
                             self.pending.clear();
                         },
-                        Reconfigure::Shutdown(_token) => ()
+                        ReconfigurePrimary::Shutdown(_token) => ()
                     }
 
                 }

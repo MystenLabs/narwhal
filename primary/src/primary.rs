@@ -55,7 +55,7 @@ pub const CHANNEL_CAPACITY: usize = 1_000;
 
 /// Message to reconfigure tasks.
 #[derive(Clone, Debug)]
-pub enum Reconfigure<PublicKey: VerifyingKey> {
+pub enum ReconfigurePrimary<PublicKey: VerifyingKey> {
     /// Indicates the committee has been updated.
     NewCommittee(Committee<PublicKey>),
     /// Indicate a shutdown.
@@ -116,7 +116,7 @@ impl Primary {
         tx_committed_certificates: Sender<ConsensusPrimaryMessage<PublicKey>>,
         registry: &Registry,
     ) -> Vec<JoinHandle<()>> {
-        let initial_committee = Reconfigure::NewCommittee((&*committee).clone());
+        let initial_committee = ReconfigurePrimary::NewCommittee((&*committee).clone());
         let (tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
 
         let (tx_others_digests, rx_others_digests) = channel(CHANNEL_CAPACITY);

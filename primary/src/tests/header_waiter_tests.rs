@@ -3,7 +3,7 @@
 use crate::{
     common::{create_db_stores, worker_listener},
     header_waiter::{HeaderWaiter, WaiterMessage},
-    primary::Reconfigure,
+    primary::ReconfigurePrimary,
     PrimaryWorkerMessage,
 };
 use core::sync::atomic::AtomicU64;
@@ -24,7 +24,7 @@ async fn successfully_synchronize_batches() {
     let consensus_round = Arc::new(AtomicU64::new(0));
     let gc_depth: Round = 1;
     let (_tx_reconfigure, rx_reconfigure) =
-        watch::channel(Reconfigure::NewCommittee((&*committee).clone()));
+        watch::channel(ReconfigurePrimary::NewCommittee((&*committee).clone()));
     let (tx_synchronizer, rx_synchronizer) = channel(10);
     let (tx_core, mut rx_core) = channel(10);
 

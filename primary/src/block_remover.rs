@@ -3,7 +3,7 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
 
-use crate::{primary::Reconfigure, utils, PayloadToken, PrimaryWorkerMessage};
+use crate::{primary::ReconfigurePrimary, utils, PayloadToken, PrimaryWorkerMessage};
 use config::{Committee, WorkerId};
 use consensus::dag::{Dag, ValidatorDagError};
 use crypto::{traits::VerifyingKey, Digest, Hash};
@@ -200,7 +200,7 @@ pub struct BlockRemover<PublicKey: VerifyingKey> {
     worker_network: PrimaryToWorkerNetwork,
 
     /// Watch channel to reconfigure the committee.
-    rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
+    rx_reconfigure: watch::Receiver<ReconfigurePrimary<PublicKey>>,
 
     /// Receives the commands to execute against
     rx_commands: Receiver<BlockRemoverCommand>,
@@ -232,7 +232,7 @@ impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
         payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,
         dag: Option<Arc<Dag<PublicKey>>>,
         worker_network: PrimaryToWorkerNetwork,
-        rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
+        rx_reconfigure: watch::Receiver<ReconfigurePrimary<PublicKey>>,
         rx_commands: Receiver<BlockRemoverCommand>,
         rx_delete_batches: Receiver<DeleteBatchResult>,
         removed_certificates: Sender<ConsensusPrimaryMessage<PublicKey>>,
@@ -280,10 +280,10 @@ impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
                     result.expect("Committee channel dropped");
                     let message = self.rx_reconfigure.borrow().clone();
                     match message {
-                        Reconfigure::NewCommittee(new_committee) => {
+                        ReconfigurePrimary::NewCommittee(new_committee) => {
                             self.committee = new_committee;
                         }
-                        Reconfigure::Shutdown(token) => return token
+                        ReconfigurePrimary::Shutdown(token) => return token
                     }
                 }
             }

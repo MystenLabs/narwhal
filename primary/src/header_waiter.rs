@@ -1,7 +1,7 @@
 // Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crate::primary::{PayloadToken, PrimaryMessage, PrimaryWorkerMessage, Reconfigure};
+use crate::primary::{PayloadToken, PrimaryMessage, PrimaryWorkerMessage, ReconfigurePrimary};
 use config::{Committee, WorkerId};
 use crypto::traits::VerifyingKey;
 use futures::{
@@ -68,7 +68,7 @@ pub struct HeaderWaiter<PublicKey: VerifyingKey> {
     sync_retry_nodes: usize,
 
     /// Watch channel to reconfigure the committee.
-    rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
+    rx_reconfigure: watch::Receiver<ReconfigurePrimary<PublicKey>>,
     /// Receives sync commands from the `Synchronizer`.
     rx_synchronizer: Receiver<WaiterMessage<PublicKey>>,
     /// Loops back to the core headers for which we got all parents and batches.
@@ -98,7 +98,7 @@ impl<PublicKey: VerifyingKey> HeaderWaiter<PublicKey> {
         gc_depth: Round,
         sync_retry_delay: Duration,
         sync_retry_nodes: usize,
-        rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
+        rx_reconfigure: watch::Receiver<ReconfigurePrimary<PublicKey>>,
         rx_synchronizer: Receiver<WaiterMessage<PublicKey>>,
         tx_core: Sender<Header<PublicKey>>,
     ) -> JoinHandle<()> {
@@ -313,10 +313,10 @@ impl<PublicKey: VerifyingKey> HeaderWaiter<PublicKey> {
                     result.expect("Committee channel dropped");
                     let message = self.rx_reconfigure.borrow().clone();
                     match message {
-                        Reconfigure::NewCommittee(new_committee) => {
+                        ReconfigurePrimary::NewCommittee(new_committee) => {
                             self.update_committee(new_committee);
                         },
-                        Reconfigure::Shutdown(_token) => return
+                        ReconfigurePrimary::Shutdown(_token) => return
                     }
                 }
             }
