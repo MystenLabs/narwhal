@@ -38,18 +38,14 @@
 <span id="32">32</span>
 <span id="33">33</span>
 <span id="34">34</span>
-<span id="35">35</span>
-<span id="36">36</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="kw">use</span> <span class="ident">config::WorkerId</span>;
-
-<span class="kw">use</span> <span class="ident">store::Store</span>;
-<span class="kw">use</span> <span class="ident">tokio::sync::mpsc::Receiver</span>;
-<span class="kw">use</span> <span class="ident">types::BatchDigest</span>;
-
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::primary::PayloadToken</span>;
+<span class="kw">use</span> <span class="ident">config::WorkerId</span>;
+<span class="kw">use</span> <span class="ident">store::Store</span>;
+<span class="kw">use</span> <span class="ident">tokio</span>::{<span class="ident">sync::mpsc::Receiver</span>, <span class="ident">task::JoinHandle</span>};
+<span class="kw">use</span> <span class="ident">types::BatchDigest</span>;
 
 <span class="doccomment">/// Receives batches&#39; digests of other authorities. These are only needed to verify incoming</span>
 <span class="doccomment">/// headers (i.e.. make sure we have their payload).</span>
@@ -64,10 +60,10 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(
         <span class="ident">store</span>: <span class="ident">Store</span><span class="op">&lt;</span>(<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>), <span class="ident">PayloadToken</span><span class="op">&gt;</span>,
         <span class="ident">rx_workers</span>: <span class="ident">Receiver</span><span class="op">&lt;</span>(<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>)<span class="op">&gt;</span>,
-    ) {
+    ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
             <span class="self">Self</span> { <span class="ident">store</span>, <span class="ident">rx_workers</span> }.<span class="ident">run</span>().<span class="kw">await</span>;
-        });
+        })
     }
 
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">run</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
@@ -77,5 +73,5 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (7425fb293 2022-06-30)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (46b8c23f3 2022-07-01)" ></div>
 </body></html>

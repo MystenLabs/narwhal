@@ -428,6 +428,25 @@
 <span id="422">422</span>
 <span id="423">423</span>
 <span id="424">424</span>
+<span id="425">425</span>
+<span id="426">426</span>
+<span id="427">427</span>
+<span id="428">428</span>
+<span id="429">429</span>
+<span id="430">430</span>
+<span id="431">431</span>
+<span id="432">432</span>
+<span id="433">433</span>
+<span id="434">434</span>
+<span id="435">435</span>
+<span id="436">436</span>
+<span id="437">437</span>
+<span id="438">438</span>
+<span id="439">439</span>
+<span id="440">440</span>
+<span id="441">441</span>
+<span id="442">442</span>
+<span id="443">443</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -487,7 +506,7 @@
         <span class="ident">committee</span>: <span class="ident">SharedCommittee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
         <span class="ident">parameters</span>: <span class="ident">Parameters</span>,
         <span class="ident">store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">BatchDigest</span>, <span class="ident">SerializedBatchMessage</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="comment">// Define a worker instance.</span>
         <span class="kw">let</span> <span class="ident">worker</span> <span class="op">=</span> <span class="self">Self</span> {
             <span class="ident">name</span>,
@@ -499,9 +518,9 @@
 
         <span class="comment">// Spawn all worker tasks.</span>
         <span class="kw">let</span> (<span class="ident">tx_primary</span>, <span class="ident">rx_primary</span>) <span class="op">=</span> <span class="ident">channel</span>(<span class="ident">CHANNEL_CAPACITY</span>);
-        <span class="ident">worker</span>.<span class="ident">handle_primary_messages</span>(<span class="ident">tx_primary</span>.<span class="ident">clone</span>());
-        <span class="ident">worker</span>.<span class="ident">handle_clients_transactions</span>(<span class="ident">tx_primary</span>.<span class="ident">clone</span>());
-        <span class="ident">worker</span>.<span class="ident">handle_workers_messages</span>(<span class="ident">tx_primary</span>);
+        <span class="kw">let</span> <span class="ident">primary_flow_handles</span> <span class="op">=</span> <span class="ident">worker</span>.<span class="ident">handle_primary_messages</span>(<span class="ident">tx_primary</span>.<span class="ident">clone</span>());
+        <span class="kw">let</span> <span class="ident">client_flow_handles</span> <span class="op">=</span> <span class="ident">worker</span>.<span class="ident">handle_clients_transactions</span>(<span class="ident">tx_primary</span>.<span class="ident">clone</span>());
+        <span class="kw">let</span> <span class="ident">worker_flow_handles</span> <span class="op">=</span> <span class="ident">worker</span>.<span class="ident">handle_workers_messages</span>(<span class="ident">tx_primary</span>);
 
         <span class="comment">// The `PrimaryConnector` allows the worker to send messages to its primary.</span>
         <span class="kw">let</span> <span class="ident">handle</span> <span class="op">=</span> <span class="ident">PrimaryConnector::spawn</span>(
@@ -524,11 +543,18 @@
                 .<span class="ident">transactions</span>
         );
 
-        <span class="ident">handle</span>
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">handles</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="ident">handle</span>];
+        <span class="ident">handles</span>.<span class="ident">extend</span>(<span class="ident">primary_flow_handles</span>);
+        <span class="ident">handles</span>.<span class="ident">extend</span>(<span class="ident">client_flow_handles</span>);
+        <span class="ident">handles</span>.<span class="ident">extend</span>(<span class="ident">worker_flow_handles</span>);
+        <span class="ident">handles</span>
     }
 
     <span class="doccomment">/// Spawn all tasks responsible to handle messages from our primary.</span>
-    <span class="kw">fn</span> <span class="ident">handle_primary_messages</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">tx_primary</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">WorkerPrimaryMessage</span><span class="op">&gt;</span>) {
+    <span class="kw">fn</span> <span class="ident">handle_primary_messages</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">tx_primary</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">WorkerPrimaryMessage</span><span class="op">&gt;</span>,
+    ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">let</span> (<span class="ident">tx_synchronizer</span>, <span class="ident">rx_synchronizer</span>) <span class="op">=</span> <span class="ident">channel</span>(<span class="ident">CHANNEL_CAPACITY</span>);
 
         <span class="comment">// Receive incoming messages from our primary.</span>
@@ -544,7 +570,7 @@
 
         <span class="comment">// The `Synchronizer` is responsible to keep the worker in sync with the others. It handles the commands</span>
         <span class="comment">// it receives from the primary (which are mainly notifications that we are out of sync).</span>
-        <span class="ident">Synchronizer::spawn</span>(
+        <span class="kw">let</span> <span class="ident">handle</span> <span class="op">=</span> <span class="ident">Synchronizer::spawn</span>(
             <span class="self">self</span>.<span class="ident">name</span>.<span class="ident">clone</span>(),
             <span class="self">self</span>.<span class="ident">id</span>,
             <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">clone</span>(),
@@ -560,10 +586,15 @@
             <span class="string">&quot;Worker {} listening to primary messages on {}&quot;</span>,
             <span class="self">self</span>.<span class="ident">id</span>, <span class="ident">address</span>
         );
+
+        <span class="macro">vec!</span>[<span class="ident">handle</span>]
     }
 
     <span class="doccomment">/// Spawn all tasks responsible to handle clients transactions.</span>
-    <span class="kw">fn</span> <span class="ident">handle_clients_transactions</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">tx_primary</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">WorkerPrimaryMessage</span><span class="op">&gt;</span>) {
+    <span class="kw">fn</span> <span class="ident">handle_clients_transactions</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">tx_primary</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">WorkerPrimaryMessage</span><span class="op">&gt;</span>,
+    ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">let</span> (<span class="ident">tx_batch_maker</span>, <span class="ident">rx_batch_maker</span>) <span class="op">=</span> <span class="ident">channel</span>(<span class="ident">CHANNEL_CAPACITY</span>);
         <span class="kw">let</span> (<span class="ident">tx_quorum_waiter</span>, <span class="ident">rx_quorum_waiter</span>) <span class="op">=</span> <span class="ident">channel</span>(<span class="ident">CHANNEL_CAPACITY</span>);
         <span class="kw">let</span> (<span class="ident">tx_processor</span>, <span class="ident">rx_processor</span>) <span class="op">=</span> <span class="ident">channel</span>(<span class="ident">CHANNEL_CAPACITY</span>);
@@ -582,7 +613,7 @@
         <span class="comment">// The transactions are sent to the `BatchMaker` that assembles them into batches. It then broadcasts</span>
         <span class="comment">// (in a reliable manner) the batches to all other workers that share the same `id` as us. Finally, it</span>
         <span class="comment">// gathers the &#39;cancel handlers&#39; of the messages and send them to the `QuorumWaiter`.</span>
-        <span class="ident">BatchMaker::spawn</span>(
+        <span class="kw">let</span> <span class="ident">batch_maker_handle</span> <span class="op">=</span> <span class="ident">BatchMaker::spawn</span>(
             <span class="self">self</span>.<span class="ident">parameters</span>.<span class="ident">batch_size</span>,
             <span class="self">self</span>.<span class="ident">parameters</span>.<span class="ident">max_batch_delay</span>,
             <span class="comment">/* rx_transaction */</span> <span class="ident">rx_batch_maker</span>,
@@ -597,7 +628,7 @@
 
         <span class="comment">// The `QuorumWaiter` waits for 2f authorities to acknowledge reception of the batch. It then forwards</span>
         <span class="comment">// the batch to the `Processor`.</span>
-        <span class="ident">QuorumWaiter::spawn</span>(
+        <span class="kw">let</span> <span class="ident">quorum_waiter_handle</span> <span class="op">=</span> <span class="ident">QuorumWaiter::spawn</span>(
             <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">clone</span>(),
             <span class="comment">/* stake */</span> <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">stake</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">name</span>),
             <span class="comment">/* rx_message */</span> <span class="ident">rx_quorum_waiter</span>,
@@ -606,7 +637,7 @@
 
         <span class="comment">// The `Processor` hashes and stores the batch. It then forwards the batch&#39;s digest to the `PrimaryConnector`</span>
         <span class="comment">// that will send it to our primary machine.</span>
-        <span class="ident">Processor::spawn</span>(
+        <span class="kw">let</span> <span class="ident">processor_handle</span> <span class="op">=</span> <span class="ident">Processor::spawn</span>(
             <span class="self">self</span>.<span class="ident">id</span>,
             <span class="self">self</span>.<span class="ident">store</span>.<span class="ident">clone</span>(),
             <span class="comment">/* rx_batch */</span> <span class="ident">rx_processor</span>,
@@ -618,10 +649,15 @@
             <span class="string">&quot;Worker {} listening to client transactions on {}&quot;</span>,
             <span class="self">self</span>.<span class="ident">id</span>, <span class="ident">address</span>
         );
+
+        <span class="macro">vec!</span>[<span class="ident">batch_maker_handle</span>, <span class="ident">quorum_waiter_handle</span>, <span class="ident">processor_handle</span>]
     }
 
     <span class="doccomment">/// Spawn all tasks responsible to handle messages from other workers.</span>
-    <span class="kw">fn</span> <span class="ident">handle_workers_messages</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">tx_primary</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">WorkerPrimaryMessage</span><span class="op">&gt;</span>) {
+    <span class="kw">fn</span> <span class="ident">handle_workers_messages</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">tx_primary</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">WorkerPrimaryMessage</span><span class="op">&gt;</span>,
+    ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">let</span> (<span class="ident">tx_worker_helper</span>, <span class="ident">rx_worker_helper</span>) <span class="op">=</span> <span class="ident">channel</span>(<span class="ident">CHANNEL_CAPACITY</span>);
         <span class="kw">let</span> (<span class="ident">tx_client_helper</span>, <span class="ident">rx_client_helper</span>) <span class="op">=</span> <span class="ident">channel</span>(<span class="ident">CHANNEL_CAPACITY</span>);
         <span class="kw">let</span> (<span class="ident">tx_processor</span>, <span class="ident">rx_processor</span>) <span class="op">=</span> <span class="ident">channel</span>(<span class="ident">CHANNEL_CAPACITY</span>);
@@ -643,7 +679,7 @@
         .<span class="ident">spawn</span>(<span class="ident">address</span>.<span class="ident">clone</span>(), <span class="self">self</span>.<span class="ident">parameters</span>.<span class="ident">max_concurrent_requests</span>);
 
         <span class="comment">// The `Helper` is dedicated to reply to batch requests from other workers.</span>
-        <span class="ident">Helper::spawn</span>(
+        <span class="kw">let</span> <span class="ident">helper_handle</span> <span class="op">=</span> <span class="ident">Helper::spawn</span>(
             <span class="self">self</span>.<span class="ident">id</span>,
             <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">clone</span>(),
             <span class="self">self</span>.<span class="ident">store</span>.<span class="ident">clone</span>(),
@@ -653,7 +689,7 @@
 
         <span class="comment">// This `Processor` hashes and stores the batches we receive from the other workers. It then forwards the</span>
         <span class="comment">// batch&#39;s digest to the `PrimaryConnector` that will send it to our primary.</span>
-        <span class="ident">Processor::spawn</span>(
+        <span class="kw">let</span> <span class="ident">processor_handle</span> <span class="op">=</span> <span class="ident">Processor::spawn</span>(
             <span class="self">self</span>.<span class="ident">id</span>,
             <span class="self">self</span>.<span class="ident">store</span>.<span class="ident">clone</span>(),
             <span class="comment">/* rx_batch */</span> <span class="ident">rx_processor</span>,
@@ -665,6 +701,8 @@
             <span class="string">&quot;Worker {} listening to worker messages on {}&quot;</span>,
             <span class="self">self</span>.<span class="ident">id</span>, <span class="ident">address</span>
         );
+
+        <span class="macro">vec!</span>[<span class="ident">helper_handle</span>, <span class="ident">processor_handle</span>]
     }
 }
 
@@ -853,5 +891,5 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (7425fb293 2022-06-30)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (46b8c23f3 2022-07-01)" ></div>
 </body></html>

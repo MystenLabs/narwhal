@@ -161,13 +161,13 @@
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">quorum_waiter::QuorumWaiterMessage</span>, <span class="ident">worker::WorkerMessage</span>};
 <span class="kw">use</span> <span class="ident">crypto::traits::VerifyingKey</span>;
-
 <span class="kw">use</span> <span class="ident">multiaddr::Multiaddr</span>;
 <span class="kw">use</span> <span class="ident">network::WorkerNetwork</span>;
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;benchmark&quot;</span>)]</span>
 <span class="kw">use</span> <span class="ident">std::convert::TryInto</span> <span class="kw">as</span> <span class="kw">_</span>;
 <span class="kw">use</span> <span class="ident">tokio</span>::{
     <span class="ident">sync::mpsc</span>::{<span class="ident">Receiver</span>, <span class="ident">Sender</span>},
+    <span class="ident">task::JoinHandle</span>,
     <span class="ident">time</span>::{<span class="ident">sleep</span>, <span class="ident">Duration</span>, <span class="ident">Instant</span>},
 };
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;benchmark&quot;</span>)]</span>
@@ -207,7 +207,7 @@
         <span class="ident">rx_transaction</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Transaction</span><span class="op">&gt;</span>,
         <span class="ident">tx_message</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">QuorumWaiterMessage</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">workers_addresses</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">PublicKey</span>, <span class="ident">Multiaddr</span>)<span class="op">&gt;</span>,
-    ) {
+    ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
             <span class="self">Self</span> {
                 <span class="ident">batch_size</span>,
@@ -221,7 +221,7 @@
             }
             .<span class="ident">run</span>()
             .<span class="kw">await</span>;
-        });
+        })
     }
 
     <span class="doccomment">/// Main loop receiving incoming transactions and creating batches.</span>
@@ -309,5 +309,5 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (7425fb293 2022-06-30)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (46b8c23f3 2022-07-01)" ></div>
 </body></html>
