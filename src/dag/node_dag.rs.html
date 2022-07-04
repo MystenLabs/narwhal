@@ -878,7 +878,7 @@
             <span class="ident">digest</span> <span class="kw">in</span> <span class="ident">arb_test_digest</span>(),
             <span class="ident">compressible</span> <span class="kw">in</span> <span class="ident">any</span>::<span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span>(),
         ) -&gt; <span class="ident">TestNode</span> {
-            <span class="kw">let</span> <span class="ident">parents</span> <span class="op">=</span> <span class="ident">pot_parents</span>.<span class="ident">iter</span>().<span class="ident">zip</span>(<span class="ident">picks</span>).<span class="ident">flat_map</span>(<span class="op">|</span>(<span class="ident">parent</span>, <span class="ident">pick</span>)<span class="op">|</span> <span class="kw">if</span> <span class="ident">pick</span> { <span class="prelude-val">Some</span>(<span class="kw-2">*</span><span class="ident">parent</span>) } <span class="kw">else</span> { <span class="prelude-val">None</span> }).<span class="ident">collect</span>();
+            <span class="kw">let</span> <span class="ident">parents</span> <span class="op">=</span> <span class="ident">pot_parents</span>.<span class="ident">iter</span>().<span class="ident">zip</span>(<span class="ident">picks</span>).<span class="ident">flat_map</span>(<span class="op">|</span>(<span class="ident">parent</span>, <span class="ident">pick</span>)<span class="op">|</span> <span class="ident">pick</span>.<span class="ident">then_some</span>(<span class="kw-2">*</span><span class="ident">parent</span>)).<span class="ident">collect</span>();
             <span class="ident">TestNode</span>{
                 <span class="ident">parents</span>,
                 <span class="ident">compressible</span>,
@@ -1095,5 +1095,5 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="dag" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (46b8c23f3 2022-07-01)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="dag" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (495b21669 2022-07-03)" ></div>
 </body></html>

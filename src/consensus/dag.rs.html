@@ -431,11 +431,6 @@
 <span id="425">425</span>
 <span id="426">426</span>
 <span id="427">427</span>
-<span id="428">428</span>
-<span id="429">429</span>
-<span id="430">430</span>
-<span id="431">431</span>
-<span id="432">432</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 
@@ -639,13 +634,8 @@
             <span class="comment">// yet this can&#39;t be a take_while because the DAG removal may be non-contiguous.</span>
             <span class="comment">//</span>
             <span class="comment">// Hence we rely on removals cleaning the secondary index.</span>
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">strong_reference_rounds</span> <span class="op">=</span> <span class="ident">range</span>.<span class="ident">flat_map</span>(<span class="op">|</span>((<span class="ident">_key</span>, <span class="ident">round</span>), <span class="ident">val</span>)<span class="op">|</span> {
-                <span class="kw">if</span> <span class="self">self</span>.<span class="ident">contains</span>(<span class="kw-2">*</span><span class="ident">val</span>) {
-                    <span class="prelude-val">Some</span>(<span class="ident">round</span>)
-                } <span class="kw">else</span> {
-                    <span class="prelude-val">None</span>
-                }
-            });
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">strong_reference_rounds</span> <span class="op">=</span>
+                <span class="ident">range</span>.<span class="ident">flat_map</span>(<span class="op">|</span>((<span class="ident">_key</span>, <span class="ident">round</span>), <span class="ident">val</span>)<span class="op">|</span> <span class="self">self</span>.<span class="ident">contains</span>(<span class="kw-2">*</span><span class="ident">val</span>).<span class="ident">then_some</span>(<span class="ident">round</span>));
 
             <span class="kw">let</span> <span class="ident">earliest</span> <span class="op">=</span> <span class="ident">strong_reference_rounds</span>.<span class="ident">next</span>().<span class="ident">cloned</span>();
             <span class="kw">let</span> <span class="ident">latest</span> <span class="op">=</span> <span class="ident">strong_reference_rounds</span>.<span class="ident">last</span>().<span class="ident">cloned</span>().<span class="ident">or</span>(<span class="ident">earliest</span>);
@@ -869,5 +859,5 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="consensus" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (46b8c23f3 2022-07-01)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="consensus" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (495b21669 2022-07-03)" ></div>
 </body></html>

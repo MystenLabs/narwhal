@@ -215,7 +215,7 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">available_block_ids</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">block_ids</span>
             .<span class="ident">iter</span>()
-            .<span class="ident">filter_map</span>(<span class="op">|</span>(<span class="ident">id</span>, <span class="ident">available</span>)<span class="op">|</span> <span class="kw">if</span> <span class="kw-2">*</span><span class="ident">available</span> { <span class="prelude-val">Some</span>(<span class="kw-2">*</span><span class="ident">id</span>) } <span class="kw">else</span> { <span class="prelude-val">None</span> })
+            .<span class="ident">filter_map</span>(<span class="op">|</span>(<span class="ident">id</span>, <span class="ident">available</span>)<span class="op">|</span> <span class="ident">available</span>.<span class="ident">then_some</span>(<span class="kw-2">*</span><span class="ident">id</span>))
             .<span class="ident">collect</span>()
     }
 }
@@ -295,5 +295,5 @@
     },
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (46b8c23f3 2022-07-01)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (495b21669 2022-07-03)" ></div>
 </body></html>
