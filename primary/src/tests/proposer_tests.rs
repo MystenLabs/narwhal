@@ -1,9 +1,9 @@
-use prometheus::Registry;
 // Copyright(C) Facebook, Inc. and its affiliates.
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use super::*;
 use crypto::traits::KeyPair;
+use prometheus::Registry;
 use test_utils::{committee, keys};
 use tokio::sync::mpsc::channel;
 
