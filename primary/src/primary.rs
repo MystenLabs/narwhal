@@ -201,7 +201,7 @@ impl Primary {
         // The `Core` receives and handles headers, votes, and certificates from the other primaries.
         let core_handle = Core::spawn(
             name.clone(),
-            (&*committee).clone(),
+            (*committee).clone(),
             header_store.clone(),
             certificate_store.clone(),
             synchronizer,
@@ -215,7 +215,7 @@ impl Primary {
             /* rx_proposer */ rx_headers,
             tx_consensus,
             /* tx_proposer */ tx_parents,
-            node_metrics,
+            node_metrics.clone(),
         );
 
         // Receives batch digests from other workers. They are only used to validate headers.
@@ -237,7 +237,7 @@ impl Primary {
         // underlying batches and their transactions.
         let block_waiter_handle = BlockWaiter::spawn(
             name.clone(),
-            (&*committee).clone(),
+            (*committee).clone(),
             tx_reconfigure.subscribe(),
             rx_get_block_commands,
             rx_batches,
@@ -250,7 +250,7 @@ impl Primary {
         // Orchestrates the removal of blocks across the primary and worker nodes.
         let block_remover_handle = BlockRemover::spawn(
             name.clone(),
-            (&*committee).clone(),
+            (*committee).clone(),
             certificate_store.clone(),
             header_store,
             payload_store.clone(),
@@ -266,7 +266,7 @@ impl Primary {
         // them from the primary peers by synchronizing also their batches.
         let block_synchronizer_handle = BlockSynchronizer::spawn(
             name.clone(),
-            (&*committee).clone(),
+            (*committee).clone(),
             tx_reconfigure.subscribe(),
             rx_block_synchronizer_commands,
             rx_certificate_responses,
@@ -282,7 +282,7 @@ impl Primary {
         // re-schedule execution of the header once we have all missing data.
         let header_waiter_handle = HeaderWaiter::spawn(
             name.clone(),
-            (&*committee).clone(),
+            (*committee).clone(),
             certificate_store.clone(),
             payload_store.clone(),
             consensus_round.clone(),
@@ -292,6 +292,7 @@ impl Primary {
             tx_reconfigure.subscribe(),
             /* rx_synchronizer */ rx_sync_headers,
             /* tx_core */ tx_headers_loopback,
+            node_metrics.clone(),
         );
 
         // The `CertificateWaiter` waits to receive all the ancestors of a certificate before looping it back to the
@@ -310,7 +311,7 @@ impl Primary {
         // digests from our workers and sends it back to the `Core`.
         let proposer_handle = Proposer::spawn(
             name.clone(),
-            (&*committee).clone(),
+            (*committee).clone(),
             signature_service,
             parameters.header_size,
             parameters.max_header_delay,
@@ -319,13 +320,14 @@ impl Primary {
             /* rx_core */ rx_parents,
             /* rx_workers */ rx_our_digests,
             /* tx_core */ tx_headers,
+            node_metrics,
         );
 
         // The `Helper` is dedicated to reply to certificates & payload availability requests
         // from other primaries.
         let helper_handle = Helper::spawn(
             name.clone(),
-            (&*committee).clone(),
+            (*committee).clone(),
             certificate_store,
             payload_store,
             rx_reconfigure,

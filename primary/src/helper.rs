@@ -10,9 +10,9 @@ use thiserror::Error;
 use tokio::{
     sync::{mpsc::Receiver, watch},
     task::JoinHandle,
-};use types::Reconfigure;
+};
 use tracing::{error, instrument};
-use types::{BatchDigest, Certificate, CertificateDigest, ShutdownToken};
+use types::{BatchDigest, Certificate, CertificateDigest, Reconfigure, ShutdownToken};
 
 #[cfg(test)]
 #[path = "tests/helper_tests.rs"]

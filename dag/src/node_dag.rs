@@ -236,6 +236,11 @@ impl<T: Affiliated + Sync + Send + std::fmt::Debug> NodeDag<T> {
         let start = self.get(hash)?;
         Ok(crate::bfs(start))
     }
+
+    /// Returns the number of elements (nodes) stored
+    pub fn size(&self) -> usize {
+        self.node_table.len()
+    }
 }
 
 impl<T: Affiliated> Default for NodeDag<T> {
@@ -327,7 +332,7 @@ mod tests {
             digest in arb_test_digest(),
             compressible in any::<bool>(),
         ) -> TestNode {
-            let parents = pot_parents.iter().zip(picks).flat_map(|(parent, pick)| if pick { Some(*parent) } else { None }).collect();
+            let parents = pot_parents.iter().zip(picks).flat_map(|(parent, pick)| pick.then_some(*parent)).collect();
             TestNode{
                 parents,
                 compressible,
@@ -400,7 +405,7 @@ mod tests {
             dag in arb_dag_complete(10, 10)
         ) {
             let mut node_dag = NodeDag::new();
-            for node in dag.into_iter() {
+            for node in dag.clone().into_iter() {
                 // the elements are generated in order & with no missing parents => no surprises
                 assert!(node_dag.try_insert(node).is_ok());
             }
@@ -411,6 +416,8 @@ mod tests {
                     Either::Left(ref node) => assert!(node.upgrade().is_some()),
                 }
             }
+
+            assert_eq!(node_dag.size(), dag.len());
         }
 
 
