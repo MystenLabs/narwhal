@@ -60,7 +60,7 @@ clap-f595c2ba2a3f28df = { package = "clap", version = "2", features = ["ansi_ter
 clap-7b89eefb6aaa9bf3 = { package = "clap", version = "3", features = ["atty", "color", "std", "strsim", "suggestions", "termcolor"] }
 clap_lex = { version = "0.2", default-features = false }
 collectable = { version = "0.0.2", default-features = false }
-constant_time_eq = { version = "0.1", default-features = false }
+constant_time_eq = { version = "0.2", default-features = false }
 core2 = { version = "0.4", default-features = false, features = ["alloc"] }
 crc32fast = { version = "1", features = ["std"] }
 criterion = { version = "0.3", features = ["cargo_bench_support"] }
