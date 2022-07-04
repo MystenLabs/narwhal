@@ -2592,6 +2592,7 @@ dependencies = [
  "crypto",
  "dashmap",
  "derive_builder",
+ "dhat",
  "ed25519-dalek",
  "executor",
  "futures",
