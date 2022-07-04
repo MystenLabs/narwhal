@@ -567,6 +567,8 @@
 <span id="561">561</span>
 <span id="562">562</span>
 <span id="563">563</span>
+<span id="564">564</span>
+<span id="565">565</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -793,7 +795,7 @@
             <span class="comment">/* rx_proposer */</span> <span class="ident">rx_headers</span>,
             <span class="ident">tx_consensus</span>,
             <span class="comment">/* tx_proposer */</span> <span class="ident">tx_parents</span>,
-            <span class="ident">node_metrics</span>,
+            <span class="ident">node_metrics</span>.<span class="ident">clone</span>(),
         );
 
         <span class="comment">// Receives batch digests from other workers. They are only used to validate headers.</span>
@@ -870,6 +872,7 @@
             <span class="ident">tx_reconfigure</span>.<span class="ident">subscribe</span>(),
             <span class="comment">/* rx_synchronizer */</span> <span class="ident">rx_sync_headers</span>,
             <span class="comment">/* tx_core */</span> <span class="ident">tx_headers_loopback</span>,
+            <span class="ident">node_metrics</span>.<span class="ident">clone</span>(),
         );
 
         <span class="comment">// The `CertificateWaiter` waits to receive all the ancestors of a certificate before looping it back to the</span>
@@ -897,6 +900,7 @@
             <span class="comment">/* rx_core */</span> <span class="ident">rx_parents</span>,
             <span class="comment">/* rx_workers */</span> <span class="ident">rx_our_digests</span>,
             <span class="comment">/* tx_core */</span> <span class="ident">tx_headers</span>,
+            <span class="ident">node_metrics</span>,
         );
 
         <span class="comment">// The `Helper` is dedicated to reply to certificates &amp; payload availability requests</span>

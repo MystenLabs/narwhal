@@ -447,6 +447,13 @@
 <span id="441">441</span>
 <span id="442">442</span>
 <span id="443">443</span>
+<span id="444">444</span>
+<span id="445">445</span>
+<span id="446">446</span>
+<span id="447">447</span>
+<span id="448">448</span>
+<span id="449">449</span>
+<span id="450">450</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -461,7 +468,7 @@
 <span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">Stream</span>, <span class="ident">StreamExt</span>};
 <span class="kw">use</span> <span class="ident">multiaddr</span>::{<span class="ident">Multiaddr</span>, <span class="ident">Protocol</span>};
 <span class="kw">use</span> <span class="ident">primary</span>::{<span class="ident">PrimaryWorkerMessage</span>, <span class="ident">WorkerPrimaryMessage</span>};
-<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">net::Ipv4Addr</span>, <span class="ident">pin::Pin</span>};
+<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">net::Ipv4Addr</span>, <span class="ident">pin::Pin</span>, <span class="ident">sync::Arc</span>};
 <span class="kw">use</span> <span class="ident">store::Store</span>;
 <span class="kw">use</span> <span class="ident">tokio</span>::{
     <span class="ident">sync::mpsc</span>::{<span class="ident">channel</span>, <span class="ident">Sender</span>},
@@ -482,6 +489,7 @@
 <span class="doccomment">/// The default channel capacity for each channel of the worker.</span>
 <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">CHANNEL_CAPACITY</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">1_000</span>;
 
+<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::metrics</span>::{<span class="ident">Metrics</span>, <span class="ident">WorkerMetrics</span>};
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">types::WorkerMessage</span>;
 
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Worker</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> {
@@ -506,6 +514,7 @@
         <span class="ident">committee</span>: <span class="ident">SharedCommittee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
         <span class="ident">parameters</span>: <span class="ident">Parameters</span>,
         <span class="ident">store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">BatchDigest</span>, <span class="ident">SerializedBatchMessage</span><span class="op">&gt;</span>,
+        <span class="ident">metrics</span>: <span class="ident">Metrics</span>,
     ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="comment">// Define a worker instance.</span>
         <span class="kw">let</span> <span class="ident">worker</span> <span class="op">=</span> <span class="self">Self</span> {
@@ -516,9 +525,12 @@
             <span class="ident">store</span>,
         };
 
+        <span class="kw">let</span> <span class="ident">node_metrics</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">metrics</span>.<span class="ident">worker_metrics</span>.<span class="ident">unwrap</span>());
+
         <span class="comment">// Spawn all worker tasks.</span>
         <span class="kw">let</span> (<span class="ident">tx_primary</span>, <span class="ident">rx_primary</span>) <span class="op">=</span> <span class="ident">channel</span>(<span class="ident">CHANNEL_CAPACITY</span>);
-        <span class="kw">let</span> <span class="ident">primary_flow_handles</span> <span class="op">=</span> <span class="ident">worker</span>.<span class="ident">handle_primary_messages</span>(<span class="ident">tx_primary</span>.<span class="ident">clone</span>());
+
+        <span class="kw">let</span> <span class="ident">primary_flow_handles</span> <span class="op">=</span> <span class="ident">worker</span>.<span class="ident">handle_primary_messages</span>(<span class="ident">tx_primary</span>.<span class="ident">clone</span>(), <span class="ident">node_metrics</span>);
         <span class="kw">let</span> <span class="ident">client_flow_handles</span> <span class="op">=</span> <span class="ident">worker</span>.<span class="ident">handle_clients_transactions</span>(<span class="ident">tx_primary</span>.<span class="ident">clone</span>());
         <span class="kw">let</span> <span class="ident">worker_flow_handles</span> <span class="op">=</span> <span class="ident">worker</span>.<span class="ident">handle_workers_messages</span>(<span class="ident">tx_primary</span>);
 
@@ -554,6 +566,7 @@
     <span class="kw">fn</span> <span class="ident">handle_primary_messages</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">tx_primary</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">WorkerPrimaryMessage</span><span class="op">&gt;</span>,
+        <span class="ident">node_metrics</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">WorkerMetrics</span><span class="op">&gt;</span>,
     ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">let</span> (<span class="ident">tx_synchronizer</span>, <span class="ident">rx_synchronizer</span>) <span class="op">=</span> <span class="ident">channel</span>(<span class="ident">CHANNEL_CAPACITY</span>);
 
@@ -580,6 +593,7 @@
             <span class="self">self</span>.<span class="ident">parameters</span>.<span class="ident">sync_retry_nodes</span>,
             <span class="comment">/* rx_message */</span> <span class="ident">rx_synchronizer</span>,
             <span class="ident">tx_primary</span>,
+            <span class="ident">node_metrics</span>,
         );
 
         <span class="macro">info!</span>(

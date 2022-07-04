@@ -318,13 +318,21 @@
 <span id="312">312</span>
 <span id="313">313</span>
 <span id="314">314</span>
+<span id="315">315</span>
+<span id="316">316</span>
+<span id="317">317</span>
+<span id="318">318</span>
+<span id="319">319</span>
+<span id="320">320</span>
+<span id="321">321</span>
+<span id="322">322</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright(C) Facebook, Inc. and its affiliates.</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">primary::Reconfigure</span>, <span class="ident">NetworkModel</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">metrics::PrimaryMetrics</span>, <span class="ident">primary::Reconfigure</span>, <span class="ident">NetworkModel</span>};
 <span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">Committee</span>, <span class="ident">Epoch</span>, <span class="ident">WorkerId</span>};
 <span class="kw">use</span> <span class="ident">crypto</span>::{<span class="ident">traits::VerifyingKey</span>, <span class="ident">Digest</span>, <span class="ident">Hash</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">SignatureService</span>};
-<span class="kw">use</span> <span class="ident">std::cmp::Ordering</span>;
+<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">cmp::Ordering</span>, <span class="ident">sync::Arc</span>};
 <span class="kw">use</span> <span class="ident">tokio</span>::{
     <span class="ident">sync</span>::{
         <span class="ident">mpsc</span>::{<span class="ident">Receiver</span>, <span class="ident">Sender</span>},
@@ -377,6 +385,8 @@
     <span class="ident">digests</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>)<span class="op">&gt;</span>,
     <span class="doccomment">/// Keeps track of the size (in bytes) of batches&#39; digests that we received so far.</span>
     <span class="ident">payload_size</span>: <span class="ident">usize</span>,
+    <span class="doccomment">/// Metrics handler</span>
+    <span class="ident">metrics</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">PrimaryMetrics</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> <span class="ident">Proposer</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span> {
@@ -392,6 +402,7 @@
         <span class="ident">rx_core</span>: <span class="ident">Receiver</span><span class="op">&lt;</span>(<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">Round</span>, <span class="ident">Epoch</span>)<span class="op">&gt;</span>,
         <span class="ident">rx_workers</span>: <span class="ident">Receiver</span><span class="op">&lt;</span>(<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>)<span class="op">&gt;</span>,
         <span class="ident">tx_core</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">Header</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">metrics</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">PrimaryMetrics</span><span class="op">&gt;</span>,
     ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">genesis</span> <span class="op">=</span> <span class="ident">Certificate::genesis</span>(<span class="kw-2">&amp;</span><span class="ident">committee</span>);
         <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
@@ -411,6 +422,7 @@
                 <span class="ident">last_leader</span>: <span class="prelude-val">None</span>,
                 <span class="ident">digests</span>: <span class="ident">Vec::with_capacity</span>(<span class="number">2</span> <span class="op">*</span> <span class="ident">header_size</span>),
                 <span class="ident">payload_size</span>: <span class="number">0</span>,
+                <span class="ident">metrics</span>,
             }
             .<span class="ident">run</span>()
             .<span class="kw">await</span>;
@@ -542,6 +554,10 @@
 
                 <span class="comment">// Advance to the next round.</span>
                 <span class="self">self</span>.<span class="ident">round</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
+                <span class="self">self</span>.<span class="ident">metrics</span>
+                    .<span class="ident">current_round</span>
+                    .<span class="ident">with_label_values</span>(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">epoch</span>.<span class="ident">to_string</span>()])
+                    .<span class="ident">set</span>(<span class="self">self</span>.<span class="ident">round</span> <span class="kw">as</span> <span class="ident">i64</span>);
                 <span class="macro">debug!</span>(<span class="string">&quot;Dag moved to round {}&quot;</span>, <span class="self">self</span>.<span class="ident">round</span>);
 
                 <span class="comment">// Make a new header.</span>

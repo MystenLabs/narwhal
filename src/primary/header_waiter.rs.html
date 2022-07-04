@@ -344,10 +344,33 @@
 <span id="338">338</span>
 <span id="339">339</span>
 <span id="340">340</span>
+<span id="341">341</span>
+<span id="342">342</span>
+<span id="343">343</span>
+<span id="344">344</span>
+<span id="345">345</span>
+<span id="346">346</span>
+<span id="347">347</span>
+<span id="348">348</span>
+<span id="349">349</span>
+<span id="350">350</span>
+<span id="351">351</span>
+<span id="352">352</span>
+<span id="353">353</span>
+<span id="354">354</span>
+<span id="355">355</span>
+<span id="356">356</span>
+<span id="357">357</span>
+<span id="358">358</span>
+<span id="359">359</span>
+<span id="360">360</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::primary</span>::{<span class="ident">PayloadToken</span>, <span class="ident">PrimaryMessage</span>, <span class="ident">PrimaryWorkerMessage</span>, <span class="ident">Reconfigure</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::{
+    <span class="ident">metrics::PrimaryMetrics</span>,
+    <span class="ident">primary</span>::{<span class="ident">PayloadToken</span>, <span class="ident">PrimaryMessage</span>, <span class="ident">PrimaryWorkerMessage</span>, <span class="ident">Reconfigure</span>},
+};
 <span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">Committee</span>, <span class="ident">WorkerId</span>};
 <span class="kw">use</span> <span class="ident">crypto::traits::VerifyingKey</span>;
 <span class="kw">use</span> <span class="ident">futures</span>::{
@@ -432,6 +455,8 @@
     <span class="doccomment">/// List of digests (headers or tx batch) that are waiting to be processed.</span>
     <span class="doccomment">/// Their processing will resume when we get all their dependencies.</span>
     <span class="ident">pending</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">HeaderDigest</span>, (<span class="ident">Round</span>, <span class="ident">Sender</span><span class="op">&lt;</span>()<span class="op">&gt;</span>)<span class="op">&gt;</span>,
+    <span class="doccomment">/// Metrics handler</span>
+    <span class="ident">metrics</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">PrimaryMetrics</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> <span class="ident">HeaderWaiter</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span> {
@@ -447,6 +472,7 @@
         <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">Reconfigure</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">rx_synchronizer</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">WaiterMessage</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">tx_core</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">Header</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">metrics</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">PrimaryMetrics</span><span class="op">&gt;</span>,
     ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
             <span class="self">Self</span> {
@@ -466,6 +492,7 @@
                 <span class="ident">parent_requests</span>: <span class="ident">HashMap::new</span>(),
                 <span class="ident">batch_requests</span>: <span class="ident">HashMap::new</span>(),
                 <span class="ident">pending</span>: <span class="ident">HashMap::new</span>(),
+                <span class="ident">metrics</span>,
             }
             .<span class="ident">run</span>()
             .<span class="kw">await</span>;
@@ -670,6 +697,8 @@
             <span class="comment">// Cleanup internal state.</span>
             <span class="kw">let</span> <span class="ident">round</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">consensus_round</span>.<span class="ident">load</span>(<span class="ident">Ordering::Relaxed</span>);
             <span class="kw">if</span> <span class="ident">round</span> <span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">gc_depth</span> {
+                <span class="kw">let</span> <span class="ident">now</span> <span class="op">=</span> <span class="ident">Instant::now</span>();
+
                 <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">gc_round</span> <span class="op">=</span> <span class="ident">round</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">gc_depth</span>;
 
                 <span class="kw">for</span> (<span class="ident">r</span>, <span class="ident">handler</span>) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">values</span>() {
@@ -680,7 +709,18 @@
                 <span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">retain</span>(<span class="op">|</span><span class="kw">_</span>, (<span class="ident">r</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="ident">r</span> <span class="op">&gt;</span> <span class="kw-2">&amp;mut</span> <span class="ident">gc_round</span>);
                 <span class="self">self</span>.<span class="ident">batch_requests</span>.<span class="ident">retain</span>(<span class="op">|</span><span class="kw">_</span>, <span class="ident">r</span><span class="op">|</span> <span class="ident">r</span> <span class="op">&gt;</span> <span class="kw-2">&amp;mut</span> <span class="ident">gc_round</span>);
                 <span class="self">self</span>.<span class="ident">parent_requests</span>.<span class="ident">retain</span>(<span class="op">|</span><span class="kw">_</span>, (<span class="ident">r</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="ident">r</span> <span class="op">&gt;</span> <span class="kw-2">&amp;mut</span> <span class="ident">gc_round</span>);
+
+                <span class="self">self</span>.<span class="ident">metrics</span>
+                    .<span class="ident">gc_header_waiter_latency</span>
+                    .<span class="ident">with_label_values</span>(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">epoch</span>.<span class="ident">to_string</span>()])
+                    .<span class="ident">observe</span>(<span class="ident">now</span>.<span class="ident">elapsed</span>().<span class="ident">as_secs_f64</span>());
             }
+
+            <span class="comment">// measure the pending elements</span>
+            <span class="self">self</span>.<span class="ident">metrics</span>
+                .<span class="ident">pending_elements_header_waiter</span>
+                .<span class="ident">with_label_values</span>(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">epoch</span>.<span class="ident">to_string</span>()])
+                .<span class="ident">set</span>(<span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">i64</span>);
         }
     }
 }

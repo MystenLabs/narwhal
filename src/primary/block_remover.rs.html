@@ -634,6 +634,9 @@
 <span id="628">628</span>
 <span id="629">629</span>
 <span id="630">630</span>
+<span id="631">631</span>
+<span id="632">632</span>
+<span id="633">633</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="attribute">#![<span class="ident">allow</span>(<span class="ident">dead_code</span>)]</span>
@@ -730,10 +733,12 @@
 <span class="doccomment">/// # use tempfile::tempdir;</span>
 <span class="doccomment">/// # use primary::{BlockRemover, BlockRemoverCommand, DeleteBatchMessage, PayloadToken, Reconfigure};</span>
 <span class="doccomment">/// # use types::{BatchDigest, Certificate, CertificateDigest, HeaderDigest, Header};</span>
+<span class="doccomment">/// # use prometheus::Registry;</span>
+<span class="doccomment">/// # use consensus::metrics::ConsensusMetrics;</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// #[tokio::main(flavor = &quot;current_thread&quot;)]</span>
 <span class="doccomment">/// # async fn main() {</span>
-<span class="doccomment">/// const CERTIFICATES_CF: &amp;str = &quot;certificates&quot;;</span>
+<span class="doccomment">///     const CERTIFICATES_CF: &amp;str = &quot;certificates&quot;;</span>
 <span class="doccomment">///     const HEADERS_CF: &amp;str = &quot;headers&quot;;</span>
 <span class="doccomment">///     const PAYLOAD_CF: &amp;str = &quot;payload&quot;;</span>
 <span class="doccomment">///</span>
@@ -759,9 +764,10 @@
 <span class="doccomment">///     let name = Ed25519PublicKey::default();</span>
 <span class="doccomment">///     let committee = Committee{ epoch: ArcSwap::new(Arc::new(0)), authorities: ArcSwap::from_pointee(BTreeMap::new()) };</span>
 <span class="doccomment">///     let (_tx_reconfigure, rx_reconfigure) = watch::channel(Reconfigure::NewCommittee(committee.clone()));</span>
+<span class="doccomment">///     let consensus_metrics = Arc::new(ConsensusMetrics::new(&amp;Registry::new()));</span>
 <span class="doccomment">///     // A dag with genesis for the committee</span>
 <span class="doccomment">///     let (tx_new_certificates, rx_new_certificates) = channel(1);</span>
-<span class="doccomment">///     let dag = Arc::new(Dag::new(&amp;committee, rx_new_certificates).1);</span>
+<span class="doccomment">///     let dag = Arc::new(Dag::new(&amp;committee, rx_new_certificates, consensus_metrics).1);</span>
 <span class="doccomment">///     // Populate genesis in the Dag</span>
 <span class="doccomment">///     join_all(</span>
 <span class="doccomment">///       Certificate::genesis(&amp;committee)</span>
