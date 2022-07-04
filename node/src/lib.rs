@@ -129,7 +129,8 @@ impl Node {
 
         let (dag, network_model) = if !internal_consensus {
             debug!("Consensus is disabled: the primary will run w/o Tusk");
-            let (_handle, dag) = Dag::new(&committee, rx_new_certificates);
+            let consensus_metrics = Arc::new(ConsensusMetrics::new(registry));
+            let (_handle, dag) = Dag::new(&committee, rx_new_certificates, consensus_metrics);
             (Some(Arc::new(dag)), NetworkModel::Asynchronous)
         } else {
             Self::spawn_consensus(

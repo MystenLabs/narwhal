@@ -2,12 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 use prometheus::{default_registry, register_int_gauge_vec_with_registry, IntGaugeVec, Registry};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ConsensusMetrics {
-    /// The current Narwhal round
+    /// The number of elements in the Dag (for Tusk or Bullshark)
     pub consensus_dag_size: IntGaugeVec,
     /// The last committed round from consensus
     pub last_committed_round: IntGaugeVec,
+    /// The number of elements from the vertices secondary index (external consensus)
+    pub external_consensus_dag_vertices_elements: IntGaugeVec,
+    /// The number of elements in the dag (external consensus)
+    pub external_consensus_dag_size: IntGaugeVec,
 }
 
 impl ConsensusMetrics {
@@ -18,15 +22,25 @@ impl ConsensusMetrics {
                 "The number of elements (certificates) in consensus dag",
                 &[],
                 registry
-            )
-            .unwrap(),
+            ).unwrap(),
             last_committed_round: register_int_gauge_vec_with_registry!(
                 "last_committed_round",
                 "The most recent round that has been committed from consensus",
                 &[],
                 registry
-            )
-            .unwrap(),
+            ).unwrap(),
+            external_consensus_dag_vertices_elements: register_int_gauge_vec_with_registry!(
+                "external_consensus_dag_vertices_elements",
+                "The number of elements in the vertices secondary index in the inner dag structure (external consensus)",
+                &[],
+                registry
+            ).unwrap(),
+            external_consensus_dag_size: register_int_gauge_vec_with_registry!(
+                "external_consensus_dag_size",
+                "The number of elements in the inner dag (external consensus)",
+                &[],
+                registry
+            ).unwrap()
         }
     }
 }
