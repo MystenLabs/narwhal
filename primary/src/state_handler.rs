@@ -1,7 +1,7 @@
 // Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crate::primary::{ConsensusPrimaryMessage, PrimaryWorkerMessage, ReconfigurePrimary};
+use crate::primary::{ConsensusPrimaryMessage, PrimaryWorkerMessage};
 use config::SharedCommittee;
 use crypto::traits::VerifyingKey;
 use network::PrimaryToWorkerNetwork;
@@ -13,7 +13,7 @@ use tokio::{
     sync::{mpsc::Receiver, watch},
     task::JoinHandle,
 };
-use types::{Certificate, Round};
+use types::{Certificate, Reconfigure, Round};
 
 /// Receives the highest round reached by consensus and update it for all tasks.
 pub struct StateHandler<PublicKey: VerifyingKey> {
@@ -26,7 +26,7 @@ pub struct StateHandler<PublicKey: VerifyingKey> {
     /// Receives the ordered certificates from consensus.
     rx_consensus: Receiver<ConsensusPrimaryMessage<PublicKey>>,
     /// Channel to signal committee changes.
-    tx_reconfigure: watch::Sender<ReconfigurePrimary<PublicKey>>,
+    tx_reconfigure: watch::Sender<Reconfigure<PublicKey>>,
     /// The latest round committed by consensus.
     last_committed_round: Round,
     /// A network sender to notify our workers of cleanup events.
@@ -39,7 +39,7 @@ impl<PublicKey: VerifyingKey> StateHandler<PublicKey> {
         committee: SharedCommittee<PublicKey>,
         consensus_round: Arc<AtomicU64>,
         rx_consensus: Receiver<ConsensusPrimaryMessage<PublicKey>>,
-        tx_reconfigure: watch::Sender<ReconfigurePrimary<PublicKey>>,
+        tx_reconfigure: watch::Sender<Reconfigure<PublicKey>>,
     ) -> JoinHandle<()> {
         tokio::spawn(async move {
             Self {
@@ -93,13 +93,13 @@ impl<PublicKey: VerifyingKey> StateHandler<PublicKey> {
                     self.consensus_round.store(0, Ordering::Relaxed);
 
                     // Notify all other tasks.
-                    let message = ReconfigurePrimary::NewCommittee(committee);
+                    let message = Reconfigure::NewCommittee(committee);
                     self.tx_reconfigure
                         .send(message)
                         .expect("Reconfigure channel dropped");
                 }
                 ConsensusPrimaryMessage::Shutdown(token) => {
-                    let message = ReconfigurePrimary::Shutdown(token);
+                    let message = Reconfigure::Shutdown(token);
                     self.tx_reconfigure
                         .send(message)
                         .expect("Reconfigure channel dropped");

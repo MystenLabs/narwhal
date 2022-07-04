@@ -17,7 +17,13 @@ async fn wait_for_quorum() {
     let committee = committee(None);
 
     // Spawn a `QuorumWaiter` instance.
-    QuorumWaiter::spawn(committee.clone(), /* stake */ 1, rx_message, tx_batch);
+    QuorumWaiter::spawn(
+        committee.clone(),
+        /* stake */ 1,
+        rx_message,
+        tx_batch,
+        /* sync_delay */ Duration::from_secs(100_000), // Never triggered.
+    );
 
     // Make a batch.
     let message = WorkerMessage::<Ed25519PublicKey>::Batch(batch());

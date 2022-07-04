@@ -6,7 +6,7 @@ use crate::{
         responses::{CertificatesResponse, PayloadAvailabilityResponse, RequestID},
         PendingIdentifier::{Header, Payload},
     },
-    primary::{PrimaryMessage, ReconfigurePrimary},
+    primary::PrimaryMessage,
     utils, PayloadToken, PrimaryWorkerMessage, CHANNEL_CAPACITY,
 };
 use config::{BlockSynchronizerParameters, Committee, WorkerId};
@@ -33,7 +33,7 @@ use tokio::{
     time::{sleep, timeout},
 };
 use tracing::{debug, error, instrument, trace, warn};
-use types::{BatchDigest, Certificate, CertificateDigest};
+use types::{BatchDigest, Certificate, CertificateDigest, Reconfigure};
 
 #[cfg(test)]
 #[path = "tests/block_synchronizer_tests.rs"]
@@ -153,7 +153,7 @@ pub struct BlockSynchronizer<PublicKey: VerifyingKey> {
     committee: Committee<PublicKey>,
 
     /// Watch channel to reconfigure the committee.
-    rx_reconfigure: watch::Receiver<ReconfigurePrimary<PublicKey>>,
+    rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
 
     /// Receive the commands for the synchronizer
     rx_commands: Receiver<Command<PublicKey>>,
@@ -199,7 +199,7 @@ impl<PublicKey: VerifyingKey> BlockSynchronizer<PublicKey> {
     pub fn spawn(
         name: PublicKey,
         committee: Committee<PublicKey>,
-        rx_reconfigure: watch::Receiver<ReconfigurePrimary<PublicKey>>,
+        rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
         rx_commands: Receiver<Command<PublicKey>>,
         rx_certificate_responses: Receiver<CertificatesResponse<PublicKey>>,
         rx_payload_availability_responses: Receiver<PayloadAvailabilityResponse<PublicKey>>,
@@ -306,10 +306,10 @@ impl<PublicKey: VerifyingKey> BlockSynchronizer<PublicKey> {
                     result.expect("Committee channel dropped");
                     let message = self.rx_reconfigure.borrow().clone();
                     match message {
-                        ReconfigurePrimary::NewCommittee(new_committee) => {
+                        Reconfigure::NewCommittee(new_committee) => {
                             self.committee = new_committee;
                         },
-                        ReconfigurePrimary::Shutdown(token) => break token
+                        Reconfigure::Shutdown(token) => break token
                     }
                 }
             }

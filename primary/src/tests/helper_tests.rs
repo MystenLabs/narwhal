@@ -1,11 +1,6 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crate::{
-    common::create_db_stores,
-    helper::Helper,
-    primary::{PrimaryMessage, ReconfigurePrimary},
-    PayloadToken,
-};
+use crate::{common::create_db_stores, helper::Helper, primary::PrimaryMessage, PayloadToken};
 use bincode::Options;
 use config::WorkerId;
 use crypto::{ed25519::Ed25519PublicKey, Hash};
@@ -25,7 +20,7 @@ use tokio::{
     time::timeout,
 };
 use tracing_test::traced_test;
-use types::{BatchDigest, Certificate, CertificateDigest};
+use types::{BatchDigest, Certificate, CertificateDigest, Reconfigure};
 
 #[tokio::test]
 async fn test_process_certificates_stream_mode() {
@@ -34,7 +29,7 @@ async fn test_process_certificates_stream_mode() {
     let key = keys(None).pop().unwrap();
     let (name, committee) = resolve_name_and_committee();
     let (_tx_reconfigure, rx_reconfigure) =
-        watch::channel(ReconfigurePrimary::NewCommittee((&*committee).clone()));
+        watch::channel(Reconfigure::NewCommittee((&*committee).clone()));
     let (tx_primaries, rx_primaries) = channel(10);
 
     // AND a helper
@@ -108,7 +103,7 @@ async fn test_process_certificates_batch_mode() {
     let key = keys(None).pop().unwrap();
     let (name, committee) = resolve_name_and_committee();
     let (_tx_reconfigure, rx_reconfigure) =
-        watch::channel(ReconfigurePrimary::NewCommittee((&*committee).clone()));
+        watch::channel(Reconfigure::NewCommittee((&*committee).clone()));
     let (tx_primaries, rx_primaries) = channel(10);
 
     // AND a helper
@@ -203,7 +198,7 @@ async fn test_process_payload_availability_success() {
     let key = keys(None).pop().unwrap();
     let (name, committee) = resolve_name_and_committee();
     let (_tx_reconfigure, rx_reconfigure) =
-        watch::channel(ReconfigurePrimary::NewCommittee((&*committee).clone()));
+        watch::channel(Reconfigure::NewCommittee((&*committee).clone()));
     let (tx_primaries, rx_primaries) = channel(10);
 
     // AND a helper
@@ -318,7 +313,7 @@ async fn test_process_payload_availability_when_failures() {
     let key = keys(None).pop().unwrap();
     let (name, committee) = resolve_name_and_committee();
     let (_tx_reconfigure, rx_reconfigure) =
-        watch::channel(ReconfigurePrimary::NewCommittee((&*committee).clone()));
+        watch::channel(Reconfigure::NewCommittee((&*committee).clone()));
     let (tx_primaries, rx_primaries) = channel(10);
 
     // AND a helper

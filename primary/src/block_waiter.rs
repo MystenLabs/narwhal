@@ -1,8 +1,6 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crate::{
-    block_synchronizer::handler::Handler, primary::ReconfigurePrimary, PrimaryWorkerMessage,
-};
+use crate::{block_synchronizer::handler::Handler, PrimaryWorkerMessage};
 use config::Committee;
 use crypto::{traits::VerifyingKey, Digest, Hash};
 use futures::{
@@ -26,7 +24,7 @@ use tokio::{
 use tracing::{debug, error, instrument, warn};
 use types::{
     BatchDigest, BatchMessage, BlockError, BlockErrorKind, BlockResult, Certificate,
-    CertificateDigest, Header, ShutdownToken,
+    CertificateDigest, Header, Reconfigure, ShutdownToken,
 };
 use Result::*;
 
@@ -123,9 +121,10 @@ type RequestKey = Vec<u8>;
 /// # use config::Committee;
 /// # use std::collections::BTreeMap;
 /// # use types::Certificate;
-/// # use primary::{BlockWaiter, BlockHeader, BlockCommand, block_synchronizer::{BlockSynchronizeResult, handler::{Error, Handler}}, Reconfigure};
+/// # use primary::{BlockWaiter, BlockHeader, BlockCommand, block_synchronizer::{BlockSynchronizeResult, handler::{Error, Handler}}};
 /// # use types::{BatchMessage, BatchDigest, CertificateDigest, Batch};
 /// # use mockall::*;
+/// # use types::Reconfigure;
 /// # use crypto::traits::VerifyingKey;
 /// # use async_trait::async_trait;
 /// # use std::sync::Arc;
@@ -221,7 +220,7 @@ pub struct BlockWaiter<
     worker_network: PrimaryToWorkerNetwork,
 
     /// Watch channel to reconfigure the committee.
-    rx_reconfigure: watch::Receiver<ReconfigurePrimary<PublicKey>>,
+    rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
 
     /// The batch receive channel is listening for received
     /// messages for batches that have been requested
@@ -256,7 +255,7 @@ impl<PublicKey: VerifyingKey, SynchronizerHandler: Handler<PublicKey> + Send + S
     pub fn spawn(
         name: PublicKey,
         committee: Committee<PublicKey>,
-        rx_reconfigure: watch::Receiver<ReconfigurePrimary<PublicKey>>,
+        rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
         rx_commands: Receiver<BlockCommand>,
         batch_receiver: Receiver<BatchResult>,
         block_synchronizer_handler: Arc<SynchronizerHandler>,
@@ -331,10 +330,10 @@ impl<PublicKey: VerifyingKey, SynchronizerHandler: Handler<PublicKey> + Send + S
                     result.expect("Committee channel dropped");
                     let message = self.rx_reconfigure.borrow().clone();
                     match message {
-                        ReconfigurePrimary::NewCommittee(new_committee) => {
+                        Reconfigure::NewCommittee(new_committee) => {
                             self.committee = new_committee;
                         }
-                        ReconfigurePrimary::Shutdown(token) => return token,
+                        Reconfigure::Shutdown(token) => return token,
                     }
                 }
             }

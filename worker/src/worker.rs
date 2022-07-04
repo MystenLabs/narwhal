@@ -184,6 +184,7 @@ impl<PublicKey: VerifyingKey> Worker<PublicKey> {
             /* stake */ self.committee.stake(&self.name),
             /* rx_message */ rx_quorum_waiter,
             /* tx_batch */ tx_processor,
+            self.parameters.sync_retry_delay,
         );
 
         // The `Processor` hashes and stores the batch. It then forwards the batch's digest to the `PrimaryConnector`
