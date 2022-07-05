@@ -55,10 +55,7 @@ async fn test_dag_read_notify() {
         .map(|x| x.digest())
         .collect::<BTreeSet<_>>();
     let (mut certificates, _next_parents) = make_optimal_certificates(1..=4, &genesis, &keys);
-    let certs = certificates
-        .clone()
-        .into_iter()
-        .map(|c| (c.digest(), c.clone()));
+    let certs = certificates.clone().into_iter().map(|c| (c.digest(), c));
     // set up a Dag
     let (_tx_cert, rx_cert) = channel(1);
     let metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
