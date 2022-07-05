@@ -964,7 +964,7 @@
 <span class="doccomment">///     let (tx_get_block, mut rx_get_block) = oneshot::channel();</span>
 <span class="doccomment">///</span>
 <span class="doccomment">///     let name = Ed25519PublicKey::default();</span>
-<span class="doccomment">///     let committee = Committee{ epoch: ArcSwap::new(Arc::new(0)), authorities: ArcSwap::from_pointee(BTreeMap::new()) };</span>
+<span class="doccomment">///     let committee = Committee{ epoch: 0, authorities: BTreeMap::new() };</span>
 <span class="doccomment">///     let (_tx_reconfigure, rx_reconfigure) = watch::channel(Reconfigure::NewCommittee(committee.clone()));</span>
 <span class="doccomment">///</span>
 <span class="doccomment">///     // A dummy certificate</span>

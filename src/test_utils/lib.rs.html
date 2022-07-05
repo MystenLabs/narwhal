@@ -736,8 +736,6 @@
 <span id="730">730</span>
 <span id="731">731</span>
 <span id="732">732</span>
-<span id="733">733</span>
-<span id="734">734</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -798,11 +796,11 @@
 }
 
 <span class="comment">// Fixture</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">committee</span>(<span class="ident">rng_seed</span>: <span class="kw">impl</span> <span class="ident">Into</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">u64</span><span class="op">&gt;</span><span class="op">&gt;</span>) -&gt; <span class="ident">SharedCommittee</span><span class="op">&lt;</span><span class="ident">Ed25519PublicKey</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">committee</span>(<span class="ident">rng_seed</span>: <span class="kw">impl</span> <span class="ident">Into</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">u64</span><span class="op">&gt;</span><span class="op">&gt;</span>) -&gt; <span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">Ed25519PublicKey</span><span class="op">&gt;</span> {
     <span class="ident">committee_from_keys</span>(<span class="kw-2">&amp;</span><span class="ident">keys</span>(<span class="ident">rng_seed</span>))
 }
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">committee_from_keys</span>(<span class="ident">keys</span>: <span class="kw-2">&amp;</span>[<span class="ident">Ed25519KeyPair</span>]) -&gt; <span class="ident">SharedCommittee</span><span class="op">&lt;</span><span class="ident">Ed25519PublicKey</span><span class="op">&gt;</span> {
-    <span class="ident">Arc::new</span>(<span class="ident">pure_committee_from_keys</span>(<span class="ident">keys</span>))
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">committee_from_keys</span>(<span class="ident">keys</span>: <span class="kw-2">&amp;</span>[<span class="ident">Ed25519KeyPair</span>]) -&gt; <span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">Ed25519PublicKey</span><span class="op">&gt;</span> {
+    <span class="ident">pure_committee_from_keys</span>(<span class="ident">keys</span>)
 }
 
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">make_authority</span>() -&gt; <span class="ident">Authority</span> {
@@ -885,12 +883,11 @@
 
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">pure_committee_from_keys</span>(<span class="ident">keys</span>: <span class="kw-2">&amp;</span>[<span class="ident">Ed25519KeyPair</span>]) -&gt; <span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">Ed25519PublicKey</span><span class="op">&gt;</span> {
     <span class="ident">Committee</span> {
-        <span class="ident">epoch</span>: <span class="ident">ArcSwap::new</span>(<span class="ident">Arc::new</span>(<span class="ident">Epoch::default</span>())),
-        <span class="ident">authorities</span>: <span class="ident">ArcSwap::from_pointee</span>(
-            <span class="ident">keys</span>.<span class="ident">iter</span>()
-                .<span class="ident">map</span>(<span class="op">|</span><span class="ident">kp</span><span class="op">|</span> (<span class="ident">kp</span>.<span class="ident">public</span>().<span class="ident">clone</span>(), <span class="ident">make_authority</span>()))
-                .<span class="ident">collect</span>(),
-        ),
+        <span class="ident">epoch</span>: <span class="ident">Epoch::default</span>(),
+        <span class="ident">authorities</span>: <span class="ident">keys</span>
+            .<span class="ident">iter</span>()
+            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">kp</span><span class="op">|</span> (<span class="ident">kp</span>.<span class="ident">public</span>().<span class="ident">clone</span>(), <span class="ident">make_authority</span>()))
+            .<span class="ident">collect</span>(),
     }
 }
 
@@ -900,26 +897,25 @@
 
 <span class="comment">// Fixture</span>
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">mock_committee</span>(<span class="ident">keys</span>: <span class="kw-2">&amp;</span>[<span class="ident">Ed25519PublicKey</span>]) -&gt; <span class="ident">SharedCommittee</span><span class="op">&lt;</span><span class="ident">Ed25519PublicKey</span><span class="op">&gt;</span> {
-    <span class="ident">Arc::new</span>(<span class="ident">Committee</span> {
-        <span class="ident">epoch</span>: <span class="ident">ArcSwap::new</span>(<span class="ident">Arc::new</span>(<span class="ident">Epoch::default</span>())),
-        <span class="ident">authorities</span>: <span class="ident">ArcSwap::from_pointee</span>(
-            <span class="ident">keys</span>.<span class="ident">iter</span>()
-                .<span class="ident">map</span>(<span class="op">|</span><span class="ident">id</span><span class="op">|</span> {
-                    (
-                        <span class="ident">id</span>.<span class="ident">clone</span>(),
-                        <span class="ident">Authority</span> {
-                            <span class="ident">stake</span>: <span class="number">1</span>,
-                            <span class="ident">primary</span>: <span class="ident">PrimaryAddresses</span> {
-                                <span class="ident">primary_to_primary</span>: <span class="string">&quot;/ip4/0.0.0.0/tcp/0/http&quot;</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>(),
-                                <span class="ident">worker_to_primary</span>: <span class="string">&quot;/ip4/0.0.0.0/tcp/0/http&quot;</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>(),
-                            },
-                            <span class="ident">workers</span>: <span class="ident">HashMap::default</span>(),
+    <span class="ident">Arc::new</span>(<span class="ident">ArcSwap::from_pointee</span>(<span class="ident">Committee</span> {
+        <span class="ident">epoch</span>: <span class="ident">Epoch::default</span>(),
+        <span class="ident">authorities</span>: <span class="ident">keys</span>
+            .<span class="ident">iter</span>()
+            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">id</span><span class="op">|</span> {
+                (
+                    <span class="ident">id</span>.<span class="ident">clone</span>(),
+                    <span class="ident">Authority</span> {
+                        <span class="ident">stake</span>: <span class="number">1</span>,
+                        <span class="ident">primary</span>: <span class="ident">PrimaryAddresses</span> {
+                            <span class="ident">primary_to_primary</span>: <span class="string">&quot;/ip4/0.0.0.0/tcp/0/http&quot;</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>(),
+                            <span class="ident">worker_to_primary</span>: <span class="string">&quot;/ip4/0.0.0.0/tcp/0/http&quot;</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>(),
                         },
-                    )
-                })
-                .<span class="ident">collect</span>(),
-        ),
-    })
+                        <span class="ident">workers</span>: <span class="ident">HashMap::default</span>(),
+                    },
+                )
+            })
+            .<span class="ident">collect</span>(),
+    }))
 }
 
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">make_consensus_store</span>(<span class="ident">store_path</span>: <span class="kw-2">&amp;</span><span class="ident">std::path::Path</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">ConsensusStore</span><span class="op">&lt;</span><span class="ident">Ed25519PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span> {
@@ -1232,7 +1228,7 @@
 }
 
 <span class="comment">// helper method to get a name and a committee.</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">resolve_name_and_committee</span>() -&gt; (<span class="ident">Ed25519PublicKey</span>, <span class="ident">SharedCommittee</span><span class="op">&lt;</span><span class="ident">Ed25519PublicKey</span><span class="op">&gt;</span>) {
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">resolve_name_and_committee</span>() -&gt; (<span class="ident">Ed25519PublicKey</span>, <span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">Ed25519PublicKey</span><span class="op">&gt;</span>) {
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">keys</span> <span class="op">=</span> <span class="ident">keys</span>(<span class="prelude-val">None</span>);
     <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">keys</span>.<span class="ident">pop</span>().<span class="ident">unwrap</span>(); <span class="comment">// Skip the header&#39; author.</span>
     <span class="kw">let</span> <span class="ident">kp</span> <span class="op">=</span> <span class="ident">keys</span>.<span class="ident">pop</span>().<span class="ident">unwrap</span>();

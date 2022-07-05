@@ -762,7 +762,7 @@
 <span class="doccomment">///     let (tx_delete_block_result, mut rx_delete_block_result) = channel(1);</span>
 <span class="doccomment">///</span>
 <span class="doccomment">///     let name = Ed25519PublicKey::default();</span>
-<span class="doccomment">///     let committee = Committee{ epoch: ArcSwap::new(Arc::new(0)), authorities: ArcSwap::from_pointee(BTreeMap::new()) };</span>
+<span class="doccomment">///     let committee = Committee{ epoch: 0, authorities: BTreeMap::new() };</span>
 <span class="doccomment">///     let (_tx_reconfigure, rx_reconfigure) = watch::channel(Reconfigure::NewCommittee(committee.clone()));</span>
 <span class="doccomment">///     let consensus_metrics = Arc::new(ConsensusMetrics::new(&amp;Registry::new()));</span>
 <span class="doccomment">///     // A dag with genesis for the committee</span>

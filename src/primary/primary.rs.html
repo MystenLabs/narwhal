@@ -569,6 +569,9 @@
 <span id="563">563</span>
 <span id="564">564</span>
 <span id="565">565</span>
+<span id="566">566</span>
+<span id="567">567</span>
+<span id="568">568</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -687,7 +690,7 @@
         <span class="ident">tx_committed_certificates</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">ConsensusPrimaryMessage</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">registry</span>: <span class="kw-2">&amp;</span><span class="ident">Registry</span>,
     ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">initial_committee</span> <span class="op">=</span> <span class="ident">Reconfigure::NewCommittee</span>((<span class="kw-2">*</span><span class="ident">committee</span>).<span class="ident">clone</span>());
+        <span class="kw">let</span> <span class="ident">initial_committee</span> <span class="op">=</span> <span class="ident">Reconfigure::NewCommittee</span>((<span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">committee</span>.<span class="ident">load</span>()).<span class="ident">clone</span>());
         <span class="kw">let</span> (<span class="ident">tx_reconfigure</span>, <span class="ident">rx_reconfigure</span>) <span class="op">=</span> <span class="ident">watch::channel</span>(<span class="ident">initial_committee</span>);
 
         <span class="kw">let</span> (<span class="ident">tx_others_digests</span>, <span class="ident">rx_others_digests</span>) <span class="op">=</span> <span class="ident">channel</span>(<span class="ident">CHANNEL_CAPACITY</span>);
@@ -724,6 +727,7 @@
 
         <span class="comment">// Spawn the network receiver listening to messages from the other primaries.</span>
         <span class="kw">let</span> <span class="ident">address</span> <span class="op">=</span> <span class="ident">committee</span>
+            .<span class="ident">load</span>()
             .<span class="ident">primary</span>(<span class="kw-2">&amp;</span><span class="ident">name</span>)
             .<span class="ident">expect</span>(<span class="string">&quot;Our public key or worker id is not in the committee&quot;</span>)
             .<span class="ident">primary_to_primary</span>;
@@ -745,6 +749,7 @@
 
         <span class="comment">// Spawn the network receiver listening to messages from our workers.</span>
         <span class="kw">let</span> <span class="ident">address</span> <span class="op">=</span> <span class="ident">committee</span>
+            .<span class="ident">load</span>()
             .<span class="ident">primary</span>(<span class="kw-2">&amp;</span><span class="ident">name</span>)
             .<span class="ident">expect</span>(<span class="string">&quot;Our public key or worker id is not in the committee&quot;</span>)
             .<span class="ident">worker_to_primary</span>;
@@ -768,7 +773,7 @@
         <span class="comment">// The `Synchronizer` provides auxiliary methods helping the `Core` to sync.</span>
         <span class="kw">let</span> <span class="ident">synchronizer</span> <span class="op">=</span> <span class="ident">Synchronizer::new</span>(
             <span class="ident">name</span>.<span class="ident">clone</span>(),
-            <span class="kw-2">&amp;</span><span class="ident">committee</span>,
+            <span class="kw-2">&amp;</span><span class="ident">committee</span>.<span class="ident">load</span>(),
             <span class="ident">certificate_store</span>.<span class="ident">clone</span>(),
             <span class="ident">payload_store</span>.<span class="ident">clone</span>(),
             <span class="comment">/* tx_header_waiter */</span> <span class="ident">tx_sync_headers</span>,
@@ -781,7 +786,7 @@
         <span class="comment">// The `Core` receives and handles headers, votes, and certificates from the other primaries.</span>
         <span class="kw">let</span> <span class="ident">core_handle</span> <span class="op">=</span> <span class="ident">Core::spawn</span>(
             <span class="ident">name</span>.<span class="ident">clone</span>(),
-            (<span class="kw-2">*</span><span class="ident">committee</span>).<span class="ident">clone</span>(),
+            (<span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">committee</span>.<span class="ident">load</span>()).<span class="ident">clone</span>(),
             <span class="ident">header_store</span>.<span class="ident">clone</span>(),
             <span class="ident">certificate_store</span>.<span class="ident">clone</span>(),
             <span class="ident">synchronizer</span>,
@@ -817,7 +822,7 @@
         <span class="comment">// underlying batches and their transactions.</span>
         <span class="kw">let</span> <span class="ident">block_waiter_handle</span> <span class="op">=</span> <span class="ident">BlockWaiter::spawn</span>(
             <span class="ident">name</span>.<span class="ident">clone</span>(),
-            (<span class="kw-2">*</span><span class="ident">committee</span>).<span class="ident">clone</span>(),
+            (<span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">committee</span>.<span class="ident">load</span>()).<span class="ident">clone</span>(),
             <span class="ident">tx_reconfigure</span>.<span class="ident">subscribe</span>(),
             <span class="ident">rx_get_block_commands</span>,
             <span class="ident">rx_batches</span>,
@@ -830,7 +835,7 @@
         <span class="comment">// Orchestrates the removal of blocks across the primary and worker nodes.</span>
         <span class="kw">let</span> <span class="ident">block_remover_handle</span> <span class="op">=</span> <span class="ident">BlockRemover::spawn</span>(
             <span class="ident">name</span>.<span class="ident">clone</span>(),
-            (<span class="kw-2">*</span><span class="ident">committee</span>).<span class="ident">clone</span>(),
+            (<span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">committee</span>.<span class="ident">load</span>()).<span class="ident">clone</span>(),
             <span class="ident">certificate_store</span>.<span class="ident">clone</span>(),
             <span class="ident">header_store</span>,
             <span class="ident">payload_store</span>.<span class="ident">clone</span>(),
@@ -846,7 +851,7 @@
         <span class="comment">// them from the primary peers by synchronizing also their batches.</span>
         <span class="kw">let</span> <span class="ident">block_synchronizer_handle</span> <span class="op">=</span> <span class="ident">BlockSynchronizer::spawn</span>(
             <span class="ident">name</span>.<span class="ident">clone</span>(),
-            (<span class="kw-2">*</span><span class="ident">committee</span>).<span class="ident">clone</span>(),
+            (<span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">committee</span>.<span class="ident">load</span>()).<span class="ident">clone</span>(),
             <span class="ident">tx_reconfigure</span>.<span class="ident">subscribe</span>(),
             <span class="ident">rx_block_synchronizer_commands</span>,
             <span class="ident">rx_certificate_responses</span>,
@@ -862,7 +867,7 @@
         <span class="comment">// re-schedule execution of the header once we have all missing data.</span>
         <span class="kw">let</span> <span class="ident">header_waiter_handle</span> <span class="op">=</span> <span class="ident">HeaderWaiter::spawn</span>(
             <span class="ident">name</span>.<span class="ident">clone</span>(),
-            (<span class="kw-2">*</span><span class="ident">committee</span>).<span class="ident">clone</span>(),
+            (<span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">committee</span>.<span class="ident">load</span>()).<span class="ident">clone</span>(),
             <span class="ident">certificate_store</span>.<span class="ident">clone</span>(),
             <span class="ident">payload_store</span>.<span class="ident">clone</span>(),
             <span class="ident">consensus_round</span>.<span class="ident">clone</span>(),
@@ -878,7 +883,7 @@
         <span class="comment">// The `CertificateWaiter` waits to receive all the ancestors of a certificate before looping it back to the</span>
         <span class="comment">// `Core` for further processing.</span>
         <span class="kw">let</span> <span class="ident">certificate_waiter_handle</span> <span class="op">=</span> <span class="ident">CertificateWaiter::spawn</span>(
-            (<span class="kw-2">*</span><span class="ident">committee</span>).<span class="ident">clone</span>(),
+            (<span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">committee</span>.<span class="ident">load</span>()).<span class="ident">clone</span>(),
             <span class="ident">certificate_store</span>.<span class="ident">clone</span>(),
             <span class="ident">consensus_round</span>.<span class="ident">clone</span>(),
             <span class="ident">parameters</span>.<span class="ident">gc_depth</span>,
@@ -891,7 +896,7 @@
         <span class="comment">// digests from our workers and sends it back to the `Core`.</span>
         <span class="kw">let</span> <span class="ident">proposer_handle</span> <span class="op">=</span> <span class="ident">Proposer::spawn</span>(
             <span class="ident">name</span>.<span class="ident">clone</span>(),
-            (<span class="kw-2">*</span><span class="ident">committee</span>).<span class="ident">clone</span>(),
+            (<span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">committee</span>.<span class="ident">load</span>()).<span class="ident">clone</span>(),
             <span class="ident">signature_service</span>,
             <span class="ident">parameters</span>.<span class="ident">header_size</span>,
             <span class="ident">parameters</span>.<span class="ident">max_header_delay</span>,
@@ -907,7 +912,7 @@
         <span class="comment">// from other primaries.</span>
         <span class="kw">let</span> <span class="ident">helper_handle</span> <span class="op">=</span> <span class="ident">Helper::spawn</span>(
             <span class="ident">name</span>.<span class="ident">clone</span>(),
-            (<span class="kw-2">*</span><span class="ident">committee</span>).<span class="ident">clone</span>(),
+            (<span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">committee</span>.<span class="ident">load</span>()).<span class="ident">clone</span>(),
             <span class="ident">certificate_store</span>,
             <span class="ident">payload_store</span>,
             <span class="ident">rx_reconfigure</span>,
@@ -943,6 +948,7 @@
             <span class="string">&quot;Primary {} successfully booted on {}&quot;</span>,
             <span class="ident">name</span>.<span class="ident">encode_base64</span>(),
             <span class="ident">committee</span>
+                .<span class="ident">load</span>()
                 .<span class="ident">primary</span>(<span class="kw-2">&amp;</span><span class="ident">name</span>)
                 .<span class="ident">expect</span>(<span class="string">&quot;Our public key or worker id is not in the committee&quot;</span>)
                 .<span class="ident">primary_to_primary</span>
