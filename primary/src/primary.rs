@@ -202,6 +202,7 @@ impl Primary {
             payload_store.clone(),
             /* tx_header_waiter */ tx_sync_headers,
             /* tx_certificate_waiter */ tx_sync_certificates,
+            dag.clone(),
         );
 
         // The `SignatureService` is used to require signatures on specific digests.
