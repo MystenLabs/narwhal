@@ -165,7 +165,11 @@ impl Primary {
             tx_payload_availability_responses,
             tx_certificate_responses,
         }
-        .spawn(address.clone(), parameters.max_concurrent_requests);
+        .spawn(
+            address.clone(),
+            parameters.max_concurrent_requests,
+            tx_reconfigure.subscribe(),
+        );
         info!(
             "Primary {} listening to primary messages on {}",
             name.encode_base64(),
@@ -187,7 +191,7 @@ impl Primary {
             tx_batch_removal,
             metrics: node_metrics.clone(),
         }
-        .spawn(address.clone());
+        .spawn(address.clone(), tx_reconfigure.subscribe());
         info!(
             "Primary {} listening to workers messages on {}",
             name.encode_base64(),
@@ -404,18 +408,37 @@ struct PrimaryReceiverHandler<PublicKey: VerifyingKey> {
 }
 
 impl<PublicKey: VerifyingKey> PrimaryReceiverHandler<PublicKey> {
-    fn spawn(self, address: Multiaddr, max_concurrent_requests: usize) -> JoinHandle<()> {
+    async fn wait_for_shutdown(mut rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>) {
+        loop {
+            let result = rx_reconfigure.changed().await;
+            result.expect("Committee channel dropped");
+            let message = rx_reconfigure.borrow().clone();
+            if let Reconfigure::Shutdown(_token) = message {
+                break;
+            }
+        }
+    }
+
+    fn spawn(
+        self,
+        address: Multiaddr,
+        max_concurrent_requests: usize,
+        rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
+    ) -> JoinHandle<()> {
         tokio::spawn(async move {
             let mut config = mysten_network::config::Config::new();
             config.concurrency_limit_per_connection = Some(max_concurrent_requests);
-            let _ = config
-                .server_builder()
-                .add_service(PrimaryToPrimaryServer::new(self))
-                .bind(&address)
-                .await
-                .unwrap()
-                .serve()
-                .await;
+            tokio::select! {
+                _result = config
+                    .server_builder()
+                    .add_service(PrimaryToPrimaryServer::new(self))
+                    .bind(&address)
+                    .await
+                    .unwrap()
+                    .serve() => (),
+
+                () = Self::wait_for_shutdown(rx_reconfigure) => ()
+            }
         })
     }
 }
@@ -488,16 +511,36 @@ struct WorkerReceiverHandler {
 }
 
 impl WorkerReceiverHandler {
-    fn spawn(self, address: Multiaddr) -> JoinHandle<()> {
+    async fn wait_for_shutdown<PublicKey: VerifyingKey>(
+        mut rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
+    ) {
+        loop {
+            let result = rx_reconfigure.changed().await;
+            result.expect("Committee channel dropped");
+            let message = rx_reconfigure.borrow().clone();
+            if let Reconfigure::Shutdown(_token) = message {
+                break;
+            }
+        }
+    }
+
+    fn spawn<PublicKey: VerifyingKey>(
+        self,
+        address: Multiaddr,
+        rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
+    ) -> JoinHandle<()> {
         tokio::spawn(async move {
-            let _ = mysten_network::config::Config::default()
-                .server_builder()
-                .add_service(WorkerToPrimaryServer::new(self))
-                .bind(&address)
-                .await
-                .unwrap()
-                .serve()
-                .await;
+            tokio::select! {
+                _result = mysten_network::config::Config::default()
+                    .server_builder()
+                    .add_service(WorkerToPrimaryServer::new(self))
+                    .bind(&address)
+                    .await
+                    .unwrap()
+                    .serve() => (),
+
+                () = Self::wait_for_shutdown(rx_reconfigure) => ()
+            }
         })
     }
 }
