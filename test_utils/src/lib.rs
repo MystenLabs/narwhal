@@ -1,10 +1,9 @@
 // Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use arc_swap::ArcSwap;
 use config::{
-    utils::get_available_port, Authority, Committee, Epoch, PrimaryAddresses, SharedCommittee,
-    WorkerAddresses, WorkerId,
+    utils::get_available_port, Authority, Committee, Epoch, PrimaryAddresses, WorkerAddresses,
+    WorkerId,
 };
 use crypto::{
     ed25519::{Ed25519KeyPair, Ed25519PublicKey, Ed25519Signature},
@@ -158,8 +157,8 @@ pub fn pure_committee_from_keys(keys: &[Ed25519KeyPair]) -> Committee<Ed25519Pub
 ////////////////////////////////////////////////////////////////
 
 // Fixture
-pub fn mock_committee(keys: &[Ed25519PublicKey]) -> SharedCommittee<Ed25519PublicKey> {
-    Arc::new(ArcSwap::from_pointee(Committee {
+pub fn mock_committee(keys: &[Ed25519PublicKey]) -> Committee<Ed25519PublicKey> {
+    Committee {
         epoch: Epoch::default(),
         authorities: keys
             .iter()
@@ -177,7 +176,7 @@ pub fn mock_committee(keys: &[Ed25519PublicKey]) -> SharedCommittee<Ed25519Publi
                 )
             })
             .collect(),
-    }))
+    }
 }
 
 pub fn make_consensus_store(store_path: &std::path::Path) -> Arc<ConsensusStore<Ed25519PublicKey>> {
