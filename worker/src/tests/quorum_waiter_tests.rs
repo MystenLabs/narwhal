@@ -14,15 +14,18 @@ async fn wait_for_quorum() {
     let (tx_message, rx_message) = channel(1);
     let (tx_batch, mut rx_batch) = channel(1);
     let myself = keys(None).pop().unwrap().public().clone();
-    let committee = committee(None);
+
+    let committee = (&*committee(None)).clone();
+    let (_tx_reconfiguration, rx_reconfiguration) =
+        watch::channel(Reconfigure::NewCommittee(committee.clone()));
 
     // Spawn a `QuorumWaiter` instance.
     QuorumWaiter::spawn(
+        myself.clone(),
         committee.clone(),
-        /* stake */ 1,
+        rx_reconfiguration,
         rx_message,
         tx_batch,
-        /* sync_delay */ Duration::from_secs(100_000), // Never triggered.
     );
 
     // Make a batch.
