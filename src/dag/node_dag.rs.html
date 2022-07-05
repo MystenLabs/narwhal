@@ -639,7 +639,7 @@
     <span class="comment">// Returns a strong (`Arc`) reference to the graph node.</span>
     <span class="comment">// This bumps the reference count to the vertex and may prevent it from being GC-ed off the graph.</span>
     <span class="comment">// This is not publicly accessible, so as to not let wandering references to DAG nodes prevent GC logic</span>
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">digest</span>: <span class="ident">T::TypedDigest</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">NodeRef</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">NodeDagError</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">digest</span>: <span class="ident">T::TypedDigest</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">NodeRef</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">NodeDagError</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">node_ref</span> <span class="op">=</span> <span class="self">self</span>
             .<span class="ident">node_table</span>
             .<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">digest</span>)
