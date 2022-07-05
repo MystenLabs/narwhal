@@ -1,8 +1,8 @@
-use crypto::traits::VerifyingKey;
 // Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use config::Committee;
+use crypto::traits::VerifyingKey;
 use multiaddr::Multiaddr;
 use primary::WorkerPrimaryMessage;
 use tokio::{
