@@ -159,7 +159,7 @@ impl Primary {
         let address = address
             .replace(0, |_protocol| Some(Protocol::Ip4(Primary::INADDR_ANY)))
             .unwrap();
-        PrimaryReceiverHandler {
+        let primary_receiver_handle = PrimaryReceiverHandler {
             tx_primary_messages: tx_primary_messages.clone(),
             tx_helper_requests,
             tx_payload_availability_responses,
@@ -180,7 +180,7 @@ impl Primary {
         let address = address
             .replace(0, |_protocol| Some(Protocol::Ip4(Primary::INADDR_ANY)))
             .unwrap();
-        WorkerReceiverHandler {
+        let worker_receiver_handle = WorkerReceiverHandler {
             tx_our_digests,
             tx_others_digests,
             tx_batches,
@@ -378,6 +378,8 @@ impl Primary {
         );
 
         vec![
+            primary_receiver_handle,
+            worker_receiver_handle,
             core_handle,
             payload_receiver_handle,
             block_synchronizer_handle,
@@ -402,19 +404,19 @@ struct PrimaryReceiverHandler<PublicKey: VerifyingKey> {
 }
 
 impl<PublicKey: VerifyingKey> PrimaryReceiverHandler<PublicKey> {
-    fn spawn(self, address: Multiaddr, max_concurrent_requests: usize) {
+    fn spawn(self, address: Multiaddr, max_concurrent_requests: usize) -> JoinHandle<()> {
         tokio::spawn(async move {
             let mut config = mysten_network::config::Config::new();
             config.concurrency_limit_per_connection = Some(max_concurrent_requests);
-            config
+            let _ = config
                 .server_builder()
                 .add_service(PrimaryToPrimaryServer::new(self))
                 .bind(&address)
                 .await
                 .unwrap()
                 .serve()
-                .await
-        });
+                .await;
+        })
     }
 }
 
@@ -486,18 +488,17 @@ struct WorkerReceiverHandler {
 }
 
 impl WorkerReceiverHandler {
-    fn spawn(self, address: Multiaddr) {
+    fn spawn(self, address: Multiaddr) -> JoinHandle<()> {
         tokio::spawn(async move {
-            let config = mysten_network::config::Config::default();
-            config
+            let _ = mysten_network::config::Config::default()
                 .server_builder()
                 .add_service(WorkerToPrimaryServer::new(self))
                 .bind(&address)
                 .await
                 .unwrap()
                 .serve()
-                .await
-        });
+                .await;
+        })
     }
 }
 
