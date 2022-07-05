@@ -1,10 +1,10 @@
 // Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use config::{Committee, Stake};
+use config::{Committee, Stake, WorkerId};
 use crypto::traits::VerifyingKey;
 use futures::stream::{futures_unordered::FuturesUnordered, StreamExt as _};
-use network::CancelHandler;
+use network::{CancelHandler, WorkerNetwork};
 use tokio::{
     sync::{
         mpsc::{Receiver, Sender},
@@ -12,50 +12,49 @@ use tokio::{
     },
     task::JoinHandle,
 };
-use types::{Reconfigure, SerializedBatchMessage};
+use types::{Batch, Reconfigure, SerializedBatchMessage, WorkerMessage};
 
 #[cfg(test)]
 #[path = "tests/quorum_waiter_tests.rs"]
 pub mod quorum_waiter_tests;
 
-#[derive(Debug)]
-pub struct QuorumWaiterMessage<PublicKey> {
-    /// A serialized `WorkerMessage::Batch` message.
-    pub batch: SerializedBatchMessage,
-    /// The cancel handlers to receive the acknowledgments of our broadcast.
-    pub handlers: Vec<(PublicKey, CancelHandler<()>)>,
-}
-
 /// The QuorumWaiter waits for 2f authorities to acknowledge reception of a batch.
 pub struct QuorumWaiter<PublicKey: VerifyingKey> {
     /// The public key of this authority.
     name: PublicKey,
+    /// The id of this worker.
+    id: WorkerId,
     /// The committee information.
     committee: Committee<PublicKey>,
     /// Receive reconfiguration updates.
     rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
     /// Input Channel to receive commands.
-    rx_message: Receiver<QuorumWaiterMessage<PublicKey>>,
+    rx_message: Receiver<Batch>,
     /// Channel to deliver batches for which we have enough acknowledgments.
     tx_batch: Sender<SerializedBatchMessage>,
+    /// A network sender to broadcast the batches to the other workers.
+    network: WorkerNetwork,
 }
 
 impl<PublicKey: VerifyingKey> QuorumWaiter<PublicKey> {
     /// Spawn a new QuorumWaiter.
     pub fn spawn(
         name: PublicKey,
+        id: WorkerId,
         committee: Committee<PublicKey>,
         rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
-        rx_message: Receiver<QuorumWaiterMessage<PublicKey>>,
+        rx_message: Receiver<Batch>,
         tx_batch: Sender<Vec<u8>>,
     ) -> JoinHandle<()> {
         tokio::spawn(async move {
             Self {
                 name,
+                id,
                 committee,
                 rx_reconfigure,
                 rx_message,
                 tx_batch,
+                network: WorkerNetwork::default(),
             }
             .run()
             .await;
@@ -70,9 +69,24 @@ impl<PublicKey: VerifyingKey> QuorumWaiter<PublicKey> {
 
     /// Main loop.
     async fn run(&mut self) {
-        while let Some(QuorumWaiterMessage { batch, handlers }) = self.rx_message.recv().await {
-            let mut wait_for_quorum: FuturesUnordered<_> = handlers
+        while let Some(batch) = self.rx_message.recv().await {
+            // Broadcast the batch to the other workers.
+            let workers_addresses: Vec<_> = self
+                .committee
+                .others_workers(&self.name, &self.id)
                 .into_iter()
+                .map(|(name, addresses)| (name, addresses.worker_to_worker))
+                .collect();
+            let (names, addresses): (Vec<_>, _) = workers_addresses.iter().cloned().unzip();
+            let message = WorkerMessage::<PublicKey>::Batch(batch);
+            let serialized =
+                bincode::serialize(&message).expect("Failed to serialize our own batch");
+            let handlers = self.network.broadcast(addresses, &message).await;
+
+            // Collect all the handlers to receive acknowledgements.
+            let mut wait_for_quorum: FuturesUnordered<_> = names
+                .into_iter()
+                .zip(handlers.into_iter())
                 .map(|(name, handler)| {
                     let stake = self.committee.stake(&name);
                     Self::waiter(handler, stake)
@@ -90,7 +104,7 @@ impl<PublicKey: VerifyingKey> QuorumWaiter<PublicKey> {
                         total_stake += stake;
                         if total_stake >= self.committee.quorum_threshold() {
                             self.tx_batch
-                                .send(batch)
+                                .send(serialized)
                                 .await
                                 .expect("Failed to deliver batch");
                             break;

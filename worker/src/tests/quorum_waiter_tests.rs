@@ -3,9 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use super::*;
 use crate::worker::WorkerMessage;
-use bytes::Bytes;
 use crypto::{ed25519::Ed25519PublicKey, traits::KeyPair};
-use network::WorkerNetwork;
 use test_utils::{batch, committee, keys, WorkerToWorkerMockServer};
 use tokio::sync::mpsc::channel;
 
@@ -22,6 +20,7 @@ async fn wait_for_quorum() {
     // Spawn a `QuorumWaiter` instance.
     QuorumWaiter::spawn(
         myself.clone(),
+        /* worker_id */ 0,
         committee.clone(),
         rx_reconfiguration,
         rx_message,
@@ -29,9 +28,9 @@ async fn wait_for_quorum() {
     );
 
     // Make a batch.
-    let message = WorkerMessage::<Ed25519PublicKey>::Batch(batch());
+    let batch = batch();
+    let message = WorkerMessage::<Ed25519PublicKey>::Batch(batch.clone());
     let serialized = bincode::serialize(&message).unwrap();
-    let expected = Bytes::from(serialized.clone());
 
     // Spawn enough listeners to acknowledge our batches.
     let mut names = Vec::new();
@@ -45,17 +44,8 @@ async fn wait_for_quorum() {
         listener_handles.push(handle);
     }
 
-    // Broadcast the batch through the network.
-    let handlers = WorkerNetwork::default()
-        .broadcast(addresses, &message)
-        .await;
-
     // Forward the batch along with the handlers to the `QuorumWaiter`.
-    let message = QuorumWaiterMessage {
-        batch: serialized.clone(),
-        handlers: names.into_iter().zip(handlers.into_iter()).collect(),
-    };
-    tx_message.send(message).await.unwrap();
+    tx_message.send(batch).await.unwrap();
 
     // Wait for the `QuorumWaiter` to gather enough acknowledgements and output the batch.
     let output = rx_batch.recv().await.unwrap();
@@ -63,6 +53,6 @@ async fn wait_for_quorum() {
 
     // Ensure the other listeners correctly received the batch.
     for mut handle in listener_handles {
-        assert_eq!(handle.recv().await.unwrap().payload, expected);
+        assert_eq!(handle.recv().await.unwrap().payload, serialized);
     }
 }

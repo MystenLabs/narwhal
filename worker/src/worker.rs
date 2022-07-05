@@ -182,8 +182,6 @@ impl<PublicKey: VerifyingKey> Worker<PublicKey> {
         // (in a reliable manner) the batches to all other workers that share the same `id` as us. Finally, it
         // gathers the 'cancel handlers' of the messages and send them to the `QuorumWaiter`.
         let batch_maker_handle = BatchMaker::spawn(
-            self.name.clone(),
-            self.id,
             (&*self.committee).clone(),
             self.parameters.batch_size,
             self.parameters.max_batch_delay,
@@ -196,6 +194,7 @@ impl<PublicKey: VerifyingKey> Worker<PublicKey> {
         // the batch to the `Processor`.
         let quorum_waiter_handle = QuorumWaiter::spawn(
             self.name.clone(),
+            self.id,
             (&*self.committee).clone(),
             tx_reconfigure.subscribe(),
             /* rx_message */ rx_quorum_waiter,
