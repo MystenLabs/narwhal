@@ -2,13 +2,16 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use crate::{quorum_waiter::QuorumWaiterMessage, worker::WorkerMessage};
+use config::{Committee, WorkerId};
 use crypto::traits::VerifyingKey;
-use multiaddr::Multiaddr;
 use network::WorkerNetwork;
 #[cfg(feature = "benchmark")]
 use std::convert::TryInto as _;
 use tokio::{
-    sync::mpsc::{Receiver, Sender},
+    sync::{
+        mpsc::{Receiver, Sender},
+        watch,
+    },
     task::JoinHandle,
     time::{sleep, Duration, Instant},
 };
@@ -16,24 +19,30 @@ use tokio::{
 use tracing::info;
 #[cfg(feature = "benchmark")]
 use types::serialized_batch_digest;
-use types::{Batch, Transaction};
+use types::{Batch, Reconfigure, Transaction};
 
 #[cfg(test)]
 #[path = "tests/batch_maker_tests.rs"]
 pub mod batch_maker_tests;
 
 /// Assemble clients transactions into batches.
-pub struct BatchMaker<PublicKey> {
+pub struct BatchMaker<PublicKey: VerifyingKey> {
+    /// The public key of this authority.
+    name: PublicKey,
+    /// The id of this worker.
+    id: WorkerId,
+    /// The committee information.
+    committee: Committee<PublicKey>,
     /// The preferred batch size (in bytes).
     batch_size: usize,
     /// The maximum delay after which to seal the batch.
     max_batch_delay: Duration,
+    /// Receive reconfiguration updates.
+    rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
     /// Channel to receive transactions from the network.
     rx_transaction: Receiver<Transaction>,
     /// Output channel to deliver sealed batches to the `QuorumWaiter`.
     tx_message: Sender<QuorumWaiterMessage<PublicKey>>,
-    /// The network addresses of the other workers that share our worker id.
-    workers_addresses: Vec<(PublicKey, Multiaddr)>,
     /// Holds the current batch.
     current_batch: Batch,
     /// Holds the size of the current batch (in bytes).
@@ -44,19 +53,25 @@ pub struct BatchMaker<PublicKey> {
 
 impl<PublicKey: VerifyingKey> BatchMaker<PublicKey> {
     pub fn spawn(
+        name: PublicKey,
+        id: WorkerId,
+        committee: Committee<PublicKey>,
         batch_size: usize,
         max_batch_delay: Duration,
+        rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
         rx_transaction: Receiver<Transaction>,
         tx_message: Sender<QuorumWaiterMessage<PublicKey>>,
-        workers_addresses: Vec<(PublicKey, Multiaddr)>,
     ) -> JoinHandle<()> {
         tokio::spawn(async move {
             Self {
+                name,
+                id,
+                committee,
                 batch_size,
                 max_batch_delay,
+                rx_reconfigure,
                 rx_transaction,
                 tx_message,
-                workers_addresses,
                 current_batch: Batch(Vec::with_capacity(batch_size * 2)),
                 current_batch_size: 0,
                 network: WorkerNetwork::default(),
@@ -89,6 +104,18 @@ impl<PublicKey: VerifyingKey> BatchMaker<PublicKey> {
                         self.seal().await;
                     }
                     timer.as_mut().reset(Instant::now() + self.max_batch_delay);
+                }
+
+                // Trigger reconfigure.
+                result = self.rx_reconfigure.changed() => {
+                    result.expect("Committee channel dropped");
+                    let message = self.rx_reconfigure.borrow().clone();
+                    match message {
+                        Reconfigure::NewCommittee(new_committee) => {
+                            self.committee=new_committee;
+                        },
+                        Reconfigure::Shutdown(_token) => return
+                    }
                 }
             }
 
@@ -137,7 +164,13 @@ impl<PublicKey: VerifyingKey> BatchMaker<PublicKey> {
         }
 
         // Broadcast the batch through the network.
-        let (names, addresses): (Vec<_>, _) = self.workers_addresses.iter().cloned().unzip();
+        let workers_addresses: Vec<_> = self
+            .committee
+            .others_workers(&self.name, &self.id)
+            .into_iter()
+            .map(|(name, addresses)| (name, addresses.worker_to_worker))
+            .collect();
+        let (names, addresses): (Vec<_>, _) = workers_addresses.iter().cloned().unzip();
         let handlers = self.network.broadcast(addresses, &message).await;
 
         // Send the batch through the deliver channel for further processing.
