@@ -9,6 +9,8 @@ use serde::{de::DeserializeOwned, Serialize};
 pub use signature::{Error, Signer};
 use std::fmt::{Debug, Display};
 
+pub const DEFAULT_DOMAIN: [u8; 16] = [0u8; 16];
+
 /// Trait impl'd by concrete types that represent digital cryptographic material
 /// (keys). For signatures, we rely on `signature::Signature`, which may be more widely implemented.
 ///
@@ -82,6 +84,8 @@ pub trait VerifyingKey:
 {
     type PrivKey: SigningKey<PubKey = Self>;
     type Sig: Authenticator<PubKey = Self>;
+    type Bytes: VerifyingKeyBytes<PubKey = Self>;
+    const LENGTH: usize;
 
     // Expected to be overridden by implementations
     fn verify_batch(msg: &[u8], pks: &[Self], sigs: &[Self::Sig]) -> Result<(), signature::Error> {
@@ -102,6 +106,7 @@ pub trait VerifyingKey:
 pub trait SigningKey: ToFromBytes + Serialize + DeserializeOwned + Send + Sync + 'static {
     type PubKey: VerifyingKey<PrivKey = Self>;
     type Sig: Authenticator<PrivKey = Self>;
+    const LENGTH: usize;
 }
 
 /// Trait impl'd by signatures in asymmetric cryptography.
@@ -119,17 +124,88 @@ pub trait Authenticator:
     + Sync
     + 'static
     + Clone
+    + EncodeDecodeBase64
 {
     type PubKey: VerifyingKey<Sig = Self>;
     type PrivKey: SigningKey<Sig = Self>;
+    type AggregateSig: AggregateAuthenticator<Sig = Self>;
+    const LENGTH: usize;
 }
 
 /// Trait impl'd by a public / private key pair in asymmetric cryptography.
 ///
-pub trait KeyPair {
+pub trait KeyPair: Sized {
     type PubKey: VerifyingKey<PrivKey = Self::PrivKey>;
     type PrivKey: SigningKey<PubKey = Self::PubKey>;
+    type Sig: Authenticator<PubKey = Self::PubKey>;
+
     fn public(&'_ self) -> &'_ Self::PubKey;
     fn private(self) -> Self::PrivKey;
+
+    #[cfg(feature = "copy_key")]
+    fn copy(&self) -> Self;
+
     fn generate<R: CryptoRng + RngCore>(rng: &mut R) -> Self;
+    fn generate_from_bytes(bytes: &[u8]) -> Result<Self, signature::Error>;
+    fn public_key_bytes(&self) -> <Self::PubKey as VerifyingKey>::Bytes;
+
+    fn hkdf_generate(
+        // The Input Key Message defined by the HKDF specification. 32 bytes in length.
+        ikm: &[u8],
+        // A salt for key generation
+        salt: &[u8],
+        // An optional 'info' field as defined by the HKDF specification
+        info: Option<&[u8]>,
+    ) -> Result<Self, signature::Error> {
+        if ikm.len() != 32 {
+            return Err(signature::Error::new());
+        }
+        Self::hkdf_generate_from_ikm(ikm, salt, info.unwrap_or(&DEFAULT_DOMAIN))
+    }
+
+    fn hkdf_generate_from_ikm(
+        ikm: &[u8],  // IKM (32 bytes)
+        salt: &[u8], // Optional salt
+        info: &[u8], // Optional domain
+    ) -> Result<Self, signature::Error>;
+}
+
+pub trait AggregateAuthenticator:
+    Display + Default + Serialize + DeserializeOwned + Send + Sync + 'static + Clone
+{
+    type Sig: Authenticator<PubKey = Self::PubKey>;
+    type PubKey: VerifyingKey<Sig = Self::Sig>;
+    type PrivKey: SigningKey<Sig = Self::Sig>;
+
+    /// Parse a key from its byte representation
+    fn aggregate(signatures: Vec<Self::Sig>) -> Result<Self, Error>;
+    fn add_signature(&mut self, signature: Self::Sig) -> Result<(), Error>;
+    fn add_aggregate(&mut self, signature: Self) -> Result<(), Error>;
+
+    fn verify(
+        &self,
+        pks: &[<Self::Sig as Authenticator>::PubKey],
+        message: &[u8],
+    ) -> Result<(), Error>;
+
+    fn batch_verify(
+        sigs: &[Self],
+        pks: &[&[Self::PubKey]],
+        messages: &[&[u8]],
+    ) -> Result<(), Error>;
+}
+
+pub trait VerifyingKeyBytes:
+    Display
+    + Default
+    + AsRef<[u8]>
+    + TryInto<Self::PubKey>
+    + Eq
+    + std::hash::Hash
+    + Copy
+    + Ord
+    + PartialOrd
+    + ToFromBytes
+{
+    type PubKey: VerifyingKey<Bytes = Self>;
 }

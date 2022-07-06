@@ -9,19 +9,25 @@ use std::{
 use ::blst::{blst_scalar, blst_scalar_from_uint64, BLST_ERROR};
 use base64ct::{Base64, Encoding};
 use blst::min_sig as blst;
+use eyre::eyre;
 use once_cell::sync::OnceCell;
 use rand::{rngs::OsRng, RngCore};
 
 use serde::{
-    de::{self, Error as SerdeError},
+    de::{self},
     Deserialize, Serialize,
 };
-use serde_bytes::ByteBuf as SerdeByteBuf;
+use serde_with::serde_as;
+use serde_with::Bytes;
+use crate::serde_helpers::BlsSignature;
 
 use signature::{Signature, Signer, Verifier};
 
-use crate::traits::{
-    Authenticator, EncodeDecodeBase64, KeyPair, SigningKey, ToFromBytes, VerifyingKey,
+use crate::{
+    traits::{
+        AggregateAuthenticator, Authenticator, EncodeDecodeBase64, KeyPair, SigningKey,
+        ToFromBytes, VerifyingKey, VerifyingKeyBytes,
+    },
 };
 
 pub const BLS_PRIVATE_KEY_LENGTH: usize = 32;
@@ -44,11 +50,29 @@ pub struct BLS12381PrivateKey {
 }
 
 #[readonly::make]
-#[derive(Debug, Clone)]
+#[serde_as]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BLS12381Signature {
+    #[serde_as(as = "BlsSignature")]
     pub sig: blst::Signature,
+    #[serde(skip)]
     pub bytes: OnceCell<[u8; BLS_SIGNATURE_LENGTH]>,
 }
+
+#[readonly::make]
+#[serde_as]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BLS12381AggregateSignature {
+    #[serde_as(as = "Option<BlsSignature>")]
+    pub sig: Option<blst::Signature>,
+    #[serde(skip)]
+    pub bytes: OnceCell<[u8; BLS_SIGNATURE_LENGTH]>,
+}
+
+#[readonly::make]
+#[serde_as]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd, Copy, Hash)]
+pub struct BLS12381PublicKeyBytes(#[serde_as(as = "Bytes")] [u8; BLS_PUBLIC_KEY_LENGTH]);
 
 impl AsRef<[u8]> for BLS12381PublicKey {
     fn as_ref(&self) -> &[u8] {
@@ -136,8 +160,10 @@ impl Verifier<BLS12381Signature> for BLS12381PublicKey {
 
 impl VerifyingKey for BLS12381PublicKey {
     type PrivKey = BLS12381PrivateKey;
-
     type Sig = BLS12381Signature;
+    type Bytes = BLS12381PublicKeyBytes;
+
+    const LENGTH: usize = BLS_PUBLIC_KEY_LENGTH;
 
     fn verify_batch(msg: &[u8], pks: &[Self], sigs: &[Self::Sig]) -> Result<(), signature::Error> {
         let num_sigs = sigs.len();
@@ -214,24 +240,6 @@ impl Signature for BLS12381Signature {
     }
 }
 
-impl Serialize for BLS12381Signature {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        self.as_ref().serialize(serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for BLS12381Signature {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let bytes = <SerdeByteBuf>::deserialize(deserializer)?;
-        Self::from_bytes(&bytes).map_err(SerdeError::custom)
-    }
-}
 impl Default for BLS12381Signature {
     fn default() -> Self {
         // TODO: improve this!
@@ -258,10 +266,22 @@ impl Display for BLS12381Signature {
     }
 }
 
+impl EncodeDecodeBase64 for BLS12381Signature {
+    fn encode_base64(&self) -> String {
+        base64ct::Base64::encode_string(self.as_bytes())
+    }
+
+    fn decode_base64(value: &str) -> Result<Self, eyre::Report> {
+        let bytes = base64ct::Base64::decode_vec(value).map_err(|e| eyre!("{}", e.to_string()))?;
+        BLS12381Signature::from_bytes(&bytes).map_err(|e| e.into())
+    }
+}
+
 impl Authenticator for BLS12381Signature {
     type PubKey = BLS12381PublicKey;
-
     type PrivKey = BLS12381PrivateKey;
+    type AggregateSig = BLS12381AggregateSignature;
+    const LENGTH: usize = BLS_SIGNATURE_LENGTH;
 }
 
 impl AsRef<[u8]> for BLS12381PrivateKey {
@@ -306,8 +326,8 @@ impl<'de> Deserialize<'de> for BLS12381PrivateKey {
 
 impl SigningKey for BLS12381PrivateKey {
     type PubKey = BLS12381PublicKey;
-
     type Sig = BLS12381Signature;
+    const LENGTH: usize = BLS_PRIVATE_KEY_LENGTH;
 }
 
 impl Signer<BLS12381Signature> for BLS12381PrivateKey {
@@ -331,8 +351,16 @@ pub struct BLS12381KeyPair {
 
 impl KeyPair for BLS12381KeyPair {
     type PubKey = BLS12381PublicKey;
-
     type PrivKey = BLS12381PrivateKey;
+    type Sig = BLS12381Signature;
+
+    #[cfg(feature = "copy_key")]
+    fn copy(&self) -> Self {
+        BLS12381KeyPair {
+            name: self.name.clone(),
+            secret: BLS12381PrivateKey::from_bytes(self.secret.as_ref()).unwrap(),
+        }
+    }
 
     fn public(&'_ self) -> &'_ Self::PubKey {
         &self.name
@@ -358,6 +386,42 @@ impl KeyPair for BLS12381KeyPair {
             },
         }
     }
+
+    fn generate_from_bytes(bytes: &[u8]) -> Result<Self, signature::Error> {
+        let public_key_bytes = &bytes[..BLS_PUBLIC_KEY_LENGTH];
+        let secret_key_bytes = &bytes[BLS_PUBLIC_KEY_LENGTH..];
+        Ok(BLS12381KeyPair {
+            name: BLS12381PublicKey::from_bytes(public_key_bytes)?,
+            secret: BLS12381PrivateKey::from_bytes(secret_key_bytes)?,
+        })
+    }
+
+    fn hkdf_generate_from_ikm(
+        ikm: &[u8],
+        salt: &[u8],
+        info: &[u8],
+    ) -> Result<Self, signature::Error> {
+        let bls12381_secret_key =
+            blst::SecretKey::key_gen_v4_5(ikm, salt, info).map_err(|_| signature::Error::new())?;
+        let bls12381_public_key = bls12381_secret_key.sk_to_pk();
+
+        let keypair = BLS12381KeyPair {
+            name: BLS12381PublicKey {
+                pubkey: bls12381_public_key,
+                bytes: OnceCell::new(),
+            },
+            secret: BLS12381PrivateKey {
+                privkey: bls12381_secret_key,
+                bytes: OnceCell::new(),
+            },
+        };
+        Ok(keypair)
+    }
+
+    fn public_key_bytes(&self) -> BLS12381PublicKeyBytes {
+        let pk_arr: [u8; BLS_PUBLIC_KEY_LENGTH] = self.name.pubkey.to_bytes();
+        BLS12381PublicKeyBytes(pk_arr)
+    }
 }
 
 impl Signer<BLS12381Signature> for BLS12381KeyPair {
@@ -370,4 +434,180 @@ impl Signer<BLS12381Signature> for BLS12381KeyPair {
             bytes: OnceCell::new(),
         })
     }
+}
+
+impl ToFromBytes for BLS12381AggregateSignature {
+    fn from_bytes(bytes: &[u8]) -> Result<Self, signature::Error> {
+        let sig = blst::Signature::from_bytes(bytes).map_err(|_e| signature::Error::new())?;
+        Ok(BLS12381AggregateSignature {
+            sig: Some(sig),
+            bytes: OnceCell::new(),
+        })
+    }
+}
+
+impl AsRef<[u8]> for BLS12381AggregateSignature {
+    fn as_ref(&self) -> &[u8] {
+        match self.sig {
+            Some(sig) => self
+                .bytes
+                .get_or_try_init::<_, eyre::Report>(|| Ok(sig.to_bytes()))
+                .expect("OnceCell invariant violated"),
+            None => &[],
+        }
+    }
+}
+
+impl Display for BLS12381AggregateSignature {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        write!(f, "{}", Base64::encode_string(self.as_ref()))
+    }
+}
+
+// see [#34](https://github.com/MystenLabs/narwhal/issues/34)
+impl Default for BLS12381AggregateSignature {
+    fn default() -> Self {
+        BLS12381AggregateSignature {
+            sig: None,
+            bytes: OnceCell::new(),
+        }
+    }
+}
+
+impl AggregateAuthenticator for BLS12381AggregateSignature {
+    type PrivKey = BLS12381PrivateKey;
+    type PubKey = BLS12381PublicKey;
+    type Sig = BLS12381Signature;
+
+    /// Parse a key from its byte representation
+    fn aggregate(signatures: Vec<Self::Sig>) -> Result<Self, signature::Error> {
+        blst::AggregateSignature::aggregate(
+            &signatures.iter().map(|x| &x.sig).collect::<Vec<_>>()[..],
+            true,
+        )
+        .map(|sig| BLS12381AggregateSignature {
+            sig: Some(sig.to_signature()),
+            bytes: OnceCell::new(),
+        })
+        .map_err(|_| signature::Error::new())
+    }
+
+    fn add_signature(&mut self, signature: Self::Sig) -> Result<(), signature::Error> {
+        match self.sig {
+            Some(ref mut sig) => {
+                let mut aggr_sig = blst::AggregateSignature::from_signature(sig);
+                aggr_sig
+                    .add_signature(&signature.sig, true)
+                    .map_err(|_| signature::Error::new())?;
+                self.sig = Some(aggr_sig.to_signature());
+                Ok(())
+            }
+            None => {
+                self.sig = Some(signature.sig);
+                Ok(())
+            }
+        }
+    }
+
+    fn add_aggregate(&mut self, signature: Self) -> Result<(), signature::Error> {
+        match self.sig {
+            Some(ref mut sig) => {
+                blst::AggregateSignature::from_signature(sig).add_aggregate(
+                    &blst::AggregateSignature::from_signature(
+                        &signature.sig.ok_or_else(signature::Error::new)?,
+                    ),
+                );
+                Ok(())
+            }
+            None => {
+                self.sig = signature.sig;
+                Ok(())
+            }
+        }
+    }
+
+    fn verify(
+        &self,
+        pks: &[<Self::Sig as Authenticator>::PubKey],
+        message: &[u8],
+    ) -> Result<(), signature::Error> {
+        let result = self
+            .sig
+            .ok_or_else(signature::Error::new)?
+            .fast_aggregate_verify(
+                true,
+                message,
+                DST,
+                &pks.iter().map(|x| &x.pubkey).collect::<Vec<_>>()[..],
+            );
+        if result != BLST_ERROR::BLST_SUCCESS {
+            return Err(signature::Error::new());
+        }
+        Ok(())
+    }
+
+    fn batch_verify(
+        signatures: &[Self],
+        pks: &[&[Self::PubKey]],
+        messages: &[&[u8]],
+    ) -> Result<(), signature::Error> {
+        for i in 0..signatures.len() {
+            let sig = signatures[i].sig;
+            let result = sig
+                .ok_or_else(signature::Error::new)?
+                .fast_aggregate_verify(
+                    true,
+                    messages[i],
+                    DST,
+                    &pks[i].iter().map(|x| &x.pubkey).collect::<Vec<_>>()[..],
+                );
+            if result != BLST_ERROR::BLST_SUCCESS {
+                return Err(signature::Error::new());
+            }
+        }
+        Ok(())
+    }
+}
+
+impl Default for BLS12381PublicKeyBytes {
+    fn default() -> Self {
+        BLS12381PublicKeyBytes([0; BLS_PUBLIC_KEY_LENGTH])
+    }
+}
+
+impl AsRef<[u8]> for BLS12381PublicKeyBytes {
+    fn as_ref(&self) -> &[u8] {
+        self.0.as_ref()
+    }
+}
+
+impl Display for BLS12381PublicKeyBytes {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
+        let s = hex::encode(&self.0);
+        write!(f, "k#{}", s)?;
+        Ok(())
+    }
+}
+
+impl TryInto<BLS12381PublicKey> for BLS12381PublicKeyBytes {
+    type Error = signature::Error;
+
+    fn try_into(self) -> Result<BLS12381PublicKey, Self::Error> {
+        // TODO(https://github.com/MystenLabs/sui/issues/101): Do better key validation
+        // to ensure the bytes represent a poin on the curve.
+        BLS12381PublicKey::from_bytes(self.as_ref()).map_err(|_| Self::Error::new())
+    }
+}
+
+impl ToFromBytes for BLS12381PublicKeyBytes {
+    fn from_bytes(bytes: &[u8]) -> Result<Self, signature::Error> {
+        let arr: [u8; BLS_PUBLIC_KEY_LENGTH] =
+            bytes.try_into().map_err(|_| signature::Error::new())?;
+
+        Ok(BLS12381PublicKeyBytes(arr))
+    }
+}
+
+impl VerifyingKeyBytes for BLS12381PublicKeyBytes {
+    type PubKey = BLS12381PublicKey;
 }

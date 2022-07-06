@@ -37,8 +37,8 @@ pub mod bls12377;
 pub mod bls12381_tests;
 
 pub mod bls12381;
-
 pub mod ed25519;
+pub mod serde_helpers;
 pub mod traits;
 
 pub type CryptoError = ed25519_dalek::ed25519::Error;
