@@ -89,12 +89,7 @@ impl<PublicKey: VerifyingKey> Worker<PublicKey> {
             worker.handle_primary_messages(tx_reconfigure, tx_primary, node_metrics);
 
         // The `PrimaryConnector` allows the worker to send messages to its primary.
-        let handle = PrimaryConnector::spawn(
-            name.clone(),
-            initial_committee.clone(),
-            rx_reconfigure,
-            rx_primary,
-        );
+        let handle = PrimaryConnector::spawn(name, initial_committee, rx_reconfigure, rx_primary);
 
         // NOTE: This log entry is used to compute performance.
         info!(
