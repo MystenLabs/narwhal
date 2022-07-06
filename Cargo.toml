@@ -4,8 +4,11 @@ members = ["config", "consensus", "crypto", "dag", "executor", "examples", "netw
 [profile.release]
 codegen-units = 1
 lto = true
+
+[profile.bench-profiling]
+inherits = "release"
 # Important for performance/memory profiling
-debug = 1
+debug = true
 
 [profile.bench]
 codegen-units = 1
