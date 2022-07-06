@@ -128,7 +128,7 @@ impl<PublicKey: VerifyingKey> BatchMaker<PublicKey> {
 
         #[cfg(feature = "benchmark")]
         {
-            let message = WorkerMessage::<PublicKey>::Batch(batch.clone());
+            let message = types::WorkerMessage::<PublicKey>::Batch(batch.clone());
             let serialized =
                 bincode::serialize(&message).expect("Failed to serialize our own batch");
 
