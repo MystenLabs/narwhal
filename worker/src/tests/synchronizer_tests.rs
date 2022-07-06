@@ -2,6 +2,7 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use super::*;
+use arc_swap::ArcSwap;
 use crypto::{ed25519::Ed25519PublicKey, traits::KeyPair};
 use prometheus::Registry;
 use test_utils::{
@@ -22,7 +23,7 @@ async fn synchronize() {
 
     let committee = committee(None);
     let (tx_reconfiguration, _rx_reconfiguration) =
-        watch::channel(Reconfigure::NewCommittee((&*committee).clone()));
+        watch::channel(Reconfigure::NewCommittee(committee.clone()));
 
     // Create a new test store.
     let store = open_batch_store();
@@ -33,7 +34,7 @@ async fn synchronize() {
     Synchronizer::spawn(
         name.clone(),
         id,
-        committee.clone(),
+        Arc::new(ArcSwap::from_pointee(committee.clone())),
         store.clone(),
         /* gc_depth */ 50, // Not used in this test.
         /* sync_retry_delay */
@@ -72,7 +73,7 @@ async fn test_successful_request_batch() {
 
     let committee = committee(None);
     let (tx_reconfiguration, _rx_reconfiguration) =
-        watch::channel(Reconfigure::NewCommittee((&*committee).clone()));
+        watch::channel(Reconfigure::NewCommittee(committee.clone()));
 
     // Create a new test store.
     let store = open_batch_store();
@@ -83,7 +84,7 @@ async fn test_successful_request_batch() {
     Synchronizer::spawn(
         name.clone(),
         id,
-        committee.clone(),
+        Arc::new(ArcSwap::from_pointee(committee.clone())),
         store.clone(),
         /* gc_depth */ 50, // Not used in this test.
         /* sync_retry_delay */
@@ -134,7 +135,7 @@ async fn test_request_batch_not_found() {
 
     let committee = committee(None);
     let (tx_reconfiguration, _rx_reconfiguration) =
-        watch::channel(Reconfigure::NewCommittee((&*committee).clone()));
+        watch::channel(Reconfigure::NewCommittee(committee.clone()));
 
     // Create a new test store.
     let store = open_batch_store();
@@ -145,7 +146,7 @@ async fn test_request_batch_not_found() {
     Synchronizer::spawn(
         name.clone(),
         id,
-        committee.clone(),
+        Arc::new(ArcSwap::from_pointee(committee.clone())),
         store.clone(),
         /* gc_depth */ 50, // Not used in this test.
         /* sync_retry_delay */
@@ -195,7 +196,7 @@ async fn test_successful_batch_delete() {
 
     let committee = committee(None);
     let (tx_reconfiguration, _rx_reconfiguration) =
-        watch::channel(Reconfigure::NewCommittee((&*committee).clone()));
+        watch::channel(Reconfigure::NewCommittee(committee.clone()));
 
     // Create a new test store.
     let store = open_batch_store();
@@ -206,7 +207,7 @@ async fn test_successful_batch_delete() {
     Synchronizer::spawn(
         name.clone(),
         id,
-        committee.clone(),
+        Arc::new(ArcSwap::from_pointee(committee.clone())),
         store.clone(),
         /* gc_depth */ 50, // Not used in this test.
         /* sync_retry_delay */

@@ -170,7 +170,7 @@ impl<PublicKey: VerifyingKey> Synchronizer<PublicKey> {
 
                         // Send sync request to a single node. If this fails, we will send it
                         // to other nodes when a timer times out.
-                        let address = match self.committee.worker(&target, &self.id) {
+                        let address = match self.committee.load().worker(&target, &self.id) {
                             Ok(address) => address.worker_to_worker,
                             Err(e) => {
                                 error!("The primary asked us to sync with an unknown node: {e}");
@@ -205,7 +205,7 @@ impl<PublicKey: VerifyingKey> Synchronizer<PublicKey> {
                         let (token, mut rx) = channel(1);
                         let (message, shutdown) = match command {
                             PrimaryWorkerReconfigure::NewCommittee(new_committee) => {
-                                self.committee.update_committee(new_committee.clone());
+                                self.committee.swap(Arc::new(new_committee.clone()));
                                 self.pending.clear();
                                 self.round = 0;
                                 waiting.clear();
@@ -260,7 +260,7 @@ impl<PublicKey: VerifyingKey> Synchronizer<PublicKey> {
                         }
                     }
                     if !retry.is_empty() {
-                        let addresses = self.committee
+                        let addresses = self.committee.load()
                             .others_workers(&self.name, &self.id)
                             .into_iter()
                             .map(|(_, address)| address.worker_to_worker)
@@ -276,7 +276,7 @@ impl<PublicKey: VerifyingKey> Synchronizer<PublicKey> {
 
                     // Report list of pending elements
                     self.metrics.pending_elements_worker_synchronizer
-                    .with_label_values(&[&self.committee.epoch.to_string()])
+                    .with_label_values(&[&self.committee.load().epoch.to_string()])
                     .set(self.pending.len() as i64);
                 },
             }

@@ -6,6 +6,7 @@ use crate::{
     tusk::{tusk_tests::*, Tusk},
     Consensus, ConsensusOutput, ConsensusSyncRequest, SubscriberHandler,
 };
+use arc_swap::ArcSwap;
 use crypto::{ed25519::Ed25519PublicKey, traits::KeyPair, Hash};
 use prometheus::Registry;
 use std::collections::{BTreeSet, VecDeque};
@@ -47,7 +48,7 @@ pub async fn spawn_node(
         .into_iter()
         .map(|kp| kp.public().clone())
         .collect();
-    let committee = mock_committee(&keys[..]);
+    let committee = Arc::new(ArcSwap::from_pointee(mock_committee(&keys[..])));
 
     // Create the storages.
     let consensus_store_path = test_utils::temp_dir();

@@ -107,7 +107,7 @@ impl Primary {
         tx_committed_certificates: Sender<ConsensusPrimaryMessage<PublicKey>>,
         registry: &Registry,
     ) -> Vec<JoinHandle<()>> {
-        let initial_committee = Reconfigure::NewCommittee((&*committee).clone());
+        let initial_committee = Reconfigure::NewCommittee((**committee.load()).clone());
         let (tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
 
         let (tx_others_digests, rx_others_digests) = channel(CHANNEL_CAPACITY);
@@ -144,19 +144,24 @@ impl Primary {
 
         // Spawn the network receiver listening to messages from the other primaries.
         let address = committee
+            .load()
             .primary(&name)
             .expect("Our public key or worker id is not in the committee")
             .primary_to_primary;
         let address = address
             .replace(0, |_protocol| Some(Protocol::Ip4(Primary::INADDR_ANY)))
             .unwrap();
-        PrimaryReceiverHandler {
+        let primary_receiver_handle = PrimaryReceiverHandler {
             tx_primary_messages: tx_primary_messages.clone(),
             tx_helper_requests,
             tx_payload_availability_responses,
             tx_certificate_responses,
         }
-        .spawn(address.clone(), parameters.max_concurrent_requests);
+        .spawn(
+            address.clone(),
+            parameters.max_concurrent_requests,
+            tx_reconfigure.subscribe(),
+        );
         info!(
             "Primary {} listening to primary messages on {}",
             name.encode_base64(),
@@ -165,20 +170,21 @@ impl Primary {
 
         // Spawn the network receiver listening to messages from our workers.
         let address = committee
+            .load()
             .primary(&name)
             .expect("Our public key or worker id is not in the committee")
             .worker_to_primary;
         let address = address
             .replace(0, |_protocol| Some(Protocol::Ip4(Primary::INADDR_ANY)))
             .unwrap();
-        WorkerReceiverHandler {
+        let worker_receiver_handle = WorkerReceiverHandler {
             tx_our_digests,
             tx_others_digests,
             tx_batches,
             tx_batch_removal,
             metrics: node_metrics.clone(),
         }
-        .spawn(address.clone());
+        .spawn(address.clone(), tx_reconfigure.subscribe());
         info!(
             "Primary {} listening to workers messages on {}",
             name.encode_base64(),
@@ -188,7 +194,7 @@ impl Primary {
         // The `Synchronizer` provides auxiliary methods helping the `Core` to sync.
         let synchronizer = Synchronizer::new(
             name.clone(),
-            &committee,
+            &committee.load(),
             certificate_store.clone(),
             payload_store.clone(),
             /* tx_header_waiter */ tx_sync_headers,
@@ -201,7 +207,7 @@ impl Primary {
         // The `Core` receives and handles headers, votes, and certificates from the other primaries.
         let core_handle = Core::spawn(
             name.clone(),
-            (*committee).clone(),
+            (**committee.load()).clone(),
             header_store.clone(),
             certificate_store.clone(),
             synchronizer,
@@ -237,7 +243,7 @@ impl Primary {
         // underlying batches and their transactions.
         let block_waiter_handle = BlockWaiter::spawn(
             name.clone(),
-            (*committee).clone(),
+            (**committee.load()).clone(),
             tx_reconfigure.subscribe(),
             rx_get_block_commands,
             rx_batches,
@@ -250,7 +256,7 @@ impl Primary {
         // Orchestrates the removal of blocks across the primary and worker nodes.
         let block_remover_handle = BlockRemover::spawn(
             name.clone(),
-            (*committee).clone(),
+            (**committee.load()).clone(),
             certificate_store.clone(),
             header_store,
             payload_store.clone(),
@@ -266,7 +272,7 @@ impl Primary {
         // them from the primary peers by synchronizing also their batches.
         let block_synchronizer_handle = BlockSynchronizer::spawn(
             name.clone(),
-            (*committee).clone(),
+            (**committee.load()).clone(),
             tx_reconfigure.subscribe(),
             rx_block_synchronizer_commands,
             rx_certificate_responses,
@@ -282,7 +288,7 @@ impl Primary {
         // re-schedule execution of the header once we have all missing data.
         let header_waiter_handle = HeaderWaiter::spawn(
             name.clone(),
-            (*committee).clone(),
+            (**committee.load()).clone(),
             certificate_store.clone(),
             payload_store.clone(),
             consensus_round.clone(),
@@ -298,7 +304,7 @@ impl Primary {
         // The `CertificateWaiter` waits to receive all the ancestors of a certificate before looping it back to the
         // `Core` for further processing.
         let certificate_waiter_handle = CertificateWaiter::spawn(
-            (&*committee).clone(),
+            (**committee.load()).clone(),
             certificate_store.clone(),
             consensus_round.clone(),
             parameters.gc_depth,
@@ -311,7 +317,7 @@ impl Primary {
         // digests from our workers and sends it back to the `Core`.
         let proposer_handle = Proposer::spawn(
             name.clone(),
-            (*committee).clone(),
+            (**committee.load()).clone(),
             signature_service,
             parameters.header_size,
             parameters.max_header_delay,
@@ -327,7 +333,7 @@ impl Primary {
         // from other primaries.
         let helper_handle = Helper::spawn(
             name.clone(),
-            (*committee).clone(),
+            (**committee.load()).clone(),
             certificate_store,
             payload_store,
             rx_reconfigure,
@@ -363,12 +369,15 @@ impl Primary {
             "Primary {} successfully booted on {}",
             name.encode_base64(),
             committee
+                .load()
                 .primary(&name)
                 .expect("Our public key or worker id is not in the committee")
                 .primary_to_primary
         );
 
         vec![
+            primary_receiver_handle,
+            worker_receiver_handle,
             core_handle,
             payload_receiver_handle,
             block_synchronizer_handle,
@@ -393,19 +402,38 @@ struct PrimaryReceiverHandler<PublicKey: VerifyingKey> {
 }
 
 impl<PublicKey: VerifyingKey> PrimaryReceiverHandler<PublicKey> {
-    fn spawn(self, address: Multiaddr, max_concurrent_requests: usize) {
+    async fn wait_for_shutdown(mut rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>) {
+        loop {
+            let result = rx_reconfigure.changed().await;
+            result.expect("Committee channel dropped");
+            let message = rx_reconfigure.borrow().clone();
+            if let Reconfigure::Shutdown(_token) = message {
+                break;
+            }
+        }
+    }
+
+    fn spawn(
+        self,
+        address: Multiaddr,
+        max_concurrent_requests: usize,
+        rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
+    ) -> JoinHandle<()> {
         tokio::spawn(async move {
             let mut config = mysten_network::config::Config::new();
             config.concurrency_limit_per_connection = Some(max_concurrent_requests);
-            config
-                .server_builder()
-                .add_service(PrimaryToPrimaryServer::new(self))
-                .bind(&address)
-                .await
-                .unwrap()
-                .serve()
-                .await
-        });
+            tokio::select! {
+                _result = config
+                    .server_builder()
+                    .add_service(PrimaryToPrimaryServer::new(self))
+                    .bind(&address)
+                    .await
+                    .unwrap()
+                    .serve() => (),
+
+                () = Self::wait_for_shutdown(rx_reconfigure) => ()
+            }
+        })
     }
 }
 
@@ -477,18 +505,37 @@ struct WorkerReceiverHandler {
 }
 
 impl WorkerReceiverHandler {
-    fn spawn(self, address: Multiaddr) {
+    async fn wait_for_shutdown<PublicKey: VerifyingKey>(
+        mut rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
+    ) {
+        loop {
+            let result = rx_reconfigure.changed().await;
+            result.expect("Committee channel dropped");
+            let message = rx_reconfigure.borrow().clone();
+            if let Reconfigure::Shutdown(_token) = message {
+                break;
+            }
+        }
+    }
+
+    fn spawn<PublicKey: VerifyingKey>(
+        self,
+        address: Multiaddr,
+        rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
+    ) -> JoinHandle<()> {
         tokio::spawn(async move {
-            let config = mysten_network::config::Config::default();
-            config
-                .server_builder()
-                .add_service(WorkerToPrimaryServer::new(self))
-                .bind(&address)
-                .await
-                .unwrap()
-                .serve()
-                .await
-        });
+            tokio::select! {
+                _result = mysten_network::config::Config::default()
+                    .server_builder()
+                    .add_service(WorkerToPrimaryServer::new(self))
+                    .bind(&address)
+                    .await
+                    .unwrap()
+                    .serve() => (),
+
+                () = Self::wait_for_shutdown(rx_reconfigure) => ()
+            }
+        })
     }
 }
 

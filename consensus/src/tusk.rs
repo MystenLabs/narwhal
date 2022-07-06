@@ -10,7 +10,7 @@ use crypto::{
     traits::{EncodeDecodeBase64, VerifyingKey},
     Hash,
 };
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, ops::Deref, sync::Arc};
 use tracing::debug;
 use types::{Certificate, CertificateDigest, ConsensusStore, Round, StoreResult};
 
@@ -60,11 +60,11 @@ impl<PublicKey: VerifyingKey> ConsensusProtocol<PublicKey> for Tusk<PublicKey> {
         if leader_round <= state.last_committed_round {
             return Ok(Vec::new());
         }
-        let (leader_digest, leader) = match Self::leader(&self.committee, leader_round, &state.dag)
-        {
-            Some(x) => x,
-            None => return Ok(Vec::new()),
-        };
+        let (leader_digest, leader) =
+            match Self::leader(self.committee.load().deref(), leader_round, &state.dag) {
+                Some(x) => x,
+                None => return Ok(Vec::new()),
+            };
 
         // Check if the leader has f+1 support from its children (ie. round r-1).
         let stake: Stake = state
@@ -73,13 +73,13 @@ impl<PublicKey: VerifyingKey> ConsensusProtocol<PublicKey> for Tusk<PublicKey> {
             .expect("We should have the whole history by now")
             .values()
             .filter(|(_, x)| x.header.parents.contains(leader_digest))
-            .map(|(_, x)| self.committee.stake(&x.origin()))
+            .map(|(_, x)| self.committee.load().stake(&x.origin()))
             .sum();
 
         // If it is the case, we can commit the leader. But first, we need to recursively go back to
         // the last committed leader, and commit all preceding leaders in the right order. Committing
         // a leader block means committing all its dependencies.
-        if stake < self.committee.validity_threshold() {
+        if stake < self.committee.load().validity_threshold() {
             debug!("Leader {:?} does not have enough support", leader);
             return Ok(Vec::new());
         }
@@ -87,9 +87,10 @@ impl<PublicKey: VerifyingKey> ConsensusProtocol<PublicKey> for Tusk<PublicKey> {
         // Get an ordered list of past leaders that are linked to the current leader.
         debug!("Leader {:?} has enough support", leader);
         let mut sequence = Vec::new();
-        for leader in utils::order_leaders(&self.committee, leader, state, Self::leader)
-            .iter()
-            .rev()
+        for leader in
+            utils::order_leaders(self.committee.load().deref(), leader, state, Self::leader)
+                .iter()
+                .rev()
         {
             // Starting from the oldest leader, flatten the sub-dag referenced by the leader.
             for x in utils::order_dag(self.gc_depth, leader, state) {
@@ -156,6 +157,7 @@ impl<PublicKey: VerifyingKey> Tusk<PublicKey> {
 mod tests {
     use super::*;
     use crate::metrics::ConsensusMetrics;
+    use arc_swap::ArcSwap;
     use crypto::traits::KeyPair;
     use prometheus::Registry;
     use rand::Rng;
@@ -191,7 +193,7 @@ mod tests {
         let mut state =
             ConsensusState::new(Certificate::genesis(&mock_committee(&keys[..])), metrics);
         let mut tusk = Tusk {
-            committee,
+            committee: Arc::new(ArcSwap::from_pointee(committee)),
             store,
             gc_depth,
         };
@@ -232,7 +234,7 @@ mod tests {
         // TODO: evidence that this test fails when `failure_probability` parameter >= 1/3
         let (certificates, _next_parents) =
             test_utils::make_certificates(1..=rounds, &genesis, &keys, 0.333);
-        let committee = mock_committee(&keys);
+        let committee = Arc::new(ArcSwap::from_pointee(mock_committee(&keys)));
 
         let store_path = test_utils::temp_dir();
         let store = make_consensus_store(&store_path);

@@ -4,6 +4,7 @@
 use super::*;
 
 use crate::{metrics::ConsensusMetrics, Consensus};
+use arc_swap::ArcSwap;
 use crypto::ed25519::Ed25519PublicKey;
 #[allow(unused_imports)]
 use crypto::traits::KeyPair;
@@ -75,13 +76,13 @@ async fn commit_one() {
     let store_path = test_utils::temp_dir();
     let store = make_consensus_store(&store_path);
     let bullshark = Bullshark {
-        committee: mock_committee(&keys[..]),
+        committee: Arc::new(ArcSwap::from_pointee(mock_committee(&keys[..]))),
         store: store.clone(),
         gc_depth: 50,
     };
     let metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
     Consensus::spawn(
-        mock_committee(&keys[..]),
+        Arc::new(ArcSwap::from_pointee(mock_committee(&keys[..]))),
         store,
         rx_waiter,
         tx_primary,
@@ -133,14 +134,14 @@ async fn dead_node() {
     let store_path = test_utils::temp_dir();
     let store = make_consensus_store(&store_path);
     let bullshark = Bullshark {
-        committee: mock_committee(&keys[..]),
+        committee: Arc::new(ArcSwap::from_pointee(mock_committee(&keys[..]))),
         store: store.clone(),
         gc_depth: 50,
     };
     let metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
 
     Consensus::spawn(
-        mock_committee(&keys[..]),
+        Arc::new(ArcSwap::from_pointee(mock_committee(&keys[..]))),
         store,
         rx_waiter,
         tx_primary,
@@ -238,14 +239,14 @@ async fn not_enough_support() {
     let store_path = test_utils::temp_dir();
     let store = make_consensus_store(&store_path);
     let bullshark = Bullshark {
-        committee: mock_committee(&keys[..]),
+        committee: Arc::new(ArcSwap::from_pointee(mock_committee(&keys[..]))),
         store: store.clone(),
         gc_depth: 50,
     };
     let metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
 
     Consensus::spawn(
-        mock_committee(&keys[..]),
+        Arc::new(ArcSwap::from_pointee(mock_committee(&keys[..]))),
         store,
         rx_waiter,
         tx_primary,
@@ -317,14 +318,14 @@ async fn missing_leader() {
     let store_path = test_utils::temp_dir();
     let store = make_consensus_store(&store_path);
     let bullshark = Bullshark {
-        committee: mock_committee(&keys[..]),
+        committee: Arc::new(ArcSwap::from_pointee(mock_committee(&keys[..]))),
         store: store.clone(),
         gc_depth: 50,
     };
     let metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
 
     Consensus::spawn(
-        mock_committee(&keys[..]),
+        Arc::new(ArcSwap::from_pointee(mock_committee(&keys[..]))),
         store,
         rx_waiter,
         tx_primary,

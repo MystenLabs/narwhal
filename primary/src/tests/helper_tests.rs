@@ -29,13 +29,13 @@ async fn test_process_certificates_stream_mode() {
     let key = keys(None).pop().unwrap();
     let (name, committee) = resolve_name_and_committee();
     let (_tx_reconfigure, rx_reconfigure) =
-        watch::channel(Reconfigure::NewCommittee((*committee).clone()));
+        watch::channel(Reconfigure::NewCommittee(test_utils::committee(None)));
     let (tx_primaries, rx_primaries) = channel(10);
 
     // AND a helper
     Helper::spawn(
         name.clone(),
-        (*committee).clone(),
+        committee.clone(),
         certificate_store.clone(),
         payload_store.clone(),
         rx_reconfigure,
@@ -103,13 +103,13 @@ async fn test_process_certificates_batch_mode() {
     let key = keys(None).pop().unwrap();
     let (name, committee) = resolve_name_and_committee();
     let (_tx_reconfigure, rx_reconfigure) =
-        watch::channel(Reconfigure::NewCommittee((*committee).clone()));
+        watch::channel(Reconfigure::NewCommittee(test_utils::committee(None)));
     let (tx_primaries, rx_primaries) = channel(10);
 
     // AND a helper
     Helper::spawn(
         name.clone(),
-        (*committee).clone(),
+        committee.clone(),
         certificate_store.clone(),
         payload_store.clone(),
         rx_reconfigure,
@@ -198,13 +198,13 @@ async fn test_process_payload_availability_success() {
     let key = keys(None).pop().unwrap();
     let (name, committee) = resolve_name_and_committee();
     let (_tx_reconfigure, rx_reconfigure) =
-        watch::channel(Reconfigure::NewCommittee((*committee).clone()));
+        watch::channel(Reconfigure::NewCommittee(test_utils::committee(None)));
     let (tx_primaries, rx_primaries) = channel(10);
 
     // AND a helper
     Helper::spawn(
         name.clone(),
-        (*committee).clone(),
+        committee.clone(),
         certificate_store.clone(),
         payload_store.clone(),
         rx_reconfigure,
@@ -313,13 +313,13 @@ async fn test_process_payload_availability_when_failures() {
     let key = keys(None).pop().unwrap();
     let (name, committee) = resolve_name_and_committee();
     let (_tx_reconfigure, rx_reconfigure) =
-        watch::channel(Reconfigure::NewCommittee((*committee).clone()));
+        watch::channel(Reconfigure::NewCommittee(test_utils::committee(None)));
     let (tx_primaries, rx_primaries) = channel(10);
 
     // AND a helper
     Helper::spawn(
         name.clone(),
-        (*committee).clone(),
+        committee.clone(),
         certificate_store.clone(),
         payload_store.clone(),
         rx_reconfigure,

@@ -13,7 +13,7 @@ async fn wait_for_quorum() {
     let (tx_batch, mut rx_batch) = channel(1);
     let myself = keys(None).pop().unwrap().public().clone();
 
-    let committee = (&*committee(None)).clone();
+    let committee = committee(None).clone();
     let (_tx_reconfiguration, rx_reconfiguration) =
         watch::channel(Reconfigure::NewCommittee(committee.clone()));
 

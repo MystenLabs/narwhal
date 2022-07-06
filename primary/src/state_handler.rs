@@ -69,6 +69,7 @@ impl<PublicKey: VerifyingKey> StateHandler<PublicKey> {
             // Trigger cleanup on the workers..
             let addresses = self
                 .committee
+                .load()
                 .our_workers(&self.name)
                 .expect("Our public key or worker id is not in the committee")
                 .into_iter()
@@ -87,7 +88,7 @@ impl<PublicKey: VerifyingKey> StateHandler<PublicKey> {
                 }
                 ConsensusPrimaryMessage::Committee(committee) => {
                     // Update the committee.
-                    self.committee.update_committee(committee.clone());
+                    self.committee.swap(Arc::new(committee.clone()));
 
                     // Trigger cleanup on the primary.
                     self.consensus_round.store(0, Ordering::Relaxed);

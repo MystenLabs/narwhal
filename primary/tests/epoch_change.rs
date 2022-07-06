@@ -3,6 +3,7 @@
 use arc_swap::ArcSwap;
 use config::{Committee, Epoch, Parameters};
 use crypto::traits::KeyPair;
+use futures::future::join_all;
 use node::NodeStorage;
 use primary::{NetworkModel, Primary, CHANNEL_CAPACITY};
 use prometheus::default_registry;
@@ -40,7 +41,7 @@ async fn simple_epoch_change() {
         Primary::spawn(
             name,
             signer,
-            Arc::new(committee_0.clone()),
+            Arc::new(ArcSwap::from_pointee(committee_0.clone())),
             parameters.clone(),
             store.header_store.clone(),
             store.certificate_store.clone(),
@@ -68,8 +69,11 @@ async fn simple_epoch_change() {
     // Move to the next epochs.
     for epoch in 1..=3 {
         // Move to the next epoch.
-        let new_committee = committee_0.clone();
-        new_committee.epoch.swap(Arc::new(epoch));
+        let new_committee = Committee {
+            epoch,
+            ..committee_0.clone()
+        };
+
         for tx in &tx_channels {
             tx.send(ConsensusPrimaryMessage::Committee(new_committee.clone()))
                 .await
@@ -99,14 +103,12 @@ async fn partial_committee_change() {
     let keys_0 = keys(None);
     let authorities_0: Vec<_> = keys_0.iter().map(|_| make_authority()).collect();
     let committee_0 = Committee {
-        epoch: ArcSwap::new(Arc::new(Epoch::default())),
-        authorities: ArcSwap::from_pointee(
-            keys_0
-                .iter()
-                .zip(authorities_0.clone().into_iter())
-                .map(|(kp, authority)| (kp.public().clone(), authority))
-                .collect(),
-        ),
+        epoch: Epoch::default(),
+        authorities: keys_0
+            .iter()
+            .zip(authorities_0.clone().into_iter())
+            .map(|(kp, authority)| (kp.public().clone(), authority))
+            .collect(),
     };
 
     // Spawn the committee of epoch 0.
@@ -126,7 +128,7 @@ async fn partial_committee_change() {
         Primary::spawn(
             name,
             signer,
-            Arc::new(committee_0.clone()),
+            Arc::new(ArcSwap::from_pointee(committee_0.clone())),
             parameters.clone(),
             store.header_store.clone(),
             store.certificate_store.clone(),
@@ -178,8 +180,8 @@ async fn partial_committee_change() {
         .collect();
 
     let committee_1 = Committee {
-        epoch: ArcSwap::new(Arc::new(Epoch::default() + 1)),
-        authorities: ArcSwap::from_pointee(authorities_1),
+        epoch: Epoch::default() + 1,
+        authorities: authorities_1,
     };
 
     // Spawn the committee of epoch 1 (only the node not already booted).
@@ -199,7 +201,7 @@ async fn partial_committee_change() {
         Primary::spawn(
             name,
             signer,
-            Arc::new(committee_1.clone()),
+            Arc::new(ArcSwap::from_pointee(committee_1.clone())),
             parameters.clone(),
             store.header_store.clone(),
             store.certificate_store.clone(),
@@ -228,5 +230,130 @@ async fn partial_committee_change() {
                 break;
             }
         }
+    }
+}
+
+/// The epoch changes but the stake distribution and network addresses stay the same.
+#[tokio::test]
+async fn restart_with_new_committee() {
+    let parameters = Parameters {
+        batch_size: 200, // Two transactions.
+        ..Parameters::default()
+    };
+
+    // The configuration of epoch 0.
+    let keys_0 = keys(None);
+    let committee_0 = pure_committee_from_keys(&keys_0);
+
+    // Spawn the committee of epoch 0.
+    let mut rx_channels = Vec::new();
+    let mut tx_channels = Vec::new();
+    let mut handles = Vec::new();
+    for keypair in keys_0 {
+        let name = keypair.public().clone();
+        let signer = keypair;
+
+        let (tx_new_certificates, rx_new_certificates) = channel(CHANNEL_CAPACITY);
+        rx_channels.push(rx_new_certificates);
+        let (tx_feedback, rx_feedback) = channel(CHANNEL_CAPACITY);
+        tx_channels.push(tx_feedback.clone());
+
+        let store = NodeStorage::reopen(temp_dir());
+
+        let primary_handles = Primary::spawn(
+            name,
+            signer,
+            Arc::new(ArcSwap::new(Arc::new(committee_0.clone()))),
+            parameters.clone(),
+            store.header_store.clone(),
+            store.certificate_store.clone(),
+            store.payload_store.clone(),
+            /* tx_consensus */ tx_new_certificates,
+            /* rx_consensus */ rx_feedback,
+            /* dag */ None,
+            NetworkModel::Asynchronous,
+            /* tx_committed_certificates */ tx_feedback,
+            default_registry(),
+        );
+        handles.extend(primary_handles);
+    }
+
+    // Run for a while in epoch 0.
+    for rx in rx_channels.iter_mut() {
+        loop {
+            let certificate = rx.recv().await.unwrap();
+            assert_eq!(certificate.epoch(), 0);
+            if certificate.round() == 10 {
+                break;
+            }
+        }
+    }
+
+    // Shutdown the committee of the previous epoch;
+    for tx in &tx_channels {
+        let (token, mut rx) = channel(1);
+        tx.send(ConsensusPrimaryMessage::Shutdown(token))
+            .await
+            .unwrap();
+        rx.recv().await;
+    }
+    join_all(handles).await;
+
+    // Move to the next epochs.
+    for epoch in 1..=3 {
+        let mut new_committee = committee_0.clone();
+        new_committee.epoch = epoch;
+
+        let mut rx_channels = Vec::new();
+        let mut tx_channels = Vec::new();
+        let mut handles = Vec::new();
+        for keypair in keys(None) {
+            let name = keypair.public().clone();
+            let signer = keypair;
+
+            let (tx_new_certificates, rx_new_certificates) = channel(CHANNEL_CAPACITY);
+            rx_channels.push(rx_new_certificates);
+            let (tx_feedback, rx_feedback) = channel(CHANNEL_CAPACITY);
+            tx_channels.push(tx_feedback.clone());
+
+            let store = NodeStorage::reopen(temp_dir());
+
+            let primary_handles = Primary::spawn(
+                name,
+                signer,
+                Arc::new(ArcSwap::new(Arc::new(new_committee.clone()))),
+                parameters.clone(),
+                store.header_store.clone(),
+                store.certificate_store.clone(),
+                store.payload_store.clone(),
+                /* tx_consensus */ tx_new_certificates,
+                /* rx_consensus */ rx_feedback,
+                /* dag */ None,
+                NetworkModel::Asynchronous,
+                /* tx_committed_certificates */ tx_feedback,
+                default_registry(),
+            );
+            handles.extend(primary_handles);
+        }
+
+        // Run for a while.
+        for rx in rx_channels.iter_mut() {
+            loop {
+                let certificate = rx.recv().await.unwrap();
+                if certificate.epoch() == epoch && certificate.round() == 10 {
+                    break;
+                }
+            }
+        }
+
+        // Shutdown the committee of the previous epoch;
+        for tx in &tx_channels {
+            let (token, mut rx) = channel(1);
+            tx.send(ConsensusPrimaryMessage::Shutdown(token))
+                .await
+                .unwrap();
+            rx.recv().await;
+        }
+        join_all(handles).await;
     }
 }

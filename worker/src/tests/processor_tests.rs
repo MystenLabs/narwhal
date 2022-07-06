@@ -13,7 +13,7 @@ async fn hash_and_store() {
     let (tx_batch, rx_batch) = channel(1);
     let (tx_digest, mut rx_digest) = channel(1);
 
-    let committee = (&*committee(None)).clone();
+    let committee = committee(None).clone();
     let (_tx_reconfiguration, rx_reconfiguration) =
         watch::channel(Reconfigure::NewCommittee(committee.clone()));
 

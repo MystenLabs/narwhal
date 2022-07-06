@@ -77,8 +77,9 @@ impl<PublicKey: VerifyingKey> Worker<PublicKey> {
         // Spawn all worker tasks.
         let (tx_primary, rx_primary) = channel(CHANNEL_CAPACITY);
 
-        let initial_committee = Reconfigure::NewCommittee((&*committee).clone());
-        let (tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
+        let initial_committee = (*(&*(&*committee).load()).clone()).clone();
+        let (tx_reconfigure, rx_reconfigure) =
+            watch::channel(Reconfigure::NewCommittee(initial_committee.clone()));
 
         let client_flow_handles =
             worker.handle_clients_transactions(&tx_reconfigure, tx_primary.clone());
@@ -90,7 +91,7 @@ impl<PublicKey: VerifyingKey> Worker<PublicKey> {
         // The `PrimaryConnector` allows the worker to send messages to its primary.
         let handle = PrimaryConnector::spawn(
             name.clone(),
-            (&*committee).clone(),
+            initial_committee.clone(),
             rx_reconfigure,
             rx_primary,
         );
@@ -101,6 +102,7 @@ impl<PublicKey: VerifyingKey> Worker<PublicKey> {
             id,
             worker
                 .committee
+                .load()
                 .worker(&worker.name, &worker.id)
                 .expect("Our public key or worker id is not in the committee")
                 .transactions
@@ -125,6 +127,7 @@ impl<PublicKey: VerifyingKey> Worker<PublicKey> {
         // Receive incoming messages from our primary.
         let address = self
             .committee
+            .load()
             .worker(&self.name, &self.id)
             .expect("Our public key or worker id is not in the committee")
             .primary_to_worker;
@@ -170,6 +173,7 @@ impl<PublicKey: VerifyingKey> Worker<PublicKey> {
         // We first receive clients' transactions from the network.
         let address = self
             .committee
+            .load()
             .worker(&self.name, &self.id)
             .expect("Our public key or worker id is not in the committee")
             .transactions;
@@ -182,7 +186,7 @@ impl<PublicKey: VerifyingKey> Worker<PublicKey> {
         // (in a reliable manner) the batches to all other workers that share the same `id` as us. Finally, it
         // gathers the 'cancel handlers' of the messages and send them to the `QuorumWaiter`.
         let batch_maker_handle = BatchMaker::spawn(
-            (&*self.committee).clone(),
+            (*(&*(&*self.committee).load()).clone()).clone(),
             self.parameters.batch_size,
             self.parameters.max_batch_delay,
             tx_reconfigure.subscribe(),
@@ -195,7 +199,7 @@ impl<PublicKey: VerifyingKey> Worker<PublicKey> {
         let quorum_waiter_handle = QuorumWaiter::spawn(
             self.name.clone(),
             self.id,
-            (&*self.committee).clone(),
+            (*(&*(&*self.committee).load()).clone()).clone(),
             tx_reconfigure.subscribe(),
             /* rx_message */ rx_quorum_waiter,
             /* tx_batch */ tx_processor,
@@ -233,6 +237,7 @@ impl<PublicKey: VerifyingKey> Worker<PublicKey> {
         // Receive incoming messages from other workers.
         let address = self
             .committee
+            .load()
             .worker(&self.name, &self.id)
             .expect("Our public key or worker id is not in the committee")
             .worker_to_worker;
@@ -249,7 +254,7 @@ impl<PublicKey: VerifyingKey> Worker<PublicKey> {
         // The `Helper` is dedicated to reply to batch requests from other workers.
         let helper_handle = Helper::spawn(
             self.id,
-            (&*self.committee).clone(),
+            (*(&*(&*self.committee).load()).clone()).clone(),
             self.store.clone(),
             tx_reconfigure.subscribe(),
             /* rx_worker_request */ rx_worker_helper,
