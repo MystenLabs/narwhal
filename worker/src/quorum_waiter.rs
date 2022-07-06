@@ -69,59 +69,59 @@ impl<PublicKey: VerifyingKey> QuorumWaiter<PublicKey> {
 
     /// Main loop.
     async fn run(&mut self) {
-        while let Some(batch) = self.rx_message.recv().await {
-            // Broadcast the batch to the other workers.
-            let workers_addresses: Vec<_> = self
-                .committee
-                .others_workers(&self.name, &self.id)
-                .into_iter()
-                .map(|(name, addresses)| (name, addresses.worker_to_worker))
-                .collect();
-            let (names, addresses): (Vec<_>, _) = workers_addresses.iter().cloned().unzip();
-            let message = WorkerMessage::<PublicKey>::Batch(batch);
-            let serialized =
-                bincode::serialize(&message).expect("Failed to serialize our own batch");
-            let handlers = self.network.broadcast(addresses, &message).await;
+        loop {
+            tokio::select! {
+                Some(batch) = self.rx_message.recv() => {
+                    // Broadcast the batch to the other workers.
+                    let workers_addresses: Vec<_> = self
+                        .committee
+                        .others_workers(&self.name, &self.id)
+                        .into_iter()
+                        .map(|(name, addresses)| (name, addresses.worker_to_worker))
+                        .collect();
+                    let (names, addresses): (Vec<_>, _) = workers_addresses.iter().cloned().unzip();
+                    let message = WorkerMessage::<PublicKey>::Batch(batch);
+                    let serialized =
+                        bincode::serialize(&message).expect("Failed to serialize our own batch");
+                    let handlers = self.network.broadcast(addresses, &message).await;
 
-            // Collect all the handlers to receive acknowledgements.
-            let mut wait_for_quorum: FuturesUnordered<_> = names
-                .into_iter()
-                .zip(handlers.into_iter())
-                .map(|(name, handler)| {
-                    let stake = self.committee.stake(&name);
-                    Self::waiter(handler, stake)
-                })
-                .collect();
+                    // Collect all the handlers to receive acknowledgements.
+                    let mut wait_for_quorum: FuturesUnordered<_> = names
+                        .into_iter()
+                        .zip(handlers.into_iter())
+                        .map(|(name, handler)| {
+                            let stake = self.committee.stake(&name);
+                            Self::waiter(handler, stake)
+                        })
+                        .collect();
 
-            // Wait for the first 2f nodes to send back an Ack. Then we consider the batch
-            // delivered and we send its digest to the primary (that will include it into
-            // the dag). This should reduce the amount of synching.
-            let mut total_stake = self.committee.stake(&self.name);
-            loop {
-                tokio::select! {
-                    // We usually expect to receive an ack from a quorum before proceeding.
-                    Some(stake) = wait_for_quorum.next() => {
+                    // Wait for the first 2f nodes to send back an Ack. Then we consider the batch
+                    // delivered and we send its digest to the primary (that will include it into
+                    // the dag). This should reduce the amount of synching.
+                    let threshold = self.committee.quorum_threshold();
+                    let mut total_stake = self.committee.stake(&self.name);
+                    while let Some(stake) = wait_for_quorum.next().await  {
                         total_stake += stake;
-                        if total_stake >= self.committee.quorum_threshold() {
+                        if total_stake >= threshold {
                             self.tx_batch
                                 .send(serialized)
                                 .await
                                 .expect("Failed to deliver batch");
                             break;
                         }
-                    },
+                    }
+                },
 
-                    // Trigger reconfigure.
-                    result = self.rx_reconfigure.changed() => {
-                        result.expect("Committee channel dropped");
-                        let message = self.rx_reconfigure.borrow().clone();
-                        match message {
-                            Reconfigure::NewCommittee(new_committee) => {
-                                self.committee=new_committee;
-                                break; // Don't wait for acknowledgements.
-                            },
-                            Reconfigure::Shutdown(_token) => return
-                        }
+                // Trigger reconfigure.
+                result = self.rx_reconfigure.changed() => {
+                    result.expect("Committee channel dropped");
+                    let message = self.rx_reconfigure.borrow().clone();
+                    match message {
+                        Reconfigure::NewCommittee(new_committee) => {
+                            self.committee=new_committee;
+                            break; // Don't wait for acknowledgements.
+                        },
+                        Reconfigure::Shutdown(_token) => return
                     }
                 }
             }
