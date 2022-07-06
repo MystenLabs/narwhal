@@ -116,7 +116,7 @@ impl Primary {
         tx_committed_certificates: Sender<ConsensusPrimaryMessage<PublicKey>>,
         registry: &Registry,
     ) -> Vec<JoinHandle<()>> {
-        let initial_committee = Reconfigure::NewCommittee((*committee).clone());
+        let initial_committee = Reconfigure::NewCommittee((**committee.load()).clone());
         let (tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
 
         let (tx_others_digests, rx_others_digests) = channel(CHANNEL_CAPACITY);
@@ -153,6 +153,7 @@ impl Primary {
 
         // Spawn the network receiver listening to messages from the other primaries.
         let address = committee
+            .load()
             .primary(&name)
             .expect("Our public key or worker id is not in the committee")
             .primary_to_primary;
@@ -178,6 +179,7 @@ impl Primary {
 
         // Spawn the network receiver listening to messages from our workers.
         let address = committee
+            .load()
             .primary(&name)
             .expect("Our public key or worker id is not in the committee")
             .worker_to_primary;
@@ -201,7 +203,7 @@ impl Primary {
         // The `Synchronizer` provides auxiliary methods helping the `Core` to sync.
         let synchronizer = Synchronizer::new(
             name.clone(),
-            &committee,
+            &committee.load(),
             certificate_store.clone(),
             payload_store.clone(),
             /* tx_header_waiter */ tx_sync_headers,
@@ -214,7 +216,7 @@ impl Primary {
         // The `Core` receives and handles headers, votes, and certificates from the other primaries.
         let core_handle = Core::spawn(
             name.clone(),
-            (*committee).clone(),
+            (**committee.load()).clone(),
             header_store.clone(),
             certificate_store.clone(),
             synchronizer,
@@ -250,7 +252,7 @@ impl Primary {
         // underlying batches and their transactions.
         let block_waiter_handle = BlockWaiter::spawn(
             name.clone(),
-            (*committee).clone(),
+            (**committee.load()).clone(),
             tx_reconfigure.subscribe(),
             rx_get_block_commands,
             rx_batches,
@@ -263,7 +265,7 @@ impl Primary {
         // Orchestrates the removal of blocks across the primary and worker nodes.
         let block_remover_handle = BlockRemover::spawn(
             name.clone(),
-            (*committee).clone(),
+            (**committee.load()).clone(),
             certificate_store.clone(),
             header_store,
             payload_store.clone(),
@@ -279,7 +281,7 @@ impl Primary {
         // them from the primary peers by synchronizing also their batches.
         let block_synchronizer_handle = BlockSynchronizer::spawn(
             name.clone(),
-            (*committee).clone(),
+            (**committee.load()).clone(),
             tx_reconfigure.subscribe(),
             rx_block_synchronizer_commands,
             rx_certificate_responses,
@@ -295,7 +297,7 @@ impl Primary {
         // re-schedule execution of the header once we have all missing data.
         let header_waiter_handle = HeaderWaiter::spawn(
             name.clone(),
-            (*committee).clone(),
+            (**committee.load()).clone(),
             certificate_store.clone(),
             payload_store.clone(),
             consensus_round.clone(),
@@ -311,7 +313,7 @@ impl Primary {
         // The `CertificateWaiter` waits to receive all the ancestors of a certificate before looping it back to the
         // `Core` for further processing.
         let certificate_waiter_handle = CertificateWaiter::spawn(
-            (*committee).clone(),
+            (**committee.load()).clone(),
             certificate_store.clone(),
             consensus_round.clone(),
             parameters.gc_depth,
@@ -324,7 +326,7 @@ impl Primary {
         // digests from our workers and sends it back to the `Core`.
         let proposer_handle = Proposer::spawn(
             name.clone(),
-            (*committee).clone(),
+            (**committee.load()).clone(),
             signature_service,
             parameters.header_size,
             parameters.max_header_delay,
@@ -340,7 +342,7 @@ impl Primary {
         // from other primaries.
         let helper_handle = Helper::spawn(
             name.clone(),
-            (*committee).clone(),
+            (**committee.load()).clone(),
             certificate_store,
             payload_store,
             rx_reconfigure,
@@ -376,6 +378,7 @@ impl Primary {
             "Primary {} successfully booted on {}",
             name.encode_base64(),
             committee
+                .load()
                 .primary(&name)
                 .expect("Our public key or worker id is not in the committee")
                 .primary_to_primary
