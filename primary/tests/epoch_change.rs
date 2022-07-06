@@ -263,7 +263,7 @@ async fn restart_with_new_committee() {
         let primary_handles = Primary::spawn(
             name,
             signer,
-            Arc::new(committee_0.clone()),
+            Arc::new(ArcSwap::new(Arc::new(committee_0.clone()))),
             parameters.clone(),
             store.header_store.clone(),
             store.certificate_store.clone(),
@@ -301,8 +301,8 @@ async fn restart_with_new_committee() {
 
     // Move to the next epochs.
     for epoch in 1..=3 {
-        let new_committee = committee_0.clone();
-        new_committee.epoch.swap(Arc::new(epoch));
+        let mut new_committee = committee_0.clone();
+        new_committee.epoch = epoch;
 
         let mut rx_channels = Vec::new();
         let mut tx_channels = Vec::new();
@@ -321,7 +321,7 @@ async fn restart_with_new_committee() {
             let primary_handles = Primary::spawn(
                 name,
                 signer,
-                Arc::new(new_committee.clone()),
+                Arc::new(ArcSwap::new(Arc::new(new_committee.clone()))),
                 parameters.clone(),
                 store.header_store.clone(),
                 store.certificate_store.clone(),
