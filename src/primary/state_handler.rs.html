@@ -116,15 +116,11 @@
 <span id="110">110</span>
 <span id="111">111</span>
 <span id="112">112</span>
-<span id="113">113</span>
-<span id="114">114</span>
-<span id="115">115</span>
-<span id="116">116</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::primary</span>::{<span class="ident">ConsensusPrimaryMessage</span>, <span class="ident">PrimaryWorkerMessage</span>, <span class="ident">Reconfigure</span>};
-<span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">Committee</span>, <span class="ident">SharedCommittee</span>};
+<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::primary</span>::{<span class="ident">ConsensusPrimaryMessage</span>, <span class="ident">PrimaryWorkerMessage</span>};
+<span class="kw">use</span> <span class="ident">config::SharedCommittee</span>;
 <span class="kw">use</span> <span class="ident">crypto::traits::VerifyingKey</span>;
 <span class="kw">use</span> <span class="ident">network::PrimaryToWorkerNetwork</span>;
 <span class="kw">use</span> <span class="ident">std::sync</span>::{
@@ -135,7 +131,7 @@
     <span class="ident">sync</span>::{<span class="ident">mpsc::Receiver</span>, <span class="ident">watch</span>},
     <span class="ident">task::JoinHandle</span>,
 };
-<span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">Certificate</span>, <span class="ident">Round</span>};
+<span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">Certificate</span>, <span class="ident">Reconfigure</span>, <span class="ident">Round</span>};
 
 <span class="doccomment">/// Receives the highest round reached by consensus and update it for all tasks.</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">StateHandler</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> {
@@ -202,10 +198,6 @@
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">update_committee</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">new_committee</span>: <span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>) {
-        <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">swap</span>(<span class="ident">Arc::new</span>(<span class="ident">new_committee</span>));
-    }
-
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">run</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
         <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">message</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">rx_consensus</span>.<span class="ident">recv</span>().<span class="kw">await</span> {
             <span class="kw">match</span> <span class="ident">message</span> {
@@ -214,7 +206,7 @@
                 }
                 <span class="ident">ConsensusPrimaryMessage::Committee</span>(<span class="ident">committee</span>) =&gt; {
                     <span class="comment">// Update the committee.</span>
-                    <span class="self">self</span>.<span class="ident">update_committee</span>(<span class="ident">committee</span>.<span class="ident">clone</span>());
+                    <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">swap</span>(<span class="ident">Arc::new</span>(<span class="ident">committee</span>.<span class="ident">clone</span>()));
 
                     <span class="comment">// Trigger cleanup on the primary.</span>
                     <span class="self">self</span>.<span class="ident">consensus_round</span>.<span class="ident">store</span>(<span class="number">0</span>, <span class="ident">Ordering::Relaxed</span>);

@@ -171,11 +171,9 @@
 <span id="165">165</span>
 <span id="166">166</span>
 <span id="167">167</span>
-<span id="168">168</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::primary::Reconfigure</span>;
 <span class="kw">use</span> <span class="ident">config::Committee</span>;
 <span class="kw">use</span> <span class="ident">crypto::traits::VerifyingKey</span>;
 <span class="kw">use</span> <span class="ident">futures</span>::{
@@ -200,7 +198,7 @@
 <span class="kw">use</span> <span class="ident">tracing::error</span>;
 <span class="kw">use</span> <span class="ident">types</span>::{
     <span class="ident">error</span>::{<span class="ident">DagError</span>, <span class="ident">DagResult</span>},
-    <span class="ident">Certificate</span>, <span class="ident">CertificateDigest</span>, <span class="ident">HeaderDigest</span>, <span class="ident">Round</span>,
+    <span class="ident">Certificate</span>, <span class="ident">CertificateDigest</span>, <span class="ident">HeaderDigest</span>, <span class="ident">Reconfigure</span>, <span class="ident">Round</span>,
 };
 
 <span class="doccomment">/// Waits to receive all the ancestors of a certificate before looping it back to the `Core`</span>

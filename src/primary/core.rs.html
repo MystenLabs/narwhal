@@ -594,7 +594,7 @@
 <span class="kw">use</span> <span class="kw">crate</span>::{
     <span class="ident">aggregators</span>::{<span class="ident">CertificatesAggregator</span>, <span class="ident">VotesAggregator</span>},
     <span class="ident">metrics::PrimaryMetrics</span>,
-    <span class="ident">primary</span>::{<span class="ident">PrimaryMessage</span>, <span class="ident">Reconfigure</span>},
+    <span class="ident">primary::PrimaryMessage</span>,
     <span class="ident">synchronizer::Synchronizer</span>,
 };
 <span class="kw">use</span> <span class="ident">async_recursion::async_recursion</span>;
@@ -621,7 +621,7 @@
 <span class="kw">use</span> <span class="ident">types</span>::{
     <span class="ident">ensure</span>,
     <span class="ident">error</span>::{<span class="ident">DagError</span>, <span class="ident">DagResult</span>},
-    <span class="ident">Certificate</span>, <span class="ident">CertificateDigest</span>, <span class="ident">Header</span>, <span class="ident">HeaderDigest</span>, <span class="ident">Round</span>, <span class="ident">Vote</span>,
+    <span class="ident">Certificate</span>, <span class="ident">CertificateDigest</span>, <span class="ident">Header</span>, <span class="ident">HeaderDigest</span>, <span class="ident">Reconfigure</span>, <span class="ident">Round</span>, <span class="ident">Vote</span>,
 };
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>

@@ -156,68 +156,71 @@
 <span id="150">150</span>
 <span id="151">151</span>
 <span id="152">152</span>
+<span id="153">153</span>
+<span id="154">154</span>
+<span id="155">155</span>
+<span id="156">156</span>
+<span id="157">157</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">quorum_waiter::QuorumWaiterMessage</span>, <span class="ident">worker::WorkerMessage</span>};
+<span class="kw">use</span> <span class="ident">config::Committee</span>;
 <span class="kw">use</span> <span class="ident">crypto::traits::VerifyingKey</span>;
-<span class="kw">use</span> <span class="ident">multiaddr::Multiaddr</span>;
-<span class="kw">use</span> <span class="ident">network::WorkerNetwork</span>;
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;benchmark&quot;</span>)]</span>
-<span class="kw">use</span> <span class="ident">std::convert::TryInto</span> <span class="kw">as</span> <span class="kw">_</span>;
+<span class="kw">use</span> <span class="ident">std::convert::TryInto</span>;
 <span class="kw">use</span> <span class="ident">tokio</span>::{
-    <span class="ident">sync::mpsc</span>::{<span class="ident">Receiver</span>, <span class="ident">Sender</span>},
+    <span class="ident">sync</span>::{
+        <span class="ident">mpsc</span>::{<span class="ident">Receiver</span>, <span class="ident">Sender</span>},
+        <span class="ident">watch</span>,
+    },
     <span class="ident">task::JoinHandle</span>,
     <span class="ident">time</span>::{<span class="ident">sleep</span>, <span class="ident">Duration</span>, <span class="ident">Instant</span>},
 };
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;benchmark&quot;</span>)]</span>
-<span class="kw">use</span> <span class="ident">tracing::info</span>;
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;benchmark&quot;</span>)]</span>
-<span class="kw">use</span> <span class="ident">types::serialized_batch_digest</span>;
-<span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">Batch</span>, <span class="ident">Transaction</span>};
+<span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">Batch</span>, <span class="ident">Reconfigure</span>, <span class="ident">Transaction</span>};
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="attribute">#[<span class="ident">path</span> <span class="op">=</span> <span class="string">&quot;tests/batch_maker_tests.rs&quot;</span>]</span>
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">batch_maker_tests</span>;
 
 <span class="doccomment">/// Assemble clients transactions into batches.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BatchMaker</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BatchMaker</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> {
+    <span class="doccomment">/// The committee information.</span>
+    <span class="ident">committee</span>: <span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
     <span class="doccomment">/// The preferred batch size (in bytes).</span>
     <span class="ident">batch_size</span>: <span class="ident">usize</span>,
     <span class="doccomment">/// The maximum delay after which to seal the batch.</span>
     <span class="ident">max_batch_delay</span>: <span class="ident">Duration</span>,
+    <span class="doccomment">/// Receive reconfiguration updates.</span>
+    <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">Reconfigure</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="doccomment">/// Channel to receive transactions from the network.</span>
     <span class="ident">rx_transaction</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Transaction</span><span class="op">&gt;</span>,
     <span class="doccomment">/// Output channel to deliver sealed batches to the `QuorumWaiter`.</span>
-    <span class="ident">tx_message</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">QuorumWaiterMessage</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="doccomment">/// The network addresses of the other workers that share our worker id.</span>
-    <span class="ident">workers_addresses</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">PublicKey</span>, <span class="ident">Multiaddr</span>)<span class="op">&gt;</span>,
+    <span class="ident">tx_message</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">Batch</span><span class="op">&gt;</span>,
     <span class="doccomment">/// Holds the current batch.</span>
     <span class="ident">current_batch</span>: <span class="ident">Batch</span>,
     <span class="doccomment">/// Holds the size of the current batch (in bytes).</span>
     <span class="ident">current_batch_size</span>: <span class="ident">usize</span>,
-    <span class="doccomment">/// A network sender to broadcast the batches to the other workers.</span>
-    <span class="ident">network</span>: <span class="ident">WorkerNetwork</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> <span class="ident">BatchMaker</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(
+        <span class="ident">committee</span>: <span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
         <span class="ident">batch_size</span>: <span class="ident">usize</span>,
         <span class="ident">max_batch_delay</span>: <span class="ident">Duration</span>,
+        <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">Reconfigure</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">rx_transaction</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Transaction</span><span class="op">&gt;</span>,
-        <span class="ident">tx_message</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">QuorumWaiterMessage</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-        <span class="ident">workers_addresses</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">PublicKey</span>, <span class="ident">Multiaddr</span>)<span class="op">&gt;</span>,
+        <span class="ident">tx_message</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">Batch</span><span class="op">&gt;</span>,
     ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
             <span class="self">Self</span> {
+                <span class="ident">committee</span>,
                 <span class="ident">batch_size</span>,
                 <span class="ident">max_batch_delay</span>,
+                <span class="ident">rx_reconfigure</span>,
                 <span class="ident">rx_transaction</span>,
                 <span class="ident">tx_message</span>,
-                <span class="ident">workers_addresses</span>,
                 <span class="ident">current_batch</span>: <span class="ident">Batch</span>(<span class="ident">Vec::with_capacity</span>(<span class="ident">batch_size</span> <span class="op">*</span> <span class="number">2</span>)),
                 <span class="ident">current_batch_size</span>: <span class="number">0</span>,
-                <span class="ident">network</span>: <span class="ident">WorkerNetwork::default</span>(),
             }
             .<span class="ident">run</span>()
             .<span class="kw">await</span>;
@@ -248,6 +251,18 @@
                     }
                     <span class="ident">timer</span>.<span class="ident">as_mut</span>().<span class="ident">reset</span>(<span class="ident">Instant::now</span>() <span class="op">+</span> <span class="self">self</span>.<span class="ident">max_batch_delay</span>);
                 }
+
+                <span class="comment">// Trigger reconfigure.</span>
+                <span class="ident">result</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">rx_reconfigure</span>.<span class="ident">changed</span>() =&gt; {
+                    <span class="ident">result</span>.<span class="ident">expect</span>(<span class="string">&quot;Committee channel dropped&quot;</span>);
+                    <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">rx_reconfigure</span>.<span class="ident">borrow</span>().<span class="ident">clone</span>();
+                    <span class="kw">match</span> <span class="ident">message</span> {
+                        <span class="ident">Reconfigure::NewCommittee</span>(<span class="ident">new_committee</span>) =&gt; {
+                            <span class="self">self</span>.<span class="ident">committee</span><span class="op">=</span><span class="ident">new_committee</span>;
+                        },
+                        <span class="ident">Reconfigure::Shutdown</span>(<span class="ident">_token</span>) =&gt; <span class="kw">return</span>
+                    }
+                }
             }
 
             <span class="comment">// Give the change to schedule other tasks.</span>
@@ -273,16 +288,18 @@
         <span class="comment">// Serialize the batch.</span>
         <span class="self">self</span>.<span class="ident">current_batch_size</span> <span class="op">=</span> <span class="number">0</span>;
         <span class="kw">let</span> <span class="ident">batch</span>: <span class="ident">Batch</span> <span class="op">=</span> <span class="ident">Batch</span>(<span class="self">self</span>.<span class="ident">current_batch</span>.<span class="number">0</span>.<span class="ident">drain</span>(..).<span class="ident">collect</span>());
-        <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">WorkerMessage</span>::<span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="ident">::Batch</span>(<span class="ident">batch</span>);
-        <span class="kw">let</span> <span class="ident">serialized</span> <span class="op">=</span> <span class="ident">bincode::serialize</span>(<span class="kw-2">&amp;</span><span class="ident">message</span>).<span class="ident">expect</span>(<span class="string">&quot;Failed to serialize our own batch&quot;</span>);
 
         <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;benchmark&quot;</span>)]</span>
         {
+            <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">types::WorkerMessage</span>::<span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="ident">::Batch</span>(<span class="ident">batch</span>.<span class="ident">clone</span>());
+            <span class="kw">let</span> <span class="ident">serialized</span> <span class="op">=</span>
+                <span class="ident">bincode::serialize</span>(<span class="kw-2">&amp;</span><span class="ident">message</span>).<span class="ident">expect</span>(<span class="string">&quot;Failed to serialize our own batch&quot;</span>);
+
             <span class="comment">// NOTE: This is one extra hash that is only needed to print the following log entries.</span>
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">digest</span>) <span class="op">=</span> <span class="ident">serialized_batch_digest</span>(<span class="kw-2">&amp;</span><span class="ident">serialized</span>) {
+            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">digest</span>) <span class="op">=</span> <span class="ident">types::serialized_batch_digest</span>(<span class="kw-2">&amp;</span><span class="ident">serialized</span>) {
                 <span class="kw">for</span> <span class="ident">id</span> <span class="kw">in</span> <span class="ident">tx_ids</span> {
                     <span class="comment">// NOTE: This log entry is used to compute performance.</span>
-                    <span class="macro">info!</span>(
+                    <span class="macro">tracing::info!</span>(
                         <span class="string">&quot;Batch {:?} contains sample tx {}&quot;</span>,
                         <span class="ident">digest</span>,
                         <span class="ident">u64::from_be_bytes</span>(<span class="ident">id</span>)
@@ -290,20 +307,13 @@
                 }
 
                 <span class="comment">// NOTE: This log entry is used to compute performance.</span>
-                <span class="macro">info!</span>(<span class="string">&quot;Batch {:?} contains {} B&quot;</span>, <span class="ident">digest</span>, <span class="ident">size</span>);
+                <span class="macro">tracing::info!</span>(<span class="string">&quot;Batch {:?} contains {} B&quot;</span>, <span class="ident">digest</span>, <span class="ident">size</span>);
             }
         }
 
-        <span class="comment">// Broadcast the batch through the network.</span>
-        <span class="kw">let</span> (<span class="ident">names</span>, <span class="ident">addresses</span>): (<span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span>, <span class="kw">_</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">workers_addresses</span>.<span class="ident">iter</span>().<span class="ident">cloned</span>().<span class="ident">unzip</span>();
-        <span class="kw">let</span> <span class="ident">handlers</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">network</span>.<span class="ident">broadcast</span>(<span class="ident">addresses</span>, <span class="kw-2">&amp;</span><span class="ident">message</span>).<span class="kw">await</span>;
-
         <span class="comment">// Send the batch through the deliver channel for further processing.</span>
         <span class="self">self</span>.<span class="ident">tx_message</span>
-            .<span class="ident">send</span>(<span class="ident">QuorumWaiterMessage</span> {
-                <span class="ident">batch</span>: <span class="ident">serialized</span>,
-                <span class="ident">handlers</span>: <span class="ident">names</span>.<span class="ident">into_iter</span>().<span class="ident">zip</span>(<span class="ident">handlers</span>.<span class="ident">into_iter</span>()).<span class="ident">collect</span>(),
-            })
+            .<span class="ident">send</span>(<span class="ident">batch</span>)
             .<span class="kw">await</span>
             .<span class="ident">expect</span>(<span class="string">&quot;Failed to deliver batch&quot;</span>);
     }

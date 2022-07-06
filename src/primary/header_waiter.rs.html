@@ -369,7 +369,7 @@
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="kw">crate</span>::{
     <span class="ident">metrics::PrimaryMetrics</span>,
-    <span class="ident">primary</span>::{<span class="ident">PayloadToken</span>, <span class="ident">PrimaryMessage</span>, <span class="ident">PrimaryWorkerMessage</span>, <span class="ident">Reconfigure</span>},
+    <span class="ident">primary</span>::{<span class="ident">PayloadToken</span>, <span class="ident">PrimaryMessage</span>, <span class="ident">PrimaryWorkerMessage</span>},
 };
 <span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">Committee</span>, <span class="ident">WorkerId</span>};
 <span class="kw">use</span> <span class="ident">crypto::traits::VerifyingKey</span>;
@@ -399,7 +399,7 @@
 <span class="kw">use</span> <span class="ident">tracing</span>::{<span class="ident">debug</span>, <span class="ident">error</span>};
 <span class="kw">use</span> <span class="ident">types</span>::{
     <span class="ident">error</span>::{<span class="ident">DagError</span>, <span class="ident">DagResult</span>},
-    <span class="ident">BatchDigest</span>, <span class="ident">Certificate</span>, <span class="ident">CertificateDigest</span>, <span class="ident">Header</span>, <span class="ident">HeaderDigest</span>, <span class="ident">Round</span>,
+    <span class="ident">BatchDigest</span>, <span class="ident">Certificate</span>, <span class="ident">CertificateDigest</span>, <span class="ident">Header</span>, <span class="ident">HeaderDigest</span>, <span class="ident">Reconfigure</span>, <span class="ident">Round</span>,
 };
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>

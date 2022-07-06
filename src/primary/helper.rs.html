@@ -273,16 +273,10 @@
 <span id="267">267</span>
 <span id="268">268</span>
 <span id="269">269</span>
-<span id="270">270</span>
-<span id="271">271</span>
-<span id="272">272</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="kw">use</span> <span class="kw">crate</span>::{
-    <span class="ident">primary</span>::{<span class="ident">PrimaryMessage</span>, <span class="ident">Reconfigure</span>},
-    <span class="ident">PayloadToken</span>,
-};
+<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">primary::PrimaryMessage</span>, <span class="ident">PayloadToken</span>};
 <span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">Committee</span>, <span class="ident">WorkerId</span>};
 <span class="kw">use</span> <span class="ident">crypto::traits</span>::{<span class="ident">EncodeDecodeBase64</span>, <span class="ident">VerifyingKey</span>};
 <span class="kw">use</span> <span class="ident">network::PrimaryNetwork</span>;
@@ -293,7 +287,7 @@
     <span class="ident">task::JoinHandle</span>,
 };
 <span class="kw">use</span> <span class="ident">tracing</span>::{<span class="ident">error</span>, <span class="ident">instrument</span>};
-<span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">BatchDigest</span>, <span class="ident">Certificate</span>, <span class="ident">CertificateDigest</span>, <span class="ident">ShutdownToken</span>};
+<span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">BatchDigest</span>, <span class="ident">Certificate</span>, <span class="ident">CertificateDigest</span>, <span class="ident">Reconfigure</span>, <span class="ident">ShutdownToken</span>};
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="attribute">#[<span class="ident">path</span> <span class="op">=</span> <span class="string">&quot;tests/helper_tests.rs&quot;</span>]</span>

@@ -607,15 +607,6 @@
 <span id="601">601</span>
 <span id="602">602</span>
 <span id="603">603</span>
-<span id="604">604</span>
-<span id="605">605</span>
-<span id="606">606</span>
-<span id="607">607</span>
-<span id="608">608</span>
-<span id="609">609</span>
-<span id="610">610</span>
-<span id="611">611</span>
-<span id="612">612</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -636,7 +627,7 @@
     <span class="ident">BlockRemover</span>, <span class="ident">CertificatesResponse</span>, <span class="ident">DeleteBatchMessage</span>, <span class="ident">PayloadAvailabilityResponse</span>,
 };
 <span class="kw">use</span> <span class="ident">async_trait::async_trait</span>;
-<span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">Committee</span>, <span class="ident">Parameters</span>, <span class="ident">SharedCommittee</span>, <span class="ident">WorkerId</span>};
+<span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">Parameters</span>, <span class="ident">SharedCommittee</span>, <span class="ident">WorkerId</span>};
 <span class="kw">use</span> <span class="ident">consensus::dag::Dag</span>;
 <span class="kw">use</span> <span class="ident">crypto</span>::{
     <span class="ident">traits</span>::{<span class="ident">EncodeDecodeBase64</span>, <span class="ident">Signer</span>, <span class="ident">VerifyingKey</span>},
@@ -663,22 +654,13 @@
 <span class="kw">use</span> <span class="ident">tracing::info</span>;
 <span class="kw">use</span> <span class="ident">types</span>::{
     <span class="ident">Batch</span>, <span class="ident">BatchDigest</span>, <span class="ident">BatchMessage</span>, <span class="ident">BincodeEncodedPayload</span>, <span class="ident">Certificate</span>, <span class="ident">CertificateDigest</span>, <span class="ident">Empty</span>,
-    <span class="ident">Header</span>, <span class="ident">HeaderDigest</span>, <span class="ident">PrimaryToPrimary</span>, <span class="ident">PrimaryToPrimaryServer</span>, <span class="ident">ShutdownToken</span>, <span class="ident">WorkerToPrimary</span>,
+    <span class="ident">Header</span>, <span class="ident">HeaderDigest</span>, <span class="ident">PrimaryToPrimary</span>, <span class="ident">PrimaryToPrimaryServer</span>, <span class="ident">Reconfigure</span>, <span class="ident">WorkerToPrimary</span>,
     <span class="ident">WorkerToPrimaryServer</span>,
 };
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">ConsensusPrimaryMessage</span>, <span class="ident">PrimaryMessage</span>, <span class="ident">PrimaryWorkerMessage</span>};
 
 <span class="doccomment">/// The default channel capacity for each channel of the primary.</span>
 <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">CHANNEL_CAPACITY</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">1_000</span>;
-
-<span class="doccomment">/// Message to reconfigure tasks.</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>)]</span>
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">Reconfigure</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> {
-    <span class="doccomment">/// Indicates the committee has been updated.</span>
-    <span class="ident">NewCommittee</span>(<span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>),
-    <span class="doccomment">/// Indicate a shutdown.</span>
-    <span class="ident">Shutdown</span>(<span class="ident">ShutdownToken</span>),
-}
 
 <span class="doccomment">/// The messages sent by the workers to their primary.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>)]</span>

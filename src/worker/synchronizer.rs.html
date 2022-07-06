@@ -294,6 +294,38 @@
 <span id="288">288</span>
 <span id="289">289</span>
 <span id="290">290</span>
+<span id="291">291</span>
+<span id="292">292</span>
+<span id="293">293</span>
+<span id="294">294</span>
+<span id="295">295</span>
+<span id="296">296</span>
+<span id="297">297</span>
+<span id="298">298</span>
+<span id="299">299</span>
+<span id="300">300</span>
+<span id="301">301</span>
+<span id="302">302</span>
+<span id="303">303</span>
+<span id="304">304</span>
+<span id="305">305</span>
+<span id="306">306</span>
+<span id="307">307</span>
+<span id="308">308</span>
+<span id="309">309</span>
+<span id="310">310</span>
+<span id="311">311</span>
+<span id="312">312</span>
+<span id="313">313</span>
+<span id="314">314</span>
+<span id="315">315</span>
+<span id="316">316</span>
+<span id="317">317</span>
+<span id="318">318</span>
+<span id="319">319</span>
+<span id="320">320</span>
+<span id="321">321</span>
+<span id="322">322</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -310,12 +342,18 @@
 };
 <span class="kw">use</span> <span class="ident">store</span>::{<span class="ident">Store</span>, <span class="ident">StoreError</span>};
 <span class="kw">use</span> <span class="ident">tokio</span>::{
-    <span class="ident">sync::mpsc</span>::{<span class="ident">channel</span>, <span class="ident">Receiver</span>, <span class="ident">Sender</span>},
+    <span class="ident">sync</span>::{
+        <span class="ident">mpsc</span>::{<span class="ident">channel</span>, <span class="ident">Receiver</span>, <span class="ident">Sender</span>},
+        <span class="ident">watch</span>,
+    },
     <span class="ident">task::JoinHandle</span>,
     <span class="ident">time</span>::{<span class="ident">sleep</span>, <span class="ident">Duration</span>, <span class="ident">Instant</span>},
 };
 <span class="kw">use</span> <span class="ident">tracing</span>::{<span class="ident">debug</span>, <span class="ident">error</span>};
-<span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">BatchDigest</span>, <span class="ident">Round</span>, <span class="ident">SerializedBatchMessage</span>, <span class="ident">WorkerMessage</span>};
+<span class="kw">use</span> <span class="ident">types</span>::{
+    <span class="ident">BatchDigest</span>, <span class="ident">PrimaryWorkerReconfigure</span>, <span class="ident">Reconfigure</span>, <span class="ident">Round</span>, <span class="ident">SerializedBatchMessage</span>,
+    <span class="ident">WorkerMessage</span>,
+};
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="attribute">#[<span class="ident">path</span> <span class="op">=</span> <span class="string">&quot;tests/synchronizer_tests.rs&quot;</span>]</span>
@@ -351,9 +389,11 @@
     <span class="doccomment">/// processing will resume when we get the missing batches in the store or we no longer need them.</span>
     <span class="doccomment">/// It also keeps the round number and a time stamp (`u128`) of each request we sent.</span>
     <span class="ident">pending</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">BatchDigest</span>, (<span class="ident">Round</span>, <span class="ident">Sender</span><span class="op">&lt;</span>()<span class="op">&gt;</span>, <span class="ident">u128</span>)<span class="op">&gt;</span>,
-    <span class="comment">// Output channel to send out the batch requests.</span>
+    <span class="doccomment">/// Send reconfiguration update to other tasks.</span>
+    <span class="ident">tx_reconfigure</span>: <span class="ident">watch::Sender</span><span class="op">&lt;</span><span class="ident">Reconfigure</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="doccomment">/// Output channel to send out the batch requests.</span>
     <span class="ident">tx_primary</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">WorkerPrimaryMessage</span><span class="op">&gt;</span>,
-    <span class="comment">// Metrics handler</span>
+    <span class="doccomment">/// Metrics handler</span>
     <span class="ident">metrics</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">WorkerMetrics</span><span class="op">&gt;</span>,
 }
 
@@ -367,6 +407,7 @@
         <span class="ident">sync_retry_delay</span>: <span class="ident">Duration</span>,
         <span class="ident">sync_retry_nodes</span>: <span class="ident">usize</span>,
         <span class="ident">rx_message</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">PrimaryWorkerMessage</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">tx_reconfigure</span>: <span class="ident">watch::Sender</span><span class="op">&lt;</span><span class="ident">Reconfigure</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">tx_primary</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">WorkerPrimaryMessage</span><span class="op">&gt;</span>,
         <span class="ident">metrics</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">WorkerMetrics</span><span class="op">&gt;</span>,
     ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
@@ -383,6 +424,7 @@
                 <span class="ident">network</span>: <span class="ident">WorkerNetwork::default</span>(),
                 <span class="ident">round</span>: <span class="ident">Round::default</span>(),
                 <span class="ident">pending</span>: <span class="ident">HashMap::new</span>(),
+                <span class="ident">tx_reconfigure</span>,
                 <span class="ident">tx_primary</span>,
                 <span class="ident">metrics</span>,
             }
@@ -486,6 +528,28 @@
                         }
                         <span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">retain</span>(<span class="op">|</span><span class="kw">_</span>, (<span class="ident">r</span>, <span class="kw">_</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="ident">r</span> <span class="op">&gt;</span> <span class="kw-2">&amp;mut</span> <span class="ident">gc_round</span>);
                     },
+                    <span class="ident">PrimaryWorkerMessage::Reconfigure</span>(<span class="ident">command</span>) =&gt; {
+                        <span class="comment">// Reconfigure this task and update the shared committee.</span>
+                        <span class="kw">let</span> (<span class="ident">token</span>, <span class="kw-2">mut</span> <span class="ident">rx</span>) <span class="op">=</span> <span class="ident">channel</span>(<span class="number">1</span>);
+                        <span class="kw">let</span> (<span class="ident">message</span>, <span class="ident">shutdown</span>) <span class="op">=</span> <span class="kw">match</span> <span class="ident">command</span> {
+                            <span class="ident">PrimaryWorkerReconfigure::NewCommittee</span>(<span class="ident">new_committee</span>) =&gt; {
+                                <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">swap</span>(<span class="ident">Arc::new</span>(<span class="ident">new_committee</span>.<span class="ident">clone</span>()));
+                                <span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">clear</span>();
+                                <span class="self">self</span>.<span class="ident">round</span> <span class="op">=</span> <span class="number">0</span>;
+                                <span class="ident">waiting</span>.<span class="ident">clear</span>();
+
+                                (<span class="ident">Reconfigure::NewCommittee</span>(<span class="ident">new_committee</span>), <span class="bool-val">false</span>)
+                            }
+                            <span class="ident">PrimaryWorkerReconfigure::Shutdown</span> =&gt; {
+                                (<span class="ident">Reconfigure::Shutdown</span>(<span class="ident">token</span>), <span class="bool-val">true</span>)
+                            }
+                        };
+                        <span class="self">self</span>.<span class="ident">tx_reconfigure</span>.<span class="ident">send</span>(<span class="ident">message</span>).<span class="ident">expect</span>(<span class="string">&quot;All tasks dropped&quot;</span>);
+                        <span class="kw">if</span> <span class="ident">shutdown</span> {
+                            <span class="ident">rx</span>.<span class="ident">recv</span>().<span class="kw">await</span>;
+                            <span class="kw">return</span>;
+                        }
+                    }
                     <span class="ident">PrimaryWorkerMessage::RequestBatch</span>(<span class="ident">digest</span>) =&gt; {
                         <span class="self">self</span>.<span class="ident">handle_request_batch</span>(<span class="ident">digest</span>).<span class="kw">await</span>;
                     },

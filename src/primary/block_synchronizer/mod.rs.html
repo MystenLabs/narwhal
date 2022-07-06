@@ -1001,7 +1001,7 @@
         <span class="ident">responses</span>::{<span class="ident">CertificatesResponse</span>, <span class="ident">PayloadAvailabilityResponse</span>, <span class="ident">RequestID</span>},
         <span class="ident">PendingIdentifier</span>::{<span class="ident">Header</span>, <span class="ident">Payload</span>},
     },
-    <span class="ident">primary</span>::{<span class="ident">PrimaryMessage</span>, <span class="ident">Reconfigure</span>},
+    <span class="ident">primary::PrimaryMessage</span>,
     <span class="ident">utils</span>, <span class="ident">PayloadToken</span>, <span class="ident">PrimaryWorkerMessage</span>, <span class="ident">CHANNEL_CAPACITY</span>,
 };
 <span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">BlockSynchronizerParameters</span>, <span class="ident">Committee</span>, <span class="ident">WorkerId</span>};
@@ -1028,7 +1028,7 @@
     <span class="ident">time</span>::{<span class="ident">sleep</span>, <span class="ident">timeout</span>},
 };
 <span class="kw">use</span> <span class="ident">tracing</span>::{<span class="ident">debug</span>, <span class="ident">error</span>, <span class="ident">instrument</span>, <span class="ident">trace</span>, <span class="ident">warn</span>};
-<span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">BatchDigest</span>, <span class="ident">Certificate</span>, <span class="ident">CertificateDigest</span>};
+<span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">BatchDigest</span>, <span class="ident">Certificate</span>, <span class="ident">CertificateDigest</span>, <span class="ident">Reconfigure</span>};
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="attribute">#[<span class="ident">path</span> <span class="op">=</span> <span class="string">&quot;tests/block_synchronizer_tests.rs&quot;</span>]</span>

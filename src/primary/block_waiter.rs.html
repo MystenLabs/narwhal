@@ -807,9 +807,10 @@
 <span id="801">801</span>
 <span id="802">802</span>
 <span id="803">803</span>
+<span id="804">804</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">block_synchronizer::handler::Handler</span>, <span class="ident">primary::Reconfigure</span>, <span class="ident">PrimaryWorkerMessage</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">block_synchronizer::handler::Handler</span>, <span class="ident">PrimaryWorkerMessage</span>};
 <span class="kw">use</span> <span class="ident">config::Committee</span>;
 <span class="kw">use</span> <span class="ident">crypto</span>::{<span class="ident">traits::VerifyingKey</span>, <span class="ident">Digest</span>, <span class="ident">Hash</span>};
 <span class="kw">use</span> <span class="ident">futures</span>::{
@@ -833,7 +834,7 @@
 <span class="kw">use</span> <span class="ident">tracing</span>::{<span class="ident">debug</span>, <span class="ident">error</span>, <span class="ident">instrument</span>, <span class="ident">warn</span>};
 <span class="kw">use</span> <span class="ident">types</span>::{
     <span class="ident">BatchDigest</span>, <span class="ident">BatchMessage</span>, <span class="ident">BlockError</span>, <span class="ident">BlockErrorKind</span>, <span class="ident">BlockResult</span>, <span class="ident">Certificate</span>,
-    <span class="ident">CertificateDigest</span>, <span class="ident">Header</span>, <span class="ident">ShutdownToken</span>,
+    <span class="ident">CertificateDigest</span>, <span class="ident">Header</span>, <span class="ident">Reconfigure</span>, <span class="ident">ShutdownToken</span>,
 };
 <span class="kw">use</span> <span class="prelude-ty">Result</span>::<span class="kw-2">*</span>;
 
@@ -930,9 +931,10 @@
 <span class="doccomment">/// # use config::Committee;</span>
 <span class="doccomment">/// # use std::collections::BTreeMap;</span>
 <span class="doccomment">/// # use types::Certificate;</span>
-<span class="doccomment">/// # use primary::{BlockWaiter, BlockHeader, BlockCommand, block_synchronizer::{BlockSynchronizeResult, handler::{Error, Handler}}, Reconfigure};</span>
+<span class="doccomment">/// # use primary::{BlockWaiter, BlockHeader, BlockCommand, block_synchronizer::{BlockSynchronizeResult, handler::{Error, Handler}}};</span>
 <span class="doccomment">/// # use types::{BatchMessage, BatchDigest, CertificateDigest, Batch};</span>
 <span class="doccomment">/// # use mockall::*;</span>
+<span class="doccomment">/// # use types::Reconfigure;</span>
 <span class="doccomment">/// # use crypto::traits::VerifyingKey;</span>
 <span class="doccomment">/// # use async_trait::async_trait;</span>
 <span class="doccomment">/// # use std::sync::Arc;</span>

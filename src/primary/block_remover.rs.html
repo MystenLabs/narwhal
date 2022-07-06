@@ -637,12 +637,13 @@
 <span id="631">631</span>
 <span id="632">632</span>
 <span id="633">633</span>
+<span id="634">634</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="attribute">#![<span class="ident">allow</span>(<span class="ident">dead_code</span>)]</span>
 <span class="attribute">#![<span class="ident">allow</span>(<span class="ident">unused_variables</span>)]</span>
 
-<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">primary::Reconfigure</span>, <span class="ident">utils</span>, <span class="ident">PayloadToken</span>, <span class="ident">PrimaryWorkerMessage</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">utils</span>, <span class="ident">PayloadToken</span>, <span class="ident">PrimaryWorkerMessage</span>};
 <span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">Committee</span>, <span class="ident">WorkerId</span>};
 <span class="kw">use</span> <span class="ident">consensus::dag</span>::{<span class="ident">Dag</span>, <span class="ident">ValidatorDagError</span>};
 <span class="kw">use</span> <span class="ident">crypto</span>::{<span class="ident">traits::VerifyingKey</span>, <span class="ident">Digest</span>, <span class="ident">Hash</span>};
@@ -666,7 +667,7 @@
 <span class="kw">use</span> <span class="ident">tracing</span>::{<span class="ident">debug</span>, <span class="ident">error</span>, <span class="ident">instrument</span>, <span class="ident">warn</span>};
 <span class="kw">use</span> <span class="ident">types</span>::{
     <span class="ident">BatchDigest</span>, <span class="ident">BlockRemoverError</span>, <span class="ident">BlockRemoverErrorKind</span>, <span class="ident">BlockRemoverResult</span>, <span class="ident">Certificate</span>,
-    <span class="ident">CertificateDigest</span>, <span class="ident">ConsensusPrimaryMessage</span>, <span class="ident">Header</span>, <span class="ident">HeaderDigest</span>, <span class="ident">ShutdownToken</span>,
+    <span class="ident">CertificateDigest</span>, <span class="ident">ConsensusPrimaryMessage</span>, <span class="ident">Header</span>, <span class="ident">HeaderDigest</span>, <span class="ident">Reconfigure</span>, <span class="ident">ShutdownToken</span>,
 };
 
 <span class="kw">const</span> <span class="ident">BATCH_DELETE_TIMEOUT</span>: <span class="ident">Duration</span> <span class="op">=</span> <span class="ident">Duration::from_secs</span>(<span class="number">2</span>);
@@ -729,9 +730,10 @@
 <span class="doccomment">/// # use futures::future::join_all;</span>
 <span class="doccomment">/// # use std::collections::BTreeMap;</span>
 <span class="doccomment">/// # use std::sync::Arc;</span>
+<span class="doccomment">/// # use types::Reconfigure;</span>
 <span class="doccomment">/// # use config::WorkerId;</span>
 <span class="doccomment">/// # use tempfile::tempdir;</span>
-<span class="doccomment">/// # use primary::{BlockRemover, BlockRemoverCommand, DeleteBatchMessage, PayloadToken, Reconfigure};</span>
+<span class="doccomment">/// # use primary::{BlockRemover, BlockRemoverCommand, DeleteBatchMessage, PayloadToken};</span>
 <span class="doccomment">/// # use types::{BatchDigest, Certificate, CertificateDigest, HeaderDigest, Header};</span>
 <span class="doccomment">/// # use prometheus::Registry;</span>
 <span class="doccomment">/// # use consensus::metrics::ConsensusMetrics;</span>
