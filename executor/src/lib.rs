@@ -23,7 +23,7 @@ pub use state::ExecutionIndices;
 
 use crate::{batch_loader::BatchLoader, core::Core, subscriber::Subscriber};
 use async_trait::async_trait;
-use config::SharedCommittee;
+use config::{Committee, SharedCommittee};
 use consensus::{ConsensusOutput, ConsensusSyncRequest};
 use crypto::traits::VerifyingKey;
 use serde::de::DeserializeOwned;
@@ -53,13 +53,18 @@ pub trait ExecutionState {
     /// The error type to return in case something went wrong during execution.
     type Error: ExecutionStateError;
 
+    /// The execution outcome to output.
+    type Outcome;
+
     /// Execute the transaction and atomically persist the consensus index. This function
-    /// returns a serialized result (Vec<u8>) that will be output by the executor channel.
-    async fn handle_consensus_transaction(
+    /// returns an execution outcome that will be output by the executor channel. It may
+    /// also return a new committee to reconfigure the system.
+    async fn handle_consensus_transaction<PublicKey: VerifyingKey>(
         &self,
+        consensus_output: &ConsensusOutput<PublicKey>,
         execution_indices: ExecutionIndices,
         transaction: Self::Transaction,
-    ) -> Result<Vec<u8>, Self::Error>;
+    ) -> Result<(Self::Outcome, Option<Committee<PublicKey>>), Self::Error>;
 
     /// Simple guardrail ensuring there is a single instance using the state
     /// to call `handle_consensus_transaction`. Many instances may read the state,
@@ -86,7 +91,10 @@ impl Executor {
         execution_state: Arc<State>,
         rx_consensus: Receiver<ConsensusOutput<PublicKey>>,
         tx_consensus: Sender<ConsensusSyncRequest>,
-        tx_output: Sender<(SubscriberResult<Vec<u8>>, SerializedTransaction)>,
+        tx_output: Sender<(
+            SubscriberResult<<State as ExecutionState>::Outcome>,
+            SerializedTransaction,
+        )>,
     ) -> SubscriberResult<(
         JoinHandle<SubscriberResult<()>>,
         JoinHandle<SubscriberResult<()>>,
@@ -94,6 +102,7 @@ impl Executor {
     )>
     where
         State: ExecutionState + Send + Sync + 'static,
+        State::Outcome: Send + 'static,
         PublicKey: VerifyingKey,
     {
         let (tx_batch_loader, rx_batch_loader) = channel(DEFAULT_CHANNEL_SIZE);

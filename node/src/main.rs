@@ -13,7 +13,12 @@ use arc_swap::ArcSwap;
 use async_trait::async_trait;
 use clap::{crate_name, crate_version, App, AppSettings, ArgMatches, SubCommand};
 use config::{Committee, Import, Parameters, WorkerId};
-use crypto::{ed25519::Ed25519KeyPair, generate_production_keypair, traits::KeyPair};
+use consensus::ConsensusOutput;
+use crypto::{
+    ed25519::Ed25519KeyPair,
+    generate_production_keypair,
+    traits::{KeyPair, VerifyingKey},
+};
 use executor::{
     ExecutionIndices, ExecutionState, ExecutionStateError, SerializedTransaction, SubscriberResult,
 };
@@ -222,13 +227,15 @@ struct SimpleExecutionState;
 impl ExecutionState for SimpleExecutionState {
     type Transaction = String;
     type Error = SimpleExecutionError;
+    type Outcome = Vec<u8>;
 
-    async fn handle_consensus_transaction(
+    async fn handle_consensus_transaction<PublicKey: VerifyingKey>(
         &self,
+        _consensus_output: &ConsensusOutput<PublicKey>,
         _execution_indices: ExecutionIndices,
         _transaction: Self::Transaction,
-    ) -> Result<Vec<u8>, Self::Error> {
-        Ok(Vec::default())
+    ) -> Result<(Self::Outcome, Option<Committee<PublicKey>>), Self::Error> {
+        Ok((Vec::default(), None))
     }
 
     fn ask_consensus_write_lock(&self) -> bool {

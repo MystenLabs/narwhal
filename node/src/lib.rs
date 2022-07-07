@@ -112,7 +112,10 @@ impl Node {
         // The state used by the client to execute transactions.
         execution_state: Arc<State>,
         // A channel to output transactions execution confirmations.
-        tx_confirmation: Sender<(SubscriberResult<Vec<u8>>, SerializedTransaction)>,
+        tx_confirmation: Sender<(
+            SubscriberResult<<State as ExecutionState>::Outcome>,
+            SerializedTransaction,
+        )>,
         // A prometheus exporter Registry to use for the metrics
         registry: &Registry,
     ) -> SubscriberResult<Vec<JoinHandle<()>>>
@@ -120,6 +123,7 @@ impl Node {
         PublicKey: VerifyingKey,
         Keys: KeyPair<PubKey = PublicKey> + Signer<PublicKey::Sig> + Send + 'static,
         State: ExecutionState + Send + Sync + 'static,
+        State::Outcome: Send + 'static,
     {
         let (tx_new_certificates, rx_new_certificates) = channel(Self::CHANNEL_CAPACITY);
         let (tx_consensus, rx_consensus) = channel(Self::CHANNEL_CAPACITY);
@@ -178,12 +182,16 @@ impl Node {
         execution_state: Arc<State>,
         rx_new_certificates: Receiver<Certificate<PublicKey>>,
         tx_feedback: Sender<ConsensusPrimaryMessage<PublicKey>>,
-        tx_confirmation: Sender<(SubscriberResult<Vec<u8>>, SerializedTransaction)>,
+        tx_confirmation: Sender<(
+            SubscriberResult<<State as ExecutionState>::Outcome>,
+            SerializedTransaction,
+        )>,
         registry: &Registry,
     ) -> SubscriberResult<()>
     where
         PublicKey: VerifyingKey,
         State: ExecutionState + Send + Sync + 'static,
+        State::Outcome: Send + 'static,
     {
         let (tx_sequence, rx_sequence) = channel(Self::CHANNEL_CAPACITY);
         let (tx_consensus_to_client, rx_consensus_to_client) = channel(Self::CHANNEL_CAPACITY);
