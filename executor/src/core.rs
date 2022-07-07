@@ -165,7 +165,7 @@ where
 
                 let (bail, result) = match result {
                     Ok((outcome, committee)) => {
-                        if let Some(committee) = committee {
+                        if let Some(_committee) = committee {
                             todo!();
                         }
 
