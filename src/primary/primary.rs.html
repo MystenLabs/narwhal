@@ -607,6 +607,10 @@
 <span id="601">601</span>
 <span id="602">602</span>
 <span id="603">603</span>
+<span id="604">604</span>
+<span id="605">605</span>
+<span id="606">606</span>
+<span id="607">607</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -619,7 +623,7 @@
     <span class="ident">grpc_server::ConsensusAPIGrpc</span>,
     <span class="ident">header_waiter::HeaderWaiter</span>,
     <span class="ident">helper::Helper</span>,
-    <span class="ident">metrics</span>::{<span class="ident">initialise_metrics</span>, <span class="ident">PrimaryMetrics</span>},
+    <span class="ident">metrics</span>::{<span class="ident">initialise_metrics</span>, <span class="ident">PrimaryEndpointMetrics</span>, <span class="ident">PrimaryMetrics</span>},
     <span class="ident">payload_receiver::PayloadReceiver</span>,
     <span class="ident">proposer::Proposer</span>,
     <span class="ident">state_handler::StateHandler</span>,
@@ -745,6 +749,7 @@
         <span class="comment">// Initialise the metrics</span>
         <span class="kw">let</span> <span class="ident">metrics</span> <span class="op">=</span> <span class="ident">initialise_metrics</span>(<span class="ident">registry</span>);
         <span class="kw">let</span> <span class="ident">endpoint_metrics</span> <span class="op">=</span> <span class="ident">metrics</span>.<span class="ident">endpoint_metrics</span>.<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">primary_endpoint_metrics</span> <span class="op">=</span> <span class="ident">metrics</span>.<span class="ident">primary_endpoint_metrics</span>.<span class="ident">unwrap</span>();
         <span class="kw">let</span> <span class="ident">node_metrics</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">metrics</span>.<span class="ident">node_metrics</span>.<span class="ident">unwrap</span>());
 
         <span class="comment">// Atomic variable use to synchronize all tasks with the latest consensus round. This is only</span>
@@ -770,6 +775,7 @@
             <span class="ident">address</span>.<span class="ident">clone</span>(),
             <span class="ident">parameters</span>.<span class="ident">max_concurrent_requests</span>,
             <span class="ident">tx_reconfigure</span>.<span class="ident">subscribe</span>(),
+            <span class="ident">primary_endpoint_metrics</span>,
         );
         <span class="macro">info!</span>(
             <span class="string">&quot;Primary {} listening to primary messages on {}&quot;</span>,
@@ -920,6 +926,7 @@
             <span class="ident">tx_reconfigure</span>.<span class="ident">subscribe</span>(),
             <span class="comment">/* rx_synchronizer */</span> <span class="ident">rx_sync_certificates</span>,
             <span class="comment">/* tx_core */</span> <span class="ident">tx_certificates_loopback</span>,
+            <span class="ident">node_metrics</span>.<span class="ident">clone</span>(),
         );
 
         <span class="comment">// When the `Core` collects enough parent certificates, the `Proposer` generates a new header with new batch</span>
@@ -1027,13 +1034,14 @@
         <span class="ident">address</span>: <span class="ident">Multiaddr</span>,
         <span class="ident">max_concurrent_requests</span>: <span class="ident">usize</span>,
         <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">Reconfigure</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">primary_endpoint_metrics</span>: <span class="ident">PrimaryEndpointMetrics</span>,
     ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">config</span> <span class="op">=</span> <span class="ident">mysten_network::config::Config::new</span>();
             <span class="ident">config</span>.<span class="ident">concurrency_limit_per_connection</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">max_concurrent_requests</span>);
             <span class="macro">tokio::select!</span> {
                 <span class="ident">_result</span> <span class="op">=</span> <span class="ident">config</span>
-                    .<span class="ident">server_builder</span>()
+                    .<span class="ident">server_builder_with_metrics</span>(<span class="ident">primary_endpoint_metrics</span>)
                     .<span class="ident">add_service</span>(<span class="ident">PrimaryToPrimaryServer::new</span>(<span class="self">self</span>))
                     .<span class="ident">bind</span>(<span class="kw-2">&amp;</span><span class="ident">address</span>)
                     .<span class="kw">await</span>
@@ -1211,5 +1219,5 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (7665c3543 2022-07-06)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (1517f5de0 2022-07-07)" ></div>
 </body></html>
