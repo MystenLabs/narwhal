@@ -12,6 +12,11 @@ mod primary;
 mod retry;
 mod worker;
 
+use std::future::Future;
+use std::sync::Arc;
+use tokio::sync::Semaphore;
+use tokio::task::JoinHandle;
+
 pub use crate::{
     primary::{PrimaryNetwork, PrimaryToWorkerNetwork},
     retry::RetryConfig,
@@ -38,5 +43,27 @@ impl<T> std::future::Future for CancelHandler<T> {
         use futures::future::FutureExt;
         // If the task panics just propagate it up
         self.0.poll_unpin(cx).map(Result::unwrap)
+    }
+}
+
+// This is the maximum number of network tasks that we will create for sending messages. It is a
+// limit per network struct - PrimaryNetwork, PrimaryToWorkerNetwork, and WorkerNetwork each have
+// their own limit.
+//
+// The exact number here probably isn't important, the key things is that it should be finite so
+// that we don't create unbounded numbers of tasks.
+pub const MAX_TASK_CONCURRENCY: usize = 200;
+
+pub async fn spawn_with_limited_concurrency(
+    semaphore: Arc<Semaphore>,
+    fut: impl Future<Output = ()> + Send + 'static,
+) -> JoinHandle<()> {
+    match semaphore.acquire_owned().await {
+        Ok(permit) => tokio::spawn(async move {
+            let _permit = permit; // hold permit until future completes
+            fut.await;
+        }),
+        // semaphore has been closed, return an empty task and do nothing
+        Err(_) => tokio::spawn(async move {}),
     }
 }
