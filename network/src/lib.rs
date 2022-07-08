@@ -14,8 +14,9 @@ mod worker;
 
 use std::future::Future;
 use std::sync::Arc;
-use tokio::sync::Semaphore;
+use tokio::sync::{Semaphore, OwnedSemaphorePermit};
 use tokio::task::JoinHandle;
+use tracing::info;
 
 pub use crate::{
     primary::{PrimaryNetwork, PrimaryToWorkerNetwork},
@@ -54,16 +55,26 @@ impl<T> std::future::Future for CancelHandler<T> {
 // that we don't create unbounded numbers of tasks.
 pub const MAX_TASK_CONCURRENCY: usize = 200;
 
+async fn acquire_permit(semaphore: Arc<Semaphore>) -> Option<OwnedSemaphorePermit> {
+  if let Ok(permit) = semaphore.clone().try_acquire_owned() {
+    return Some(permit);
+  }
+
+  info!("concurrent task limit reached, waiting...");
+
+  semaphore.acquire_owned().await.ok()
+}
+
 pub async fn spawn_with_limited_concurrency(
     semaphore: Arc<Semaphore>,
     fut: impl Future<Output = ()> + Send + 'static,
 ) -> JoinHandle<()> {
-    match semaphore.acquire_owned().await {
-        Ok(permit) => tokio::spawn(async move {
+    match acquire_permit(semaphore).await {
+        Some(permit) => tokio::spawn(async move {
             let _permit = permit; // hold permit until future completes
             fut.await;
         }),
         // semaphore has been closed, return an empty task and do nothing
-        Err(_) => tokio::spawn(async move {}),
+        None => tokio::spawn(async move {}),
     }
 }
