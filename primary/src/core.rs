@@ -339,6 +339,14 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
     async fn process_certificate(&mut self, certificate: Certificate<PublicKey>) -> DagResult<()> {
         debug!("Processing {:?}", certificate);
 
+        // Let the proposer know about a certificate at this round and epoch, though not about its 
+        // parents (which we may not have yet). This allows the proposer not to fire at rounds below
+        // one, such as the current one, that has captured a super-majority of signers.
+        self.tx_proposer
+            .send((vec![], certificate.round(), certificate.epoch()))
+            .await
+            .map_err(|_| DagError::ShuttingDown)?;
+
         // Process the header embedded in the certificate if we haven't already voted for it (if we already
         // voted, it means we already processed it). Since this header got certified, we are sure that all
         // the data it refers to (ie. its payload and its parents) are available. We can thus continue the

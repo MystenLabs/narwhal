@@ -258,7 +258,8 @@ impl<PublicKey: VerifyingKey> Proposer<PublicKey> {
                                 },
                                 Reconfigure::Shutdown(_token) => return,
                             }
-
+                            // TODO: investigate why we are dropping the contents of the (parents, rounds) in the current message and if we should
+                            // Not: does this assume the first such message is always for round == 0 ?
                         }
                         Ordering::Less => {
                             // We already updated committee but the core is slow. Ignore the parents
