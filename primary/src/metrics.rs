@@ -66,6 +66,8 @@ pub struct PrimaryMetrics {
     pub batches_received: IntCounterVec,
     /// Latency to perform a garbage collection in core module
     pub gc_core_latency: HistogramVec,
+    /// Number of cancel handlers for core module
+    pub core_cancel_handlers_total: IntGaugeVec,
     /// The current Narwhal round
     pub current_round: IntGaugeVec,
     /// Latency to perform a garbage collection in header_waiter
@@ -133,6 +135,13 @@ impl PrimaryMetrics {
             gc_core_latency: register_histogram_vec_with_registry!(
                 "gc_core_latency",
                 "Latency of a the garbage collection process for core module",
+                &["epoch"],
+                registry
+            )
+            .unwrap(),
+            core_cancel_handlers_total: register_int_gauge_vec_with_registry!(
+                "core_cancel_handlers_total",
+                "Number of cancel handlers in the core module",
                 &["epoch"],
                 registry
             )

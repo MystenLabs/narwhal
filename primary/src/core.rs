@@ -591,6 +591,11 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
                     .with_label_values(&[&self.committee.epoch.to_string()])
                     .observe(now.elapsed().as_secs_f64());
             }
+
+            self.metrics
+                .core_cancel_handlers_total
+                .with_label_values(&[&self.committee.epoch.to_string()])
+                .set(self.cancel_handlers.len() as i64);
         }
     }
 }
