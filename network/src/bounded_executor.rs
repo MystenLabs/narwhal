@@ -1,4 +1,5 @@
 // Copyright (c) The Diem Core Contributors
+// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
 #![forbid(unsafe_code)]
@@ -14,6 +15,8 @@ use tokio::{
     sync::{OwnedSemaphorePermit, Semaphore},
     task::JoinHandle,
 };
+
+use tracing::info;
 
 #[derive(Clone, Debug)]
 pub struct BoundedExecutor {
@@ -41,7 +44,14 @@ impl BoundedExecutor {
         F: Future + Send + 'static,
         F::Output: Send + 'static,
     {
-        let permit = self.semaphore.clone().acquire_owned().await.unwrap();
+        let permit = match self.semaphore.clone().try_acquire_owned() {
+            Ok(p) => p,
+            Err(_) => {
+                info!("concurrent task limit reached, waiting...");
+                self.semaphore.clone().acquire_owned().await.unwrap()
+            }
+        };
+
         self.spawn_with_permit(f, permit)
     }
 
