@@ -1,7 +1,7 @@
 // Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crate::primary::{ConsensusPrimaryMessage, PrimaryWorkerMessage};
+use crate::primary::PrimaryWorkerMessage;
 use config::SharedCommittee;
 use crypto::traits::VerifyingKey;
 use network::PrimaryToWorkerNetwork;
@@ -10,10 +10,13 @@ use std::sync::{
     Arc,
 };
 use tokio::{
-    sync::{mpsc::Receiver, watch},
+    sync::{
+        mpsc::{channel, Receiver},
+        watch,
+    },
     task::JoinHandle,
 };
-use types::{Certificate, Reconfigure, Round};
+use types::{Certificate, Reconfigure, ReconfigureNotification, Round};
 
 /// Receives the highest round reached by consensus and update it for all tasks.
 pub struct StateHandler<PublicKey: VerifyingKey> {
@@ -24,7 +27,9 @@ pub struct StateHandler<PublicKey: VerifyingKey> {
     /// The current consensus round (used for cleanup).
     consensus_round: Arc<AtomicU64>,
     /// Receives the ordered certificates from consensus.
-    rx_consensus: Receiver<ConsensusPrimaryMessage<PublicKey>>,
+    rx_consensus: Receiver<Certificate<PublicKey>>,
+    /// Receives notifications to reconfigure the system.
+    rx_reconfigure: Receiver<ReconfigureNotification<PublicKey>>,
     /// Channel to signal committee changes.
     tx_reconfigure: watch::Sender<Reconfigure<PublicKey>>,
     /// The latest round committed by consensus.
@@ -38,7 +43,8 @@ impl<PublicKey: VerifyingKey> StateHandler<PublicKey> {
         name: PublicKey,
         committee: SharedCommittee<PublicKey>,
         consensus_round: Arc<AtomicU64>,
-        rx_consensus: Receiver<ConsensusPrimaryMessage<PublicKey>>,
+        rx_consensus: Receiver<Certificate<PublicKey>>,
+        rx_reconfigure: Receiver<ReconfigureNotification<PublicKey>>,
         tx_reconfigure: watch::Sender<Reconfigure<PublicKey>>,
     ) -> JoinHandle<()> {
         tokio::spawn(async move {
@@ -47,6 +53,7 @@ impl<PublicKey: VerifyingKey> StateHandler<PublicKey> {
                 committee,
                 consensus_round,
                 rx_consensus,
+                rx_reconfigure,
                 tx_reconfigure,
                 last_committed_round: 0,
                 worker_network: Default::default(),
@@ -81,30 +88,47 @@ impl<PublicKey: VerifyingKey> StateHandler<PublicKey> {
     }
 
     async fn run(&mut self) {
-        while let Some(message) = self.rx_consensus.recv().await {
-            match message {
-                ConsensusPrimaryMessage::Sequenced(certificate) => {
+        loop {
+            tokio::select! {
+                Some(certificate) = self.rx_consensus.recv() => {
                     self.handle_sequenced(certificate).await;
-                }
-                ConsensusPrimaryMessage::Committee(committee) => {
-                    // Update the committee.
-                    self.committee.swap(Arc::new(committee.clone()));
+                },
 
-                    // Trigger cleanup on the primary.
-                    self.consensus_round.store(0, Ordering::Relaxed);
+                Some(message) = self.rx_reconfigure.recv() => {
+                    match message {
+                        ReconfigureNotification::NewCommittee(committee) => {
+                            // Notify the workers.
+                            // TODO
 
-                    // Notify all other tasks.
-                    let message = Reconfigure::NewCommittee(committee);
-                    self.tx_reconfigure
-                        .send(message)
-                        .expect("Reconfigure channel dropped");
-                }
-                ConsensusPrimaryMessage::Shutdown(token) => {
-                    let message = Reconfigure::Shutdown(token);
-                    self.tx_reconfigure
-                        .send(message)
-                        .expect("Reconfigure channel dropped");
-                    break;
+                            // Update the committee.
+                            self.committee.swap(Arc::new(committee.clone()));
+
+                            // Trigger cleanup on the primary.
+                            self.consensus_round.store(0, Ordering::Relaxed);
+
+                            // Notify all other tasks.
+                            let message = Reconfigure::NewCommittee(committee);
+                            self.tx_reconfigure
+                                .send(message)
+                                .expect("Reconfigure channel dropped");
+                        },
+                        ReconfigureNotification::Shutdown => {
+                            // Shutdown the workers.
+                            // TODO
+
+                            // Shutdown the primary.
+                            let (token, mut rx) = channel(1);
+                            let message = Reconfigure::Shutdown(token);
+                            self.tx_reconfigure
+                                .send(message)
+                                .expect("Reconfigure channel dropped");
+                            rx.recv().await;
+
+                            // Exit only when we are sure that all workers and primary tasks received
+                            // the shutdown message.
+                            return;
+                        }
+                    }
                 }
             }
         }

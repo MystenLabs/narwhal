@@ -45,10 +45,10 @@ use tonic::{Request, Response, Status};
 use tracing::info;
 use types::{
     Batch, BatchDigest, BatchMessage, BincodeEncodedPayload, Certificate, CertificateDigest, Empty,
-    Header, HeaderDigest, PrimaryToPrimary, PrimaryToPrimaryServer, Reconfigure, WorkerToPrimary,
-    WorkerToPrimaryServer,
+    Header, HeaderDigest, PrimaryToPrimary, PrimaryToPrimaryServer, Reconfigure,
+    ReconfigureNotification, WorkerToPrimary, WorkerToPrimaryServer,
 };
-pub use types::{ConsensusPrimaryMessage, PrimaryMessage, PrimaryWorkerMessage};
+pub use types::{PrimaryMessage, PrimaryWorkerMessage};
 
 /// The default channel capacity for each channel of the primary.
 pub const CHANNEL_CAPACITY: usize = 1_000;
@@ -101,10 +101,10 @@ impl Primary {
         certificate_store: Store<CertificateDigest, Certificate<PublicKey>>,
         payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,
         tx_consensus: Sender<Certificate<PublicKey>>,
-        rx_consensus: Receiver<ConsensusPrimaryMessage<PublicKey>>,
+        rx_consensus: Receiver<Certificate<PublicKey>>,
         dag: Option<Arc<Dag<PublicKey>>>,
         network_model: NetworkModel,
-        tx_committed_certificates: Sender<ConsensusPrimaryMessage<PublicKey>>,
+        tx_committed_certificates: Sender<Certificate<PublicKey>>,
         registry: &Registry,
     ) -> Vec<JoinHandle<()>> {
         let initial_committee = Reconfigure::NewCommittee((**committee.load()).clone());
@@ -129,6 +129,7 @@ impl Primary {
         let (tx_certificate_responses, rx_certificate_responses) = channel(CHANNEL_CAPACITY);
         let (tx_payload_availability_responses, rx_payload_availability_responses) =
             channel(CHANNEL_CAPACITY);
+        let (tx_state_handler, rx_state_handler) = channel(CHANNEL_CAPACITY);
 
         // Write the parameters to the logs.
         parameters.tracing();
@@ -157,6 +158,7 @@ impl Primary {
             tx_helper_requests,
             tx_payload_availability_responses,
             tx_certificate_responses,
+            tx_state_handler,
         }
         .spawn(
             address.clone(),
@@ -364,6 +366,7 @@ impl Primary {
             committee.clone(),
             consensus_round,
             rx_consensus,
+            rx_state_handler,
             tx_reconfigure,
         );
 
@@ -402,6 +405,7 @@ struct PrimaryReceiverHandler<PublicKey: VerifyingKey> {
     tx_helper_requests: Sender<PrimaryMessage<PublicKey>>,
     tx_payload_availability_responses: Sender<PayloadAvailabilityResponse<PublicKey>>,
     tx_certificate_responses: Sender<CertificatesResponse<PublicKey>>,
+    tx_state_handler: Sender<ReconfigureNotification<PublicKey>>,
 }
 
 impl<PublicKey: VerifyingKey> PrimaryReceiverHandler<PublicKey> {
@@ -487,6 +491,13 @@ impl<PublicKey: VerifyingKey> PrimaryToPrimary for PrimaryReceiverHandler<Public
                 })
                 .await
                 .expect("Failed to send primary message"),
+
+            PrimaryMessage::Reconfigure(notification) => self
+                .tx_state_handler
+                .send(notification)
+                .await
+                .expect("Failed to send reconfigure message"),
+
             _ => self
                 .tx_primary_messages
                 .send(message)

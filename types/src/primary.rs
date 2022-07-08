@@ -555,12 +555,14 @@ pub enum PrimaryMessage<PublicKey: VerifyingKey> {
         payload_availability: Vec<(CertificateDigest, bool)>,
         from: PublicKey,
     },
+
+    Reconfigure(ReconfigureNotification<PublicKey>),
 }
 
 /// Message to reconfigure worker tasks.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(bound(deserialize = "PublicKey: VerifyingKey"))]
-pub enum PrimaryWorkerReconfigure<PublicKey: VerifyingKey> {
+pub enum ReconfigureNotification<PublicKey: VerifyingKey> {
     /// Indicate the committee has been updated.
     NewCommittee(Committee<PublicKey>),
     /// Indicate a shutdown.
@@ -576,7 +578,7 @@ pub enum PrimaryWorkerMessage<PublicKey: VerifyingKey> {
     /// The primary indicates a round update.
     Cleanup(Round),
     /// Reconfigure the worker.
-    Reconfigure(PrimaryWorkerReconfigure<PublicKey>),
+    Reconfigure(ReconfigureNotification<PublicKey>),
     /// The primary requests a batch from the worker
     RequestBatch(BatchDigest),
     /// Delete the batches, dictated from the provided vector of digest, from the worker node

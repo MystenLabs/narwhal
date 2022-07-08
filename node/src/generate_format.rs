@@ -13,7 +13,7 @@ use std::{fs::File, io::Write};
 use structopt::{clap::arg_enum, StructOpt};
 use types::{
     Batch, BatchDigest, Certificate, CertificateDigest, Header, HeaderDigest,
-    PrimaryWorkerReconfigure,
+    ReconfigureNotification,
 };
 
 fn get_registry() -> Result<Registry> {
@@ -111,7 +111,7 @@ fn get_registry() -> Result<Registry> {
         PrimaryWorkerMessage::<Ed25519PublicKey>::DeleteBatches(vec![BatchDigest([0u8; 32])]);
     let sync = PrimaryWorkerMessage::Synchronize(vec![BatchDigest([0u8; 32])], pk.clone());
     let reconfigure =
-        PrimaryWorkerMessage::Reconfigure(PrimaryWorkerReconfigure::NewCommittee(committee));
+        PrimaryWorkerMessage::Reconfigure(ReconfigureNotification::NewCommittee(committee));
     tracer.trace_value(&mut samples, &cleanup)?;
     tracer.trace_value(&mut samples, &request_batch)?;
     tracer.trace_value(&mut samples, &delete_batch)?;
