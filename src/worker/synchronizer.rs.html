@@ -326,6 +326,8 @@
 <span id="320">320</span>
 <span id="321">321</span>
 <span id="322">322</span>
+<span id="323">323</span>
+<span id="324">324</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -581,10 +583,12 @@
                         .<span class="ident">as_millis</span>();
 
                     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">retry</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
-                    <span class="kw">for</span> (<span class="ident">digest</span>, (<span class="kw">_</span>, <span class="kw">_</span>, <span class="ident">timestamp</span>)) <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">pending</span> {
-                        <span class="kw">if</span> <span class="ident">timestamp</span> <span class="op">+</span> <span class="self">self</span>.<span class="ident">sync_retry_delay</span>.<span class="ident">as_millis</span>() <span class="op">&lt;</span> <span class="ident">now</span> {
+                    <span class="kw">for</span> (<span class="ident">digest</span>, (<span class="kw">_</span>, <span class="kw">_</span>, <span class="ident">timestamp</span>)) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">iter_mut</span>() {
+                        <span class="kw">if</span> <span class="kw-2">*</span><span class="ident">timestamp</span> <span class="op">+</span> <span class="self">self</span>.<span class="ident">sync_retry_delay</span>.<span class="ident">as_millis</span>() <span class="op">&lt;</span> <span class="ident">now</span> {
                             <span class="macro">debug!</span>(<span class="string">&quot;Requesting sync for batch {digest} (retry)&quot;</span>);
                             <span class="ident">retry</span>.<span class="ident">push</span>(<span class="kw-2">*</span><span class="ident">digest</span>);
+                            <span class="comment">// reset the time at which this request was last issued</span>
+                            <span class="kw-2">*</span><span class="ident">timestamp</span> <span class="op">=</span> <span class="ident">now</span>;
                         }
                     }
                     <span class="kw">if</span> <span class="op">!</span><span class="ident">retry</span>.<span class="ident">is_empty</span>() {
