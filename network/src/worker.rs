@@ -1,15 +1,13 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{spawn_with_limited_concurrency, CancelHandler, RetryConfig, MAX_TASK_CONCURRENCY};
+use crate::{BoundedExecutor, CancelHandler, RetryConfig, MAX_TASK_CONCURRENCY};
 use crypto::traits::VerifyingKey;
 use futures::FutureExt;
 use multiaddr::Multiaddr;
 use rand::{prelude::SliceRandom as _, rngs::SmallRng, SeedableRng as _};
 use std::collections::HashMap;
-use std::future::Future;
-use std::sync::Arc;
-use tokio::sync::Semaphore;
+use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 use tonic::transport::Channel;
 use types::{BincodeEncodedPayload, WorkerMessage, WorkerToWorkerClient};
@@ -20,7 +18,7 @@ pub struct WorkerNetwork {
     retry_config: RetryConfig,
     /// Small RNG just used to shuffle nodes and randomize connections (not crypto related).
     rng: SmallRng,
-    semaphore: Arc<Semaphore>,
+    executor: BoundedExecutor,
 }
 
 impl Default for WorkerNetwork {
@@ -36,7 +34,7 @@ impl Default for WorkerNetwork {
             config: Default::default(),
             retry_config,
             rng: SmallRng::from_entropy(),
-            semaphore: Arc::new(Semaphore::new(MAX_TASK_CONCURRENCY)),
+            executor: BoundedExecutor::new(MAX_TASK_CONCURRENCY, Handle::current()),
         }
     }
 }
@@ -58,10 +56,6 @@ impl WorkerNetwork {
         WorkerToWorkerClient::new(channel)
     }
 
-    async fn spawn(&self, fut: impl Future<Output = ()> + Send + 'static) -> JoinHandle<()> {
-        spawn_with_limited_concurrency(self.semaphore.clone(), fut).await
-    }
-
     pub async fn send<T: VerifyingKey>(
         &mut self,
         address: Multiaddr,
@@ -79,6 +73,7 @@ impl WorkerNetwork {
     ) -> CancelHandler<()> {
         let client = self.client(address);
         let handle = self
+            .executor
             .spawn(
                 self.retry_config
                     .retry(move || {
@@ -127,10 +122,11 @@ impl WorkerNetwork {
     ) -> JoinHandle<()> {
         let message = message.into();
         let mut client = self.client(address);
-        self.spawn(async move {
-            let _ = client.send_message(message).await;
-        })
-        .await
+        self.executor
+            .spawn(async move {
+                let _ = client.send_message(message).await;
+            })
+            .await
     }
 
     /// Pick a few addresses at random (specified by `nodes`) and try (best-effort) to send the

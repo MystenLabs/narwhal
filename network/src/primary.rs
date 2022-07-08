@@ -1,15 +1,13 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{spawn_with_limited_concurrency, CancelHandler, RetryConfig, MAX_TASK_CONCURRENCY};
+use crate::{BoundedExecutor, CancelHandler, RetryConfig, MAX_TASK_CONCURRENCY};
 use crypto::traits::VerifyingKey;
 use futures::FutureExt;
 use multiaddr::Multiaddr;
 use rand::{prelude::SliceRandom as _, rngs::SmallRng, SeedableRng as _};
 use std::collections::HashMap;
-use std::future::Future;
-use std::sync::Arc;
-use tokio::sync::Semaphore;
+use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 use tonic::transport::Channel;
 use types::{
@@ -23,7 +21,7 @@ pub struct PrimaryNetwork {
     retry_config: RetryConfig,
     /// Small RNG just used to shuffle nodes and randomize connections (not crypto related).
     rng: SmallRng,
-    semaphore: Arc<Semaphore>,
+    executor: BoundedExecutor,
 }
 
 impl Default for PrimaryNetwork {
@@ -39,7 +37,7 @@ impl Default for PrimaryNetwork {
             config: Default::default(),
             retry_config,
             rng: SmallRng::from_entropy(),
-            semaphore: Arc::new(Semaphore::new(MAX_TASK_CONCURRENCY)),
+            executor: BoundedExecutor::new(MAX_TASK_CONCURRENCY, Handle::current()),
         }
     }
 }
@@ -61,10 +59,6 @@ impl PrimaryNetwork {
         PrimaryToPrimaryClient::new(channel)
     }
 
-    async fn spawn(&self, fut: impl Future<Output = ()> + Send + 'static) -> JoinHandle<()> {
-        spawn_with_limited_concurrency(self.semaphore.clone(), fut).await
-    }
-
     pub async fn send<T: VerifyingKey>(
         &mut self,
         address: Multiaddr,
@@ -82,6 +76,7 @@ impl PrimaryNetwork {
     ) -> CancelHandler<()> {
         let client = self.client(address);
         let handle = self
+            .executor
             .spawn(
                 self.retry_config
                     .retry(move || {
@@ -121,10 +116,11 @@ impl PrimaryNetwork {
         let message =
             BincodeEncodedPayload::try_from(message).expect("Failed to serialize payload");
         let mut client = self.client(address);
-        self.spawn(async move {
-            let _ = client.send_message(message).await;
-        })
-        .await
+        self.executor
+            .spawn(async move {
+                let _ = client.send_message(message).await;
+            })
+            .await
     }
 
     /// Pick a few addresses at random (specified by `nodes`) and try (best-effort) to send the
@@ -141,10 +137,11 @@ impl PrimaryNetwork {
             let handle = {
                 let mut client = self.client(address);
                 let message = message.clone();
-                self.spawn(async move {
-                    let _ = client.send_message(message).await;
-                })
-                .await
+                self.executor
+                    .spawn(async move {
+                        let _ = client.send_message(message).await;
+                    })
+                    .await
             };
             handlers.push(handle);
         }
@@ -168,10 +165,11 @@ impl PrimaryNetwork {
             let handle = {
                 let mut client = self.client(address);
                 let message = message.clone();
-                self.spawn(async move {
-                    let _ = client.send_message(message).await;
-                })
-                .await
+                self.executor
+                    .spawn(async move {
+                        let _ = client.send_message(message).await;
+                    })
+                    .await
             };
             handlers.push(handle);
         }
@@ -182,7 +180,7 @@ impl PrimaryNetwork {
 pub struct PrimaryToWorkerNetwork {
     clients: HashMap<Multiaddr, PrimaryToWorkerClient<Channel>>,
     config: mysten_network::config::Config,
-    semaphore: Arc<Semaphore>,
+    executor: BoundedExecutor,
 }
 
 impl Default for PrimaryToWorkerNetwork {
@@ -190,7 +188,7 @@ impl Default for PrimaryToWorkerNetwork {
         Self {
             clients: Default::default(),
             config: Default::default(),
-            semaphore: Arc::new(Semaphore::new(MAX_TASK_CONCURRENCY)),
+            executor: BoundedExecutor::new(MAX_TASK_CONCURRENCY, Handle::current()),
         }
     }
 }
@@ -212,10 +210,6 @@ impl PrimaryToWorkerNetwork {
         PrimaryToWorkerClient::new(channel)
     }
 
-    async fn spawn(&self, fut: impl Future<Output = ()> + Send + 'static) -> JoinHandle<()> {
-        spawn_with_limited_concurrency(self.semaphore.clone(), fut).await
-    }
-
     pub async fn send<T: VerifyingKey>(
         &mut self,
         address: Multiaddr,
@@ -224,10 +218,11 @@ impl PrimaryToWorkerNetwork {
         let message =
             BincodeEncodedPayload::try_from(message).expect("Failed to serialize payload");
         let mut client = self.client(address);
-        self.spawn(async move {
-            let _ = client.send_message(message).await;
-        })
-        .await
+        self.executor
+            .spawn(async move {
+                let _ = client.send_message(message).await;
+            })
+            .await
     }
 
     pub async fn broadcast<T: VerifyingKey>(
@@ -242,10 +237,11 @@ impl PrimaryToWorkerNetwork {
             let handle = {
                 let mut client = self.client(address);
                 let message = message.clone();
-                self.spawn(async move {
-                    let _ = client.send_message(message).await;
-                })
-                .await
+                self.executor
+                    .spawn(async move {
+                        let _ = client.send_message(message).await;
+                    })
+                    .await
             };
             handlers.push(handle);
         }

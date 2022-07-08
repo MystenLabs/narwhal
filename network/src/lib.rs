@@ -8,17 +8,13 @@
     rust_2021_compatibility
 )]
 
+mod bounded_executor;
 mod primary;
 mod retry;
 mod worker;
 
-use std::future::Future;
-use std::sync::Arc;
-use tokio::sync::{Semaphore, OwnedSemaphorePermit};
-use tokio::task::JoinHandle;
-use tracing::info;
-
 pub use crate::{
+    bounded_executor::BoundedExecutor,
     primary::{PrimaryNetwork, PrimaryToWorkerNetwork},
     retry::RetryConfig,
     worker::WorkerNetwork,
@@ -54,27 +50,3 @@ impl<T> std::future::Future for CancelHandler<T> {
 // The exact number here probably isn't important, the key things is that it should be finite so
 // that we don't create unbounded numbers of tasks.
 pub const MAX_TASK_CONCURRENCY: usize = 200;
-
-async fn acquire_permit(semaphore: Arc<Semaphore>) -> Option<OwnedSemaphorePermit> {
-  if let Ok(permit) = semaphore.clone().try_acquire_owned() {
-    return Some(permit);
-  }
-
-  info!("concurrent task limit reached, waiting...");
-
-  semaphore.acquire_owned().await.ok()
-}
-
-pub async fn spawn_with_limited_concurrency(
-    semaphore: Arc<Semaphore>,
-    fut: impl Future<Output = ()> + Send + 'static,
-) -> JoinHandle<()> {
-    match acquire_permit(semaphore).await {
-        Some(permit) => tokio::spawn(async move {
-            let _permit = permit; // hold permit until future completes
-            fut.await;
-        }),
-        // semaphore has been closed, return an empty task and do nothing
-        None => tokio::spawn(async move {}),
-    }
-}
