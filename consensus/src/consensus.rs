@@ -52,6 +52,36 @@ impl<PublicKey: VerifyingKey> ConsensusState<PublicKey> {
         }
     }
 
+    pub fn new_from_store(
+        genesis: Vec<Certificate<PublicKey>>,
+        metrics: Arc<ConsensusMetrics>,
+        last_committed: HashMap<PublicKey, Round>,
+    ) -> Self {
+        let last_committed_round = *last_committed
+            .iter()
+            .max_by(|a, b| a.1.cmp(b.1))
+            .map(|(_k, v)| v)
+            .unwrap_or_else(|| &0);
+        if last_committed_round == 0 {
+            return Self::new(genesis, metrics);
+        }
+
+        let genesis = genesis
+            .into_iter()
+            .map(|x| (x.origin(), (x.digest(), x)))
+            .collect::<HashMap<_, _>>();
+
+        Self {
+            last_committed_round,
+            last_committed,
+            dag: [(0, genesis)]
+                .iter()
+                .cloned()
+                .collect::<HashMap<_, HashMap<_, _>>>(), // todo Laura: reconstruct using store
+            metrics,
+        }
+    }
+
     /// Update and clean up internal state base on committed certificates.
     pub fn update(&mut self, certificate: &Certificate<PublicKey>, gc_depth: Round) {
         self.last_committed
@@ -119,6 +149,9 @@ pub struct Consensus<PublicKey: VerifyingKey, ConsensusProtocol> {
 
     /// Metrics handler
     metrics: Arc<ConsensusMetrics>,
+
+    /// The latest committed round of each validator.
+    last_committed: HashMap<PublicKey, Round>,
 }
 
 impl<PublicKey, Protocol> Consensus<PublicKey, Protocol>
@@ -137,6 +170,7 @@ where
     ) -> JoinHandle<StoreResult<()>> {
         tokio::spawn(async move {
             let consensus_index = store.read_last_consensus_index()?;
+            let last_committed = store.read_last_committed();
             let committee: &Committee<PublicKey> = &committee.load();
             let genesis = Certificate::genesis(committee);
             Self {
@@ -147,6 +181,7 @@ where
                 consensus_index,
                 protocol,
                 metrics,
+                last_committed,
             }
             .run()
             .await
@@ -155,7 +190,11 @@ where
 
     async fn run(&mut self) -> StoreResult<()> {
         // The consensus state (everything else is immutable).
-        let mut state = ConsensusState::new(self.genesis.clone(), self.metrics.clone());
+        let mut state = ConsensusState::new_from_store(
+            self.genesis.clone(),
+            self.metrics.clone(),
+            self.last_committed.clone(),
+        );
 
         // Listen to incoming certificates.
         while let Some(certificate) = self.rx_primary.recv().await {
