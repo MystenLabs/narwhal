@@ -611,6 +611,7 @@
 <span id="605">605</span>
 <span id="606">606</span>
 <span id="607">607</span>
+<span id="608">608</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -814,6 +815,7 @@
             <span class="ident">payload_store</span>.<span class="ident">clone</span>(),
             <span class="comment">/* tx_header_waiter */</span> <span class="ident">tx_sync_headers</span>,
             <span class="comment">/* tx_certificate_waiter */</span> <span class="ident">tx_sync_certificates</span>,
+            <span class="ident">dag</span>.<span class="ident">clone</span>(),
         );
 
         <span class="comment">// The `SignatureService` is used to require signatures on specific digests.</span>

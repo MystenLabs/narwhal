@@ -498,6 +498,35 @@
 <span id="492">492</span>
 <span id="493">493</span>
 <span id="494">494</span>
+<span id="495">495</span>
+<span id="496">496</span>
+<span id="497">497</span>
+<span id="498">498</span>
+<span id="499">499</span>
+<span id="500">500</span>
+<span id="501">501</span>
+<span id="502">502</span>
+<span id="503">503</span>
+<span id="504">504</span>
+<span id="505">505</span>
+<span id="506">506</span>
+<span id="507">507</span>
+<span id="508">508</span>
+<span id="509">509</span>
+<span id="510">510</span>
+<span id="511">511</span>
+<span id="512">512</span>
+<span id="513">513</span>
+<span id="514">514</span>
+<span id="515">515</span>
+<span id="516">516</span>
+<span id="517">517</span>
+<span id="518">518</span>
+<span id="519">519</span>
+<span id="520">520</span>
+<span id="521">521</span>
+<span id="522">522</span>
+<span id="523">523</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 
@@ -575,6 +604,7 @@
         <span class="ident">oneshot::Sender</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">ValidatorDagError</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     ),
     <span class="ident">Contains</span>(<span class="ident">CertificateDigest</span>, <span class="ident">oneshot::Sender</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span>),
+    <span class="ident">HasEverContained</span>(<span class="ident">CertificateDigest</span>, <span class="ident">oneshot::Sender</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span>),
     <span class="ident">Rounds</span>(
         <span class="ident">PublicKey</span>,
         <span class="ident">oneshot::Sender</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">std::ops::RangeInclusive</span><span class="op">&lt;</span><span class="ident">Round</span><span class="op">&gt;</span>, <span class="ident">ValidatorDagError</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
@@ -644,6 +674,9 @@
                         <span class="ident">DagCommand::Contains</span>(<span class="ident">dig</span>, <span class="ident">sender</span>)=&gt; {
                             <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">sender</span>.<span class="ident">send</span>(<span class="self">self</span>.<span class="ident">contains</span>(<span class="ident">dig</span>));
                         },
+                        <span class="ident">DagCommand::HasEverContained</span>(<span class="ident">dig</span>, <span class="ident">sender</span>) =&gt; {
+                            <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">sender</span>.<span class="ident">send</span>(<span class="self">self</span>.<span class="ident">has_ever_contained</span>(<span class="ident">dig</span>));
+                        }
                         <span class="ident">DagCommand::Rounds</span>(<span class="ident">pk</span>, <span class="ident">sender</span>) =&gt; {
                             <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">sender</span>.<span class="ident">send</span>(<span class="self">self</span>.<span class="ident">rounds</span>(<span class="ident">pk</span>));
                         },
@@ -701,6 +734,14 @@
     <span class="doccomment">/// For the purposes of this memory-conscious graph, this is just &quot;contains&quot; semantics.</span>
     <span class="kw">fn</span> <span class="ident">contains</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">digest</span>: <span class="ident">CertificateDigest</span>) -&gt; <span class="ident">bool</span> {
         <span class="self">self</span>.<span class="ident">dag</span>.<span class="ident">contains_live</span>(<span class="ident">digest</span>)
+    }
+
+    <span class="doccomment">/// Returns whether the dag has ever contained a node with the provided digest. The method will return</span>
+    <span class="doccomment">/// true either when the node is live (uncompressed) or has been already compressed as still exists</span>
+    <span class="doccomment">/// as weak reference.</span>
+    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span> <span class="op">=</span> <span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>, <span class="ident">fields</span>(<span class="ident">digest</span> <span class="op">=</span> <span class="question-mark">?</span><span class="ident">digest</span>))]</span>
+    <span class="kw">fn</span> <span class="ident">has_ever_contained</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">digest</span>: <span class="ident">CertificateDigest</span>) -&gt; <span class="ident">bool</span> {
+        <span class="self">self</span>.<span class="ident">dag</span>.<span class="ident">contains</span>(<span class="ident">digest</span>)
     }
 
     <span class="doccomment">/// Returns the oldest and newest rounds for which a validator has (live) certificates in the DAG</span>
@@ -890,6 +931,23 @@
         <span class="ident">receiver</span>
             .<span class="kw">await</span>
             .<span class="ident">expect</span>(<span class="string">&quot;Failed to receive reply to Contains command from store&quot;</span>)
+    }
+
+    <span class="doccomment">/// Returns whether the dag has ever contained a node with the provided digest. The method will return</span>
+    <span class="doccomment">/// true either when the node is live (uncompressed) or has been already compressed as still exists</span>
+    <span class="doccomment">/// as weak reference.</span>
+    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">has_ever_contained</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">digest</span>: <span class="ident">CertificateDigest</span>) -&gt; <span class="ident">bool</span> {
+        <span class="kw">let</span> (<span class="ident">sender</span>, <span class="ident">receiver</span>) <span class="op">=</span> <span class="ident">oneshot::channel</span>();
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=</span> <span class="self">self</span>
+            .<span class="ident">tx_commands</span>
+            .<span class="ident">send</span>(<span class="ident">DagCommand::HasEverContained</span>(<span class="ident">digest</span>, <span class="ident">sender</span>))
+            .<span class="kw">await</span>
+        {
+            <span class="macro">panic!</span>(<span class="string">&quot;Failed to send HasEverContained command to store: {e}&quot;</span>);
+        }
+        <span class="ident">receiver</span>
+            .<span class="kw">await</span>
+            .<span class="ident">expect</span>(<span class="string">&quot;Failed to receive reply to HasEverContained command from store&quot;</span>)
     }
 
     <span class="doccomment">/// Returns the oldest and newest rounds for which a validator has (live) certificates in the DAG</span>
