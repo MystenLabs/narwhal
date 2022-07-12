@@ -1,4 +1,4 @@
-name: Check scripts, Docker file and profobuf
+name: Lint shell, Docker and protobuf files
 
 on:
   push:
