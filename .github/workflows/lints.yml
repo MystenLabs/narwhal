@@ -1,4 +1,4 @@
-name: Check scripts & Docker file
+name: Check scripts, Docker file and profobuf
 
 on:
   push:
@@ -9,32 +9,24 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
 
 jobs:
-  shellcheck:
-    name: Check shell scripts
-    runs-on: [ubuntu-latest]
-
-    steps:
-    - uses: actions/checkout@v2
-    - name: Run ShellCheck
-      uses: ludeeus/action-shellcheck@master
-      with:
-        severity: error
-
-  docker-lint:
-    name: Lint Docker file
+  lint:
+    name: Lint shell, docker and protobuf files
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
-      - uses: dorny/paths-filter@v2
-        id: filter
+      - name: Checkout Code
+        uses: actions/checkout@latest
         with:
-          filters: |
-            docker:
-              - 'Docker/**'
-      - name: Lint Docker file
-        if: steps.filter.outputs.docker == 'true'
-        uses: hadolint/hadolint-action@v2.1.0
-        with:
-          failure-threshold: error
-          dockerfile: Docker/Dockerfile
+          # Full git history is needed to get a proper list of changed files within `super-linter`
+          fetch-depth: 0
+
+      - name: Lint Code Base
+        uses: github/super-linter@slim-v4
+        env:
+          VALIDATE_ALL_CODEBASE: false
+          DEFAULT_BRANCH: main
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Select file types to lint. Python and Rust linters are configured separately.
+          VALIDATE_SHELL_SHFMT: true
+          VALIDATE_DOCKERFILE_HADOLINT: true
+          VALIDATE_PROTOBUF: true
