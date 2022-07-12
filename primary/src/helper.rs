@@ -12,7 +12,7 @@ use tokio::{
     task::JoinHandle,
 };
 use tracing::{error, instrument};
-use types::{BatchDigest, Certificate, CertificateDigest, Reconfigure, ShutdownToken};
+use types::{BatchDigest, Certificate, CertificateDigest, Reconfigure};
 
 #[cfg(test)]
 #[path = "tests/helper_tests.rs"]
@@ -59,7 +59,7 @@ impl<PublicKey: VerifyingKey> Helper<PublicKey> {
         rx_primaries: Receiver<PrimaryMessage<PublicKey>>,
     ) -> JoinHandle<()> {
         tokio::spawn(async move {
-            let shutdown_token = Self {
+            Self {
                 name,
                 committee,
                 certificate_store,
@@ -70,11 +70,10 @@ impl<PublicKey: VerifyingKey> Helper<PublicKey> {
             }
             .run()
             .await;
-            drop(shutdown_token);
         })
     }
 
-    async fn run(&mut self) -> ShutdownToken {
+    async fn run(&mut self) {
         loop {
             tokio::select! {
                 Some(request) = self.rx_primaries.recv() => match request {
@@ -117,7 +116,7 @@ impl<PublicKey: VerifyingKey> Helper<PublicKey> {
                         Reconfigure::NewCommittee(new_committee) => {
                             self.committee = new_committee;
                         },
-                        Reconfigure::Shutdown(token) => return token
+                        Reconfigure::Shutdown(_token) => return
                     }
                 }
             }

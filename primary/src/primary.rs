@@ -44,9 +44,9 @@ use tokio::{
 use tonic::{Request, Response, Status};
 use tracing::info;
 use types::{
-    Batch, BatchDigest, BatchMessage, BincodeEncodedPayload, Certificate, CertificateDigest, Empty,
-    Header, HeaderDigest, PrimaryToPrimary, PrimaryToPrimaryServer, Reconfigure,
-    ReconfigureNotification, WorkerToPrimary, WorkerToPrimaryServer,
+    error::DagError, Batch, BatchDigest, BatchMessage, BincodeEncodedPayload, Certificate,
+    CertificateDigest, Empty, Header, HeaderDigest, PrimaryToPrimary, PrimaryToPrimaryServer,
+    Reconfigure, ReconfigureNotification, WorkerToPrimary, WorkerToPrimaryServer,
 };
 pub use types::{PrimaryMessage, PrimaryWorkerMessage};
 
@@ -134,7 +134,7 @@ impl Primary {
         // Write the parameters to the logs.
         parameters.tracing();
 
-        // Initialise the metrics
+        // Initialize the metrics
         let metrics = initialise_metrics(registry);
         let endpoint_metrics = metrics.endpoint_metrics.unwrap();
         let primary_endpoint_metrics = metrics.primary_endpoint_metrics.unwrap();
@@ -461,12 +461,12 @@ impl<PublicKey: VerifyingKey> PrimaryToPrimary for PrimaryReceiverHandler<Public
                 .tx_helper_requests
                 .send(message)
                 .await
-                .expect("Failed to send primary message"),
+                .map_err(|_| DagError::ShuttingDown),
             PrimaryMessage::CertificatesBatchRequest { .. } => self
                 .tx_helper_requests
                 .send(message)
                 .await
-                .expect("Failed to send primary message"),
+                .map_err(|_| DagError::ShuttingDown),
             PrimaryMessage::CertificatesBatchResponse { certificates, from } => self
                 .tx_certificate_responses
                 .send(CertificatesResponse {
@@ -474,12 +474,12 @@ impl<PublicKey: VerifyingKey> PrimaryToPrimary for PrimaryReceiverHandler<Public
                     from: from.clone(),
                 })
                 .await
-                .expect("Failed to send primary message"),
+                .map_err(|_| DagError::ShuttingDown),
             PrimaryMessage::PayloadAvailabilityRequest { .. } => self
                 .tx_helper_requests
                 .send(message)
                 .await
-                .expect("Failed to send primary message"),
+                .map_err(|_| DagError::ShuttingDown),
             PrimaryMessage::PayloadAvailabilityResponse {
                 payload_availability,
                 from,
@@ -490,20 +490,20 @@ impl<PublicKey: VerifyingKey> PrimaryToPrimary for PrimaryReceiverHandler<Public
                     from: from.clone(),
                 })
                 .await
-                .expect("Failed to send primary message"),
+                .map_err(|_| DagError::ShuttingDown),
 
             PrimaryMessage::Reconfigure(notification) => self
                 .tx_state_handler
                 .send(notification)
                 .await
-                .expect("Failed to send reconfigure message"),
-
+                .map_err(|_| DagError::ShuttingDown),
             _ => self
                 .tx_primary_messages
                 .send(message)
                 .await
-                .expect("Failed to send certificate"),
+                .map_err(|_| DagError::ShuttingDown),
         }
+        .map_err(|e| Status::not_found(e.to_string()))?;
 
         Ok(Response::new(Empty {}))
     }

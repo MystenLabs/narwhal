@@ -117,15 +117,17 @@ impl<PublicKey: VerifyingKey> StateHandler<PublicKey> {
                             // TODO
 
                             // Shutdown the primary.
-                            let (token, mut rx) = channel(1);
+                            let (token, rx) = channel(1);
                             let message = Reconfigure::Shutdown(token);
                             self.tx_reconfigure
                                 .send(message)
                                 .expect("Reconfigure channel dropped");
-                            rx.recv().await;
 
                             // Exit only when we are sure that all workers and primary tasks received
                             // the shutdown message.
+                            while self.tx_reconfigure.receiver_count() != 0 {
+                                tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+                            }
                             return;
                         }
                     }

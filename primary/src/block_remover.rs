@@ -27,7 +27,7 @@ use tokio::{
 use tracing::{debug, error, instrument, warn};
 use types::{
     BatchDigest, BlockRemoverError, BlockRemoverErrorKind, BlockRemoverResult, Certificate,
-    CertificateDigest, Header, HeaderDigest, Reconfigure, ShutdownToken,
+    CertificateDigest, Header, HeaderDigest, Reconfigure,
 };
 
 const BATCH_DELETE_TIMEOUT: Duration = Duration::from_secs(2);
@@ -242,7 +242,7 @@ impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
         removed_certificates: Sender<Certificate<PublicKey>>,
     ) -> JoinHandle<()> {
         tokio::spawn(async move {
-            let shutdown_token = Self {
+            Self {
                 name,
                 committee,
                 certificate_store,
@@ -260,11 +260,10 @@ impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
             }
             .run()
             .await;
-            drop(shutdown_token);
         })
     }
 
-    async fn run(&mut self) -> ShutdownToken {
+    async fn run(&mut self) {
         let mut waiting = FuturesUnordered::new();
 
         loop {
@@ -287,7 +286,7 @@ impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
                         Reconfigure::NewCommittee(new_committee) => {
                             self.committee = new_committee;
                         }
-                        Reconfigure::Shutdown(token) => return token
+                        Reconfigure::Shutdown(_token) => return
                     }
                 }
             }

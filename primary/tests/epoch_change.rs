@@ -2,15 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 use arc_swap::ArcSwap;
 use config::{Committee, Epoch, Parameters};
-use crypto::traits::KeyPair;
+use crypto::{ed25519::Ed25519PublicKey, traits::KeyPair};
 use futures::future::join_all;
+use network::PrimaryNetwork;
 use node::NodeStorage;
 use primary::{NetworkModel, Primary, CHANNEL_CAPACITY};
 use prometheus::default_registry;
 use std::{collections::BTreeMap, sync::Arc};
 use test_utils::{keys, make_authority, pure_committee_from_keys, temp_dir};
 use tokio::sync::mpsc::channel;
-use types::ConsensusPrimaryMessage;
+use types::{PrimaryMessage, ReconfigureNotification};
 
 /// The epoch changes but the stake distribution and network addresses stay the same.
 #[tokio::test]
@@ -19,6 +20,8 @@ async fn simple_epoch_change() {
         batch_size: 200, // Two transactions.
         ..Parameters::default()
     };
+
+    let mut network = PrimaryNetwork::default();
 
     // The configuration of epoch 0.
     let keys_0 = keys(None);
@@ -67,18 +70,24 @@ async fn simple_epoch_change() {
     }
 
     // Move to the next epochs.
+    let mut old_committee = committee_0;
     for epoch in 1..=3 {
         // Move to the next epoch.
         let new_committee = Committee {
             epoch,
-            ..committee_0.clone()
+            ..old_committee.clone()
         };
 
-        for tx in &tx_channels {
-            tx.send(ConsensusPrimaryMessage::Committee(new_committee.clone()))
-                .await
-                .unwrap();
-        }
+        // Notify the old committee to change epoch.
+        let addresses = old_committee
+            .authorities
+            .values()
+            .map(|authority| authority.primary.primary_to_primary.clone())
+            .collect();
+        let message = PrimaryMessage::Reconfigure(ReconfigureNotification::NewCommittee(
+            new_committee.clone(),
+        ));
+        let _handles = network.broadcast(addresses, &message).await;
 
         // Run for a while.
         for rx in rx_channels.iter_mut() {
@@ -89,6 +98,8 @@ async fn simple_epoch_change() {
                 }
             }
         }
+
+        old_committee = new_committee;
     }
 }
 
@@ -98,6 +109,8 @@ async fn partial_committee_change() {
         batch_size: 200, // Two transactions.
         ..Parameters::default()
     };
+
+    let mut network = PrimaryNetwork::default();
 
     // Make the committee of epoch 0.
     let keys_0 = keys(None);
@@ -216,11 +229,14 @@ async fn partial_committee_change() {
     }
 
     // Tell the nodes of epoch 0 to transition to epoch 1.
-    for tx in &epoch_0_tx_channels {
-        tx.send(ConsensusPrimaryMessage::Committee(committee_1.clone()))
-            .await
-            .unwrap();
-    }
+    let addresses = committee_0
+        .authorities
+        .values()
+        .map(|authority| authority.primary.primary_to_primary.clone())
+        .collect();
+    let message =
+        PrimaryMessage::Reconfigure(ReconfigureNotification::NewCommittee(committee_1.clone()));
+    let _handles = network.broadcast(addresses, &message).await;
 
     // Run for a while in epoch 1.
     for rx in epoch_1_rx_channels.iter_mut() {
@@ -240,6 +256,8 @@ async fn restart_with_new_committee() {
         batch_size: 200, // Two transactions.
         ..Parameters::default()
     };
+
+    let mut network = PrimaryNetwork::default();
 
     // The configuration of epoch 0.
     let keys_0 = keys(None);
@@ -290,13 +308,16 @@ async fn restart_with_new_committee() {
     }
 
     // Shutdown the committee of the previous epoch;
-    for tx in &tx_channels {
-        let (token, mut rx) = channel(1);
-        tx.send(ConsensusPrimaryMessage::Shutdown(token))
-            .await
-            .unwrap();
-        rx.recv().await;
-    }
+    let addresses = committee_0
+        .authorities
+        .values()
+        .map(|authority| authority.primary.primary_to_primary.clone())
+        .collect();
+    let message =
+        PrimaryMessage::<Ed25519PublicKey>::Reconfigure(ReconfigureNotification::Shutdown);
+    let _handles = network.broadcast(addresses, &message).await;
+
+    // Wait for the committee to shutdown.
     join_all(handles).await;
 
     // Move to the next epochs.
@@ -347,13 +368,16 @@ async fn restart_with_new_committee() {
         }
 
         // Shutdown the committee of the previous epoch;
-        for tx in &tx_channels {
-            let (token, mut rx) = channel(1);
-            tx.send(ConsensusPrimaryMessage::Shutdown(token))
-                .await
-                .unwrap();
-            rx.recv().await;
-        }
+        let addresses = committee_0
+            .authorities
+            .values()
+            .map(|authority| authority.primary.primary_to_primary.clone())
+            .collect();
+        let message =
+            PrimaryMessage::<Ed25519PublicKey>::Reconfigure(ReconfigureNotification::Shutdown);
+        let _handles = network.broadcast(addresses, &message).await;
+
+        // Wait for the committee to shutdown.
         join_all(handles).await;
     }
 }
