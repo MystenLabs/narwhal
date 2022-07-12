@@ -72,6 +72,7 @@ pub async fn spawn_node(
     Consensus::spawn(
         committee,
         consensus_store.clone(),
+        certificate_store.clone(),
         rx_waiter,
         tx_primary,
         tx_output,

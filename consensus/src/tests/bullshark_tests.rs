@@ -84,6 +84,7 @@ async fn commit_one() {
     Consensus::spawn(
         Arc::new(ArcSwap::from_pointee(mock_committee(&keys[..]))),
         store,
+        make_certificate_store(&test_utils::temp_dir()),
         rx_waiter,
         tx_primary,
         tx_output,
@@ -143,6 +144,7 @@ async fn dead_node() {
     Consensus::spawn(
         Arc::new(ArcSwap::from_pointee(mock_committee(&keys[..]))),
         store,
+        make_certificate_store(&test_utils::temp_dir()),
         rx_waiter,
         tx_primary,
         tx_output,
@@ -248,6 +250,7 @@ async fn not_enough_support() {
     Consensus::spawn(
         Arc::new(ArcSwap::from_pointee(mock_committee(&keys[..]))),
         store,
+        make_certificate_store(&test_utils::temp_dir()),
         rx_waiter,
         tx_primary,
         tx_output,
@@ -327,6 +330,7 @@ async fn missing_leader() {
     Consensus::spawn(
         Arc::new(ArcSwap::from_pointee(mock_committee(&keys[..]))),
         store,
+        make_certificate_store(&test_utils::temp_dir()),
         rx_waiter,
         tx_primary,
         tx_output,

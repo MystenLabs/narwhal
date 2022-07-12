@@ -199,6 +199,7 @@ impl Node {
         Consensus::spawn(
             committee.clone(),
             store.consensus_store.clone(),
+            store.certificate_store.clone(),
             /* rx_primary */ rx_new_certificates,
             /* tx_primary */ tx_feedback,
             /* tx_output */ tx_sequence,

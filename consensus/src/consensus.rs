@@ -5,6 +5,7 @@ use crate::{metrics::ConsensusMetrics, ConsensusOutput, SequenceNumber};
 use config::{Committee, SharedCommittee};
 use crypto::{traits::VerifyingKey, Hash};
 use std::{cmp::max, collections::HashMap, sync::Arc};
+use store::Store;
 use tokio::{
     sync::mpsc::{Receiver, Sender},
     task::JoinHandle,
@@ -56,30 +57,53 @@ impl<PublicKey: VerifyingKey> ConsensusState<PublicKey> {
         genesis: Vec<Certificate<PublicKey>>,
         metrics: Arc<ConsensusMetrics>,
         last_committed: HashMap<PublicKey, Round>,
+        cert_store: HashMap<CertificateDigest, Certificate<PublicKey>>,
+        gc_depth: Round,
     ) -> Self {
         let last_committed_round = *last_committed
             .iter()
             .max_by(|a, b| a.1.cmp(b.1))
             .map(|(_k, v)| v)
             .unwrap_or_else(|| &0);
+
         if last_committed_round == 0 {
             return Self::new(genesis, metrics);
         }
 
-        let genesis = genesis
-            .into_iter()
-            .map(|x| (x.origin(), (x.digest(), x)))
-            .collect::<HashMap<_, _>>();
+        let dag = Self::construct_dag_from_cert_store(cert_store, last_committed_round, gc_depth);
 
         Self {
             last_committed_round,
             last_committed,
-            dag: [(0, genesis)]
-                .iter()
-                .cloned()
-                .collect::<HashMap<_, HashMap<_, _>>>(), // todo Laura: reconstruct using store
+            dag,
             metrics,
         }
+    }
+
+    pub fn construct_dag_from_cert_store(
+        cert_store: HashMap<CertificateDigest, Certificate<PublicKey>>,
+        last_committed_round: Round,
+        gc_depth: Round,
+    ) -> Dag<PublicKey> {
+        let mut dag: Dag<PublicKey> = HashMap::new();
+        let min_round = last_committed_round - gc_depth;
+        for (digest, cert) in cert_store.iter() {
+            if cert.header.round > min_round {
+                let inner = dag.get_mut(&cert.header.round);
+                match inner {
+                    Some(m) => {
+                        m.insert(cert.header.author.clone(), (*digest, cert.clone()));
+                    }
+                    None => {
+                        dag.insert(cert.header.round, HashMap::new());
+                        dag.get_mut(&cert.header.round)
+                            .unwrap()
+                            .insert(cert.header.author.clone(), (*digest, cert.clone()));
+                    }
+                }
+            }
+        }
+        dag
     }
 
     /// Update and clean up internal state base on committed certificates.
@@ -152,6 +176,9 @@ pub struct Consensus<PublicKey: VerifyingKey, ConsensusProtocol> {
 
     /// The latest committed round of each validator.
     last_committed: HashMap<PublicKey, Round>,
+
+    /// Certificates to load into the DAG
+    certs: HashMap<CertificateDigest, Certificate<PublicKey>>,
 }
 
 impl<PublicKey, Protocol> Consensus<PublicKey, Protocol>
@@ -162,6 +189,7 @@ where
     pub fn spawn(
         committee: SharedCommittee<PublicKey>,
         store: Arc<ConsensusStore<PublicKey>>,
+        cert_store: Store<CertificateDigest, Certificate<PublicKey>>,
         rx_primary: Receiver<Certificate<PublicKey>>,
         tx_primary: Sender<ConsensusPrimaryMessage<PublicKey>>,
         tx_output: Sender<ConsensusOutput<PublicKey>>,
@@ -173,6 +201,7 @@ where
             let last_committed = store.read_last_committed();
             let committee: &Committee<PublicKey> = &committee.load();
             let genesis = Certificate::genesis(committee);
+            let certs = cert_store.iter().await;
             Self {
                 rx_primary,
                 tx_primary,
@@ -182,6 +211,7 @@ where
                 protocol,
                 metrics,
                 last_committed,
+                certs,
             }
             .run()
             .await
@@ -194,6 +224,8 @@ where
             self.genesis.clone(),
             self.metrics.clone(),
             self.last_committed.clone(),
+            self.certs.clone(),
+            50, // todo Laura: get parameter from bullshark / tusk
         );
 
         // Listen to incoming certificates.
