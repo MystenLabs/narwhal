@@ -89,7 +89,7 @@ PrimaryWorkerMessage:
     2:
       Reconfigure:
         NEWTYPE:
-          TYPENAME: PrimaryWorkerReconfigure
+          TYPENAME: ReconfigureNotification
     3:
       RequestBatch:
         NEWTYPE:
@@ -99,7 +99,7 @@ PrimaryWorkerMessage:
         NEWTYPE:
           SEQ:
             TYPENAME: BatchDigest
-PrimaryWorkerReconfigure:
+ReconfigureNotification:
   ENUM:
     0:
       NewCommittee:
