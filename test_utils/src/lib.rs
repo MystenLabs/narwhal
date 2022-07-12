@@ -268,6 +268,28 @@ pub fn fixture_header_builder() -> types::HeaderBuilder<Ed25519PublicKey> {
         )
 }
 
+pub fn fixture_headers_round(
+    prior_round: Round,
+    parents: &BTreeSet<CertificateDigest>,
+) -> (Round, Vec<Header<Ed25519PublicKey>>) {
+    let round = prior_round + 1;
+    let next_headers: Vec<_> = keys(None)
+        .into_iter()
+        .map(|kp| {
+            let builder = types::HeaderBuilder::<Ed25519PublicKey>::default();
+            builder
+                .author(kp.public().clone())
+                .round(round)
+                .epoch(0)
+                .parents(parents.clone())
+                .with_payload_batch(fixture_batch_with_transactions(10), 0)
+                .build(&kp)
+                .unwrap()
+        })
+        .collect();
+    (round, next_headers)
+}
+
 pub fn fixture_payload(number_of_batches: u8) -> BTreeMap<BatchDigest, WorkerId> {
     let mut payload: BTreeMap<BatchDigest, WorkerId> = BTreeMap::new();
 
@@ -314,18 +336,24 @@ pub fn transaction() -> Transaction {
 pub fn votes(header: &Header<Ed25519PublicKey>) -> Vec<Vote<Ed25519PublicKey>> {
     keys(None)
         .into_iter()
-        .map(|kp| {
-            let vote = Vote {
-                id: header.id,
-                round: header.round,
-                epoch: header.epoch,
-                origin: header.author.clone(),
-                author: kp.public().clone(),
-                signature: Ed25519Signature::default(),
-            };
-            Vote {
-                signature: kp.sign(Digest::from(vote.digest()).as_ref()),
-                ..vote
+        .flat_map(|kp| {
+            // we should not re-sign using the key of the authority
+            // that produced the header
+            if kp.public() == &header.author {
+                None
+            } else {
+                let vote = Vote {
+                    id: header.id,
+                    round: header.round,
+                    epoch: header.epoch,
+                    origin: header.author.clone(),
+                    author: kp.public().clone(),
+                    signature: Ed25519Signature::default(),
+                };
+                Some(Vote {
+                    signature: kp.sign(Digest::from(vote.digest()).as_ref()),
+                    ..vote
+                })
             }
         })
         .collect()
