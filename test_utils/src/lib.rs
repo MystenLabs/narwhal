@@ -268,6 +268,28 @@ pub fn fixture_header_builder() -> types::HeaderBuilder<Ed25519PublicKey> {
         )
 }
 
+pub fn fixture_headers_round(
+    prior_round: Round,
+    parents: &BTreeSet<CertificateDigest>,
+) -> (Round, Vec<Header<Ed25519PublicKey>>) {
+    let round = prior_round + 1;
+    let next_headers: Vec<_> = keys(None)
+        .into_iter()
+        .map(|kp| {
+            let builder = types::HeaderBuilder::<Ed25519PublicKey>::default();
+            builder
+                .author(kp.public().clone())
+                .round(round)
+                .epoch(0)
+                .parents(parents.clone())
+                .with_payload_batch(fixture_batch_with_transactions(10), 0)
+                .build(&kp)
+                .unwrap()
+        })
+        .collect();
+    (round, next_headers)
+}
+
 pub fn fixture_payload(number_of_batches: u8) -> BTreeMap<BatchDigest, WorkerId> {
     let mut payload: BTreeMap<BatchDigest, WorkerId> = BTreeMap::new();
 

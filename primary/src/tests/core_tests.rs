@@ -1,13 +1,15 @@
+use std::{collections::BTreeSet, time::Duration};
+
 // Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use super::*;
-use crate::common::create_db_stores;
+use crate::{common::create_db_stores, header_waiter::HeaderWaiter};
 use crypto::{ed25519::Ed25519PublicKey, traits::KeyPair};
 use prometheus::Registry;
 use test_utils::{
-    certificate, committee, fixture_batch_with_transactions, header, headers, keys, votes,
-    PrimaryToPrimaryMockServer,
+    certificate, committee, fixture_batch_with_transactions, fixture_headers_round, header,
+    headers, keys, votes, PrimaryToPrimaryMockServer,
 };
 use tokio::sync::mpsc::channel;
 use types::{Header, Vote};
@@ -177,6 +179,116 @@ async fn process_header_missing_parent() {
 
     // Ensure the header is not stored.
     assert!(header_store.read(id).await.unwrap().is_none());
+}
+
+#[tokio::test]
+async fn process_header_missing_parents_pathologic() {
+    let kp = keys(None).pop().unwrap();
+    let name = kp.public().clone();
+    let signature_service = SignatureService::new(kp);
+
+    let (_tx_reconfigure, rx_reconfigure) =
+        watch::channel(Reconfigure::NewCommittee(committee(None)));
+    let (tx_sync_headers, rx_sync_headers) = channel(1);
+    let (tx_sync_certificates, _rx_sync_certificates) = channel(1);
+    let (tx_primary_messages, rx_primary_messages) = channel(1);
+    let (tx_headers_loopback, rx_headers_loopback) = channel(1);
+    let (_tx_certificates_loopback, rx_certificates_loopback) = channel(1);
+    let (_tx_headers, rx_headers) = channel(1);
+    let (tx_consensus, _rx_consensus) = channel(1);
+    let (tx_parents, _rx_parents) = channel(1);
+
+    // Create test stores.
+    let (header_store, certificates_store, payload_store) = create_db_stores();
+
+    // Make a synchronizer for the core.
+    let synchronizer = Synchronizer::new(
+        name.clone(),
+        &committee(None),
+        certificates_store.clone(),
+        payload_store.clone(),
+        /* tx_header_waiter */ tx_sync_headers,
+        /* tx_certificate_waiter */ tx_sync_certificates,
+        None,
+    );
+
+    let metrics = Arc::new(PrimaryMetrics::new(&Registry::new()));
+    let consensus_round = Arc::new(AtomicU64::new(0));
+    let gc_depth: Round = 1;
+    // Make a headerWaiter
+    HeaderWaiter::spawn(
+        name.clone(),
+        committee(None),
+        certificates_store.clone(),
+        payload_store.clone(),
+        consensus_round,
+        gc_depth,
+        /* sync_retry_delay */ Duration::from_secs(5),
+        /* sync_retry_nodes */ 3,
+        rx_reconfigure.clone(),
+        rx_sync_headers,
+        tx_headers_loopback,
+        metrics.clone(),
+    );
+
+    // Spawn the core.
+    Core::spawn(
+        name.clone(),
+        committee(None),
+        header_store.clone(),
+        certificates_store.clone(),
+        synchronizer,
+        signature_service,
+        /* consensus_round */ Arc::new(AtomicU64::new(0)),
+        /* gc_depth */ 50,
+        rx_reconfigure,
+        /* rx_primaries */ rx_primary_messages,
+        /* rx_header_waiter */ rx_headers_loopback,
+        /* rx_certificate_waiter */ rx_certificates_loopback,
+        /* rx_proposer */ rx_headers,
+        tx_consensus,
+        /* tx_proposer */ tx_parents,
+        metrics.clone(),
+    );
+
+    // Generate headers in successive rounds
+    let mut current_round: Vec<_> = Certificate::genesis(&committee(None))
+        .into_iter()
+        .map(|cert| cert.header)
+        .collect();
+    let mut headers = vec![];
+    let rounds = 5;
+    for i in 0..rounds {
+        let parents: BTreeSet<_> = current_round
+            .into_iter()
+            .map(|header| certificate(&header).digest())
+            .collect();
+        (_, current_round) = fixture_headers_round(i, &parents);
+        headers.extend(current_round.clone());
+    }
+
+    // sanity-check
+    assert!(headers.len() == keys(None).len() * rounds as usize); // note we don't include genesis
+
+    // the `rev()` below is important, as we want to test anti-topological arrival
+    #[allow(clippy::needless_collect)]
+    let ids: Vec<_> = headers.iter().map(|cert| cert.digest()).collect();
+    for header in headers.into_iter().rev() {
+        tx_primary_messages
+            .send(PrimaryMessage::Header(header.clone()))
+            .await
+            .unwrap();
+        tx_primary_messages
+            .send(PrimaryMessage::Certificate(certificate(&header)))
+            .await
+            .unwrap();
+        println!("foo");
+    }
+    for id in ids.into_iter() {
+        assert!(header_store.read(id).await.unwrap().is_some());
+    }
+
+    // Ensure the header is not stored.
 }
 
 #[tokio::test]
