@@ -15,7 +15,7 @@ use types::{PrimaryMessage, ReconfigureNotification};
 
 /// The epoch changes but the stake distribution and network addresses stay the same.
 #[tokio::test]
-async fn simple_epoch_change() {
+async fn test_simple_epoch_change() {
     let parameters = Parameters {
         batch_size: 200, // Two transactions.
         ..Parameters::default()
@@ -104,7 +104,7 @@ async fn simple_epoch_change() {
 }
 
 #[tokio::test]
-async fn partial_committee_change() {
+async fn test_partial_committee_change() {
     let parameters = Parameters {
         batch_size: 200, // Two transactions.
         ..Parameters::default()
@@ -251,7 +251,7 @@ async fn partial_committee_change() {
 
 /// The epoch changes but the stake distribution and network addresses stay the same.
 #[tokio::test]
-async fn restart_with_new_committee() {
+async fn test_restart_with_new_committee_change() {
     let parameters = Parameters {
         batch_size: 200, // Two transactions.
         ..Parameters::default()

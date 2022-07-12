@@ -54,6 +54,7 @@ async fn process_header() {
         payload_store,
         /* tx_header_waiter */ tx_sync_headers,
         /* tx_certificate_waiter */ tx_sync_certificates,
+        None,
     );
 
     let metrics = Arc::new(PrimaryMetrics::new(&Registry::new()));
@@ -131,6 +132,7 @@ async fn process_header_missing_parent() {
         payload_store.clone(),
         /* tx_header_waiter */ tx_sync_headers,
         /* tx_certificate_waiter */ tx_sync_certificates,
+        None,
     );
 
     let metrics = Arc::new(PrimaryMetrics::new(&Registry::new()));
@@ -204,6 +206,7 @@ async fn process_header_missing_payload() {
         payload_store.clone(),
         /* tx_header_waiter */ tx_sync_headers,
         /* tx_certificate_waiter */ tx_sync_certificates,
+        None,
     );
 
     let metrics = Arc::new(PrimaryMetrics::new(&Registry::new()));
@@ -290,6 +293,7 @@ async fn process_votes() {
         payload_store.clone(),
         /* tx_header_waiter */ tx_sync_headers,
         /* tx_certificate_waiter */ tx_sync_certificates,
+        None,
     );
 
     let metrics = Arc::new(PrimaryMetrics::new(&Registry::new()));
@@ -381,6 +385,7 @@ async fn process_certificates() {
         payload_store.clone(),
         /* tx_header_waiter */ tx_sync_headers,
         /* tx_certificate_waiter */ tx_sync_certificates,
+        None,
     );
 
     let metrics = Arc::new(PrimaryMetrics::new(&Registry::new()));
@@ -416,10 +421,18 @@ async fn process_certificates() {
     }
 
     // Ensure the core sends the parents of the certificates to the proposer.
+<<<<<<< HEAD
     // The first messages are just letting us know about the round of the certificates
     for _i in 0..3 {
         let received = rx_parents.recv().await.unwrap();
         assert_eq!(received, (vec![], 1, 0));
+=======
+    //
+    // The first messages are the core letting us know about the round of parent certificates
+    for _i in 0..3 {
+        let received = rx_parents.recv().await.unwrap();
+        assert_eq!(received, (vec![], 0, 0));
+>>>>>>> main
     }
     // the next message actually contains the parents
     let received = rx_parents.recv().await.unwrap();
@@ -482,6 +495,7 @@ async fn shutdown_core() {
         payload_store,
         /* tx_header_waiter */ tx_sync_headers,
         /* tx_certificate_waiter */ tx_sync_certificates,
+        None,
     );
 
     // Spawn the core.
@@ -558,6 +572,7 @@ async fn reconfigure_core() {
         payload_store,
         /* tx_header_waiter */ tx_sync_headers,
         /* tx_certificate_waiter */ tx_sync_certificates,
+        None,
     );
 
     // Spawn the core.
