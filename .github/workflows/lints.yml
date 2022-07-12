@@ -20,6 +20,12 @@ jobs:
           # Full git history is needed to get a proper list of changed files within `super-linter`
           fetch-depth: 0
 
+      - name: Run clang-format for protobuf
+        uses: jidicula/clang-format-action@v4.6.2
+        with:
+          clang-format-version: '14'
+          fallback-style: 'Google'
+  
       - name: Lint Code Base
         uses: github/super-linter@slim-v4
         env:
