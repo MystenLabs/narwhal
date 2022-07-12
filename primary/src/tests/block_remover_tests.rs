@@ -31,7 +31,7 @@ use tokio::{
     task::JoinHandle,
     time::{sleep, timeout},
 };
-use types::{BatchDigest, Certificate, ConsensusPrimaryMessage, Reconfigure};
+use types::{BatchDigest, Certificate, Reconfigure};
 
 #[tokio::test]
 async fn test_successful_blocks_delete() {
@@ -191,12 +191,8 @@ async fn test_successful_blocks_delete() {
     // ensure deleted certificates have been populated to output channel
     let mut total_deleted = 0;
     while let Ok(Some(c)) = timeout(Duration::from_secs(1), rx_removed_certificates.recv()).await {
-        let certificate = match c {
-            ConsensusPrimaryMessage::Sequenced(c) => c,
-            _ => panic!("Unexpected protocol message"),
-        };
         assert!(
-            block_ids.contains(&certificate.digest()),
+            block_ids.contains(&c.digest()),
             "Deleted certificate not found"
         );
         total_deleted += 1;

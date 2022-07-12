@@ -10,7 +10,7 @@ use crate::{
     grpc_server::ConsensusAPIGrpc,
     header_waiter::HeaderWaiter,
     helper::Helper,
-    metrics::{initialise_metrics, PrimaryMetrics},
+    metrics::{initialise_metrics, PrimaryEndpointMetrics, PrimaryMetrics},
     payload_receiver::PayloadReceiver,
     proposer::Proposer,
     state_handler::StateHandler,
@@ -44,11 +44,11 @@ use tokio::{
 use tonic::{Request, Response, Status};
 use tracing::info;
 use types::{
-    Batch, BatchDigest, BatchMessage, BincodeEncodedPayload, Certificate, CertificateDigest, Empty,
-    Header, HeaderDigest, PrimaryToPrimary, PrimaryToPrimaryServer, Reconfigure, WorkerToPrimary,
-    WorkerToPrimaryServer,
+    error::DagError, Batch, BatchDigest, BatchMessage, BincodeEncodedPayload, Certificate,
+    CertificateDigest, Empty, Header, HeaderDigest, PrimaryToPrimary, PrimaryToPrimaryServer,
+    Reconfigure, ReconfigureNotification, WorkerToPrimary, WorkerToPrimaryServer,
 };
-pub use types::{ConsensusPrimaryMessage, PrimaryMessage, PrimaryWorkerMessage};
+pub use types::{PrimaryMessage, PrimaryWorkerMessage};
 
 /// The default channel capacity for each channel of the primary.
 pub const CHANNEL_CAPACITY: usize = 1_000;
@@ -101,10 +101,10 @@ impl Primary {
         certificate_store: Store<CertificateDigest, Certificate<PublicKey>>,
         payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,
         tx_consensus: Sender<Certificate<PublicKey>>,
-        rx_consensus: Receiver<ConsensusPrimaryMessage<PublicKey>>,
+        rx_consensus: Receiver<Certificate<PublicKey>>,
         dag: Option<Arc<Dag<PublicKey>>>,
         network_model: NetworkModel,
-        tx_committed_certificates: Sender<ConsensusPrimaryMessage<PublicKey>>,
+        tx_committed_certificates: Sender<Certificate<PublicKey>>,
         registry: &Registry,
     ) -> Vec<JoinHandle<()>> {
         let initial_committee = Reconfigure::NewCommittee((**committee.load()).clone());
@@ -129,13 +129,15 @@ impl Primary {
         let (tx_certificate_responses, rx_certificate_responses) = channel(CHANNEL_CAPACITY);
         let (tx_payload_availability_responses, rx_payload_availability_responses) =
             channel(CHANNEL_CAPACITY);
+        let (tx_state_handler, rx_state_handler) = channel(CHANNEL_CAPACITY);
 
         // Write the parameters to the logs.
         parameters.tracing();
 
-        // Initialise the metrics
+        // Initialize the metrics
         let metrics = initialise_metrics(registry);
         let endpoint_metrics = metrics.endpoint_metrics.unwrap();
+        let primary_endpoint_metrics = metrics.primary_endpoint_metrics.unwrap();
         let node_metrics = Arc::new(metrics.node_metrics.unwrap());
 
         // Atomic variable use to synchronize all tasks with the latest consensus round. This is only
@@ -156,11 +158,13 @@ impl Primary {
             tx_helper_requests,
             tx_payload_availability_responses,
             tx_certificate_responses,
+            tx_state_handler,
         }
         .spawn(
             address.clone(),
             parameters.max_concurrent_requests,
             tx_reconfigure.subscribe(),
+            primary_endpoint_metrics,
         );
         info!(
             "Primary {} listening to primary messages on {}",
@@ -311,6 +315,7 @@ impl Primary {
             tx_reconfigure.subscribe(),
             /* rx_synchronizer */ rx_sync_certificates,
             /* tx_core */ tx_certificates_loopback,
+            node_metrics.clone(),
         );
 
         // When the `Core` collects enough parent certificates, the `Proposer` generates a new header with new batch
@@ -361,6 +366,7 @@ impl Primary {
             committee.clone(),
             consensus_round,
             rx_consensus,
+            rx_state_handler,
             tx_reconfigure,
         );
 
@@ -399,6 +405,7 @@ struct PrimaryReceiverHandler<PublicKey: VerifyingKey> {
     tx_helper_requests: Sender<PrimaryMessage<PublicKey>>,
     tx_payload_availability_responses: Sender<PayloadAvailabilityResponse<PublicKey>>,
     tx_certificate_responses: Sender<CertificatesResponse<PublicKey>>,
+    tx_state_handler: Sender<ReconfigureNotification<PublicKey>>,
 }
 
 impl<PublicKey: VerifyingKey> PrimaryReceiverHandler<PublicKey> {
@@ -418,13 +425,14 @@ impl<PublicKey: VerifyingKey> PrimaryReceiverHandler<PublicKey> {
         address: Multiaddr,
         max_concurrent_requests: usize,
         rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
+        primary_endpoint_metrics: PrimaryEndpointMetrics,
     ) -> JoinHandle<()> {
         tokio::spawn(async move {
             let mut config = mysten_network::config::Config::new();
             config.concurrency_limit_per_connection = Some(max_concurrent_requests);
             tokio::select! {
                 _result = config
-                    .server_builder()
+                    .server_builder_with_metrics(primary_endpoint_metrics)
                     .add_service(PrimaryToPrimaryServer::new(self))
                     .bind(&address)
                     .await
@@ -453,12 +461,12 @@ impl<PublicKey: VerifyingKey> PrimaryToPrimary for PrimaryReceiverHandler<Public
                 .tx_helper_requests
                 .send(message)
                 .await
-                .expect("Failed to send primary message"),
+                .map_err(|_| DagError::ShuttingDown),
             PrimaryMessage::CertificatesBatchRequest { .. } => self
                 .tx_helper_requests
                 .send(message)
                 .await
-                .expect("Failed to send primary message"),
+                .map_err(|_| DagError::ShuttingDown),
             PrimaryMessage::CertificatesBatchResponse { certificates, from } => self
                 .tx_certificate_responses
                 .send(CertificatesResponse {
@@ -466,12 +474,12 @@ impl<PublicKey: VerifyingKey> PrimaryToPrimary for PrimaryReceiverHandler<Public
                     from: from.clone(),
                 })
                 .await
-                .expect("Failed to send primary message"),
+                .map_err(|_| DagError::ShuttingDown),
             PrimaryMessage::PayloadAvailabilityRequest { .. } => self
                 .tx_helper_requests
                 .send(message)
                 .await
-                .expect("Failed to send primary message"),
+                .map_err(|_| DagError::ShuttingDown),
             PrimaryMessage::PayloadAvailabilityResponse {
                 payload_availability,
                 from,
@@ -482,13 +490,20 @@ impl<PublicKey: VerifyingKey> PrimaryToPrimary for PrimaryReceiverHandler<Public
                     from: from.clone(),
                 })
                 .await
-                .expect("Failed to send primary message"),
+                .map_err(|_| DagError::ShuttingDown),
+
+            PrimaryMessage::Reconfigure(notification) => self
+                .tx_state_handler
+                .send(notification)
+                .await
+                .map_err(|_| DagError::ShuttingDown),
             _ => self
                 .tx_primary_messages
                 .send(message)
                 .await
-                .expect("Failed to send certificate"),
+                .map_err(|_| DagError::ShuttingDown),
         }
+        .map_err(|e| Status::not_found(e.to_string()))?;
 
         Ok(Response::new(Empty {}))
     }

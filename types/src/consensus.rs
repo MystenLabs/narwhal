@@ -1,6 +1,6 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crate::{Certificate, CertificateDigest, Round};
+use crate::{CertificateDigest, Round};
 use config::Committee;
 use crypto::traits::VerifyingKey;
 use std::{collections::HashMap, ops::RangeInclusive};
@@ -22,14 +22,6 @@ pub enum Reconfigure<PublicKey: VerifyingKey> {
     /// Indicates the committee has been updated.
     NewCommittee(Committee<PublicKey>),
     /// Indicate a shutdown.
-    Shutdown(ShutdownToken),
-}
-
-/// Message send by the consensus to the primary.
-#[derive(Debug)]
-pub enum ConsensusPrimaryMessage<PublicKey: VerifyingKey> {
-    Sequenced(Certificate<PublicKey>),
-    Committee(Committee<PublicKey>),
     Shutdown(ShutdownToken),
 }
 

@@ -24,7 +24,7 @@ use tokio::{
 use tracing::{debug, error, instrument, warn};
 use types::{
     BatchDigest, BatchMessage, BlockError, BlockErrorKind, BlockResult, Certificate,
-    CertificateDigest, Header, Reconfigure, ShutdownToken,
+    CertificateDigest, Header, Reconfigure,
 };
 use Result::*;
 
@@ -261,7 +261,7 @@ impl<PublicKey: VerifyingKey, SynchronizerHandler: Handler<PublicKey> + Send + S
         block_synchronizer_handler: Arc<SynchronizerHandler>,
     ) -> JoinHandle<()> {
         tokio::spawn(async move {
-            let shutdown_token = Self {
+            Self {
                 name,
                 committee,
                 rx_commands,
@@ -276,11 +276,10 @@ impl<PublicKey: VerifyingKey, SynchronizerHandler: Handler<PublicKey> + Send + S
             }
             .run()
             .await;
-            drop(shutdown_token);
         })
     }
 
-    async fn run(&mut self) -> ShutdownToken {
+    async fn run(&mut self) {
         let mut waiting_get_block = FuturesUnordered::new();
         let mut waiting_get_blocks = FuturesUnordered::new();
 
@@ -333,7 +332,7 @@ impl<PublicKey: VerifyingKey, SynchronizerHandler: Handler<PublicKey> + Send + S
                         Reconfigure::NewCommittee(new_committee) => {
                             self.committee = new_committee;
                         }
-                        Reconfigure::Shutdown(token) => return token,
+                        Reconfigure::Shutdown(_token) => return,
                     }
                 }
             }
@@ -777,10 +776,7 @@ impl<PublicKey: VerifyingKey, SynchronizerHandler: Handler<PublicKey> + Send + S
         // ensure that we won't wait forever for a batch result to come
         let r = match timeout(BATCH_RETRIEVE_TIMEOUT, batch_receiver).await {
             Ok(Ok(result)) => result.or(Err(BlockErrorKind::BatchError)),
-            Ok(Err(err)) => {
-                println!("Receiver error: {err}");
-                Err(BlockErrorKind::BatchError)
-            }
+            Ok(Err(_)) => Err(BlockErrorKind::BatchError),
             Err(_) => Err(BlockErrorKind::BatchTimeout),
         };
 

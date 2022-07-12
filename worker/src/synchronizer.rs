@@ -23,8 +23,7 @@ use tokio::{
 };
 use tracing::{debug, error};
 use types::{
-    BatchDigest, PrimaryWorkerReconfigure, Reconfigure, Round, SerializedBatchMessage,
-    WorkerMessage,
+    BatchDigest, Reconfigure, ReconfigureNotification, Round, SerializedBatchMessage, WorkerMessage,
 };
 
 #[cfg(test)]
@@ -204,7 +203,7 @@ impl<PublicKey: VerifyingKey> Synchronizer<PublicKey> {
                         // Reconfigure this task and update the shared committee.
                         let (token, mut rx) = channel(1);
                         let (message, shutdown) = match command {
-                            PrimaryWorkerReconfigure::NewCommittee(new_committee) => {
+                            ReconfigureNotification::NewCommittee(new_committee) => {
                                 self.committee.swap(Arc::new(new_committee.clone()));
                                 self.pending.clear();
                                 self.round = 0;
@@ -212,7 +211,7 @@ impl<PublicKey: VerifyingKey> Synchronizer<PublicKey> {
 
                                 (Reconfigure::NewCommittee(new_committee), false)
                             }
-                            PrimaryWorkerReconfigure::Shutdown => {
+                            ReconfigureNotification::Shutdown => {
                                 (Reconfigure::Shutdown(token), true)
                             }
                         };

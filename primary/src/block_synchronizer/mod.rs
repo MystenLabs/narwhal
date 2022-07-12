@@ -242,7 +242,7 @@ impl<PublicKey: VerifyingKey> BlockSynchronizer<PublicKey> {
         // processing.
         let mut waiting = FuturesUnordered::new();
 
-        let shutdown_token = loop {
+        loop {
             tokio::select! {
                 Some(command) = self.rx_commands.recv() => {
                     match command {
@@ -309,12 +309,11 @@ impl<PublicKey: VerifyingKey> BlockSynchronizer<PublicKey> {
                         Reconfigure::NewCommittee(new_committee) => {
                             self.committee = new_committee;
                         },
-                        Reconfigure::Shutdown(token) => break token
+                        Reconfigure::Shutdown(_token) => return
                     }
                 }
             }
-        };
-        drop(shutdown_token)
+        }
     }
 
     async fn notify_requestors_for_result(

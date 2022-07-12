@@ -20,8 +20,8 @@ use tokio::{
 };
 use tracing::debug;
 use types::{
-    BatchDigest, Certificate, CertificateDigest, ConsensusPrimaryMessage, ConsensusStore, Header,
-    HeaderDigest, Round, SequenceNumber, SerializedBatchMessage,
+    BatchDigest, Certificate, CertificateDigest, ConsensusStore, Header, HeaderDigest, Round,
+    SequenceNumber, SerializedBatchMessage,
 };
 use worker::{metrics::initialise_metrics, Worker};
 
@@ -181,7 +181,7 @@ impl Node {
         parameters: Parameters,
         execution_state: Arc<State>,
         rx_new_certificates: Receiver<Certificate<PublicKey>>,
-        tx_feedback: Sender<ConsensusPrimaryMessage<PublicKey>>,
+        tx_feedback: Sender<Certificate<PublicKey>>,
         tx_confirmation: Sender<(
             SubscriberResult<<State as ExecutionState>::Outcome>,
             SerializedTransaction,

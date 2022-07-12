@@ -9,9 +9,7 @@ use tokio::{
     sync::mpsc::{Receiver, Sender},
     task::JoinHandle,
 };
-use types::{
-    Certificate, CertificateDigest, ConsensusPrimaryMessage, ConsensusStore, Round, StoreResult,
-};
+use types::{Certificate, CertificateDigest, ConsensusStore, Round, StoreResult};
 
 /// The representation of the DAG in memory.
 pub type Dag<PublicKey> =
@@ -104,7 +102,7 @@ pub struct Consensus<PublicKey: VerifyingKey, ConsensusProtocol> {
     /// if it already sent us its whole history.
     rx_primary: Receiver<Certificate<PublicKey>>,
     /// Outputs the sequence of ordered certificates to the primary (for cleanup and feedback).
-    tx_primary: Sender<ConsensusPrimaryMessage<PublicKey>>,
+    tx_primary: Sender<Certificate<PublicKey>>,
     /// Outputs the sequence of ordered certificates to the application layer.
     tx_output: Sender<ConsensusOutput<PublicKey>>,
 
@@ -130,7 +128,7 @@ where
         committee: SharedCommittee<PublicKey>,
         store: Arc<ConsensusStore<PublicKey>>,
         rx_primary: Receiver<Certificate<PublicKey>>,
-        tx_primary: Sender<ConsensusPrimaryMessage<PublicKey>>,
+        tx_primary: Sender<Certificate<PublicKey>>,
         tx_output: Sender<ConsensusOutput<PublicKey>>,
         protocol: Protocol,
         metrics: Arc<ConsensusMetrics>,
@@ -180,9 +178,8 @@ where
                     tracing::info!("Committed {} -> {:?}", certificate.header, digest);
                 }
 
-                let message = ConsensusPrimaryMessage::Sequenced(certificate.clone());
                 self.tx_primary
-                    .send(message)
+                    .send(certificate.clone())
                     .await
                     .expect("Failed to send certificate to primary");
 

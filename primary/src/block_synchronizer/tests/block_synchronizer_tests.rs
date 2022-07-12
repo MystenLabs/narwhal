@@ -346,7 +346,6 @@ async fn test_successful_payload_synchronization() {
             for m in messages {
                 match m {
                     PrimaryWorkerMessage::Synchronize(batch_ids, _) => {
-                        //println!("Synchronize message for batch ids {:?}", batch_ids);
                         // Assume that the request is the correct one and just immediately
                         // store the batch to the payload store.
                         for batch_id in batch_ids {

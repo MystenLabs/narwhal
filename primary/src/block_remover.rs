@@ -27,7 +27,7 @@ use tokio::{
 use tracing::{debug, error, instrument, warn};
 use types::{
     BatchDigest, BlockRemoverError, BlockRemoverErrorKind, BlockRemoverResult, Certificate,
-    CertificateDigest, ConsensusPrimaryMessage, Header, HeaderDigest, Reconfigure, ShutdownToken,
+    CertificateDigest, Header, HeaderDigest, Reconfigure,
 };
 
 const BATCH_DELETE_TIMEOUT: Duration = Duration::from_secs(2);
@@ -224,7 +224,7 @@ pub struct BlockRemover<PublicKey: VerifyingKey> {
     rx_delete_batches: Receiver<DeleteBatchResult>,
 
     /// Outputs all the successfully deleted certificates
-    tx_removed_certificates: Sender<ConsensusPrimaryMessage<PublicKey>>,
+    tx_removed_certificates: Sender<Certificate<PublicKey>>,
 }
 
 impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
@@ -239,10 +239,10 @@ impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
         rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
         rx_commands: Receiver<BlockRemoverCommand>,
         rx_delete_batches: Receiver<DeleteBatchResult>,
-        removed_certificates: Sender<ConsensusPrimaryMessage<PublicKey>>,
+        removed_certificates: Sender<Certificate<PublicKey>>,
     ) -> JoinHandle<()> {
         tokio::spawn(async move {
-            let shutdown_token = Self {
+            Self {
                 name,
                 committee,
                 certificate_store,
@@ -260,11 +260,10 @@ impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
             }
             .run()
             .await;
-            drop(shutdown_token);
         })
     }
 
-    async fn run(&mut self) -> ShutdownToken {
+    async fn run(&mut self) {
         let mut waiting = FuturesUnordered::new();
 
         loop {
@@ -287,7 +286,7 @@ impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
                         Reconfigure::NewCommittee(new_committee) => {
                             self.committee = new_committee;
                         }
-                        Reconfigure::Shutdown(token) => return token
+                        Reconfigure::Shutdown(_token) => return
                     }
                 }
             }
@@ -412,9 +411,8 @@ impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
 
         // Now output all the removed certificates
         for certificate in certificates.clone() {
-            let message = ConsensusPrimaryMessage::Sequenced(certificate.clone());
             self.tx_removed_certificates
-                .send(message)
+                .send(certificate.clone())
                 .await
                 .expect("Couldn't forward removed certificates to channel");
         }
