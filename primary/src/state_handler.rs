@@ -10,13 +10,10 @@ use std::sync::{
     Arc,
 };
 use tokio::{
-    sync::{
-        mpsc::{channel, Receiver},
-        watch,
-    },
+    sync::{mpsc::Receiver, watch},
     task::JoinHandle,
 };
-use types::{Certificate, Reconfigure, ReconfigureNotification, Round};
+use types::{Certificate, ReconfigureNotification, Round};
 
 /// Receives the highest round reached by consensus and update it for all tasks.
 pub struct StateHandler<PublicKey: VerifyingKey> {
@@ -31,7 +28,7 @@ pub struct StateHandler<PublicKey: VerifyingKey> {
     /// Receives notifications to reconfigure the system.
     rx_reconfigure: Receiver<ReconfigureNotification<PublicKey>>,
     /// Channel to signal committee changes.
-    tx_reconfigure: watch::Sender<Reconfigure<PublicKey>>,
+    tx_reconfigure: watch::Sender<ReconfigureNotification<PublicKey>>,
     /// The latest round committed by consensus.
     last_committed_round: Round,
     /// A network sender to notify our workers of cleanup events.
@@ -45,7 +42,7 @@ impl<PublicKey: VerifyingKey> StateHandler<PublicKey> {
         consensus_round: Arc<AtomicU64>,
         rx_consensus: Receiver<Certificate<PublicKey>>,
         rx_reconfigure: Receiver<ReconfigureNotification<PublicKey>>,
-        tx_reconfigure: watch::Sender<Reconfigure<PublicKey>>,
+        tx_reconfigure: watch::Sender<ReconfigureNotification<PublicKey>>,
     ) -> JoinHandle<()> {
         tokio::spawn(async move {
             Self {
@@ -95,41 +92,31 @@ impl<PublicKey: VerifyingKey> StateHandler<PublicKey> {
                 },
 
                 Some(message) = self.rx_reconfigure.recv() => {
-                    match message {
+                    let shutdown = match &message {
                         ReconfigureNotification::NewCommittee(committee) => {
-                            // Notify the workers.
-                            // TODO
-
                             // Update the committee.
                             self.committee.swap(Arc::new(committee.clone()));
 
                             // Trigger cleanup on the primary.
                             self.consensus_round.store(0, Ordering::Relaxed);
 
-                            // Notify all other tasks.
-                            let message = Reconfigure::NewCommittee(committee);
-                            self.tx_reconfigure
-                                .send(message)
-                                .expect("Reconfigure channel dropped");
+                            false
                         },
-                        ReconfigureNotification::Shutdown => {
-                            // Shutdown the workers.
-                            // TODO
+                        ReconfigureNotification::Shutdown => true,
+                    };
 
-                            // Shutdown the primary.
-                            let (token, rx) = channel(1);
-                            let message = Reconfigure::Shutdown(token);
-                            self.tx_reconfigure
-                                .send(message)
-                                .expect("Reconfigure channel dropped");
+                    // Notify all other tasks.
+                    self.tx_reconfigure
+                        .send(message)
+                        .expect("Reconfigure channel dropped");
 
-                            // Exit only when we are sure that all workers and primary tasks received
-                            // the shutdown message.
-                            while self.tx_reconfigure.receiver_count() != 0 {
-                                tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
-                            }
-                            return;
+                    // Exit only when we are sure that all the other tasks received
+                    // the shutdown message.
+                    if shutdown {
+                        while self.tx_reconfigure.receiver_count() != 0 {
+                            tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
                         }
+                        return;
                     }
                 }
             }

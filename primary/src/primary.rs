@@ -46,7 +46,7 @@ use tracing::info;
 use types::{
     error::DagError, Batch, BatchDigest, BatchMessage, BincodeEncodedPayload, Certificate,
     CertificateDigest, Empty, Header, HeaderDigest, PrimaryToPrimary, PrimaryToPrimaryServer,
-    Reconfigure, ReconfigureNotification, WorkerToPrimary, WorkerToPrimaryServer,
+    ReconfigureNotification, WorkerToPrimary, WorkerToPrimaryServer,
 };
 pub use types::{PrimaryMessage, PrimaryWorkerMessage};
 
@@ -107,7 +107,7 @@ impl Primary {
         tx_committed_certificates: Sender<Certificate<PublicKey>>,
         registry: &Registry,
     ) -> Vec<JoinHandle<()>> {
-        let initial_committee = Reconfigure::NewCommittee((**committee.load()).clone());
+        let initial_committee = ReconfigureNotification::NewCommittee((**committee.load()).clone());
         let (tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
 
         let (tx_others_digests, rx_others_digests) = channel(CHANNEL_CAPACITY);
@@ -410,12 +410,14 @@ struct PrimaryReceiverHandler<PublicKey: VerifyingKey> {
 }
 
 impl<PublicKey: VerifyingKey> PrimaryReceiverHandler<PublicKey> {
-    async fn wait_for_shutdown(mut rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>) {
+    async fn wait_for_shutdown(
+        mut rx_reconfigure: watch::Receiver<ReconfigureNotification<PublicKey>>,
+    ) {
         loop {
             let result = rx_reconfigure.changed().await;
             result.expect("Committee channel dropped");
             let message = rx_reconfigure.borrow().clone();
-            if let Reconfigure::Shutdown(_token) = message {
+            if let ReconfigureNotification::Shutdown = message {
                 break;
             }
         }
@@ -425,7 +427,7 @@ impl<PublicKey: VerifyingKey> PrimaryReceiverHandler<PublicKey> {
         self,
         address: Multiaddr,
         max_concurrent_requests: usize,
-        rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
+        rx_reconfigure: watch::Receiver<ReconfigureNotification<PublicKey>>,
         primary_endpoint_metrics: PrimaryEndpointMetrics,
     ) -> JoinHandle<()> {
         tokio::spawn(async move {
@@ -522,13 +524,13 @@ struct WorkerReceiverHandler {
 
 impl WorkerReceiverHandler {
     async fn wait_for_shutdown<PublicKey: VerifyingKey>(
-        mut rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
+        mut rx_reconfigure: watch::Receiver<ReconfigureNotification<PublicKey>>,
     ) {
         loop {
             let result = rx_reconfigure.changed().await;
             result.expect("Committee channel dropped");
             let message = rx_reconfigure.borrow().clone();
-            if let Reconfigure::Shutdown(_token) = message {
+            if let ReconfigureNotification::Shutdown = message {
                 break;
             }
         }
@@ -537,7 +539,7 @@ impl WorkerReceiverHandler {
     fn spawn<PublicKey: VerifyingKey>(
         self,
         address: Multiaddr,
-        rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
+        rx_reconfigure: watch::Receiver<ReconfigureNotification<PublicKey>>,
     ) -> JoinHandle<()> {
         tokio::spawn(async move {
             tokio::select! {

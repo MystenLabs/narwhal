@@ -1,7 +1,6 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use crate::{CertificateDigest, Round};
-use config::Committee;
 use crypto::traits::VerifyingKey;
 use std::{collections::HashMap, ops::RangeInclusive};
 use store::{
@@ -15,15 +14,6 @@ pub type SequenceNumber = u64;
 
 /// Shutdown token dropped when a task is properly shut down.
 pub type ShutdownToken = mpsc::Sender<()>;
-
-/// Message to reconfigure tasks.
-#[derive(Clone, Debug)]
-pub enum Reconfigure<PublicKey: VerifyingKey> {
-    /// Indicates the committee has been updated.
-    NewCommittee(Committee<PublicKey>),
-    /// Indicate a shutdown.
-    Shutdown(ShutdownToken),
-}
 
 /// Convenience type to propagate store errors.
 pub type StoreResult<T> = Result<T, TypedStoreError>;

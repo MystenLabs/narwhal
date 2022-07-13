@@ -26,7 +26,7 @@ use tokio::{
 use tracing::error;
 use types::{
     error::{DagError, DagResult},
-    Certificate, CertificateDigest, HeaderDigest, Reconfigure, Round,
+    Certificate, CertificateDigest, HeaderDigest, ReconfigureNotification, Round,
 };
 
 /// Waits to receive all the ancestors of a certificate before looping it back to the `Core`
@@ -41,7 +41,7 @@ pub struct CertificateWaiter<PublicKey: VerifyingKey> {
     /// The depth of the garbage collector.
     gc_depth: Round,
     /// Watch channel notifying of epoch changes, it is only used for cleanup.
-    rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
+    rx_reconfigure: watch::Receiver<ReconfigureNotification<PublicKey>>,
     /// Receives sync commands from the `Synchronizer`.
     rx_synchronizer: Receiver<Certificate<PublicKey>>,
     /// Loops back to the core certificates for which we got all parents.
@@ -60,7 +60,7 @@ impl<PublicKey: VerifyingKey> CertificateWaiter<PublicKey> {
         store: Store<CertificateDigest, Certificate<PublicKey>>,
         consensus_round: Arc<AtomicU64>,
         gc_depth: Round,
-        rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
+        rx_reconfigure: watch::Receiver<ReconfigureNotification<PublicKey>>,
         rx_synchronizer: Receiver<Certificate<PublicKey>>,
         tx_core: Sender<Certificate<PublicKey>>,
         metrics: Arc<PrimaryMetrics>,
@@ -146,11 +146,11 @@ impl<PublicKey: VerifyingKey> CertificateWaiter<PublicKey> {
                     result.expect("Committee channel dropped");
                     let message = self.rx_reconfigure.borrow_and_update().clone();
                     match message {
-                        Reconfigure::NewCommittee(committee) => {
+                        ReconfigureNotification::NewCommittee(committee) => {
                             self.committee = committee;
                             self.pending.clear();
                         },
-                        Reconfigure::Shutdown(_token) => return
+                        ReconfigureNotification::Shutdown => return
                     }
 
                 }

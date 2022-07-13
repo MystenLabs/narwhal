@@ -25,8 +25,8 @@ use tonic::{Request, Response, Status};
 use tracing::info;
 use types::{
     BatchDigest, BincodeEncodedPayload, ClientBatchRequest, Empty, PrimaryToWorker,
-    PrimaryToWorkerServer, Reconfigure, SerializedBatchMessage, Transaction, TransactionProto,
-    Transactions, TransactionsServer, WorkerToWorker, WorkerToWorkerServer,
+    PrimaryToWorkerServer, ReconfigureNotification, SerializedBatchMessage, Transaction,
+    TransactionProto, Transactions, TransactionsServer, WorkerToWorker, WorkerToWorkerServer,
 };
 
 #[cfg(test)]
@@ -78,8 +78,9 @@ impl<PublicKey: VerifyingKey> Worker<PublicKey> {
         let (tx_primary, rx_primary) = channel(CHANNEL_CAPACITY);
 
         let initial_committee = (*(&*(&*committee).load()).clone()).clone();
-        let (tx_reconfigure, rx_reconfigure) =
-            watch::channel(Reconfigure::NewCommittee(initial_committee.clone()));
+        let (tx_reconfigure, rx_reconfigure) = watch::channel(
+            ReconfigureNotification::NewCommittee(initial_committee.clone()),
+        );
 
         let client_flow_handles =
             worker.handle_clients_transactions(&tx_reconfigure, tx_primary.clone());
@@ -113,7 +114,7 @@ impl<PublicKey: VerifyingKey> Worker<PublicKey> {
     /// Spawn all tasks responsible to handle messages from our primary.
     fn handle_primary_messages(
         &self,
-        tx_reconfigure: watch::Sender<Reconfigure<PublicKey>>,
+        tx_reconfigure: watch::Sender<ReconfigureNotification<PublicKey>>,
         tx_primary: Sender<WorkerPrimaryMessage>,
         node_metrics: Arc<WorkerMetrics>,
     ) -> Vec<JoinHandle<()>> {
@@ -158,7 +159,7 @@ impl<PublicKey: VerifyingKey> Worker<PublicKey> {
     /// Spawn all tasks responsible to handle clients transactions.
     fn handle_clients_transactions(
         &self,
-        tx_reconfigure: &watch::Sender<Reconfigure<PublicKey>>,
+        tx_reconfigure: &watch::Sender<ReconfigureNotification<PublicKey>>,
         tx_primary: Sender<WorkerPrimaryMessage>,
     ) -> Vec<JoinHandle<()>> {
         let (tx_batch_maker, rx_batch_maker) = channel(CHANNEL_CAPACITY);
@@ -222,7 +223,7 @@ impl<PublicKey: VerifyingKey> Worker<PublicKey> {
     /// Spawn all tasks responsible to handle messages from other workers.
     fn handle_workers_messages(
         &self,
-        tx_reconfigure: &watch::Sender<Reconfigure<PublicKey>>,
+        tx_reconfigure: &watch::Sender<ReconfigureNotification<PublicKey>>,
         tx_primary: Sender<WorkerPrimaryMessage>,
     ) -> Vec<JoinHandle<()>> {
         let (tx_worker_helper, rx_worker_helper) = channel(CHANNEL_CAPACITY);

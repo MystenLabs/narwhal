@@ -10,12 +10,12 @@ use tokio::{
     task::JoinHandle,
 };
 use tonic::transport::Channel;
-use types::{BincodeEncodedPayload, Reconfigure, WorkerToPrimaryClient};
+use types::{BincodeEncodedPayload, ReconfigureNotification, WorkerToPrimaryClient};
 
 // Send batches' digests to the primary.
 pub struct PrimaryConnector<PublicKey: VerifyingKey> {
     /// Receive reconfiguration updates.
-    rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
+    rx_reconfigure: watch::Receiver<ReconfigureNotification<PublicKey>>,
     /// Input channel to receive the messages to send to the primary.
     rx_digest: Receiver<WorkerPrimaryMessage>,
     /// A network sender to send the batches' digests to the primary.
@@ -26,7 +26,7 @@ impl<PublicKey: VerifyingKey> PrimaryConnector<PublicKey> {
     pub fn spawn(
         name: PublicKey,
         committee: Committee<PublicKey>,
-        rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
+        rx_reconfigure: watch::Receiver<ReconfigureNotification<PublicKey>>,
         rx_digest: Receiver<WorkerPrimaryMessage>,
     ) -> JoinHandle<()> {
         let address = committee
@@ -56,7 +56,7 @@ impl<PublicKey: VerifyingKey> PrimaryConnector<PublicKey> {
                 result = self.rx_reconfigure.changed() => {
                     result.expect("Committee channel dropped");
                     let message = self.rx_reconfigure.borrow().clone();
-                    if let Reconfigure::Shutdown(_token) = message {
+                    if let ReconfigureNotification::Shutdown = message {
                         return;
                     }
                 }

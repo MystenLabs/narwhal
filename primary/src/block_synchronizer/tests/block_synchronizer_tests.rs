@@ -28,7 +28,7 @@ use tokio::{
     task::JoinHandle,
     time::{sleep, timeout},
 };
-use types::Reconfigure;
+use types::ReconfigureNotification;
 
 use crypto::traits::KeyPair;
 use tracing::debug;
@@ -43,7 +43,7 @@ async fn test_successful_headers_synchronization() {
     let (name, committee) = resolve_name_and_committee();
 
     let (_tx_reconfigure, rx_reconfigure) =
-        watch::channel(Reconfigure::NewCommittee(committee.clone()));
+        watch::channel(ReconfigureNotification::NewCommittee(committee.clone()));
     let (tx_commands, rx_commands) = channel(10);
     let (tx_certificate_responses, rx_certificate_responses) = channel(10);
     let (_, rx_payload_availability_responses) = channel(10);
@@ -202,7 +202,7 @@ async fn test_successful_payload_synchronization() {
     let (name, committee) = resolve_name_and_committee();
 
     let (_tx_reconfigure, rx_reconfigure) =
-        watch::channel(Reconfigure::NewCommittee(committee.clone()));
+        watch::channel(ReconfigureNotification::NewCommittee(committee.clone()));
     let (tx_commands, rx_commands) = channel(10);
     let (_tx_certificate_responses, rx_certificate_responses) = channel(10);
     let (tx_payload_availability_responses, rx_payload_availability_responses) = channel(10);
@@ -401,7 +401,8 @@ async fn test_multiple_overlapping_requests() {
     let (_, certificate_store, payload_store) = create_db_stores();
     let (name, committee) = resolve_name_and_committee();
 
-    let (_, rx_reconfigure) = watch::channel(Reconfigure::NewCommittee(committee.clone()));
+    let (_, rx_reconfigure) =
+        watch::channel(ReconfigureNotification::NewCommittee(committee.clone()));
     let (_, rx_commands) = channel(10);
     let (_, rx_certificate_responses) = channel(10);
     let (_, rx_payload_availability_responses) = channel(10);
@@ -521,7 +522,7 @@ async fn test_timeout_while_waiting_for_certificates() {
     let key = keys(None).pop().unwrap();
 
     let (_tx_reconfigure, rx_reconfigure) =
-        watch::channel(Reconfigure::NewCommittee(committee.clone()));
+        watch::channel(ReconfigureNotification::NewCommittee(committee.clone()));
     let (tx_commands, rx_commands) = channel(10);
     let (_, rx_certificate_responses) = channel(10);
     let (_, rx_payload_availability_responses) = channel(10);
@@ -611,7 +612,8 @@ async fn test_reply_with_certificates_already_in_storage() {
     let (name, committee) = resolve_name_and_committee();
     let key = keys(None).pop().unwrap();
 
-    let (_, rx_reconfigure) = watch::channel(Reconfigure::NewCommittee(committee.clone()));
+    let (_, rx_reconfigure) =
+        watch::channel(ReconfigureNotification::NewCommittee(committee.clone()));
     let (_, rx_commands) = channel(10);
     let (_, rx_certificate_responses) = channel(10);
     let (_, rx_payload_availability_responses) = channel(10);
@@ -705,7 +707,8 @@ async fn test_reply_with_payload_already_in_storage() {
     let (name, committee) = resolve_name_and_committee();
     let key = keys(None).pop().unwrap();
 
-    let (_, rx_reconfigure) = watch::channel(Reconfigure::NewCommittee(committee.clone()));
+    let (_, rx_reconfigure) =
+        watch::channel(ReconfigureNotification::NewCommittee(committee.clone()));
     let (_, rx_commands) = channel(10);
     let (_, rx_certificate_responses) = channel(10);
     let (_, rx_payload_availability_responses) = channel(10);
@@ -807,7 +810,8 @@ async fn test_reply_with_payload_already_in_storage_for_own_certificates() {
     // be used to create the headers.
     let name = key.public().clone();
 
-    let (_, rx_reconfigure) = watch::channel(Reconfigure::NewCommittee(committee.clone()));
+    let (_, rx_reconfigure) =
+        watch::channel(ReconfigureNotification::NewCommittee(committee.clone()));
     let (_, rx_commands) = channel(10);
     let (_, rx_certificate_responses) = channel(10);
     let (_, rx_payload_availability_responses) = channel(10);

@@ -31,7 +31,7 @@ use tokio::{
     task::JoinHandle,
     time::{sleep, timeout},
 };
-use types::{BatchDigest, Certificate, Reconfigure};
+use types::{BatchDigest, Certificate, ReconfigureNotification};
 
 #[tokio::test]
 async fn test_successful_blocks_delete() {
@@ -46,7 +46,7 @@ async fn test_successful_blocks_delete() {
     // AND the necessary keys
     let (name, committee) = resolve_name_and_committee();
     let (_tx_reconfigure, rx_reconfigure) =
-        watch::channel(Reconfigure::NewCommittee(committee.clone()));
+        watch::channel(ReconfigureNotification::NewCommittee(committee.clone()));
     // AND a Dag with genesis populated
     let consensus_metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
     let dag = Arc::new(Dag::new(&committee, rx_consensus, consensus_metrics).1);
@@ -214,7 +214,7 @@ async fn test_timeout() {
     // AND the necessary keys
     let (name, committee) = resolve_name_and_committee();
     let (_tx_reconfigure, rx_reconfigure) =
-        watch::channel(Reconfigure::NewCommittee(committee.clone()));
+        watch::channel(ReconfigureNotification::NewCommittee(committee.clone()));
     // AND a Dag with genesis populated
     let consensus_metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
     let dag = Arc::new(Dag::new(&committee, rx_consensus, consensus_metrics).1);
@@ -350,7 +350,8 @@ async fn test_unlocking_pending_requests() {
 
     // AND the necessary keys
     let (name, committee) = resolve_name_and_committee();
-    let (_, rx_reconfigure) = watch::channel(Reconfigure::NewCommittee(committee.clone()));
+    let (_, rx_reconfigure) =
+        watch::channel(ReconfigureNotification::NewCommittee(committee.clone()));
 
     // AND a Dag with genesis populated
     let consensus_metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));

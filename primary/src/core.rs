@@ -31,7 +31,7 @@ use tracing::{debug, error, instrument, warn};
 use types::{
     ensure,
     error::{DagError, DagResult},
-    Certificate, CertificateDigest, Header, HeaderDigest, Reconfigure, Round, Vote,
+    Certificate, CertificateDigest, Header, HeaderDigest, ReconfigureNotification, Round, Vote,
 };
 
 #[cfg(test)]
@@ -57,7 +57,7 @@ pub struct Core<PublicKey: VerifyingKey> {
     gc_depth: Round,
 
     /// Watch channel to reconfigure the committee.
-    rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
+    rx_reconfigure: watch::Receiver<ReconfigureNotification<PublicKey>>,
     /// Receiver for dag messages (headers, votes, certificates).
     rx_primaries: Receiver<PrimaryMessage<PublicKey>>,
     /// Receives loopback headers from the `HeaderWaiter`.
@@ -102,7 +102,7 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
         signature_service: SignatureService<PublicKey::Sig>,
         consensus_round: Arc<AtomicU64>,
         gc_depth: Round,
-        rx_committee: watch::Receiver<Reconfigure<PublicKey>>,
+        rx_committee: watch::Receiver<ReconfigureNotification<PublicKey>>,
         rx_primaries: Receiver<PrimaryMessage<PublicKey>>,
         rx_header_waiter: Receiver<Header<PublicKey>>,
         rx_certificate_waiter: Receiver<Certificate<PublicKey>>,
@@ -501,7 +501,7 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
             .expect("Reconfigure channel dropped")
         {
             let message = self.rx_reconfigure.borrow().clone();
-            if let Reconfigure::NewCommittee(new_committee) = message {
+            if let ReconfigureNotification::NewCommittee(new_committee) = message {
                 self.update_committee(new_committee);
                 // Mark the value as seen.
                 let _ = self.rx_reconfigure.borrow_and_update();
@@ -568,11 +568,11 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
                     result.expect("Committee channel dropped");
                     let message = self.rx_reconfigure.borrow().clone();
                     match message {
-                        Reconfigure::NewCommittee(new_committee) => {
+                        ReconfigureNotification::NewCommittee(new_committee) => {
                             self.update_committee(new_committee);
                             Ok(())
                         },
-                        Reconfigure::Shutdown(_token) => return
+                        ReconfigureNotification::Shutdown => return
                     }
                 }
             };

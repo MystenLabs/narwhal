@@ -27,7 +27,7 @@ use tokio::{
 use tracing::{debug, error, instrument, warn};
 use types::{
     BatchDigest, BlockRemoverError, BlockRemoverErrorKind, BlockRemoverResult, Certificate,
-    CertificateDigest, Header, HeaderDigest, Reconfigure,
+    CertificateDigest, Header, HeaderDigest, ReconfigureNotification,
 };
 
 const BATCH_DELETE_TIMEOUT: Duration = Duration::from_secs(2);
@@ -204,7 +204,7 @@ pub struct BlockRemover<PublicKey: VerifyingKey> {
     worker_network: PrimaryToWorkerNetwork,
 
     /// Watch channel to reconfigure the committee.
-    rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
+    rx_reconfigure: watch::Receiver<ReconfigureNotification<PublicKey>>,
 
     /// Receives the commands to execute against
     rx_commands: Receiver<BlockRemoverCommand>,
@@ -236,7 +236,7 @@ impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
         payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,
         dag: Option<Arc<Dag<PublicKey>>>,
         worker_network: PrimaryToWorkerNetwork,
-        rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
+        rx_reconfigure: watch::Receiver<ReconfigureNotification<PublicKey>>,
         rx_commands: Receiver<BlockRemoverCommand>,
         rx_delete_batches: Receiver<DeleteBatchResult>,
         removed_certificates: Sender<Certificate<PublicKey>>,
@@ -283,10 +283,10 @@ impl<PublicKey: VerifyingKey> BlockRemover<PublicKey> {
                     result.expect("Committee channel dropped");
                     let message = self.rx_reconfigure.borrow().clone();
                     match message {
-                        Reconfigure::NewCommittee(new_committee) => {
+                        ReconfigureNotification::NewCommittee(new_committee) => {
                             self.committee = new_committee;
                         }
-                        Reconfigure::Shutdown(_token) => return
+                        ReconfigureNotification::Shutdown => return
                     }
                 }
             }

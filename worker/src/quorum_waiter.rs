@@ -12,7 +12,7 @@ use tokio::{
     },
     task::JoinHandle,
 };
-use types::{Batch, Reconfigure, SerializedBatchMessage, WorkerMessage};
+use types::{Batch, ReconfigureNotification, SerializedBatchMessage, WorkerMessage};
 
 #[cfg(test)]
 #[path = "tests/quorum_waiter_tests.rs"]
@@ -27,7 +27,7 @@ pub struct QuorumWaiter<PublicKey: VerifyingKey> {
     /// The committee information.
     committee: Committee<PublicKey>,
     /// Receive reconfiguration updates.
-    rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
+    rx_reconfigure: watch::Receiver<ReconfigureNotification<PublicKey>>,
     /// Input Channel to receive commands.
     rx_message: Receiver<Batch>,
     /// Channel to deliver batches for which we have enough acknowledgments.
@@ -42,7 +42,7 @@ impl<PublicKey: VerifyingKey> QuorumWaiter<PublicKey> {
         name: PublicKey,
         id: WorkerId,
         committee: Committee<PublicKey>,
-        rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
+        rx_reconfigure: watch::Receiver<ReconfigureNotification<PublicKey>>,
         rx_message: Receiver<Batch>,
         tx_batch: Sender<Vec<u8>>,
     ) -> JoinHandle<()> {
@@ -117,11 +117,11 @@ impl<PublicKey: VerifyingKey> QuorumWaiter<PublicKey> {
                     result.expect("Committee channel dropped");
                     let message = self.rx_reconfigure.borrow().clone();
                     match message {
-                        Reconfigure::NewCommittee(new_committee) => {
+                        ReconfigureNotification::NewCommittee(new_committee) => {
                             self.committee=new_committee;
                             break; // Don't wait for acknowledgements.
                         },
-                        Reconfigure::Shutdown(_token) => return
+                        ReconfigureNotification::Shutdown => return
                     }
                 }
             }

@@ -14,7 +14,9 @@ use tokio::{
     task::JoinHandle,
 };
 use tracing::error;
-use types::{serialized_batch_digest, BatchDigest, Reconfigure, SerializedBatchMessage};
+use types::{
+    serialized_batch_digest, BatchDigest, ReconfigureNotification, SerializedBatchMessage,
+};
 
 #[cfg(test)]
 #[path = "tests/processor_tests.rs"]
@@ -30,7 +32,7 @@ impl Processor {
         // The persistent storage.
         store: Store<BatchDigest, SerializedBatchMessage>,
         // Receive reconfiguration signals.
-        mut rx_reconfigure: watch::Receiver<Reconfigure<PublicKey>>,
+        mut rx_reconfigure: watch::Receiver<ReconfigureNotification<PublicKey>>,
         // Input channel to receive batches.
         mut rx_batch: Receiver<SerializedBatchMessage>,
         // Output channel to send out batches' digests.
@@ -70,7 +72,7 @@ impl Processor {
                     result = rx_reconfigure.changed() => {
                         result.expect("Committee channel dropped");
                         let message = rx_reconfigure.borrow().clone();
-                        if let Reconfigure::Shutdown(_token) = message {
+                        if let ReconfigureNotification::Shutdown = message {
                             return;
                         }
                     }

@@ -12,7 +12,7 @@ use tokio::{
     task::JoinHandle,
 };
 use tracing::{error, instrument};
-use types::{BatchDigest, Certificate, CertificateDigest, Reconfigure};
+use types::{BatchDigest, Certificate, CertificateDigest, ReconfigureNotification};
 
 #[cfg(test)]
 #[path = "tests/helper_tests.rs"]
@@ -42,7 +42,7 @@ pub struct Helper<PublicKey: VerifyingKey> {
     /// The payloads (batches) persistent storage.
     payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,
     /// Watch channel to reconfigure the committee.
-    rx_committee: watch::Receiver<Reconfigure<PublicKey>>,
+    rx_committee: watch::Receiver<ReconfigureNotification<PublicKey>>,
     /// Input channel to receive requests.
     rx_primaries: Receiver<PrimaryMessage<PublicKey>>,
     /// A network sender to reply to the sync requests.
@@ -55,7 +55,7 @@ impl<PublicKey: VerifyingKey> Helper<PublicKey> {
         committee: Committee<PublicKey>,
         certificate_store: Store<CertificateDigest, Certificate<PublicKey>>,
         payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,
-        rx_committee: watch::Receiver<Reconfigure<PublicKey>>,
+        rx_committee: watch::Receiver<ReconfigureNotification<PublicKey>>,
         rx_primaries: Receiver<PrimaryMessage<PublicKey>>,
     ) -> JoinHandle<()> {
         tokio::spawn(async move {
@@ -113,10 +113,10 @@ impl<PublicKey: VerifyingKey> Helper<PublicKey> {
                     result.expect("Committee channel dropped");
                     let message = self.rx_committee.borrow().clone();
                     match message {
-                        Reconfigure::NewCommittee(new_committee) => {
+                        ReconfigureNotification::NewCommittee(new_committee) => {
                             self.committee = new_committee;
                         },
-                        Reconfigure::Shutdown(_token) => return
+                        ReconfigureNotification::Shutdown => return
                     }
                 }
             }
