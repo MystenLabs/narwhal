@@ -38,6 +38,13 @@ impl<PublicKey: VerifyingKey> ConsensusStore<PublicKey> {
         }
     }
 
+    /// Clear the store.
+    pub fn clear(&self) -> StoreResult<()> {
+        self.last_committed.clear()?;
+        self.sequence.clear()?;
+        Ok(())
+    }
+
     /// Persist the consensus state.
     pub fn write_consensus_state(
         &self,

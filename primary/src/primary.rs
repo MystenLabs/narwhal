@@ -104,12 +104,10 @@ impl Primary {
         rx_consensus: Receiver<Certificate<PublicKey>>,
         dag: Option<Arc<Dag<PublicKey>>>,
         network_model: NetworkModel,
+        tx_reconfigure: watch::Sender<ReconfigureNotification<PublicKey>>,
         tx_committed_certificates: Sender<Certificate<PublicKey>>,
         registry: &Registry,
     ) -> Vec<JoinHandle<()>> {
-        let initial_committee = ReconfigureNotification::NewCommittee((**committee.load()).clone());
-        let (tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
-
         let (tx_others_digests, rx_others_digests) = channel(CHANNEL_CAPACITY);
         let (tx_our_digests, rx_our_digests) = channel(CHANNEL_CAPACITY);
         let (tx_parents, rx_parents) = channel(CHANNEL_CAPACITY);
@@ -342,7 +340,7 @@ impl Primary {
             (**committee.load()).clone(),
             certificate_store,
             payload_store,
-            rx_reconfigure,
+            tx_reconfigure.subscribe(),
             rx_helper_requests,
         );
 

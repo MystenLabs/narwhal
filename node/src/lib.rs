@@ -15,13 +15,16 @@ use store::{
     Store,
 };
 use tokio::{
-    sync::mpsc::{channel, Receiver, Sender},
+    sync::{
+        mpsc::{channel, Receiver, Sender},
+        watch,
+    },
     task::JoinHandle,
 };
 use tracing::debug;
 use types::{
-    BatchDigest, Certificate, CertificateDigest, ConsensusStore, Header, HeaderDigest, Round,
-    SequenceNumber, SerializedBatchMessage,
+    BatchDigest, Certificate, CertificateDigest, ConsensusStore, Header, HeaderDigest,
+    ReconfigureNotification, Round, SequenceNumber, SerializedBatchMessage,
 };
 use worker::{metrics::initialise_metrics, Worker};
 
@@ -125,6 +128,9 @@ impl Node {
         State: ExecutionState + Send + Sync + 'static,
         State::Outcome: Send + 'static,
     {
+        let initial_committee = ReconfigureNotification::NewCommittee((**committee.load()).clone());
+        let (tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
+
         let (tx_new_certificates, rx_new_certificates) = channel(Self::CHANNEL_CAPACITY);
         let (tx_consensus, rx_consensus) = channel(Self::CHANNEL_CAPACITY);
 
@@ -144,6 +150,8 @@ impl Node {
                 store,
                 parameters.clone(),
                 execution_state,
+                tx_reconfigure.subscribe(),
+                rx_reconfigure,
                 rx_new_certificates,
                 tx_consensus.clone(),
                 tx_confirmation,
@@ -166,6 +174,7 @@ impl Node {
             /* rx_consensus */ rx_consensus,
             /* dag */ dag,
             network_model,
+            tx_reconfigure,
             tx_consensus,
             registry,
         );
@@ -180,6 +189,8 @@ impl Node {
         store: &NodeStorage<PublicKey>,
         parameters: Parameters,
         execution_state: Arc<State>,
+        rx_reconfigure_consensus: watch::Receiver<ReconfigureNotification<PublicKey>>,
+        rx_reconfigure_subscriber: watch::Receiver<ReconfigureNotification<PublicKey>>,
         rx_new_certificates: Receiver<Certificate<PublicKey>>,
         tx_feedback: Sender<Certificate<PublicKey>>,
         tx_confirmation: Sender<(
@@ -205,8 +216,9 @@ impl Node {
             gc_depth: parameters.gc_depth,
         };
         Consensus::spawn(
-            committee.clone(),
+            (**committee.load()).clone(),
             store.consensus_store.clone(),
+            rx_reconfigure_consensus,
             /* rx_primary */ rx_new_certificates,
             /* tx_primary */ tx_feedback,
             /* tx_output */ tx_sequence,
@@ -220,6 +232,7 @@ impl Node {
         SubscriberHandler::spawn(
             store.consensus_store.clone(),
             store.certificate_store.clone(),
+            rx_reconfigure_subscriber,
             rx_sequence,
             /* rx_client */ rx_client_to_consensus,
             /* tx_client */ tx_consensus_to_client,
