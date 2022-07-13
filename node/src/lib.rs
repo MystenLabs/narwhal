@@ -205,6 +205,7 @@ impl Node {
             /* tx_output */ tx_sequence,
             ordering_engine,
             consensus_metrics.clone(),
+            parameters.gc_depth,
         );
 
         // The subscriber handler receives the ordered sequence from consensus and feed them

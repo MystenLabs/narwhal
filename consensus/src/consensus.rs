@@ -53,14 +53,14 @@ impl<PublicKey: VerifyingKey> ConsensusState<PublicKey> {
         }
     }
 
-    pub fn new_from_store(
+    pub async fn new_from_store(
         genesis: Vec<Certificate<PublicKey>>,
         metrics: Arc<ConsensusMetrics>,
-        last_committed: HashMap<PublicKey, Round>,
-        cert_store: HashMap<CertificateDigest, Certificate<PublicKey>>,
+        recover_last_committed: HashMap<PublicKey, Round>,
+        cert_store: Store<CertificateDigest, Certificate<PublicKey>>,
         gc_depth: Round,
     ) -> Self {
-        let last_committed_round = *last_committed
+        let last_committed_round = *recover_last_committed
             .iter()
             .max_by(|a, b| a.1.cmp(b.1))
             .map(|(_k, v)| v)
@@ -70,39 +70,44 @@ impl<PublicKey: VerifyingKey> ConsensusState<PublicKey> {
             return Self::new(genesis, metrics);
         }
 
-        let dag = Self::construct_dag_from_cert_store(cert_store, last_committed_round, gc_depth);
+        let dag =
+            Self::construct_dag_from_cert_store(cert_store, last_committed_round, gc_depth).await;
 
         Self {
             last_committed_round,
-            last_committed,
+            last_committed: recover_last_committed,
             dag,
             metrics,
         }
     }
 
-    pub fn construct_dag_from_cert_store(
-        cert_store: HashMap<CertificateDigest, Certificate<PublicKey>>,
+    pub async fn construct_dag_from_cert_store(
+        cert_store: Store<CertificateDigest, Certificate<PublicKey>>,
         last_committed_round: Round,
         gc_depth: Round,
     ) -> Dag<PublicKey> {
         let mut dag: Dag<PublicKey> = HashMap::new();
         let min_round = last_committed_round - gc_depth;
-        for (digest, cert) in cert_store.iter() {
-            if cert.header.round > min_round {
-                let inner = dag.get_mut(&cert.header.round);
-                match inner {
-                    Some(m) => {
-                        m.insert(cert.header.author.clone(), (*digest, cert.clone()));
-                    }
-                    None => {
-                        dag.insert(cert.header.round, HashMap::new());
-                        dag.get_mut(&cert.header.round)
-                            .unwrap()
-                            .insert(cert.header.author.clone(), (*digest, cert.clone()));
-                    }
+        let cert_map = cert_store
+            .iter(Some(Box::new(move |(_dig, cert)| {
+                cert.header.round > min_round
+            })))
+            .await;
+
+        for (digest, cert) in cert_map {
+            let inner = dag.get_mut(&cert.header.round);
+            match inner {
+                Some(m) => {
+                    m.insert(cert.header.author.clone(), (digest, cert.clone()));
+                }
+                None => {
+                    dag.entry(cert.header.round)
+                        .or_insert_with(|| HashMap::new())
+                        .insert(cert.header.author.clone(), (digest, cert.clone()));
                 }
             }
         }
+
         dag
     }
 
@@ -173,12 +178,6 @@ pub struct Consensus<PublicKey: VerifyingKey, ConsensusProtocol> {
 
     /// Metrics handler
     metrics: Arc<ConsensusMetrics>,
-
-    /// The latest committed round of each validator.
-    last_committed: HashMap<PublicKey, Round>,
-
-    /// Certificates to load into the DAG
-    certs: HashMap<CertificateDigest, Certificate<PublicKey>>,
 }
 
 impl<PublicKey, Protocol> Consensus<PublicKey, Protocol>
@@ -195,13 +194,13 @@ where
         tx_output: Sender<ConsensusOutput<PublicKey>>,
         protocol: Protocol,
         metrics: Arc<ConsensusMetrics>,
+        gc_depth: Round,
     ) -> JoinHandle<StoreResult<()>> {
         tokio::spawn(async move {
             let consensus_index = store.read_last_consensus_index()?;
-            let last_committed = store.read_last_committed();
+            let recovered_last_committed = store.read_last_committed();
             let committee: &Committee<PublicKey> = &committee.load();
             let genesis = Certificate::genesis(committee);
-            let certs = cert_store.iter().await;
             Self {
                 rx_primary,
                 tx_primary,
@@ -210,23 +209,27 @@ where
                 consensus_index,
                 protocol,
                 metrics,
-                last_committed,
-                certs,
             }
-            .run()
+            .run(recovered_last_committed, cert_store, gc_depth)
             .await
         })
     }
 
-    async fn run(&mut self) -> StoreResult<()> {
+    async fn run(
+        &mut self,
+        recover_last_committed: HashMap<PublicKey, Round>,
+        cert_store: Store<CertificateDigest, Certificate<PublicKey>>,
+        gc_depth: Round,
+    ) -> StoreResult<()> {
         // The consensus state (everything else is immutable).
         let mut state = ConsensusState::new_from_store(
             self.genesis.clone(),
             self.metrics.clone(),
-            self.last_committed.clone(),
-            self.certs.clone(),
-            50, // todo Laura: get parameter from bullshark / tusk
-        );
+            recover_last_committed,
+            cert_store,
+            gc_depth,
+        )
+        .await;
 
         // Listen to incoming certificates.
         while let Some(certificate) = self.rx_primary.recv().await {

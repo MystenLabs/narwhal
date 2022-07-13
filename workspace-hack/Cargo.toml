@@ -84,6 +84,7 @@ either = { version = "1", features = ["use_std"] }
 env_logger = { version = "0.9", features = ["atty", "humantime", "regex", "termcolor"] }
 eyre = { version = "0.6", features = ["auto-install", "track-caller"] }
 fastrand = { version = "1", default-features = false }
+fdlimit = { version = "0.2", default-features = false }
 fixedbitset = { version = "0.4", default-features = false }
 float-cmp = { version = "0.9", features = ["num-traits", "ratio"] }
 fnv = { version = "1", features = ["std"] }
@@ -255,7 +256,7 @@ tracing-subscriber-6f8ce4dd05d13bba = { package = "tracing-subscriber", version 
 tracing-subscriber-468e82937335b1c9 = { package = "tracing-subscriber", version = "0.3", features = ["alloc", "ansi", "ansi_term", "env-filter", "fmt", "matchers", "once_cell", "regex", "registry", "sharded-slab", "smallvec", "std", "thread_local", "time", "tracing", "tracing-log"] }
 tracing-test = { version = "0.2", default-features = false }
 try-lock = { version = "0.2", default-features = false }
-typed-store = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "819b4fc5b52a248890c81b704a9ab0dc393d0957", default-features = false }
+typed-store = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "7e9b7568fc7184b4938976330122f3c8064e3236", default-features = false }
 typenum = { version = "1", default-features = false }
 unicode-bidi = { version = "0.3", features = ["hardcoded-data", "std"] }
 unicode-ident = { version = "1", default-features = false }

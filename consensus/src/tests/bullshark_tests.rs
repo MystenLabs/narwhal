@@ -75,10 +75,11 @@ async fn commit_one() {
     let (tx_output, mut rx_output) = channel(1);
     let store_path = test_utils::temp_dir();
     let store = make_consensus_store(&store_path);
+    let gc_depth = 50;
     let bullshark = Bullshark {
         committee: Arc::new(ArcSwap::from_pointee(mock_committee(&keys[..]))),
         store: store.clone(),
-        gc_depth: 50,
+        gc_depth,
     };
     let metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
     Consensus::spawn(
@@ -90,6 +91,7 @@ async fn commit_one() {
         tx_output,
         bullshark,
         metrics,
+        gc_depth,
     );
     tokio::spawn(async move { while rx_primary.recv().await.is_some() {} });
 
@@ -134,10 +136,11 @@ async fn dead_node() {
     let (tx_output, mut rx_output) = channel(1);
     let store_path = test_utils::temp_dir();
     let store = make_consensus_store(&store_path);
+    let gc_depth = 50;
     let bullshark = Bullshark {
         committee: Arc::new(ArcSwap::from_pointee(mock_committee(&keys[..]))),
         store: store.clone(),
-        gc_depth: 50,
+        gc_depth,
     };
     let metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
 
@@ -150,6 +153,7 @@ async fn dead_node() {
         tx_output,
         bullshark,
         metrics,
+        gc_depth,
     );
     tokio::spawn(async move { while rx_primary.recv().await.is_some() {} });
 
@@ -240,10 +244,11 @@ async fn not_enough_support() {
     let (tx_output, mut rx_output) = channel(1);
     let store_path = test_utils::temp_dir();
     let store = make_consensus_store(&store_path);
+    let gc_depth = 50;
     let bullshark = Bullshark {
         committee: Arc::new(ArcSwap::from_pointee(mock_committee(&keys[..]))),
         store: store.clone(),
-        gc_depth: 50,
+        gc_depth,
     };
     let metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
 
@@ -256,6 +261,7 @@ async fn not_enough_support() {
         tx_output,
         bullshark,
         metrics,
+        gc_depth,
     );
     tokio::spawn(async move { while rx_primary.recv().await.is_some() {} });
 
@@ -320,10 +326,11 @@ async fn missing_leader() {
     let (tx_output, mut rx_output) = channel(1);
     let store_path = test_utils::temp_dir();
     let store = make_consensus_store(&store_path);
+    let gc_depth = 50;
     let bullshark = Bullshark {
         committee: Arc::new(ArcSwap::from_pointee(mock_committee(&keys[..]))),
         store: store.clone(),
-        gc_depth: 50,
+        gc_depth,
     };
     let metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
 
@@ -336,6 +343,7 @@ async fn missing_leader() {
         tx_output,
         bullshark,
         metrics,
+        gc_depth,
     );
     tokio::spawn(async move { while rx_primary.recv().await.is_some() {} });
 
