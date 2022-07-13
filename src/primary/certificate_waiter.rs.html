@@ -185,6 +185,18 @@
 <span id="179">179</span>
 <span id="180">180</span>
 <span id="181">181</span>
+<span id="182">182</span>
+<span id="183">183</span>
+<span id="184">184</span>
+<span id="185">185</span>
+<span id="186">186</span>
+<span id="187">187</span>
+<span id="188">188</span>
+<span id="189">189</span>
+<span id="190">190</span>
+<span id="191">191</span>
+<span id="192">192</span>
+<span id="193">193</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -205,8 +217,8 @@
 <span class="kw">use</span> <span class="ident">store::Store</span>;
 <span class="kw">use</span> <span class="ident">tokio</span>::{
     <span class="ident">sync</span>::{
-        <span class="ident">mpsc</span>::{<span class="ident">channel</span>, <span class="ident">Receiver</span>, <span class="ident">Sender</span>},
-        <span class="ident">watch</span>,
+        <span class="ident">mpsc</span>::{<span class="ident">Receiver</span>, <span class="ident">Sender</span>},
+        <span class="ident">oneshot</span>, <span class="ident">watch</span>,
     },
     <span class="ident">task::JoinHandle</span>,
 };
@@ -215,6 +227,10 @@
     <span class="ident">error</span>::{<span class="ident">DagError</span>, <span class="ident">DagResult</span>},
     <span class="ident">Certificate</span>, <span class="ident">CertificateDigest</span>, <span class="ident">HeaderDigest</span>, <span class="ident">Reconfigure</span>, <span class="ident">Round</span>,
 };
+
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
+<span class="attribute">#[<span class="ident">path</span> <span class="op">=</span> <span class="string">&quot;tests/certificate_waiter_tests.rs&quot;</span>]</span>
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">certificate_waiter_tests</span>;
 
 <span class="doccomment">/// Waits to receive all the ancestors of a certificate before looping it back to the `Core`</span>
 <span class="doccomment">/// for further processing.</span>
@@ -236,7 +252,7 @@
     <span class="doccomment">/// List of digests (certificates) that are waiting to be processed. Their processing will</span>
     <span class="doccomment">/// resume when we get all their dependencies. The map holds a cancellation `Sender`</span>
     <span class="doccomment">/// which we can use to give up on a certificate.</span>
-    <span class="ident">pending</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">HeaderDigest</span>, (<span class="ident">Round</span>, <span class="ident">Sender</span><span class="op">&lt;</span>()<span class="op">&gt;</span>)<span class="op">&gt;</span>,
+    <span class="ident">pending</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">HeaderDigest</span>, (<span class="ident">Round</span>, <span class="ident">oneshot::Sender</span><span class="op">&lt;</span>()<span class="op">&gt;</span>)<span class="op">&gt;</span>,
     <span class="doccomment">/// The metrics handler</span>
     <span class="ident">metrics</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">PrimaryMetrics</span><span class="op">&gt;</span>,
 }
@@ -275,7 +291,7 @@
         <span class="ident">missing</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span><span class="op">&gt;</span>,
         <span class="ident">store</span>: <span class="kw-2">&amp;</span><span class="ident">Store</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">deliver</span>: <span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
-        <span class="kw-2">mut</span> <span class="ident">cancel_handle</span>: <span class="ident">Receiver</span><span class="op">&lt;</span>()<span class="op">&gt;</span>,
+        <span class="ident">cancel_handle</span>: <span class="ident">oneshot::Receiver</span><span class="op">&lt;</span>()<span class="op">&gt;</span>,
     ) -&gt; <span class="ident">DagResult</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">waiting</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">missing</span>.<span class="ident">into_iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">store</span>.<span class="ident">notify_read</span>(<span class="ident">x</span>)).<span class="ident">collect</span>();
 
@@ -284,7 +300,7 @@
                 <span class="ident">result</span>.<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">deliver</span>).<span class="ident">map_err</span>(<span class="ident">DagError::from</span>)
             }
             <span class="comment">// the request for this certificate is obsolete, for instance because its round is obsolete (GC&#39;d).</span>
-            <span class="kw">_</span> <span class="op">=</span> <span class="ident">cancel_handle</span>.<span class="ident">recv</span>() =&gt; <span class="prelude-val">Ok</span>(<span class="ident">deliver</span>),
+            <span class="kw">_</span> <span class="op">=</span> <span class="ident">cancel_handle</span> =&gt; <span class="prelude-val">Ok</span>(<span class="ident">deliver</span>),
         }
     }
 
@@ -311,7 +327,7 @@
                         .<span class="ident">parents</span>
                         .<span class="ident">iter</span>().<span class="ident">cloned</span>()
                         .<span class="ident">collect</span>();
-                    <span class="kw">let</span> (<span class="ident">tx_cancel</span>, <span class="ident">rx_cancel</span>) <span class="op">=</span> <span class="ident">channel</span>(<span class="number">1</span>);
+                    <span class="kw">let</span> (<span class="ident">tx_cancel</span>, <span class="ident">rx_cancel</span>) <span class="op">=</span> <span class="ident">oneshot::channel</span>();
                     <span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">insert</span>(<span class="ident">header_id</span>, (<span class="ident">certificate</span>.<span class="ident">round</span>(), <span class="ident">tx_cancel</span>));
                     <span class="kw">let</span> <span class="ident">fut</span> <span class="op">=</span> <span class="ident"><span class="self">Self</span>::waiter</span>(<span class="ident">wait_for</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">store</span>, <span class="ident">certificate</span>, <span class="ident">rx_cancel</span>);
                     <span class="ident">waiting</span>.<span class="ident">push</span>(<span class="ident">fut</span>);
@@ -347,12 +363,20 @@
             <span class="kw">let</span> <span class="ident">round</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">consensus_round</span>.<span class="ident">load</span>(<span class="ident">Ordering::Relaxed</span>);
             <span class="kw">if</span> <span class="ident">round</span> <span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">gc_depth</span> {
                 <span class="kw">let</span> <span class="ident">gc_round</span> <span class="op">=</span> <span class="ident">round</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">gc_depth</span>;
-                <span class="kw">for</span> (<span class="ident">r</span>, <span class="ident">cancel_handle</span>) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">values</span>() {
-                    <span class="kw">if</span> <span class="kw-2">*</span><span class="ident">r</span> <span class="op">&lt;</span><span class="op">=</span> <span class="ident">gc_round</span> <span class="op">+</span> <span class="number">1</span> {
-                        <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">cancel_handle</span>.<span class="ident">send</span>(()).<span class="kw">await</span>;
-                    }
-                }
-                <span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">retain</span>(<span class="op">|</span><span class="kw">_</span>, (<span class="ident">r</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="kw-2">*</span><span class="ident">r</span> <span class="op">&gt;</span> <span class="ident">gc_round</span> <span class="op">+</span> <span class="number">1</span>);
+                <span class="self">self</span>.<span class="ident">pending</span> <span class="op">=</span> <span class="self">self</span>
+                    .<span class="ident">pending</span>
+                    .<span class="ident">drain</span>()
+                    .<span class="ident">flat_map</span>(<span class="op">|</span>(<span class="ident">digest</span>, (<span class="ident">r</span>, <span class="ident">handler</span>))<span class="op">|</span> {
+                        <span class="kw">if</span> <span class="ident">r</span> <span class="op">&lt;</span><span class="op">=</span> <span class="ident">gc_round</span> {
+                            <span class="ident">handler</span>
+                                .<span class="ident">send</span>(())
+                                .<span class="ident">expect</span>(<span class="string">&quot;fatal error sending pending cancellation signal&quot;</span>);
+                            <span class="prelude-val">None</span>
+                        } <span class="kw">else</span> {
+                            <span class="prelude-val">Some</span>((<span class="ident">digest</span>, (<span class="ident">r</span>, <span class="ident">handler</span>)))
+                        }
+                    })
+                    .<span class="ident">collect</span>();
             }
 
             <span class="self">self</span>.<span class="ident">update_metrics</span>();
@@ -367,5 +391,5 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (c396bb3b8 2022-07-10)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (1c7b36d4d 2022-07-12)" ></div>
 </body></html>

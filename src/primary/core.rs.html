@@ -618,6 +618,14 @@
 <span id="612">612</span>
 <span id="613">613</span>
 <span id="614">614</span>
+<span id="615">615</span>
+<span id="616">616</span>
+<span id="617">617</span>
+<span id="618">618</span>
+<span id="619">619</span>
+<span id="620">620</span>
+<span id="621">621</span>
+<span id="622">622</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -883,6 +891,7 @@
             .<span class="ident">inc</span>();
 
         <span class="comment">// Check if we can vote for this header.</span>
+        <span class="comment">// TODO: compute from a persisted last_voted (issue #488)</span>
         <span class="kw">if</span> <span class="self">self</span>
             .<span class="ident">last_voted</span>
             .<span class="ident">entry</span>(<span class="ident">header</span>.<span class="ident">round</span>)
@@ -891,11 +900,18 @@
         {
             <span class="comment">// Make a vote and send it to the header&#39;s creator.</span>
             <span class="kw">let</span> <span class="ident">vote</span> <span class="op">=</span> <span class="ident">Vote::new</span>(<span class="ident">header</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">name</span>, <span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">signature_service</span>).<span class="kw">await</span>;
-            <span class="macro">debug!</span>(<span class="string">&quot;Created {:?}&quot;</span>, <span class="ident">vote</span>);
+            <span class="macro">debug!</span>(
+                <span class="string">&quot;Created vote {vote:?} for {header} at round {}&quot;</span>,
+                <span class="ident">header</span>.<span class="ident">round</span>
+            );
             <span class="kw">if</span> <span class="ident">vote</span>.<span class="ident">origin</span> <span class="op">==</span> <span class="self">self</span>.<span class="ident">name</span> {
-                <span class="self">self</span>.<span class="ident">process_vote</span>(<span class="ident">vote</span>)
-                    .<span class="kw">await</span>
-                    .<span class="ident">expect</span>(<span class="string">&quot;Failed to process our own vote&quot;</span>);
+                <span class="comment">// This used to be a panic, but this may fail if we&#39;re processing a late-received</span>
+                <span class="comment">// header where we were already are part of the signers (as a restart could have blown our `last_voted`)</span>
+                <span class="comment">// TODO: change this back to a panic-on-error once we have persisted last_voted (issue #488)</span>
+                <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">process_vote</span>(<span class="ident">vote</span>).<span class="kw">await</span>;
+                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=</span> <span class="ident">res</span> {
+                    <span class="macro">error!</span>(<span class="string">&quot;Failed to process our own vote: {}&quot;</span>, <span class="ident">e</span>.<span class="ident">to_string</span>());
+                }
             } <span class="kw">else</span> {
                 <span class="kw">let</span> <span class="ident">address</span> <span class="op">=</span> <span class="self">self</span>
                     .<span class="ident">committee</span>
@@ -1233,5 +1249,5 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (c396bb3b8 2022-07-10)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (1c7b36d4d 2022-07-12)" ></div>
 </body></html>
