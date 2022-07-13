@@ -124,7 +124,7 @@ type RequestKey = Vec<u8>;
 /// # use primary::{BlockWaiter, BlockHeader, BlockCommand, block_synchronizer::{BlockSynchronizeResult, handler::{Error, Handler}}};
 /// # use types::{BatchMessage, BatchDigest, CertificateDigest, Batch};
 /// # use mockall::*;
-/// # use types::Reconfigure;
+/// # use types::ReconfigureNotification;
 /// # use crypto::traits::VerifyingKey;
 /// # use async_trait::async_trait;
 /// # use std::sync::Arc;
@@ -157,7 +157,7 @@ type RequestKey = Vec<u8>;
 ///
 ///     let name = Ed25519PublicKey::default();
 ///     let committee = Committee{ epoch: 0, authorities: BTreeMap::new() };
-///     let (_tx_reconfigure, rx_reconfigure) = watch::channel(Reconfigure::NewCommittee(committee.clone()));
+///     let (_tx_reconfigure, rx_reconfigure) = watch::channel(ReconfigureNotification::NewCommittee(committee.clone()));
 ///
 ///     // A dummy certificate
 ///     let certificate = Certificate::<Ed25519PublicKey>::default();

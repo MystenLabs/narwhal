@@ -10,7 +10,7 @@ use primary::{NetworkModel, Primary, CHANNEL_CAPACITY};
 use prometheus::default_registry;
 use std::{collections::BTreeMap, sync::Arc};
 use test_utils::{keys, make_authority, pure_committee_from_keys, temp_dir};
-use tokio::sync::mpsc::channel;
+use tokio::sync::{mpsc::channel, watch};
 use types::{PrimaryMessage, ReconfigureNotification};
 
 /// The epoch changes but the stake distribution and network addresses stay the same.
@@ -39,6 +39,9 @@ async fn test_simple_epoch_change() {
         let (tx_feedback, rx_feedback) = channel(CHANNEL_CAPACITY);
         tx_channels.push(tx_feedback.clone());
 
+        let initial_committee = ReconfigureNotification::NewCommittee(committee_0.clone());
+        let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
+
         let store = NodeStorage::reopen(temp_dir());
 
         Primary::spawn(
@@ -53,6 +56,7 @@ async fn test_simple_epoch_change() {
             /* rx_consensus */ rx_feedback,
             /* dag */ None,
             NetworkModel::Asynchronous,
+            tx_reconfigure,
             /* tx_committed_certificates */ tx_feedback,
             default_registry(),
         );
@@ -135,6 +139,8 @@ async fn test_partial_committee_change() {
         epoch_0_rx_channels.push(rx_new_certificates);
         let (tx_feedback, rx_feedback) = channel(CHANNEL_CAPACITY);
         epoch_0_tx_channels.push(tx_feedback.clone());
+        let initial_committee = ReconfigureNotification::NewCommittee(committee_0.clone());
+        let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
 
         let store = NodeStorage::reopen(temp_dir());
 
@@ -150,6 +156,7 @@ async fn test_partial_committee_change() {
             /* rx_consensus */ rx_feedback,
             /* dag */ None,
             NetworkModel::Asynchronous,
+            tx_reconfigure,
             /* tx_committed_certificates */ tx_feedback,
             default_registry(),
         );
@@ -209,6 +216,9 @@ async fn test_partial_committee_change() {
         let (tx_feedback, rx_feedback) = channel(CHANNEL_CAPACITY);
         epoch_1_tx_channels.push(tx_feedback.clone());
 
+        let initial_committee = ReconfigureNotification::NewCommittee(committee_1.clone());
+        let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
+
         let store = NodeStorage::reopen(temp_dir());
 
         Primary::spawn(
@@ -223,6 +233,7 @@ async fn test_partial_committee_change() {
             /* rx_consensus */ rx_feedback,
             /* dag */ None,
             NetworkModel::Asynchronous,
+            tx_reconfigure,
             /* tx_committed_certificates */ tx_feedback,
             default_registry(),
         );
@@ -276,6 +287,9 @@ async fn test_restart_with_new_committee_change() {
         let (tx_feedback, rx_feedback) = channel(CHANNEL_CAPACITY);
         tx_channels.push(tx_feedback.clone());
 
+        let initial_committee = ReconfigureNotification::NewCommittee(committee_0.clone());
+        let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
+
         let store = NodeStorage::reopen(temp_dir());
 
         let primary_handles = Primary::spawn(
@@ -290,6 +304,7 @@ async fn test_restart_with_new_committee_change() {
             /* rx_consensus */ rx_feedback,
             /* dag */ None,
             NetworkModel::Asynchronous,
+            tx_reconfigure,
             /* tx_committed_certificates */ tx_feedback,
             default_registry(),
         );
@@ -337,6 +352,9 @@ async fn test_restart_with_new_committee_change() {
             let (tx_feedback, rx_feedback) = channel(CHANNEL_CAPACITY);
             tx_channels.push(tx_feedback.clone());
 
+            let initial_committee = ReconfigureNotification::NewCommittee(new_committee.clone());
+            let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
+
             let store = NodeStorage::reopen(temp_dir());
 
             let primary_handles = Primary::spawn(
@@ -351,6 +369,7 @@ async fn test_restart_with_new_committee_change() {
                 /* rx_consensus */ rx_feedback,
                 /* dag */ None,
                 NetworkModel::Asynchronous,
+                tx_reconfigure,
                 /* tx_committed_certificates */ tx_feedback,
                 default_registry(),
             );

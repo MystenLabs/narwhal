@@ -514,8 +514,7 @@ async fn shutdown_core() {
     );
 
     // Shutdown the core.
-    let (token, _rx) = channel(1);
-    let shutdown = ReconfigureNotification::Shutdown(token);
+    let shutdown = ReconfigureNotification::Shutdown;
     tx_reconfigure.send(shutdown).unwrap();
     assert!(handle.await.is_ok());
 }

@@ -357,3 +357,64 @@ async fn missing_leader() {
     let output = rx_output.recv().await.unwrap();
     assert_eq!(output.certificate.round(), 4);
 }
+
+// // Run for 4 dag rounds in ideal conditions (all nodes reference all other nodes). We should commit
+// // the leader of round 2. Then change epoch and do the same in the new epoch.
+// #[tokio::test]
+// async fn epoch_change() {
+//     // Make certificates for rounds 1 and 2.
+//     let keys: Vec<_> = test_utils::keys(None)
+//         .into_iter()
+//         .map(|kp| kp.public().clone())
+//         .collect();
+//     let genesis = Certificate::genesis(&mock_committee(&keys[..]))
+//         .iter()
+//         .map(|x| x.digest())
+//         .collect::<BTreeSet<_>>();
+//     let (mut certificates, next_parents) =
+//         test_utils::make_optimal_certificates(1..=2, &genesis, &keys);
+
+//     // Make two certificate (f+1) with round 3 to trigger the commits.
+//     let (_, certificate) = test_utils::mock_certificate(keys[0].clone(), 3, next_parents.clone());
+//     certificates.push_back(certificate);
+//     let (_, certificate) = test_utils::mock_certificate(keys[1].clone(), 3, next_parents);
+//     certificates.push_back(certificate);
+
+//     // Spawn the consensus engine and sink the primary channel.
+//     let (tx_waiter, rx_waiter) = channel(1);
+//     let (tx_primary, mut rx_primary) = channel(1);
+//     let (tx_output, mut rx_output) = channel(1);
+//     let store_path = test_utils::temp_dir();
+//     let store = make_consensus_store(&store_path);
+//     let bullshark = Bullshark {
+//         committee: Arc::new(ArcSwap::from_pointee(mock_committee(&keys[..]))),
+//         store: store.clone(),
+//         gc_depth: 50,
+//     };
+//     let metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
+//     Consensus::spawn(
+//         Arc::new(ArcSwap::from_pointee(mock_committee(&keys[..]))),
+//         store,
+//         rx_waiter,
+//         tx_primary,
+//         tx_output,
+//         bullshark,
+//         metrics,
+//     );
+//     tokio::spawn(async move { while rx_primary.recv().await.is_some() {} });
+
+//     // Feed all certificates to the consensus. Only the last certificate should trigger
+//     // commits, so the task should not block.
+//     while let Some(certificate) = certificates.pop_front() {
+//         tx_waiter.send(certificate).await.unwrap();
+//     }
+
+//     // Ensure the first 4 ordered certificates are from round 1 (they are the parents of the committed
+//     // leader); then the leader's certificate should be committed.
+//     for _ in 1..=4 {
+//         let output = rx_output.recv().await.unwrap();
+//         assert_eq!(output.certificate.round(), 1);
+//     }
+//     let output = rx_output.recv().await.unwrap();
+//     assert_eq!(output.certificate.round(), 2);
+// }
