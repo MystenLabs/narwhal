@@ -80,8 +80,7 @@ message RemoveCollectionsRequest {
 }
 
 message ReadCausalRequest {
-    // A collection for which a sequence of related collections are to be
-    // retrieved.
+    // A collection for which a sequence of related collections are to be retrieved.
     CertificateDigest collection_id = 1;
 }
 
@@ -149,9 +148,8 @@ service Validator {
 /// proposing a block.
 service Proposer {
     rpc Rounds(RoundsRequest) returns (RoundsResponse);
-    // Returns the read_causal obtained by starting the DAG walk at the
-    // collection proposed by the input authority (as indicated by their public
-    // key) at the input round
+    // Returns the read_causal obtained by starting the DAG walk at the collection
+    // proposed by the input authority (as indicated by their public key) at the input round
     rpc NodeReadCausal(NodeReadCausalRequest) returns (NodeReadCausalResponse);
 }
 
@@ -172,10 +170,8 @@ service PrimaryToPrimary {
 service WorkerToWorker {
     // Sends a worker message
     rpc SendMessage(BincodeEncodedPayload) returns (Empty) {}
-    // requests a number of batches that the service then streams back to the
-    // client
-    rpc ClientBatchRequest(BincodeEncodedPayload)
-        returns (stream BincodeEncodedPayload) {}
+    // requests a number of batches that the service then streams back to the client
+    rpc ClientBatchRequest(BincodeEncodedPayload) returns (stream BincodeEncodedPayload) {}
 }
 
 // The worker-to-primary interface
