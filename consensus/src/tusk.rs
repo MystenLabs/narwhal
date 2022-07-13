@@ -209,11 +209,7 @@ mod tests {
         let consensus_index = 0;
         let mut state =
             ConsensusState::new(Certificate::genesis(&mock_committee(&keys[..])), metrics);
-        let mut tusk = Tusk {
-            committee: Arc::new(ArcSwap::from_pointee(committee)),
-            store,
-            gc_depth,
-        };
+        let mut tusk = Tusk::new(committee, store, gc_depth);
         for certificate in certificates {
             tusk.process_certificate(&mut state, consensus_index, certificate)
                 .unwrap();
@@ -261,11 +257,8 @@ mod tests {
         let mut state =
             ConsensusState::new(Certificate::genesis(&mock_committee(&keys[..])), metrics);
         let consensus_index = 0;
-        let mut tusk = Tusk {
-            committee,
-            store,
-            gc_depth,
-        };
+        let mut tusk = Tusk::new((**committee.load()).clone(), store, gc_depth);
+
         for certificate in certificates {
             tusk.process_certificate(&mut state, consensus_index, certificate)
                 .unwrap();

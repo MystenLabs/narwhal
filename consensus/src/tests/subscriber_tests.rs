@@ -6,7 +6,6 @@ use crate::{
     tusk::{tusk_tests::*, Tusk},
     Consensus, ConsensusOutput, ConsensusSyncRequest, SubscriberHandler,
 };
-use arc_swap::ArcSwap;
 use crypto::{ed25519::Ed25519PublicKey, traits::KeyPair, Hash};
 use prometheus::Registry;
 use std::collections::{BTreeSet, VecDeque};
@@ -66,11 +65,11 @@ pub async fn spawn_node(
     // Spawn the consensus engine and sink the primary channel.
     let (tx_primary, mut rx_primary) = channel(1);
     let (tx_output, rx_output) = channel(1);
-    let tusk = Tusk {
-        committee: Arc::new(ArcSwap::from_pointee(mock_committee(&keys[..]))),
-        store: consensus_store.clone(),
-        gc_depth: 50,
-    };
+    let tusk = Tusk::new(
+        committee.clone(),
+        consensus_store.clone(),
+        /* gc_depth */ 50,
+    );
     let metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
     Consensus::spawn(
         committee,
