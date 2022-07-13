@@ -210,11 +210,11 @@ impl Node {
         let consensus_metrics = Arc::new(ConsensusMetrics::new(registry));
 
         // Spawn the consensus core who only sequences transactions.
-        let ordering_engine = Bullshark {
-            committee: committee.clone(),
-            store: store.consensus_store.clone(),
-            gc_depth: parameters.gc_depth,
-        };
+        let ordering_engine = Bullshark::new(
+            (**committee.load()).clone(),
+            store.consensus_store.clone(),
+            parameters.gc_depth,
+        );
         Consensus::spawn(
             (**committee.load()).clone(),
             store.consensus_store.clone(),

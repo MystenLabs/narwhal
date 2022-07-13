@@ -82,7 +82,7 @@ impl<PublicKey: VerifyingKey> SubscriberHandler<PublicKey> {
                     result.expect("Committee channel dropped");
                     let message = self.rx_reconfigure.borrow().clone();
                     match message {
-                        ReconfigureNotification::NewCommittee(_) => self.consensus_store.clear()?,
+                        ReconfigureNotification::NewCommittee(_) => (),
                         ReconfigureNotification::Shutdown => return Ok(())
                     }
                 }

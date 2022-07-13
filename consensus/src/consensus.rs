@@ -104,6 +104,8 @@ pub trait ConsensusProtocol<PublicKey: VerifyingKey> {
         // The new certificate.
         certificate: Certificate<PublicKey>,
     ) -> StoreResult<Vec<ConsensusOutput<PublicKey>>>;
+
+    fn update_committee(&mut self, new_committee: Committee<PublicKey>) -> StoreResult<()>;
 }
 
 pub struct Consensus<PublicKey: VerifyingKey, ConsensusProtocol> {
@@ -163,13 +165,17 @@ where
         })
     }
 
-    fn reconfigure(&mut self, new_committee: Committee<PublicKey>) -> ConsensusState<PublicKey> {
-        self.committee = new_committee;
+    fn reconfigure(
+        &mut self,
+        new_committee: Committee<PublicKey>,
+    ) -> StoreResult<ConsensusState<PublicKey>> {
+        self.committee = new_committee.clone();
+        self.protocol.update_committee(new_committee)?;
 
         self.consensus_index = 0;
 
         let genesis = Certificate::genesis(&self.committee);
-        ConsensusState::new(genesis, self.metrics.clone())
+        Ok(ConsensusState::new(genesis, self.metrics.clone()))
     }
 
     async fn run(&mut self) -> StoreResult<()> {
@@ -188,8 +194,7 @@ where
                             let message = self.rx_reconfigure.borrow_and_update().clone();
                             match message  {
                                 ReconfigureNotification::NewCommittee(new_committee) => {
-                                    state = self.reconfigure(new_committee);
-
+                                    state = self.reconfigure(new_committee)?;
                                 },
                                 ReconfigureNotification::Shutdown => return Ok(()),
                             }
@@ -242,7 +247,7 @@ where
                     let message = self.rx_reconfigure.borrow().clone();
                     match message {
                         ReconfigureNotification::NewCommittee(new_committee) => {
-                            state = self.reconfigure(new_committee);
+                            state = self.reconfigure(new_committee)?;
                         },
                         ReconfigureNotification::Shutdown => return Ok(())
                     }
