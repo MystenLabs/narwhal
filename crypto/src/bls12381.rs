@@ -551,6 +551,9 @@ impl AggregateAuthenticator for BLS12381AggregateSignature {
         pks: &[&[Self::PubKey]],
         messages: &[&[u8]],
     ) -> Result<(), signature::Error> {
+        if signatures.len() != pks.len() || signatures.len() != messages.len() {
+            return Err(signature::Error::new());
+        }
         for i in 0..signatures.len() {
             let sig = signatures[i].sig;
             let result = sig

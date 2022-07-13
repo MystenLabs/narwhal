@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::fmt::Debug;
-use core::fmt;
 use serde::Deserialize;
-use serde::de::{self, Deserializer, Error, Visitor};
+use serde::de::{Deserializer, Error};
 use serde::ser::Serializer;
 use base64ct::Encoding as _;
 use serde_with::{SerializeAs, DeserializeAs, Bytes};

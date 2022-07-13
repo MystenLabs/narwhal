@@ -548,6 +548,9 @@ impl AggregateAuthenticator for BLS12377AggregateSignature {
         pks: &[&[Self::PubKey]],
         messages: &[&[u8]],
     ) -> Result<(), signature::Error> {
+        if pks.len() != messages.len() || messages.len() != signatures.len() {
+            return Err(signature::Error::new());
+        }
         for i in 0..signatures.len() {
             let sig = signatures[i].sig.clone();
             let mut cache = celo_bls::PublicKeyCache::new();
