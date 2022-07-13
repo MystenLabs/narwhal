@@ -15,7 +15,8 @@ use store::{reopen, rocks, rocks::DBMap};
 use test_utils::mock_committee;
 #[allow(unused_imports)]
 use tokio::sync::mpsc::channel;
-use types::CertificateDigest;
+use tokio::sync::watch;
+use types::{CertificateDigest, ReconfigureNotification};
 
 pub fn make_consensus_store(store_path: &std::path::Path) -> Arc<ConsensusStore<Ed25519PublicKey>> {
     const LAST_COMMITTED_CF: &str = "last_committed";
@@ -73,6 +74,11 @@ async fn commit_one() {
     let (tx_waiter, rx_waiter) = channel(1);
     let (tx_primary, mut rx_primary) = channel(1);
     let (tx_output, mut rx_output) = channel(1);
+
+    let committee = mock_committee(&keys[..]);
+    let initial_committee = ReconfigureNotification::NewCommittee(committee.clone());
+    let (_tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
+
     let store_path = test_utils::temp_dir();
     let store = make_consensus_store(&store_path);
     let bullshark = Bullshark {
@@ -82,8 +88,9 @@ async fn commit_one() {
     };
     let metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
     Consensus::spawn(
-        Arc::new(ArcSwap::from_pointee(mock_committee(&keys[..]))),
+        committee,
         store,
+        rx_reconfigure,
         rx_waiter,
         tx_primary,
         tx_output,
@@ -131,6 +138,11 @@ async fn dead_node() {
     let (tx_waiter, rx_waiter) = channel(1);
     let (tx_primary, mut rx_primary) = channel(1);
     let (tx_output, mut rx_output) = channel(1);
+
+    let committee = mock_committee(&keys[..]);
+    let initial_committee = ReconfigureNotification::NewCommittee(committee.clone());
+    let (_tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
+
     let store_path = test_utils::temp_dir();
     let store = make_consensus_store(&store_path);
     let bullshark = Bullshark {
@@ -141,8 +153,9 @@ async fn dead_node() {
     let metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
 
     Consensus::spawn(
-        Arc::new(ArcSwap::from_pointee(mock_committee(&keys[..]))),
+        committee,
         store,
+        rx_reconfigure,
         rx_waiter,
         tx_primary,
         tx_output,
@@ -236,6 +249,11 @@ async fn not_enough_support() {
     let (tx_waiter, rx_waiter) = channel(1);
     let (tx_primary, mut rx_primary) = channel(1);
     let (tx_output, mut rx_output) = channel(1);
+
+    let committee = mock_committee(&keys[..]);
+    let initial_committee = ReconfigureNotification::NewCommittee(committee.clone());
+    let (_tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
+
     let store_path = test_utils::temp_dir();
     let store = make_consensus_store(&store_path);
     let bullshark = Bullshark {
@@ -246,8 +264,9 @@ async fn not_enough_support() {
     let metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
 
     Consensus::spawn(
-        Arc::new(ArcSwap::from_pointee(mock_committee(&keys[..]))),
+        committee,
         store,
+        rx_reconfigure,
         rx_waiter,
         tx_primary,
         tx_output,
@@ -315,6 +334,11 @@ async fn missing_leader() {
     let (tx_waiter, rx_waiter) = channel(1);
     let (tx_primary, mut rx_primary) = channel(1);
     let (tx_output, mut rx_output) = channel(1);
+
+    let committee = mock_committee(&keys[..]);
+    let initial_committee = ReconfigureNotification::NewCommittee(committee.clone());
+    let (_tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
+
     let store_path = test_utils::temp_dir();
     let store = make_consensus_store(&store_path);
     let bullshark = Bullshark {
@@ -325,8 +349,9 @@ async fn missing_leader() {
     let metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
 
     Consensus::spawn(
-        Arc::new(ArcSwap::from_pointee(mock_committee(&keys[..]))),
+        committee,
         store,
+        rx_reconfigure,
         rx_waiter,
         tx_primary,
         tx_output,

@@ -39,7 +39,7 @@ pub async fn spawn_node(
     rx_waiter: Receiver<Certificate<Ed25519PublicKey>>,
     rx_client: Receiver<ConsensusSyncRequest>,
     tx_client: Sender<ConsensusOutput<Ed25519PublicKey>>,
-) {
+) -> watch::Sender<ReconfigureNotification<Ed25519PublicKey>> {
     // Make enough certificates to commit a leader.
     let certificates = commit_certificates();
 
@@ -48,7 +48,10 @@ pub async fn spawn_node(
         .into_iter()
         .map(|kp| kp.public().clone())
         .collect();
-    let committee = Arc::new(ArcSwap::from_pointee(mock_committee(&keys[..])));
+
+    let committee = mock_committee(&keys[..]);
+    let initial_committee = ReconfigureNotification::NewCommittee(committee.clone());
+    let (tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
 
     // Create the storages.
     let consensus_store_path = test_utils::temp_dir();
@@ -64,7 +67,7 @@ pub async fn spawn_node(
     let (tx_primary, mut rx_primary) = channel(1);
     let (tx_output, rx_output) = channel(1);
     let tusk = Tusk {
-        committee: committee.clone(),
+        committee: Arc::new(ArcSwap::from_pointee(mock_committee(&keys[..]))),
         store: consensus_store.clone(),
         gc_depth: 50,
     };
@@ -72,6 +75,7 @@ pub async fn spawn_node(
     Consensus::spawn(
         committee,
         consensus_store.clone(),
+        tx_reconfigure.subscribe(),
         rx_waiter,
         tx_primary,
         tx_output,
@@ -84,10 +88,13 @@ pub async fn spawn_node(
     SubscriberHandler::spawn(
         consensus_store,
         certificate_store,
+        rx_reconfigure,
         /* rx_sequence */ rx_output,
         rx_client,
         tx_client,
     );
+
+    tx_reconfigure
 }
 
 /// Facility to read consensus outputs out of a stream and return them in the right order.
@@ -133,7 +140,7 @@ async fn subscribe() {
     let mut certificates = commit_certificates();
 
     // Spawn the consensus and subscriber handler.
-    spawn_node(
+    let _tx_reconfigure = spawn_node(
         rx_consensus_input,
         rx_client_to_consensus,
         tx_consensus_to_client,
@@ -163,7 +170,7 @@ async fn subscribe_sync() {
     let mut certificates = commit_certificates();
 
     // Spawn the consensus and subscriber handler.
-    spawn_node(
+    let _tx_reconfigure = spawn_node(
         rx_consensus_input,
         rx_client_to_consensus,
         tx_consensus_to_client,
