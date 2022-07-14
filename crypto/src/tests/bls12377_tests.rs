@@ -299,6 +299,26 @@ fn test_serialize_deserialize_aggregate_signatures() {
     assert_eq!(deserialized.as_bytes(), sig.as_bytes());
 }
 
+#[test]
+fn to_from_bytes_aggregate_signature() {
+    let kpref = keys().pop().unwrap();
+    let signature = kpref.sign(b"Hello, world");
+    let aggregated_signature = BLS12377AggregateSignature::aggregate(vec![signature]).unwrap();
+    let sig_bytes = aggregated_signature.as_ref();
+    let rebuilt_sig = <BLS12377AggregateSignature as ToFromBytes>::from_bytes(sig_bytes).unwrap();
+
+    assert!(aggregated_signature
+        .verify(&[kpref.public().clone()], b"Hello, world")
+        .is_ok());
+    assert!(rebuilt_sig
+        .verify(&[kpref.public().clone()], b"Hello, world")
+        .is_ok());
+    assert_eq!(
+        rebuilt_sig.clone().as_ref(),
+        aggregated_signature.as_ref()
+    );
+}
+
 #[tokio::test]
 async fn signature_service() {
     // Get a keypair.

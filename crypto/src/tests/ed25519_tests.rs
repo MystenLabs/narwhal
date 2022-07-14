@@ -8,12 +8,12 @@ use crate::{
         Ed25519AggregateSignature, Ed25519KeyPair, Ed25519PrivateKey, Ed25519PublicKey,
         Ed25519Signature,
     },
-    traits::{AggregateAuthenticator, EncodeDecodeBase64, VerifyingKey},
+    traits::{AggregateAuthenticator, EncodeDecodeBase64, ToFromBytes, VerifyingKey},
 };
 
 use blake2::digest::Update;
 use rand::{rngs::StdRng, SeedableRng as _};
-use signature::{Signature, Signer, Verifier};
+use signature::{Signer, Verifier};
 
 impl Hash for &[u8] {
     type TypedDigest = Digest;
@@ -68,7 +68,7 @@ fn to_from_bytes_signature() {
     let kpref = keys().pop().unwrap();
     let signature = kpref.sign(b"Hello, world");
     let sig_bytes = signature.as_ref();
-    let rebuilt_sig = Ed25519Signature::from_bytes(sig_bytes).unwrap();
+    let rebuilt_sig = <Ed25519Signature as ToFromBytes>::from_bytes(sig_bytes).unwrap();
     assert_eq!(rebuilt_sig, signature);
 }
 
@@ -139,7 +139,7 @@ fn verify_invalid_batch() {
         .unzip();
 
     // mangle one signature
-    signatures[0] = Ed25519Signature::from_bytes(&[0u8; 64]).unwrap();
+    signatures[0] = <Ed25519Signature as ToFromBytes>::from_bytes(&[0u8; 64]).unwrap();
 
     // Verify the batch.
     let res = Ed25519PublicKey::verify_batch(&digest.0, &pubkeys, &signatures);
