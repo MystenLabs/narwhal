@@ -30,6 +30,8 @@ use types::{
     WorkerToWorkerServer,
 };
 
+pub mod cluster;
+
 pub const HEADERS_CF: &str = "headers";
 pub const CERTIFICATES_CF: &str = "certificates";
 pub const PAYLOAD_CF: &str = "payload";

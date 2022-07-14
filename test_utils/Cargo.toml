@@ -23,11 +23,15 @@ tokio = { version = "1.19.2", features = ["sync", "rt", "macros"] }
 tokio-util = { version = "0.7.3", features = ["codec"] }
 tonic = "0.7.2"
 multiaddr = "0.14.0"
+tracing = "0.1.35"
+prometheus = "0.13.1"
 
 config = { path = "../config" }
 crypto = { path = "../crypto" }
 types = { path = "../types" }
 worker = { path = "../worker"}
+node = { path = "../node"}
+executor = { path = "../executor"}
 
 store = { git = "https://github.com/mystenlabs/mysten-infra.git", package = "typed-store", rev = "7e9b7568fc7184b4938976330122f3c8064e3236" }
 mysten-network = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "c6dc7a23a40b3517f138d122a76d3bc15f844f67" }
