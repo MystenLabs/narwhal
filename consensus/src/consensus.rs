@@ -199,9 +199,9 @@ where
         protocol: Protocol,
         metrics: Arc<ConsensusMetrics>,
         gc_depth: Round,
-    ) -> JoinHandle<StoreResult<()>> {
+    ) -> JoinHandle<()> {
         tokio::spawn(async move {
-            let consensus_index = store.read_last_consensus_index()?;
+            let consensus_index = store.read_last_consensus_index().expect("Store error");
             let recovered_last_committed = store.read_last_committed();
             let committee: &Committee<PublicKey> = &committee.load();
             let genesis = Certificate::genesis(committee);
@@ -216,6 +216,7 @@ where
             }
             .run(recovered_last_committed, cert_store, gc_depth)
             .await
+            .unwrap();
         })
     }
 
@@ -269,6 +270,7 @@ where
                 }
             }
         }
+
         Ok(())
     }
 }
