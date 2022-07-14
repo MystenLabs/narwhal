@@ -292,6 +292,31 @@ fn verify_batch_aggregate_signature_length_mismatch() {
     ).is_err());
 }
 
+#[test]
+fn test_serialize_deserialize_aggregate_signatures() {
+    // Test empty aggregate signature
+    let sig = Ed25519AggregateSignature::default();
+    let serialized = bincode::serialize(&sig).unwrap();
+    let deserialized: Ed25519AggregateSignature = bincode::deserialize(&serialized).unwrap();
+    assert_eq!(deserialized.0, sig.0);
+
+    let message = b"hello, narwhal";
+    // Test populated aggregate signature
+    let (_, signatures): (Vec<Ed25519PublicKey>, Vec<Ed25519Signature>) = keys()
+    .into_iter()
+    .take(3)
+    .map(|kp| {
+        let sig = kp.sign(message);
+        (kp.public().clone(), sig)
+    })
+    .unzip();
+
+    let sig = Ed25519AggregateSignature::aggregate(signatures).unwrap();
+    let serialized = bincode::serialize(&sig).unwrap();
+    let deserialized: Ed25519AggregateSignature = bincode::deserialize(&serialized).unwrap();
+    assert_eq!(deserialized.0, sig.0);
+}
+
 #[tokio::test]
 async fn signature_service() {
     // Get a keypair.

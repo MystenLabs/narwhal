@@ -3,7 +3,7 @@
 use super::*;
 use crate::{
     bls12381::{BLS12381KeyPair, BLS12381PrivateKey, BLS12381PublicKey, BLS12381Signature, BLS12381AggregateSignature},
-    traits::{EncodeDecodeBase64, VerifyingKey, AggregateAuthenticator},
+    traits::{EncodeDecodeBase64, VerifyingKey, AggregateAuthenticator, ToFromBytes},
 };
 use rand::{rngs::StdRng, SeedableRng as _};
 use signature::{Signature, Signer, Verifier};
@@ -40,7 +40,7 @@ fn to_from_bytes_signature() {
     let kpref = keys().pop().unwrap();
     let signature = kpref.sign(b"Hello, world");
     let sig_bytes = signature.as_ref();
-    let rebuilt_sig = BLS12381Signature::from_bytes(sig_bytes).unwrap();
+    let rebuilt_sig = <BLS12381Signature as ToFromBytes>::from_bytes(sig_bytes).unwrap();
     assert_eq!(rebuilt_sig, signature);
 }
 
@@ -265,6 +265,31 @@ fn verify_batch_aggregate_signature_length_mismatch() {
         &[&pubkeys1[..], &pubkeys2[..]],
         &[&digest2.0[..]]
     ).is_err());
+}
+
+#[test]
+fn test_serialize_deserialize_aggregate_signatures() {
+    // Test empty aggregate signature
+    let sig = BLS12381AggregateSignature::default();
+    let serialized = bincode::serialize(&sig).unwrap();
+    let deserialized: BLS12381AggregateSignature = bincode::deserialize(&serialized).unwrap();
+    assert_eq!(deserialized.as_bytes(), sig.as_bytes());
+
+    let message = b"hello, narwhal";
+    // Test populated aggregate signature
+    let (_, signatures): (Vec<BLS12381PublicKey>, Vec<BLS12381Signature>) = keys()
+    .into_iter()
+    .take(3)
+    .map(|kp| {
+        let sig = kp.sign(message);
+        (kp.public().clone(), sig)
+    })
+    .unzip();
+
+    let sig = BLS12381AggregateSignature::aggregate(signatures).unwrap();
+    let serialized = bincode::serialize(&sig).unwrap();
+    let deserialized: BLS12381AggregateSignature = bincode::deserialize(&serialized).unwrap();
+    assert_eq!(deserialized.as_bytes(), sig.as_bytes());
 }
 
 #[tokio::test]
