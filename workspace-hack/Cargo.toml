@@ -84,6 +84,7 @@ either = { version = "1", features = ["use_std"] }
 env_logger = { version = "0.9", features = ["atty", "humantime", "regex", "termcolor"] }
 eyre = { version = "0.6", features = ["auto-install", "track-caller"] }
 fastrand = { version = "1", default-features = false }
+fdlimit = { version = "0.2", default-features = false }
 fixedbitset = { version = "0.4", default-features = false }
 float-cmp = { version = "0.9", features = ["num-traits", "ratio"] }
 fnv = { version = "1", features = ["std"] }
@@ -194,7 +195,7 @@ regex-automata = { version = "0.1", features = ["regex-syntax", "std"] }
 regex-syntax = { version = "0.6", features = ["unicode", "unicode-age", "unicode-bool", "unicode-case", "unicode-gencat", "unicode-perl", "unicode-script", "unicode-segment"] }
 remove_dir_all = { version = "0.5", default-features = false }
 ring = { version = "0.16", features = ["alloc", "dev_urandom_fallback", "once_cell"] }
-rocksdb = { version = "0.18", default-features = false, features = ["lz4", "snappy", "zlib", "zstd"] }
+rocksdb = { version = "0.18", default-features = false, features = ["lz4", "multi-threaded-cf", "snappy", "zlib", "zstd"] }
 rustls = { version = "0.20", default-features = false, features = ["log", "logging", "tls12"] }
 rustls-pemfile = { version = "1", default-features = false }
 rusty-fork = { version = "0.3", default-features = false, features = ["timeout", "wait-timeout"] }
@@ -255,7 +256,7 @@ tracing-subscriber-6f8ce4dd05d13bba = { package = "tracing-subscriber", version 
 tracing-subscriber-468e82937335b1c9 = { package = "tracing-subscriber", version = "0.3", features = ["alloc", "ansi", "ansi_term", "env-filter", "fmt", "matchers", "once_cell", "regex", "registry", "sharded-slab", "smallvec", "std", "thread_local", "time", "tracing", "tracing-log"] }
 tracing-test = { version = "0.2", default-features = false }
 try-lock = { version = "0.2", default-features = false }
-typed-store = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "c6dc7a23a40b3517f138d122a76d3bc15f844f67", default-features = false }
+typed-store = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "7e9b7568fc7184b4938976330122f3c8064e3236", default-features = false }
 typenum = { version = "1", default-features = false }
 unicode-bidi = { version = "0.3", features = ["hardcoded-data", "std"] }
 unicode-ident = { version = "1", default-features = false }

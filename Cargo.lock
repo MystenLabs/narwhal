@@ -1198,6 +1198,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "fdlimit"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2c4c9e43643f5a3be4ca5b67d26b98031ff9db6806c3440ae32e02e3ceac3f1b"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "findshlibs"
 version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3666,11 +3675,12 @@ checksum = "59547bce71d9c38b83d9c0e92b6066c4253371f15005def0c30d9657f50c7642"
 [[package]]
 name = "typed-store"
 version = "0.1.0"
-source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=c6dc7a23a40b3517f138d122a76d3bc15f844f67#c6dc7a23a40b3517f138d122a76d3bc15f844f67"
+source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=7e9b7568fc7184b4938976330122f3c8064e3236#7e9b7568fc7184b4938976330122f3c8064e3236"
 dependencies = [
  "bincode",
  "collectable",
  "eyre",
+ "fdlimit",
  "rocksdb",
  "serde",
  "thiserror",
@@ -4155,6 +4165,7 @@ dependencies = [
  "env_logger",
  "eyre",
  "fastrand",
+ "fdlimit",
  "fixedbitset",
  "float-cmp",
  "fnv",
