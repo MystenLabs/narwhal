@@ -658,6 +658,33 @@ pub fn make_certificates(
     )
 }
 
+// make rounds worth of unsigned certificates with the sampled number of parents
+pub fn make_certificates_with_epoch(
+    range: RangeInclusive<Round>,
+    epoch: Epoch,
+    initial_parents: &BTreeSet<CertificateDigest>,
+    keys: &[Ed25519PublicKey],
+) -> (
+    VecDeque<Certificate<Ed25519PublicKey>>,
+    BTreeSet<CertificateDigest>,
+) {
+    let mut certificates = VecDeque::new();
+    let mut parents = initial_parents.iter().cloned().collect::<BTreeSet<_>>();
+    let mut next_parents = BTreeSet::new();
+
+    for round in range {
+        next_parents.clear();
+        for name in keys {
+            let (digest, certificate) =
+                mock_certificate_with_epoch(name.clone(), round, epoch, parents.clone());
+            certificates.push_back(certificate);
+            next_parents.insert(digest);
+        }
+        parents = next_parents.clone();
+    }
+    (certificates, next_parents)
+}
+
 // make rounds worth of signed certificates with the sampled number of parents
 pub fn make_signed_certificates(
     range: RangeInclusive<Round>,
@@ -691,6 +718,28 @@ pub fn mock_certificate(
         header: Header {
             author: origin,
             round,
+            parents,
+            payload: fixture_payload(1),
+            ..Header::default()
+        },
+        ..Certificate::default()
+    };
+    (certificate.digest(), certificate)
+}
+
+// Creates an unsigned certificate from its given round, epoch, origin, and parents,
+// Note: the certificate is unsigned
+pub fn mock_certificate_with_epoch(
+    origin: Ed25519PublicKey,
+    round: Round,
+    epoch: Epoch,
+    parents: BTreeSet<CertificateDigest>,
+) -> (CertificateDigest, Certificate<Ed25519PublicKey>) {
+    let certificate = Certificate {
+        header: Header {
+            author: origin,
+            round,
+            epoch,
             parents,
             payload: fixture_payload(1),
             ..Header::default()

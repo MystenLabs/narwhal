@@ -370,39 +370,26 @@ async fn missing_leader() {
 // the leader of round 2. Then change epoch and do the same in the new epoch.
 #[tokio::test]
 async fn epoch_change() {
-    // Make certificates for rounds 1 and 2.
     let keys: Vec<_> = test_utils::keys(None)
         .into_iter()
         .map(|kp| kp.public().clone())
         .collect();
-    let genesis = Certificate::genesis(&mock_committee(&keys[..]))
-        .iter()
-        .map(|x| x.digest())
-        .collect::<BTreeSet<_>>();
-    let (mut certificates, next_parents) =
-        test_utils::make_optimal_certificates(1..=2, &genesis, &keys);
-
-    // Make two certificate (f+1) with round 3 to trigger the commits.
-    let (_, certificate) = test_utils::mock_certificate(keys[0].clone(), 3, next_parents.clone());
-    certificates.push_back(certificate);
-    let (_, certificate) = test_utils::mock_certificate(keys[1].clone(), 3, next_parents);
-    certificates.push_back(certificate);
+    let mut committee = mock_committee(&keys[..]);
 
     // Spawn the consensus engine and sink the primary channel.
     let (tx_waiter, rx_waiter) = channel(1);
     let (tx_primary, mut rx_primary) = channel(1);
     let (tx_output, mut rx_output) = channel(1);
 
-    let committee = mock_committee(&keys[..]);
     let initial_committee = ReconfigureNotification::NewCommittee(committee.clone());
-    let (_tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
+    let (tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
 
     let store_path = test_utils::temp_dir();
     let store = make_consensus_store(&store_path);
     let bullshark = Bullshark::new(committee.clone(), store.clone(), /* gc_depth */ 50);
     let metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
     Consensus::spawn(
-        committee,
+        committee.clone(),
         store,
         rx_reconfigure,
         rx_waiter,
@@ -413,20 +400,48 @@ async fn epoch_change() {
     );
     tokio::spawn(async move { while rx_primary.recv().await.is_some() {} });
 
-    // Feed all certificates to the consensus. Only the last certificate should trigger
-    // commits, so the task should not block.
-    while let Some(certificate) = certificates.pop_front() {
-        tx_waiter.send(certificate).await.unwrap();
-    }
+    // Run for a few epochs.
+    for epoch in 0..5 {
+        // Make certificates for rounds 1 and 2.
+        let genesis = Certificate::genesis(&committee)
+            .iter()
+            .map(|x| x.digest())
+            .collect::<BTreeSet<_>>();
+        let (mut certificates, next_parents) =
+            test_utils::make_certificates_with_epoch(1..=2, epoch, &genesis, &keys);
 
-    // Ensure the first 4 ordered certificates are from round 1 (they are the parents of the committed
-    // leader); then the leader's certificate should be committed.
-    for _ in 1..=4 {
+        // Make two certificate (f+1) with round 3 to trigger the commits.
+        let (_, certificate) = test_utils::mock_certificate_with_epoch(
+            keys[0].clone(),
+            3,
+            epoch,
+            next_parents.clone(),
+        );
+        certificates.push_back(certificate);
+        let (_, certificate) =
+            test_utils::mock_certificate_with_epoch(keys[1].clone(), 3, epoch, next_parents);
+        certificates.push_back(certificate);
+
+        // Feed all certificates to the consensus. Only the last certificate should trigger
+        // commits, so the task should not block.
+        while let Some(certificate) = certificates.pop_front() {
+            tx_waiter.send(certificate).await.unwrap();
+        }
+
+        // Ensure the first 4 ordered certificates are from round 1 (they are the parents of the committed
+        // leader); then the leader's certificate should be committed.
+        for _ in 1..=4 {
+            let output = rx_output.recv().await.unwrap();
+            assert_eq!(output.certificate.epoch(), epoch);
+            assert_eq!(output.certificate.round(), 1);
+        }
         let output = rx_output.recv().await.unwrap();
-        assert_eq!(output.certificate.round(), 1);
-    }
-    let output = rx_output.recv().await.unwrap();
-    assert_eq!(output.certificate.round(), 2);
+        assert_eq!(output.certificate.epoch(), epoch);
+        assert_eq!(output.certificate.round(), 2);
 
-    // Reconfigure consensus.
+        // Move to the next epoch.
+        committee.epoch = epoch + 1;
+        let message = ReconfigureNotification::NewCommittee(committee.clone());
+        tx_reconfigure.send(message).unwrap();
+    }
 }
