@@ -40,6 +40,15 @@ impl VerifyingKey for Ed25519PublicKey {
     type Sig = Ed25519Signature;
     type Bytes = Ed25519PublicKeyBytes;
     const LENGTH: usize = ed25519_dalek::PUBLIC_KEY_LENGTH;
+
+    fn verify_batch(msg: &[u8], pks: &[Self], sigs: &[Self::Sig]) -> Result<(), signature::Error> {
+        let msgs = vec![msg; pks.len()];
+        // TODO: replace this with some unsafe - but faster & non-alloc - implementation
+        let sigs: Vec<_> = sigs.iter().map(|s| s.0).collect();
+        let pks: Vec<_> = pks.iter().map(|p| p.0).collect();
+
+        ed25519_dalek::verify_batch(&msgs, &sigs, &pks)
+    }
 }
 
 impl Verifier<Ed25519Signature> for Ed25519PublicKey {
