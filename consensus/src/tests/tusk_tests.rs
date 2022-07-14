@@ -458,7 +458,7 @@ async fn restart_with_new_committee() {
         let metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
         let tusk = Tusk::new(committee.clone(), store.clone(), /* gc_depth */ 50);
 
-        Consensus::spawn(
+        let handle = Consensus::spawn(
             committee.clone(),
             store,
             rx_reconfigure,
@@ -504,5 +504,8 @@ async fn restart_with_new_committee() {
         committee.epoch = epoch + 1;
         let message = ReconfigureNotification::Shutdown;
         tx_reconfigure.send(message).unwrap();
+
+        // Ensure consensus stopped.
+        handle.await.unwrap().unwrap();
     }
 }
