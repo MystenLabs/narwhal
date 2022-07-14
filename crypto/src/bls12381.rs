@@ -33,6 +33,10 @@ pub const BLS_PUBLIC_KEY_LENGTH: usize = 96;
 pub const BLS_SIGNATURE_LENGTH: usize = 48;
 pub const DST: &[u8] = b"BLS_SIG_BLS12381G1_XMD:SHA-256_SSWU_RO_NUL_";
 
+///
+/// Define Structs
+///
+
 #[readonly::make]
 #[derive(Default, Debug, Clone)]
 pub struct BLS12381PublicKey {
@@ -41,10 +45,23 @@ pub struct BLS12381PublicKey {
 }
 
 #[readonly::make]
+#[serde_as]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd, Copy, Hash)]
+pub struct BLS12381PublicKeyBytes(#[serde_as(as = "Bytes")] [u8; BLS_PUBLIC_KEY_LENGTH]);
+
+#[readonly::make]
 #[derive(Default, Debug)]
 pub struct BLS12381PrivateKey {
     pub privkey: blst::SecretKey,
     pub bytes: OnceCell<[u8; BLS_PRIVATE_KEY_LENGTH]>,
+}
+
+// There is a strong requirement for this specific impl. in Fab benchmarks
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(tag = "type")] // necessary so as not to deser under a != type
+pub struct BLS12381KeyPair {
+    name: BLS12381PublicKey,
+    secret: BLS12381PrivateKey,
 }
 
 #[readonly::make]
@@ -67,10 +84,9 @@ pub struct BLS12381AggregateSignature {
     pub bytes: OnceCell<[u8; BLS_SIGNATURE_LENGTH]>,
 }
 
-#[readonly::make]
-#[serde_as]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd, Copy, Hash)]
-pub struct BLS12381PublicKeyBytes(#[serde_as(as = "Bytes")] [u8; BLS_PUBLIC_KEY_LENGTH]);
+///
+/// Implement SigningKey
+///
 
 impl AsRef<[u8]> for BLS12381PublicKey {
     fn as_ref(&self) -> &[u8] {
@@ -217,6 +233,10 @@ impl VerifyingKey for BLS12381PublicKey {
     }
 }
 
+///
+/// Implement Authenticator
+///
+
 impl AsRef<[u8]> for BLS12381Signature {
     fn as_ref(&self) -> &[u8] {
         self.bytes
@@ -282,6 +302,10 @@ impl Authenticator for BLS12381Signature {
     const LENGTH: usize = BLS_SIGNATURE_LENGTH;
 }
 
+///
+/// Implement SigningKey
+///
+
 impl AsRef<[u8]> for BLS12381PrivateKey {
     fn as_ref(&self) -> &[u8] {
         self.bytes
@@ -339,13 +363,9 @@ impl Signer<BLS12381Signature> for BLS12381PrivateKey {
     }
 }
 
-// There is a strong requirement for this specific impl. in Fab benchmarks
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(tag = "type")] // necessary so as not to deser under a != type
-pub struct BLS12381KeyPair {
-    name: BLS12381PublicKey,
-    secret: BLS12381PrivateKey,
-}
+///
+/// Implement KeyPair
+///
 
 impl From<BLS12381PrivateKey> for BLS12381KeyPair {
     fn from(secret: BLS12381PrivateKey) -> Self {
@@ -409,6 +429,10 @@ impl Signer<BLS12381Signature> for BLS12381KeyPair {
         })
     }
 }
+
+///
+/// Implement AggregateAuthenticator
+///
 
 impl ToFromBytes for BLS12381AggregateSignature {
     fn from_bytes(bytes: &[u8]) -> Result<Self, signature::Error> {
@@ -545,6 +569,10 @@ impl AggregateAuthenticator for BLS12381AggregateSignature {
         Ok(())
     }
 }
+
+///
+/// Implement VerifyingKeyBytes
+///
 
 impl Default for BLS12381PublicKeyBytes {
     fn default() -> Self {

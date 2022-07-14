@@ -13,11 +13,26 @@ use crate::traits::{
     VerifyingKey, VerifyingKeyBytes,
 };
 
+///
+/// Define Structs
+///
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ed25519PublicKey(pub ed25519_dalek::PublicKey);
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Ord, PartialOrd, Copy, Hash)]
+pub struct Ed25519PublicKeyBytes([u8; ed25519_dalek::PUBLIC_KEY_LENGTH]);
+
 #[derive(Debug)]
 pub struct Ed25519PrivateKey(pub ed25519_dalek::SecretKey);
+
+// There is a strong requirement for this specific impl. in Fab benchmarks
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(tag = "type")] // necessary so as not to deser under a != type
+pub struct Ed25519KeyPair {
+    name: Ed25519PublicKey,
+    secret: Ed25519PrivateKey,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde_as]
@@ -29,8 +44,9 @@ pub struct Ed25519AggregateSignature(
     #[serde_as(as = "Vec<Ed25519Signature>")] pub Vec<ed25519_dalek::Signature>,
 );
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Ord, PartialOrd, Copy, Hash)]
-pub struct Ed25519PublicKeyBytes([u8; ed25519_dalek::PUBLIC_KEY_LENGTH]);
+///
+/// Implement VerifyingKey
+///
 
 impl<'a> From<&'a Ed25519PrivateKey> for Ed25519PublicKey {
     fn from(secret: &'a Ed25519PrivateKey) -> Self {
@@ -129,6 +145,10 @@ impl<'de> Deserialize<'de> for Ed25519PublicKey {
     }
 }
 
+///
+/// Implement SigningKey
+///
+
 impl SigningKey for Ed25519PrivateKey {
     type PubKey = Ed25519PublicKey;
     type Sig = Ed25519Signature;
@@ -163,6 +183,10 @@ impl<'de> Deserialize<'de> for Ed25519PrivateKey {
         Ok(value)
     }
 }
+
+///
+/// Implement Authenticator
+///
 
 impl Authenticator for Ed25519Signature {
     type PubKey = Ed25519PublicKey;
@@ -201,6 +225,10 @@ impl Default for Ed25519Signature {
         Ed25519Signature(sig)
     }
 }
+
+///
+/// Implement AggregateAuthenticator
+///
 
 impl Display for Ed25519AggregateSignature {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
@@ -279,13 +307,9 @@ impl AggregateAuthenticator for Ed25519AggregateSignature {
     }
 }
 
-// There is a strong requirement for this specific impl. in Fab benchmarks
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(tag = "type")] // necessary so as not to deser under a != type
-pub struct Ed25519KeyPair {
-    name: Ed25519PublicKey,
-    secret: Ed25519PrivateKey,
-}
+///
+/// Implement KeyPair
+///
 
 impl From<Ed25519PrivateKey> for Ed25519KeyPair {
     fn from(secret: Ed25519PrivateKey) -> Self {
@@ -360,6 +384,10 @@ impl Signer<Ed25519Signature> for Ed25519KeyPair {
         Ok(Ed25519Signature(expanded_privkey.sign(msg, pubkey)))
     }
 }
+
+///
+/// Implement VerifyingKeyBytes
+///
 
 impl Default for Ed25519PublicKeyBytes {
     fn default() -> Self {

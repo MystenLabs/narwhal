@@ -187,6 +187,12 @@ pub trait KeyPair: Sized + From<Self::PrivKey> {
     }
 }
 
+/// Trait impl'd by aggregated signatures in asymmetric cryptography.
+///
+/// The trait bounds are implemented to allow the aggregation of multiple signatures,
+/// and to verify it against multiple, unaggregated public keys. For signature schemes
+/// where aggregation is not possible, a trivial implementation is provided.
+///
 pub trait AggregateAuthenticator:
     Display + Default + Serialize + DeserializeOwned + Send + Sync + 'static + Clone
 {
@@ -212,6 +218,8 @@ pub trait AggregateAuthenticator:
     ) -> Result<(), Error>;
 }
 
+/// Trait impl'd byte representations of public keys in asymmetric cryptography.
+///
 pub trait VerifyingKeyBytes:
     Display
     + Default

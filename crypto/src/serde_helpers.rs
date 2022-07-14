@@ -1,16 +1,16 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use std::fmt::Debug;
-use serde::Deserialize;
+use anyhow::anyhow;
+use base64ct::Encoding as _;
+use blst::min_sig as blst;
+use schemars::JsonSchema;
 use serde::de::{Deserializer, Error};
 use serde::ser::Serializer;
-use base64ct::Encoding as _;
-use serde_with::{SerializeAs, DeserializeAs, Bytes};
-use blst::min_sig as blst;
-use anyhow::anyhow;
-use schemars::JsonSchema;
+use serde::Deserialize;
 use serde::Serialize;
+use serde_with::{Bytes, DeserializeAs, SerializeAs};
+use std::fmt::Debug;
 
 fn to_custom_error<'de, D, E>(e: E) -> D::Error
 where

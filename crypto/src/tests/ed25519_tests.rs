@@ -4,8 +4,11 @@
 
 use super::*;
 use crate::{
-    ed25519::{Ed25519KeyPair, Ed25519PrivateKey, Ed25519PublicKey, Ed25519Signature, Ed25519AggregateSignature},
-    traits::{EncodeDecodeBase64, VerifyingKey, AggregateAuthenticator},
+    ed25519::{
+        Ed25519AggregateSignature, Ed25519KeyPair, Ed25519PrivateKey, Ed25519PublicKey,
+        Ed25519Signature,
+    },
+    traits::{AggregateAuthenticator, EncodeDecodeBase64, VerifyingKey},
 };
 
 use blake2::digest::Update;
@@ -161,7 +164,7 @@ fn verify_valid_aggregate_signature() {
 
     // // Verify the batch.
     let res = aggregated_signature.verify(&pubkeys[..], &digest.0);
-    assert!(res.is_ok(), "{:?}", res); 
+    assert!(res.is_ok(), "{:?}", res);
 }
 
 #[test]
@@ -182,7 +185,7 @@ fn verify_invalid_aggregate_signature_length_mismatch() {
 
     // // Verify the batch.
     let res = aggregated_signature.verify(&pubkeys[..2], &digest.0);
-    assert!(res.is_err(), "{:?}", res); 
+    assert!(res.is_err(), "{:?}", res);
 }
 
 #[test]
@@ -205,7 +208,7 @@ fn verify_invalid_aggregate_signature_public_key_switch() {
 
     // // Verify the batch.
     let res = aggregated_signature.verify(&pubkeys[..], &digest.0);
-    assert!(res.is_err(), "{:?}", res); 
+    assert!(res.is_err(), "{:?}", res);
 }
 
 #[test]
@@ -241,7 +244,8 @@ fn verify_batch_aggregate_signature() {
         &[aggregated_signature1, aggregated_signature2],
         &[&pubkeys1[..], &pubkeys2[..]],
         &[&digest1.0[..], &digest2.0[..]]
-    ).is_ok());
+    )
+    .is_ok());
 }
 
 #[test]
@@ -277,19 +281,22 @@ fn verify_batch_aggregate_signature_length_mismatch() {
         &[aggregated_signature1.clone(), aggregated_signature2.clone()],
         &[&pubkeys1[..]],
         &[&digest1.0[..], &digest2.0[..]]
-    ).is_err());
+    )
+    .is_err());
 
     assert!(Ed25519AggregateSignature::batch_verify(
         &[aggregated_signature1.clone(), aggregated_signature2.clone()],
         &[&pubkeys1[..], &pubkeys2[1..]],
         &[&digest1.0[..], &digest2.0[..]]
-    ).is_err());
+    )
+    .is_err());
 
     assert!(Ed25519AggregateSignature::batch_verify(
         &[aggregated_signature1, aggregated_signature2],
         &[&pubkeys1[..], &pubkeys2[..]],
         &[&digest2.0[..]]
-    ).is_err());
+    )
+    .is_err());
 }
 
 #[test]
@@ -303,13 +310,13 @@ fn test_serialize_deserialize_aggregate_signatures() {
     let message = b"hello, narwhal";
     // Test populated aggregate signature
     let (_, signatures): (Vec<Ed25519PublicKey>, Vec<Ed25519Signature>) = keys()
-    .into_iter()
-    .take(3)
-    .map(|kp| {
-        let sig = kp.sign(message);
-        (kp.public().clone(), sig)
-    })
-    .unzip();
+        .into_iter()
+        .take(3)
+        .map(|kp| {
+            let sig = kp.sign(message);
+            (kp.public().clone(), sig)
+        })
+        .unzip();
 
     let sig = Ed25519AggregateSignature::aggregate(signatures).unwrap();
     let serialized = bincode::serialize(&sig).unwrap();
