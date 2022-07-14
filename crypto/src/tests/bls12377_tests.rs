@@ -2,11 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 use super::*;
 use crate::{
-    bls12377::{BLS12377KeyPair, BLS12377PrivateKey, BLS12377PublicKey, BLS12377Signature, BLS12377AggregateSignature},
-    traits::{EncodeDecodeBase64, VerifyingKey, AggregateAuthenticator, ToFromBytes},
+    bls12377::{
+        BLS12377AggregateSignature, BLS12377KeyPair, BLS12377PrivateKey, BLS12377PublicKey,
+        BLS12377Signature,
+    },
+    traits::{AggregateAuthenticator, EncodeDecodeBase64, ToFromBytes, VerifyingKey},
 };
 use rand::{rngs::StdRng, SeedableRng as _};
-use signature::{Signature, Signer, Verifier};
+use signature::{Signer, Verifier};
 
 pub fn keys() -> Vec<BLS12377KeyPair> {
     let mut rng = StdRng::from_seed([0; 32]);
@@ -118,7 +121,6 @@ fn verify_invalid_batch() {
     assert!(res.is_err(), "{:?}", res);
 }
 
-
 #[test]
 fn verify_valid_aggregate_signature() {
     // Make signatures.
@@ -137,7 +139,7 @@ fn verify_valid_aggregate_signature() {
 
     // // Verify the batch.
     let res = aggregated_signature.verify(&pubkeys[..], &digest.0);
-    assert!(res.is_ok(), "{:?}", res); 
+    assert!(res.is_ok(), "{:?}", res);
 }
 
 #[test]
@@ -158,7 +160,7 @@ fn verify_invalid_aggregate_signature_length_mismatch() {
 
     // // Verify the batch.
     let res = aggregated_signature.verify(&pubkeys[..2], &digest.0);
-    assert!(res.is_err(), "{:?}", res); 
+    assert!(res.is_err(), "{:?}", res);
 }
 
 #[test]
@@ -181,7 +183,7 @@ fn verify_invalid_aggregate_signature_public_key_switch() {
 
     // // Verify the batch.
     let res = aggregated_signature.verify(&pubkeys[..], &digest.0);
-    assert!(res.is_err(), "{:?}", res); 
+    assert!(res.is_err(), "{:?}", res);
 }
 
 #[test]
@@ -217,7 +219,8 @@ fn verify_batch_aggregate_signature() {
         &[aggregated_signature1, aggregated_signature2],
         &[&pubkeys1[..], &pubkeys2[..]],
         &[&digest1.0[..], &digest2.0[..]]
-    ).is_ok());
+    )
+    .is_ok());
 }
 
 #[test]
@@ -253,19 +256,22 @@ fn verify_batch_aggregate_signature_length_mismatch() {
         &[aggregated_signature1.clone(), aggregated_signature2.clone()],
         &[&pubkeys1[..]],
         &[&digest1.0[..], &digest2.0[..]]
-    ).is_err());
+    )
+    .is_err());
 
     assert!(BLS12377AggregateSignature::batch_verify(
         &[aggregated_signature1.clone(), aggregated_signature2.clone()],
         &[&pubkeys1[..], &pubkeys2[1..]],
         &[&digest1.0[..], &digest2.0[..]]
-    ).is_err());
+    )
+    .is_err());
 
     assert!(BLS12377AggregateSignature::batch_verify(
         &[aggregated_signature1, aggregated_signature2],
         &[&pubkeys1[..], &pubkeys2[..]],
         &[&digest2.0[..]]
-    ).is_err());
+    )
+    .is_err());
 }
 
 #[test]
@@ -279,13 +285,13 @@ fn test_serialize_deserialize_aggregate_signatures() {
     let message = b"hello, narwhal";
     // Test populated aggregate signature
     let (_, signatures): (Vec<BLS12377PublicKey>, Vec<BLS12377Signature>) = keys()
-    .into_iter()
-    .take(3)
-    .map(|kp| {
-        let sig = kp.sign(message);
-        (kp.public().clone(), sig)
-    })
-    .unzip();
+        .into_iter()
+        .take(3)
+        .map(|kp| {
+            let sig = kp.sign(message);
+            (kp.public().clone(), sig)
+        })
+        .unzip();
 
     let sig = BLS12377AggregateSignature::aggregate(signatures).unwrap();
     let serialized = bincode::serialize(&sig).unwrap();

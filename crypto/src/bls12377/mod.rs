@@ -377,22 +377,8 @@ impl KeyPair for BLS12377KeyPair {
     }
 
     fn public_key_bytes(&self) -> BLS12377PublicKeyBytes {
-        let bytes = self
-            .name
-            .bytes
-            .get_or_try_init::<_, eyre::Report>(|| {
-                let mut bytes = [0u8; CELO_BLS_PUBLIC_KEY_LENGTH];
-                self.name
-                    .pubkey
-                    .as_ref()
-                    .into_affine()
-                    .serialize(&mut bytes[..])
-                    .map_err(|_| eyre::eyre!("Failed to serialize public key"))?;
-                Ok(bytes)
-            })
-            .expect("OnceCell invariant violated");
-
-        BLS12377PublicKeyBytes::from_bytes(bytes).unwrap()
+        BLS12377PublicKeyBytes::from_bytes(self.name.as_ref())
+            .expect("BLS12-377 serialization invariants violated")
     }
 }
 
