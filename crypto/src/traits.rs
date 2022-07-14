@@ -41,6 +41,12 @@ pub trait ToFromBytes: AsRef<[u8]> + Debug + Sized {
     }
 }
 
+impl<T: signature::Signature> ToFromBytes for T {
+    fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
+        <Self as signature::Signature>::from_bytes(bytes)
+    }
+}
+
 /// Cryptographic material with an immediate conversion to/from Base64 strings.
 ///
 /// This is an [extension trait](https://rust-lang.github.io/rfcs/0445-extension-trait-conventions.html) of `ToFromBytes` above.
@@ -124,7 +130,6 @@ pub trait Authenticator:
     + Sync
     + 'static
     + Clone
-    + EncodeDecodeBase64
 {
     type PubKey: VerifyingKey<Sig = Self>;
     type PrivKey: SigningKey<Sig = Self>;

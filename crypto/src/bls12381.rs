@@ -9,25 +9,23 @@ use std::{
 use ::blst::{blst_scalar, blst_scalar_from_uint64, BLST_ERROR};
 use base64ct::{Base64, Encoding};
 use blst::min_sig as blst;
-use eyre::eyre;
+
 use once_cell::sync::OnceCell;
 use rand::{rngs::OsRng, RngCore};
 
+use crate::serde_helpers::BlsSignature;
 use serde::{
     de::{self},
     Deserialize, Serialize,
 };
 use serde_with::serde_as;
 use serde_with::Bytes;
-use crate::serde_helpers::BlsSignature;
 
 use signature::{Signature, Signer, Verifier};
 
-use crate::{
-    traits::{
-        AggregateAuthenticator, Authenticator, EncodeDecodeBase64, KeyPair, SigningKey,
-        ToFromBytes, VerifyingKey, VerifyingKeyBytes,
-    },
+use crate::traits::{
+    AggregateAuthenticator, Authenticator, EncodeDecodeBase64, KeyPair, SigningKey, ToFromBytes,
+    VerifyingKey, VerifyingKeyBytes,
 };
 
 pub const BLS_PRIVATE_KEY_LENGTH: usize = 32;
@@ -263,17 +261,6 @@ impl Default for BLS12381Signature {
 impl Display for BLS12381Signature {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(f, "{}", Base64::encode_string(self.as_ref()))
-    }
-}
-
-impl EncodeDecodeBase64 for BLS12381Signature {
-    fn encode_base64(&self) -> String {
-        base64ct::Base64::encode_string(self.as_bytes())
-    }
-
-    fn decode_base64(value: &str) -> Result<Self, eyre::Report> {
-        let bytes = base64ct::Base64::decode_vec(value).map_err(|e| eyre!("{}", e.to_string()))?;
-        BLS12381Signature::from_bytes(&bytes).map_err(|e| e.into())
     }
 }
 

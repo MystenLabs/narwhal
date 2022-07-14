@@ -118,17 +118,6 @@ impl PartialEq for BLS12377Signature {
 
 impl Eq for BLS12377Signature {}
 
-impl ToFromBytes for BLS12377Signature {
-    fn from_bytes(bytes: &[u8]) -> Result<Self, signature::Error> {
-        let g1 = <G1Projective as CanonicalDeserialize>::deserialize(bytes)
-            .map_err(|_| signature::Error::new())?;
-        Ok(BLS12377Signature {
-            sig: g1.into(),
-            bytes: OnceCell::new(),
-        })
-    }
-}
-
 impl Authenticator for BLS12377Signature {
     type PubKey = BLS12377PublicKey;
     type PrivKey = BLS12377PrivateKey;

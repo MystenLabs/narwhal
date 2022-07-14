@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use base64ct::{Base64, Encoding};
 use ed25519_dalek::SECRET_KEY_LENGTH;
-use eyre::eyre;
+
 use hkdf::Hkdf;
 use serde::{de, Deserialize, Serialize};
 use serde_with::serde_as;
@@ -21,19 +21,15 @@ pub struct Ed25519PublicKey(pub ed25519_dalek::PublicKey);
 
 #[derive(Debug)]
 pub struct Ed25519PrivateKey(pub ed25519_dalek::SecretKey);
- 
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde_as]
-pub struct Ed25519Signature(
-    #[serde_as(as = "Ed25519Signature")]
-    pub ed25519_dalek::Signature
-);
+pub struct Ed25519Signature(#[serde_as(as = "Ed25519Signature")] pub ed25519_dalek::Signature);
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde_as]
 pub struct Ed25519AggregateSignature(
-    #[serde_as(as = "Vec<Ed25519Signature>")]
-    pub Vec<ed25519_dalek::Signature>
+    #[serde_as(as = "Vec<Ed25519Signature>")] pub Vec<ed25519_dalek::Signature>,
 );
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Ord, PartialOrd, Copy, Hash)]
@@ -151,18 +147,6 @@ impl<'de> Deserialize<'de> for Ed25519PrivateKey {
         let s = String::deserialize(deserializer)?;
         let value = Self::decode_base64(&s).map_err(|e| de::Error::custom(e.to_string()))?;
         Ok(value)
-    }
-}
-
-impl EncodeDecodeBase64 for Ed25519Signature {
-    fn encode_base64(&self) -> String {
-        base64ct::Base64::encode_string(self.as_bytes())
-    }
-
-    fn decode_base64(value: &str) -> Result<Self, eyre::Report> {
-        let bytes: Vec<u8> =
-            base64ct::Base64::decode_vec(value).map_err(|e| eyre!("{}", e.to_string()))?;
-        Ed25519Signature::from_bytes(&bytes).map_err(|e| e.into())
     }
 }
 
