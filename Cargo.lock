@@ -691,6 +691,7 @@ dependencies = [
  "crypto",
  "dag",
  "ed25519-dalek",
+ "futures",
  "match_opt",
  "pprof",
  "prometheus",
