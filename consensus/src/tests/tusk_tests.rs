@@ -72,19 +72,20 @@ async fn commit_one() {
     let (tx_primary, mut rx_primary) = channel(1);
     let (tx_output, mut rx_output) = channel(1);
     let store_path = test_utils::temp_dir();
-    let store = make_consensus_store(&store_path);
+    let consensus_store = make_consensus_store(&store_path);
+    let cert_store = make_certificate_store(&test_utils::temp_dir());
     let gc_depth = 50;
     let tusk = Tusk {
         committee: Arc::new(ArcSwap::from_pointee(mock_committee(&keys[..]))),
-        store: store.clone(),
+        store: consensus_store.clone(),
         gc_depth,
     };
     let metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
 
     Consensus::spawn(
         Arc::new(ArcSwap::from_pointee(mock_committee(&keys[..]))),
-        store,
-        make_certificate_store(&test_utils::temp_dir()),
+        consensus_store,
+        cert_store,
         rx_waiter,
         tx_primary,
         tx_output,
@@ -135,6 +136,7 @@ async fn dead_node() {
     let (tx_output, mut rx_output) = channel(1);
     let store_path = test_utils::temp_dir();
     let store = make_consensus_store(&store_path);
+    let cert_store = make_certificate_store(&test_utils::temp_dir());
     let gc_depth = 50;
     let tusk = Tusk {
         committee: Arc::new(ArcSwap::from_pointee(mock_committee(&keys[..]))),
@@ -146,7 +148,7 @@ async fn dead_node() {
     Consensus::spawn(
         Arc::new(ArcSwap::from_pointee(mock_committee(&keys[..]))),
         store,
-        make_certificate_store(&test_utils::temp_dir()),
+        cert_store,
         rx_waiter,
         tx_primary,
         tx_output,
@@ -241,6 +243,7 @@ async fn not_enough_support() {
     let (tx_output, mut rx_output) = channel(1);
     let store_path = test_utils::temp_dir();
     let store = make_consensus_store(&store_path);
+    let cert_store = make_certificate_store(&test_utils::temp_dir());
     let gc_depth = 50;
     let tusk = Tusk {
         committee: Arc::new(ArcSwap::from_pointee(mock_committee(&keys[..]))),
@@ -252,7 +255,7 @@ async fn not_enough_support() {
     Consensus::spawn(
         Arc::new(ArcSwap::from_pointee(mock_committee(&keys[..]))),
         store,
-        make_certificate_store(&test_utils::temp_dir()),
+        cert_store,
         rx_waiter,
         tx_primary,
         tx_output,
@@ -321,6 +324,7 @@ async fn missing_leader() {
     let (tx_output, mut rx_output) = channel(1);
     let store_path = test_utils::temp_dir();
     let store = make_consensus_store(&store_path);
+    let cert_store = make_certificate_store(&test_utils::temp_dir());
     let gc_depth = 50;
     let tusk = Tusk {
         committee: Arc::new(ArcSwap::from_pointee(mock_committee(&keys[..]))),
@@ -331,7 +335,7 @@ async fn missing_leader() {
     Consensus::spawn(
         Arc::new(ArcSwap::from_pointee(mock_committee(&keys[..]))),
         store,
-        make_certificate_store(&test_utils::temp_dir()),
+        cert_store,
         rx_waiter,
         tx_primary,
         tx_output,

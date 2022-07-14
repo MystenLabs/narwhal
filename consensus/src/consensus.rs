@@ -69,6 +69,10 @@ impl<PublicKey: VerifyingKey> ConsensusState<PublicKey> {
         if last_committed_round == 0 {
             return Self::new(genesis, metrics);
         }
+        metrics
+            .recovered_consensus_state
+            .with_label_values(&[])
+            .inc();
 
         let dag =
             Self::construct_dag_from_cert_store(cert_store, last_committed_round, gc_depth).await;
