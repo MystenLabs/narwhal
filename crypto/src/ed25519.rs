@@ -1,12 +1,9 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use base64ct::{Base64, Encoding};
-use ed25519_dalek::SECRET_KEY_LENGTH;
 
-use hkdf::Hkdf;
 use serde::{de, Deserialize, Serialize};
 use serde_with::serde_as;
-use sha3::Sha3_256;
 use signature::{Signature, Signer, Verifier};
 use std::fmt::{self, Display};
 use std::str::FromStr;
@@ -34,6 +31,14 @@ pub struct Ed25519AggregateSignature(
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Ord, PartialOrd, Copy, Hash)]
 pub struct Ed25519PublicKeyBytes([u8; ed25519_dalek::PUBLIC_KEY_LENGTH]);
+
+impl<'a> From<&'a Ed25519PrivateKey> for Ed25519PublicKey {
+    fn from(secret: &'a Ed25519PrivateKey) -> Self {
+        let inner = &secret.0;
+        let pk = inner.into();
+        Ed25519PublicKey(pk)
+    }
+}
 
 impl VerifyingKey for Ed25519PublicKey {
     type PrivKey = Ed25519PrivateKey;
@@ -282,6 +287,13 @@ pub struct Ed25519KeyPair {
     secret: Ed25519PrivateKey,
 }
 
+impl From<Ed25519PrivateKey> for Ed25519KeyPair {
+    fn from(secret: Ed25519PrivateKey) -> Self {
+        let name = Ed25519PublicKey::from(&secret);
+        Ed25519KeyPair { name, secret }
+    }
+}
+
 impl KeyPair for Ed25519KeyPair {
     type PubKey = Ed25519PublicKey;
     type PrivKey = Ed25519PrivateKey;
@@ -309,36 +321,6 @@ impl KeyPair for Ed25519KeyPair {
             name: Ed25519PublicKey(kp.public),
             secret: Ed25519PrivateKey(kp.secret),
         }
-    }
-
-    fn generate_from_bytes(bytes: &[u8]) -> Result<Self, signature::Error> {
-        let kp = ed25519_dalek::Keypair::from_bytes(bytes).map_err(|_| signature::Error::new())?;
-        let keypair = Ed25519KeyPair {
-            name: Ed25519PublicKey(kp.public),
-            secret: Ed25519PrivateKey(kp.secret),
-        };
-        Ok(keypair)
-    }
-
-    fn hkdf_generate_from_ikm(
-        ikm: &[u8],
-        salt: &[u8],
-        info: &[u8],
-    ) -> Result<Self, signature::Error> {
-        let hk = Hkdf::<Sha3_256>::new(Some(salt), ikm);
-        let mut okm = [0u8; SECRET_KEY_LENGTH];
-        hk.expand(info, &mut okm)
-            .map_err(|_| signature::Error::new())?;
-
-        let ed25519_secret_key =
-            Self::PrivKey::from_bytes(ikm).map_err(|_| signature::Error::new())?;
-        let ed25519_public_key = ed25519_dalek::PublicKey::from(&ed25519_secret_key.0);
-
-        let keypair = Ed25519KeyPair {
-            name: Ed25519PublicKey(ed25519_public_key),
-            secret: ed25519_secret_key,
-        };
-        Ok(keypair)
     }
 
     fn public_key_bytes(&self) -> Ed25519PublicKeyBytes {

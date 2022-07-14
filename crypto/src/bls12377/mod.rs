@@ -11,7 +11,6 @@ use ark_ff::{
     bytes::{FromBytes, ToBytes},
     Zero,
 };
-use ark_std::rand::rngs::OsRng;
 use base64ct::{Base64, Encoding};
 use celo_bls::{hash_to_curve::try_and_increment, PublicKey};
 use once_cell::sync::OnceCell;
@@ -229,6 +228,16 @@ impl Verifier<BLS12377Signature> for BLS12377PublicKey {
     }
 }
 
+impl<'a> From<&'a BLS12377PrivateKey> for BLS12377PublicKey {
+    fn from(secret: &'a BLS12377PrivateKey) -> Self {
+        let inner = &secret.privkey;
+        BLS12377PublicKey {
+            pubkey: inner.to_public(),
+            bytes: OnceCell::new(),
+        }
+    }
+}
+
 impl VerifyingKey for BLS12377PublicKey {
     type PrivKey = BLS12377PrivateKey;
     type Sig = BLS12377Signature;
@@ -324,6 +333,13 @@ pub struct BLS12377KeyPair {
     secret: BLS12377PrivateKey,
 }
 
+impl From<BLS12377PrivateKey> for BLS12377KeyPair {
+    fn from(secret: BLS12377PrivateKey) -> Self {
+        let name = BLS12377PublicKey::from(&secret);
+        BLS12377KeyPair { name, secret }
+    }
+}
+
 impl KeyPair for BLS12377KeyPair {
     type PubKey = BLS12377PublicKey;
     type PrivKey = BLS12377PrivateKey;
@@ -358,35 +374,6 @@ impl KeyPair for BLS12377KeyPair {
                 bytes: OnceCell::new(),
             },
         }
-    }
-
-    fn generate_from_bytes(bytes: &[u8]) -> Result<Self, signature::Error> {
-        let public_key_bytes = &bytes[..CELO_BLS_PUBLIC_KEY_LENGTH];
-        let secret_key_bytes = &bytes[CELO_BLS_PUBLIC_KEY_LENGTH..];
-        Ok(BLS12377KeyPair {
-            name: BLS12377PublicKey::from_bytes(public_key_bytes)?,
-            secret: BLS12377PrivateKey::from_bytes(secret_key_bytes)?,
-        })
-    }
-
-    fn hkdf_generate_from_ikm(
-        _ikm: &[u8],
-        _salt: &[u8],
-        _info: &[u8],
-    ) -> Result<Self, signature::Error> {
-        // Not yet implemented!
-        let celo_privkey = celo_bls::PrivateKey::generate(&mut OsRng);
-        let celo_pubkey = PublicKey::from(&celo_privkey);
-        Ok(BLS12377KeyPair {
-            name: BLS12377PublicKey {
-                pubkey: celo_pubkey,
-                bytes: OnceCell::new(),
-            },
-            secret: BLS12377PrivateKey {
-                privkey: celo_privkey,
-                bytes: OnceCell::new(),
-            },
-        })
     }
 
     fn public_key_bytes(&self) -> BLS12377PublicKeyBytes {

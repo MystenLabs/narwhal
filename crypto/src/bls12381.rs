@@ -156,6 +156,17 @@ impl Verifier<BLS12381Signature> for BLS12381PublicKey {
     }
 }
 
+impl<'a> From<&'a BLS12381PrivateKey> for BLS12381PublicKey {
+    fn from(secret: &'a BLS12381PrivateKey) -> Self {
+        let inner = &secret.privkey;
+        let pubkey = inner.sk_to_pk();
+        BLS12381PublicKey {
+            pubkey,
+            bytes: OnceCell::new(),
+        }
+    }
+}
+
 impl VerifyingKey for BLS12381PublicKey {
     type PrivKey = BLS12381PrivateKey;
     type Sig = BLS12381Signature;
@@ -336,6 +347,13 @@ pub struct BLS12381KeyPair {
     secret: BLS12381PrivateKey,
 }
 
+impl From<BLS12381PrivateKey> for BLS12381KeyPair {
+    fn from(secret: BLS12381PrivateKey) -> Self {
+        let name = BLS12381PublicKey::from(&secret);
+        BLS12381KeyPair { name, secret }
+    }
+}
+
 impl KeyPair for BLS12381KeyPair {
     type PubKey = BLS12381PublicKey;
     type PrivKey = BLS12381PrivateKey;
@@ -372,37 +390,6 @@ impl KeyPair for BLS12381KeyPair {
                 bytes: OnceCell::new(),
             },
         }
-    }
-
-    fn generate_from_bytes(bytes: &[u8]) -> Result<Self, signature::Error> {
-        let public_key_bytes = &bytes[..BLS_PUBLIC_KEY_LENGTH];
-        let secret_key_bytes = &bytes[BLS_PUBLIC_KEY_LENGTH..];
-        Ok(BLS12381KeyPair {
-            name: BLS12381PublicKey::from_bytes(public_key_bytes)?,
-            secret: BLS12381PrivateKey::from_bytes(secret_key_bytes)?,
-        })
-    }
-
-    fn hkdf_generate_from_ikm(
-        ikm: &[u8],
-        salt: &[u8],
-        info: &[u8],
-    ) -> Result<Self, signature::Error> {
-        let bls12381_secret_key =
-            blst::SecretKey::key_gen_v4_5(ikm, salt, info).map_err(|_| signature::Error::new())?;
-        let bls12381_public_key = bls12381_secret_key.sk_to_pk();
-
-        let keypair = BLS12381KeyPair {
-            name: BLS12381PublicKey {
-                pubkey: bls12381_public_key,
-                bytes: OnceCell::new(),
-            },
-            secret: BLS12381PrivateKey {
-                privkey: bls12381_secret_key,
-                bytes: OnceCell::new(),
-            },
-        };
-        Ok(keypair)
     }
 
     fn public_key_bytes(&self) -> BLS12381PublicKeyBytes {

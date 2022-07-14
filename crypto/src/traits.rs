@@ -6,6 +6,7 @@ use eyre::eyre;
 use rand::{CryptoRng, RngCore};
 
 use serde::{de::DeserializeOwned, Serialize};
+use sha3::{digest::typenum::Unsigned, digest::OutputSizeUser, Sha3_256};
 pub use signature::{Error, Signer};
 use std::fmt::{Debug, Display};
 
@@ -83,6 +84,7 @@ pub trait VerifyingKey:
     + Default // see [#34](https://github.com/MystenLabs/narwhal/issues/34)
     + ToFromBytes
     + signature::Verifier<Self::Sig>
+    + for <'a> From<&'a Self::PrivKey> // conversion PrivateKey -> PublicKey
     + Send
     + Sync
     + 'static
@@ -139,7 +141,7 @@ pub trait Authenticator:
 
 /// Trait impl'd by a public / private key pair in asymmetric cryptography.
 ///
-pub trait KeyPair: Sized {
+pub trait KeyPair: Sized + From<Self::PrivKey> {
     type PubKey: VerifyingKey<PrivKey = Self::PrivKey>;
     type PrivKey: SigningKey<PubKey = Self::PubKey>;
     type Sig: Authenticator<PubKey = Self::PubKey>;
@@ -151,7 +153,6 @@ pub trait KeyPair: Sized {
     fn copy(&self) -> Self;
 
     fn generate<R: CryptoRng + RngCore>(rng: &mut R) -> Self;
-    fn generate_from_bytes(bytes: &[u8]) -> Result<Self, signature::Error>;
     fn public_key_bytes(&self) -> <Self::PubKey as VerifyingKey>::Bytes;
 
     fn hkdf_generate(
@@ -172,7 +173,18 @@ pub trait KeyPair: Sized {
         ikm: &[u8],  // IKM (32 bytes)
         salt: &[u8], // Optional salt
         info: &[u8], // Optional domain
-    ) -> Result<Self, signature::Error>;
+    ) -> Result<Self, signature::Error> {
+        let hk = hkdf::Hkdf::<Sha3_256>::new(Some(salt), ikm);
+        const SHA3_OUTPUT_SIZE: usize = <Sha3_256 as OutputSizeUser>::OutputSize::USIZE;
+        let mut okm = [0u8; SHA3_OUTPUT_SIZE];
+        hk.expand(info, &mut okm)
+            .map_err(|_| signature::Error::new())?;
+
+        let secret_key = Self::PrivKey::from_bytes(ikm).map_err(|_| signature::Error::new())?;
+
+        let keypair = Self::from(secret_key);
+        Ok(keypair)
+    }
 }
 
 pub trait AggregateAuthenticator:
