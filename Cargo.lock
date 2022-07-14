@@ -849,6 +849,7 @@ dependencies = [
  "bls-crypto",
  "blst",
  "criterion",
+ "digest 0.10.3",
  "ed25519-dalek",
  "eyre",
  "hex",

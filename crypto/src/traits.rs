@@ -3,10 +3,17 @@
 // SPDX-License-Identifier: Apache-2.0
 use base64ct::Encoding;
 use eyre::eyre;
+use hkdf::hmac::Hmac;
 use rand::{CryptoRng, RngCore};
 
+use digest::{
+    block_buffer::Eager,
+    consts::U256,
+    core_api::{BlockSizeUser, BufferKindUser, CoreProxy, FixedOutputCore, UpdateCore},
+    typenum::{IsLess, Le, NonZero, Unsigned},
+    HashMarker, OutputSizeUser,
+};
 use serde::{de::DeserializeOwned, Serialize};
-use sha3::{digest::typenum::Unsigned, digest::OutputSizeUser, Sha3_256};
 pub use signature::{Error, Signer};
 use std::fmt::{Debug, Display};
 
@@ -154,37 +161,58 @@ pub trait KeyPair: Sized + From<Self::PrivKey> {
 
     fn generate<R: CryptoRng + RngCore>(rng: &mut R) -> Self;
     fn public_key_bytes(&self) -> <Self::PubKey as VerifyingKey>::Bytes;
+}
 
-    fn hkdf_generate(
-        // The Input Key Message defined by the HKDF specification. 32 bytes in length.
-        ikm: &[u8],
-        // A salt for key generation
-        salt: &[u8],
-        // An optional 'info' field as defined by the HKDF specification
-        info: Option<&[u8]>,
-    ) -> Result<Self, signature::Error> {
-        if ikm.len() != 32 {
-            return Err(signature::Error::new());
-        }
-        Self::hkdf_generate_from_ikm(ikm, salt, info.unwrap_or(&DEFAULT_DOMAIN))
+/// Creation of a keypair using the [RFC 5869](https://tools.ietf.org/html/rfc5869) HKDF specification.
+/// This requires choosing an HMAC function of the correct length (conservatively, the size of a private key for this curve).
+/// Despite the unsightly generics (which aim to ensure this works for a wide range of hash functions), this is straightforward to use.
+///
+/// Example:
+/// ```rust
+/// use sha3::Sha3_256;
+/// use crypto::ed25519::Ed25519KeyPair;
+/// use crypto::traits::hkdf_generate_from_ikm;
+/// # fn main() {
+///     let ikm = b"some_ikm";
+///     let domain = b"my_app";
+///     let salt = b"some_salt";
+///     let my_keypair = hkdf_generate_from_ikm::<Sha3_256, Ed25519KeyPair>(ikm, salt, Some(domain));
+///
+///     let my_keypair_default_domain = hkdf_generate_from_ikm::<Sha3_256, Ed25519KeyPair>(ikm, salt, None);
+/// # }
+/// ```
+pub fn hkdf_generate_from_ikm<'a, H: OutputSizeUser, K: KeyPair>(
+    ikm: &[u8],             // IKM (32 bytes)
+    salt: &[u8],            // Optional salt
+    info: Option<&'a [u8]>, // Optional domain
+) -> Result<K, signature::Error>
+where
+    // This is a tad tedious, because of hkdf's use of a sealed trait. But mostly harmless.
+    H: CoreProxy + OutputSizeUser,
+    H::Core: HashMarker
+        + UpdateCore
+        + FixedOutputCore
+        + BufferKindUser<BufferKind = Eager>
+        + Default
+        + Clone,
+    <H::Core as BlockSizeUser>::BlockSize: IsLess<U256>,
+    Le<<H::Core as BlockSizeUser>::BlockSize, U256>: NonZero,
+{
+    let info = info.unwrap_or(&DEFAULT_DOMAIN);
+    let hk = hkdf::Hkdf::<H, Hmac<H>>::new(Some(salt), ikm);
+    // we need the HKDF to be able to expand precisely to the byte length of a Private key for the chosen KeyPair parameter.
+    // This check is a tad over constraining (check Hkdf impl for a more relaxed variant) but is always correct.
+    if H::OutputSize::USIZE != K::PrivKey::LENGTH {
+        return Err(signature::Error::from_source(hkdf::InvalidLength));
     }
+    let mut okm = vec![0u8; K::PrivKey::LENGTH];
+    hk.expand(info, &mut okm)
+        .map_err(|_| signature::Error::new())?;
 
-    fn hkdf_generate_from_ikm(
-        ikm: &[u8],  // IKM (32 bytes)
-        salt: &[u8], // Optional salt
-        info: &[u8], // Optional domain
-    ) -> Result<Self, signature::Error> {
-        let hk = hkdf::Hkdf::<Sha3_256>::new(Some(salt), ikm);
-        const SHA3_OUTPUT_SIZE: usize = <Sha3_256 as OutputSizeUser>::OutputSize::USIZE;
-        let mut okm = [0u8; SHA3_OUTPUT_SIZE];
-        hk.expand(info, &mut okm)
-            .map_err(|_| signature::Error::new())?;
+    let secret_key = K::PrivKey::from_bytes(&okm[..]).map_err(|_| signature::Error::new())?;
 
-        let secret_key = Self::PrivKey::from_bytes(ikm).map_err(|_| signature::Error::new())?;
-
-        let keypair = Self::from(secret_key);
-        Ok(keypair)
-    }
+    let keypair = K::from(secret_key);
+    Ok(keypair)
 }
 
 /// Trait impl'd by aggregated signatures in asymmetric cryptography.
