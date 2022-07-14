@@ -763,6 +763,8 @@
 <span id="757">757</span>
 <span id="758">758</span>
 <span id="759">759</span>
+<span id="760">760</span>
+<span id="761">761</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -794,6 +796,8 @@
     <span class="ident">Transaction</span>, <span class="ident">Vote</span>, <span class="ident">WorkerToPrimary</span>, <span class="ident">WorkerToPrimaryServer</span>, <span class="ident">WorkerToWorker</span>,
     <span class="ident">WorkerToWorkerServer</span>,
 };
+
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">cluster</span>;
 
 <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">HEADERS_CF</span>: <span class="kw-2">&amp;</span><span class="ident">str</span> <span class="op">=</span> <span class="string">&quot;headers&quot;</span>;
 <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">CERTIFICATES_CF</span>: <span class="kw-2">&amp;</span><span class="ident">str</span> <span class="op">=</span> <span class="string">&quot;certificates&quot;</span>;

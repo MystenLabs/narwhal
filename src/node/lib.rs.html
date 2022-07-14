@@ -274,6 +274,7 @@
 <span id="268">268</span>
 <span id="269">269</span>
 <span id="270">270</span>
+<span id="271">271</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">Parameters</span>, <span class="ident">SharedCommittee</span>, <span class="ident">WorkerId</span>};
@@ -301,6 +302,7 @@
 };
 <span class="kw">use</span> <span class="ident">worker</span>::{<span class="ident">metrics::initialise_metrics</span>, <span class="ident">Worker</span>};
 
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">execution_state</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">metrics</span>;
 
 <span class="doccomment">/// All the data stores of the node.</span>

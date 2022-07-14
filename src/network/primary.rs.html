@@ -253,7 +253,6 @@
 <span id="247">247</span>
 <span id="248">248</span>
 <span id="249">249</span>
-<span id="250">250</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 
@@ -263,8 +262,7 @@
 <span class="kw">use</span> <span class="ident">multiaddr::Multiaddr</span>;
 <span class="kw">use</span> <span class="ident">rand</span>::{<span class="ident">prelude::SliceRandom</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">rngs::SmallRng</span>, <span class="ident">SeedableRng</span> <span class="kw">as</span> <span class="kw">_</span>};
 <span class="kw">use</span> <span class="ident">std::collections::HashMap</span>;
-<span class="kw">use</span> <span class="ident">tokio::runtime::Handle</span>;
-<span class="kw">use</span> <span class="ident">tokio::task::JoinHandle</span>;
+<span class="kw">use</span> <span class="ident">tokio</span>::{<span class="ident">runtime::Handle</span>, <span class="ident">task::JoinHandle</span>};
 <span class="kw">use</span> <span class="ident">tonic::transport::Channel</span>;
 <span class="kw">use</span> <span class="ident">types</span>::{
     <span class="ident">BincodeEncodedPayload</span>, <span class="ident">PrimaryMessage</span>, <span class="ident">PrimaryToPrimaryClient</span>, <span class="ident">PrimaryToWorkerClient</span>,

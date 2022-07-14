@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":[["metrics",""]],"struct":[["Node","High level functions to spawn the primary and the workers."],["NodeStorage","All the data stores of the node."]]};
+window.SIDEBAR_ITEMS = {"mod":[["execution_state",""],["metrics",""]],"struct":[["Node","High level functions to spawn the primary and the workers."],["NodeStorage","All the data stores of the node."]]};
