@@ -10,6 +10,7 @@ use tokio::{
     sync::mpsc::{Receiver, Sender},
     task::JoinHandle,
 };
+use tracing::info;
 use types::{
     Certificate, CertificateDigest, ConsensusPrimaryMessage, ConsensusStore, Round, StoreResult,
 };
@@ -91,6 +92,9 @@ impl<PublicKey: VerifyingKey> ConsensusState<PublicKey> {
         gc_depth: Round,
     ) -> Dag<PublicKey> {
         let mut dag: Dag<PublicKey> = HashMap::new();
+
+        info!("Last committed round: {}", last_committed_round);
+
         let min_round = last_committed_round.saturating_sub(gc_depth);
         let cert_map = cert_store
             .iter(Some(Box::new(move |(_dig, cert)| {
