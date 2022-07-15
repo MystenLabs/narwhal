@@ -7,6 +7,7 @@ use crypto::{
     ed25519::{Ed25519KeyPair, Ed25519PrivateKey, Ed25519PublicKey},
     traits::{KeyPair, ToFromBytes},
 };
+use executor::{SerializedTransaction, SubscriberResult, DEFAULT_CHANNEL_SIZE};
 use multiaddr::Multiaddr;
 use node::{
     execution_state::SimpleExecutionState,
@@ -15,7 +16,10 @@ use node::{
 };
 use prometheus::Registry;
 use std::{collections::HashMap, path::PathBuf, sync::Arc, time::Duration};
-use tokio::{sync::mpsc::channel, task::JoinHandle};
+use tokio::{
+    sync::{broadcast::Sender, mpsc::channel},
+    task::JoinHandle,
+};
 use tracing::info;
 
 #[cfg(test)]
@@ -175,6 +179,7 @@ pub struct PrimaryNodeDetails {
     pub key_pair: Arc<Ed25519KeyPair>,
     pub store_path: PathBuf,
     pub registry: Registry,
+    pub tx_transaction_confirmation: Sender<(SubscriberResult<Vec<u8>>, SerializedTransaction)>,
     committee: SharedCommittee<Ed25519PublicKey>,
     parameters: Parameters,
     handlers: Arc<ArcSwap<Vec<JoinHandle<()>>>>,
@@ -187,11 +192,15 @@ impl PrimaryNodeDetails {
         parameters: Parameters,
         committee: SharedCommittee<Ed25519PublicKey>,
     ) -> Self {
+        // used just to initialise the struct value
+        let (tx, _) = tokio::sync::broadcast::channel(1);
+
         Self {
             id,
             key_pair: Arc::new(key_pair),
             registry: Registry::new(),
             store_path: temp_dir(),
+            tx_transaction_confirmation: tx,
             committee,
             parameters,
             handlers: Arc::new(ArcSwap::from_pointee(Vec::new())),
@@ -219,7 +228,8 @@ impl PrimaryNodeDetails {
         );
 
         // The channel returning the result for each transaction's execution.
-        let (tx_transaction_confirmation, _) = channel(Node::CHANNEL_CAPACITY);
+        let (tx_transaction_confirmation, mut rx_transaction_confirmation) =
+            channel(Node::CHANNEL_CAPACITY);
 
         // KeyPair is not clonable - hackish way to reconstruct a new one.
         let pub_key = Ed25519PublicKey::from_bytes(self.key_pair.name.0.as_bytes()).unwrap();
@@ -232,7 +242,7 @@ impl PrimaryNodeDetails {
 
         // Primary node
         let primary_store: NodeStorage<Ed25519PublicKey> = NodeStorage::reopen(store_path.clone());
-        let primary_handlers = Node::spawn_primary(
+        let mut primary_handlers = Node::spawn_primary(
             key_pair,
             self.committee.clone(),
             &primary_store,
@@ -245,9 +255,27 @@ impl PrimaryNodeDetails {
         .await
         .unwrap();
 
+        let (tx, _) = tokio::sync::broadcast::channel(DEFAULT_CHANNEL_SIZE);
+        let transactions_sender = tx.clone();
+        // spawn a task to listen on the committed transactions
+        // and translate to a mpmc channel
+        let h = tokio::spawn(async move {
+            while let Some(t) = rx_transaction_confirmation.recv().await {
+                // send the transaction to the mpmc channel
+                transactions_sender
+                    .send(t)
+                    .expect("Couldn't send message to broadcast channel");
+            }
+        });
+
+        // add the tasks's handle to the primary's handle so can be shutdown
+        // with the others.
+        primary_handlers.push(h);
+
         self.handlers.swap(Arc::new(primary_handlers));
         self.store_path = store_path;
         self.registry = registry;
+        self.tx_transaction_confirmation = tx;
     }
 
     pub fn stop(&self) {
