@@ -4,11 +4,12 @@ use super::*;
 use crate::{
     bls12377::{
         BLS12377AggregateSignature, BLS12377KeyPair, BLS12377PrivateKey, BLS12377PublicKey,
-        BLS12377Signature,
+        BLS12377Signature, BLS12377PublicKeyBytes,
     },
-    traits::{AggregateAuthenticator, EncodeDecodeBase64, ToFromBytes, VerifyingKey},
+    traits::{AggregateAuthenticator, EncodeDecodeBase64, ToFromBytes, VerifyingKey}, hkdf::hkdf_generate_from_ikm, ed25519::Ed25519KeyPair, bls12381::BLS12381KeyPair,
 };
 use rand::{rngs::StdRng, SeedableRng as _};
+use sha3::{Sha3_256, Sha3_512};
 use signature::{Signer, Verifier};
 
 pub fn keys() -> Vec<BLS12377KeyPair> {
@@ -360,6 +361,29 @@ fn test_add_signatures_to_aggregate() {
     sig2.add_aggregate(aggregated_signature).unwrap();
 
     assert!(sig2.verify(&pks, message).is_ok());
+}
+
+#[test]
+fn test_hkdf_generate_from_ikm() {
+    let seed = &[
+        1, 1, 1, 0, 2, 2, 4, 4,
+        3, 3, 1, 0, 1, 2, 4, 1,
+        0, 0, 0, 0, 1, 1, 3, 3,
+        1, 2, 9, 8, 7, 6, 5, 4,
+    ];
+    let salt = &[3, 2, 1];
+    let kp = hkdf_generate_from_ikm::<Sha3_512, BLS12377KeyPair>(seed, salt, None).unwrap();
+    let kp2 = hkdf_generate_from_ikm::<Sha3_512, BLS12377KeyPair>(seed, salt, None).unwrap();
+    assert_eq!(kp.private().as_bytes(), kp2.private().as_bytes());
+}
+
+
+#[test]
+fn test_public_key_bytes_conversion() {
+    let kp = keys().pop().unwrap();
+    let pk_bytes: BLS12377PublicKeyBytes = kp.public().clone().into();
+    let rebuilded_pk: BLS12377PublicKey = pk_bytes.clone().try_into().unwrap();
+    assert_eq!(kp.public().as_bytes(), rebuilded_pk.as_bytes());
 }
 
 #[tokio::test]

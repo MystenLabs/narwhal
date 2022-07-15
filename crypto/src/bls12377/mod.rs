@@ -564,3 +564,11 @@ impl TryInto<BLS12377PublicKey> for BLS12377PublicKeyBytes {
         BLS12377PublicKey::from_bytes(self.as_ref()).map_err(|_| Self::Error::new())
     }
 }
+
+impl Into<BLS12377PublicKeyBytes> for BLS12377PublicKey {
+    fn into(self) -> BLS12377PublicKeyBytes {
+        let mut bytes = [0u8; CELO_BLS_PUBLIC_KEY_LENGTH];
+        self.pubkey.serialize(&mut bytes[..]).unwrap();
+        BLS12377PublicKeyBytes::new(bytes)
+    }
+}

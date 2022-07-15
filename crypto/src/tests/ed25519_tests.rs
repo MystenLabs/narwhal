@@ -6,13 +6,14 @@ use super::*;
 use crate::{
     ed25519::{
         Ed25519AggregateSignature, Ed25519KeyPair, Ed25519PrivateKey, Ed25519PublicKey,
-        Ed25519Signature,
+        Ed25519Signature, Ed25519PublicKeyBytes,
     },
-    traits::{AggregateAuthenticator, EncodeDecodeBase64, ToFromBytes, VerifyingKey},
+    traits::{AggregateAuthenticator, EncodeDecodeBase64, ToFromBytes, VerifyingKey}, hkdf::hkdf_generate_from_ikm,
 };
 
 use blake2::digest::Update;
 use rand::{rngs::StdRng, SeedableRng as _};
+use sha3::Sha3_256;
 use signature::{Signer, Verifier};
 
 impl Hash for &[u8] {
@@ -368,6 +369,28 @@ fn test_add_signatures_to_aggregate() {
     sig2.add_aggregate(aggregated_signature).unwrap();
 
     assert!(sig2.verify(&pks, message).is_ok());
+}
+
+#[test]
+fn test_hkdf_generate_from_ikm() {
+    let seed = &[
+        0, 0, 1, 1, 2, 2, 4, 4,
+        8, 2, 0, 9, 3, 2, 4, 1,
+        1, 1, 2, 0, 1, 1, 3, 4,
+        1, 2, 9, 8, 7, 6, 5, 4,
+    ];
+    let salt = &[3, 2, 1];
+    let kp = hkdf_generate_from_ikm::<Sha3_256, Ed25519KeyPair>(seed, salt, None).unwrap();
+    let kp2 = hkdf_generate_from_ikm::<Sha3_256, Ed25519KeyPair>(seed, salt, None).unwrap();
+    assert_eq!(kp.private().as_bytes(), kp2.private().as_bytes());
+}
+
+#[test]
+fn test_public_key_bytes_conversion() {
+    let kp = keys().pop().unwrap();
+    let pk_bytes: Ed25519PublicKeyBytes = kp.public().clone().into();
+    let rebuilded_pk: Ed25519PublicKey = pk_bytes.clone().try_into().unwrap();
+    assert_eq!(kp.public().as_bytes(), rebuilded_pk.as_bytes());
 }
 
 #[tokio::test]

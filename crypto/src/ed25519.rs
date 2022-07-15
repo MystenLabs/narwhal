@@ -391,3 +391,9 @@ impl TryInto<Ed25519PublicKey> for Ed25519PublicKeyBytes {
         Ed25519PublicKey::from_bytes(self.as_ref()).map_err(|_| Self::Error::new())
     }
 }
+
+impl Into<Ed25519PublicKeyBytes> for Ed25519PublicKey {
+    fn into(self) -> Ed25519PublicKeyBytes {
+        Ed25519PublicKeyBytes::new(self.0.to_bytes())
+    }
+}

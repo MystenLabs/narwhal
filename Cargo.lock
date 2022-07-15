@@ -860,6 +860,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde_bytes",
+ "serde_json",
  "serde_with",
  "sha3",
  "signature",

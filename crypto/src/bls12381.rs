@@ -577,3 +577,9 @@ impl TryInto<BLS12381PublicKey> for BLS12381PublicKeyBytes {
         BLS12381PublicKey::from_bytes(self.as_ref()).map_err(|_| Self::Error::new())
     }
 }
+
+impl Into<BLS12381PublicKeyBytes> for BLS12381PublicKey {
+    fn into(self) -> BLS12381PublicKeyBytes {
+        BLS12381PublicKeyBytes::new(self.pubkey.to_bytes())
+    }
+}

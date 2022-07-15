@@ -4,11 +4,12 @@ use super::*;
 use crate::{
     bls12381::{
         BLS12381AggregateSignature, BLS12381KeyPair, BLS12381PrivateKey, BLS12381PublicKey,
-        BLS12381Signature,
+        BLS12381Signature, BLS12381PublicKeyBytes,
     },
-    traits::{AggregateAuthenticator, EncodeDecodeBase64, ToFromBytes, VerifyingKey},
+    traits::{AggregateAuthenticator, EncodeDecodeBase64, ToFromBytes, VerifyingKey}, hkdf::hkdf_generate_from_ikm,
 };
 use rand::{rngs::StdRng, SeedableRng as _};
+use sha3::Sha3_256;
 use signature::{Signer, Verifier};
 
 pub fn keys() -> Vec<BLS12381KeyPair> {
@@ -346,14 +347,38 @@ fn test_add_signatures_to_aggregate() {
 }
 
 #[test]
-fn test_to_from_bytes_aggregate_signature() {
-    let kpref = keys().pop().unwrap();
-    let signature = kpref.sign(b"Hello, world");
-    let aggregated_signature = BLS12381AggregateSignature::aggregate(vec![signature]).unwrap();
-    let sig_bytes = aggregated_signature.as_ref();
-    let rebuilt_sig = <BLS12381AggregateSignature as ToFromBytes>::from_bytes(sig_bytes).unwrap();
+fn test_human_readable_signatures_serde() {
+    let kp = keys().pop().unwrap();
+    let message: &[u8] = b"Hello, world!";
+    let signature = kp.sign(message);
+    
+    let serialized = serde_json::to_string(&signature.clone()).unwrap();
+    assert_eq!(format!("{{\"sig\":\"{}\"}}", base64ct::Base64::encode_string(&signature.sig.to_bytes())), serialized);
+    let deserialized: BLS12381Signature = serde_json::from_str(&serialized).unwrap();
+    assert_eq!(deserialized, signature);
+}
 
-    assert_eq!(rebuilt_sig.sig, aggregated_signature.sig);
+#[test]
+fn test_hkdf_generate_from_ikm() {
+    let seed = &[
+        0, 0, 1, 1, 2, 2, 4, 4,
+        8, 2, 0, 9, 3, 2, 4, 1,
+        1, 1, 2, 0, 1, 1, 3, 4,
+        1, 2, 9, 8, 7, 6, 5, 4,
+    ];
+    let salt = &[3, 2, 1];
+    let kp = hkdf_generate_from_ikm::<Sha3_256, BLS12381KeyPair>(seed, salt, Some(&[1])).unwrap();
+    let kp2 = hkdf_generate_from_ikm::<Sha3_256, BLS12381KeyPair>(seed, salt, Some(&[1])).unwrap();
+
+    assert_eq!(kp.private().as_bytes(), kp2.private().as_bytes());
+}
+
+#[test]
+fn test_public_key_bytes_conversion() {
+    let kp = keys().pop().unwrap();
+    let pk_bytes: BLS12381PublicKeyBytes = kp.public().clone().into();
+    let rebuilded_pk: BLS12381PublicKey = pk_bytes.clone().try_into().unwrap();
+    assert_eq!(kp.public().as_bytes(), rebuilded_pk.as_bytes());
 }
 
 #[tokio::test]
