@@ -316,6 +316,52 @@ fn to_from_bytes_aggregate_signature() {
     assert_eq!(rebuilt_sig.as_ref(), aggregated_signature.as_ref());
 }
 
+#[test]
+fn test_add_signatures_to_aggregate() {
+    let pks: Vec<BLS12377PublicKey> = keys()
+        .into_iter()
+        .take(3)
+        .map(|kp| kp.public().clone())
+        .collect();
+    let message = b"hello, narwhal";
+
+    // Test 'add signature'
+    let mut sig1 = BLS12377AggregateSignature::default();
+    // Test populated aggregate signature
+    keys().into_iter().take(3).for_each(|kp| {
+        let sig = kp.sign(message);
+        sig1.add_signature(sig).unwrap();
+    });
+
+    assert!(sig1.verify(&pks, message).is_ok());
+
+    // Test 'add aggregate signature'
+    let mut sig2 = BLS12377AggregateSignature::default();
+
+    let kp = &keys()[0];
+    let sig = BLS12377AggregateSignature::aggregate(vec![kp.sign(message)]).unwrap();
+    sig2.add_aggregate(sig).unwrap();
+
+    assert!(sig2.verify(&pks[0..1], message).is_ok());
+
+    let aggregated_signature = BLS12377AggregateSignature::aggregate(
+        keys()
+            .into_iter()
+            .take(3)
+            .skip(1)
+            .map(
+                |kp| { 
+                    kp.sign(message)
+                }
+            )
+            .collect()
+    ).unwrap();
+
+    sig2.add_aggregate(aggregated_signature).unwrap();
+
+    assert!(sig2.verify(&pks, message).is_ok());
+}
+
 #[tokio::test]
 async fn signature_service() {
     // Get a keypair.

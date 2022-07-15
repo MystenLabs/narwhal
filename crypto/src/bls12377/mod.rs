@@ -490,12 +490,17 @@ impl AggregateAuthenticator for BLS12377AggregateSignature {
     fn add_aggregate(&mut self, signature: Self) -> Result<(), signature::Error> {
         match self.sig {
             Some(ref mut sig) => {
-                let raw_sig = celo_bls::Signature::aggregate([
-                    signature.sig.ok_or_else(signature::Error::new)?,
-                    sig.clone(),
-                ]);
-                self.sig = Some(raw_sig);
-                Ok(())
+                match signature.sig {
+                    Some(sig_to_add) => {
+                        let raw_sig = celo_bls::Signature::aggregate([
+                            sig_to_add,
+                            sig.clone(),
+                        ]);
+                        self.sig = Some(raw_sig);
+                        Ok(())
+                    },
+                    None => Ok(())
+                }
             }
             None => {
                 self.sig = signature.sig;

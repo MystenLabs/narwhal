@@ -324,6 +324,52 @@ fn test_serialize_deserialize_aggregate_signatures() {
     assert_eq!(deserialized.0, sig.0);
 }
 
+#[test]
+fn test_add_signatures_to_aggregate() {
+    let pks: Vec<Ed25519PublicKey> = keys()
+        .into_iter()
+        .take(3)
+        .map(|kp| kp.public().clone())
+        .collect();
+    let message = b"hello, narwhal";
+
+    // Test 'add signature'
+    let mut sig1 = Ed25519AggregateSignature::default();
+    // Test populated aggregate signature
+    keys().into_iter().take(3).for_each(|kp| {
+        let sig = kp.sign(message);
+        sig1.add_signature(sig).unwrap();
+    });
+
+    assert!(sig1.verify(&pks, message).is_ok());
+
+    // Test 'add aggregate signature'
+    let mut sig2 = Ed25519AggregateSignature::default();
+
+    let kp = &keys()[0];
+    let sig = Ed25519AggregateSignature::aggregate(vec![kp.sign(message)]).unwrap();
+    sig2.add_aggregate(sig).unwrap();
+
+    assert!(sig2.verify(&pks[0..1], message).is_ok());
+
+    let aggregated_signature = Ed25519AggregateSignature::aggregate(
+        keys()
+            .into_iter()
+            .take(3)
+            .skip(1)
+            .map(
+                |kp| { 
+                    kp.sign(message)
+                }
+            )
+            .collect()
+    ).unwrap();
+
+    sig2.add_aggregate(aggregated_signature).unwrap();
+
+    assert!(sig2.verify(&pks, message).is_ok());
+}
+
 #[tokio::test]
 async fn signature_service() {
     // Get a keypair.

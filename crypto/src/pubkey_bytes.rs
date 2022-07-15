@@ -67,7 +67,7 @@ impl<T, const N: usize> Default for PublicKeyBytes<T, N> {
     }
 }
 
-// This guarantees the security of the constructor of a `PublicKeyBytes` instance 
+// This guarantees the security of the constructor of a `PublicKeyBytes` instance
 // TODO: replace this clunky sealed marker trait once feature(associated_const_equality) stabilizes
 mod sealed {
     #[cfg(feature = "celo")]

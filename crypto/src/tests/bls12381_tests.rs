@@ -300,7 +300,54 @@ fn test_serialize_deserialize_aggregate_signatures() {
 }
 
 #[test]
-fn to_from_bytes_aggregate_signature() {
+#[test]
+fn test_add_signatures_to_aggregate() {
+    let pks: Vec<BLS12381PublicKey> = keys()
+        .into_iter()
+        .take(3)
+        .map(|kp| kp.public().clone())
+        .collect();
+    let message = b"hello, narwhal";
+
+    // Test 'add signature'
+    let mut sig1 = BLS12381AggregateSignature::default();
+    // Test populated aggregate signature
+    keys().into_iter().take(3).for_each(|kp| {
+        let sig = kp.sign(message);
+        sig1.add_signature(sig).unwrap();
+    });
+
+    assert!(sig1.verify(&pks, message).is_ok());
+
+    // Test 'add aggregate signature'
+    let mut sig2 = BLS12381AggregateSignature::default();
+
+    let kp = &keys()[0];
+    let sig = BLS12381AggregateSignature::aggregate(vec![kp.sign(message)]).unwrap();
+    sig2.add_aggregate(sig).unwrap();
+
+    assert!(sig2.verify(&pks[0..1], message).is_ok());
+
+    let aggregated_signature = BLS12381AggregateSignature::aggregate(
+        keys()
+            .into_iter()
+            .take(3)
+            .skip(1)
+            .map(
+                |kp| { 
+                    kp.sign(message)
+                }
+            )
+            .collect()
+    ).unwrap();
+
+    sig2.add_aggregate(aggregated_signature).unwrap();
+
+    assert!(sig2.verify(&pks, message).is_ok());
+}
+
+#[test]
+fn test_to_from_bytes_aggregate_signature() {
     let kpref = keys().pop().unwrap();
     let signature = kpref.sign(b"Hello, world");
     let aggregated_signature = BLS12381AggregateSignature::aggregate(vec![signature]).unwrap();

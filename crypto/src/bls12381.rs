@@ -500,12 +500,16 @@ impl AggregateAuthenticator for BLS12381AggregateSignature {
     fn add_aggregate(&mut self, signature: Self) -> Result<(), signature::Error> {
         match self.sig {
             Some(ref mut sig) => {
-                blst::AggregateSignature::from_signature(sig).add_aggregate(
-                    &blst::AggregateSignature::from_signature(
-                        &signature.sig.ok_or_else(signature::Error::new)?,
-                    ),
-                );
-                Ok(())
+                match signature.sig {
+                    Some(to_add) => {
+                        let result = blst::AggregateSignature::aggregate(
+                            &[sig, &to_add
+                        ], true).map_err(|_| signature::Error::new())?.to_signature();
+                        self.sig = Some(result);
+                        Ok(())
+                    },
+                    None => Ok(())
+                }
             }
             None => {
                 self.sig = signature.sig;
