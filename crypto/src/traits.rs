@@ -3,16 +3,9 @@
 // SPDX-License-Identifier: Apache-2.0
 use base64ct::Encoding;
 use eyre::eyre;
-use hkdf::hmac::Hmac;
+
 use rand::{CryptoRng, RngCore};
 
-use digest::{
-    block_buffer::Eager,
-    consts::U256,
-    core_api::{BlockSizeUser, BufferKindUser, CoreProxy, FixedOutputCore, UpdateCore},
-    typenum::{IsLess, Le, NonZero, Unsigned},
-    HashMarker, OutputSizeUser,
-};
 use serde::{de::DeserializeOwned, Serialize};
 pub use signature::{Error, Signer};
 use std::fmt::{Debug, Display};
@@ -99,7 +92,6 @@ pub trait VerifyingKey:
 {
     type PrivKey: SigningKey<PubKey = Self>;
     type Sig: Authenticator<PubKey = Self>;
-    type Bytes: VerifyingKeyBytes<PubKey = Self>;
     const LENGTH: usize;
 
     // Expected to be overridden by implementations
@@ -160,59 +152,6 @@ pub trait KeyPair: Sized + From<Self::PrivKey> {
     fn copy(&self) -> Self;
 
     fn generate<R: CryptoRng + RngCore>(rng: &mut R) -> Self;
-    fn public_key_bytes(&self) -> <Self::PubKey as VerifyingKey>::Bytes;
-}
-
-/// Creation of a keypair using the [RFC 5869](https://tools.ietf.org/html/rfc5869) HKDF specification.
-/// This requires choosing an HMAC function of the correct length (conservatively, the size of a private key for this curve).
-/// Despite the unsightly generics (which aim to ensure this works for a wide range of hash functions), this is straightforward to use.
-///
-/// Example:
-/// ```rust
-/// use sha3::Sha3_256;
-/// use crypto::ed25519::Ed25519KeyPair;
-/// use crypto::traits::hkdf_generate_from_ikm;
-/// # fn main() {
-///     let ikm = b"some_ikm";
-///     let domain = b"my_app";
-///     let salt = b"some_salt";
-///     let my_keypair = hkdf_generate_from_ikm::<Sha3_256, Ed25519KeyPair>(ikm, salt, Some(domain));
-///
-///     let my_keypair_default_domain = hkdf_generate_from_ikm::<Sha3_256, Ed25519KeyPair>(ikm, salt, None);
-/// # }
-/// ```
-pub fn hkdf_generate_from_ikm<'a, H: OutputSizeUser, K: KeyPair>(
-    ikm: &[u8],             // IKM (32 bytes)
-    salt: &[u8],            // Optional salt
-    info: Option<&'a [u8]>, // Optional domain
-) -> Result<K, signature::Error>
-where
-    // This is a tad tedious, because of hkdf's use of a sealed trait. But mostly harmless.
-    H: CoreProxy + OutputSizeUser,
-    H::Core: HashMarker
-        + UpdateCore
-        + FixedOutputCore
-        + BufferKindUser<BufferKind = Eager>
-        + Default
-        + Clone,
-    <H::Core as BlockSizeUser>::BlockSize: IsLess<U256>,
-    Le<<H::Core as BlockSizeUser>::BlockSize, U256>: NonZero,
-{
-    let info = info.unwrap_or(&DEFAULT_DOMAIN);
-    let hk = hkdf::Hkdf::<H, Hmac<H>>::new(Some(salt), ikm);
-    // we need the HKDF to be able to expand precisely to the byte length of a Private key for the chosen KeyPair parameter.
-    // This check is a tad over constraining (check Hkdf impl for a more relaxed variant) but is always correct.
-    if H::OutputSize::USIZE != K::PrivKey::LENGTH {
-        return Err(signature::Error::from_source(hkdf::InvalidLength));
-    }
-    let mut okm = vec![0u8; K::PrivKey::LENGTH];
-    hk.expand(info, &mut okm)
-        .map_err(|_| signature::Error::new())?;
-
-    let secret_key = K::PrivKey::from_bytes(&okm[..]).map_err(|_| signature::Error::new())?;
-
-    let keypair = K::from(secret_key);
-    Ok(keypair)
 }
 
 /// Trait impl'd by aggregated signatures in asymmetric cryptography.
@@ -244,21 +183,4 @@ pub trait AggregateAuthenticator:
         pks: &[&[Self::PubKey]],
         messages: &[&[u8]],
     ) -> Result<(), Error>;
-}
-
-/// Trait impl'd byte representations of public keys in asymmetric cryptography.
-///
-pub trait VerifyingKeyBytes:
-    Display
-    + Default
-    + AsRef<[u8]>
-    + TryInto<Self::PubKey>
-    + Eq
-    + std::hash::Hash
-    + Copy
-    + Ord
-    + PartialOrd
-    + ToFromBytes
-{
-    type PubKey: VerifyingKey<Bytes = Self>;
 }

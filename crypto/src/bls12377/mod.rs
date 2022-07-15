@@ -3,7 +3,10 @@
 
 use std::fmt::{self, Display};
 
-use crate::traits::{AggregateAuthenticator, EncodeDecodeBase64, ToFromBytes, VerifyingKeyBytes};
+use crate::{
+    pubkey_bytes::PublicKeyBytes,
+    traits::{AggregateAuthenticator, EncodeDecodeBase64, ToFromBytes},
+};
 use ::ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use ark_bls12_377::{Fr, G1Affine, G1Projective, G2Affine, G2Projective};
 use ark_ec::{AffineCurve, ProjectiveCurve};
@@ -16,7 +19,6 @@ use celo_bls::{hash_to_curve::try_and_increment, PublicKey};
 use once_cell::sync::OnceCell;
 use serde::{de, Deserialize, Serialize};
 use serde_with::serde_as;
-use serde_with::Bytes;
 use signature::{Signer, Verifier};
 
 use crate::traits::{Authenticator, KeyPair, SigningKey, VerifyingKey};
@@ -40,10 +42,7 @@ pub struct BLS12377PublicKey {
     pub bytes: OnceCell<[u8; CELO_BLS_PUBLIC_KEY_LENGTH]>,
 }
 
-#[readonly::make]
-#[serde_as]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd, Copy, Hash)]
-pub struct BLS12377PublicKeyBytes(#[serde_as(as = "Bytes")] [u8; CELO_BLS_PUBLIC_KEY_LENGTH]);
+pub type BLS12377PublicKeyBytes = PublicKeyBytes<BLS12377PublicKey, { BLS12377PublicKey::LENGTH }>;
 
 #[readonly::make]
 #[derive(Debug)]
@@ -261,7 +260,6 @@ impl<'a> From<&'a BLS12377PrivateKey> for BLS12377PublicKey {
 impl VerifyingKey for BLS12377PublicKey {
     type PrivKey = BLS12377PrivateKey;
     type Sig = BLS12377Signature;
-    type Bytes = BLS12377PublicKeyBytes;
     const LENGTH: usize = CELO_BLS_PUBLIC_KEY_LENGTH;
 
     fn verify_batch(msg: &[u8], pks: &[Self], sigs: &[Self::Sig]) -> Result<(), signature::Error> {
@@ -394,11 +392,6 @@ impl KeyPair for BLS12377KeyPair {
                 bytes: OnceCell::new(),
             },
         }
-    }
-
-    fn public_key_bytes(&self) -> BLS12377PublicKeyBytes {
-        BLS12377PublicKeyBytes::from_bytes(self.name.as_ref())
-            .expect("BLS12-377 serialization invariants violated")
     }
 }
 
@@ -557,26 +550,6 @@ impl AggregateAuthenticator for BLS12377AggregateSignature {
 /// Implement VerifyingKeyBytes
 ///
 
-impl Default for BLS12377PublicKeyBytes {
-    fn default() -> Self {
-        BLS12377PublicKeyBytes([0; CELO_BLS_PUBLIC_KEY_LENGTH])
-    }
-}
-
-impl AsRef<[u8]> for BLS12377PublicKeyBytes {
-    fn as_ref(&self) -> &[u8] {
-        self.0.as_ref()
-    }
-}
-
-impl Display for BLS12377PublicKeyBytes {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
-        let s = hex::encode(&self.0);
-        write!(f, "k#{}", s)?;
-        Ok(())
-    }
-}
-
 impl TryInto<BLS12377PublicKey> for BLS12377PublicKeyBytes {
     type Error = signature::Error;
 
@@ -585,17 +558,4 @@ impl TryInto<BLS12377PublicKey> for BLS12377PublicKeyBytes {
         // to ensure the bytes represent a poin on the curve.
         BLS12377PublicKey::from_bytes(self.as_ref()).map_err(|_| Self::Error::new())
     }
-}
-
-impl ToFromBytes for BLS12377PublicKeyBytes {
-    fn from_bytes(bytes: &[u8]) -> Result<Self, signature::Error> {
-        let arr: [u8; CELO_BLS_PUBLIC_KEY_LENGTH] =
-            bytes.try_into().map_err(|_| signature::Error::new())?;
-
-        Ok(BLS12377PublicKeyBytes(arr))
-    }
-}
-
-impl VerifyingKeyBytes for BLS12377PublicKeyBytes {
-    type PubKey = BLS12377PublicKey;
 }

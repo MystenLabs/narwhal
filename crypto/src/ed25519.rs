@@ -8,9 +8,10 @@ use signature::{Signature, Signer, Verifier};
 use std::fmt::{self, Display};
 use std::str::FromStr;
 
+use crate::pubkey_bytes::PublicKeyBytes;
 use crate::traits::{
     AggregateAuthenticator, Authenticator, EncodeDecodeBase64, KeyPair, SigningKey, ToFromBytes,
-    VerifyingKey, VerifyingKeyBytes,
+    VerifyingKey,
 };
 
 ///
@@ -20,8 +21,7 @@ use crate::traits::{
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ed25519PublicKey(pub ed25519_dalek::PublicKey);
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Ord, PartialOrd, Copy, Hash)]
-pub struct Ed25519PublicKeyBytes([u8; ed25519_dalek::PUBLIC_KEY_LENGTH]);
+pub type Ed25519PublicKeyBytes = PublicKeyBytes<Ed25519PublicKey, { Ed25519PublicKey::LENGTH }>;
 
 #[derive(Debug)]
 pub struct Ed25519PrivateKey(pub ed25519_dalek::SecretKey);
@@ -59,7 +59,6 @@ impl<'a> From<&'a Ed25519PrivateKey> for Ed25519PublicKey {
 impl VerifyingKey for Ed25519PublicKey {
     type PrivKey = Ed25519PrivateKey;
     type Sig = Ed25519Signature;
-    type Bytes = Ed25519PublicKeyBytes;
     const LENGTH: usize = ed25519_dalek::PUBLIC_KEY_LENGTH;
 
     fn verify_batch(msg: &[u8], pks: &[Self], sigs: &[Self::Sig]) -> Result<(), signature::Error> {
@@ -346,11 +345,6 @@ impl KeyPair for Ed25519KeyPair {
             secret: Ed25519PrivateKey(kp.secret),
         }
     }
-
-    fn public_key_bytes(&self) -> Ed25519PublicKeyBytes {
-        let pk_arr: [u8; ed25519_dalek::PUBLIC_KEY_LENGTH] = self.name.0.to_bytes();
-        Ed25519PublicKeyBytes(pk_arr)
-    }
 }
 
 impl FromStr for Ed25519KeyPair {
@@ -388,27 +382,6 @@ impl Signer<Ed25519Signature> for Ed25519KeyPair {
 ///
 /// Implement VerifyingKeyBytes
 ///
-
-impl Default for Ed25519PublicKeyBytes {
-    fn default() -> Self {
-        Ed25519PublicKeyBytes([0; ed25519_dalek::PUBLIC_KEY_LENGTH])
-    }
-}
-
-impl AsRef<[u8]> for Ed25519PublicKeyBytes {
-    fn as_ref(&self) -> &[u8] {
-        self.0.as_ref()
-    }
-}
-
-impl Display for Ed25519PublicKeyBytes {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
-        let s = hex::encode(&self.0);
-        write!(f, "k#{}", s)?;
-        Ok(())
-    }
-}
-
 impl TryInto<Ed25519PublicKey> for Ed25519PublicKeyBytes {
     type Error = signature::Error;
 
@@ -417,17 +390,4 @@ impl TryInto<Ed25519PublicKey> for Ed25519PublicKeyBytes {
         // to ensure the bytes represent a poin on the curve.
         Ed25519PublicKey::from_bytes(self.as_ref()).map_err(|_| Self::Error::new())
     }
-}
-
-impl ToFromBytes for Ed25519PublicKeyBytes {
-    fn from_bytes(bytes: &[u8]) -> Result<Self, signature::Error> {
-        let arr: [u8; ed25519_dalek::PUBLIC_KEY_LENGTH] =
-            bytes.try_into().map_err(|_| signature::Error::new())?;
-
-        Ok(Ed25519PublicKeyBytes(arr))
-    }
-}
-
-impl VerifyingKeyBytes for Ed25519PublicKeyBytes {
-    type PubKey = Ed25519PublicKey;
 }
