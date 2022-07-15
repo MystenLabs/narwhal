@@ -313,10 +313,7 @@ fn to_from_bytes_aggregate_signature() {
     assert!(rebuilt_sig
         .verify(&[kpref.public().clone()], b"Hello, world")
         .is_ok());
-    assert_eq!(
-        rebuilt_sig.clone().as_ref(),
-        aggregated_signature.as_ref()
-    );
+    assert_eq!(rebuilt_sig.clone().as_ref(), aggregated_signature.as_ref());
 }
 
 #[tokio::test]
