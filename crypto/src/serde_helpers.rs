@@ -1,10 +1,8 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use anyhow::anyhow;
 use base64ct::Encoding as _;
 use blst::min_sig as blst;
-use schemars::JsonSchema;
 use serde::de::{Deserializer, Error};
 use serde::ser::Serializer;
 use serde::Deserialize;
