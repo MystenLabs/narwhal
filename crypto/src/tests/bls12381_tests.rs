@@ -300,7 +300,6 @@ fn test_serialize_deserialize_aggregate_signatures() {
 }
 
 #[test]
-#[test]
 fn test_add_signatures_to_aggregate() {
     let pks: Vec<BLS12381PublicKey> = keys()
         .into_iter()
