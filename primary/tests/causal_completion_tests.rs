@@ -1,9 +1,12 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
+use bytes::{Bytes, BytesMut};
 use std::time::Duration;
 use test_utils::cluster::Cluster;
+use test_utils::{batch, transaction};
 use tracing::{info, subscriber::set_global_default};
 use tracing_subscriber::filter::{EnvFilter, LevelFilter};
+use types::{Batch, TransactionProto, TransactionsClient};
 
 #[ignore]
 #[tokio::test]
@@ -77,6 +80,33 @@ async fn test_read_causal_signed_certificates() {
         node_made_progress,
         "Node 0 didn't make progress - causal completion didn't succeed"
     );
+}
+
+#[tokio::test]
+async fn test_restore_consensus() {
+    let mut cluster = Cluster::new(None);
+
+    // start the cluster with worker and preserved store
+    let (nodes, worker) = cluster.start_with_worker(1, true).await;
+    let primary = nodes.first().unwrap();
+
+    // submit transactions to the worker for consensus
+    let addr = worker.transaction_addr.as_ref().unwrap().to_string();
+    let mut client = TransactionsClient::connect(addr).await.unwrap();
+    for tx in vec![transaction(), transaction(), transaction()] {
+        let txn = TransactionProto {
+            transaction: Bytes::from(tx.clone()),
+        };
+        client.submit_transaction(txn).await.unwrap();
+    }
+
+    // restart the nodes
+    cluster.stop_node(primary.id);
+    let _restarted = cluster.start_node(primary.id, true, true).await.unwrap();
+
+    // listen on all primary tr_transaction_confirmation receivers for the output of the transactions
+    // that we submitted to consensus
+    let confirmation = _restarted.tr_transaction_confirmation.unwrap().recv().await;
 }
 
 fn setup_tracing() {

@@ -4,11 +4,14 @@ use crate::{committee, keys, temp_dir};
 use arc_swap::ArcSwap;
 use config::{Committee, Parameters};
 use crypto::{ed25519::Ed25519PublicKey, traits::KeyPair};
+use executor::{SerializedTransaction, SubscriberResult};
+use multiaddr::Multiaddr;
 use node::{
     execution_state::SimpleExecutionState, metrics::primary_metrics_registry, Node, NodeStorage,
 };
 use prometheus::Registry;
 use std::{collections::HashMap, path::PathBuf, sync::Arc, time::Duration};
+use tokio::sync::mpsc::Receiver;
 use tokio::{sync::mpsc::channel, task::JoinHandle};
 use tracing::info;
 
@@ -20,6 +23,9 @@ pub struct NodeDetails {
     pub store_path: PathBuf,
     handlers: Vec<JoinHandle<()>>,
     pub is_primary: bool,
+    pub tr_transaction_confirmation:
+        Option<Receiver<(SubscriberResult<Vec<u8>>, SerializedTransaction)>>,
+    pub transaction_addr: Option<Multiaddr>,
 }
 
 impl NodeDetails {
@@ -59,6 +65,8 @@ impl Cluster {
                     store_path: Default::default(),
                     handlers: vec![],
                     is_primary: true,
+                    tr_transaction_confirmation: None,
+                    transaction_addr: None,
                 }),
             );
         }
@@ -71,7 +79,7 @@ impl Cluster {
     }
 
     /// Starts a cluster by the defined number of validators.
-    /// For each validator one primary and one worker node are
+    /// For each validator one primary node is
     /// started.
     /// Returns a tuple for each spin up node with their id and
     /// the corresponding Registry
@@ -84,12 +92,46 @@ impl Cluster {
 
         for id in 0..nodes_number {
             info!("Spinning up node: {id}");
-            let node = self.start_node(id, true, false).await;
+            let node = self.start_node(id, true, false).await.unwrap();
 
-            regs.push(node.unwrap());
+            regs.push(node);
         }
 
         regs
+    }
+
+    /// Starts a cluster by the defined number of validators.
+    /// For each validator one primary node is
+    /// started, and a single worker node is also started.
+    /// Returns a tuple for each spin up node with their id and
+    /// the corresponding Registry
+    pub async fn start_with_worker(
+        &mut self,
+        nodes_number: usize,
+        preserve_store: bool,
+    ) -> (Vec<Arc<NodeDetails>>, Arc<NodeDetails>) {
+        let mut regs = Vec::new();
+
+        if nodes_number > self.committee_shared.load().authorities.len() {
+            panic!("Provided nodes number is greater than the maximum allowed");
+        }
+
+        for id in 0..nodes_number {
+            info!("Spinning up node: {id}");
+            let node = self.start_node(id, true, false).await.unwrap();
+
+            regs.push(node);
+        }
+
+        // spin up one worker
+        info!("Spinning up worker node");
+        let worker = self
+            .start_node(nodes_number, false, preserve_store)
+            .await
+            .unwrap();
+
+
+        (regs, worker)
     }
 
     /// Starts a node by the defined id - if not already running - and
@@ -128,11 +170,11 @@ impl Cluster {
         let store: NodeStorage<Ed25519PublicKey> = NodeStorage::reopen(store_path.clone());
 
         // The channel returning the result for each transaction's execution.
-        let (tx_transaction_confirmation, _) = channel(Node::CHANNEL_CAPACITY);
+        let (tx_transaction_confirmation, tr_transaction_confirmation) =
+            channel(Node::CHANNEL_CAPACITY);
 
-        let h;
-        if is_primary {
-            h = Node::spawn_primary(
+        let h: SubscriberResult<Vec<JoinHandle<()>>> = if is_primary {
+            Node::spawn_primary(
                 keypair,
                 self.committee_shared.clone(),
                 &store,
@@ -142,27 +184,55 @@ impl Cluster {
                 tx_transaction_confirmation,
                 &registry,
             )
-            .await;
+            .await
         } else {
-            let worker_id = id as u32;
-            h = Ok(Node::spawn_workers(
+            Ok(Node::spawn_workers(
                 name.clone(),
-                vec![worker_id],
+                vec![id as u32],
                 self.committee_shared.clone(),
                 &store,
                 self.parameters.clone(),
                 &registry,
-            ));
-        }
+            ))
+        };
+        let transaction_addr = Some(
+            self.committee_shared
+                .load()
+                .authorities
+                .iter()
+                .next()
+                .unwrap()
+                .1
+                .workers
+                .get(&0)
+                .unwrap()
+                .transactions
+                .clone(),
+        );
+        let node: Arc<NodeDetails> = if is_primary {
+            Arc::new(NodeDetails {
+                id,
+                name,
+                registry,
+                handlers: h.unwrap(),
+                store_path,
+                is_primary,
+                tr_transaction_confirmation: Some(tr_transaction_confirmation),
+                transaction_addr: None,
+            })
+        } else {
+            Arc::new(NodeDetails {
+                id,
+                name,
+                registry,
+                handlers: h.unwrap(),
+                store_path,
+                is_primary,
+                tr_transaction_confirmation: None,
+                transaction_addr,
+            })
+        };
 
-        let node = Arc::new(NodeDetails {
-            id,
-            name,
-            registry,
-            handlers: h.unwrap(),
-            store_path,
-            is_primary,
-        });
         // Insert to the nodes map
         self.nodes.insert(id, node.clone());
 
