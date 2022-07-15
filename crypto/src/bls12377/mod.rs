@@ -416,17 +416,6 @@ impl Signer<BLS12377Signature> for BLS12377KeyPair {
 /// Implement AggregateAuthenticator
 ///
 
-impl ToFromBytes for BLS12377AggregateSignature {
-    fn from_bytes(bytes: &[u8]) -> Result<Self, signature::Error> {
-        let g1 = <G1Projective as CanonicalDeserialize>::deserialize(bytes)
-            .map_err(|_| signature::Error::new())?;
-        Ok(BLS12377AggregateSignature {
-            sig: Some(g1.into()),
-            bytes: OnceCell::new(),
-        })
-    }
-}
-
 impl AsRef<[u8]> for BLS12377AggregateSignature {
     fn as_ref(&self) -> &[u8] {
         match &self.sig {

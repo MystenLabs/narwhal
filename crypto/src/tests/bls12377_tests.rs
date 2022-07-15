@@ -280,7 +280,7 @@ fn test_serialize_deserialize_aggregate_signatures() {
     let sig = BLS12377AggregateSignature::default();
     let serialized = bincode::serialize(&sig).unwrap();
     let deserialized: BLS12377AggregateSignature = bincode::deserialize(&serialized).unwrap();
-    assert_eq!(deserialized.as_bytes(), sig.as_bytes());
+    assert_eq!(deserialized.as_ref(), sig.as_ref());
 
     let message = b"hello, narwhal";
     // Test populated aggregate signature
@@ -296,24 +296,7 @@ fn test_serialize_deserialize_aggregate_signatures() {
     let sig = BLS12377AggregateSignature::aggregate(signatures).unwrap();
     let serialized = bincode::serialize(&sig).unwrap();
     let deserialized: BLS12377AggregateSignature = bincode::deserialize(&serialized).unwrap();
-    assert_eq!(deserialized.as_bytes(), sig.as_bytes());
-}
-
-#[test]
-fn to_from_bytes_aggregate_signature() {
-    let kpref = keys().pop().unwrap();
-    let signature = kpref.sign(b"Hello, world");
-    let aggregated_signature = BLS12377AggregateSignature::aggregate(vec![signature]).unwrap();
-    let sig_bytes = aggregated_signature.as_ref();
-    let rebuilt_sig = <BLS12377AggregateSignature as ToFromBytes>::from_bytes(sig_bytes).unwrap();
-
-    assert!(aggregated_signature
-        .verify(&[kpref.public().clone()], b"Hello, world")
-        .is_ok());
-    assert!(rebuilt_sig
-        .verify(&[kpref.public().clone()], b"Hello, world")
-        .is_ok());
-    assert_eq!(rebuilt_sig.as_ref(), aggregated_signature.as_ref());
+    assert_eq!(deserialized.as_ref(), sig.as_ref());
 }
 
 #[test]

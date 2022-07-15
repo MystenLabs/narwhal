@@ -424,21 +424,11 @@ impl Signer<BLS12381Signature> for BLS12381KeyPair {
 /// Implement AggregateAuthenticator
 ///
 
-impl ToFromBytes for BLS12381AggregateSignature {
-    fn from_bytes(bytes: &[u8]) -> Result<Self, signature::Error> {
-        let sig = blst::Signature::from_bytes(bytes).map_err(|_e| signature::Error::new())?;
-        Ok(BLS12381AggregateSignature {
-            sig: Some(sig),
-            bytes: OnceCell::new(),
-        })
-    }
-}
-
+// Don't try to use this externally
 impl AsRef<[u8]> for BLS12381AggregateSignature {
     fn as_ref(&self) -> &[u8] {
         match self.sig {
-            Some(sig) => self
-                .bytes
+            Some(sig) => self.bytes
                 .get_or_try_init::<_, eyre::Report>(|| Ok(sig.to_bytes()))
                 .expect("OnceCell invariant violated"),
             None => &[],
