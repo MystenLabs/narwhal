@@ -428,7 +428,8 @@ impl Signer<BLS12381Signature> for BLS12381KeyPair {
 impl AsRef<[u8]> for BLS12381AggregateSignature {
     fn as_ref(&self) -> &[u8] {
         match self.sig {
-            Some(sig) => self.bytes
+            Some(sig) => self
+                .bytes
                 .get_or_try_init::<_, eyre::Report>(|| Ok(sig.to_bytes()))
                 .expect("OnceCell invariant violated"),
             None => &[],
