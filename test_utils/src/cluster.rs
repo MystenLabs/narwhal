@@ -297,6 +297,10 @@ pub struct Cluster {
 }
 
 impl Cluster {
+
+    /// Initialises a new cluster by the provided parameters. The cluster will
+    /// create all the authorities (primaries & workers) that are defined under
+    /// the default committee structure, but none of them will be started.
     pub fn new(parameters: Option<Parameters>) -> Self {
         let committee = committee(None);
         let shared_committee = Arc::new(ArcSwap::from_pointee(committee));
@@ -322,7 +326,10 @@ impl Cluster {
         }
     }
 
-    /// Returns the running authorities
+    /// Returns all the running authorities. Any authority that:
+    /// * has been started ever
+    /// * or has been stopped
+    /// will not be returned by this method.
     pub fn authorities(&mut self) -> Vec<AuthorityDetails> {
         self.authorities
             .iter()
@@ -331,6 +338,8 @@ impl Cluster {
             .collect()
     }
 
+    /// Returns the authority identified by the provided id.
+    /// Will panic if the authority with the id is not found.
     pub fn authority(&mut self, id: usize) -> AuthorityDetails {
         self.authorities
             .get(&id)
@@ -354,13 +363,14 @@ impl Cluster {
         }
     }
 
-    /// Starts a node by the defined id - if not already running - and
-    /// the details are returned. If the node is already running then an
-    /// error is returned instead.
-    /// When the preserve_store is true, then the started node will use the
-    /// same path that has been used the last time when the node was started.
+    /// Starts the authority node by the defined id - if not already running - and
+    /// the details are returned. If the node is already running then a panic
+    /// is thrown instead.
+    /// When the preserve_store is true, then the started authority will use the
+    /// same path that has been used the last time when started (both the primary
+    /// and the workers).
     /// This is basically a way to use the same storage between node restarts.
-    /// When the preserve_store is false, then node will start with an empty
+    /// When the preserve_store is false, then authority will start with an empty
     /// storage.
     pub async fn start_node(&mut self, id: usize, preserve_store: bool) {
         let authority = self
@@ -375,9 +385,8 @@ impl Cluster {
         authority.start_worker(0, preserve_store).await;
     }
 
-    /// This method stops a node by the provided id. The method will return
-    /// either when the node has been successfully stopped or even when
-    /// the node doesn't exist.
+    /// This method stops the authority (both the primary and the worker nodes)
+    /// with the provided id.
     pub fn stop_node(&mut self, id: usize) {
         if let Some(node) = self.authorities.get_mut(&id) {
             node.stop_all();
