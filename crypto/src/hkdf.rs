@@ -18,7 +18,7 @@ use hkdf::hmac::Hmac;
 /// ```rust
 /// use sha3::Sha3_256;
 /// use crypto::ed25519::Ed25519KeyPair;
-/// use crypto::traits::hkdf_generate_from_ikm;
+/// use crypto::hkdf::hkdf_generate_from_ikm;
 /// # fn main() {
 ///     let ikm = b"some_ikm";
 ///     let domain = b"my_app";
@@ -27,6 +27,26 @@ use hkdf::hmac::Hmac;
 ///
 ///     let my_keypair_default_domain = hkdf_generate_from_ikm::<Sha3_256, Ed25519KeyPair>(ikm, salt, None);
 /// # }
+/// ```
+/// 
+/// Note: This HKDF function may not match the native library's deterministic key generation functions.
+/// For example, observe that in the blst library:
+/// ```rust
+/// use sha3::Sha3_256;
+/// use crypto::bls12381::BLS12381KeyPair;
+/// use crypto::traits::{KeyPair, SigningKey, ToFromBytes};
+/// use crypto::hkdf::hkdf_generate_from_ikm;
+/// 
+/// fn main() {
+///     let ikm = b"02345678001234567890123456789012";
+///     let domain = b"my_app";
+///     let salt = b"some_salt";
+
+///     let my_keypair = hkdf_generate_from_ikm::<Sha3_256, BLS12381KeyPair>(ikm, salt, Some(domain)).unwrap();
+///     let native_sk = blst::min_sig::SecretKey::key_gen_v4_5(ikm, salt, domain).unwrap();
+
+///     assert_ne!(native_sk.to_bytes(), my_keypair.private().as_bytes());
+/// }
 /// ```
 pub fn hkdf_generate_from_ikm<'a, H: OutputSizeUser, K: KeyPair>(
     ikm: &[u8],             // IKM (32 bytes)
