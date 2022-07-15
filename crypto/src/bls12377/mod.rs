@@ -489,19 +489,14 @@ impl AggregateAuthenticator for BLS12377AggregateSignature {
 
     fn add_aggregate(&mut self, signature: Self) -> Result<(), signature::Error> {
         match self.sig {
-            Some(ref mut sig) => {
-                match signature.sig {
-                    Some(sig_to_add) => {
-                        let raw_sig = celo_bls::Signature::aggregate([
-                            sig_to_add,
-                            sig.clone(),
-                        ]);
-                        self.sig = Some(raw_sig);
-                        Ok(())
-                    },
-                    None => Ok(())
+            Some(ref mut sig) => match signature.sig {
+                Some(sig_to_add) => {
+                    let raw_sig = celo_bls::Signature::aggregate([sig_to_add, sig.clone()]);
+                    self.sig = Some(raw_sig);
+                    Ok(())
                 }
-            }
+                None => Ok(()),
+            },
             None => {
                 self.sig = signature.sig;
                 Ok(())
@@ -565,10 +560,10 @@ impl TryInto<BLS12377PublicKey> for BLS12377PublicKeyBytes {
     }
 }
 
-impl Into<BLS12377PublicKeyBytes> for BLS12377PublicKey {
-    fn into(self) -> BLS12377PublicKeyBytes {
+impl From<BLS12377PublicKey> for BLS12377PublicKeyBytes {
+    fn from(pk: BLS12377PublicKey) -> BLS12377PublicKeyBytes {
         let mut bytes = [0u8; CELO_BLS_PUBLIC_KEY_LENGTH];
-        self.pubkey.serialize(&mut bytes[..]).unwrap();
+        pk.pubkey.serialize(&mut bytes[..]).unwrap();
         BLS12377PublicKeyBytes::new(bytes)
     }
 }

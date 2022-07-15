@@ -28,7 +28,7 @@ use hkdf::hmac::Hmac;
 ///     let my_keypair_default_domain = hkdf_generate_from_ikm::<Sha3_256, Ed25519KeyPair>(ikm, salt, None);
 /// # }
 /// ```
-/// 
+///
 /// Note: This HKDF function may not match the native library's deterministic key generation functions.
 /// For example, observe that in the blst library:
 /// ```rust
@@ -36,8 +36,8 @@ use hkdf::hmac::Hmac;
 /// use crypto::bls12381::BLS12381KeyPair;
 /// use crypto::traits::{KeyPair, SigningKey, ToFromBytes};
 /// use crypto::hkdf::hkdf_generate_from_ikm;
-/// 
-/// fn main() {
+///
+/// # fn main() {
 ///     let ikm = b"02345678001234567890123456789012";
 ///     let domain = b"my_app";
 ///     let salt = b"some_salt";
@@ -46,7 +46,7 @@ use hkdf::hmac::Hmac;
 ///     let native_sk = blst::min_sig::SecretKey::key_gen_v4_5(ikm, salt, domain).unwrap();
 
 ///     assert_ne!(native_sk.to_bytes(), my_keypair.private().as_bytes());
-/// }
+/// # }
 /// ```
 pub fn hkdf_generate_from_ikm<'a, H: OutputSizeUser, K: KeyPair>(
     ikm: &[u8],             // IKM (32 bytes)
@@ -67,11 +67,13 @@ where
 {
     let info = info.unwrap_or(&DEFAULT_DOMAIN);
     let hk = hkdf::Hkdf::<H, Hmac<H>>::new(Some(salt), ikm);
+
     // we need the HKDF to be able to expand precisely to the byte length of a Private key for the chosen KeyPair parameter.
     // This check is a tad over constraining (check Hkdf impl for a more relaxed variant) but is always correct.
     if H::OutputSize::USIZE != K::PrivKey::LENGTH {
         return Err(signature::Error::from_source(hkdf::InvalidLength));
     }
+
     let mut okm = vec![0u8; K::PrivKey::LENGTH];
     hk.expand(info, &mut okm)
         .map_err(|_| signature::Error::new())?;

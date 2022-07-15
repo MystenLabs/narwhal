@@ -499,18 +499,16 @@ impl AggregateAuthenticator for BLS12381AggregateSignature {
 
     fn add_aggregate(&mut self, signature: Self) -> Result<(), signature::Error> {
         match self.sig {
-            Some(ref mut sig) => {
-                match signature.sig {
-                    Some(to_add) => {
-                        let result = blst::AggregateSignature::aggregate(
-                            &[sig, &to_add
-                        ], true).map_err(|_| signature::Error::new())?.to_signature();
-                        self.sig = Some(result);
-                        Ok(())
-                    },
-                    None => Ok(())
+            Some(ref mut sig) => match signature.sig {
+                Some(to_add) => {
+                    let result = blst::AggregateSignature::aggregate(&[sig, &to_add], true)
+                        .map_err(|_| signature::Error::new())?
+                        .to_signature();
+                    self.sig = Some(result);
+                    Ok(())
                 }
-            }
+                None => Ok(()),
+            },
             None => {
                 self.sig = signature.sig;
                 Ok(())
@@ -578,8 +576,8 @@ impl TryInto<BLS12381PublicKey> for BLS12381PublicKeyBytes {
     }
 }
 
-impl Into<BLS12381PublicKeyBytes> for BLS12381PublicKey {
-    fn into(self) -> BLS12381PublicKeyBytes {
-        BLS12381PublicKeyBytes::new(self.pubkey.to_bytes())
+impl From<BLS12381PublicKey> for BLS12381PublicKeyBytes {
+    fn from(pk: BLS12381PublicKey) -> BLS12381PublicKeyBytes {
+        BLS12381PublicKeyBytes::new(pk.pubkey.to_bytes())
     }
 }

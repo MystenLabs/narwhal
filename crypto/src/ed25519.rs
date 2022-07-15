@@ -9,6 +9,7 @@ use std::fmt::{self, Display};
 use std::str::FromStr;
 
 use crate::pubkey_bytes::PublicKeyBytes;
+use crate::serde_helpers::Ed25519Signature as Ed25519Sig;
 use crate::traits::{
     AggregateAuthenticator, Authenticator, EncodeDecodeBase64, KeyPair, SigningKey, ToFromBytes,
     VerifyingKey,
@@ -34,14 +35,14 @@ pub struct Ed25519KeyPair {
     secret: Ed25519PrivateKey,
 }
 
+#[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde_as]
-pub struct Ed25519Signature(#[serde_as(as = "Ed25519Signature")] pub ed25519_dalek::Signature);
+pub struct Ed25519Signature(#[serde_as(as = "Ed25519Sig")] pub ed25519_dalek::Signature);
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde_as]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct Ed25519AggregateSignature(
-    #[serde_as(as = "Vec<Ed25519Signature>")] pub Vec<ed25519_dalek::Signature>,
+    #[serde_as(as = "Vec<Ed25519Sig>")] pub Vec<ed25519_dalek::Signature>,
 );
 
 ///
@@ -392,8 +393,8 @@ impl TryInto<Ed25519PublicKey> for Ed25519PublicKeyBytes {
     }
 }
 
-impl Into<Ed25519PublicKeyBytes> for Ed25519PublicKey {
-    fn into(self) -> Ed25519PublicKeyBytes {
-        Ed25519PublicKeyBytes::new(self.0.to_bytes())
+impl From<Ed25519PublicKey> for Ed25519PublicKeyBytes {
+    fn from(pk: Ed25519PublicKey) -> Ed25519PublicKeyBytes {
+        Ed25519PublicKeyBytes::new(pk.0.to_bytes())
     }
 }

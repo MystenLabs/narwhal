@@ -6,9 +6,10 @@ use super::*;
 use crate::{
     ed25519::{
         Ed25519AggregateSignature, Ed25519KeyPair, Ed25519PrivateKey, Ed25519PublicKey,
-        Ed25519Signature, Ed25519PublicKeyBytes,
+        Ed25519PublicKeyBytes, Ed25519Signature,
     },
-    traits::{AggregateAuthenticator, EncodeDecodeBase64, ToFromBytes, VerifyingKey}, hkdf::hkdf_generate_from_ikm,
+    hkdf::hkdf_generate_from_ikm,
+    traits::{AggregateAuthenticator, EncodeDecodeBase64, ToFromBytes, VerifyingKey},
 };
 
 use blake2::digest::Update;
@@ -43,6 +44,35 @@ fn serialize_deserialize() {
     let privkey = bincode::deserialize::<Ed25519PublicKey>(&bytes).unwrap();
     let bytes2 = bincode::serialize(&privkey).unwrap();
     assert_eq!(bytes, bytes2);
+}
+
+#[test]
+fn test_serde_signatures_non_human_readable() {
+    let message = b"hello, narwhal";
+    // Test populated aggregate signature
+    let sig = keys().pop().unwrap().sign(message);
+    let serialized = bincode::serialize(&sig).unwrap();
+    let deserialized: Ed25519Signature = bincode::deserialize(&serialized).unwrap();
+    assert_eq!(deserialized.0, sig.0);
+}
+
+#[test]
+fn test_serde_signatures_human_readable() {
+    let kp = keys().pop().unwrap();
+    let message: &[u8] = b"Hello, world!";
+    let signature = kp.sign(message);
+
+    let serialized = serde_json::to_string(&signature).unwrap();
+    println!("{:?}", serialized);
+    assert_eq!(
+        format!(
+            "\"{}\"",
+            base64ct::Base64::encode_string(&signature.0.to_bytes())
+        ),
+        serialized
+    );
+    let deserialized: Ed25519Signature = serde_json::from_str(&serialized).unwrap();
+    assert_eq!(deserialized, signature);
 }
 
 #[test]
@@ -358,13 +388,10 @@ fn test_add_signatures_to_aggregate() {
             .into_iter()
             .take(3)
             .skip(1)
-            .map(
-                |kp| { 
-                    kp.sign(message)
-                }
-            )
-            .collect()
-    ).unwrap();
+            .map(|kp| kp.sign(message))
+            .collect(),
+    )
+    .unwrap();
 
     sig2.add_aggregate(aggregated_signature).unwrap();
 
@@ -374,10 +401,8 @@ fn test_add_signatures_to_aggregate() {
 #[test]
 fn test_hkdf_generate_from_ikm() {
     let seed = &[
-        0, 0, 1, 1, 2, 2, 4, 4,
-        8, 2, 0, 9, 3, 2, 4, 1,
-        1, 1, 2, 0, 1, 1, 3, 4,
-        1, 2, 9, 8, 7, 6, 5, 4,
+        0, 0, 1, 1, 2, 2, 4, 4, 8, 2, 0, 9, 3, 2, 4, 1, 1, 1, 2, 0, 1, 1, 3, 4, 1, 2, 9, 8, 7, 6,
+        5, 4,
     ];
     let salt = &[3, 2, 1];
     let kp = hkdf_generate_from_ikm::<Sha3_256, Ed25519KeyPair>(seed, salt, None).unwrap();
@@ -389,7 +414,7 @@ fn test_hkdf_generate_from_ikm() {
 fn test_public_key_bytes_conversion() {
     let kp = keys().pop().unwrap();
     let pk_bytes: Ed25519PublicKeyBytes = kp.public().clone().into();
-    let rebuilded_pk: Ed25519PublicKey = pk_bytes.clone().try_into().unwrap();
+    let rebuilded_pk: Ed25519PublicKey = pk_bytes.try_into().unwrap();
     assert_eq!(kp.public().as_bytes(), rebuilded_pk.as_bytes());
 }
 

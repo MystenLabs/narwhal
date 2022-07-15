@@ -23,6 +23,10 @@ use tokio::sync::{
 use traits::{Authenticator, KeyPair};
 
 #[cfg(test)]
+#[path = "tests/pubkey_bytes_tests.rs"]
+pub mod pubkey_bytes_tests;
+
+#[cfg(test)]
 #[path = "tests/ed25519_tests.rs"]
 pub mod ed25519_tests;
 
