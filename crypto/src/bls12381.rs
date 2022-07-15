@@ -13,19 +13,18 @@ use blst::min_sig as blst;
 use once_cell::sync::OnceCell;
 use rand::{rngs::OsRng, RngCore};
 
-use crate::serde_helpers::BlsSignature;
+use crate::{pubkey_bytes::PublicKeyBytes, serde_helpers::BlsSignature};
 use serde::{
     de::{self},
     Deserialize, Serialize,
 };
 use serde_with::serde_as;
-use serde_with::Bytes;
 
 use signature::{Signature, Signer, Verifier};
 
 use crate::traits::{
     AggregateAuthenticator, Authenticator, EncodeDecodeBase64, KeyPair, SigningKey, ToFromBytes,
-    VerifyingKey, VerifyingKeyBytes,
+    VerifyingKey,
 };
 
 pub const BLS_PRIVATE_KEY_LENGTH: usize = 32;
@@ -44,10 +43,7 @@ pub struct BLS12381PublicKey {
     pub bytes: OnceCell<[u8; BLS_PUBLIC_KEY_LENGTH]>,
 }
 
-#[readonly::make]
-#[serde_as]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd, Copy, Hash)]
-pub struct BLS12381PublicKeyBytes(#[serde_as(as = "Bytes")] [u8; BLS_PUBLIC_KEY_LENGTH]);
+pub type BLS12381PublicKeyBytes = PublicKeyBytes<BLS12381PublicKey, { BLS12381PublicKey::LENGTH }>;
 
 #[readonly::make]
 #[derive(Default, Debug)]
@@ -186,7 +182,6 @@ impl<'a> From<&'a BLS12381PrivateKey> for BLS12381PublicKey {
 impl VerifyingKey for BLS12381PublicKey {
     type PrivKey = BLS12381PrivateKey;
     type Sig = BLS12381Signature;
-    type Bytes = BLS12381PublicKeyBytes;
 
     const LENGTH: usize = BLS_PUBLIC_KEY_LENGTH;
 
@@ -411,11 +406,6 @@ impl KeyPair for BLS12381KeyPair {
             },
         }
     }
-
-    fn public_key_bytes(&self) -> BLS12381PublicKeyBytes {
-        let pk_arr: [u8; BLS_PUBLIC_KEY_LENGTH] = self.name.pubkey.to_bytes();
-        BLS12381PublicKeyBytes(pk_arr)
-    }
 }
 
 impl Signer<BLS12381Signature> for BLS12381KeyPair {
@@ -574,26 +564,6 @@ impl AggregateAuthenticator for BLS12381AggregateSignature {
 /// Implement VerifyingKeyBytes
 ///
 
-impl Default for BLS12381PublicKeyBytes {
-    fn default() -> Self {
-        BLS12381PublicKeyBytes([0; BLS_PUBLIC_KEY_LENGTH])
-    }
-}
-
-impl AsRef<[u8]> for BLS12381PublicKeyBytes {
-    fn as_ref(&self) -> &[u8] {
-        self.0.as_ref()
-    }
-}
-
-impl Display for BLS12381PublicKeyBytes {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
-        let s = hex::encode(&self.0);
-        write!(f, "k#{}", s)?;
-        Ok(())
-    }
-}
-
 impl TryInto<BLS12381PublicKey> for BLS12381PublicKeyBytes {
     type Error = signature::Error;
 
@@ -602,17 +572,4 @@ impl TryInto<BLS12381PublicKey> for BLS12381PublicKeyBytes {
         // to ensure the bytes represent a poin on the curve.
         BLS12381PublicKey::from_bytes(self.as_ref()).map_err(|_| Self::Error::new())
     }
-}
-
-impl ToFromBytes for BLS12381PublicKeyBytes {
-    fn from_bytes(bytes: &[u8]) -> Result<Self, signature::Error> {
-        let arr: [u8; BLS_PUBLIC_KEY_LENGTH] =
-            bytes.try_into().map_err(|_| signature::Error::new())?;
-
-        Ok(BLS12381PublicKeyBytes(arr))
-    }
-}
-
-impl VerifyingKeyBytes for BLS12381PublicKeyBytes {
-    type PubKey = BLS12381PublicKey;
 }

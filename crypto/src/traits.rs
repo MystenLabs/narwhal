@@ -92,7 +92,6 @@ pub trait VerifyingKey:
 {
     type PrivKey: SigningKey<PubKey = Self>;
     type Sig: Authenticator<PubKey = Self>;
-    type Bytes: VerifyingKeyBytes<PubKey = Self>;
     const LENGTH: usize;
 
     // Expected to be overridden by implementations
@@ -153,7 +152,6 @@ pub trait KeyPair: Sized + From<Self::PrivKey> {
     fn copy(&self) -> Self;
 
     fn generate<R: CryptoRng + RngCore>(rng: &mut R) -> Self;
-    fn public_key_bytes(&self) -> <Self::PubKey as VerifyingKey>::Bytes;
 }
 
 /// Trait impl'd by aggregated signatures in asymmetric cryptography.
@@ -185,21 +183,4 @@ pub trait AggregateAuthenticator:
         pks: &[&[Self::PubKey]],
         messages: &[&[u8]],
     ) -> Result<(), Error>;
-}
-
-/// Trait impl'd byte representations of public keys in asymmetric cryptography.
-///
-pub trait VerifyingKeyBytes:
-    Display
-    + Default
-    + AsRef<[u8]>
-    + TryInto<Self::PubKey>
-    + Eq
-    + std::hash::Hash
-    + Copy
-    + Ord
-    + PartialOrd
-    + ToFromBytes
-{
-    type PubKey: VerifyingKey<Bytes = Self>;
 }
