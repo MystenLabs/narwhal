@@ -38,6 +38,7 @@ pub mod bls12381_tests;
 
 pub mod bls12381;
 pub mod ed25519;
+pub mod hkdf;
 pub mod serde_helpers;
 pub mod traits;
 
