@@ -19,6 +19,7 @@ pub struct NodeDetails {
     pub registry: Registry,
     pub store_path: PathBuf,
     handlers: Vec<JoinHandle<()>>,
+    pub is_primary: bool,
 }
 
 impl NodeDetails {
@@ -57,6 +58,7 @@ impl Cluster {
                     registry: Registry::new(),
                     store_path: Default::default(),
                     handlers: vec![],
+                    is_primary: true,
                 }),
             );
         }
@@ -82,7 +84,7 @@ impl Cluster {
 
         for id in 0..nodes_number {
             info!("Spinning up node: {id}");
-            let node = self.start_node(id, false).await;
+            let node = self.start_node(id, true, false).await;
 
             regs.push(node.unwrap());
         }
@@ -99,6 +101,7 @@ impl Cluster {
     pub async fn start_node(
         &mut self,
         id: usize,
+        is_primary: bool,
         preserve_store: bool,
     ) -> Result<Arc<NodeDetails>, ()> {
         let node = self.nodes.get(&id).unwrap();
@@ -127,17 +130,30 @@ impl Cluster {
         // The channel returning the result for each transaction's execution.
         let (tx_transaction_confirmation, _) = channel(Node::CHANNEL_CAPACITY);
 
-        let h = Node::spawn_primary(
-            keypair,
-            self.committee_shared.clone(),
-            &store,
-            self.parameters.clone(),
-            /* consensus */ true,
-            /* execution_state */ Arc::new(SimpleExecutionState),
-            tx_transaction_confirmation,
-            &registry,
-        )
-        .await;
+        let h;
+        if is_primary {
+            h = Node::spawn_primary(
+                keypair,
+                self.committee_shared.clone(),
+                &store,
+                self.parameters.clone(),
+                /* consensus */ true,
+                /* execution_state */ Arc::new(SimpleExecutionState),
+                tx_transaction_confirmation,
+                &registry,
+            )
+            .await;
+        } else {
+            let worker_id = id as u32;
+            h = Ok(Node::spawn_workers(
+                name.clone(),
+                vec![worker_id],
+                self.committee_shared.clone(),
+                &store,
+                self.parameters.clone(),
+                &registry,
+            ));
+        }
 
         let node = Arc::new(NodeDetails {
             id,
@@ -145,8 +161,8 @@ impl Cluster {
             registry,
             handlers: h.unwrap(),
             store_path,
+            is_primary,
         });
-
         // Insert to the nodes map
         self.nodes.insert(id, node.clone());
 
