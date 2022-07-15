@@ -2354,6 +2354,7 @@ dependencies = [
  "config",
  "consensus",
  "crypto",
+ "dashmap",
  "derive_builder",
  "ed25519-dalek",
  "executor",
