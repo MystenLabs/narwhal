@@ -18,6 +18,157 @@ use std::{collections::HashMap, path::PathBuf, sync::Arc, time::Duration};
 use tokio::{sync::mpsc::channel, task::JoinHandle};
 use tracing::info;
 
+#[cfg(test)]
+#[path = "tests/cluster_tests.rs"]
+pub mod cluster_tests;
+
+pub struct Cluster {
+    authorities: HashMap<usize, AuthorityDetails>,
+    committee_shared: Arc<ArcSwap<Committee<Ed25519PublicKey>>>,
+    #[allow(dead_code)]
+    parameters: Parameters,
+}
+
+impl Cluster {
+    /// Initialises a new cluster by the provided parameters. The cluster will
+    /// create all the authorities (primaries & workers) that are defined under
+    /// the committee structure, but none of them will be started.
+    /// If a committee is provided then this will be used, otherwise the default
+    /// will be used instead.
+    pub fn new(
+        parameters: Option<Parameters>,
+        input_committee: Option<Committee<Ed25519PublicKey>>,
+    ) -> Self {
+        let c = input_committee.unwrap_or_else(|| committee(None));
+        let shared_committee = Arc::new(ArcSwap::from_pointee(c));
+        let params = parameters.unwrap_or_else(Self::parameters);
+
+        info!("###### Creating new cluster ######");
+        info!("Validator keys:");
+        let k = keys(None);
+        let mut nodes = HashMap::new();
+
+        for (id, key_pair) in k.into_iter().enumerate() {
+            info!("Key {id} -> {}", key_pair.public().clone());
+
+            let authority =
+                AuthorityDetails::new(id, key_pair, params.clone(), shared_committee.clone());
+            nodes.insert(id, authority);
+        }
+
+        Self {
+            authorities: nodes,
+            committee_shared: shared_committee,
+            parameters: params,
+        }
+    }
+
+    /// Starts a cluster by the defined number of authorities. The authorities
+    /// will be started sequentially started from the one with id zero up to
+    /// the provided number `authorities_number`. If none number is provided, then
+    /// the maximum number of authorities will be started.
+    /// If a number higher than the available ones in the committee is provided then
+    /// the method will panic.
+    /// The workers_per_authority dictates how many workers per authority should
+    /// also be started (the same number will be started for each authority). If none
+    /// is provided then the maximum number of workers will be started.
+    pub async fn start(
+        &mut self,
+        authorities_number: Option<usize>,
+        workers_per_authority: Option<usize>,
+    ) {
+        let max_authorities = self.committee_shared.load().authorities.len();
+        let authorities = authorities_number.unwrap_or(max_authorities);
+
+        if authorities > max_authorities {
+            panic!("Provided nodes number is greater than the maximum allowed");
+        }
+
+        for id in 0..authorities {
+            info!("Spinning up node: {id}");
+            self.start_node(id, false, workers_per_authority).await;
+        }
+    }
+
+    /// Starts the authority node by the defined id - if not already running - and
+    /// the details are returned. If the node is already running then a panic
+    /// is thrown instead.
+    /// When the preserve_store is true, then the started authority will use the
+    /// same path that has been used the last time when started (both the primary
+    /// and the workers).
+    /// This is basically a way to use the same storage between node restarts.
+    /// When the preserve_store is false, then authority will start with an empty
+    /// storage.
+    /// If the `workers_per_authority` is provided then the corresponding number of
+    /// workers will be started per authority. Otherwise if not provided, then maximum
+    /// number of workers will be started per authority.
+    pub async fn start_node(
+        &mut self,
+        id: usize,
+        preserve_store: bool,
+        workers_per_authority: Option<usize>,
+    ) {
+        let authority = self
+            .authorities
+            .get_mut(&id)
+            .unwrap_or_else(|| panic!("Authority with id {} not found", id));
+
+        // start the primary
+        authority.start_primary(preserve_store).await;
+
+        // start the workers
+        if let Some(workers) = workers_per_authority {
+            for worker_id in 0..workers {
+                authority
+                    .start_worker(worker_id as WorkerId, preserve_store)
+                    .await;
+            }
+        } else {
+            authority.start_all_workers(preserve_store).await;
+        }
+    }
+
+    /// This method stops the authority (both the primary and the worker nodes)
+    /// with the provided id.
+    pub fn stop_node(&mut self, id: usize) {
+        if let Some(node) = self.authorities.get_mut(&id) {
+            node.stop_all();
+            info!("Aborted node for id {id}");
+        } else {
+            info!("Node with {id} not found - nothing to stop");
+        }
+    }
+
+    /// Returns all the running authorities. Any authority that:
+    /// * has been started ever
+    /// * or has been stopped
+    /// will not be returned by this method.
+    pub fn authorities(&mut self) -> Vec<AuthorityDetails> {
+        self.authorities
+            .iter()
+            .filter(|(_, authority)| authority.is_running())
+            .map(|(_, authority)| authority.clone())
+            .collect()
+    }
+
+    /// Returns the authority identified by the provided id.
+    /// Will panic if the authority with the id is not found.
+    pub fn authority(&mut self, id: usize) -> AuthorityDetails {
+        self.authorities
+            .get(&id)
+            .unwrap_or_else(|| panic!("Authority with id {} not found", id))
+            .clone()
+    }
+
+    fn parameters() -> Parameters {
+        Parameters {
+            batch_size: 200,
+            max_header_delay: Duration::from_secs(2),
+            ..Parameters::default()
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct PrimaryNodeDetails {
     pub id: usize,
@@ -70,6 +221,7 @@ impl PrimaryNodeDetails {
         // The channel returning the result for each transaction's execution.
         let (tx_transaction_confirmation, _) = channel(Node::CHANNEL_CAPACITY);
 
+        // KeyPair is not clonable - hackish way to reconstruct a new one.
         let pub_key = Ed25519PublicKey::from_bytes(self.key_pair.name.0.as_bytes()).unwrap();
         let private_key = Ed25519PrivateKey::from_bytes(self.key_pair.secret.0.as_bytes()).unwrap();
 
@@ -148,6 +300,7 @@ impl WorkerNodeDetails {
         }
     }
 
+    /// Starts the node. When preserve_store is true then the last used
     pub async fn start(&mut self, preserve_store: bool) {
         if self.is_running() {
             panic!(
@@ -194,6 +347,10 @@ impl WorkerNodeDetails {
     }
 }
 
+/// The authority details hold all the necessary structs and details
+/// to identify and manage a specific authority. An authority is
+/// composed of its primary node and the worker nodes. Via this struct
+/// we can manage the nodes one by one or in batch fashion (ex stop_all).
 #[allow(dead_code)]
 #[derive(Clone)]
 pub struct AuthorityDetails {
@@ -201,7 +358,7 @@ pub struct AuthorityDetails {
     pub name: Ed25519PublicKey,
     pub registry: Registry,
     pub primary: PrimaryNodeDetails,
-    pub workers: HashMap<WorkerId, WorkerNodeDetails>,
+    workers: HashMap<WorkerId, WorkerNodeDetails>,
 }
 
 impl AuthorityDetails {
@@ -215,7 +372,9 @@ impl AuthorityDetails {
         let name = key_pair.public().clone();
         let primary = PrimaryNodeDetails::new(id, key_pair, parameters.clone(), committee.clone());
 
-        // Create all the workers - even if we don't intend to start them all
+        // Create all the workers - even if we don't intend to start them all. Those
+        // act as place holder setups. That gives us the power in a clear way manage
+        // the nodes independently.
         let mut workers = HashMap::new();
         for (worker_id, addresses) in committee
             .load()
@@ -244,6 +403,11 @@ impl AuthorityDetails {
         }
     }
 
+    /// This method will return true either when the primary or any of
+    /// the workers is running. In order to make sure that we don't end up
+    /// in intermediate states we want to make sure that everything has
+    /// stopped before we report something as not running (in case we want
+    /// to start them again).
     fn is_running(&self) -> bool {
         if self.primary.is_running() {
             return true;
@@ -265,6 +429,12 @@ impl AuthorityDetails {
         self.primary.stop();
     }
 
+    pub async fn start_all_workers(&mut self, preserve_store: bool) {
+        for (_, worker) in self.workers.iter_mut() {
+            worker.start(preserve_store).await;
+        }
+    }
+
     pub async fn start_worker(&mut self, id: WorkerId, preserve_store: bool) {
         self.workers
             .get_mut(&id)
@@ -280,6 +450,7 @@ impl AuthorityDetails {
             .stop();
     }
 
+    /// Stops all the nodes (primary & workers)
     pub fn stop_all(&self) {
         self.primary.stop();
 
@@ -287,120 +458,30 @@ impl AuthorityDetails {
             worker.stop();
         }
     }
-}
 
-pub struct Cluster {
-    authorities: HashMap<usize, AuthorityDetails>,
-    committee_shared: Arc<ArcSwap<Committee<Ed25519PublicKey>>>,
-    #[allow(dead_code)]
-    parameters: Parameters,
-}
-
-impl Cluster {
-
-    /// Initialises a new cluster by the provided parameters. The cluster will
-    /// create all the authorities (primaries & workers) that are defined under
-    /// the default committee structure, but none of them will be started.
-    pub fn new(parameters: Option<Parameters>) -> Self {
-        let committee = committee(None);
-        let shared_committee = Arc::new(ArcSwap::from_pointee(committee));
-        let params = parameters.unwrap_or_else(Self::parameters);
-
-        info!("###### Creating new cluster ######");
-        info!("Validator keys:");
-        let k = keys(None);
-        let mut nodes = HashMap::new();
-
-        for (id, key_pair) in k.into_iter().enumerate() {
-            info!("Key {id} -> {}", key_pair.public().clone());
-
-            let authority =
-                AuthorityDetails::new(id, key_pair, params.clone(), shared_committee.clone());
-            nodes.insert(id, authority);
-        }
-
-        Self {
-            authorities: nodes,
-            committee_shared: shared_committee,
-            parameters: params,
-        }
-    }
-
-    /// Returns all the running authorities. Any authority that:
-    /// * has been started ever
-    /// * or has been stopped
-    /// will not be returned by this method.
-    pub fn authorities(&mut self) -> Vec<AuthorityDetails> {
-        self.authorities
-            .iter()
-            .filter(|(_, authority)| authority.is_running())
-            .map(|(_, authority)| authority.clone())
-            .collect()
-    }
-
-    /// Returns the authority identified by the provided id.
-    /// Will panic if the authority with the id is not found.
-    pub fn authority(&mut self, id: usize) -> AuthorityDetails {
-        self.authorities
+    /// Returns the worker with the provided id. If not found then a panic
+    /// is raised instead.
+    pub fn worker(&self, id: WorkerId) -> WorkerNodeDetails {
+        self.workers
             .get(&id)
-            .unwrap_or_else(|| panic!("Authority with id {} not found", id))
+            .unwrap_or_else(|| panic!("Worker with id {} not found ", id))
             .clone()
     }
 
-    /// Starts a cluster by the defined number of validators.
-    /// For each validator one primary and one worker node are
-    /// started.
-    /// Returns a tuple for each spin up node with their id and
-    /// the corresponding Registry
-    pub async fn start(&mut self, nodes_number: usize) {
-        if nodes_number > self.committee_shared.load().authorities.len() {
-            panic!("Provided nodes number is greater than the maximum allowed");
-        }
-
-        for id in 0..nodes_number {
-            info!("Spinning up node: {id}");
-            self.start_node(id, false).await;
-        }
-    }
-
-    /// Starts the authority node by the defined id - if not already running - and
-    /// the details are returned. If the node is already running then a panic
-    /// is thrown instead.
-    /// When the preserve_store is true, then the started authority will use the
-    /// same path that has been used the last time when started (both the primary
-    /// and the workers).
-    /// This is basically a way to use the same storage between node restarts.
-    /// When the preserve_store is false, then authority will start with an empty
-    /// storage.
-    pub async fn start_node(&mut self, id: usize, preserve_store: bool) {
-        let authority = self
-            .authorities
-            .get_mut(&id)
-            .unwrap_or_else(|| panic!("Authority with id {} not found", id));
-
-        // start the primary
-        authority.start_primary(preserve_store).await;
-
-        // start only the worker with id 0
-        authority.start_worker(0, preserve_store).await;
-    }
-
-    /// This method stops the authority (both the primary and the worker nodes)
-    /// with the provided id.
-    pub fn stop_node(&mut self, id: usize) {
-        if let Some(node) = self.authorities.get_mut(&id) {
-            node.stop_all();
-            info!("Aborted node for id {id}");
-        } else {
-            info!("Node with {id} not found - nothing to stop");
-        }
-    }
-
-    fn parameters() -> Parameters {
-        Parameters {
-            batch_size: 200,
-            max_header_delay: Duration::from_secs(2),
-            ..Parameters::default()
-        }
+    /// Helper method to return transaction addresses of
+    /// all the worker nodes.
+    /// Important: only the addresses of the running workers will
+    /// be returned.
+    pub fn worker_transaction_addresses(&self) -> Vec<Multiaddr> {
+        self.workers
+            .iter()
+            .filter_map(|(_, worker)| {
+                if worker.is_running() {
+                    Some(worker.transactions_address.clone())
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 }

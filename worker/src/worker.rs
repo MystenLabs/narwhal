@@ -216,7 +216,12 @@ impl<PublicKey: VerifyingKey> Worker<PublicKey> {
             self.id, address
         );
 
-        vec![batch_maker_handle, quorum_waiter_handle, processor_handle, tx_receiver_handle]
+        vec![
+            batch_maker_handle,
+            quorum_waiter_handle,
+            processor_handle,
+            tx_receiver_handle,
+        ]
     }
 
     /// Spawn all tasks responsible to handle messages from other workers.
@@ -438,7 +443,8 @@ impl<PublicKey: VerifyingKey> PrimaryReceiverHandler<PublicKey> {
                 .await
                 .unwrap()
                 .serve()
-                .await.unwrap()
+                .await
+                .unwrap()
         })
     }
 }

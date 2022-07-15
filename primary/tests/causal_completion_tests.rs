@@ -14,10 +14,10 @@ async fn test_read_causal_signed_certificates() {
     // nodes logs.
     setup_tracing();
 
-    let mut cluster = Cluster::new(None);
+    let mut cluster = Cluster::new(None, None);
 
     // start the cluster
-    cluster.start(4).await;
+    cluster.start(Some(4), Some(1)).await;
 
     // Let primaries advance little bit
     tokio::time::sleep(Duration::from_secs(10)).await;
@@ -46,13 +46,14 @@ async fn test_read_causal_signed_certificates() {
     tokio::time::sleep(Duration::from_secs(10)).await;
 
     // Now start the validator 0 again
-    cluster.start_node(0, true).await;
+    cluster.start_node(0, true, Some(1)).await;
 
     // Now check that the current round advances. Give the opportunity with a few
     // iterations. If metric hasn't picked up then we know that node can't make
     // progress.
     let mut node_made_progress = false;
     let node = cluster.authority(0);
+
     for _ in 0..10 {
         tokio::time::sleep(Duration::from_secs(1)).await;
 
