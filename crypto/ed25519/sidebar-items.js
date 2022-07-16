@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":[["Ed25519KeyPair",""],["Ed25519PrivateKey",""],["Ed25519PublicKey",""],["Ed25519Signature",""]]};
+window.SIDEBAR_ITEMS = {"struct":[["Ed25519AggregateSignature",""],["Ed25519KeyPair",""],["Ed25519PrivateKey",""],["Ed25519PublicKey","Define Structs"],["Ed25519Signature",""]],"type":[["Ed25519PublicKeyBytes",""]]};

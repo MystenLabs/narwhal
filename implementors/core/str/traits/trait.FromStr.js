@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["crypto"] = [{"text":"impl <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/str/traits/trait.FromStr.html\" title=\"trait core::str::traits::FromStr\">FromStr</a> for <a class=\"struct\" href=\"crypto/ed25519/struct.Ed25519KeyPair.html\" title=\"struct crypto::ed25519::Ed25519KeyPair\">Ed25519KeyPair</a>","synthetic":false,"types":["crypto::ed25519::Ed25519KeyPair"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
