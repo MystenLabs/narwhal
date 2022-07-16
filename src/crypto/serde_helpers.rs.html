@@ -86,15 +86,17 @@
 <span id="80">80</span>
 <span id="81">81</span>
 <span id="82">82</span>
+<span id="83">83</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 
 <span class="kw">use</span> <span class="ident">base64ct::Encoding</span> <span class="kw">as</span> <span class="kw">_</span>;
 <span class="kw">use</span> <span class="ident">blst::min_sig</span> <span class="kw">as</span> <span class="ident">blst</span>;
-<span class="kw">use</span> <span class="ident">serde::de</span>::{<span class="ident">Deserializer</span>, <span class="ident">Error</span>};
-<span class="kw">use</span> <span class="ident">serde::ser::Serializer</span>;
-<span class="kw">use</span> <span class="ident">serde::Deserialize</span>;
-<span class="kw">use</span> <span class="ident">serde::Serialize</span>;
+<span class="kw">use</span> <span class="ident">serde</span>::{
+    <span class="ident">de</span>::{<span class="ident">Deserializer</span>, <span class="ident">Error</span>},
+    <span class="ident">ser::Serializer</span>,
+    <span class="ident">Deserialize</span>, <span class="ident">Serialize</span>,
+};
 <span class="kw">use</span> <span class="ident">serde_with</span>::{<span class="ident">Bytes</span>, <span class="ident">DeserializeAs</span>, <span class="ident">SerializeAs</span>};
 <span class="kw">use</span> <span class="ident">std::fmt::Debug</span>;
 
@@ -169,5 +171,5 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="crypto" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (c2f428d2f 2022-07-14)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="crypto" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (23e21bdd2 2022-07-15)" ></div>
 </body></html>
