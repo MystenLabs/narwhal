@@ -42,7 +42,7 @@ pub struct BLS12377PublicKey {
     pub bytes: OnceCell<[u8; CELO_BLS_PUBLIC_KEY_LENGTH]>,
 }
 
-pub type BLS12377PublicKeyBytes = PublicKeyBytes<BLS12377PublicKey, { BLS12377PublicKey::LENGTH }>;
+pub type BLS12377PublicKeyBytes = PublicKeyBytes<BLS12377PublicKey, { CELO_BLS_PUBLIC_KEY_LENGTH }>;
 
 #[readonly::make]
 #[derive(Debug)]
@@ -259,6 +259,7 @@ impl<'a> From<&'a BLS12377PrivateKey> for BLS12377PublicKey {
 impl VerifyingKey for BLS12377PublicKey {
     type PrivKey = BLS12377PrivateKey;
     type Sig = BLS12377Signature;
+    type Bytes = PublicKeyBytes<BLS12377PublicKey, { CELO_BLS_PUBLIC_KEY_LENGTH }>;
     const LENGTH: usize = CELO_BLS_PUBLIC_KEY_LENGTH;
 
     fn verify_batch(msg: &[u8], pks: &[Self], sigs: &[Self::Sig]) -> Result<(), signature::Error> {
@@ -538,20 +539,24 @@ impl AggregateAuthenticator for BLS12377AggregateSignature {
 /// Implement VerifyingKeyBytes
 ///
 
-impl TryInto<BLS12377PublicKey> for BLS12377PublicKeyBytes {
+impl TryFrom<BLS12377PublicKeyBytes> for BLS12377PublicKey {
     type Error = signature::Error;
 
-    fn try_into(self) -> Result<BLS12377PublicKey, Self::Error> {
+    fn try_from(bytes: BLS12377PublicKeyBytes) -> Result<BLS12377PublicKey, Self::Error> {
         // TODO(https://github.com/MystenLabs/sui/issues/101): Do better key validation
         // to ensure the bytes represent a poin on the curve.
-        BLS12377PublicKey::from_bytes(self.as_ref()).map_err(|_| Self::Error::new())
+        BLS12377PublicKey::from_bytes(bytes.as_ref()).map_err(|_| Self::Error::new())
     }
 }
 
-impl From<BLS12377PublicKey> for BLS12377PublicKeyBytes {
-    fn from(pk: BLS12377PublicKey) -> BLS12377PublicKeyBytes {
+impl From<&BLS12377PublicKey> for BLS12377PublicKeyBytes {
+    fn from(s: &BLS12377PublicKey) -> Self {
         let mut bytes = [0u8; CELO_BLS_PUBLIC_KEY_LENGTH];
-        pk.pubkey.serialize(&mut bytes[..]).unwrap();
+        s.pubkey
+            .as_ref()
+            .into_affine()
+            .serialize(&mut bytes[..])
+            .unwrap();
         BLS12377PublicKeyBytes::new(bytes)
     }
 }
