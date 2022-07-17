@@ -10,6 +10,8 @@ use serde::{de::DeserializeOwned, Serialize};
 pub use signature::{Error, Signer};
 use std::fmt::{Debug, Display};
 
+use crate::pubkey_bytes::{PublicKeyBytes, sealed::SealedPublicKeyLength};
+
 pub const DEFAULT_DOMAIN: [u8; 16] = [0u8; 16];
 
 /// Trait impl'd by concrete types that represent digital cryptographic material
@@ -92,6 +94,7 @@ pub trait VerifyingKey:
 {
     type PrivKey: SigningKey<PubKey = Self>;
     type Sig: Authenticator<PubKey = Self>;
+    type Bytes: SealedPublicKeyLength;
     const LENGTH: usize;
 
     // Expected to be overridden by implementations

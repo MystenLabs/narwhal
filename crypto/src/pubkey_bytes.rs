@@ -69,7 +69,7 @@ impl<T, const N: usize> Default for PublicKeyBytes<T, N> {
 
 // This guarantees the security of the constructor of a `PublicKeyBytes` instance
 // TODO: replace this clunky sealed marker trait once feature(associated_const_equality) stabilizes
-mod sealed {
+pub mod sealed {
     #[cfg(feature = "celo")]
     use crate::bls12377::BLS12377PublicKey;
     use crate::{bls12381::BLS12381PublicKey, ed25519::Ed25519PublicKey, traits::VerifyingKey};

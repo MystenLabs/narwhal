@@ -260,6 +260,7 @@ impl<'a> From<&'a BLS12377PrivateKey> for BLS12377PublicKey {
 impl VerifyingKey for BLS12377PublicKey {
     type PrivKey = BLS12377PrivateKey;
     type Sig = BLS12377Signature;
+    type Bytes = PublicKeyBytes<BLS12377PublicKey, {CELO_BLS_PUBLIC_KEY_LENGTH}>;
     const LENGTH: usize = CELO_BLS_PUBLIC_KEY_LENGTH;
 
     fn verify_batch(msg: &[u8], pks: &[Self], sigs: &[Self::Sig]) -> Result<(), signature::Error> {
