@@ -375,7 +375,7 @@ semver-parser = { version = "0.10", default-features = false }
 serde = { version = "1", features = ["derive", "rc", "serde_derive", "std"] }
 serde_derive = { version = "1" }
 serde_derive_internals = { version = "0.26", default-features = false }
-serde_with_macros = { version = "1", default-features = false }
+serde_with_macros = { version = "2", default-features = false }
 shlex = { version = "1", features = ["std"] }
 strsim-93f6ce9d446188ac = { package = "strsim", version = "0.10", default-features = false }
 structopt-derive = { version = "0.4", default-features = false }
