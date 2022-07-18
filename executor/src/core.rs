@@ -61,7 +61,7 @@ where
             let execution_indices = execution_state
                 .load_execution_indices()
                 .await
-                .unwrap_or_default();
+                .expect("Couldn't load execution indices");
             Self {
                 store,
                 execution_state,
