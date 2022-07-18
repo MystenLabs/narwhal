@@ -162,7 +162,7 @@ num-bigint = { version = "0.4", default-features = false }
 num-integer = { version = "0.1", default-features = false, features = ["i128"] }
 num-traits = { version = "0.2", features = ["i128", "std"] }
 num_cpus = { version = "1", default-features = false }
-object = { version = "0.28", default-features = false, features = ["archive", "coff", "elf", "macho", "pe", "read_core", "unaligned"] }
+object = { version = "0.29", default-features = false, features = ["archive", "coff", "elf", "macho", "pe", "read_core", "unaligned"] }
 once_cell = { version = "1", features = ["alloc", "race", "std"] }
 oorandom = { version = "11", default-features = false }
 opaque-debug = { version = "0.3", default-features = false }
