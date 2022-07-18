@@ -54,20 +54,10 @@ async fn test_read_causal_signed_certificates() {
     let mut node_made_progress = false;
     let node = cluster.authority(0);
 
-    // show case the transactions channel
-    /*
-    let mut receiver = node.primary.tx_transaction_confirmation.subscribe();
-    loop {
-        if let Ok(result) = receiver.recv().await {
-            // do something here
-        }
-    }
-     */
-
     for _ in 0..10 {
         tokio::time::sleep(Duration::from_secs(1)).await;
 
-        let metric_family = node.registry.gather();
+        let metric_family = node.primary.registry.gather();
 
         for metric in metric_family {
             if metric.get_name() == CURRENT_ROUND_METRIC {

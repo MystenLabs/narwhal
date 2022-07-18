@@ -10,7 +10,7 @@ use tokio::{
     sync::mpsc::{Receiver, Sender},
     task::JoinHandle,
 };
-use tracing::info;
+use tracing::{info, instrument};
 use types::{
     Certificate, CertificateDigest, ConsensusPrimaryMessage, ConsensusStore, Round, StoreResult,
 };
@@ -54,6 +54,7 @@ impl<PublicKey: VerifyingKey> ConsensusState<PublicKey> {
         }
     }
 
+    #[instrument(level = "info", skip_all)]
     pub async fn new_from_store(
         genesis: Vec<Certificate<PublicKey>>,
         metrics: Arc<ConsensusMetrics>,
@@ -86,14 +87,17 @@ impl<PublicKey: VerifyingKey> ConsensusState<PublicKey> {
         }
     }
 
+    #[instrument(level = "info", skip_all)]
     pub async fn construct_dag_from_cert_store(
         cert_store: Store<CertificateDigest, Certificate<PublicKey>>,
         last_committed_round: Round,
         gc_depth: Round,
     ) -> Dag<PublicKey> {
         let mut dag: Dag<PublicKey> = HashMap::new();
-
-        info!("Last committed round: {}", last_committed_round);
+        info!(
+            "Recreating dag from last committed round: {}",
+            last_committed_round
+        );
 
         let min_round = last_committed_round.saturating_sub(gc_depth);
         let cert_map = cert_store

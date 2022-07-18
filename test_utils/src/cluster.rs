@@ -15,7 +15,7 @@ use node::{
     Node, NodeStorage,
 };
 use prometheus::Registry;
-use std::{collections::HashMap, path::PathBuf, sync::Arc, time::Duration};
+use std::{cell::RefCell, collections::HashMap, path::PathBuf, rc::Rc, sync::Arc, time::Duration};
 use tokio::{
     sync::{broadcast::Sender, mpsc::channel},
     task::JoinHandle,
@@ -182,7 +182,7 @@ pub struct PrimaryNodeDetails {
     pub tx_transaction_confirmation: Sender<(SubscriberResult<Vec<u8>>, SerializedTransaction)>,
     committee: SharedCommittee<Ed25519PublicKey>,
     parameters: Parameters,
-    handlers: Arc<ArcSwap<Vec<JoinHandle<()>>>>,
+    handlers: Rc<RefCell<Vec<JoinHandle<()>>>>,
 }
 
 impl PrimaryNodeDetails {
@@ -203,7 +203,7 @@ impl PrimaryNodeDetails {
             tx_transaction_confirmation: tx,
             committee,
             parameters,
-            handlers: Arc::new(ArcSwap::from_pointee(Vec::new())),
+            handlers: Rc::new(RefCell::new(Vec::new())),
         }
     }
 
@@ -272,14 +272,14 @@ impl PrimaryNodeDetails {
         // with the others.
         primary_handlers.push(h);
 
-        self.handlers.swap(Arc::new(primary_handlers));
+        self.handlers.replace(primary_handlers);
         self.store_path = store_path;
         self.registry = registry;
         self.tx_transaction_confirmation = tx;
     }
 
     pub fn stop(&self) {
-        self.handlers.load().iter().for_each(|h| h.abort());
+        self.handlers.borrow().iter().for_each(|h| h.abort());
         info!("Aborted primary node for id {}", self.id);
     }
 
@@ -288,11 +288,11 @@ impl PrimaryNodeDetails {
     /// that is not finished. If we find at least one, then we report the
     /// node as still running.
     fn is_running(&self) -> bool {
-        if self.handlers.load().is_empty() {
+        if self.handlers.borrow().is_empty() {
             return false;
         }
 
-        self.handlers.load().iter().any(|h| !h.is_finished())
+        self.handlers.borrow().iter().any(|h| !h.is_finished())
     }
 }
 
