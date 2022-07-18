@@ -298,7 +298,7 @@ async-recursion = { version = "1", default-features = false }
 async-stream-impl = { version = "0.3", default-features = false }
 async-trait = { version = "0.1", default-features = false }
 autocfg = { version = "1", default-features = false }
-bindgen = { version = "0.59", default-features = false, features = ["runtime"] }
+bindgen = { version = "0.60", default-features = false, features = ["runtime"] }
 bitflags = { version = "1" }
 bytes = { version = "1", features = ["std"] }
 cc = { version = "1", default-features = false, features = ["jobserver", "parallel"] }
