@@ -241,11 +241,7 @@
         <span class="ident">rx_consensus</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">tx_consensus</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">ConsensusSyncRequest</span><span class="op">&gt;</span>,
         <span class="ident">tx_output</span>: <span class="ident">Sender</span><span class="op">&lt;</span>(<span class="ident">SubscriberResult</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">SerializedTransaction</span>)<span class="op">&gt;</span>,
-    ) -&gt; <span class="ident">SubscriberResult</span><span class="op">&lt;</span>(
-        <span class="ident">JoinHandle</span><span class="op">&lt;</span><span class="ident">SubscriberResult</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span>,
-        <span class="ident">JoinHandle</span><span class="op">&lt;</span><span class="ident">SubscriberResult</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span>,
-        <span class="ident">JoinHandle</span><span class="op">&lt;</span><span class="ident">SubscriberResult</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span>,
-    )<span class="op">&gt;</span>
+    ) -&gt; <span class="ident">SubscriberResult</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>
     <span class="kw">where</span>
         <span class="ident">State</span>: <span class="ident">ExecutionState</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
         <span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span>,
@@ -297,7 +293,11 @@
 
         <span class="comment">// Return the handle.</span>
         <span class="macro">info!</span>(<span class="string">&quot;Consensus subscriber successfully started&quot;</span>);
-        <span class="prelude-val">Ok</span>((<span class="ident">subscriber_handle</span>, <span class="ident">executor_handle</span>, <span class="ident">batch_loader_handle</span>))
+        <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[
+            <span class="ident">subscriber_handle</span>,
+            <span class="ident">executor_handle</span>,
+            <span class="ident">batch_loader_handle</span>,
+        ])
     }
 }
 </code></pre></div>

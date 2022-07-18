@@ -209,6 +209,10 @@
 <span id="203">203</span>
 <span id="204">204</span>
 <span id="205">205</span>
+<span id="206">206</span>
+<span id="207">207</span>
+<span id="208">208</span>
+<span id="209">209</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="kw">crate</span>::{
@@ -267,9 +271,12 @@
         <span class="ident">execution_state</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">State</span><span class="op">&gt;</span>,
         <span class="ident">rx_subscriber</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">tx_output</span>: <span class="ident">Sender</span><span class="op">&lt;</span>(<span class="ident">SubscriberResult</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">SerializedTransaction</span>)<span class="op">&gt;</span>,
-    ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span><span class="ident">SubscriberResult</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
-            <span class="kw">let</span> <span class="ident">execution_indices</span> <span class="op">=</span> <span class="ident">execution_state</span>.<span class="ident">load_execution_indices</span>().<span class="kw">await</span><span class="question-mark">?</span>;
+            <span class="kw">let</span> <span class="ident">execution_indices</span> <span class="op">=</span> <span class="ident">execution_state</span>
+                .<span class="ident">load_execution_indices</span>()
+                .<span class="kw">await</span>
+                .<span class="ident">expect</span>(<span class="string">&quot;Couldn&#39;t load execution indices&quot;</span>);
             <span class="self">Self</span> {
                 <span class="ident">store</span>,
                 <span class="ident">execution_state</span>,
@@ -279,6 +286,7 @@
             }
             .<span class="ident">run</span>()
             .<span class="kw">await</span>
+            .<span class="ident">unwrap</span>();
         })
     }
 

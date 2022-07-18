@@ -86,9 +86,11 @@
 <span id="80">80</span>
 <span id="81">81</span>
 <span id="82">82</span>
+<span id="83">83</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="ident">config::WorkerId</span>;
+<span class="kw">use</span> <span class="ident">std::fmt::Debug</span>;
 <span class="kw">use</span> <span class="ident">store::StoreError</span>;
 <span class="kw">use</span> <span class="ident">thiserror::Error</span>;
 <span class="kw">use</span> <span class="ident">types::SequenceNumber</span>;
@@ -152,7 +154,7 @@
 
 <span class="doccomment">/// Trait do separate execution errors in two categories: (i) errors caused by a bad client, (ii)</span>
 <span class="doccomment">/// errors caused by a fault in the authority.</span>
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">ExecutionStateError</span> {
+<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">ExecutionStateError</span>: <span class="ident">Debug</span> {
     <span class="doccomment">/// Whether the error is due to a fault in the authority (eg. internal storage error).</span>
     <span class="kw">fn</span> <span class="ident">node_error</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">bool</span>;
 

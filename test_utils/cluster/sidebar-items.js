@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":[["Cluster",""],["NodeDetails",""]]};
+window.SIDEBAR_ITEMS = {"struct":[["AuthorityDetails","The authority details hold all the necessary structs and details to identify and manage a specific authority. An authority is composed of its primary node and the worker nodes. Via this struct we can manage the nodes one by one or in batch fashion (ex stop_all)."],["Cluster",""],["PrimaryNodeDetails",""],["WorkerNodeDetails",""]]};

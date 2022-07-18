@@ -466,6 +466,14 @@
 <span id="460">460</span>
 <span id="461">461</span>
 <span id="462">462</span>
+<span id="463">463</span>
+<span id="464">464</span>
+<span id="465">465</span>
+<span id="466">466</span>
+<span id="467">467</span>
+<span id="468">468</span>
+<span id="469">469</span>
+<span id="470">470</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -597,7 +605,7 @@
         <span class="kw">let</span> <span class="ident">address</span> <span class="op">=</span> <span class="ident">address</span>
             .<span class="ident">replace</span>(<span class="number">0</span>, <span class="op">|</span><span class="ident">_protocol</span><span class="op">|</span> <span class="prelude-val">Some</span>(<span class="ident">Protocol::Ip4</span>(<span class="ident">INADDR_ANY</span>)))
             .<span class="ident">unwrap</span>();
-        <span class="ident">PrimaryReceiverHandler</span> { <span class="ident">tx_synchronizer</span> }.<span class="ident">spawn</span>(<span class="ident">address</span>.<span class="ident">clone</span>());
+        <span class="kw">let</span> <span class="ident">primary_handle</span> <span class="op">=</span> <span class="ident">PrimaryReceiverHandler</span> { <span class="ident">tx_synchronizer</span> }.<span class="ident">spawn</span>(<span class="ident">address</span>.<span class="ident">clone</span>());
 
         <span class="comment">// The `Synchronizer` is responsible to keep the worker in sync with the others. It handles the commands</span>
         <span class="comment">// it receives from the primary (which are mainly notifications that we are out of sync).</span>
@@ -620,7 +628,7 @@
             <span class="self">self</span>.<span class="ident">id</span>, <span class="ident">address</span>
         );
 
-        <span class="macro">vec!</span>[<span class="ident">handle</span>]
+        <span class="macro">vec!</span>[<span class="ident">handle</span>, <span class="ident">primary_handle</span>]
     }
 
     <span class="doccomment">/// Spawn all tasks responsible to handle clients transactions.</span>
@@ -643,7 +651,7 @@
         <span class="kw">let</span> <span class="ident">address</span> <span class="op">=</span> <span class="ident">address</span>
             .<span class="ident">replace</span>(<span class="number">0</span>, <span class="op">|</span><span class="ident">_protocol</span><span class="op">|</span> <span class="prelude-val">Some</span>(<span class="ident">Protocol::Ip4</span>(<span class="ident">INADDR_ANY</span>)))
             .<span class="ident">unwrap</span>();
-        <span class="ident">TxReceiverHandler</span> { <span class="ident">tx_batch_maker</span> }.<span class="ident">spawn</span>(<span class="ident">address</span>.<span class="ident">clone</span>());
+        <span class="kw">let</span> <span class="ident">tx_receiver_handle</span> <span class="op">=</span> <span class="ident">TxReceiverHandler</span> { <span class="ident">tx_batch_maker</span> }.<span class="ident">spawn</span>(<span class="ident">address</span>.<span class="ident">clone</span>());
 
         <span class="comment">// The transactions are sent to the `BatchMaker` that assembles them into batches. It then broadcasts</span>
         <span class="comment">// (in a reliable manner) the batches to all other workers that share the same `id` as us. Finally, it</span>
@@ -684,7 +692,12 @@
             <span class="self">self</span>.<span class="ident">id</span>, <span class="ident">address</span>
         );
 
-        <span class="macro">vec!</span>[<span class="ident">batch_maker_handle</span>, <span class="ident">quorum_waiter_handle</span>, <span class="ident">processor_handle</span>]
+        <span class="macro">vec!</span>[
+            <span class="ident">batch_maker_handle</span>,
+            <span class="ident">quorum_waiter_handle</span>,
+            <span class="ident">processor_handle</span>,
+            <span class="ident">tx_receiver_handle</span>,
+        ]
     }
 
     <span class="doccomment">/// Spawn all tasks responsible to handle messages from other workers.</span>
@@ -707,7 +720,7 @@
         <span class="kw">let</span> <span class="ident">address</span> <span class="op">=</span> <span class="ident">address</span>
             .<span class="ident">replace</span>(<span class="number">0</span>, <span class="op">|</span><span class="ident">_protocol</span><span class="op">|</span> <span class="prelude-val">Some</span>(<span class="ident">Protocol::Ip4</span>(<span class="ident">INADDR_ANY</span>)))
             .<span class="ident">unwrap</span>();
-        <span class="ident">WorkerReceiverHandler</span> {
+        <span class="kw">let</span> <span class="ident">worker_handle</span> <span class="op">=</span> <span class="ident">WorkerReceiverHandler</span> {
             <span class="ident">tx_worker_helper</span>,
             <span class="ident">tx_client_helper</span>,
             <span class="ident">tx_processor</span>,
@@ -740,7 +753,7 @@
             <span class="self">self</span>.<span class="ident">id</span>, <span class="ident">address</span>
         );
 
-        <span class="macro">vec!</span>[<span class="ident">helper_handle</span>, <span class="ident">processor_handle</span>]
+        <span class="macro">vec!</span>[<span class="ident">helper_handle</span>, <span class="ident">processor_handle</span>, <span class="ident">worker_handle</span>]
     }
 }
 
@@ -751,7 +764,7 @@
 }
 
 <span class="kw">impl</span> <span class="ident">TxReceiverHandler</span> {
-    <span class="kw">fn</span> <span class="ident">spawn</span>(<span class="self">self</span>, <span class="ident">address</span>: <span class="ident">Multiaddr</span>) {
+    <span class="kw">fn</span> <span class="ident">spawn</span>(<span class="self">self</span>, <span class="ident">address</span>: <span class="ident">Multiaddr</span>) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
             <span class="kw">let</span> <span class="ident">config</span> <span class="op">=</span> <span class="ident">mysten_network::config::Config::new</span>();
             <span class="ident">config</span>
@@ -762,7 +775,8 @@
                 .<span class="ident">unwrap</span>()
                 .<span class="ident">serve</span>()
                 .<span class="kw">await</span>
-        });
+                .<span class="ident">unwrap</span>()
+        })
     }
 }
 
@@ -808,7 +822,7 @@
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> <span class="ident">WorkerReceiverHandler</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">spawn</span>(<span class="self">self</span>, <span class="ident">address</span>: <span class="ident">Multiaddr</span>, <span class="ident">max_concurrent_requests</span>: <span class="ident">usize</span>) {
+    <span class="kw">fn</span> <span class="ident">spawn</span>(<span class="self">self</span>, <span class="ident">address</span>: <span class="ident">Multiaddr</span>, <span class="ident">max_concurrent_requests</span>: <span class="ident">usize</span>) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">config</span> <span class="op">=</span> <span class="ident">mysten_network::config::Config::new</span>();
             <span class="ident">config</span>.<span class="ident">concurrency_limit_per_connection</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">max_concurrent_requests</span>);
@@ -820,7 +834,8 @@
                 .<span class="ident">unwrap</span>()
                 .<span class="ident">serve</span>()
                 .<span class="kw">await</span>
-        });
+                .<span class="ident">unwrap</span>()
+        })
     }
 }
 
@@ -894,7 +909,7 @@
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> <span class="ident">PrimaryReceiverHandler</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">spawn</span>(<span class="self">self</span>, <span class="ident">address</span>: <span class="ident">Multiaddr</span>) {
+    <span class="kw">fn</span> <span class="ident">spawn</span>(<span class="self">self</span>, <span class="ident">address</span>: <span class="ident">Multiaddr</span>) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
             <span class="kw">let</span> <span class="ident">config</span> <span class="op">=</span> <span class="ident">mysten_network::config::Config::new</span>();
             <span class="ident">config</span>
@@ -905,7 +920,8 @@
                 .<span class="ident">unwrap</span>()
                 .<span class="ident">serve</span>()
                 .<span class="kw">await</span>
-        });
+                .<span class="ident">unwrap</span>()
+        })
     }
 }
 

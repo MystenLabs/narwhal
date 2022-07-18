@@ -115,6 +115,7 @@
 <span id="109">109</span>
 <span id="110">110</span>
 <span id="111">111</span>
+<span id="112">112</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">ConsensusOutput</span>, <span class="ident">ConsensusSyncRequest</span>};
@@ -156,7 +157,7 @@
         <span class="ident">rx_sequence</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">rx_client</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">ConsensusSyncRequest</span><span class="op">&gt;</span>,
         <span class="ident">tx_client</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span><span class="ident">StoreResult</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
             <span class="self">Self</span> {
                 <span class="ident">consensus_store</span>,
@@ -167,6 +168,7 @@
             }
             .<span class="ident">run</span>()
             .<span class="kw">await</span>
+            .<span class="ident">unwrap</span>();
         })
     }
 

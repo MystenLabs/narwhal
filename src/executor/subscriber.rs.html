@@ -210,6 +210,7 @@
 <span id="204">204</span>
 <span id="205">205</span>
 <span id="206">206</span>
+<span id="207">207</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="kw">crate</span>::{
@@ -264,7 +265,7 @@
         <span class="ident">tx_batch_loader</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">tx_executor</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">next_consensus_index</span>: <span class="ident">SequenceNumber</span>,
-    ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span><span class="ident">SubscriberResult</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
             <span class="self">Self</span> {
                 <span class="ident">store</span>,
@@ -276,6 +277,7 @@
             }
             .<span class="ident">run</span>()
             .<span class="kw">await</span>
+            .<span class="ident">unwrap</span>();
         })
     }
 
