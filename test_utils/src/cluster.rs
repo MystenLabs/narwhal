@@ -28,7 +28,7 @@ pub mod cluster_tests;
 
 pub struct Cluster {
     authorities: HashMap<usize, AuthorityDetails>,
-    committee_shared: Arc<ArcSwap<Committee<Ed25519PublicKey>>>,
+    pub committee_shared: SharedCommittee<Ed25519PublicKey>,
     #[allow(dead_code)]
     parameters: Parameters,
 }

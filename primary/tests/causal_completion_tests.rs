@@ -1,15 +1,22 @@
+use std::ops::Deref;
+use std::sync::Arc;
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
+use arc_swap::access::{Access, DynAccess};
+use arc_swap::ArcSwap;
+use bytes::Bytes;
+use config::Committee;
+use crypto::ed25519::Ed25519PublicKey;
 use std::time::Duration;
 use test_utils::cluster::Cluster;
+use test_utils::{committee, transaction};
 use tracing::{info, subscriber::set_global_default};
 use tracing_subscriber::filter::{EnvFilter, LevelFilter};
+use types::{TransactionProto, TransactionsClient};
 
 #[ignore]
 #[tokio::test]
 async fn test_read_causal_signed_certificates() {
-    const CURRENT_ROUND_METRIC: &str = "narwhal_primary_current_round";
-
     // Enabled debug tracing so we can easily observe the
     // nodes logs.
     setup_tracing();
@@ -19,25 +26,26 @@ async fn test_read_causal_signed_certificates() {
     // start the cluster
     cluster.start(Some(4), Some(1)).await;
 
-    // Let primaries advance little bit
-    tokio::time::sleep(Duration::from_secs(10)).await;
+    let multiaddr = cluster.authorities()[0].worker(0).transactions_address;
+    let addr = multiaddr.to_string();
 
-    // Ensure all nodes advanced
-    for authority in cluster.authorities() {
-        let metric_family = authority.primary.registry.gather();
+    let committee = arc_swap::access::Access::load(&cluster.committee_shared).deref();
 
-        for metric in metric_family {
-            if metric.get_name() == CURRENT_ROUND_METRIC {
-                let value = metric.get_metric().first().unwrap().get_gauge().get_value();
+    let id = 0;
+    let name = cluster.authority(0).name;
+    let address = c.worker(&name, &id).unwrap().transactions;
+    let config = mysten_network::config::Config::new();
+    let channel = config.connect_lazy(&address).unwrap();
+    let mut client = TransactionsClient::new(channel);
 
-                info!("Metrics name {} -> {:?}", metric.get_name(), value);
-
-                // If the current round is increasing then it means that the
-                // node starts catching up and is proposing.
-                assert!(value > 1.0, "Node didn't progress further than the round 1");
-            }
-        }
+    for tx in vec![transaction(), transaction(), transaction()] {
+        let txn = TransactionProto {
+            transaction: Bytes::from(tx.clone()),
+        };
+        client.submit_transaction(txn).await.unwrap();
     }
+    // Let transactions get submitted
+    tokio::time::sleep(Duration::from_secs(5)).await;
 
     // Now stop node 0
     cluster.stop_node(0);
@@ -51,8 +59,16 @@ async fn test_read_causal_signed_certificates() {
     // Now check that the current round advances. Give the opportunity with a few
     // iterations. If metric hasn't picked up then we know that node can't make
     // progress.
-    let mut node_made_progress = false;
+    let mut node_recovered_state = false;
     let node = cluster.authority(0);
+
+    // let mut receiver = node.primary.tx_transaction_confirmation.subscribe();
+    // loop {
+    //     if let Ok(result) = receiver.recv().await {
+    //         assert!(result.0.is_ok());
+    //         break;
+    //     }
+    // }
 
     for _ in 0..10 {
         tokio::time::sleep(Duration::from_secs(1)).await;
@@ -60,25 +76,18 @@ async fn test_read_causal_signed_certificates() {
         let metric_family = node.primary.registry.gather();
 
         for metric in metric_family {
-            if metric.get_name() == CURRENT_ROUND_METRIC {
+            if metric.get_name() == "recovered_consensus_state" {
                 let value = metric.get_metric().first().unwrap().get_gauge().get_value();
-
-                info!("Metrics name {} -> {:?}", metric.get_name(), value);
-
-                // If the current round is increasing then it means that the
-                // node starts catching up and is proposing.
-                if value > 1.0 {
-                    node_made_progress = true;
+                info!("Found metric for recovered consensus state.");
+                if value > 0.0 {
+                    node_recovered_state = true;
                     break;
                 }
             }
         }
     }
 
-    assert!(
-        node_made_progress,
-        "Node 0 didn't make progress - causal completion didn't succeed"
-    );
+    assert!(node_recovered_state, "Node recovered state");
 }
 
 fn setup_tracing() {
