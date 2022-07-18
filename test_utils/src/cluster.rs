@@ -4,8 +4,8 @@ use crate::{committee, keys, temp_dir};
 use arc_swap::ArcSwap;
 use config::{Committee, Parameters, SharedCommittee, WorkerId};
 use crypto::{
-    ed25519::{Ed25519KeyPair, Ed25519PrivateKey, Ed25519PublicKey},
-    traits::{KeyPair, ToFromBytes},
+    ed25519::{Ed25519KeyPair, Ed25519PublicKey},
+    traits::KeyPair,
 };
 use executor::{SerializedTransaction, SubscriberResult, DEFAULT_CHANNEL_SIZE};
 use multiaddr::Multiaddr;
@@ -231,19 +231,10 @@ impl PrimaryNodeDetails {
         let (tx_transaction_confirmation, mut rx_transaction_confirmation) =
             channel(Node::CHANNEL_CAPACITY);
 
-        // KeyPair is not clonable - hackish way to reconstruct a new one.
-        let pub_key = Ed25519PublicKey::from_bytes(self.key_pair.name.0.as_bytes()).unwrap();
-        let private_key = Ed25519PrivateKey::from_bytes(self.key_pair.secret.0.as_bytes()).unwrap();
-
-        let key_pair = Ed25519KeyPair {
-            name: pub_key,
-            secret: private_key,
-        };
-
         // Primary node
         let primary_store: NodeStorage<Ed25519PublicKey> = NodeStorage::reopen(store_path.clone());
         let mut primary_handlers = Node::spawn_primary(
-            key_pair,
+            self.key_pair.copy(),
             self.committee.clone(),
             &primary_store,
             self.parameters.clone(),
