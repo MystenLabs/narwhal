@@ -27,7 +27,7 @@ tracing = "0.1.35"
 prometheus = "0.13.1"
 
 config = { path = "../config" }
-crypto = { path = "../crypto" }
+crypto = { path = "../crypto", features = ["copy_key"] }
 types = { path = "../types" }
 worker = { path = "../worker"}
 node = { path = "../node"}
