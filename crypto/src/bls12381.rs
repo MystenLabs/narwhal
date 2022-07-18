@@ -182,7 +182,7 @@ impl<'a> From<&'a BLS12381PrivateKey> for BLS12381PublicKey {
 impl VerifyingKey for BLS12381PublicKey {
     type PrivKey = BLS12381PrivateKey;
     type Sig = BLS12381Signature;
-    type Bytes = PublicKeyBytes<BLS12381PublicKey, { BLS_PUBLIC_KEY_LENGTH }>;
+    type Bytes = BLS12381PublicKeyBytes;
 
     const LENGTH: usize = BLS_PUBLIC_KEY_LENGTH;
 
