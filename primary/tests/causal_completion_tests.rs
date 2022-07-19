@@ -1,13 +1,13 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use bytes::Bytes;
+use bytes::{Bytes, BytesMut};
 use config::Committee;
 use crypto::ed25519::Ed25519PublicKey;
 use std::ops::Deref;
 use std::sync::Arc;
 use std::time::Duration;
 use test_utils::cluster::Cluster;
-use test_utils::transaction;
+use test_utils::fixture_batch_with_transactions;
 use tracing::{info, subscriber::set_global_default};
 use tracing_subscriber::filter::{EnvFilter, LevelFilter};
 use types::{TransactionProto, TransactionsClient};
@@ -24,9 +24,38 @@ async fn test_read_causal_signed_certificates() {
     // start the cluster
     cluster.start(Some(4), Some(1)).await;
 
-    let mut client = TransactionsClient::new(cluster.worker_channel.clone());
+    let id = 0;
+    let name = cluster.authority(0).name;
 
-    for tx in vec![transaction(), transaction(), transaction()] {
+    let committee = &cluster.committee_shared;
+    let address = committee.load().worker(&name, &id).unwrap().transactions;
+    let config = mysten_network::config::Config::new();
+    let channel = config.connect_lazy(&address).unwrap();
+    let mut client = TransactionsClient::new(channel);
+
+    // Spawn a network listener to receive our batch's digest.
+    let mut batch_len = 5;
+    let batch = fixture_batch_with_transactions(batch_len);
+
+    let mut receiver = cluster
+        .authority(0)
+        .primary
+        .tx_transaction_confirmation
+        .subscribe();
+
+    tokio::spawn(async move {
+        loop {
+            if let Ok(result) = receiver.recv().await {
+                assert!(result.0.is_ok());
+                batch_len -= 1;
+                if batch_len < 1 {
+                    break;
+                }
+            }
+        }
+    });
+
+    for tx in batch.0 {
         let txn = TransactionProto {
             transaction: Bytes::from(tx.clone()),
         };
@@ -50,27 +79,17 @@ async fn test_read_causal_signed_certificates() {
     let mut node_recovered_state = false;
     let node = cluster.authority(0);
 
-    // let mut receiver = node.primary.tx_transaction_confirmation.subscribe();
-    // loop {
-    //     if let Ok(result) = receiver.recv().await {
-    //         assert!(result.0.is_ok());
-    //         break;
-    //     }
-    // }
+    tokio::time::sleep(Duration::from_secs(1)).await;
 
-    for _ in 0..10 {
-        tokio::time::sleep(Duration::from_secs(1)).await;
+    let metric_family = node.primary.registry.gather();
 
-        let metric_family = node.primary.registry.gather();
-
-        for metric in metric_family {
-            if metric.get_name() == "recovered_consensus_state" {
-                let value = metric.get_metric().first().unwrap().get_gauge().get_value();
-                info!("Found metric for recovered consensus state.");
-                if value > 0.0 {
-                    node_recovered_state = true;
-                    break;
-                }
+    for metric in metric_family {
+        if metric.get_name() == "recovered_consensus_state" {
+            let value = metric.get_metric().first().unwrap().get_gauge().get_value();
+            info!("Found metric for recovered consensus state.");
+            if value > 0.0 {
+                node_recovered_state = true;
+                break;
             }
         }
     }
