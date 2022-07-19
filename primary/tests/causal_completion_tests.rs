@@ -1,9 +1,15 @@
+use std::ops::Deref;
+use std::sync::Arc;
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
+use arc_swap::access::{Access, DynAccess};
+use arc_swap::ArcSwap;
 use bytes::Bytes;
+use config::Committee;
+use crypto::ed25519::Ed25519PublicKey;
 use std::time::Duration;
 use test_utils::cluster::Cluster;
-use test_utils::transaction;
+use test_utils::{committee, transaction};
 use tracing::{info, subscriber::set_global_default};
 use tracing_subscriber::filter::{EnvFilter, LevelFilter};
 use types::{TransactionProto, TransactionsClient};
@@ -20,7 +26,17 @@ async fn test_read_causal_signed_certificates() {
     // start the cluster
     cluster.start(Some(4), Some(1)).await;
 
-    let mut client = TransactionsClient::new(cluster.worker_channel.clone());
+    let multiaddr = cluster.authorities()[0].worker(0).transactions_address;
+    let addr = multiaddr.to_string();
+
+    let committee = arc_swap::access::Access::load(&cluster.committee_shared).deref();
+
+    let id = 0;
+    let name = cluster.authority(0).name;
+    let address = c.worker(&name, &id).unwrap().transactions;
+    let config = mysten_network::config::Config::new();
+    let channel = config.connect_lazy(&address).unwrap();
+    let mut client = TransactionsClient::new(channel);
 
     for tx in vec![transaction(), transaction(), transaction()] {
         let txn = TransactionProto {

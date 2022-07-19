@@ -20,7 +20,6 @@ use tokio::{
     sync::{broadcast::Sender, mpsc::channel},
     task::JoinHandle,
 };
-use tonic::transport::Channel;
 use tracing::info;
 
 #[cfg(test)]
@@ -32,7 +31,6 @@ pub struct Cluster {
     pub committee_shared: SharedCommittee<Ed25519PublicKey>,
     #[allow(dead_code)]
     parameters: Parameters,
-    pub worker_channel: Channel,
 }
 
 impl Cluster {
@@ -45,15 +43,13 @@ impl Cluster {
         parameters: Option<Parameters>,
         input_committee: Option<Committee<Ed25519PublicKey>>,
     ) -> Self {
-        let k = keys(None);
-        let name = k[0].public().clone();
         let c = input_committee.unwrap_or_else(|| committee(None));
-        let address = c.worker(&name, &0).unwrap().transactions;
         let shared_committee = Arc::new(ArcSwap::from_pointee(c));
         let params = parameters.unwrap_or_else(Self::parameters);
 
         info!("###### Creating new cluster ######");
         info!("Validator keys:");
+        let k = keys(None);
         let mut nodes = HashMap::new();
 
         for (id, key_pair) in k.into_iter().enumerate() {
@@ -64,14 +60,10 @@ impl Cluster {
             nodes.insert(id, authority);
         }
 
-        let config = mysten_network::config::Config::new();
-        let worker_channel = config.connect_lazy(&address).unwrap();
-
         Self {
             authorities: nodes,
             committee_shared: shared_committee,
             parameters: params,
-            worker_channel,
         }
     }
 
