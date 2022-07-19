@@ -42,7 +42,7 @@ pub struct BLS12377PublicKey {
     pub bytes: OnceCell<[u8; CELO_BLS_PUBLIC_KEY_LENGTH]>,
 }
 
-pub type BLS12377PublicKeyBytes = PublicKeyBytes<BLS12377PublicKey, { CELO_BLS_PUBLIC_KEY_LENGTH }>;
+pub type BLS12377PublicKeyBytes = PublicKeyBytes<BLS12377PublicKey, { BLS12377PublicKey::LENGTH }>;
 
 #[readonly::make]
 #[derive(Debug)]
@@ -259,7 +259,6 @@ impl<'a> From<&'a BLS12377PrivateKey> for BLS12377PublicKey {
 impl VerifyingKey for BLS12377PublicKey {
     type PrivKey = BLS12377PrivateKey;
     type Sig = BLS12377Signature;
-    type Bytes = BLS12377PublicKeyBytes;
     const LENGTH: usize = CELO_BLS_PUBLIC_KEY_LENGTH;
 
     fn verify_batch(msg: &[u8], pks: &[Self], sigs: &[Self::Sig]) -> Result<(), signature::Error> {
@@ -549,19 +548,6 @@ impl TryFrom<BLS12377PublicKeyBytes> for BLS12377PublicKey {
 
 impl From<&BLS12377PublicKey> for BLS12377PublicKeyBytes {
     fn from(pk: &BLS12377PublicKey) -> Self {
-        let pk_bytes =
-            pk
-            .bytes
-            .get_or_try_init::<_, eyre::Report>(|| {
-                let mut bytes = [0u8; CELO_BLS_PUBLIC_KEY_LENGTH];
-                pk.pubkey
-                    .as_ref()
-                    .into_affine()
-                    .serialize(&mut bytes[..])
-                    .unwrap();
-                Ok(bytes)
-            })
-            .expect("OnceCell invariant violated");
-        BLS12377PublicKeyBytes::new(pk_bytes)
+        BLS12377PublicKeyBytes::from_bytes(pk.as_ref()).unwrap()
     }
 }

@@ -25,8 +25,7 @@ use crate::{
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ed25519PublicKey(pub ed25519_dalek::PublicKey);
 
-pub type Ed25519PublicKeyBytes =
-    PublicKeyBytes<Ed25519PublicKey, { ed25519_dalek::PUBLIC_KEY_LENGTH }>;
+pub type Ed25519PublicKeyBytes = PublicKeyBytes<Ed25519PublicKey, { Ed25519PublicKey::LENGTH }>;
 
 #[derive(Debug)]
 pub struct Ed25519PrivateKey(pub ed25519_dalek::SecretKey);
@@ -64,7 +63,6 @@ impl<'a> From<&'a Ed25519PrivateKey> for Ed25519PublicKey {
 impl VerifyingKey for Ed25519PublicKey {
     type PrivKey = Ed25519PrivateKey;
     type Sig = Ed25519Signature;
-    type Bytes = Ed25519PublicKeyBytes;
     const LENGTH: usize = ed25519_dalek::PUBLIC_KEY_LENGTH;
 
     fn verify_batch(msg: &[u8], pks: &[Self], sigs: &[Self::Sig]) -> Result<(), signature::Error> {

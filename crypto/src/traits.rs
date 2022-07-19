@@ -6,13 +6,9 @@ use eyre::eyre;
 
 use rand::{CryptoRng, RngCore};
 
-use core::hash::Hash;
 use serde::{de::DeserializeOwned, Serialize};
 pub use signature::{Error, Signer};
-use std::{
-    fmt::{Debug, Display},
-    str::FromStr,
-};
+use std::fmt::{Debug, Display};
 
 pub const DEFAULT_DOMAIN: [u8; 16] = [0u8; 16];
 
@@ -89,7 +85,6 @@ pub trait VerifyingKey:
     + ToFromBytes
     + signature::Verifier<Self::Sig>
     + for <'a> From<&'a Self::PrivKey> // conversion PrivateKey -> PublicKey
-    + TryFrom<Self::Bytes>
     + Send
     + Sync
     + 'static
@@ -97,7 +92,6 @@ pub trait VerifyingKey:
 {
     type PrivKey: SigningKey<PubKey = Self>;
     type Sig: Authenticator<PubKey = Self>;
-    type Bytes: KeyBytes + From<&'static Self>;
     const LENGTH: usize;
 
     // Expected to be overridden by implementations
@@ -189,21 +183,4 @@ pub trait AggregateAuthenticator:
         pks: &[&[Self::PubKey]],
         messages: &[&[u8]],
     ) -> Result<(), Error>;
-}
-
-pub trait KeyBytes:
-    AsRef<[u8]>
-    + Display
-    + Serialize
-    + DeserializeOwned
-    + Copy
-    + Debug
-    + PartialEq
-    + Eq
-    + Hash
-    + PartialOrd
-    + Ord
-    + ToFromBytes
-    + FromStr
-{
 }

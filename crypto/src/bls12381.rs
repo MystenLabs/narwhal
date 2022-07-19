@@ -43,7 +43,7 @@ pub struct BLS12381PublicKey {
     pub bytes: OnceCell<[u8; BLS_PUBLIC_KEY_LENGTH]>,
 }
 
-pub type BLS12381PublicKeyBytes = PublicKeyBytes<BLS12381PublicKey, BLS_PUBLIC_KEY_LENGTH>;
+pub type BLS12381PublicKeyBytes = PublicKeyBytes<BLS12381PublicKey, { BLS12381PublicKey::LENGTH }>;
 
 #[readonly::make]
 #[derive(Default, Debug)]
@@ -182,7 +182,6 @@ impl<'a> From<&'a BLS12381PrivateKey> for BLS12381PublicKey {
 impl VerifyingKey for BLS12381PublicKey {
     type PrivKey = BLS12381PrivateKey;
     type Sig = BLS12381Signature;
-    type Bytes = BLS12381PublicKeyBytes;
 
     const LENGTH: usize = BLS_PUBLIC_KEY_LENGTH;
 
@@ -566,12 +565,7 @@ impl TryFrom<BLS12381PublicKeyBytes> for BLS12381PublicKey {
 }
 
 impl From<&BLS12381PublicKey> for BLS12381PublicKeyBytes {
-    fn from(s: &BLS12381PublicKey) -> BLS12381PublicKeyBytes {
-        BLS12381PublicKeyBytes::new(
-            s.bytes
-                .get_or_try_init::<_, eyre::Report>(|| Ok(s.pubkey.to_bytes()))
-                .expect("OnceCell invariant violated")
-                .clone()
-        )
+    fn from(pk: &BLS12381PublicKey) -> BLS12381PublicKeyBytes {
+        BLS12381PublicKeyBytes::from_bytes(pk.as_ref()).unwrap()
     }
 }

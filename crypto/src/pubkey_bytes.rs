@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use self::sealed::SealedPublicKeyLength;
-use crate::traits::{KeyBytes, ToFromBytes, VerifyingKey};
+use crate::traits::{ToFromBytes, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, Bytes};
 use std::{fmt::Display, marker::PhantomData, str::FromStr};
@@ -79,11 +79,9 @@ impl<T: VerifyingKey, const N: usize> FromStr for PublicKeyBytes<T, N> {
 
 impl<T: VerifyingKey, const N: usize> Copy for PublicKeyBytes<T, N> {}
 
-impl<T: VerifyingKey, const N: usize> KeyBytes for PublicKeyBytes<T, N> {}
-
 // This guarantees the security of the constructor of a `PublicKeyBytes` instance
 // TODO: replace this clunky sealed marker trait once feature(associated_const_equality) stabilizes
-pub mod sealed {
+mod sealed {
     #[cfg(feature = "celo")]
     use crate::bls12377::BLS12377PublicKeyBytes;
 
