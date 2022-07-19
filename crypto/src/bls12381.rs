@@ -561,14 +561,17 @@ impl TryFrom<BLS12381PublicKeyBytes> for BLS12381PublicKey {
     type Error = signature::Error;
 
     fn try_from(bytes: BLS12381PublicKeyBytes) -> Result<BLS12381PublicKey, Self::Error> {
-        // TODO(https://github.com/MystenLabs/sui/issues/101): Do better key validation
-        // to ensure the bytes represent a poin on the curve.
         BLS12381PublicKey::from_bytes(bytes.as_ref()).map_err(|_| Self::Error::new())
     }
 }
 
 impl From<&BLS12381PublicKey> for BLS12381PublicKeyBytes {
     fn from(s: &BLS12381PublicKey) -> BLS12381PublicKeyBytes {
-        BLS12381PublicKeyBytes::new(s.pubkey.to_bytes())
+        BLS12381PublicKeyBytes::new(
+            s.bytes
+                .get_or_try_init::<_, eyre::Report>(|| Ok(s.pubkey.to_bytes()))
+                .expect("OnceCell invariant violated")
+                .clone()
+        )
     }
 }
