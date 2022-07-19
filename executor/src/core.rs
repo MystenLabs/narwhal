@@ -12,11 +12,14 @@ use crypto::traits::VerifyingKey;
 use std::{fmt::Debug, sync::Arc};
 use store::Store;
 use tokio::{
-    sync::mpsc::{Receiver, Sender},
+    sync::{
+        mpsc::{Receiver, Sender},
+        watch,
+    },
     task::JoinHandle,
 };
 use tracing::debug;
-use types::{Batch, BatchDigest, SequenceNumber, SerializedBatchMessage};
+use types::{Batch, BatchDigest, ReconfigureNotification, SequenceNumber, SerializedBatchMessage};
 use worker::WorkerMessage;
 
 #[cfg(test)]
@@ -32,6 +35,8 @@ pub struct Core<State: ExecutionState, PublicKey: VerifyingKey> {
     store: Store<BatchDigest, SerializedBatchMessage>,
     /// The (global) state to perform execution.
     execution_state: Arc<State>,
+    /// Receive reconfiguration updates.
+    rx_reconfigure: watch::Receiver<ReconfigureNotification<PublicKey>>,
     /// Receive ordered consensus output to execute.
     rx_subscriber: Receiver<ConsensusOutput<PublicKey>>,
     /// Outputs executed transactions.
@@ -60,6 +65,7 @@ where
     pub fn spawn(
         store: Store<BatchDigest, SerializedBatchMessage>,
         execution_state: Arc<State>,
+        rx_reconfigure: watch::Receiver<ReconfigureNotification<PublicKey>>,
         rx_subscriber: Receiver<ConsensusOutput<PublicKey>>,
         tx_output: Sender<(
             SubscriberResult<<State as ExecutionState>::Outcome>,
@@ -74,6 +80,7 @@ where
             Self {
                 store,
                 execution_state,
+                rx_reconfigure,
                 rx_subscriber,
                 tx_output,
                 execution_indices,
@@ -86,15 +93,28 @@ where
 
     /// Main loop listening to new certificates and execute them.
     async fn run(&mut self) -> SubscriberResult<()> {
-        while let Some(message) = self.rx_subscriber.recv().await {
-            // Execute all transactions associated with the consensus output message. This function
-            // also persist the necessary data to enable crash-recovery.
-            self.execute_certificate(&message).await?;
+        loop {
+            tokio::select! {
+                // Execute all transactions associated with the consensus output message.
+                Some(message) = self.rx_subscriber.recv() => {
+                    // This function persists the necessary data to enable crash-recovery.
+                    self.execute_certificate(&message).await?;
 
-            // Cleanup the temporary persistent storage.
-            // TODO [issue #191]: Security cleanup the store.
+                    // Cleanup the temporary persistent storage.
+                    // TODO [issue #191]: Security cleanup the store.
+                },
+
+                // Check whether the committee changed.
+                result = self.rx_reconfigure.changed() => {
+                    result.expect("Committee channel dropped");
+                    let message = self.rx_reconfigure.borrow().clone();
+                    match message {
+                        ReconfigureNotification::NewCommittee(_) => (),
+                        ReconfigureNotification::Shutdown => return Ok(())
+                    }
+                }
+            }
         }
-        Ok(())
     }
 
     /// Execute a single certificate.
@@ -221,6 +241,8 @@ where
         // and are only used for crash-recovery.
         self.execution_indices
             .next(total_batches, total_transactions);
+
+        println!("Core received {serialized:?}");
 
         // The consensus simply orders bytes, so we first need to deserialize the transaction.
         // If the deserialization fail it is safe to ignore the transaction since all correct

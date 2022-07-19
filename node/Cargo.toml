@@ -44,6 +44,8 @@ serde-reflection = "0.3.6"
 serde_yaml = "0.8.24"
 structopt = "0.3.26"
 test_utils = { path = "../test_utils" }
+network = { path = "../network" }
+mysten-network = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "c6dc7a23a40b3517f138d122a76d3bc15f844f67" }
 
 [features]
 benchmark = ["worker/benchmark", "primary/benchmark", "consensus/benchmark"]

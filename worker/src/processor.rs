@@ -15,7 +15,8 @@ use tokio::{
 };
 use tracing::error;
 use types::{
-    serialized_batch_digest, BatchDigest, ReconfigureNotification, SerializedBatchMessage,
+    error::DagError, serialized_batch_digest, BatchDigest, ReconfigureNotification,
+    SerializedBatchMessage,
 };
 
 #[cfg(test)]
@@ -57,10 +58,12 @@ impl Processor {
                                     true => WorkerPrimaryMessage::OurBatch(digest, id),
                                     false => WorkerPrimaryMessage::OthersBatch(digest, id),
                                 };
-                                tx_digest
+                                if tx_digest
                                     .send(message)
                                     .await
-                                    .expect("Failed to send digest");
+                                    .is_err() {
+                                    tracing::debug!("{}", DagError::ShuttingDown);
+                                };
                             }
                             Err(error) => {
                                 error!("Received invalid batch, serialization failure: {error}");

@@ -1981,6 +1981,8 @@ dependencies = [
  "executor",
  "futures",
  "hex",
+ "mysten-network",
+ "network",
  "pretty_assertions",
  "primary",
  "prometheus",

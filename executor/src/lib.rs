@@ -30,11 +30,14 @@ use serde::de::DeserializeOwned;
 use std::{fmt::Debug, sync::Arc};
 use store::Store;
 use tokio::{
-    sync::mpsc::{channel, Receiver, Sender},
+    sync::{
+        mpsc::{channel, Receiver, Sender},
+        watch,
+    },
     task::JoinHandle,
 };
 use tracing::info;
-use types::{BatchDigest, SerializedBatchMessage};
+use types::{BatchDigest, ReconfigureNotification, SerializedBatchMessage};
 
 /// Default inter-task channel size.
 pub const DEFAULT_CHANNEL_SIZE: usize = 1_000;
@@ -79,6 +82,12 @@ pub trait ExecutionState {
     async fn load_execution_indices(&self) -> Result<ExecutionIndices, Self::Error>;
 }
 
+/// The output of the executor.
+pub type ExecutorOutput<State> = (
+    SubscriberResult<<State as ExecutionState>::Outcome>,
+    SerializedTransaction,
+);
+
 /// A client subscribing to the consensus output and executing every transaction.
 pub struct Executor;
 
@@ -89,12 +98,10 @@ impl Executor {
         committee: SharedCommittee<PublicKey>,
         store: Store<BatchDigest, SerializedBatchMessage>,
         execution_state: Arc<State>,
+        tx_reconfigure: &watch::Sender<ReconfigureNotification<PublicKey>>,
         rx_consensus: Receiver<ConsensusOutput<PublicKey>>,
         tx_consensus: Sender<ConsensusSyncRequest>,
-        tx_output: Sender<(
-            SubscriberResult<<State as ExecutionState>::Outcome>,
-            SerializedTransaction,
-        )>,
+        tx_output: Sender<ExecutorOutput<State>>,
     ) -> SubscriberResult<Vec<JoinHandle<()>>>
     where
         State: ExecutionState + Send + Sync + 'static,
@@ -118,6 +125,7 @@ impl Executor {
         // Spawn the subscriber.
         let subscriber_handle = Subscriber::<PublicKey>::spawn(
             store.clone(),
+            tx_reconfigure.subscribe(),
             rx_consensus,
             tx_consensus,
             tx_batch_loader,
@@ -129,6 +137,7 @@ impl Executor {
         let executor_handle = Core::<State, PublicKey>::spawn(
             store.clone(),
             execution_state,
+            tx_reconfigure.subscribe(),
             /* rx_subscriber */ rx_executor,
             tx_output,
         );
@@ -145,7 +154,12 @@ impl Executor {
             .iter()
             .map(|(id, x)| (*id, x.worker_to_worker.clone()))
             .collect();
-        let batch_loader_handle = BatchLoader::spawn(store, rx_batch_loader, worker_addresses);
+        let batch_loader_handle = BatchLoader::spawn(
+            store,
+            tx_reconfigure.subscribe(),
+            rx_batch_loader,
+            worker_addresses,
+        );
 
         // Return the handle.
         info!("Consensus subscriber successfully started");

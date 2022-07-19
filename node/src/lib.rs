@@ -5,7 +5,7 @@ use consensus::{
     bullshark::Bullshark, dag::Dag, metrics::ConsensusMetrics, Consensus, SubscriberHandler,
 };
 use crypto::traits::{KeyPair, Signer, VerifyingKey};
-use executor::{ExecutionState, Executor, SerializedTransaction, SubscriberResult};
+use executor::{ExecutionState, Executor, ExecutorOutput, SerializedTransaction, SubscriberResult};
 use primary::{NetworkModel, PayloadToken, Primary};
 use prometheus::Registry;
 use std::{fmt::Debug, sync::Arc};
@@ -115,10 +115,7 @@ impl Node {
         // The state used by the client to execute transactions.
         execution_state: Arc<State>,
         // A channel to output transactions execution confirmations.
-        tx_confirmation: Sender<(
-            SubscriberResult<<State as ExecutionState>::Outcome>,
-            SerializedTransaction,
-        )>,
+        tx_confirmation: Sender<ExecutorOutput<State>>,
         // A prometheus exporter Registry to use for the metrics
         registry: &Registry,
     ) -> SubscriberResult<Vec<JoinHandle<()>>>
@@ -130,7 +127,7 @@ impl Node {
         State::Error: Debug,
     {
         let initial_committee = ReconfigureNotification::NewCommittee((**committee.load()).clone());
-        let (tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
+        let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
 
         let (tx_new_certificates, rx_new_certificates) = channel(Self::CHANNEL_CAPACITY);
         let (tx_consensus, rx_consensus) = channel(Self::CHANNEL_CAPACITY);
@@ -152,8 +149,7 @@ impl Node {
                 store,
                 parameters.clone(),
                 execution_state,
-                tx_reconfigure.subscribe(),
-                rx_reconfigure,
+                &tx_reconfigure,
                 rx_new_certificates,
                 tx_consensus.clone(),
                 tx_confirmation,
@@ -193,8 +189,7 @@ impl Node {
         store: &NodeStorage<PublicKey>,
         parameters: Parameters,
         execution_state: Arc<State>,
-        rx_reconfigure_consensus: watch::Receiver<ReconfigureNotification<PublicKey>>,
-        rx_reconfigure_subscriber: watch::Receiver<ReconfigureNotification<PublicKey>>,
+        tx_reconfigure: &watch::Sender<ReconfigureNotification<PublicKey>>,
         rx_new_certificates: Receiver<Certificate<PublicKey>>,
         tx_feedback: Sender<Certificate<PublicKey>>,
         tx_confirmation: Sender<(
@@ -223,7 +218,7 @@ impl Node {
         let consensus_handles = Consensus::spawn(
             (**committee.load()).clone(),
             store.consensus_store.clone(),
-            rx_reconfigure_consensus,
+            tx_reconfigure.subscribe(),
             /* rx_primary */ rx_new_certificates,
             /* tx_primary */ tx_feedback,
             /* tx_output */ tx_sequence,
@@ -237,7 +232,7 @@ impl Node {
         let subscriber_handles = SubscriberHandler::spawn(
             store.consensus_store.clone(),
             store.certificate_store.clone(),
-            rx_reconfigure_subscriber,
+            tx_reconfigure.subscribe(),
             rx_sequence,
             /* rx_client */ rx_client_to_consensus,
             /* tx_client */ tx_consensus_to_client,
@@ -250,6 +245,7 @@ impl Node {
             committee,
             store.batch_store.clone(),
             execution_state,
+            tx_reconfigure,
             /* rx_consensus */ rx_consensus_to_client,
             /* tx_consensus */ tx_client_to_consensus,
             /* tx_output */ tx_confirmation,
