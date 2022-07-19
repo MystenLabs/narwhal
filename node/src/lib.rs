@@ -8,7 +8,7 @@ use crypto::traits::{KeyPair, Signer, VerifyingKey};
 use executor::{ExecutionState, Executor, SerializedTransaction, SubscriberResult};
 use primary::{NetworkModel, PayloadToken, Primary};
 use prometheus::Registry;
-use std::sync::Arc;
+use std::{fmt::Debug, sync::Arc};
 use store::{
     reopen,
     rocks::{open_cf, DBMap},
@@ -127,6 +127,7 @@ impl Node {
         Keys: KeyPair<PubKey = PublicKey> + Signer<PublicKey::Sig> + Send + 'static,
         State: ExecutionState + Send + Sync + 'static,
         State::Outcome: Send + 'static,
+        State::Error: Debug,
     {
         let initial_committee = ReconfigureNotification::NewCommittee((**committee.load()).clone());
         let (tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
@@ -136,6 +137,7 @@ impl Node {
 
         // Compute the public key of this authority.
         let name = keypair.public().clone();
+        let mut handles = Vec::new();
 
         let (dag, network_model) = if !internal_consensus {
             debug!("Consensus is disabled: the primary will run w/o Tusk");
@@ -144,7 +146,7 @@ impl Node {
                 Dag::new(&*committee.load(), rx_new_certificates, consensus_metrics);
             (Some(Arc::new(dag)), NetworkModel::Asynchronous)
         } else {
-            Self::spawn_consensus(
+            let consensus_handles = Self::spawn_consensus(
                 name.clone(),
                 committee.clone(),
                 store,
@@ -158,6 +160,7 @@ impl Node {
                 registry,
             )
             .await?;
+            handles.extend(consensus_handles);
             (None, NetworkModel::PartiallySynchronous)
         };
 
@@ -178,8 +181,9 @@ impl Node {
             tx_consensus,
             registry,
         );
+        handles.extend(primary_handles);
 
-        Ok(primary_handles)
+        Ok(handles)
     }
 
     /// Spawn the consensus core and the client executing transactions.
@@ -198,11 +202,12 @@ impl Node {
             SerializedTransaction,
         )>,
         registry: &Registry,
-    ) -> SubscriberResult<()>
+    ) -> SubscriberResult<Vec<JoinHandle<()>>>
     where
         PublicKey: VerifyingKey,
         State: ExecutionState + Send + Sync + 'static,
         State::Outcome: Send + 'static,
+        State::Error: Debug,
     {
         let (tx_sequence, rx_sequence) = channel(Self::CHANNEL_CAPACITY);
         let (tx_consensus_to_client, rx_consensus_to_client) = channel(Self::CHANNEL_CAPACITY);
@@ -215,7 +220,7 @@ impl Node {
             store.consensus_store.clone(),
             parameters.gc_depth,
         );
-        Consensus::spawn(
+        let consensus_handles = Consensus::spawn(
             (**committee.load()).clone(),
             store.consensus_store.clone(),
             rx_reconfigure_consensus,
@@ -229,7 +234,7 @@ impl Node {
         // The subscriber handler receives the ordered sequence from consensus and feed them
         // to the executor. The executor has its own state and data store who may crash
         // independently of the narwhal node.
-        SubscriberHandler::spawn(
+        let subscriber_handles = SubscriberHandler::spawn(
             store.consensus_store.clone(),
             store.certificate_store.clone(),
             rx_reconfigure_subscriber,
@@ -240,7 +245,7 @@ impl Node {
 
         // Spawn the client executing the transactions. It can also synchronize with the
         // subscriber handler if it missed some transactions.
-        Executor::spawn(
+        let executor_handles = Executor::spawn(
             name,
             committee,
             store.batch_store.clone(),
@@ -251,7 +256,11 @@ impl Node {
         )
         .await?;
 
-        Ok(())
+        Ok(executor_handles
+            .into_iter()
+            .chain(std::iter::once(consensus_handles))
+            .chain(std::iter::once(subscriber_handles))
+            .collect())
     }
 
     /// Spawn a specified number of workers.

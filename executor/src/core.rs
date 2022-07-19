@@ -9,7 +9,7 @@ use crate::{
 use config::Committee;
 use consensus::ConsensusOutput;
 use crypto::traits::VerifyingKey;
-use std::sync::Arc;
+use std::{fmt::Debug, sync::Arc};
 use store::Store;
 use tokio::{
     sync::mpsc::{Receiver, Sender},
@@ -53,6 +53,7 @@ impl<State, PublicKey> Core<State, PublicKey>
 where
     State: ExecutionState + Send + Sync + 'static,
     State::Outcome: Send + 'static,
+    State::Error: Debug,
     PublicKey: VerifyingKey,
 {
     /// Spawn a new executor in a dedicated tokio task.
@@ -64,9 +65,12 @@ where
             SubscriberResult<<State as ExecutionState>::Outcome>,
             SerializedTransaction,
         )>,
-    ) -> JoinHandle<SubscriberResult<()>> {
+    ) -> JoinHandle<()> {
         tokio::spawn(async move {
-            let execution_indices = execution_state.load_execution_indices().await?;
+            let execution_indices = execution_state
+                .load_execution_indices()
+                .await
+                .expect("Failed to load execution indices from store");
             Self {
                 store,
                 execution_state,
@@ -76,6 +80,7 @@ where
             }
             .run()
             .await
+            .expect("Failed to run core")
         })
     }
 

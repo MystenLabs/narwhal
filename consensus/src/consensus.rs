@@ -147,9 +147,11 @@ where
         tx_output: Sender<ConsensusOutput<PublicKey>>,
         protocol: Protocol,
         metrics: Arc<ConsensusMetrics>,
-    ) -> JoinHandle<StoreResult<()>> {
+    ) -> JoinHandle<()> {
         tokio::spawn(async move {
-            let consensus_index = store.read_last_consensus_index()?;
+            let consensus_index = store
+                .read_last_consensus_index()
+                .expect("Failed to load consensus index from store");
             Self {
                 committee,
                 rx_reconfigure,
@@ -162,6 +164,7 @@ where
             }
             .run()
             .await
+            .expect("Failed to run consensus")
         })
     }
 

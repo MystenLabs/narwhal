@@ -95,14 +95,11 @@ impl Executor {
             SubscriberResult<<State as ExecutionState>::Outcome>,
             SerializedTransaction,
         )>,
-    ) -> SubscriberResult<(
-        JoinHandle<SubscriberResult<()>>,
-        JoinHandle<SubscriberResult<()>>,
-        JoinHandle<SubscriberResult<()>>,
-    )>
+    ) -> SubscriberResult<Vec<JoinHandle<()>>>
     where
         State: ExecutionState + Send + Sync + 'static,
         State::Outcome: Send + 'static,
+        State::Error: Debug,
         PublicKey: VerifyingKey,
     {
         let (tx_batch_loader, rx_batch_loader) = channel(DEFAULT_CHANNEL_SIZE);
@@ -152,6 +149,10 @@ impl Executor {
 
         // Return the handle.
         info!("Consensus subscriber successfully started");
-        Ok((subscriber_handle, executor_handle, batch_loader_handle))
+        Ok(vec![
+            subscriber_handle,
+            executor_handle,
+            batch_loader_handle,
+        ])
     }
 }

@@ -45,7 +45,7 @@ impl<PublicKey: VerifyingKey> SubscriberHandler<PublicKey> {
         rx_sequence: Receiver<ConsensusOutput<PublicKey>>,
         rx_client: Receiver<ConsensusSyncRequest>,
         tx_client: Sender<ConsensusOutput<PublicKey>>,
-    ) -> JoinHandle<StoreResult<()>> {
+    ) -> JoinHandle<()> {
         tokio::spawn(async move {
             Self {
                 consensus_store,
@@ -57,6 +57,7 @@ impl<PublicKey: VerifyingKey> SubscriberHandler<PublicKey> {
             }
             .run()
             .await
+            .expect("Failed to run subscriber")
         })
     }
 

@@ -40,7 +40,7 @@ impl<PublicKey: VerifyingKey> BatchLoader<PublicKey> {
         store: Store<BatchDigest, SerializedBatchMessage>,
         rx_input: Receiver<ConsensusOutput<PublicKey>>,
         addresses: HashMap<WorkerId, Multiaddr>,
-    ) -> JoinHandle<SubscriberResult<()>> {
+    ) -> JoinHandle<()> {
         tokio::spawn(async move {
             Self {
                 store,
@@ -50,6 +50,7 @@ impl<PublicKey: VerifyingKey> BatchLoader<PublicKey> {
             }
             .run()
             .await
+            .expect("Failed to run batch loader")
         })
     }
 
