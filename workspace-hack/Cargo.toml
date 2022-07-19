@@ -67,10 +67,13 @@ constant_time_eq = { version = "0.1", default-features = false }
 core2 = { version = "0.4", default-features = false, features = ["alloc"] }
 criterion = { version = "0.3", features = ["cargo_bench_support"] }
 criterion-plot = { version = "0.4", default-features = false }
+crossbeam = { version = "0.8", features = ["alloc", "crossbeam-channel", "crossbeam-deque", "crossbeam-epoch", "crossbeam-queue", "std"] }
 crossbeam-channel = { version = "0.5", features = ["crossbeam-utils", "std"] }
 crossbeam-deque = { version = "0.8", features = ["crossbeam-epoch", "crossbeam-utils", "std"] }
 crossbeam-epoch = { version = "0.9", default-features = false, features = ["alloc", "lazy_static", "std"] }
+crossbeam-queue = { version = "0.3", default-features = false, features = ["alloc", "std"] }
 crossbeam-utils = { version = "0.8", features = ["lazy_static", "std"] }
+crossterm = { version = "0.24" }
 crypto-common = { version = "0.1", default-features = false, features = ["std"] }
 crypto-mac = { version = "0.8", default-features = false, features = ["std"] }
 csv = { version = "1", default-features = false }
@@ -100,12 +103,13 @@ fragile = { version = "1", default-features = false }
 futures = { version = "0.3", features = ["alloc", "async-await", "executor", "futures-executor", "std"] }
 futures-channel = { version = "0.3", features = ["alloc", "futures-sink", "sink", "std"] }
 futures-core = { version = "0.3", features = ["alloc", "std"] }
-futures-executor = { version = "0.3", default-features = false, features = ["std"] }
+futures-executor = { version = "0.3", features = ["std"] }
 futures-io = { version = "0.3", default-features = false, features = ["std"] }
 futures-sink = { version = "0.3", features = ["alloc", "std"] }
 futures-task = { version = "0.3", default-features = false, features = ["alloc", "std"] }
 futures-util = { version = "0.3", default-features = false, features = ["alloc", "async-await", "async-await-macro", "channel", "futures-channel", "futures-io", "futures-macro", "futures-sink", "io", "memchr", "sink", "slab", "std"] }
 generic-array = { version = "0.14", default-features = false, features = ["more_lengths"] }
+gethostname = { version = "0.2", default-features = false }
 getrandom-c65f7effa3be6d31 = { package = "getrandom", version = "0.1", default-features = false, features = ["std"] }
 getrandom-6f8ce4dd05d13bba = { package = "getrandom", version = "0.2", default-features = false, features = ["std"] }
 gimli = { version = "0.26", default-features = false, features = ["read", "read-core"] }
@@ -130,9 +134,11 @@ idna = { version = "0.2", default-features = false }
 indenter = { version = "0.3" }
 indexmap = { version = "1", default-features = false, features = ["std"] }
 instant = { version = "0.1", default-features = false }
+integer-encoding = { version = "3", default-features = false }
 itertools = { version = "0.10", features = ["use_alloc", "use_std"] }
 itoa-9fbad63c4bcf4a8f = { package = "itoa", version = "0.4", features = ["std"] }
 itoa-dff4ba8e3ae991db = { package = "itoa", version = "1", default-features = false }
+json = { version = "0.12", default-features = false }
 keccak = { version = "0.1", default-features = false }
 lazy_static = { version = "1", default-features = false }
 libc = { version = "0.2", features = ["std"] }
@@ -166,6 +172,10 @@ object = { version = "0.28", default-features = false, features = ["archive", "c
 once_cell = { version = "1", features = ["alloc", "race", "std"] }
 oorandom = { version = "11", default-features = false }
 opaque-debug = { version = "0.3", default-features = false }
+opentelemetry = { version = "0.17", features = ["async-trait", "crossbeam-channel", "percent-encoding", "pin-project", "rand", "rt-tokio", "tokio", "tokio-stream", "trace"] }
+opentelemetry-jaeger = { version = "0.16", features = ["rt-tokio", "tokio"] }
+opentelemetry-semantic-conventions = { version = "0.9", default-features = false }
+ordered-float = { version = "1", features = ["std"] }
 os_str_bytes = { version = "6", default-features = false, features = ["raw_os_str"] }
 parking_lot = { version = "0.12" }
 parking_lot_core = { version = "0.9", default-features = false }
@@ -240,6 +250,7 @@ structopt = { version = "0.3" }
 subtle = { version = "2", default-features = false, features = ["std"] }
 syn-dff4ba8e3ae991db = { package = "syn", version = "1", features = ["clone-impls", "derive", "extra-traits", "full", "parsing", "printing", "proc-macro", "quote", "visit", "visit-mut"] }
 sync_wrapper = { version = "0.1", default-features = false }
+telemetry-subscribers = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "49613b62072eba3f3b2316f54fbe6a9e1926697b", features = ["chrome", "jaeger", "opentelemetry", "opentelemetry-jaeger", "tracing-chrome", "tracing-opentelemetry"] }
 tempfile = { version = "3", default-features = false }
 termcolor = { version = "1", default-features = false }
 termtree = { version = "0.2", default-features = false }
@@ -247,6 +258,8 @@ textwrap-a6292c17cd707f01 = { package = "textwrap", version = "0.11", default-fe
 textwrap-3575ec1268b04181 = { package = "textwrap", version = "0.15", default-features = false }
 thiserror = { version = "1", default-features = false }
 thread_local = { version = "1", default-features = false }
+threadpool = { version = "1", default-features = false }
+thrift = { version = "0.15", default-features = false }
 time = { version = "0.3", features = ["alloc", "formatting", "itoa", "std"] }
 tinytemplate = { version = "1", default-features = false }
 tinyvec = { version = "1", features = ["alloc", "tinyvec_macros"] }
@@ -264,14 +277,18 @@ tower-http = { version = "0.3", features = ["map-response-body", "propagate-head
 tower-layer = { version = "0.3", default-features = false }
 tower-service = { version = "0.3", default-features = false }
 tracing = { version = "0.1", features = ["attributes", "log", "std", "tracing-attributes"] }
+tracing-appender = { version = "0.2", default-features = false }
+tracing-bunyan-formatter = { version = "0.3" }
+tracing-chrome = { version = "0.6", default-features = false }
 tracing-core = { version = "0.1", features = ["once_cell", "std"] }
 tracing-futures = { version = "0.2", features = ["pin-project", "std", "std-future"] }
 tracing-log = { version = "0.1", features = ["log-tracer", "std", "trace-logger"] }
+tracing-opentelemetry = { version = "0.17", features = ["tracing-log"] }
 tracing-subscriber-6f8ce4dd05d13bba = { package = "tracing-subscriber", version = "0.2", default-features = false }
 tracing-subscriber-468e82937335b1c9 = { package = "tracing-subscriber", version = "0.3", features = ["alloc", "ansi", "ansi_term", "env-filter", "fmt", "matchers", "once_cell", "regex", "registry", "sharded-slab", "smallvec", "std", "thread_local", "time", "tracing", "tracing-log"] }
 tracing-test = { version = "0.2", default-features = false }
 try-lock = { version = "0.2", default-features = false }
-typed-store = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "7e9b7568fc7184b4938976330122f3c8064e3236", default-features = false }
+typed-store = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "49613b62072eba3f3b2316f54fbe6a9e1926697b", default-features = false }
 typenum = { version = "1", default-features = false }
 unicode-bidi = { version = "0.3", features = ["hardcoded-data", "std"] }
 unicode-ident = { version = "1", default-features = false }
