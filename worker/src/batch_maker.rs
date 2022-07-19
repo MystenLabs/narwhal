@@ -73,6 +73,7 @@ impl<PublicKey: VerifyingKey> BatchMaker<PublicKey> {
             tokio::select! {
                 // Assemble client transactions into batches of preset size.
                 Some(transaction) = self.rx_transaction.recv() => {
+                    println!("{transaction:?}");
                     self.current_batch_size += transaction.len();
                     self.current_batch.0.push(transaction);
                     if self.current_batch_size >= self.batch_size {

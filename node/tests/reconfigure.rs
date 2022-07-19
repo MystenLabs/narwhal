@@ -5,7 +5,7 @@ use bytes::Bytes;
 use config::{Committee, Parameters};
 use consensus::ConsensusOutput;
 use crypto::{
-    ed25519::{Ed25519KeyPair, Ed25519PublicKey},
+    ed25519::Ed25519KeyPair,
     traits::{KeyPair, Signer, VerifyingKey},
 };
 use executor::{ExecutionIndices, ExecutionState, ExecutionStateError, ExecutorOutput};
@@ -31,15 +31,12 @@ use types::{PrimaryMessage, ReconfigureNotification, TransactionProto, Transacti
 /// A simple/dumb execution engine.
 struct SimpleExecutionState {
     index: usize,
-    tx_reconfigure: Sender<(Ed25519KeyPair, Committee<Ed25519PublicKey>)>,
+    tx_reconfigure: Sender<(Ed25519KeyPair, u64)>,
     epoch: AtomicU64,
 }
 
 impl SimpleExecutionState {
-    pub fn new(
-        index: usize,
-        tx_reconfigure: Sender<(Ed25519KeyPair, Committee<Ed25519PublicKey>)>,
-    ) -> Self {
+    pub fn new(index: usize, tx_reconfigure: Sender<(Ed25519KeyPair, u64)>) -> Self {
         Self {
             index,
             tx_reconfigure,
@@ -77,16 +74,11 @@ impl ExecutionState for SimpleExecutionState {
                 .collect::<Vec<_>>()
                 .pop()
                 .unwrap();
-            let mut committee = committee(None);
-            committee.epoch = self.epoch.load(Ordering::Relaxed);
-            println!(
-                "[{}] Moved to E{}",
-                keypair.public().clone(),
-                committee.epoch()
-            );
+            let new_epoch = self.epoch.load(Ordering::Relaxed);
+            println!("[{}] Moved to E{}", keypair.public().clone(), new_epoch);
 
             self.tx_reconfigure
-                .send((keypair, committee))
+                .send((keypair, new_epoch))
                 .await
                 .unwrap();
         }
@@ -134,7 +126,7 @@ async fn run_node<Keys, PublicKey, State>(
     committee: &Committee<PublicKey>,
     execution_state: Arc<State>,
     parameters: Parameters,
-    mut rx_reconfigure: Receiver<(Keys, Committee<PublicKey>)>,
+    mut rx_reconfigure: Receiver<(Keys, u64)>,
     tx_output: Sender<ExecutorOutput<State>>,
 ) where
     PublicKey: VerifyingKey,
@@ -185,11 +177,11 @@ async fn run_node<Keys, PublicKey, State>(
         handles.extend(worker_handles);
 
         // Wait for a committee change.
-        let (new_keypair, new_committee) = match rx_reconfigure.recv().await {
+        let (new_keypair, new_epoch) = match rx_reconfigure.recv().await {
             Some(x) => x,
             None => break,
         };
-        println!("[{name}] Received {new_committee}");
+        println!("[{name}] Received notification for E{new_epoch}");
 
         // Shutdown all relevant components.
         let address = committee
@@ -219,7 +211,7 @@ async fn run_node<Keys, PublicKey, State>(
         // Update the settings for the next epoch.
         keypair = new_keypair;
         name = keypair.public().clone();
-        committee = new_committee;
+        committee.epoch = new_epoch;
     }
 }
 
@@ -253,8 +245,8 @@ async fn run_client<PublicKey: VerifyingKey>(
                 // Send a transactions.
                 if client.submit_transaction(tx.clone()).await.is_err() {
                     // The workers are still down.
-                    sleep(Duration::from_millis(20)).await;
-                    // println!("Worker not ready: {e}");
+                    sleep(Duration::from_millis(100)).await;
+                    // println!("Worker not ready");
                 }
             },
 
@@ -319,20 +311,27 @@ async fn restart() {
     }
 
     // Listen to the outputs.
-    let mut current_epoch = 0;
-    while let Some(output) = &rx_nodes[0].recv().await {
-        let (outcome, _tx) = output;
-        println!("{outcome:?}");
-        match outcome {
-            Ok(epoch) => {
-                if epoch > &current_epoch {
-                    current_epoch = *epoch;
-                    for tx in &tx_clients {
-                        tx.send(current_epoch).await.unwrap();
+    let mut handles = Vec::new();
+    for (tx, mut rx) in tx_clients.into_iter().zip(rx_nodes.into_iter()) {
+        handles.push(tokio::spawn(async move {
+            let mut current_epoch = 0u64;
+            while let Some(output) = rx.recv().await {
+                let (outcome, _tx) = output;
+                println!("{outcome:?}");
+                match outcome {
+                    Ok(epoch) => {
+                        if epoch == 5 {
+                            return;
+                        }
+                        if epoch > current_epoch {
+                            current_epoch = epoch;
+                            tx.send(current_epoch).await.unwrap();
+                        }
                     }
+                    Err(e) => panic!("{e}"),
                 }
             }
-            Err(e) => panic!("{e}"),
-        }
+        }));
     }
+    join_all(handles).await;
 }
