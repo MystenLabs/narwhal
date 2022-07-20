@@ -734,12 +734,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f6b64db6932c7e49332728e3a6bd82c6b7e16016607d20923b537c3bc4c0d5f"
 
 [[package]]
-name = "const-oid"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "722e23542a15cea1f65d4a1419c4cfd7a26706c70871a13a04238ca3f40f1661"
-
-[[package]]
 name = "constant_time_eq"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1150,16 +1144,7 @@ version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "51f59c66c30bb7445c8320a5f9233e437e3572368099f25532a59054328899b4"
 dependencies = [
- "const-oid 0.4.5",
-]
-
-[[package]]
-name = "der"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "13dd2ae565c0a381dde7fade45fce95984c568bdcb4700a4fdbe3175e0380b2f"
-dependencies = [
- "const-oid 0.9.0",
+ "const-oid",
 ]
 
 [[package]]
@@ -2557,7 +2542,7 @@ version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4839a901843f3942576e65857f0ebf2e190ef7024d3c62a94099ba3f819ad1d"
 dependencies = [
- "der 0.1.0",
+ "der",
 ]
 
 [[package]]
@@ -4621,7 +4606,7 @@ dependencies = [
  "clap_lex",
  "cmake",
  "collectable",
- "const-oid 0.4.5",
+ "const-oid",
  "constant_time_eq",
  "core2",
  "criterion",
@@ -4647,7 +4632,7 @@ dependencies = [
  "darling_macro 0.14.1",
  "dashmap",
  "data-encoding",
- "der 0.6.0",
+ "der",
  "derivative",
  "derive_builder",
  "derive_builder_core",
