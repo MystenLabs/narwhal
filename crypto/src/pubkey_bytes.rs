@@ -85,7 +85,10 @@ mod sealed {
     #[cfg(feature = "celo")]
     use crate::bls12377::BLS12377PublicKeyBytes;
 
-    use crate::{bls12381::BLS12381PublicKeyBytes, ed25519::Ed25519PublicKeyBytes, secp256k1::Secp256k1PublicKeyBytes};
+    use crate::{
+        bls12381::BLS12381PublicKeyBytes, ed25519::Ed25519PublicKeyBytes,
+        secp256k1::Secp256k1PublicKeyBytes,
+    };
 
     pub trait SealedPublicKeyLength {}
     impl SealedPublicKeyLength for Ed25519PublicKeyBytes {}
