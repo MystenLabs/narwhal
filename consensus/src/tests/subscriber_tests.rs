@@ -41,7 +41,7 @@ pub async fn spawn_node(
     tx_client: Sender<ConsensusOutput<Ed25519PublicKey>>,
 ) -> (
     watch::Sender<ReconfigureNotification<Ed25519PublicKey>>,
-    Vec<JoinHandle<StoreResult<()>>>,
+    Vec<JoinHandle<()>>,
 ) {
     // Make enough certificates to commit a leader.
     let certificates = commit_certificates();

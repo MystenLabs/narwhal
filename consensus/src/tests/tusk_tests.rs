@@ -506,6 +506,6 @@ async fn restart_with_new_committee() {
         tx_reconfigure.send(message).unwrap();
 
         // Ensure consensus stopped.
-        handle.await.unwrap().unwrap();
+        handle.await.unwrap();
     }
 }
