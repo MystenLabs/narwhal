@@ -355,6 +355,7 @@ glob = { version = "0.3", default-features = false }
 hashbrown-5ef9efb8ec2df382 = { package = "hashbrown", version = "0.12", default-features = false, features = ["raw"] }
 heck-468e82937335b1c9 = { package = "heck", version = "0.3", default-features = false }
 heck-9fbad63c4bcf4a8f = { package = "heck", version = "0.4" }
+hex-literal = { version = "0.3", default-features = false }
 ident_case = { version = "1", default-features = false }
 indexmap = { version = "1", default-features = false, features = ["std"] }
 itertools = { version = "0.10", features = ["use_alloc", "use_std"] }
