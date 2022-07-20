@@ -217,9 +217,7 @@ impl<PublicKey: VerifyingKey> Synchronizer<PublicKey> {
                         // Exit only when we are sure that all the other tasks received
                         // the shutdown message.
                         if shutdown {
-                            while self.tx_reconfigure.receiver_count() != 0 {
-                                tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
-                            }
+                            self.tx_reconfigure.closed().await;
                             return;
                         }
                     }

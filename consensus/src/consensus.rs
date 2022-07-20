@@ -204,6 +204,7 @@ where
                         }
                         Ordering::Less => {
                             // We already updated committee but the core is slow.
+                            tracing::debug!("Already moved to the next epoch");
                             continue
                         },
                         Ordering::Equal => {
