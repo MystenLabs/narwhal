@@ -10,9 +10,9 @@ use crypto::{
 };
 use executor::{ExecutionIndices, ExecutionState, ExecutionStateError};
 use futures::future::join_all;
-use network::{PrimaryNetwork, PrimaryToWorkerNetwork};
+use network::{ PrimaryToWorkerNetwork};
 use node::{Node, NodeController, NodeStorage};
-use primary::PrimaryWorkerMessage;
+use primary::{PrimaryWorkerMessage, WorkerPrimaryMessage};
 use prometheus::Registry;
 use std::{
     fmt::Debug,
@@ -23,7 +23,8 @@ use tokio::{
     sync::mpsc::{channel, Receiver, Sender},
     time::{interval, sleep, Duration, MissedTickBehavior},
 };
-use types::{PrimaryMessage, ReconfigureNotification, TransactionProto, TransactionsClient};
+use types::{ ReconfigureNotification, TransactionProto, TransactionsClient};
+use worker::WorkerToPrimaryNetwork;
 
 /// A simple/dumb execution engine.
 struct SimpleExecutionState {
@@ -269,7 +270,7 @@ async fn epoch_change() {
         // Start a task that will broadcast the committee change signal.
         let name_clone = name.clone();
         tokio::spawn(async move {
-            let mut primary_network = PrimaryNetwork::default();
+            let mut primary_network = WorkerToPrimaryNetwork::default();
             let mut worker_network = PrimaryToWorkerNetwork::default();
 
             while let Some((_, committee)) = rx_node_reconfigure.recv().await {
@@ -277,9 +278,9 @@ async fn epoch_change() {
                     .primary(&name_clone)
                     .expect("Our key is not in the committee")
                     .primary_to_primary;
-                let message = PrimaryMessage::Reconfigure(ReconfigureNotification::NewCommittee(
-                    committee.clone(),
-                ));
+                let message = WorkerPrimaryMessage::Reconfigure(
+                    ReconfigureNotification::NewCommittee(committee.clone()),
+                );
                 let primary_cancel_handle = primary_network.send(address, &message).await;
 
                 let addresses = committee

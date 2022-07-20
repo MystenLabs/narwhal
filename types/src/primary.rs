@@ -555,8 +555,6 @@ pub enum PrimaryMessage<PublicKey: VerifyingKey> {
         payload_availability: Vec<(CertificateDigest, bool)>,
         from: PublicKey,
     },
-
-    Reconfigure(ReconfigureNotification<PublicKey>),
 }
 
 /// Message to reconfigure worker tasks.

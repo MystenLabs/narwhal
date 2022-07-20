@@ -116,7 +116,7 @@ impl<PublicKey: VerifyingKey> Worker<PublicKey> {
     fn handle_primary_messages(
         &self,
         tx_reconfigure: watch::Sender<ReconfigureNotification<PublicKey>>,
-        tx_primary: Sender<WorkerPrimaryMessage>,
+        tx_primary: Sender<WorkerPrimaryMessage<PublicKey>>,
         node_metrics: Arc<WorkerMetrics>,
     ) -> Vec<JoinHandle<()>> {
         let (tx_synchronizer, rx_synchronizer) = channel(CHANNEL_CAPACITY);
@@ -162,7 +162,7 @@ impl<PublicKey: VerifyingKey> Worker<PublicKey> {
     fn handle_clients_transactions(
         &self,
         tx_reconfigure: &watch::Sender<ReconfigureNotification<PublicKey>>,
-        tx_primary: Sender<WorkerPrimaryMessage>,
+        tx_primary: Sender<WorkerPrimaryMessage<PublicKey>>,
     ) -> Vec<JoinHandle<()>> {
         let (tx_batch_maker, rx_batch_maker) = channel(CHANNEL_CAPACITY);
         let (tx_quorum_waiter, rx_quorum_waiter) = channel(CHANNEL_CAPACITY);
@@ -226,7 +226,7 @@ impl<PublicKey: VerifyingKey> Worker<PublicKey> {
     fn handle_workers_messages(
         &self,
         tx_reconfigure: &watch::Sender<ReconfigureNotification<PublicKey>>,
-        tx_primary: Sender<WorkerPrimaryMessage>,
+        tx_primary: Sender<WorkerPrimaryMessage<PublicKey>>,
     ) -> Vec<JoinHandle<()>> {
         let (tx_worker_helper, rx_worker_helper) = channel(CHANNEL_CAPACITY);
         let (tx_client_helper, rx_client_helper) = channel(CHANNEL_CAPACITY);

@@ -61,7 +61,7 @@ pub struct Synchronizer<PublicKey: VerifyingKey> {
     /// Send reconfiguration update to other tasks.
     tx_reconfigure: watch::Sender<ReconfigureNotification<PublicKey>>,
     /// Output channel to send out the batch requests.
-    tx_primary: Sender<WorkerPrimaryMessage>,
+    tx_primary: Sender<WorkerPrimaryMessage<PublicKey>>,
     /// Metrics handler
     metrics: Arc<WorkerMetrics>,
 }
@@ -77,7 +77,7 @@ impl<PublicKey: VerifyingKey> Synchronizer<PublicKey> {
         sync_retry_nodes: usize,
         rx_message: Receiver<PrimaryWorkerMessage<PublicKey>>,
         tx_reconfigure: watch::Sender<ReconfigureNotification<PublicKey>>,
-        tx_primary: Sender<WorkerPrimaryMessage>,
+        tx_primary: Sender<WorkerPrimaryMessage<PublicKey>>,
         metrics: Arc<WorkerMetrics>,
     ) -> JoinHandle<()> {
         tokio::spawn(async move {

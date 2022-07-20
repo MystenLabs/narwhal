@@ -8,8 +8,8 @@ use consensus::{
 use crypto::traits::{KeyPair, Signer, VerifyingKey};
 use executor::{ExecutionState, Executor, ExecutorOutput, SerializedTransaction, SubscriberResult};
 use futures::future::join_all;
-use network::{PrimaryNetwork, PrimaryToWorkerNetwork};
-use primary::{NetworkModel, PayloadToken, Primary};
+use network::{ PrimaryToWorkerNetwork};
+use primary::{NetworkModel, PayloadToken, Primary, WorkerPrimaryMessage};
 use prometheus::Registry;
 use std::{fmt::Debug, path::PathBuf, sync::Arc};
 use store::{
@@ -27,10 +27,10 @@ use tokio::{
 use tracing::debug;
 use types::{
     BatchDigest, Certificate, CertificateDigest, ConsensusStore, Header, HeaderDigest,
-    PrimaryMessage, PrimaryWorkerMessage, ReconfigureNotification, Round, SequenceNumber,
+     PrimaryWorkerMessage, ReconfigureNotification, Round, SequenceNumber,
     SerializedBatchMessage,
 };
-use worker::{metrics::initialise_metrics, Worker};
+use worker::{metrics::initialise_metrics, Worker, WorkerToPrimaryNetwork};
 
 pub mod metrics;
 
@@ -322,7 +322,7 @@ impl NodeController {
         let mut committee = committee.clone();
 
         let mut handles = Vec::new();
-        let mut primary_network = PrimaryNetwork::default();
+        let mut primary_network = WorkerToPrimaryNetwork::default();
         let mut worker_network = PrimaryToWorkerNetwork::default();
 
         // Listen for new committees.
@@ -368,9 +368,9 @@ impl NodeController {
             let address = committee
                 .primary(&name)
                 .expect("Our key is not in the committee")
-                .primary_to_primary;
+                .worker_to_primary;
             let message =
-                PrimaryMessage::<PublicKey>::Reconfigure(ReconfigureNotification::Shutdown);
+                WorkerPrimaryMessage::<PublicKey>::Reconfigure(ReconfigureNotification::Shutdown);
             let primary_cancel_handle = primary_network.send(address, &message).await;
 
             let addresses = committee

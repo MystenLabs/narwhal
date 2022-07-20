@@ -105,6 +105,8 @@ ReconfigureNotification:
       NewCommittee:
         NEWTYPE:
           TYPENAME: Committee
+    1:
+      Shutdown: UNIT
 WorkerAddresses:
   STRUCT:
     - transactions: BYTES
@@ -147,4 +149,8 @@ WorkerPrimaryMessage:
       Error:
         NEWTYPE:
           TYPENAME: WorkerPrimaryError
+    5:
+      Reconfigure:
+        NEWTYPE:
+          TYPENAME: ReconfigureNotification
 

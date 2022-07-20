@@ -22,7 +22,7 @@ pub use crate::{
 
 #[derive(Debug)]
 #[must_use]
-pub struct CancelHandler<T>(tokio::task::JoinHandle<T>);
+pub struct CancelHandler<T>(pub tokio::task::JoinHandle<T>);
 
 impl<T> Drop for CancelHandler<T> {
     fn drop(&mut self) {

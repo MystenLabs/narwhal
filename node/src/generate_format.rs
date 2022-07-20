@@ -137,7 +137,7 @@ fn get_registry() -> Result<Registry> {
     // tracer.trace_type::<PrimaryWorkerMessage<Ed25519PublicKey>>(&samples)?;
 
     // The final entry points that we must document
-    tracer.trace_type::<WorkerPrimaryMessage>(&samples)?;
+    tracer.trace_type::<WorkerPrimaryMessage<Ed25519PublicKey>>(&samples)?;
     tracer.trace_type::<WorkerPrimaryError>(&samples)?;
     tracer.registry()
 }

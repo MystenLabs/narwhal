@@ -54,8 +54,9 @@ pub use types::{PrimaryMessage, PrimaryWorkerMessage};
 pub const CHANNEL_CAPACITY: usize = 1_000;
 
 /// The messages sent by the workers to their primary.
-#[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
-pub enum WorkerPrimaryMessage {
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(bound(deserialize = "PublicKey: VerifyingKey"))]
+pub enum WorkerPrimaryMessage<PublicKey: VerifyingKey> {
     /// The worker indicates it sealed a new batch.
     OurBatch(BatchDigest, WorkerId),
     /// The worker indicates it received a batch's digest from another authority.
@@ -67,6 +68,8 @@ pub enum WorkerPrimaryMessage {
     DeletedBatches(Vec<BatchDigest>),
     /// An error has been returned by worker
     Error(WorkerPrimaryError),
+    /// Reconfiguration message sent by the executor (usually upon epoch change).
+    Reconfigure(ReconfigureNotification<PublicKey>),
 }
 
 #[derive(Debug, Serialize, Deserialize, Error, Clone, Eq, PartialEq)]
@@ -156,7 +159,6 @@ impl Primary {
             tx_helper_requests,
             tx_payload_availability_responses,
             tx_certificate_responses,
-            tx_state_handler,
         }
         .spawn(
             address.clone(),
@@ -184,6 +186,7 @@ impl Primary {
             tx_others_digests,
             tx_batches,
             tx_batch_removal,
+            tx_state_handler,
             metrics: node_metrics.clone(),
         }
         .spawn(address.clone(), tx_reconfigure.subscribe());
@@ -404,7 +407,6 @@ struct PrimaryReceiverHandler<PublicKey: VerifyingKey> {
     tx_helper_requests: Sender<PrimaryMessage<PublicKey>>,
     tx_payload_availability_responses: Sender<PayloadAvailabilityResponse<PublicKey>>,
     tx_certificate_responses: Sender<CertificatesResponse<PublicKey>>,
-    tx_state_handler: Sender<ReconfigureNotification<PublicKey>>,
 }
 
 impl<PublicKey: VerifyingKey> PrimaryReceiverHandler<PublicKey> {
@@ -492,12 +494,6 @@ impl<PublicKey: VerifyingKey> PrimaryToPrimary for PrimaryReceiverHandler<Public
                 })
                 .await
                 .map_err(|_| DagError::ShuttingDown),
-
-            PrimaryMessage::Reconfigure(notification) => self
-                .tx_state_handler
-                .send(notification)
-                .await
-                .map_err(|_| DagError::ShuttingDown),
             _ => self
                 .tx_primary_messages
                 .send(message)
@@ -512,16 +508,17 @@ impl<PublicKey: VerifyingKey> PrimaryToPrimary for PrimaryReceiverHandler<Public
 
 /// Defines how the network receiver handles incoming workers messages.
 #[derive(Clone)]
-struct WorkerReceiverHandler {
+struct WorkerReceiverHandler<PublicKey: VerifyingKey> {
     tx_our_digests: Sender<(BatchDigest, WorkerId)>,
     tx_others_digests: Sender<(BatchDigest, WorkerId)>,
     tx_batches: Sender<BatchResult>,
     tx_batch_removal: Sender<DeleteBatchResult>,
+    tx_state_handler: Sender<ReconfigureNotification<PublicKey>>,
     metrics: Arc<PrimaryMetrics>,
 }
 
-impl WorkerReceiverHandler {
-    async fn wait_for_shutdown<PublicKey: VerifyingKey>(
+impl<PublicKey: VerifyingKey> WorkerReceiverHandler<PublicKey> {
+    async fn wait_for_shutdown(
         mut rx_reconfigure: watch::Receiver<ReconfigureNotification<PublicKey>>,
     ) {
         loop {
@@ -534,7 +531,7 @@ impl WorkerReceiverHandler {
         }
     }
 
-    fn spawn<PublicKey: VerifyingKey>(
+    fn spawn(
         self,
         address: Multiaddr,
         rx_reconfigure: watch::Receiver<ReconfigureNotification<PublicKey>>,
@@ -556,12 +553,12 @@ impl WorkerReceiverHandler {
 }
 
 #[async_trait]
-impl WorkerToPrimary for WorkerReceiverHandler {
+impl<PublicKey: VerifyingKey> WorkerToPrimary for WorkerReceiverHandler<PublicKey> {
     async fn send_message(
         &self,
         request: Request<BincodeEncodedPayload>,
     ) -> Result<Response<Empty>, Status> {
-        let message: WorkerPrimaryMessage = request
+        let message: WorkerPrimaryMessage<_> = request
             .into_inner()
             .deserialize()
             .map_err(|e| Status::invalid_argument(e.to_string()))?;
@@ -612,6 +609,11 @@ impl WorkerToPrimary for WorkerReceiverHandler {
                     .await
                     .map_err(|_| DagError::ShuttingDown),
             },
+            WorkerPrimaryMessage::Reconfigure(notification) => self
+                .tx_state_handler
+                .send(notification)
+                .await
+                .map_err(|_| DagError::ShuttingDown),
         }
         .map_err(|e| Status::not_found(e.to_string()))?;
 
