@@ -1,20 +1,16 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use bytes::{Bytes, BytesMut};
-use config::Committee;
-use crypto::ed25519::Ed25519PublicKey;
-use std::ops::Deref;
-use std::sync::Arc;
+use bytes::Bytes;
 use std::time::Duration;
 use test_utils::cluster::Cluster;
-use test_utils::fixture_batch_with_transactions;
-use tracing::{info, subscriber::set_global_default};
-use tracing_subscriber::filter::{EnvFilter, LevelFilter};
+use tracing::info;
 use types::{TransactionProto, TransactionsClient};
+
+type StringTransaction = String;
 
 #[ignore]
 #[tokio::test]
-async fn test_read_causal_signed_certificates() {
+async fn test_restore_from_disk() {
     // Enabled debug tracing so we can easily observe the
     // nodes logs.
     setup_tracing();
@@ -33,36 +29,112 @@ async fn test_read_causal_signed_certificates() {
     let channel = config.connect_lazy(&address).unwrap();
     let mut client = TransactionsClient::new(channel);
 
-    // Spawn a network listener to receive our batch's digest.
-    let mut batch_len = 5;
-    let batch = fixture_batch_with_transactions(batch_len);
-
+    // Subscribe to the transaction confirmation channel
     let mut receiver = cluster
         .authority(0)
         .primary
         .tx_transaction_confirmation
         .subscribe();
 
-    tokio::spawn(async move {
-        loop {
-            if let Ok(result) = receiver.recv().await {
-                assert!(result.0.is_ok());
-                batch_len -= 1;
-                if batch_len < 1 {
-                    break;
-                }
-            }
-        }
-    });
-
-    for tx in batch.0 {
+    // Create arbitrary transactions
+    let mut batch_len = 3;
+    for tx in [
+        string_transaction(),
+        string_transaction(),
+        string_transaction(),
+    ] {
+        let tr = bincode::serialize(&tx).unwrap();
         let txn = TransactionProto {
-            transaction: Bytes::from(tx.clone()),
+            transaction: Bytes::from(tr),
         };
         client.submit_transaction(txn).await.unwrap();
     }
-    // Let transactions get submitted
-    tokio::time::sleep(Duration::from_secs(5)).await;
+
+    // wait for transactions to complete
+    loop {
+        if let Ok(result) = receiver.recv().await {
+            assert!(result.0.is_ok());
+            batch_len -= 1;
+            if batch_len < 1 {
+                break;
+            }
+        }
+    }
+
+    // Now stop node 0
+    cluster.stop_node(0);
+
+    // Let other primaries advance
+    tokio::time::sleep(Duration::from_secs(2)).await;
+
+    // Now start the node 0 again
+    cluster.start_node(0, true, Some(1)).await;
+
+    // Let the node recover
+    tokio::time::sleep(Duration::from_secs(2)).await;
+
+    let node = cluster.authority(0);
+
+    // Check the metrics to ensure the node was recovered from disk
+    let mut node_recovered_state = false;
+    let metric_family = node.primary.registry.gather();
+
+    for metric in metric_family {
+        if metric.get_name() == "narwhal_primary_recovered_consensus_state" {
+            let value = metric
+                .get_metric()
+                .first()
+                .unwrap()
+                .get_counter()
+                .get_value();
+            info!("Found metric for recovered consensus state.");
+            if value > 0.0 {
+                node_recovered_state = true;
+                break;
+            }
+        }
+    }
+
+    assert!(node_recovered_state, "Node recovered state");
+}
+
+fn string_transaction() -> StringTransaction {
+    StringTransaction::from("test transaction")
+}
+
+#[ignore]
+#[tokio::test]
+async fn test_read_causal_signed_certificates() {
+    const CURRENT_ROUND_METRIC: &str = "narwhal_primary_current_round";
+
+    // Enabled debug tracing so we can easily observe the
+    // nodes logs.
+    setup_tracing();
+
+    let mut cluster = Cluster::new(None, None);
+
+    // start the cluster
+    cluster.start(Some(4), Some(1)).await;
+
+    // Let primaries advance little bit
+    tokio::time::sleep(Duration::from_secs(10)).await;
+
+    // Ensure all nodes advanced
+    for authority in cluster.authorities() {
+        let metric_family = authority.primary.registry.gather();
+
+        for metric in metric_family {
+            if metric.get_name() == CURRENT_ROUND_METRIC {
+                let value = metric.get_metric().first().unwrap().get_gauge().get_value();
+
+                info!("Metrics name {} -> {:?}", metric.get_name(), value);
+
+                // If the current round is increasing then it means that the
+                // node starts catching up and is proposing.
+                assert!(value > 1.0, "Node didn't progress further than the round 1");
+            }
+        }
+    }
 
     // Now stop node 0
     cluster.stop_node(0);
@@ -76,25 +148,34 @@ async fn test_read_causal_signed_certificates() {
     // Now check that the current round advances. Give the opportunity with a few
     // iterations. If metric hasn't picked up then we know that node can't make
     // progress.
-    let mut node_recovered_state = false;
+    let mut node_made_progress = false;
     let node = cluster.authority(0);
 
-    tokio::time::sleep(Duration::from_secs(1)).await;
+    for _ in 0..10 {
+        tokio::time::sleep(Duration::from_secs(1)).await;
 
-    let metric_family = node.primary.registry.gather();
+        let metric_family = node.primary.registry.gather();
 
-    for metric in metric_family {
-        if metric.get_name() == "recovered_consensus_state" {
-            let value = metric.get_metric().first().unwrap().get_gauge().get_value();
-            info!("Found metric for recovered consensus state.");
-            if value > 0.0 {
-                node_recovered_state = true;
-                break;
+        for metric in metric_family {
+            if metric.get_name() == CURRENT_ROUND_METRIC {
+                let value = metric.get_metric().first().unwrap().get_gauge().get_value();
+
+                info!("Metrics name {} -> {:?}", metric.get_name(), value);
+
+                // If the current round is increasing then it means that the
+                // node starts catching up and is proposing.
+                if value > 1.0 {
+                    node_made_progress = true;
+                    break;
+                }
             }
         }
     }
 
-    assert!(node_recovered_state, "Node recovered state");
+    assert!(
+        node_made_progress,
+        "Node 0 didn't make progress - causal completion didn't succeed"
+    );
 }
 
 fn setup_tracing() {

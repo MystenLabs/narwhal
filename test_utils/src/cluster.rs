@@ -256,8 +256,7 @@ impl PrimaryNodeDetails {
                 if let Err(e) = t.clone().0 {
                     println!("The result from consensus is an error: {:?}", e);
                 }
-                let res = transactions_sender.send(t);
-                res.expect("Couldn't send message to broadcast channel");
+                _ = transactions_sender.send(t);
             }
         });
 
