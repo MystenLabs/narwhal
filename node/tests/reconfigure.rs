@@ -333,3 +333,123 @@ async fn restart() {
     }
     join_all(handles).await;
 }
+
+#[tokio::test]
+async fn epoch_change() {
+    let committee = committee(None);
+    let parameters = Parameters::default();
+
+    // Spawn the nodes.
+    let mut states = Vec::new();
+    let mut rx_nodes = Vec::new();
+    for (i, keypair) in keys(None).into_iter().enumerate() {
+        let (tx_output, rx_output) = channel(10);
+        let (tx_node_reconfigure, mut rx_node_reconfigure) = channel(10);
+
+        let name = keypair.public().clone();
+        let store = NodeStorage::reopen(test_utils::temp_dir());
+
+        let execution_state = Arc::new(SimpleExecutionState::new(
+            i,
+            committee.clone(),
+            tx_node_reconfigure,
+        ));
+        states.push(execution_state.clone());
+
+        let name_clone = name.clone();
+        tokio::spawn(async move {
+            let mut primary_network = PrimaryNetwork::default();
+            let mut worker_network = PrimaryToWorkerNetwork::default();
+
+            while let Some((_, committee)) = rx_node_reconfigure.recv().await {
+                let address = committee
+                    .primary(&name_clone)
+                    .expect("Our key is not in the committee")
+                    .primary_to_primary;
+                let message = PrimaryMessage::Reconfigure(ReconfigureNotification::NewCommittee(
+                    committee.clone(),
+                ));
+                let primary_cancel_handle = primary_network.send(address, &message).await;
+
+                let addresses = committee
+                    .our_workers(&name_clone)
+                    .expect("Our key is not in the committee")
+                    .into_iter()
+                    .map(|x| x.primary_to_worker)
+                    .collect();
+                let message = PrimaryWorkerMessage::Reconfigure(
+                    ReconfigureNotification::NewCommittee(committee.clone()),
+                );
+                let worker_cancel_handles = worker_network.broadcast(addresses, &message).await;
+
+                // Ensure the message has been received.
+                primary_cancel_handle.await;
+                join_all(worker_cancel_handles).await;
+            }
+        });
+
+        let _primary_handles = Node::spawn_primary(
+            keypair,
+            Arc::new(ArcSwap::new(Arc::new(committee.clone()))),
+            &store,
+            parameters.clone(),
+            /* consensus */ true,
+            execution_state.clone(),
+            tx_output,
+            &Registry::new(),
+        )
+        .await
+        .unwrap();
+
+        let _worker_handles = Node::spawn_workers(
+            name,
+            /* worker_ids */ vec![0],
+            Arc::new(ArcSwap::new(Arc::new(committee.clone()))),
+            &store,
+            parameters.clone(),
+            &Registry::new(),
+        );
+
+        rx_nodes.push(rx_output);
+    }
+
+    // Give a chance to the nodes to start.
+    tokio::task::yield_now().await;
+
+    // Spawn some clients.
+    let mut tx_clients = Vec::new();
+    for keypair in keys(None) {
+        let (tx_client_reconfigure, rx_client_reconfigure) = channel(10);
+        tx_clients.push(tx_client_reconfigure);
+
+        let name = keypair.public().clone();
+        let committee = committee.clone();
+        tokio::spawn(
+            async move { run_client(name, committee.clone(), rx_client_reconfigure).await },
+        );
+    }
+
+    // Listen to the outputs.
+    let mut handles = Vec::new();
+    for (tx, mut rx) in tx_clients.into_iter().zip(rx_nodes.into_iter()) {
+        handles.push(tokio::spawn(async move {
+            let mut current_epoch = 0u64;
+            while let Some(output) = rx.recv().await {
+                let (outcome, _tx) = output;
+                match outcome {
+                    Ok(epoch) => {
+                        if epoch == 5 {
+                            return;
+                        }
+                        if epoch > current_epoch {
+                            current_epoch = epoch;
+                            tx.send(current_epoch).await.unwrap();
+                        }
+                    }
+                    Err(e) => panic!("{e}"),
+                }
+            }
+        }));
+    }
+    join_all(handles).await;
+}
