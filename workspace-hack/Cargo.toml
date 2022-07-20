@@ -84,7 +84,7 @@ csv-core = { version = "0.1" }
 curve25519-dalek = { version = "3", default-features = false, features = ["alloc", "std", "u64_backend"] }
 dashmap = { version = "5", default-features = false }
 data-encoding = { version = "2", features = ["alloc", "std"] }
-der = { version = "0.1", default-features = false, features = ["const-oid", "oid"] }
+der = { version = "0.6", default-features = false, features = ["const-oid", "oid"] }
 derive_builder = { version = "0.11", features = ["std"] }
 diff = { version = "0.1", default-features = false }
 difflib = { version = "0.4", default-features = false }
