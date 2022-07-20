@@ -4,14 +4,14 @@ use arc_swap::ArcSwap;
 use config::{Committee, Epoch, Parameters};
 use crypto::{ed25519::Ed25519PublicKey, traits::KeyPair};
 use futures::future::join_all;
-use network::PrimaryNetwork;
 use node::NodeStorage;
-use primary::{NetworkModel, Primary, CHANNEL_CAPACITY};
+use primary::{NetworkModel, Primary, WorkerPrimaryMessage, CHANNEL_CAPACITY};
 use prometheus::default_registry;
 use std::{collections::BTreeMap, sync::Arc};
 use test_utils::{keys, make_authority, pure_committee_from_keys, temp_dir};
 use tokio::sync::{mpsc::channel, watch};
-use types::{PrimaryMessage, ReconfigureNotification};
+use types::{ ReconfigureNotification};
+use worker::WorkerToPrimaryNetwork;
 
 /// The epoch changes but the stake distribution and network addresses stay the same.
 #[tokio::test]
@@ -20,8 +20,6 @@ async fn test_simple_epoch_change() {
         batch_size: 200, // Two transactions.
         ..Parameters::default()
     };
-
-    let mut network = PrimaryNetwork::default();
 
     // The configuration of epoch 0.
     let keys_0 = keys(None);
@@ -83,15 +81,18 @@ async fn test_simple_epoch_change() {
         };
 
         // Notify the old committee to change epoch.
-        let addresses = old_committee
+        let addresses: Vec<_> = old_committee
             .authorities
             .values()
-            .map(|authority| authority.primary.primary_to_primary.clone())
+            .map(|authority| authority.primary.worker_to_primary.clone())
             .collect();
-        let message = PrimaryMessage::Reconfigure(ReconfigureNotification::NewCommittee(
+        let message = WorkerPrimaryMessage::Reconfigure(ReconfigureNotification::NewCommittee(
             new_committee.clone(),
         ));
-        let _handles = network.broadcast(addresses, &message).await;
+        let mut _do_not_drop = Vec::new();
+        for address in addresses {
+            _do_not_drop.push( WorkerToPrimaryNetwork::default().send(address, &message).await);
+        }
 
         // Run for a while.
         for rx in rx_channels.iter_mut() {
@@ -113,8 +114,6 @@ async fn test_partial_committee_change() {
         batch_size: 200, // Two transactions.
         ..Parameters::default()
     };
-
-    let mut network = PrimaryNetwork::default();
 
     // Make the committee of epoch 0.
     let keys_0 = keys(None);
@@ -240,14 +239,18 @@ async fn test_partial_committee_change() {
     }
 
     // Tell the nodes of epoch 0 to transition to epoch 1.
-    let addresses = committee_0
+    let addresses: Vec<_> = committee_0
         .authorities
         .values()
-        .map(|authority| authority.primary.primary_to_primary.clone())
+        .map(|authority| authority.primary.worker_to_primary.clone())
         .collect();
-    let message =
-        PrimaryMessage::Reconfigure(ReconfigureNotification::NewCommittee(committee_1.clone()));
-    let _handles = network.broadcast(addresses, &message).await;
+    let message = WorkerPrimaryMessage::Reconfigure(ReconfigureNotification::NewCommittee(
+        committee_1.clone(),
+    ));
+    let mut _do_not_drop = Vec::new();
+        for address in addresses {
+            _do_not_drop.push( WorkerToPrimaryNetwork::default().send(address, &message).await);
+        }
 
     // Run for a while in epoch 1.
     for rx in epoch_1_rx_channels.iter_mut() {
@@ -267,8 +270,6 @@ async fn test_restart_with_new_committee_change() {
         batch_size: 200, // Two transactions.
         ..Parameters::default()
     };
-
-    let mut network = PrimaryNetwork::default();
 
     // The configuration of epoch 0.
     let keys_0 = keys(None);
@@ -323,14 +324,17 @@ async fn test_restart_with_new_committee_change() {
     }
 
     // Shutdown the committee of the previous epoch;
-    let addresses = committee_0
+    let addresses: Vec<_> = committee_0
         .authorities
         .values()
-        .map(|authority| authority.primary.primary_to_primary.clone())
+        .map(|authority| authority.primary.worker_to_primary.clone())
         .collect();
     let message =
-        PrimaryMessage::<Ed25519PublicKey>::Reconfigure(ReconfigureNotification::Shutdown);
-    let _handles = network.broadcast(addresses, &message).await;
+        WorkerPrimaryMessage::<Ed25519PublicKey>::Reconfigure(ReconfigureNotification::Shutdown);
+     let mut _do_not_drop = Vec::new();
+        for address in addresses {
+            _do_not_drop.push( WorkerToPrimaryNetwork::default().send(address, &message).await);
+        }
 
     // Wait for the committee to shutdown.
     join_all(handles).await;
@@ -387,14 +391,17 @@ async fn test_restart_with_new_committee_change() {
         }
 
         // Shutdown the committee of the previous epoch;
-        let addresses = committee_0
+        let addresses: Vec<_> = committee_0
             .authorities
             .values()
-            .map(|authority| authority.primary.primary_to_primary.clone())
+            .map(|authority| authority.primary.worker_to_primary.clone())
             .collect();
         let message =
-            PrimaryMessage::<Ed25519PublicKey>::Reconfigure(ReconfigureNotification::Shutdown);
-        let _handles = network.broadcast(addresses, &message).await;
+            WorkerPrimaryMessage::<Ed25519PublicKey>::Reconfigure(ReconfigureNotification::Shutdown);
+            let mut _do_not_drop = Vec::new();
+            for address in addresses {
+                _do_not_drop.push( WorkerToPrimaryNetwork::default().send(address, &message).await);
+            }
 
         // Wait for the committee to shutdown.
         join_all(handles).await;
