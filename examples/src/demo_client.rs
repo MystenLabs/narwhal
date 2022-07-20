@@ -365,8 +365,8 @@ fn get_total_transaction_count_and_size(result: Vec<CollectionRetrievalResult>) 
     let mut total_transactions_size = 0;
     for r in result {
         match r.retrieval_result.unwrap() {
-            RetrievalResult::Batch(message) => {
-                for t in message.transactions.unwrap().transaction {
+            RetrievalResult::TransactionList(transaction_list) => {
+                for t in transaction_list.transactions.unwrap().transaction {
                     total_transactions_size += t.transaction.len();
                     total_num_of_transactions += 1;
                 }
@@ -413,13 +413,12 @@ impl std::fmt::Display for GetCollectionsResponse {
 
         for r in self.result.clone() {
             match r.retrieval_result.unwrap() {
-                RetrievalResult::Batch(message) => {
-                    let batch_id = &message.id.unwrap();
-                    //let batch_id = &message.id.unwrap();
+                RetrievalResult::TransactionList(transaction_list) => {
+                    let batch_id = &transaction_list.id.unwrap();
                     let mut transactions_size = 0;
                     let mut num_of_transactions = 0;
 
-                    for t in message.transactions.unwrap().transaction {
+                    for t in transaction_list.transactions.unwrap().transaction {
                         transactions_size += t.transaction.len();
                         num_of_transactions += 1;
                     }

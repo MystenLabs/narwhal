@@ -58,7 +58,7 @@ message ValidatorData {
 
 message CollectionRetrievalResult {
     oneof retrieval_result {
-        BatchMessage batch = 1;
+        BatchMessage transaction_list = 1;
         CollectionError error = 2;
     }
 }

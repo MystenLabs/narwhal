@@ -152,7 +152,7 @@ while we don&#39;t have good protobuf definitions for Narwhal types
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| batch | [BatchMessage](#narwhal-BatchMessage) |  |  |
+| transaction_list | [BatchMessage](#narwhal-BatchMessage) |  |  |
 | error | [CollectionError](#narwhal-CollectionError) |  |  |
 
 

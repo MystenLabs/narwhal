@@ -170,7 +170,7 @@ async fn test_get_collections() {
 
     assert!(matches!(
         actual_result[0].retrieval_result,
-        Some(types::RetrievalResult::Batch(_))
+        Some(types::RetrievalResult::TransactionList(_))
     ));
 
     // Test get 5 collections
@@ -188,7 +188,10 @@ async fn test_get_collections() {
         4,
         actual_result
             .iter()
-            .filter(|&r| matches!(r.retrieval_result, Some(types::RetrievalResult::Batch(_))))
+            .filter(|&r| matches!(
+                r.retrieval_result,
+                Some(types::RetrievalResult::TransactionList(_))
+            ))
             .count()
     );
 
@@ -961,15 +964,18 @@ async fn test_get_collections_with_missing_certificates() {
         2,
         actual_result
             .iter()
-            .filter(|&r| matches!(r.retrieval_result, Some(types::RetrievalResult::Batch(_))))
+            .filter(|&r| matches!(
+                r.retrieval_result,
+                Some(types::RetrievalResult::TransactionList(_))
+            ))
             .count()
     );
 
     for result in actual_result {
         match result.retrieval_result.unwrap() {
-            RetrievalResult::Batch(batch) => {
-                let id: BatchDigest = batch.id.unwrap().into();
-                let result_batch: Batch = batch.transactions.unwrap().into();
+            RetrievalResult::TransactionList(transaction_list) => {
+                let id: BatchDigest = transaction_list.id.unwrap().into();
+                let result_batch: Batch = transaction_list.transactions.unwrap().into();
 
                 if let Some(expected_batch) = batches_map.get(&id) {
                     assert_eq!(result_batch, *expected_batch, "Batch payload doesn't match");

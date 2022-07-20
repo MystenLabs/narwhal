@@ -186,9 +186,9 @@ fn get_collection_retrieval_results(
             let mut collection_retrieval_results = vec![];
             for batch in block_response.batches {
                 collection_retrieval_results.push(CollectionRetrievalResult {
-                    retrieval_result: Some(types::RetrievalResult::Batch(BatchMessageProto::from(
-                        batch,
-                    ))),
+                    retrieval_result: Some(types::RetrievalResult::TransactionList(
+                        BatchMessageProto::from(batch),
+                    )),
                 });
             }
             collection_retrieval_results

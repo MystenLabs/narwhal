@@ -50,10 +50,10 @@ impl From<PublicKey> for PublicKeyProto {
 }
 
 impl From<BatchMessage> for BatchMessageProto {
-    fn from(message: BatchMessage) -> Self {
+    fn from(transaction_list: BatchMessage) -> Self {
         BatchMessageProto {
-            id: Some(message.id.into()),
-            transactions: Some(message.transactions.into()),
+            id: Some(transaction_list.id.into()),
+            transactions: Some(transaction_list.transactions.into()),
         }
     }
 }
