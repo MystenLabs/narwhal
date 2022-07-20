@@ -1168,6 +1168,7 @@ dependencies = [
  "rocksdb",
  "serde",
  "tempfile",
+ "test_utils",
  "thiserror",
  "tokio",
  "tokio-util",
