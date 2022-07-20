@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":[["SECP256K1_PRIVATE_KEY_LENGTH",""],["SECP256K1_PUBLIC_KEY_LENGTH",""],["SECP256K1_SIGNATURE_LENGTH",""]],"struct":[["Secp256k1KeyPair",""],["Secp256k1PrivateKey",""],["Secp256k1PublicKey",""],["Secp256k1Signature",""]],"type":[["Secp256k1PublicKeyBytes",""]]};

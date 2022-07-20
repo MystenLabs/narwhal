@@ -1,7 +1,7 @@
 var sourcesIndex = {};
 sourcesIndex["config"] = {"name":"","files":["duration_format.rs","lib.rs","utils.rs"]};
 sourcesIndex["consensus"] = {"name":"","files":["bullshark.rs","consensus.rs","dag.rs","lib.rs","metrics.rs","subscriber.rs","tusk.rs","utils.rs"]};
-sourcesIndex["crypto"] = {"name":"","files":["bls12381.rs","ed25519.rs","hkdf.rs","lib.rs","pubkey_bytes.rs","serde_helpers.rs","traits.rs"]};
+sourcesIndex["crypto"] = {"name":"","files":["bls12381.rs","ed25519.rs","hkdf.rs","lib.rs","pubkey_bytes.rs","secp256k1.rs","serde_helpers.rs","traits.rs"]};
 sourcesIndex["dag"] = {"name":"","files":["bft.rs","lib.rs","node_dag.rs"]};
 sourcesIndex["demo_client"] = {"name":"","files":["demo_client.rs"]};
 sourcesIndex["executor"] = {"name":"","files":["batch_loader.rs","core.rs","errors.rs","lib.rs","state.rs","subscriber.rs"]};
