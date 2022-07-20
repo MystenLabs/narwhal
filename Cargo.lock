@@ -2400,7 +2400,7 @@ dependencies = [
  "opentelemetry",
  "opentelemetry-semantic-conventions",
  "thiserror",
- "thrift",
+ "thrift 0.15.0",
  "tokio",
 ]
 
@@ -3738,6 +3738,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "thrift"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "09678c4cdbb4eed72e18b7c2af1329c69825ed16fcbac62d083fc3e2b0590ff0"
+dependencies = [
+ "byteorder",
+ "integer-encoding",
+ "ordered-float",
+]
+
+[[package]]
 name = "time"
 version = "0.3.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4853,7 +4864,7 @@ dependencies = [
  "thiserror-impl",
  "thread_local",
  "threadpool",
- "thrift",
+ "thrift 0.16.0",
  "time",
  "tinytemplate",
  "tinyvec",
