@@ -13,7 +13,7 @@ use tokio::{
     task::JoinHandle,
     time::{sleep, Duration, Instant},
 };
-use types::{Batch, ReconfigureNotification, Transaction};
+use types::{Batch, ReconfigureNotification, Transaction, error::DagError};
 
 #[cfg(test)]
 #[path = "tests/batch_maker_tests.rs"]
@@ -73,7 +73,6 @@ impl<PublicKey: VerifyingKey> BatchMaker<PublicKey> {
             tokio::select! {
                 // Assemble client transactions into batches of preset size.
                 Some(transaction) = self.rx_transaction.recv() => {
-                    println!("{transaction:?}");
                     self.current_batch_size += transaction.len();
                     self.current_batch.0.push(transaction);
                     if self.current_batch_size >= self.batch_size {
@@ -150,9 +149,8 @@ impl<PublicKey: VerifyingKey> BatchMaker<PublicKey> {
         }
 
         // Send the batch through the deliver channel for further processing.
-        self.tx_message
-            .send(batch)
-            .await
-            .expect("Failed to deliver batch");
+        if self.tx_message.send(batch).await.is_err() {
+            tracing::debug!("{}", DagError::ShuttingDown);
+        }
     }
 }

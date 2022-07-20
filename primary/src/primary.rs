@@ -575,7 +575,7 @@ impl WorkerToPrimary for WorkerReceiverHandler {
                 self.tx_our_digests
                     .send((digest, worker_id))
                     .await
-                    .expect("Failed to send workers' digests")
+                    .map_err(|_| DagError::ShuttingDown)
             }
             WorkerPrimaryMessage::OthersBatch(digest, worker_id) => {
                 self.metrics
@@ -585,7 +585,7 @@ impl WorkerToPrimary for WorkerReceiverHandler {
                 self.tx_others_digests
                     .send((digest, worker_id))
                     .await
-                    .expect("Failed to send workers' digests")
+                    .map_err(|_| DagError::ShuttingDown)
             }
             WorkerPrimaryMessage::RequestedBatch(digest, transactions) => self
                 .tx_batches
@@ -594,25 +594,26 @@ impl WorkerToPrimary for WorkerReceiverHandler {
                     transactions,
                 }))
                 .await
-                .expect("Failed to send batch result"),
+                .map_err(|_| DagError::ShuttingDown),
             WorkerPrimaryMessage::DeletedBatches(batch_ids) => self
                 .tx_batch_removal
                 .send(Ok(DeleteBatchMessage { ids: batch_ids }))
                 .await
-                .expect("Failed to send batch delete result"),
+                .map_err(|_| DagError::ShuttingDown),
             WorkerPrimaryMessage::Error(error) => match error.clone() {
                 WorkerPrimaryError::RequestedBatchNotFound(digest) => self
                     .tx_batches
                     .send(Err(BatchMessageError { id: digest }))
                     .await
-                    .expect("Failed to send batch result"),
+                    .map_err(|_| DagError::ShuttingDown),
                 WorkerPrimaryError::ErrorWhileDeletingBatches(batch_ids) => self
                     .tx_batch_removal
                     .send(Err(DeleteBatchMessage { ids: batch_ids }))
                     .await
-                    .expect("Failed to send error batch delete result"),
+                    .map_err(|_| DagError::ShuttingDown),
             },
         }
+        .map_err(|e| Status::not_found(e.to_string()))?;
 
         Ok(Response::new(Empty {}))
     }

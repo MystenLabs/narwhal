@@ -99,7 +99,6 @@ impl<PublicKey: VerifyingKey> Synchronizer<PublicKey> {
             }
             .run()
             .await;
-            println!("synchronizer down");
         })
     }
 

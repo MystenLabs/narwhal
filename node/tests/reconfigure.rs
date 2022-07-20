@@ -57,8 +57,6 @@ impl ExecutionState for SimpleExecutionState {
         execution_indices: ExecutionIndices,
         transaction: Self::Transaction,
     ) -> Result<(Self::Outcome, Option<Committee<PublicKey>>), Self::Error> {
-        println!("tx = {transaction:?}");
-
         // Change epoch every few certificates. Note that empty certificates are not provided to
         // this function (they are immediately skipped).
         if transaction >= self.epoch.load(Ordering::Relaxed)
@@ -75,7 +73,6 @@ impl ExecutionState for SimpleExecutionState {
                 .pop()
                 .unwrap();
             let new_epoch = self.epoch.load(Ordering::Relaxed);
-            println!("[{}] Moved to E{}", keypair.public().clone(), new_epoch);
 
             self.tx_reconfigure
                 .send((keypair, new_epoch))
@@ -145,8 +142,6 @@ async fn run_node<Keys, PublicKey, State>(
 
     // Listen for new committees.
     loop {
-        println!("[{name}] Starting at E{}", committee.epoch());
-
         // Get a fresh store for the new epoch.
         let store = NodeStorage::reopen(test_utils::temp_dir());
 
@@ -181,7 +176,6 @@ async fn run_node<Keys, PublicKey, State>(
             Some(x) => x,
             None => break,
         };
-        println!("[{name}] Received notification for E{new_epoch}");
 
         // Shutdown all relevant components.
         let address = committee
@@ -191,22 +185,22 @@ async fn run_node<Keys, PublicKey, State>(
         let message = PrimaryMessage::<PublicKey>::Reconfigure(ReconfigureNotification::Shutdown);
         let primary_cancel_handle = primary_network.send(address, &message).await;
 
-        let address = committee
-            .worker(&name, /* id */ &0)
+        let addresses = committee
+            .our_workers(&name)
             .expect("Our key is not in the committee")
-            .primary_to_worker;
+            .into_iter()
+            .map(|x| x.primary_to_worker)
+            .collect();
         let message =
             PrimaryWorkerMessage::<PublicKey>::Reconfigure(ReconfigureNotification::Shutdown);
-        let worker_cancel_handle = worker_network.send(address, &message).await;
-        println!("[{name}] Shutdown signal successfully sent");
+        let worker_cancel_handles = worker_network.broadcast(addresses, &message).await;
 
         // Ensure the message has been received.
         primary_cancel_handle.await;
-        worker_cancel_handle.await.unwrap();
+        join_all(worker_cancel_handles).await;
 
         // Wait for the components to shut down.
         join_all(handles.drain(..)).await;
-        println!("[{name}] is down\n");
 
         // Update the settings for the next epoch.
         keypair = new_keypair;
@@ -246,7 +240,6 @@ async fn run_client<PublicKey: VerifyingKey>(
                 if client.submit_transaction(tx.clone()).await.is_err() {
                     // The workers are still down.
                     sleep(Duration::from_millis(100)).await;
-                    // println!("Worker not ready");
                 }
             },
 
@@ -255,7 +248,6 @@ async fn run_client<PublicKey: VerifyingKey>(
                 tx = TransactionProto {
                     transaction: Bytes::from(epoch.to_le_bytes().to_vec()),
                 };
-                println!("[{name}] Set tx={tx:?}");
             }
         }
     }
@@ -317,7 +309,6 @@ async fn restart() {
             let mut current_epoch = 0u64;
             while let Some(output) = rx.recv().await {
                 let (outcome, _tx) = output;
-                println!("{outcome:?}");
                 match outcome {
                     Ok(epoch) => {
                         if epoch == 5 {

@@ -327,9 +327,11 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
                 .inc();
 
             // Process the new certificate.
-            self.process_certificate(certificate)
-                .await
-                .expect("Failed to process valid certificate");
+            match self.process_certificate(certificate).await {
+                Ok(()) => (),
+                result @ Err(DagError::ShuttingDown) => result?,
+                _ => panic!("Failed to process valid certificate"),
+            }
         }
         Ok(())
     }

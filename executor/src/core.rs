@@ -242,8 +242,6 @@ where
         self.execution_indices
             .next(total_batches, total_transactions);
 
-        println!("Core received {serialized:?}");
-
         // The consensus simply orders bytes, so we first need to deserialize the transaction.
         // If the deserialization fail it is safe to ignore the transaction since all correct
         // clients will do the same. Remember that a bad authority or client may input random
