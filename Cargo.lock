@@ -1284,7 +1284,7 @@ checksum = "f2db227e61a43a34915680bdda462ec0e212095518020a88a1f91acd16092c39"
 dependencies = [
  "bitvec",
  "digest 0.9.0",
- "ff 0.8.0",
+ "ff",
  "funty",
  "generic-array",
  "group",
@@ -1373,16 +1373,6 @@ checksum = "01646e077d4ebda82b73f1bca002ea1e91561a77df2431a9e79729bcc31950ef"
 dependencies = [
  "bitvec",
  "rand_core 0.5.1",
- "subtle",
-]
-
-[[package]]
-name = "ff"
-version = "0.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df689201f395c6b90dfe87127685f8dbfc083a5e779e613575d8bd7314300c3e"
-dependencies = [
- "rand_core 0.6.3",
  "subtle",
 ]
 
@@ -1590,7 +1580,7 @@ version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cc11f9f5fbf1943b48ae7c2bf6846e7d827a512d1be4f23af708f5ca5d01dde1"
 dependencies = [
- "ff 0.8.0",
+ "ff",
  "rand_core 0.5.1",
  "subtle",
 ]
@@ -4662,7 +4652,7 @@ dependencies = [
  "eyre",
  "fastrand",
  "fdlimit",
- "ff 0.12.0",
+ "ff",
  "fixedbitset",
  "float-cmp",
  "fnv",
