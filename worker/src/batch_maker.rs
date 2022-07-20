@@ -13,7 +13,7 @@ use tokio::{
     task::JoinHandle,
     time::{sleep, Duration, Instant},
 };
-use types::{Batch, ReconfigureNotification, Transaction, error::DagError};
+use types::{error::DagError, Batch, ReconfigureNotification, Transaction};
 
 #[cfg(test)]
 #[path = "tests/batch_maker_tests.rs"]

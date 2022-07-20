@@ -5,7 +5,7 @@ use bytes::Bytes;
 use config::{Committee, Parameters};
 use consensus::ConsensusOutput;
 use crypto::{
-    ed25519::Ed25519KeyPair,
+    ed25519::{Ed25519KeyPair, Ed25519PublicKey},
     traits::{KeyPair, Signer, VerifyingKey},
 };
 use executor::{ExecutionIndices, ExecutionState, ExecutionStateError, ExecutorOutput};
@@ -16,10 +16,7 @@ use primary::PrimaryWorkerMessage;
 use prometheus::Registry;
 use std::{
     fmt::Debug,
-    sync::{
-        atomic::{AtomicU64, Ordering},
-        Arc,
-    },
+    sync::{Arc, Mutex},
 };
 use test_utils::{committee, keys};
 use tokio::{
@@ -31,16 +28,20 @@ use types::{PrimaryMessage, ReconfigureNotification, TransactionProto, Transacti
 /// A simple/dumb execution engine.
 struct SimpleExecutionState {
     index: usize,
-    tx_reconfigure: Sender<(Ed25519KeyPair, u64)>,
-    epoch: AtomicU64,
+    committee: Arc<Mutex<Committee<Ed25519PublicKey>>>,
+    tx_reconfigure: Sender<(Ed25519KeyPair, Committee<Ed25519PublicKey>)>,
 }
 
 impl SimpleExecutionState {
-    pub fn new(index: usize, tx_reconfigure: Sender<(Ed25519KeyPair, u64)>) -> Self {
+    pub fn new(
+        index: usize,
+        committee: Committee<Ed25519PublicKey>,
+        tx_reconfigure: Sender<(Ed25519KeyPair, Committee<Ed25519PublicKey>)>,
+    ) -> Self {
         Self {
             index,
+            committee: Arc::new(Mutex::new(committee)),
             tx_reconfigure,
-            epoch: AtomicU64::new(0),
         }
     }
 }
@@ -59,10 +60,13 @@ impl ExecutionState for SimpleExecutionState {
     ) -> Result<(Self::Outcome, Option<Committee<PublicKey>>), Self::Error> {
         // Change epoch every few certificates. Note that empty certificates are not provided to
         // this function (they are immediately skipped).
-        if transaction >= self.epoch.load(Ordering::Relaxed)
-            && execution_indices.next_certificate_index % 3 == 0
-        {
-            self.epoch.fetch_add(1, Ordering::Relaxed);
+        let mut epoch = self.committee.lock().unwrap().epoch();
+        if transaction >= epoch && execution_indices.next_certificate_index % 3 == 0 {
+            epoch += 1;
+            {
+                let mut guard = self.committee.lock().unwrap();
+                (*guard).epoch = epoch;
+            };
 
             let keypair = keys(None)
                 .into_iter()
@@ -72,15 +76,14 @@ impl ExecutionState for SimpleExecutionState {
                 .collect::<Vec<_>>()
                 .pop()
                 .unwrap();
-            let new_epoch = self.epoch.load(Ordering::Relaxed);
-
+            let new_committee = self.committee.lock().unwrap().clone();
             self.tx_reconfigure
-                .send((keypair, new_epoch))
+                .send((keypair, new_committee))
                 .await
                 .unwrap();
         }
 
-        Ok((self.epoch.load(Ordering::Relaxed), None))
+        Ok((epoch, None))
     }
 
     fn ask_consensus_write_lock(&self) -> bool {
@@ -123,7 +126,7 @@ async fn run_node<Keys, PublicKey, State>(
     committee: &Committee<PublicKey>,
     execution_state: Arc<State>,
     parameters: Parameters,
-    mut rx_reconfigure: Receiver<(Keys, u64)>,
+    mut rx_reconfigure: Receiver<(Keys, Committee<PublicKey>)>,
     tx_output: Sender<ExecutorOutput<State>>,
 ) where
     PublicKey: VerifyingKey,
@@ -172,7 +175,7 @@ async fn run_node<Keys, PublicKey, State>(
         handles.extend(worker_handles);
 
         // Wait for a committee change.
-        let (new_keypair, new_epoch) = match rx_reconfigure.recv().await {
+        let (new_keypair, new_committee) = match rx_reconfigure.recv().await {
             Some(x) => x,
             None => break,
         };
@@ -205,7 +208,7 @@ async fn run_node<Keys, PublicKey, State>(
         // Update the settings for the next epoch.
         keypair = new_keypair;
         name = keypair.public().clone();
-        committee.epoch = new_epoch;
+        committee = new_committee;
     }
 }
 
@@ -265,7 +268,11 @@ async fn restart() {
         let (tx_output, rx_output) = channel(10);
         let (tx_node_reconfigure, rx_node_reconfigure) = channel(10);
 
-        let execution_state = Arc::new(SimpleExecutionState::new(i, tx_node_reconfigure));
+        let execution_state = Arc::new(SimpleExecutionState::new(
+            i,
+            committee.clone(),
+            tx_node_reconfigure,
+        ));
         states.push(execution_state.clone());
 
         let committee = committee.clone();
