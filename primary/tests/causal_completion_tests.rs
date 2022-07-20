@@ -18,7 +18,7 @@ async fn test_restore_from_disk() {
     let mut cluster = Cluster::new(None, None);
 
     // start the cluster
-    cluster.start(Some(4), Some(1)).await;
+    cluster.start(Some(4), Some(1), None).await;
 
     let id = 0;
     let name = cluster.authority(0).name;
@@ -32,7 +32,8 @@ async fn test_restore_from_disk() {
     // Subscribe to the transaction confirmation channel
     let mut receiver = cluster
         .authority(0)
-        .primary
+        .primary()
+        .await
         .tx_transaction_confirmation
         .subscribe();
 
@@ -62,7 +63,7 @@ async fn test_restore_from_disk() {
     }
 
     // Now stop node 0
-    cluster.stop_node(0);
+    cluster.stop_node(0).await;
 
     // Let other primaries advance
     tokio::time::sleep(Duration::from_secs(2)).await;
@@ -76,24 +77,17 @@ async fn test_restore_from_disk() {
     let node = cluster.authority(0);
 
     // Check the metrics to ensure the node was recovered from disk
-    let mut node_recovered_state = false;
-    let metric_family = node.primary.registry.gather();
+    let primary = node.primary().await;
 
-    for metric in metric_family {
-        if metric.get_name() == "narwhal_primary_recovered_consensus_state" {
-            let value = metric
-                .get_metric()
-                .first()
-                .unwrap()
-                .get_counter()
-                .get_value();
+    let node_recovered_state =
+        if let Some(metric) = primary.metric("narwhal_primary_recovered_consensus_state") {
+            let value = metric.get_counter().get_value();
             info!("Found metric for recovered consensus state.");
-            if value > 0.0 {
-                node_recovered_state = true;
-                break;
-            }
-        }
-    }
+
+            value > 0.0
+        } else {
+            false
+        };
 
     assert!(node_recovered_state, "Node did not recover state from disk");
 }
@@ -114,30 +108,26 @@ async fn test_read_causal_signed_certificates() {
     let mut cluster = Cluster::new(None, None);
 
     // start the cluster
-    cluster.start(Some(4), Some(1)).await;
+    cluster.start(Some(4), Some(1), None).await;
 
     // Let primaries advance little bit
     tokio::time::sleep(Duration::from_secs(10)).await;
 
     // Ensure all nodes advanced
-    for authority in cluster.authorities() {
-        let metric_family = authority.primary.registry.gather();
+    for authority in cluster.authorities().await {
+        if let Some(metric) = authority.primary().await.metric(CURRENT_ROUND_METRIC) {
+            let value = metric.get_gauge().get_value();
 
-        for metric in metric_family {
-            if metric.get_name() == CURRENT_ROUND_METRIC {
-                let value = metric.get_metric().first().unwrap().get_gauge().get_value();
+            info!("Metric -> {:?}", value);
 
-                info!("Metrics name {} -> {:?}", metric.get_name(), value);
-
-                // If the current round is increasing then it means that the
-                // node starts catching up and is proposing.
-                assert!(value > 1.0, "Node didn't progress further than the round 1");
-            }
+            // If the current round is increasing then it means that the
+            // node starts catching up and is proposing.
+            assert!(value > 1.0, "Node didn't progress further than the round 1");
         }
     }
 
     // Now stop node 0
-    cluster.stop_node(0);
+    cluster.stop_node(0).await;
 
     // Let other primaries advance
     tokio::time::sleep(Duration::from_secs(10)).await;
@@ -149,25 +139,20 @@ async fn test_read_causal_signed_certificates() {
     // iterations. If metric hasn't picked up then we know that node can't make
     // progress.
     let mut node_made_progress = false;
-    let node = cluster.authority(0);
+    let node = cluster.authority(0).primary().await;
 
     for _ in 0..10 {
         tokio::time::sleep(Duration::from_secs(1)).await;
 
-        let metric_family = node.primary.registry.gather();
+        if let Some(metric) = node.metric(CURRENT_ROUND_METRIC) {
+            let value = metric.get_gauge().get_value();
+            info!("Metric -> {:?}", value);
 
-        for metric in metric_family {
-            if metric.get_name() == CURRENT_ROUND_METRIC {
-                let value = metric.get_metric().first().unwrap().get_gauge().get_value();
-
-                info!("Metrics name {} -> {:?}", metric.get_name(), value);
-
-                // If the current round is increasing then it means that the
-                // node starts catching up and is proposing.
-                if value > 1.0 {
-                    node_made_progress = true;
-                    break;
-                }
+            // If the current round is increasing then it means that the
+            // node starts catching up and is proposing.
+            if value > 1.0 {
+                node_made_progress = true;
+                break;
             }
         }
     }
