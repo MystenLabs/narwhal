@@ -3,9 +3,10 @@
 // SPDX-License-Identifier: Apache-2.0
 use config::Committee;
 use crypto::traits::VerifyingKey;
-use multiaddr::Multiaddr;use network::RetryConfig;
-use network::{BoundedExecutor, CancelHandler, MAX_TASK_CONCURRENCY};
-use primary::WorkerPrimaryMessage;use futures::FutureExt;
+use futures::FutureExt;
+use multiaddr::Multiaddr;
+use network::{BoundedExecutor, CancelHandler, RetryConfig, MAX_TASK_CONCURRENCY};
+use primary::WorkerPrimaryMessage;
 use tokio::{
     runtime::Handle,
     sync::{mpsc::Receiver, watch},
@@ -108,7 +109,7 @@ impl WorkerToPrimaryNetwork {
         &mut self,
         address: Multiaddr,
         message: &WorkerPrimaryMessage<PublicKey>,
-    ) -> CancelHandler<()> {       
+    ) -> CancelHandler<()> {
         if self.client.is_none() {
             let channel = self.config.connect_lazy(&address).unwrap();
             self.client = Some(WorkerToPrimaryClient::new(channel));

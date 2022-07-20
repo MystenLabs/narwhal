@@ -8,7 +8,7 @@ use consensus::{
 use crypto::traits::{KeyPair, Signer, VerifyingKey};
 use executor::{ExecutionState, Executor, ExecutorOutput, SerializedTransaction, SubscriberResult};
 use futures::future::join_all;
-use network::{ PrimaryToWorkerNetwork};
+use network::PrimaryToWorkerNetwork;
 use primary::{NetworkModel, PayloadToken, Primary, WorkerPrimaryMessage};
 use prometheus::Registry;
 use std::{fmt::Debug, path::PathBuf, sync::Arc};
@@ -27,8 +27,7 @@ use tokio::{
 use tracing::debug;
 use types::{
     BatchDigest, Certificate, CertificateDigest, ConsensusStore, Header, HeaderDigest,
-     PrimaryWorkerMessage, ReconfigureNotification, Round, SequenceNumber,
-    SerializedBatchMessage,
+    PrimaryWorkerMessage, ReconfigureNotification, Round, SequenceNumber, SerializedBatchMessage,
 };
 use worker::{metrics::initialise_metrics, Worker, WorkerToPrimaryNetwork};
 

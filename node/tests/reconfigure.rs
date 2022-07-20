@@ -10,7 +10,7 @@ use crypto::{
 };
 use executor::{ExecutionIndices, ExecutionState, ExecutionStateError};
 use futures::future::join_all;
-use network::{ PrimaryToWorkerNetwork};
+use network::PrimaryToWorkerNetwork;
 use node::{Node, NodeController, NodeStorage};
 use primary::{PrimaryWorkerMessage, WorkerPrimaryMessage};
 use prometheus::Registry;
@@ -23,7 +23,7 @@ use tokio::{
     sync::mpsc::{channel, Receiver, Sender},
     time::{interval, sleep, Duration, MissedTickBehavior},
 };
-use types::{ ReconfigureNotification, TransactionProto, TransactionsClient};
+use types::{ReconfigureNotification, TransactionProto, TransactionsClient};
 use worker::WorkerToPrimaryNetwork;
 
 /// A simple/dumb execution engine.
