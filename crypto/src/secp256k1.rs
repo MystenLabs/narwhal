@@ -268,7 +268,8 @@ impl Default for Secp256k1Signature {
 }
 
 // There is a strong requirement for this specific impl. in Fab benchmarks
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(tag = "type")] // necessary so as not to deser under a != type
 pub struct Secp256k1KeyPair {
     pub name: Secp256k1PublicKey,
     pub secret: Secp256k1PrivateKey,
@@ -284,28 +285,6 @@ impl EncodeDecodeBase64 for Secp256k1KeyPair {
         bytes.extend_from_slice(self.secret.as_ref());
         bytes.extend_from_slice(self.name.as_ref());
         base64ct::Base64::encode_string(&bytes[..])
-    }
-}
-
-// There is a strong requirement for this specific impl. in Fab benchmarks
-impl Serialize for Secp256k1KeyPair {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(&self.encode_base64())
-    }
-}
-
-// There is a strong requirement for this specific impl. in Fab benchmarks
-impl<'de> Deserialize<'de> for Secp256k1KeyPair {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: de::Deserializer<'de>,
-    {
-        let s = <String as serde::Deserialize>::deserialize(deserializer)?;
-        let value = Self::decode_base64(&s).map_err(|e| de::Error::custom(e.to_string()))?;
-        Ok(value)
     }
 }
 
