@@ -6,7 +6,7 @@ use crypto::{ed25519::Ed25519PublicKey, traits::KeyPair};
 use futures::future::join_all;
 use node::NodeStorage;
 use primary::{NetworkModel, Primary, WorkerPrimaryMessage, CHANNEL_CAPACITY};
-use prometheus::default_registry;
+use prometheus::Registry;
 use std::{collections::BTreeMap, sync::Arc};
 use test_utils::{keys, make_authority, pure_committee_from_keys, temp_dir};
 use tokio::sync::{mpsc::channel, watch};
@@ -56,7 +56,7 @@ async fn test_simple_epoch_change() {
             NetworkModel::Asynchronous,
             tx_reconfigure,
             /* tx_committed_certificates */ tx_feedback,
-            default_registry(),
+            &Registry::new(),
         );
     }
 
@@ -161,7 +161,7 @@ async fn test_partial_committee_change() {
             NetworkModel::Asynchronous,
             tx_reconfigure,
             /* tx_committed_certificates */ tx_feedback,
-            default_registry(),
+            &Registry::new(),
         );
     }
 
@@ -238,7 +238,7 @@ async fn test_partial_committee_change() {
             NetworkModel::Asynchronous,
             tx_reconfigure,
             /* tx_committed_certificates */ tx_feedback,
-            default_registry(),
+            &Registry::new(),
         );
     }
 
@@ -315,7 +315,7 @@ async fn test_restart_with_new_committee_change() {
             NetworkModel::Asynchronous,
             tx_reconfigure,
             /* tx_committed_certificates */ tx_feedback,
-            default_registry(),
+            &Registry::new(),
         );
         handles.extend(primary_handles);
     }
@@ -387,7 +387,7 @@ async fn test_restart_with_new_committee_change() {
                 NetworkModel::Asynchronous,
                 tx_reconfigure,
                 /* tx_committed_certificates */ tx_feedback,
-                default_registry(),
+                &Registry::new(),
             );
             handles.extend(primary_handles);
         }

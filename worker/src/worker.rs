@@ -131,7 +131,7 @@ impl<PublicKey: VerifyingKey> Worker<PublicKey> {
         let address = address
             .replace(0, |_protocol| Some(Protocol::Ip4(INADDR_ANY)))
             .unwrap();
-        PrimaryReceiverHandler { tx_synchronizer }
+        let primary_handle = PrimaryReceiverHandler { tx_synchronizer }
             .spawn(address.clone(), tx_reconfigure.subscribe());
 
         // The `Synchronizer` is responsible to keep the worker in sync with the others. It handles the commands
@@ -155,7 +155,7 @@ impl<PublicKey: VerifyingKey> Worker<PublicKey> {
             self.id, address
         );
 
-        vec![handle]
+        vec![handle, primary_handle]
     }
 
     /// Spawn all tasks responsible to handle clients transactions.
@@ -178,7 +178,8 @@ impl<PublicKey: VerifyingKey> Worker<PublicKey> {
         let address = address
             .replace(0, |_protocol| Some(Protocol::Ip4(INADDR_ANY)))
             .unwrap();
-        TxReceiverHandler { tx_batch_maker }.spawn(address.clone(), tx_reconfigure.subscribe());
+        let tx_receiver_handle =
+            TxReceiverHandler { tx_batch_maker }.spawn(address.clone(), tx_reconfigure.subscribe());
 
         // The transactions are sent to the `BatchMaker` that assembles them into batches. It then broadcasts
         // (in a reliable manner) the batches to all other workers that share the same `id` as us. Finally, it
@@ -219,7 +220,12 @@ impl<PublicKey: VerifyingKey> Worker<PublicKey> {
             self.id, address
         );
 
-        vec![batch_maker_handle, quorum_waiter_handle, processor_handle]
+        vec![
+            batch_maker_handle,
+            quorum_waiter_handle,
+            processor_handle,
+            tx_receiver_handle,
+        ]
     }
 
     /// Spawn all tasks responsible to handle messages from other workers.
@@ -242,7 +248,7 @@ impl<PublicKey: VerifyingKey> Worker<PublicKey> {
         let address = address
             .replace(0, |_protocol| Some(Protocol::Ip4(INADDR_ANY)))
             .unwrap();
-        WorkerReceiverHandler {
+        let worker_handle = WorkerReceiverHandler {
             tx_worker_helper,
             tx_client_helper,
             tx_processor,
@@ -279,7 +285,7 @@ impl<PublicKey: VerifyingKey> Worker<PublicKey> {
             self.id, address
         );
 
-        vec![helper_handle, processor_handle]
+        vec![helper_handle, processor_handle, worker_handle]
     }
 }
 
@@ -307,7 +313,7 @@ impl TxReceiverHandler {
         self,
         address: Multiaddr,
         rx_reconfigure: watch::Receiver<ReconfigureNotification<PublicKey>>,
-    ) {
+    ) -> JoinHandle<()> {
         tokio::spawn(async move {
             tokio::select! {
                 _result =  mysten_network::config::Config::new()
@@ -320,7 +326,7 @@ impl TxReceiverHandler {
 
                 () = Self::wait_for_shutdown(rx_reconfigure) => ()
             }
-        });
+        })
     }
 }
 
@@ -385,7 +391,7 @@ impl<PublicKey: VerifyingKey> WorkerReceiverHandler<PublicKey> {
         address: Multiaddr,
         max_concurrent_requests: usize,
         rx_reconfigure: watch::Receiver<ReconfigureNotification<PublicKey>>,
-    ) {
+    ) -> JoinHandle<()> {
         tokio::spawn(async move {
             let mut config = mysten_network::config::Config::new();
             config.concurrency_limit_per_connection = Some(max_concurrent_requests);
@@ -400,7 +406,7 @@ impl<PublicKey: VerifyingKey> WorkerReceiverHandler<PublicKey> {
 
                 () = Self::wait_for_shutdown(rx_reconfigure) => ()
             }
-        });
+        })
     }
 }
 
@@ -492,7 +498,7 @@ impl<PublicKey: VerifyingKey> PrimaryReceiverHandler<PublicKey> {
         self,
         address: Multiaddr,
         rx_reconfigure: watch::Receiver<ReconfigureNotification<PublicKey>>,
-    ) {
+    ) -> JoinHandle<()> {
         tokio::spawn(async move {
             tokio::select! {
                 _result = mysten_network::config::Config::new()
@@ -505,7 +511,7 @@ impl<PublicKey: VerifyingKey> PrimaryReceiverHandler<PublicKey> {
 
                 () = Self::wait_for_shutdown(rx_reconfigure) => ()
             }
-        });
+        })
     }
 }
 

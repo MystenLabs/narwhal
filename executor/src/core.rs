@@ -4,7 +4,7 @@ use crate::{
     bail,
     errors::{SubscriberError, SubscriberResult},
     state::ExecutionIndices,
-    ExecutionState, SerializedTransaction,
+    ExecutionState, ExecutorOutput, SerializedTransaction,
 };
 use config::Committee;
 use consensus::ConsensusOutput;
@@ -40,10 +40,7 @@ pub struct Core<State: ExecutionState, PublicKey: VerifyingKey> {
     /// Receive ordered consensus output to execute.
     rx_subscriber: Receiver<ConsensusOutput<PublicKey>>,
     /// Outputs executed transactions.
-    tx_output: Sender<(
-        SubscriberResult<<State as ExecutionState>::Outcome>,
-        SerializedTransaction,
-    )>,
+    tx_output: Sender<ExecutorOutput<State>>,
     /// The indices ensuring we do not execute twice the same transaction.
     execution_indices: ExecutionIndices,
 }
@@ -67,10 +64,7 @@ where
         execution_state: Arc<State>,
         rx_reconfigure: watch::Receiver<ReconfigureNotification<PublicKey>>,
         rx_subscriber: Receiver<ConsensusOutput<PublicKey>>,
-        tx_output: Sender<(
-            SubscriberResult<<State as ExecutionState>::Outcome>,
-            SerializedTransaction,
-        )>,
+        tx_output: Sender<ExecutorOutput<State>>,
     ) -> JoinHandle<()> {
         tokio::spawn(async move {
             let execution_indices = execution_state

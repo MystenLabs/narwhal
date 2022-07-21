@@ -4,30 +4,38 @@
 use crate::metrics::PrimaryMetrics;
 use config::Committee;
 use crypto::traits::VerifyingKey;
+use dashmap::DashMap;
 use futures::{
     future::try_join_all,
     stream::{futures_unordered::FuturesUnordered, StreamExt as _},
 };
-use std::{
-    collections::HashMap,
-    sync::{
-        atomic::{AtomicU64, Ordering},
-        Arc,
-    },
+use once_cell::sync::OnceCell;
+use std::sync::{
+    atomic::{AtomicU64, Ordering},
+    Arc,
 };
 use store::Store;
 use tokio::{
     sync::{
-        mpsc::{channel, Receiver, Sender},
-        watch,
+        mpsc::{Receiver, Sender},
+        oneshot, watch,
     },
     task::JoinHandle,
+    time::{sleep, Duration, Instant},
 };
 use tracing::error;
 use types::{
     error::{DagError, DagResult},
     Certificate, CertificateDigest, HeaderDigest, ReconfigureNotification, Round,
 };
+
+#[cfg(test)]
+#[path = "tests/certificate_waiter_tests.rs"]
+pub mod certificate_waiter_tests;
+
+/// The resolution of the timer that checks whether we received replies to our parent requests, and triggers
+/// a round of GC if we didn't.
+const GC_RESOLUTION: u64 = 10_000;
 
 /// Waits to receive all the ancestors of a certificate before looping it back to the `Core`
 /// for further processing.
@@ -49,7 +57,8 @@ pub struct CertificateWaiter<PublicKey: VerifyingKey> {
     /// List of digests (certificates) that are waiting to be processed. Their processing will
     /// resume when we get all their dependencies. The map holds a cancellation `Sender`
     /// which we can use to give up on a certificate.
-    pending: HashMap<HeaderDigest, (Round, Sender<()>)>,
+    // TODO: remove the OnceCell once drain_filter stabilizes
+    pending: DashMap<HeaderDigest, (Round, OnceCell<oneshot::Sender<()>>)>,
     /// The metrics handler
     metrics: Arc<PrimaryMetrics>,
 }
@@ -74,7 +83,7 @@ impl<PublicKey: VerifyingKey> CertificateWaiter<PublicKey> {
                 rx_reconfigure,
                 rx_synchronizer,
                 tx_core,
-                pending: HashMap::new(),
+                pending: DashMap::new(),
                 metrics,
             }
             .run()
@@ -88,7 +97,7 @@ impl<PublicKey: VerifyingKey> CertificateWaiter<PublicKey> {
         missing: Vec<CertificateDigest>,
         store: &Store<CertificateDigest, Certificate<PublicKey>>,
         deliver: Certificate<PublicKey>,
-        mut cancel_handle: Receiver<()>,
+        cancel_handle: oneshot::Receiver<()>,
     ) -> DagResult<Certificate<PublicKey>> {
         let waiting: Vec<_> = missing.into_iter().map(|x| store.notify_read(x)).collect();
 
@@ -97,12 +106,15 @@ impl<PublicKey: VerifyingKey> CertificateWaiter<PublicKey> {
                 result.map(|_| deliver).map_err(DagError::from)
             }
             // the request for this certificate is obsolete, for instance because its round is obsolete (GC'd).
-            _ = cancel_handle.recv() => Ok(deliver),
+            _ = cancel_handle => Ok(deliver),
         }
     }
 
     async fn run(&mut self) {
         let mut waiting = FuturesUnordered::new();
+
+        let timer = sleep(Duration::from_millis(GC_RESOLUTION));
+        tokio::pin!(timer);
 
         loop {
             tokio::select! {
@@ -119,13 +131,15 @@ impl<PublicKey: VerifyingKey> CertificateWaiter<PublicKey> {
 
                     // Add the certificate to the waiter pool. The waiter will return it to us when
                     // all its parents are in the store.
-                    let wait_for = certificate
-                        .header
-                        .parents
-                        .iter().cloned()
-                        .collect();
-                    let (tx_cancel, rx_cancel) = channel(1);
-                    self.pending.insert(header_id, (certificate.round(), tx_cancel));
+                    let wait_for = certificate.header.parents.iter().cloned().collect();
+                    let (tx_cancel, rx_cancel) = oneshot::channel();
+                    // TODO: remove all this once drain_filter is stabilized.
+                    let once_cancel = {
+                        let inner = OnceCell::new();
+                        inner.set(tx_cancel).expect("OnceCell invariant violated");
+                        inner
+                    };
+                    self.pending.insert(header_id, (certificate.round(), once_cancel));
                     let fut = Self::waiter(wait_for, &self.store, certificate, rx_cancel);
                     waiting.push(fut);
                 }
@@ -154,18 +168,36 @@ impl<PublicKey: VerifyingKey> CertificateWaiter<PublicKey> {
                     }
 
                 }
+                () = &mut timer => {
+                    // We still would like to GC even if we do not receive anything from either the synchronizer or
+                    //  the Waiter. This can happen, as we may have asked for certificates that (at the time of ask)
+                    // were not past our GC bound, but which round swept up past our GC bound as we advanced rounds
+                    // & caught up with the network.
+                    // Those certificates may get stuck in pending, unless we periodically clean up.
+
+                    // Reschedule the timer.
+                    timer.as_mut().reset(Instant::now() + Duration::from_millis(GC_RESOLUTION));
+                },
             }
 
             // Cleanup internal state. Deliver the certificates waiting on garbage collected ancestors.
             let round = self.consensus_round.load(Ordering::Relaxed);
             if round > self.gc_depth {
                 let gc_round = round - self.gc_depth;
-                for (r, cancel_handle) in self.pending.values() {
-                    if *r <= gc_round + 1 {
-                        let _ = cancel_handle.send(()).await;
+
+                self.pending.retain(|_digest, (r, once_cancel)| {
+                    if *r <= gc_round {
+                        // note: this send can fail, harmlessly, if the certificate has been delivered (`notify_read`)
+                        // and the present code path fires before the corresponding `waiting` item is unpacked above.
+                        let _ = once_cancel
+                            .take()
+                            .expect("This should be protected by a write lock")
+                            .send(());
+                        false
+                    } else {
+                        true
                     }
-                }
-                self.pending.retain(|_, (r, _)| *r > gc_round + 1);
+                });
             }
 
             self.update_metrics();

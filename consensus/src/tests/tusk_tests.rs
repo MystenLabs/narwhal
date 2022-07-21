@@ -78,7 +78,8 @@ async fn commit_one() {
 
     let store_path = test_utils::temp_dir();
     let store = make_consensus_store(&store_path);
-    let tusk = Tusk::new(committee.clone(), store.clone(), /* gc_depth */ 50);
+    let gc_depth = 50;
+    let tusk = Tusk::new(committee.clone(), store.clone(), gc_depth);
     let metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
 
     Consensus::spawn(
@@ -90,6 +91,7 @@ async fn commit_one() {
         tx_output,
         tusk,
         metrics,
+        gc_depth,
     );
     tokio::spawn(async move { while rx_primary.recv().await.is_some() {} });
 
@@ -139,7 +141,8 @@ async fn dead_node() {
 
     let store_path = test_utils::temp_dir();
     let store = make_consensus_store(&store_path);
-    let tusk = Tusk::new(committee.clone(), store.clone(), /* gc_depth */ 50);
+    let gc_depth = 50;
+    let tusk = Tusk::new(committee.clone(), store.clone(), gc_depth);
     let metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
 
     Consensus::spawn(
@@ -151,6 +154,7 @@ async fn dead_node() {
         tx_output,
         tusk,
         metrics,
+        gc_depth,
     );
     tokio::spawn(async move { while rx_primary.recv().await.is_some() {} });
 
@@ -244,7 +248,8 @@ async fn not_enough_support() {
 
     let store_path = test_utils::temp_dir();
     let store = make_consensus_store(&store_path);
-    let tusk = Tusk::new(committee.clone(), store.clone(), /* gc_depth */ 50);
+    let gc_depth = 50;
+    let tusk = Tusk::new(committee.clone(), store.clone(), gc_depth);
     let metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
 
     Consensus::spawn(
@@ -256,6 +261,7 @@ async fn not_enough_support() {
         tx_output,
         tusk,
         metrics,
+        gc_depth,
     );
     tokio::spawn(async move { while rx_primary.recv().await.is_some() {} });
 
@@ -323,7 +329,8 @@ async fn missing_leader() {
 
     let store_path = test_utils::temp_dir();
     let store = make_consensus_store(&store_path);
-    let tusk = Tusk::new(committee.clone(), store.clone(), /* gc_depth */ 50);
+    let gc_depth = 50;
+    let tusk = Tusk::new(committee.clone(), store.clone(), gc_depth);
     let metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
     Consensus::spawn(
         committee,
@@ -334,6 +341,7 @@ async fn missing_leader() {
         tx_output,
         tusk,
         metrics,
+        gc_depth,
     );
     tokio::spawn(async move { while rx_primary.recv().await.is_some() {} });
 

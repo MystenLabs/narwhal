@@ -79,8 +79,9 @@ async fn commit_one() {
     let (_tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
 
     let store_path = test_utils::temp_dir();
+    let gc_depth = 50;
     let store = make_consensus_store(&store_path);
-    let bullshark = Bullshark::new(committee.clone(), store.clone(), /* gc_depth */ 50);
+    let bullshark = Bullshark::new(committee.clone(), store.clone(), gc_depth);
     let metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
     Consensus::spawn(
         committee,
@@ -91,6 +92,7 @@ async fn commit_one() {
         tx_output,
         bullshark,
         metrics,
+        gc_depth,
     );
     tokio::spawn(async move { while rx_primary.recv().await.is_some() {} });
 
@@ -138,20 +140,23 @@ async fn dead_node() {
     let initial_committee = ReconfigureNotification::NewCommittee(committee.clone());
     let (_tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
 
-    let store_path = test_utils::temp_dir();
-    let store = make_consensus_store(&store_path);
-    let bullshark = Bullshark::new(committee.clone(), store.clone(), /* gc_depth */ 50);
+    let store = make_consensus_store(&test_utils::temp_dir());
+    let cert_store = make_certificate_store(&test_utils::temp_dir());
+    let gc_depth = 50;
+    let bullshark = Bullshark::new(committee.clone(), store.clone(), gc_depth);
     let metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
 
     Consensus::spawn(
         committee,
         store,
+        cert_store,
         rx_reconfigure,
         rx_waiter,
         tx_primary,
         tx_output,
         bullshark,
         metrics,
+        gc_depth,
     );
     tokio::spawn(async move { while rx_primary.recv().await.is_some() {} });
 
@@ -245,20 +250,23 @@ async fn not_enough_support() {
     let initial_committee = ReconfigureNotification::NewCommittee(committee.clone());
     let (_tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
 
-    let store_path = test_utils::temp_dir();
-    let store = make_consensus_store(&store_path);
-    let bullshark = Bullshark::new(committee.clone(), store.clone(), /* gc_depth */ 50);
+    let store = make_consensus_store(&test_utils::temp_dir());
+    let cert_store = make_certificate_store(&test_utils::temp_dir());
+    let gc_depth = 50;
+    let bullshark = Bullshark::new(committee.clone(), store.clone(), gc_depth);
     let metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
 
     Consensus::spawn(
         committee,
         store,
+        cert_store,
         rx_reconfigure,
         rx_waiter,
         tx_primary,
         tx_output,
         bullshark,
         metrics,
+        gc_depth,
     );
     tokio::spawn(async move { while rx_primary.recv().await.is_some() {} });
 
@@ -326,20 +334,23 @@ async fn missing_leader() {
     let initial_committee = ReconfigureNotification::NewCommittee(committee.clone());
     let (_tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
 
-    let store_path = test_utils::temp_dir();
-    let store = make_consensus_store(&store_path);
-    let bullshark = Bullshark::new(committee.clone(), store.clone(), /* gc_depth */ 50);
+    let store = make_consensus_store(&test_utils::temp_dir());
+    let cert_store = make_certificate_store(&test_utils::temp_dir());
+    let gc_depth = 50;
+    let bullshark = Bullshark::new(committee.clone(), store.clone(), gc_depth);
     let metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
 
     Consensus::spawn(
         committee,
         store,
+        cert_store,
         rx_reconfigure,
         rx_waiter,
         tx_primary,
         tx_output,
         bullshark,
         metrics,
+        gc_depth,
     );
     tokio::spawn(async move { while rx_primary.recv().await.is_some() {} });
 
