@@ -11,7 +11,7 @@ use crypto::{
 use executor::{ExecutionIndices, ExecutionState, ExecutionStateError};
 use futures::future::join_all;
 use network::PrimaryToWorkerNetwork;
-use node::{restarter::NodeController, Node, NodeStorage};
+use node::{restarter::NodeRestarter, Node, NodeStorage};
 use primary::{PrimaryWorkerMessage, WorkerPrimaryMessage};
 use prometheus::Registry;
 use std::{
@@ -189,7 +189,7 @@ async fn restart() {
         let execution_state = execution_state.clone();
         let parameters = parameters.clone();
         tokio::spawn(async move {
-            NodeController::watch(
+            NodeRestarter::watch(
                 keypair,
                 &committee,
                 /* base_store_path */ test_utils::temp_dir(),

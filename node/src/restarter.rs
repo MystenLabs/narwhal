@@ -16,9 +16,9 @@ use worker::WorkerToPrimaryNetwork;
 
 // Module to start a node (primary, workers and default consensus), keep it running, and restarting it
 /// every time the committee changes.
-pub struct NodeController;
+pub struct NodeRestarter;
 
-impl NodeController {
+impl NodeRestarter {
     pub async fn watch<Keys, PublicKey, State>(
         keypair: Keys,
         committee: &Committee<PublicKey>,
