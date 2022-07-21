@@ -95,7 +95,7 @@ async fn test_restore_from_disk() {
         }
     }
 
-    assert!(node_recovered_state, "Node recovered state");
+    assert!(node_recovered_state, "Node did not recover state from disk");
 }
 
 fn string_transaction() -> StringTransaction {
