@@ -75,6 +75,7 @@ pub async fn spawn_node(
     let consensus_handle = Consensus::spawn(
         committee,
         consensus_store.clone(),
+        certificate_store.clone(),
         tx_reconfigure.subscribe(),
         rx_waiter,
         tx_primary,
