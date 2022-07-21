@@ -10,7 +10,7 @@ use prometheus::default_registry;
 use std::{collections::BTreeMap, sync::Arc};
 use test_utils::{keys, make_authority, pure_committee_from_keys, temp_dir};
 use tokio::sync::{mpsc::channel, watch};
-use types::{ ReconfigureNotification};
+use types::ReconfigureNotification;
 use worker::WorkerToPrimaryNetwork;
 
 /// The epoch changes but the stake distribution and network addresses stay the same.
@@ -91,7 +91,11 @@ async fn test_simple_epoch_change() {
         ));
         let mut _do_not_drop = Vec::new();
         for address in addresses {
-            _do_not_drop.push( WorkerToPrimaryNetwork::default().send(address, &message).await);
+            _do_not_drop.push(
+                WorkerToPrimaryNetwork::default()
+                    .send(address, &message)
+                    .await,
+            );
         }
 
         // Run for a while.
@@ -248,9 +252,13 @@ async fn test_partial_committee_change() {
         committee_1.clone(),
     ));
     let mut _do_not_drop = Vec::new();
-        for address in addresses {
-            _do_not_drop.push( WorkerToPrimaryNetwork::default().send(address, &message).await);
-        }
+    for address in addresses {
+        _do_not_drop.push(
+            WorkerToPrimaryNetwork::default()
+                .send(address, &message)
+                .await,
+        );
+    }
 
     // Run for a while in epoch 1.
     for rx in epoch_1_rx_channels.iter_mut() {
@@ -331,10 +339,14 @@ async fn test_restart_with_new_committee_change() {
         .collect();
     let message =
         WorkerPrimaryMessage::<Ed25519PublicKey>::Reconfigure(ReconfigureNotification::Shutdown);
-     let mut _do_not_drop = Vec::new();
-        for address in addresses {
-            _do_not_drop.push( WorkerToPrimaryNetwork::default().send(address, &message).await);
-        }
+    let mut _do_not_drop = Vec::new();
+    for address in addresses {
+        _do_not_drop.push(
+            WorkerToPrimaryNetwork::default()
+                .send(address, &message)
+                .await,
+        );
+    }
 
     // Wait for the committee to shutdown.
     join_all(handles).await;
@@ -396,12 +408,17 @@ async fn test_restart_with_new_committee_change() {
             .values()
             .map(|authority| authority.primary.worker_to_primary.clone())
             .collect();
-        let message =
-            WorkerPrimaryMessage::<Ed25519PublicKey>::Reconfigure(ReconfigureNotification::Shutdown);
-            let mut _do_not_drop = Vec::new();
-            for address in addresses {
-                _do_not_drop.push( WorkerToPrimaryNetwork::default().send(address, &message).await);
-            }
+        let message = WorkerPrimaryMessage::<Ed25519PublicKey>::Reconfigure(
+            ReconfigureNotification::Shutdown,
+        );
+        let mut _do_not_drop = Vec::new();
+        for address in addresses {
+            _do_not_drop.push(
+                WorkerToPrimaryNetwork::default()
+                    .send(address, &message)
+                    .await,
+            );
+        }
 
         // Wait for the committee to shutdown.
         join_all(handles).await;

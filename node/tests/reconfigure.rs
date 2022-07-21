@@ -11,7 +11,7 @@ use crypto::{
 use executor::{ExecutionIndices, ExecutionState, ExecutionStateError};
 use futures::future::join_all;
 use network::PrimaryToWorkerNetwork;
-use node::{Node, NodeController, NodeStorage};
+use node::{restarter::NodeController, Node, NodeStorage};
 use primary::{PrimaryWorkerMessage, WorkerPrimaryMessage};
 use prometheus::Registry;
 use std::{
