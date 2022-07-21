@@ -212,8 +212,8 @@ where
     pub fn spawn(
         committee: Committee<PublicKey>,
         store: Arc<ConsensusStore<PublicKey>>,
-        rx_reconfigure: watch::Receiver<ReconfigureNotification<PublicKey>>,
         cert_store: Store<CertificateDigest, Certificate<PublicKey>>,
+        rx_reconfigure: watch::Receiver<ReconfigureNotification<PublicKey>>,
         rx_primary: Receiver<Certificate<PublicKey>>,
         tx_primary: Sender<Certificate<PublicKey>>,
         tx_output: Sender<ConsensusOutput<PublicKey>>,

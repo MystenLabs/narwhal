@@ -220,6 +220,7 @@ impl Node {
         let consensus_handles = Consensus::spawn(
             (**committee.load()).clone(),
             store.consensus_store.clone(),
+            store.certificate_store.clone(),
             tx_reconfigure.subscribe(),
             /* rx_primary */ rx_new_certificates,
             /* tx_primary */ tx_feedback,
