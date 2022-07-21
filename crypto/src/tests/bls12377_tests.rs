@@ -353,9 +353,11 @@ fn test_public_key_bytes_conversion() {
 #[test]
 fn test_serialize_deserialize_keypair() {
     let kp = keys().pop().unwrap();
-    let serialize = bincode::serialize(kp.public()).unwrap();
-    println!("{:?}", serialize);
-    // let deserialized = bincode::deserialize(&serialized).unwrap();
+    let serialized = bincode::serialize(&kp).unwrap();
+    println!("{:?}", serialized);
+    let deserialized: BLS12377KeyPair = bincode::deserialize(&serialized).unwrap();
+    assert_eq!(kp.public().as_ref(), deserialized.public().as_ref());
+    assert_eq!(kp.private().as_ref(), deserialized.private().as_ref());
 }
 
 #[tokio::test]
