@@ -13,7 +13,7 @@ use blst::min_sig as blst;
 use once_cell::sync::OnceCell;
 use rand::{rngs::OsRng, RngCore};
 
-use crate::{pubkey_bytes::PublicKeyBytes, serde_helpers::BlsSignature};
+use crate::{pubkey_bytes::PublicKeyBytes, serde_helpers::{BlsSignature, keypair_decode_base64}};
 use serde::{
     de::{self},
     Deserialize, Serialize,
@@ -53,11 +53,34 @@ pub struct BLS12381PrivateKey {
 }
 
 // There is a strong requirement for this specific impl. in Fab benchmarks
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(tag = "type")] // necessary so as not to deser under a != type
+#[derive(Debug)]
 pub struct BLS12381KeyPair {
     name: BLS12381PublicKey,
     secret: BLS12381PrivateKey,
+}
+
+// There is a strong requirement for this specific impl. in Fab benchmarks
+impl Serialize for BLS12381KeyPair {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let encoded = &self.encode_base64();
+        println!("{}", encoded);
+        serializer.serialize_str(&encoded)
+    }
+}
+
+// There is a strong requirement for this specific impl. in Fab benchmarks
+impl<'de> Deserialize<'de> for BLS12381KeyPair {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        let s = <String as serde::Deserialize>::deserialize(deserializer)?;
+        let value = Self::decode_base64(&s).map_err(|e| de::Error::custom(e.to_string()))?;
+        Ok(value)
+    }
 }
 
 #[readonly::make]
@@ -368,6 +391,19 @@ impl From<BLS12381PrivateKey> for BLS12381KeyPair {
     }
 }
 
+impl EncodeDecodeBase64 for BLS12381KeyPair {
+    fn decode_base64(value: &str) -> Result<Self, eyre::Report> {
+        keypair_decode_base64(value)
+    }
+
+    fn encode_base64(&self) -> String {
+        let mut bytes: Vec<u8> = Vec::new();
+        bytes.extend_from_slice(self.secret.as_ref());
+        bytes.extend_from_slice(self.name.as_ref());
+        base64ct::Base64::encode_string(&bytes[..])
+    }
+}
+
 impl KeyPair for BLS12381KeyPair {
     type PubKey = BLS12381PublicKey;
     type PrivKey = BLS12381PrivateKey;
@@ -379,13 +415,6 @@ impl KeyPair for BLS12381KeyPair {
             name: self.name.clone(),
             secret: BLS12381PrivateKey::from_bytes(self.secret.as_ref()).unwrap(),
         }
-    }
-
-    fn encode_base64(&self) -> String {
-        let mut bytes = vec![];
-        bytes.extend_from_slice(self.secret.as_ref());
-        bytes.extend_from_slice(self.name.as_ref());
-        Base64::encode_string(&bytes)
     }
 
     fn public(&'_ self) -> &'_ Self::PubKey {

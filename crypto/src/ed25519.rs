@@ -12,7 +12,7 @@ use std::{
 
 use crate::{
     pubkey_bytes::PublicKeyBytes,
-    serde_helpers::Ed25519Signature as Ed25519Sig,
+    serde_helpers::{Ed25519Signature as Ed25519Sig, keypair_decode_base64},
     traits::{
         AggregateAuthenticator, Authenticator, EncodeDecodeBase64, KeyPair, SigningKey,
         ToFromBytes, VerifyingKey,
@@ -31,8 +31,7 @@ pub type Ed25519PublicKeyBytes = PublicKeyBytes<Ed25519PublicKey, { Ed25519Publi
 pub struct Ed25519PrivateKey(pub ed25519_dalek::SecretKey);
 
 // There is a strong requirement for this specific impl. in Fab benchmarks
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(tag = "type")] // necessary so as not to deser under a != type
+#[derive(Debug)]
 pub struct Ed25519KeyPair {
     name: Ed25519PublicKey,
     secret: Ed25519PrivateKey,
@@ -47,6 +46,28 @@ pub struct Ed25519Signature(#[serde_as(as = "Ed25519Sig")] pub ed25519_dalek::Si
 pub struct Ed25519AggregateSignature(
     #[serde_as(as = "Vec<Ed25519Sig>")] pub Vec<ed25519_dalek::Signature>,
 );
+
+// There is a strong requirement for this specific impl. in Fab benchmarks
+impl Serialize for Ed25519KeyPair {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.encode_base64())
+    }
+}
+
+// There is a strong requirement for this specific impl. in Fab benchmarks
+impl<'de> Deserialize<'de> for Ed25519KeyPair {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        let s = <String as serde::Deserialize>::deserialize(deserializer)?;
+        let value = Self::decode_base64(&s).map_err(|e| de::Error::custom(e.to_string()))?;
+        Ok(value)
+    }
+}
 
 ///
 /// Implement VerifyingKey
@@ -321,19 +342,15 @@ impl From<Ed25519PrivateKey> for Ed25519KeyPair {
 }
 
 impl EncodeDecodeBase64 for Ed25519KeyPair {
-    fn encode_base64(&self) -> String {
-        let mut bytes = [0u8; ed25519_dalek::SECRET_KEY_LENGTH + ed25519_dalek::PUBLIC_KEY_LENGTH];
-        bytes[..ed25519_dalek::SECRET_KEY_LENGTH].copy_from_slice(&self.secret.as_ref());
-        bytes[ed25519_dalek::SECRET_KEY_LENGTH..].copy_from_slice(&self.name.as_ref());
-        base64ct::Base64::encode_string(&bytes)
+    fn decode_base64(value: &str) -> Result<Self, eyre::Report> {
+        keypair_decode_base64(value)
     }
 
-    fn decode_base64(value: &str) -> Result<Self, eyre::Report> {
-        let mut bytes = [0u8; ed25519_dalek::SECRET_KEY_LENGTH+ ed25519_dalek::PUBLIC_KEY_LENGTH];
-        base64ct::Base64::decode(value, &mut bytes).map_err(|e| eyre!("{}", e.to_string()))?;
-        let secret = Ed25519PrivateKey::from_bytes(&bytes[..ed25519_dalek::SECRET_KEY_LENGTH])?;
-        let name = Ed25519PublicKey::from_bytes(&bytes[ed25519_dalek::SECRET_KEY_LENGTH..])?;
-        Ok(Ed25519KeyPair { name, secret })
+    fn encode_base64(&self) -> String {
+        let mut bytes: Vec<u8> = Vec::new();
+        bytes.extend_from_slice(self.secret.as_ref());
+        bytes.extend_from_slice(self.name.as_ref());
+        base64ct::Base64::encode_string(&bytes[..])
     }
 }
 

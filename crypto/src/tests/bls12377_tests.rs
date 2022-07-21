@@ -350,6 +350,14 @@ fn test_public_key_bytes_conversion() {
     assert_eq!(kp.public().as_bytes(), rebuilded_pk.as_bytes());
 }
 
+#[test]
+fn test_serialize_deserialize_keypair() {
+    let kp = keys().pop().unwrap();
+    let serialize = bincode::serialize(kp.public()).unwrap();
+    println!("{:?}", serialize);
+    // let deserialized = bincode::deserialize(&serialized).unwrap();
+}
+
 #[tokio::test]
 async fn signature_service() {
     // Get a keypair.
