@@ -14,9 +14,9 @@ use std::{collections::HashMap, sync::Arc};
 use tracing::debug;
 use types::{Certificate, CertificateDigest, ConsensusStore, Round, SequenceNumber, StoreResult};
 
-#[cfg(test)]
-#[path = "tests/bullshark_tests.rs"]
-pub mod bullshark_tests;
+// #[cfg(test)]
+// #[path = "tests/bullshark_tests.rs"]
+// pub mod bullshark_tests;
 
 pub struct Bullshark<PublicKey: VerifyingKey> {
     /// The committee information.

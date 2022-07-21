@@ -76,8 +76,8 @@ async fn commit_one() {
     let initial_committee = ReconfigureNotification::NewCommittee(committee.clone());
     let (_tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
 
-    let store_path = test_utils::temp_dir();
-    let store = make_consensus_store(&store_path);
+    let store = make_consensus_store(&test_utils::temp_dir());
+    let cert_store = make_certificate_store(&test_utils::temp_dir());
     let gc_depth = 50;
     let tusk = Tusk::new(committee.clone(), store.clone(), gc_depth);
     let metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
@@ -85,6 +85,7 @@ async fn commit_one() {
     Consensus::spawn(
         committee,
         store,
+        cert_store,
         rx_reconfigure,
         rx_waiter,
         tx_primary,
@@ -139,8 +140,8 @@ async fn dead_node() {
     let initial_committee = ReconfigureNotification::NewCommittee(committee.clone());
     let (_tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
 
-    let store_path = test_utils::temp_dir();
-    let store = make_consensus_store(&store_path);
+    let store = make_consensus_store(&test_utils::temp_dir());
+    let cert_store = make_certificate_store(&test_utils::temp_dir());
     let gc_depth = 50;
     let tusk = Tusk::new(committee.clone(), store.clone(), gc_depth);
     let metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
@@ -148,6 +149,7 @@ async fn dead_node() {
     Consensus::spawn(
         committee,
         store,
+        cert_store,
         rx_reconfigure,
         rx_waiter,
         tx_primary,
@@ -246,8 +248,8 @@ async fn not_enough_support() {
     let initial_committee = ReconfigureNotification::NewCommittee(committee.clone());
     let (_tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
 
-    let store_path = test_utils::temp_dir();
-    let store = make_consensus_store(&store_path);
+    let store = make_consensus_store(&test_utils::temp_dir());
+    let cert_store = make_certificate_store(&test_utils::temp_dir());
     let gc_depth = 50;
     let tusk = Tusk::new(committee.clone(), store.clone(), gc_depth);
     let metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
@@ -255,6 +257,7 @@ async fn not_enough_support() {
     Consensus::spawn(
         committee,
         store,
+        cert_store,
         rx_reconfigure,
         rx_waiter,
         tx_primary,
@@ -327,14 +330,15 @@ async fn missing_leader() {
     let initial_committee = ReconfigureNotification::NewCommittee(committee.clone());
     let (_tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
 
-    let store_path = test_utils::temp_dir();
-    let store = make_consensus_store(&store_path);
+    let store = make_consensus_store(&test_utils::temp_dir());
+    let cert_store = make_certificate_store(&test_utils::temp_dir());
     let gc_depth = 50;
     let tusk = Tusk::new(committee.clone(), store.clone(), gc_depth);
     let metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
     Consensus::spawn(
         committee,
         store,
+        cert_store,
         rx_reconfigure,
         rx_waiter,
         tx_primary,
@@ -386,19 +390,22 @@ async fn epoch_change() {
     let initial_committee = ReconfigureNotification::NewCommittee(committee.clone());
     let (tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
 
-    let store_path = test_utils::temp_dir();
-    let store = make_consensus_store(&store_path);
-    let tusk = Tusk::new(committee.clone(), store.clone(), /* gc_depth */ 50);
+    let store = make_consensus_store(&test_utils::temp_dir());
+    let cert_store = make_certificate_store(&test_utils::temp_dir());
+    let gc_depth = 50;
+    let tusk = Tusk::new(committee.clone(), store.clone(), gc_depth);
     let metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
     Consensus::spawn(
         committee.clone(),
         store,
+        cert_store,
         rx_reconfigure,
         rx_waiter,
         tx_primary,
         tx_output,
         tusk,
         metrics,
+        gc_depth,
     );
     tokio::spawn(async move { while rx_primary.recv().await.is_some() {} });
 
@@ -461,20 +468,23 @@ async fn restart_with_new_committee() {
 
         let initial_committee = ReconfigureNotification::NewCommittee(committee.clone());
         let (tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
-        let store_path = test_utils::temp_dir();
-        let store = make_consensus_store(&store_path);
+        let store = make_consensus_store(&test_utils::temp_dir());
+        let cert_store = make_certificate_store(&test_utils::temp_dir());
         let metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
-        let tusk = Tusk::new(committee.clone(), store.clone(), /* gc_depth */ 50);
+        let gc_depth = 50;
+        let tusk = Tusk::new(committee.clone(), store.clone(), gc_depth);
 
         let handle = Consensus::spawn(
             committee.clone(),
             store,
+            cert_store,
             rx_reconfigure,
             rx_waiter,
             tx_primary,
             tx_output,
             tusk,
             metrics.clone(),
+            gc_depth,
         );
         tokio::spawn(async move { while rx_primary.recv().await.is_some() {} });
 
