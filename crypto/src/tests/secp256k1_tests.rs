@@ -132,7 +132,6 @@ fn verify_invalid_signature() {
 fn test_serialize_deserialize_keypair() {
     let kp = keys().pop().unwrap();
     let serialized = bincode::serialize(&kp).unwrap();
-    println!("{:?}", serialized);
     let deserialized: Secp256k1KeyPair = bincode::deserialize(&serialized).unwrap();
     assert_eq!(kp.public().as_ref(), deserialized.public().as_ref());
     assert_eq!(kp.private().as_ref(), deserialized.private().as_ref());
