@@ -5,7 +5,8 @@ use std::fmt::{self, Display};
 
 use crate::{
     pubkey_bytes::PublicKeyBytes,
-    traits::{AggregateAuthenticator, EncodeDecodeBase64, ToFromBytes}, serde_helpers::keypair_decode_base64,
+    serde_helpers::keypair_decode_base64,
+    traits::{AggregateAuthenticator, EncodeDecodeBase64, ToFromBytes},
 };
 use ::ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use ark_bls12_377::{Fr, G1Affine, G1Projective, G2Affine, G2Projective};

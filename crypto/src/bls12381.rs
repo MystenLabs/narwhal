@@ -13,7 +13,10 @@ use blst::min_sig as blst;
 use once_cell::sync::OnceCell;
 use rand::{rngs::OsRng, RngCore};
 
-use crate::{pubkey_bytes::PublicKeyBytes, serde_helpers::{BlsSignature, keypair_decode_base64}};
+use crate::{
+    pubkey_bytes::PublicKeyBytes,
+    serde_helpers::{keypair_decode_base64, BlsSignature},
+};
 use serde::{
     de::{self},
     Deserialize, Serialize,
@@ -65,9 +68,7 @@ impl Serialize for BLS12381KeyPair {
     where
         S: serde::Serializer,
     {
-        let encoded = &self.encode_base64();
-        println!("{}", encoded);
-        serializer.serialize_str(&encoded)
+        serializer.serialize_str(&self.encode_base64())
     }
 }
 

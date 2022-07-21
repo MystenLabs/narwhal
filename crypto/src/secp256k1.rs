@@ -1,7 +1,7 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use crate::pubkey_bytes::PublicKeyBytes;
-use crate::serde_helpers::{keypair_decode_base64};
+use crate::serde_helpers::keypair_decode_base64;
 use crate::traits::{
     Authenticator, EncodeDecodeBase64, KeyPair, SigningKey, ToFromBytes, VerifyingKey,
 };

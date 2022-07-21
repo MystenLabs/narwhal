@@ -12,7 +12,7 @@ use std::{
 
 use crate::{
     pubkey_bytes::PublicKeyBytes,
-    serde_helpers::{Ed25519Signature as Ed25519Sig, keypair_decode_base64},
+    serde_helpers::{keypair_decode_base64, Ed25519Signature as Ed25519Sig},
     traits::{
         AggregateAuthenticator, Authenticator, EncodeDecodeBase64, KeyPair, SigningKey,
         ToFromBytes, VerifyingKey,
