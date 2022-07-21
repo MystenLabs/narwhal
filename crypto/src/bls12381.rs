@@ -381,6 +381,13 @@ impl KeyPair for BLS12381KeyPair {
         }
     }
 
+    fn encode_base64(&self) -> String {
+        let mut bytes = vec![];
+        bytes.extend_from_slice(self.secret.as_ref());
+        bytes.extend_from_slice(self.name.as_ref());
+        Base64::encode_string(&bytes)
+    }
+
     fn public(&'_ self) -> &'_ Self::PubKey {
         &self.name
     }
