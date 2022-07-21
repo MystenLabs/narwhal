@@ -12,15 +12,8 @@ use anyhow::{Context, Result};
 use arc_swap::ArcSwap;
 use clap::{crate_name, crate_version, App, AppSettings, ArgMatches, SubCommand};
 use config::{Committee, Import, Parameters, WorkerId};
-use consensus::ConsensusOutput;
-use crypto::{
-    ed25519::Ed25519KeyPair,
-    generate_production_keypair,
-    traits::{KeyPair, VerifyingKey},
-};
-use executor::{
-    ExecutionIndices, ExecutionState, ExecutionStateError, SerializedTransaction, SubscriberResult,
-};
+use crypto::{ed25519::Ed25519KeyPair, generate_production_keypair, traits::KeyPair};
+use executor::{SerializedTransaction, SubscriberResult};
 use futures::future::join_all;
 use node::{
     execution_state::SimpleExecutionState,
