@@ -1,14 +1,13 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crate::pubkey_bytes::PublicKeyBytes;
-use crate::traits::{
-    Authenticator, EncodeDecodeBase64, KeyPair, SigningKey, ToFromBytes, VerifyingKey,
+use crate::{
+    pubkey_bytes::PublicKeyBytes,
+    traits::{Authenticator, EncodeDecodeBase64, KeyPair, SigningKey, ToFromBytes, VerifyingKey},
 };
 use base64ct::{Base64, Encoding};
 use once_cell::sync::OnceCell;
 use serde::{de, Deserialize, Serialize};
-use signature::rand_core::OsRng;
-use signature::{Signature, Signer, Verifier};
+use signature::{rand_core::OsRng, Signature, Signer, Verifier};
 use std::fmt::{self, Debug, Display};
 
 pub const SECP256K1_PRIVATE_KEY_LENGTH: usize = 32;
