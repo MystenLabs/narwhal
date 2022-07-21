@@ -138,7 +138,6 @@ fn test_serialize_deserialize_keypair() {
     assert_eq!(kp.private().as_ref(), deserialized.private().as_ref());
 }
 
-
 #[tokio::test]
 async fn signature_service() {
     // Get a keypair.
