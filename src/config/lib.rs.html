@@ -663,7 +663,6 @@
 <span id="657">657</span>
 <span id="658">658</span>
 <span id="659">659</span>
-<span id="660">660</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -1084,7 +1083,6 @@
             .<span class="ident">map</span>(<span class="op">|</span>(<span class="kw">_</span>, <span class="ident">worker</span>)<span class="op">|</span> <span class="ident">worker</span>.<span class="ident">clone</span>())
             .<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">ConfigError::NotInCommittee</span>((<span class="kw-2">*</span><span class="ident">to</span>).<span class="ident">encode_base64</span>()))
     }
-
     <span class="doccomment">/// Returns the addresses of all our workers.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">our_workers</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">myself</span>: <span class="kw-2">&amp;</span><span class="ident">PublicKey</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">WorkerAddresses</span><span class="op">&gt;</span>, <span class="ident">ConfigError</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="self">self</span>

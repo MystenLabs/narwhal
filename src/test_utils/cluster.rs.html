@@ -510,6 +510,7 @@
 <span id="504">504</span>
 <span id="505">505</span>
 <span id="506">506</span>
+<span id="507">507</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">committee</span>, <span class="ident">keys</span>, <span class="ident">temp_dir</span>};
@@ -540,7 +541,7 @@
 
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Cluster</span> {
     <span class="ident">authorities</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">usize</span>, <span class="ident">AuthorityDetails</span><span class="op">&gt;</span>,
-    <span class="ident">committee_shared</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">ArcSwap</span><span class="op">&lt;</span><span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">Ed25519PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="kw">pub</span> <span class="ident">committee_shared</span>: <span class="ident">SharedCommittee</span><span class="op">&lt;</span><span class="ident">Ed25519PublicKey</span><span class="op">&gt;</span>,
     <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">dead_code</span>)]</span>
     <span class="ident">parameters</span>: <span class="ident">Parameters</span>,
 }
@@ -646,8 +647,8 @@
 
     <span class="doccomment">/// This method stops the authority (both the primary and the worker nodes)</span>
     <span class="doccomment">/// with the provided id.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">stop_node</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">id</span>: <span class="ident">usize</span>) {
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">node</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">authorities</span>.<span class="ident">get_mut</span>(<span class="kw-2">&amp;</span><span class="ident">id</span>) {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">stop_node</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">id</span>: <span class="ident">usize</span>) {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">node</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">authorities</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">id</span>) {
             <span class="ident">node</span>.<span class="ident">stop_all</span>();
             <span class="macro">info!</span>(<span class="string">&quot;Aborted node for id {id}&quot;</span>);
         } <span class="kw">else</span> {
@@ -659,7 +660,7 @@
     <span class="doccomment">/// * has been started ever</span>
     <span class="doccomment">/// * or has been stopped</span>
     <span class="doccomment">/// will not be returned by this method.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">authorities</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">AuthorityDetails</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">authorities</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">AuthorityDetails</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">authorities</span>
             .<span class="ident">iter</span>()
             .<span class="ident">filter</span>(<span class="op">|</span>(<span class="kw">_</span>, <span class="ident">authority</span>)<span class="op">|</span> <span class="ident">authority</span>.<span class="ident">is_running</span>())
@@ -669,7 +670,7 @@
 
     <span class="doccomment">/// Returns the authority identified by the provided id.</span>
     <span class="doccomment">/// Will panic if the authority with the id is not found.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">authority</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">id</span>: <span class="ident">usize</span>) -&gt; <span class="ident">AuthorityDetails</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">authority</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">id</span>: <span class="ident">usize</span>) -&gt; <span class="ident">AuthorityDetails</span> {
         <span class="self">self</span>.<span class="ident">authorities</span>
             .<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">id</span>)
             .<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="macro">panic!</span>(<span class="string">&quot;Authority with id {} not found&quot;</span>, <span class="ident">id</span>))
@@ -765,9 +766,10 @@
         <span class="kw">let</span> <span class="ident">h</span> <span class="op">=</span> <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
             <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">t</span>) <span class="op">=</span> <span class="ident">rx_transaction_confirmation</span>.<span class="ident">recv</span>().<span class="kw">await</span> {
                 <span class="comment">// send the transaction to the mpmc channel</span>
-                <span class="ident">transactions_sender</span>
-                    .<span class="ident">send</span>(<span class="ident">t</span>)
-                    .<span class="ident">expect</span>(<span class="string">&quot;Couldn&#39;t send message to broadcast channel&quot;</span>);
+                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=</span> <span class="ident">t</span>.<span class="ident">clone</span>().<span class="number">0</span> {
+                    <span class="macro">println!</span>(<span class="string">&quot;The result from consensus is an error: {:?}&quot;</span>, <span class="ident">e</span>);
+                }
+                <span class="kw">_</span> <span class="op">=</span> <span class="ident">transactions_sender</span>.<span class="ident">send</span>(<span class="ident">t</span>);
             }
         });
 
