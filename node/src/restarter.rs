@@ -115,7 +115,6 @@ impl NodeRestarter {
             // Give it an extra second in case the last task to exit is a network server. The OS
             // may need a moment to make the TCP ports available again.
             tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-            println!("[{name}] is out for E{}", committee.epoch());
             tracing::debug!("Epoch E{} terminated", committee.epoch());
 
             // Update the settings for the next epoch.

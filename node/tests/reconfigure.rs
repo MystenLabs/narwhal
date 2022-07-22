@@ -230,7 +230,6 @@ async fn restart() {
                 match outcome {
                     Ok(epoch) => {
                         if epoch == 5 {
-                            println!("ONE AUTHORITY OUT");
                             return;
                         }
                         if epoch > current_epoch {
