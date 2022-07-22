@@ -83,6 +83,7 @@ curve25519-dalek = { version = "3", default-features = false, features = ["alloc
 dashmap = { version = "5", default-features = false }
 data-encoding = { version = "2", features = ["alloc", "std"] }
 derive_builder = { version = "0.11", features = ["std"] }
+dhat = { version = "0.3", default-features = false }
 diff = { version = "0.1", default-features = false }
 difflib = { version = "0.4", default-features = false }
 digest-93f6ce9d446188ac = { package = "digest", version = "0.10", features = ["alloc", "block-buffer", "core-api", "mac", "std", "subtle"] }
@@ -177,8 +178,10 @@ opentelemetry-jaeger = { version = "0.16", features = ["rt-tokio", "tokio"] }
 opentelemetry-semantic-conventions = { version = "0.9", default-features = false }
 ordered-float = { version = "1", features = ["std"] }
 os_str_bytes = { version = "6", default-features = false, features = ["raw_os_str"] }
-parking_lot = { version = "0.12" }
-parking_lot_core = { version = "0.9", default-features = false }
+parking_lot-a6292c17cd707f01 = { package = "parking_lot", version = "0.11" }
+parking_lot-5ef9efb8ec2df382 = { package = "parking_lot", version = "0.12" }
+parking_lot_core-c38e5c1d305a1b54 = { package = "parking_lot_core", version = "0.8", default-features = false }
+parking_lot_core-274715c4dabd11b0 = { package = "parking_lot_core", version = "0.9", default-features = false }
 percent-encoding = { version = "2", default-features = false }
 petgraph = { version = "0.6", default-features = false }
 pin-project = { version = "1", default-features = false }
@@ -219,6 +222,7 @@ remove_dir_all = { version = "0.5", default-features = false }
 ring = { version = "0.16", features = ["alloc", "dev_urandom_fallback", "once_cell"] }
 rocksdb = { version = "0.18", default-features = false, features = ["lz4", "multi-threaded-cf", "snappy", "zlib", "zstd"] }
 rustc-demangle = { version = "0.1", default-features = false }
+rustc-hash = { version = "1", features = ["std"] }
 rustls = { version = "0.20", default-features = false, features = ["log", "logging", "tls12"] }
 rustls-pemfile = { version = "1", default-features = false }
 rusty-fork = { version = "0.3", default-features = false, features = ["timeout", "wait-timeout"] }
@@ -259,6 +263,7 @@ termtree = { version = "0.2", default-features = false }
 textwrap-a6292c17cd707f01 = { package = "textwrap", version = "0.11", default-features = false }
 textwrap-3575ec1268b04181 = { package = "textwrap", version = "0.15", default-features = false }
 thiserror = { version = "1", default-features = false }
+thousands = { version = "0.2", default-features = false }
 thread_local = { version = "1", default-features = false }
 threadpool = { version = "1", default-features = false }
 thrift = { version = "0.15", default-features = false }
