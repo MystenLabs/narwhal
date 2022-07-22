@@ -4,7 +4,6 @@
 
 use config::WorkerId;
 use crypto::traits::VerifyingKey;
-use primary::WorkerPrimaryMessage;
 use store::Store;
 use tokio::{
     sync::{
@@ -16,7 +15,7 @@ use tokio::{
 use tracing::error;
 use types::{
     error::DagError, serialized_batch_digest, BatchDigest, ReconfigureNotification,
-    SerializedBatchMessage,
+    SerializedBatchMessage, WorkerPrimaryMessage,
 };
 
 #[cfg(test)]

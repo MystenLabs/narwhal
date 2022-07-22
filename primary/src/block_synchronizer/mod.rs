@@ -7,7 +7,7 @@ use crate::{
         PendingIdentifier::{Header, Payload},
     },
     primary::PrimaryMessage,
-    utils, PayloadToken, PrimaryWorkerMessage, CHANNEL_CAPACITY,
+    utils, PayloadToken, CHANNEL_CAPACITY,
 };
 use config::{BlockSynchronizerParameters, Committee, WorkerId};
 use crypto::{traits::VerifyingKey, Hash};
@@ -33,7 +33,7 @@ use tokio::{
     time::{sleep, timeout},
 };
 use tracing::{debug, error, instrument, trace, warn};
-use types::{BatchDigest, Certificate, CertificateDigest, ReconfigureNotification};
+use types::{BatchDigest, Certificate, CertificateDigest, ReconfigureNotification, PrimaryWorkerMessage};
 
 #[cfg(test)]
 #[path = "tests/block_synchronizer_tests.rs"]

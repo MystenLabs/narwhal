@@ -6,7 +6,6 @@ use super::*;
 use arc_swap::ArcSwap;
 use crypto::{ed25519::Ed25519PublicKey, traits::KeyPair};
 use futures::StreamExt;
-use primary::WorkerPrimaryMessage;
 use prometheus::Registry;
 use std::time::Duration;
 use store::rocks;
@@ -14,7 +13,9 @@ use test_utils::{
     batch, committee, digest_batch, keys, serialize_batch_message, temp_dir,
     WorkerToPrimaryMockServer, WorkerToWorkerMockServer,
 };
-use types::{serialized_batch_digest, TransactionsClient, WorkerToWorkerClient};
+use types::{
+    serialized_batch_digest, TransactionsClient, WorkerPrimaryMessage, WorkerToWorkerClient,
+};
 
 #[tokio::test]
 async fn handle_clients_transactions() {

@@ -6,13 +6,11 @@ use config::{Committee, Parameters};
 use crypto::traits::{KeyPair, Signer, VerifyingKey};
 use executor::{ExecutionState, ExecutorOutput};
 use futures::future::join_all;
-use network::PrimaryToWorkerNetwork;
-use primary::WorkerPrimaryMessage;
+use network::{PrimaryToWorkerNetwork, WorkerToPrimaryNetwork};
 use prometheus::Registry;
 use std::{fmt::Debug, path::PathBuf, sync::Arc};
 use tokio::sync::mpsc::{Receiver, Sender};
-use types::{PrimaryWorkerMessage, ReconfigureNotification};
-use worker::WorkerToPrimaryNetwork;
+use types::{PrimaryWorkerMessage, ReconfigureNotification, WorkerPrimaryMessage};
 
 // Module to start a node (primary, workers and default consensus), keep it running, and restarting it
 /// every time the committee changes.

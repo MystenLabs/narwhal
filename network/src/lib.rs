@@ -17,7 +17,7 @@ pub use crate::{
     bounded_executor::BoundedExecutor,
     primary::{PrimaryNetwork, PrimaryToWorkerNetwork},
     retry::RetryConfig,
-    worker::WorkerNetwork,
+    worker::{WorkerNetwork, WorkerToPrimaryNetwork},
 };
 
 // the result of our network messages

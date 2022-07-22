@@ -638,3 +638,31 @@ impl fmt::Display for BlockErrorKind {
         write!(f, "{:?}", self)
     }
 }
+
+/// The messages sent by the workers to their primary.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(bound(deserialize = "PublicKey: VerifyingKey"))]
+pub enum WorkerPrimaryMessage<PublicKey: VerifyingKey> {
+    /// The worker indicates it sealed a new batch.
+    OurBatch(BatchDigest, WorkerId),
+    /// The worker indicates it received a batch's digest from another authority.
+    OthersBatch(BatchDigest, WorkerId),
+    /// The worker sends a requested batch
+    RequestedBatch(BatchDigest, Batch),
+    /// When batches are successfully deleted, this message is sent dictating the
+    /// batches that have been deleted from the worker.
+    DeletedBatches(Vec<BatchDigest>),
+    /// An error has been returned by worker
+    Error(WorkerPrimaryError),
+    /// Reconfiguration message sent by the executor (usually upon epoch change).
+    Reconfigure(ReconfigureNotification<PublicKey>),
+}
+
+#[derive(Debug, Serialize, Deserialize, thiserror::Error, Clone, Eq, PartialEq)]
+pub enum WorkerPrimaryError {
+    #[error("Batch with id {0} has not been found")]
+    RequestedBatchNotFound(BatchDigest),
+
+    #[error("An error occurred while deleting batches. None deleted")]
+    ErrorWhileDeletingBatches(Vec<BatchDigest>),
+}

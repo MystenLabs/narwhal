@@ -11,7 +11,7 @@ use config::{Parameters, SharedCommittee, WorkerId};
 use crypto::traits::VerifyingKey;
 use futures::{Stream, StreamExt};
 use multiaddr::{Multiaddr, Protocol};
-use primary::{PrimaryWorkerMessage, WorkerPrimaryMessage};
+use primary::PrimaryWorkerMessage;
 use std::{net::Ipv4Addr, pin::Pin, sync::Arc};
 use store::Store;
 use tokio::{
@@ -27,7 +27,7 @@ use types::{
     error::DagError, BatchDigest, BincodeEncodedPayload, ClientBatchRequest, Empty,
     PrimaryToWorker, PrimaryToWorkerServer, ReconfigureNotification, SerializedBatchMessage,
     Transaction, TransactionProto, Transactions, TransactionsServer, WorkerToWorker,
-    WorkerToWorkerServer,
+    WorkerToWorkerServer, WorkerPrimaryMessage,
 };
 
 #[cfg(test)]

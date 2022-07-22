@@ -6,14 +6,14 @@ use crypto::{
     traits::{KeyPair, Signer},
     Digest, Hash,
 };
-use primary::{PrimaryWorkerMessage, WorkerPrimaryError, WorkerPrimaryMessage};
+use primary::PrimaryWorkerMessage;
 use rand::{prelude::StdRng, SeedableRng};
 use serde_reflection::{Registry, Result, Samples, Tracer, TracerConfig};
 use std::{fs::File, io::Write};
 use structopt::{clap::arg_enum, StructOpt};
 use types::{
     Batch, BatchDigest, Certificate, CertificateDigest, Header, HeaderDigest,
-    ReconfigureNotification,
+    ReconfigureNotification, WorkerPrimaryError, WorkerPrimaryMessage,
 };
 
 fn get_registry() -> Result<Registry> {

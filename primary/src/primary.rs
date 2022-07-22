@@ -27,13 +27,11 @@ use crypto::{
 use multiaddr::{Multiaddr, Protocol};
 use network::{PrimaryNetwork, PrimaryToWorkerNetwork};
 use prometheus::Registry;
-use serde::{Deserialize, Serialize};
 use std::{
     net::Ipv4Addr,
     sync::{atomic::AtomicU64, Arc},
 };
 use store::Store;
-use thiserror::Error;
 use tokio::{
     sync::{
         mpsc::{channel, Receiver, Sender},
@@ -44,42 +42,15 @@ use tokio::{
 use tonic::{Request, Response, Status};
 use tracing::info;
 use types::{
-    error::DagError, Batch, BatchDigest, BatchMessage, BincodeEncodedPayload, Certificate,
+    error::DagError, BatchDigest, BatchMessage, BincodeEncodedPayload, Certificate,
     CertificateDigest, Empty, Header, HeaderDigest, PrimaryToPrimary, PrimaryToPrimaryServer,
-    ReconfigureNotification, WorkerToPrimary, WorkerToPrimaryServer,
+    ReconfigureNotification, WorkerPrimaryError, WorkerPrimaryMessage, WorkerToPrimary,
+    WorkerToPrimaryServer,
 };
 pub use types::{PrimaryMessage, PrimaryWorkerMessage};
 
 /// The default channel capacity for each channel of the primary.
 pub const CHANNEL_CAPACITY: usize = 1_000;
-
-/// The messages sent by the workers to their primary.
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(bound(deserialize = "PublicKey: VerifyingKey"))]
-pub enum WorkerPrimaryMessage<PublicKey: VerifyingKey> {
-    /// The worker indicates it sealed a new batch.
-    OurBatch(BatchDigest, WorkerId),
-    /// The worker indicates it received a batch's digest from another authority.
-    OthersBatch(BatchDigest, WorkerId),
-    /// The worker sends a requested batch
-    RequestedBatch(BatchDigest, Batch),
-    /// When batches are successfully deleted, this message is sent dictating the
-    /// batches that have been deleted from the worker.
-    DeletedBatches(Vec<BatchDigest>),
-    /// An error has been returned by worker
-    Error(WorkerPrimaryError),
-    /// Reconfiguration message sent by the executor (usually upon epoch change).
-    Reconfigure(ReconfigureNotification<PublicKey>),
-}
-
-#[derive(Debug, Serialize, Deserialize, Error, Clone, Eq, PartialEq)]
-pub enum WorkerPrimaryError {
-    #[error("Batch with id {0} has not been found")]
-    RequestedBatchNotFound(BatchDigest),
-
-    #[error("An error occurred while deleting batches. None deleted")]
-    ErrorWhileDeletingBatches(Vec<BatchDigest>),
-}
 
 // A type alias marking the "payload" tokens sent by workers to their primary as batch acknowledgements
 pub type PayloadToken = u8;

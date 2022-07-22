@@ -3,12 +3,16 @@
 
 use crate::{BoundedExecutor, CancelHandler, MessageResult, RetryConfig, MAX_TASK_CONCURRENCY};
 use crypto::traits::VerifyingKey;
+use futures::FutureExt;
 use multiaddr::Multiaddr;
 use rand::{prelude::SliceRandom as _, rngs::SmallRng, SeedableRng as _};
 use std::collections::HashMap;
 use tokio::{runtime::Handle, task::JoinHandle};
 use tonic::transport::Channel;
-use types::{BincodeEncodedPayload, WorkerMessage, WorkerToWorkerClient};
+use types::{
+    BincodeEncodedPayload, WorkerMessage, WorkerPrimaryMessage, WorkerToPrimaryClient,
+    WorkerToWorkerClient,
+};
 
 pub struct WorkerNetwork {
     clients: HashMap<Multiaddr, WorkerToWorkerClient<Channel>>,
@@ -165,5 +169,69 @@ impl WorkerNetwork {
             handlers.push(handle);
         }
         handlers
+    }
+}
+
+pub struct WorkerToPrimaryNetwork {
+    address: Option<Multiaddr>,
+    client: Option<WorkerToPrimaryClient<Channel>>,
+    config: mysten_network::config::Config,
+    retry_config: RetryConfig,
+    executor: BoundedExecutor,
+}
+
+impl Default for WorkerToPrimaryNetwork {
+    fn default() -> Self {
+        let retry_config = RetryConfig {
+            // Retry for forever
+            retrying_max_elapsed_time: None,
+            ..Default::default()
+        };
+
+        Self {
+            address: None,
+            client: Default::default(),
+            config: Default::default(),
+            retry_config,
+            executor: BoundedExecutor::new(MAX_TASK_CONCURRENCY, Handle::current()),
+        }
+    }
+}
+
+impl WorkerToPrimaryNetwork {
+    pub async fn send<PublicKey: VerifyingKey>(
+        &mut self,
+        address: Multiaddr,
+        message: &WorkerPrimaryMessage<PublicKey>,
+    ) -> CancelHandler<()> {
+        let new_client = match &self.address {
+            None => true,
+            Some(x) if x != &address => true,
+            _ => false,
+        };
+        if new_client {
+            let channel = self.config.connect_lazy(&address).unwrap();
+            self.client = Some(WorkerToPrimaryClient::new(channel));
+            self.address = Some(address);
+        }
+
+        let message =
+            BincodeEncodedPayload::try_from(message).expect("Failed to serialize payload");
+        let client = self.client.as_mut().unwrap().clone();
+        let handle = self
+            .executor
+            .spawn(
+                self.retry_config
+                    .retry(move || {
+                        let mut client = client.clone();
+                        let message = message.clone();
+                        async move { client.send_message(message).await.map_err(Into::into) }
+                    })
+                    .map(|response| {
+                        response.expect("we retry forever so this shouldn't fail");
+                    }),
+            )
+            .await;
+        CancelHandler(handle)
     }
 }

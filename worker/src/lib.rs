@@ -17,7 +17,4 @@ mod quorum_waiter;
 mod synchronizer;
 mod worker;
 
-pub use crate::{
-    primary_connector::WorkerToPrimaryNetwork,
-    worker::{Worker, WorkerMessage},
-};
+pub use crate::worker::{Worker, WorkerMessage};

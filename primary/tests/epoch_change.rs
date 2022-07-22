@@ -4,14 +4,14 @@ use arc_swap::ArcSwap;
 use config::{Committee, Epoch, Parameters};
 use crypto::{ed25519::Ed25519PublicKey, traits::KeyPair};
 use futures::future::join_all;
+use network::WorkerToPrimaryNetwork;
 use node::NodeStorage;
-use primary::{NetworkModel, Primary, WorkerPrimaryMessage, CHANNEL_CAPACITY};
+use primary::{NetworkModel, Primary, CHANNEL_CAPACITY};
 use prometheus::Registry;
 use std::{collections::BTreeMap, sync::Arc};
 use test_utils::{keys, make_authority, pure_committee_from_keys, temp_dir};
 use tokio::sync::{mpsc::channel, watch};
-use types::ReconfigureNotification;
-use worker::WorkerToPrimaryNetwork;
+use types::{ReconfigureNotification, WorkerPrimaryMessage};
 
 /// The epoch changes but the stake distribution and network addresses stay the same.
 #[tokio::test]
