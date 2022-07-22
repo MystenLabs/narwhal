@@ -14,50 +14,75 @@ async fn test_node_staggered_starts() {
     // nodes logs.
     setup_tracing();
 
-    // 5 minutes
-    let node_staggered_delay = Duration::from_secs(60 * 5);
+    let node_staggered_delay = Duration::from_secs(60 * 5); // 5 minutes
 
-    let mut cluster = Cluster::new(None, None);
+    // A cluster of 4 nodes will be created
+    let cluster = Cluster::new(None, None);
 
-    // Start the cluster in staggered fashion with some delay between the nodes start
-    cluster
-        .start(Some(4), Some(1), Some(node_staggered_delay))
-        .await;
+    // Start first authority
+    cluster.authority(0).start(false, Some(1)).await;
 
-    let mut authorities_current_round = HashMap::new();
+    tokio::time::sleep(node_staggered_delay).await;
 
-    for _ in 0..5 {
-        for authority in cluster.authorities().await {
-            let primary = authority.primary().await;
-            if let Some(metric) = primary.metric("narwhal_primary_current_round") {
-                let value = metric.get_gauge().get_value();
+    let rounds = authorities_current_round(&cluster).await;
+    assert_eq!(
+        rounds.len(),
+        1,
+        "Expected to have received metric only from one node"
+    );
+    assert!(rounds.values().all(|v| v == &1.0), "We have (f+2) unavailable nodes and expected all nodes to have made progress up to round 1 only");
 
-                authorities_current_round.insert(primary.id, value);
+    // Start second authority
+    cluster.authority(1).start(false, Some(1)).await;
 
-                info!(
-                    "[Node {}] Metric narwhal_primary_current_round -> {value}",
-                    primary.id
-                );
-            }
-        }
+    tokio::time::sleep(node_staggered_delay).await;
 
-        tokio::time::sleep(Duration::from_secs(5)).await;
-    }
+    let rounds = authorities_current_round(&cluster).await;
+    assert_eq!(
+        rounds.len(),
+        2,
+        "Expected to have received metrics from only two nodes"
+    );
+    assert!(rounds.values().all(|v| v == &1.0), "We have (f+1) unavailable nodes and expected all nodes to have made progress up to round 1 only");
 
-    // we should have metrics from all the three nodes
-    assert_eq!(authorities_current_round.len(), 4);
+    // Start third authority
+    // Now 2f + 1 nodes are becoming available and we expect all the nodes to
+    // start making progress (advance in rounds).
+    cluster.authority(2).start(false, Some(1)).await;
 
-    // they should all be above 0
-    assert!(authorities_current_round.values().all(|v| v > &0.0));
+    tokio::time::sleep(node_staggered_delay).await;
+
+    let rounds = authorities_current_round(&cluster).await;
+    assert_eq!(
+        rounds.len(),
+        3,
+        "Expected to have received metrics from only three nodes"
+    );
+    assert!(rounds.values().all(|v| v > &1.0), "We have only (f) unavailable nodes, so all should have made progress more than just the first round");
 
     // nodes shouldn't have round diff more than 2
-    let (min, max) = authorities_current_round
-        .values()
-        .into_iter()
-        .minmax()
-        .into_option()
-        .unwrap();
+    let (min, max) = rounds.values().into_iter().minmax().into_option().unwrap();
     assert!(max - min <= 2.0, "Nodes shouldn't be that behind");
+}
+
+async fn authorities_current_round(cluster: &Cluster) -> HashMap<usize, f64> {
+    let mut authorities_current_round = HashMap::new();
+
+    for authority in cluster.authorities().await {
+        let primary = authority.primary().await;
+        if let Some(metric) = primary.metric("narwhal_primary_current_round") {
+            let value = metric.get_gauge().get_value();
+
+            authorities_current_round.insert(primary.id, value);
+
+            info!(
+                "[Node {}] Metric narwhal_primary_current_round -> {value}",
+                primary.id
+            );
+        }
+    }
+
+    authorities_current_round
 }
 
 fn setup_tracing() {
