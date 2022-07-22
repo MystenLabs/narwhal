@@ -374,41 +374,50 @@
 };
 <span class="kw">use</span> <span class="ident">base64ct</span>::{<span class="ident">Base64</span>, <span class="ident">Encoding</span>};
 <span class="kw">use</span> <span class="ident">once_cell::sync::OnceCell</span>;
+<span class="kw">use</span> <span class="ident">rust_secp256k1</span>::{<span class="ident">constants</span>, <span class="ident">rand::rngs::OsRng</span>, <span class="ident">Message</span>, <span class="ident">PublicKey</span>, <span class="ident">Secp256k1</span>, <span class="ident">SecretKey</span>};
 <span class="kw">use</span> <span class="ident">serde</span>::{<span class="ident">de</span>, <span class="ident">Deserialize</span>, <span class="ident">Serialize</span>};
-<span class="kw">use</span> <span class="ident">signature::rand_core::OsRng</span>;
 <span class="kw">use</span> <span class="ident">signature</span>::{<span class="ident">Signature</span>, <span class="ident">Signer</span>, <span class="ident">Verifier</span>};
 <span class="kw">use</span> <span class="ident">std::fmt</span>::{<span class="self">self</span>, <span class="ident">Debug</span>, <span class="ident">Display</span>};
-
-<span class="kw">pub</span> <span class="kw">const</span> <span class="ident">SECP256K1_PRIVATE_KEY_LENGTH</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">32</span>;
-<span class="kw">pub</span> <span class="kw">const</span> <span class="ident">SECP256K1_PUBLIC_KEY_LENGTH</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">33</span>;
-<span class="kw">pub</span> <span class="kw">const</span> <span class="ident">SECP256K1_SIGNATURE_LENGTH</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">64</span>;
 
 <span class="attribute">#[<span class="ident">readonly::make</span>]</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Secp256k1PublicKey</span> {
-    <span class="kw">pub</span> <span class="ident">pubkey</span>: <span class="ident">k256::ecdsa::VerifyingKey</span>,
-    <span class="kw">pub</span> <span class="ident">bytes</span>: <span class="ident">OnceCell</span><span class="op">&lt;</span>[<span class="ident">u8</span>; <span class="ident">SECP256K1_PUBLIC_KEY_LENGTH</span>]<span class="op">&gt;</span>,
+    <span class="kw">pub</span> <span class="ident">pubkey</span>: <span class="ident">PublicKey</span>,
+    <span class="kw">pub</span> <span class="ident">bytes</span>: <span class="ident">OnceCell</span><span class="op">&lt;</span>[<span class="ident">u8</span>; <span class="ident">constants::PUBLIC_KEY_SIZE</span>]<span class="op">&gt;</span>,
 }
 
 <span class="kw">pub</span> <span class="kw">type</span> <span class="ident">Secp256k1PublicKeyBytes</span> <span class="op">=</span>
     <span class="ident">PublicKeyBytes</span><span class="op">&lt;</span><span class="ident">Secp256k1PublicKey</span>, { <span class="ident">Secp256k1PublicKey::LENGTH</span> }<span class="op">&gt;</span>;
 
 <span class="attribute">#[<span class="ident">readonly::make</span>]</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Secp256k1PrivateKey</span> {
-    <span class="kw">pub</span> <span class="ident">privkey</span>: <span class="ident">k256::ecdsa::SigningKey</span>,
-    <span class="kw">pub</span> <span class="ident">bytes</span>: <span class="ident">OnceCell</span><span class="op">&lt;</span>[<span class="ident">u8</span>; <span class="ident">SECP256K1_PRIVATE_KEY_LENGTH</span>]<span class="op">&gt;</span>,
+    <span class="kw">pub</span> <span class="ident">privkey</span>: <span class="ident">SecretKey</span>,
+    <span class="kw">pub</span> <span class="ident">bytes</span>: <span class="ident">OnceCell</span><span class="op">&lt;</span>[<span class="ident">u8</span>; <span class="ident">constants::SECRET_KEY_SIZE</span>]<span class="op">&gt;</span>,
 }
 
 <span class="attribute">#[<span class="ident">readonly::make</span>]</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>)]</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Secp256k1Signature</span> {
-    <span class="kw">pub</span> <span class="ident">sig</span>: <span class="ident">k256::ecdsa::Signature</span>,
-    <span class="kw">pub</span> <span class="ident">bytes</span>: <span class="ident">OnceCell</span><span class="op">&lt;</span>[<span class="ident">u8</span>; <span class="ident">SECP256K1_SIGNATURE_LENGTH</span>]<span class="op">&gt;</span>,
+    <span class="kw">pub</span> <span class="ident">sig</span>: <span class="ident">rust_secp256k1::ecdsa::Signature</span>,
+    <span class="kw">pub</span> <span class="ident">bytes</span>: <span class="ident">OnceCell</span><span class="op">&lt;</span>[<span class="ident">u8</span>; <span class="ident">constants::COMPACT_SIGNATURE_SIZE</span>]<span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">std::hash::Hash</span> <span class="kw">for</span> <span class="ident">Secp256k1PublicKey</span> {
     <span class="kw">fn</span> <span class="ident">hash</span><span class="op">&lt;</span><span class="ident">H</span>: <span class="ident">std::hash::Hasher</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">state</span>: <span class="kw-2">&amp;mut</span> <span class="ident">H</span>) {
         <span class="self">self</span>.<span class="ident">as_ref</span>().<span class="ident">hash</span>(<span class="ident">state</span>);
+    }
+}
+
+<span class="kw">impl</span> <span class="ident">PartialOrd</span> <span class="kw">for</span> <span class="ident">Secp256k1PublicKey</span> {
+    <span class="kw">fn</span> <span class="ident">partial_cmp</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">std::cmp::Ordering</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">as_ref</span>().<span class="ident">partial_cmp</span>(<span class="ident">other</span>.<span class="ident">as_ref</span>())
+    }
+}
+
+<span class="kw">impl</span> <span class="ident">Ord</span> <span class="kw">for</span> <span class="ident">Secp256k1PublicKey</span> {
+    <span class="kw">fn</span> <span class="ident">cmp</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="ident">std::cmp::Ordering</span> {
+        <span class="self">self</span>.<span class="ident">as_ref</span>().<span class="ident">cmp</span>(<span class="ident">other</span>.<span class="ident">as_ref</span>())
     }
 }
 
@@ -420,27 +429,18 @@
 
 <span class="kw">impl</span> <span class="ident">Eq</span> <span class="kw">for</span> <span class="ident">Secp256k1PublicKey</span> {}
 
-<span class="kw">impl</span> <span class="ident">PartialOrd</span> <span class="kw">for</span> <span class="ident">Secp256k1PublicKey</span> {
-    <span class="kw">fn</span> <span class="ident">partial_cmp</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">std::cmp::Ordering</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">pubkey</span>.<span class="ident">to_bytes</span>().<span class="ident">partial_cmp</span>(<span class="kw-2">&amp;</span><span class="ident">other</span>.<span class="ident">pubkey</span>.<span class="ident">to_bytes</span>())
-    }
-}
-
-<span class="kw">impl</span> <span class="ident">Ord</span> <span class="kw">for</span> <span class="ident">Secp256k1PublicKey</span> {
-    <span class="kw">fn</span> <span class="ident">cmp</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="ident">std::cmp::Ordering</span> {
-        <span class="self">self</span>.<span class="ident">pubkey</span>.<span class="ident">to_bytes</span>().<span class="ident">cmp</span>(<span class="kw-2">&amp;</span><span class="ident">other</span>.<span class="ident">pubkey</span>.<span class="ident">to_bytes</span>())
-    }
-}
-
 <span class="kw">impl</span> <span class="ident">VerifyingKey</span> <span class="kw">for</span> <span class="ident">Secp256k1PublicKey</span> {
     <span class="kw">type</span> <span class="ident">PrivKey</span> <span class="op">=</span> <span class="ident">Secp256k1PrivateKey</span>;
     <span class="kw">type</span> <span class="ident">Sig</span> <span class="op">=</span> <span class="ident">Secp256k1Signature</span>;
-    <span class="kw">const</span> <span class="ident">LENGTH</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="ident">SECP256K1_PUBLIC_KEY_LENGTH</span>;
+    <span class="kw">const</span> <span class="ident">LENGTH</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="ident">constants::PUBLIC_KEY_SIZE</span>;
 }
 
 <span class="kw">impl</span> <span class="ident">Verifier</span><span class="op">&lt;</span><span class="ident">Secp256k1Signature</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Secp256k1PublicKey</span> {
     <span class="kw">fn</span> <span class="ident">verify</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">msg</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">signature</span>: <span class="kw-2">&amp;</span><span class="ident">Secp256k1Signature</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">signature::Error</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">pubkey</span>.<span class="ident">verify</span>(<span class="ident">msg</span>, <span class="kw-2">&amp;</span><span class="ident">signature</span>.<span class="ident">sig</span>)
+        <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">Message::from_hashed_data</span>::<span class="op">&lt;</span><span class="ident">rust_secp256k1::hashes::sha256::Hash</span><span class="op">&gt;</span>(<span class="ident">msg</span>);
+        <span class="kw">let</span> <span class="ident">vrfy</span> <span class="op">=</span> <span class="ident">Secp256k1::verification_only</span>();
+        <span class="ident">vrfy</span>.<span class="ident">verify_ecdsa</span>(<span class="kw-2">&amp;</span><span class="ident">message</span>, <span class="kw-2">&amp;</span><span class="ident">signature</span>.<span class="ident">sig</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">pubkey</span>)
+            .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">_e</span><span class="op">|</span> <span class="ident">signature::Error::new</span>())
     }
 }
 
@@ -450,7 +450,7 @@
             .<span class="ident">get_or_try_init</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">eyre::Report</span><span class="op">&gt;</span>(<span class="op">|</span><span class="op">|</span> {
                 <span class="prelude-val">Ok</span>(<span class="self">self</span>
                     .<span class="ident">pubkey</span>
-                    .<span class="ident">to_bytes</span>()
+                    .<span class="ident">serialize</span>()
                     .<span class="ident">as_slice</span>()
                     .<span class="ident">try_into</span>()
                     .<span class="ident">expect</span>(<span class="string">&quot;wrong length&quot;</span>))
@@ -461,24 +461,25 @@
 
 <span class="kw">impl</span> <span class="ident">ToFromBytes</span> <span class="kw">for</span> <span class="ident">Secp256k1PublicKey</span> {
     <span class="kw">fn</span> <span class="ident">from_bytes</span>(<span class="ident">bytes</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">signature::Error</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">pubkey</span> <span class="op">=</span> <span class="ident">k256::ecdsa::VerifyingKey::from_sec1_bytes</span>(<span class="ident">bytes</span>)
-            .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">_e</span><span class="op">|</span> <span class="ident">signature::Error::new</span>())<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(<span class="ident">Secp256k1PublicKey</span> {
-            <span class="ident">pubkey</span>,
-            <span class="ident">bytes</span>: <span class="ident">OnceCell::new</span>(),
-        })
+        <span class="kw">match</span> <span class="ident">PublicKey::from_slice</span>(<span class="ident">bytes</span>) {
+            <span class="prelude-val">Ok</span>(<span class="ident">pubkey</span>) =&gt; <span class="prelude-val">Ok</span>(<span class="ident">Secp256k1PublicKey</span> {
+                <span class="ident">pubkey</span>,
+                <span class="ident">bytes</span>: <span class="ident">OnceCell::new</span>(),
+            }),
+            <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="prelude-val">Err</span>(<span class="ident">signature::Error::new</span>()),
+        }
     }
 }
 
 <span class="kw">impl</span> <span class="ident">Default</span> <span class="kw">for</span> <span class="ident">Secp256k1PublicKey</span> {
     <span class="kw">fn</span> <span class="ident">default</span>() -&gt; <span class="self">Self</span> {
-        <span class="ident">Secp256k1PublicKey::from_bytes</span>(<span class="kw-2">&amp;</span>[<span class="number">0u8</span>; <span class="ident">SECP256K1_PUBLIC_KEY_LENGTH</span>]).<span class="ident">unwrap</span>()
+        <span class="ident">Secp256k1PublicKey::from_bytes</span>(<span class="kw-2">&amp;</span>[<span class="number">0u8</span>; <span class="ident">constants::PUBLIC_KEY_SIZE</span>]).<span class="ident">unwrap</span>()
     }
 }
 
 <span class="kw">impl</span> <span class="ident">Display</span> <span class="kw">for</span> <span class="ident">Secp256k1PublicKey</span> {
     <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">fmt::Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="ident">fmt::Result</span> {
-        <span class="self">self</span>.<span class="ident">pubkey</span>.<span class="ident">fmt</span>(<span class="ident">f</span>)
+        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">Base64::encode_string</span>(<span class="self">self</span>.<span class="ident">as_ref</span>()))
     }
 }
 
@@ -505,9 +506,9 @@
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="ident">From</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">Secp256k1PrivateKey</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Secp256k1PublicKey</span> {
     <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">secret</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">Secp256k1PrivateKey</span>) -&gt; <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="ident">pubkey</span> <span class="op">=</span> <span class="ident">secret</span>.<span class="ident">privkey</span>.<span class="ident">verifying_key</span>();
+        <span class="kw">let</span> <span class="ident">secp</span> <span class="op">=</span> <span class="ident">Secp256k1::new</span>();
         <span class="ident">Secp256k1PublicKey</span> {
-            <span class="ident">pubkey</span>,
+            <span class="ident">pubkey</span>: <span class="ident">secret</span>.<span class="ident">privkey</span>.<span class="ident">public_key</span>(<span class="kw-2">&amp;</span><span class="ident">secp</span>),
             <span class="ident">bytes</span>: <span class="ident">OnceCell::new</span>(),
         }
     }
@@ -516,23 +517,18 @@
 <span class="kw">impl</span> <span class="ident">SigningKey</span> <span class="kw">for</span> <span class="ident">Secp256k1PrivateKey</span> {
     <span class="kw">type</span> <span class="ident">PubKey</span> <span class="op">=</span> <span class="ident">Secp256k1PublicKey</span>;
     <span class="kw">type</span> <span class="ident">Sig</span> <span class="op">=</span> <span class="ident">Secp256k1Signature</span>;
-    <span class="kw">const</span> <span class="ident">LENGTH</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="ident">SECP256K1_PRIVATE_KEY_LENGTH</span>;
+    <span class="kw">const</span> <span class="ident">LENGTH</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="ident">constants::SECRET_KEY_SIZE</span>;
 }
 
 <span class="kw">impl</span> <span class="ident">ToFromBytes</span> <span class="kw">for</span> <span class="ident">Secp256k1PrivateKey</span> {
     <span class="kw">fn</span> <span class="ident">from_bytes</span>(<span class="ident">bytes</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">signature::Error</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">privkey</span> <span class="op">=</span>
-            <span class="ident">k256::ecdsa::SigningKey::from_bytes</span>(<span class="ident">bytes</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">_e</span><span class="op">|</span> <span class="ident">signature::Error::new</span>())<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(<span class="ident">Secp256k1PrivateKey</span> {
-            <span class="ident">privkey</span>,
-            <span class="ident">bytes</span>: <span class="ident">OnceCell::new</span>(),
-        })
-    }
-}
-
-<span class="kw">impl</span> <span class="ident">Debug</span> <span class="kw">for</span> <span class="ident">Secp256k1PrivateKey</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">::core::fmt::Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="ident">::core::fmt::Result</span> {
-        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{:?}&quot;</span>, <span class="self">self</span>.<span class="ident">privkey</span>.<span class="ident">to_bytes</span>())
+        <span class="kw">match</span> <span class="ident">SecretKey::from_slice</span>(<span class="ident">bytes</span>) {
+            <span class="prelude-val">Ok</span>(<span class="ident">privkey</span>) =&gt; <span class="prelude-val">Ok</span>(<span class="ident">Secp256k1PrivateKey</span> {
+                <span class="ident">privkey</span>,
+                <span class="ident">bytes</span>: <span class="ident">OnceCell::new</span>(),
+            }),
+            <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="prelude-val">Err</span>(<span class="ident">signature::Error::new</span>()),
+        }
     }
 }
 
@@ -560,11 +556,8 @@
 
 <span class="kw">impl</span> <span class="ident">AsRef</span><span class="op">&lt;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Secp256k1PrivateKey</span> {
     <span class="kw">fn</span> <span class="ident">as_ref</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> [<span class="number">0u8</span>; <span class="number">32</span>];
-        <span class="ident">result</span>.<span class="ident">copy_from_slice</span>(<span class="self">self</span>.<span class="ident">privkey</span>.<span class="ident">to_bytes</span>().<span class="ident">as_slice</span>());
-
         <span class="self">self</span>.<span class="ident">bytes</span>
-            .<span class="ident">get_or_try_init</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">eyre::Report</span><span class="op">&gt;</span>(<span class="op">|</span><span class="op">|</span> <span class="prelude-val">Ok</span>(<span class="ident">result</span>))
+            .<span class="ident">get_or_try_init</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">eyre::Report</span><span class="op">&gt;</span>(<span class="op">|</span><span class="op">|</span> <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">privkey</span>.<span class="ident">secret_bytes</span>()))
             .<span class="ident">expect</span>(<span class="string">&quot;OnceCell invariant violated&quot;</span>)
     }
 }
@@ -591,30 +584,43 @@
 
 <span class="kw">impl</span> <span class="ident">Signature</span> <span class="kw">for</span> <span class="ident">Secp256k1Signature</span> {
     <span class="kw">fn</span> <span class="ident">from_bytes</span>(<span class="ident">bytes</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">signature::Error</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">sig</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">k256::ecdsa::Signature</span> <span class="kw">as</span> <span class="ident">signature::Signature</span><span class="op">&gt;</span><span class="ident">::from_bytes</span>(<span class="ident">bytes</span>)
-            .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">_e</span><span class="op">|</span> <span class="ident">signature::Error::new</span>())<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(<span class="ident">Secp256k1Signature</span> {
-            <span class="ident">sig</span>,
-            <span class="ident">bytes</span>: <span class="ident">OnceCell::new</span>(),
-        })
+        <span class="kw">match</span> <span class="ident">rust_secp256k1::ecdsa::Signature::from_compact</span>(<span class="ident">bytes</span>) {
+            <span class="prelude-val">Ok</span>(<span class="ident">sig</span>) =&gt; <span class="prelude-val">Ok</span>(<span class="ident">Secp256k1Signature</span> {
+                <span class="ident">sig</span>,
+                <span class="ident">bytes</span>: <span class="ident">OnceCell::new</span>(),
+            }),
+            <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="prelude-val">Err</span>(<span class="ident">signature::Error::new</span>()),
+        }
     }
 }
 
 <span class="kw">impl</span> <span class="ident">Authenticator</span> <span class="kw">for</span> <span class="ident">Secp256k1Signature</span> {
     <span class="kw">type</span> <span class="ident">PubKey</span> <span class="op">=</span> <span class="ident">Secp256k1PublicKey</span>;
     <span class="kw">type</span> <span class="ident">PrivKey</span> <span class="op">=</span> <span class="ident">Secp256k1PrivateKey</span>;
-    <span class="kw">const</span> <span class="ident">LENGTH</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="ident">SECP256K1_SIGNATURE_LENGTH</span>;
+    <span class="kw">const</span> <span class="ident">LENGTH</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="ident">constants::COMPACT_SIGNATURE_SIZE</span>;
 }
 
 <span class="kw">impl</span> <span class="ident">AsRef</span><span class="op">&lt;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Secp256k1Signature</span> {
     <span class="kw">fn</span> <span class="ident">as_ref</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> [<span class="number">0u8</span>; <span class="ident">SECP256K1_SIGNATURE_LENGTH</span>];
-        <span class="ident">result</span>.<span class="ident">copy_from_slice</span>(<span class="ident">signature::Signature::as_bytes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">sig</span>));
         <span class="self">self</span>.<span class="ident">bytes</span>
-            .<span class="ident">get_or_try_init</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">eyre::Report</span><span class="op">&gt;</span>(<span class="op">|</span><span class="op">|</span> <span class="prelude-val">Ok</span>(<span class="ident">result</span>))
+            .<span class="ident">get_or_try_init</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">eyre::Report</span><span class="op">&gt;</span>(<span class="op">|</span><span class="op">|</span> <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">sig</span>.<span class="ident">serialize_compact</span>()))
             .<span class="ident">expect</span>(<span class="string">&quot;OnceCell invariant violated&quot;</span>)
     }
 }
+
+<span class="kw">impl</span> <span class="ident">std::hash::Hash</span> <span class="kw">for</span> <span class="ident">Secp256k1Signature</span> {
+    <span class="kw">fn</span> <span class="ident">hash</span><span class="op">&lt;</span><span class="ident">H</span>: <span class="ident">std::hash::Hasher</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">state</span>: <span class="kw-2">&amp;mut</span> <span class="ident">H</span>) {
+        <span class="self">self</span>.<span class="ident">as_ref</span>().<span class="ident">hash</span>(<span class="ident">state</span>);
+    }
+}
+
+<span class="kw">impl</span> <span class="ident">PartialEq</span> <span class="kw">for</span> <span class="ident">Secp256k1Signature</span> {
+    <span class="kw">fn</span> <span class="ident">eq</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="ident">bool</span> {
+        <span class="self">self</span>.<span class="ident">sig</span> <span class="op">==</span> <span class="ident">other</span>.<span class="ident">sig</span>
+    }
+}
+
+<span class="kw">impl</span> <span class="ident">Eq</span> <span class="kw">for</span> <span class="ident">Secp256k1Signature</span> {}
 
 <span class="kw">impl</span> <span class="ident">Display</span> <span class="kw">for</span> <span class="ident">Secp256k1Signature</span> {
     <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">fmt::Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">fmt::Error</span><span class="op">&gt;</span> {
@@ -624,13 +630,8 @@
 
 <span class="kw">impl</span> <span class="ident">Default</span> <span class="kw">for</span> <span class="ident">Secp256k1Signature</span> {
     <span class="kw">fn</span> <span class="ident">default</span>() -&gt; <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="ident">sig</span> <span class="op">=</span>
-            <span class="op">&lt;</span><span class="ident">k256::ecdsa::Signature</span> <span class="kw">as</span> <span class="ident">Signature</span><span class="op">&gt;</span><span class="ident">::from_bytes</span>(<span class="kw-2">&amp;</span>[<span class="number">1u8</span>; <span class="ident">SECP256K1_SIGNATURE_LENGTH</span>])
-                .<span class="ident">unwrap</span>();
-        <span class="ident">Secp256k1Signature</span> {
-            <span class="ident">sig</span>,
-            <span class="ident">bytes</span>: <span class="ident">OnceCell::new</span>(),
-        }
+        <span class="op">&lt;</span><span class="ident">Secp256k1Signature</span> <span class="kw">as</span> <span class="ident">Signature</span><span class="op">&gt;</span><span class="ident">::from_bytes</span>(<span class="kw-2">&amp;</span>[<span class="number">0u8</span>; <span class="ident">constants::COMPACT_SIGNATURE_SIZE</span>])
+            .<span class="ident">unwrap</span>()
     }
 }
 
@@ -669,8 +670,9 @@
     }
 
     <span class="kw">fn</span> <span class="ident">generate</span><span class="op">&lt;</span><span class="ident">R</span>: <span class="ident">rand::CryptoRng</span> <span class="op">+</span> <span class="ident">rand::RngCore</span><span class="op">&gt;</span>(<span class="ident">_rng</span>: <span class="kw-2">&amp;mut</span> <span class="ident">R</span>) -&gt; <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="ident">privkey</span> <span class="op">=</span> <span class="ident">k256::ecdsa::SigningKey::random</span>(<span class="kw-2">&amp;mut</span> <span class="ident">OsRng</span>);
-        <span class="kw">let</span> <span class="ident">pubkey</span> <span class="op">=</span> <span class="ident">k256::ecdsa::VerifyingKey::from</span>(<span class="kw-2">&amp;</span><span class="ident">privkey</span>);
+        <span class="kw">let</span> <span class="ident">secp</span> <span class="op">=</span> <span class="ident">Secp256k1::new</span>();
+        <span class="comment">// TODO: use param rng instead of generate a fresh OsRng when rand is upgraded to match. https://github.com/MystenLabs/narwhal/issues/544</span>
+        <span class="kw">let</span> (<span class="ident">privkey</span>, <span class="ident">pubkey</span>) <span class="op">=</span> <span class="ident">secp</span>.<span class="ident">generate_keypair</span>(<span class="kw-2">&amp;mut</span> <span class="ident">OsRng</span>);
 
         <span class="ident">Secp256k1KeyPair</span> {
             <span class="ident">name</span>: <span class="ident">Secp256k1PublicKey</span> {
@@ -695,28 +697,26 @@
 
 <span class="kw">impl</span> <span class="ident">Signer</span><span class="op">&lt;</span><span class="ident">Secp256k1Signature</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Secp256k1KeyPair</span> {
     <span class="kw">fn</span> <span class="ident">try_sign</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">msg</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Secp256k1Signature</span>, <span class="ident">signature::Error</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">secret</span>.<span class="ident">privkey</span>.<span class="ident">try_sign</span>(<span class="ident">msg</span>);
-        <span class="kw">match</span> <span class="kw-2">*</span><span class="ident">res</span> {
-            <span class="prelude-val">Ok</span>(<span class="ident">sig</span>) =&gt; <span class="prelude-val">Ok</span>(<span class="ident">Secp256k1Signature</span> {
-                <span class="ident">sig</span>,
-                <span class="ident">bytes</span>: <span class="ident">OnceCell::new</span>(),
-            }),
-            <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="prelude-val">Err</span>(<span class="ident">signature::Error::new</span>()),
-        }
+        <span class="kw">let</span> <span class="ident">secp</span> <span class="op">=</span> <span class="ident">Secp256k1::new</span>();
+        <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">Message::from_hashed_data</span>::<span class="op">&lt;</span><span class="ident">rust_secp256k1::hashes::sha256::Hash</span><span class="op">&gt;</span>(<span class="ident">msg</span>);
+        <span class="prelude-val">Ok</span>(<span class="ident">Secp256k1Signature</span> {
+            <span class="ident">sig</span>: <span class="ident">secp</span>.<span class="ident">sign_ecdsa</span>(<span class="kw-2">&amp;</span><span class="ident">message</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">secret</span>.<span class="ident">privkey</span>),
+            <span class="ident">bytes</span>: <span class="ident">OnceCell::new</span>(),
+        })
     }
 }
 
-<span class="kw">impl</span> <span class="ident">TryInto</span><span class="op">&lt;</span><span class="ident">Secp256k1PublicKey</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Secp256k1PublicKeyBytes</span> {
+<span class="kw">impl</span> <span class="ident">TryFrom</span><span class="op">&lt;</span><span class="ident">Secp256k1PublicKeyBytes</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Secp256k1PublicKey</span> {
     <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">signature::Error</span>;
 
-    <span class="kw">fn</span> <span class="ident">try_into</span>(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Secp256k1PublicKey</span>, <span class="ident"><span class="self">Self</span>::Error</span><span class="op">&gt;</span> {
-        <span class="ident">Secp256k1PublicKey::from_bytes</span>(<span class="self">self</span>.<span class="ident">as_ref</span>()).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident"><span class="self">Self</span>::Error::new</span>())
+    <span class="kw">fn</span> <span class="ident">try_from</span>(<span class="ident">bytes</span>: <span class="ident">Secp256k1PublicKeyBytes</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Secp256k1PublicKey</span>, <span class="ident"><span class="self">Self</span>::Error</span><span class="op">&gt;</span> {
+        <span class="ident">Secp256k1PublicKey::from_bytes</span>(<span class="ident">bytes</span>.<span class="ident">as_ref</span>()).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident"><span class="self">Self</span>::Error::new</span>())
     }
 }
 
-<span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">Secp256k1PublicKey</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Secp256k1PublicKeyBytes</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">pk</span>: <span class="ident">Secp256k1PublicKey</span>) -&gt; <span class="ident">Secp256k1PublicKeyBytes</span> {
-        <span class="ident">Secp256k1PublicKeyBytes::new</span>((<span class="kw-2">*</span><span class="ident">pk</span>.<span class="ident">as_ref</span>()).<span class="ident">try_into</span>().<span class="ident">expect</span>(<span class="string">&quot;wrong length&quot;</span>))
+<span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Secp256k1PublicKey</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Secp256k1PublicKeyBytes</span> {
+    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">pk</span>: <span class="kw-2">&amp;</span><span class="ident">Secp256k1PublicKey</span>) -&gt; <span class="self">Self</span> {
+        <span class="ident">Secp256k1PublicKeyBytes::from_bytes</span>(<span class="ident">pk</span>.<span class="ident">as_ref</span>()).<span class="ident">unwrap</span>()
     }
 }
 
@@ -727,5 +727,5 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="crypto" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (d68e7ebc3 2022-07-20)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="crypto" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (62b272d25 2022-07-21)" ></div>
 </body></html>

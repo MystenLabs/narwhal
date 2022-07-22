@@ -1,3 +1,0 @@
-(function() {var implementors = {};
-implementors["crypto"] = [{"text":"impl <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/convert/trait.TryInto.html\" title=\"trait core::convert::TryInto\">TryInto</a>&lt;<a class=\"struct\" href=\"crypto/secp256k1/struct.Secp256k1PublicKey.html\" title=\"struct crypto::secp256k1::Secp256k1PublicKey\">Secp256k1PublicKey</a>&gt; for <a class=\"type\" href=\"crypto/secp256k1/type.Secp256k1PublicKeyBytes.html\" title=\"type crypto::secp256k1::Secp256k1PublicKeyBytes\">Secp256k1PublicKeyBytes</a>","synthetic":false,"types":["crypto::secp256k1::Secp256k1PublicKeyBytes"]}];
-if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
