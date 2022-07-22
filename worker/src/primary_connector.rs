@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use config::Committee;
 use crypto::traits::VerifyingKey;
-use futures::FutureExt;
+use futures::{stream::FuturesUnordered, FutureExt, StreamExt};
 use multiaddr::Multiaddr;
 use network::{BoundedExecutor, CancelHandler, RetryConfig, MAX_TASK_CONCURRENCY};
 use primary::WorkerPrimaryMessage;
@@ -14,6 +14,9 @@ use tokio::{
 };
 use tonic::transport::Channel;
 use types::{BincodeEncodedPayload, ReconfigureNotification, WorkerToPrimaryClient};
+
+/// The maximum number of digests kept in memory waiting to be sent to the primary.
+pub const MAX_PENDING_DIGESTS: usize = 10_000;
 
 // Send batches' digests to the primary.
 pub struct PrimaryConnector<PublicKey: VerifyingKey> {
@@ -50,16 +53,22 @@ impl<PublicKey: VerifyingKey> PrimaryConnector<PublicKey> {
     }
 
     async fn run(&mut self) {
+        let mut futures = FuturesUnordered::new();
         loop {
             tokio::select! {
                 // Send the digest through the network.
                 Some(digest) = self.rx_digest.recv() => {
+                    if futures.len() >= MAX_PENDING_DIGESTS {
+                        tracing::warn!("Primary unreachable: dropping {digest:?}");
+                        continue;
+                    }
+
                     let address = self.committee
                         .primary(&self.name)
                         .expect("Our public key is not in the committee")
                         .worker_to_primary;
                     let handle = self.primary_client.send(address, &digest).await;
-                    handle.await;
+                    futures.push(handle);
                 },
 
                 // Trigger reconfigure.
@@ -73,6 +82,8 @@ impl<PublicKey: VerifyingKey> PrimaryConnector<PublicKey> {
                         ReconfigureNotification::Shutdown => return
                     }
                 }
+
+                Some(()) = futures.next() => ()
             }
         }
     }
