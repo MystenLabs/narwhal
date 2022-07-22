@@ -33,7 +33,9 @@ use tokio::{
     time::{sleep, timeout},
 };
 use tracing::{debug, error, instrument, trace, warn};
-use types::{BatchDigest, Certificate, CertificateDigest, ReconfigureNotification, PrimaryWorkerMessage};
+use types::{
+    BatchDigest, Certificate, CertificateDigest, PrimaryWorkerMessage, ReconfigureNotification,
+};
 
 #[cfg(test)]
 #[path = "tests/block_synchronizer_tests.rs"]

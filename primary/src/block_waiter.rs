@@ -24,7 +24,7 @@ use tokio::{
 use tracing::{debug, error, instrument, warn};
 use types::{
     BatchDigest, BatchMessage, BlockError, BlockErrorKind, BlockResult, Certificate,
-    CertificateDigest, Header, ReconfigureNotification, PrimaryWorkerMessage,
+    CertificateDigest, Header, PrimaryWorkerMessage, ReconfigureNotification,
 };
 use Result::*;
 

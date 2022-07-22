@@ -26,8 +26,8 @@ use tracing::info;
 use types::{
     error::DagError, BatchDigest, BincodeEncodedPayload, ClientBatchRequest, Empty,
     PrimaryToWorker, PrimaryToWorkerServer, ReconfigureNotification, SerializedBatchMessage,
-    Transaction, TransactionProto, Transactions, TransactionsServer, WorkerToWorker,
-    WorkerToWorkerServer, WorkerPrimaryMessage,
+    Transaction, TransactionProto, Transactions, TransactionsServer, WorkerPrimaryMessage,
+    WorkerToWorker, WorkerToWorkerServer,
 };
 
 #[cfg(test)]
