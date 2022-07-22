@@ -50,9 +50,6 @@ impl<PublicKey: VerifyingKey> PrimaryConnector<PublicKey> {
     }
 
     async fn run(&mut self) {
-        // Ensure we don't drop the handle too fast.
-        let mut _handle: CancelHandler<()>;
-
         loop {
             tokio::select! {
                 // Send the digest through the network.
@@ -61,7 +58,8 @@ impl<PublicKey: VerifyingKey> PrimaryConnector<PublicKey> {
                         .primary(&self.name)
                         .expect("Our public key is not in the committee")
                         .worker_to_primary;
-                    _handle = self.primary_client.send(address, &digest).await;
+                    let handle = self.primary_client.send(address, &digest).await;
+                    handle.await;
                 },
 
                 // Trigger reconfigure.
