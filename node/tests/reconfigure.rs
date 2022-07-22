@@ -294,7 +294,7 @@ async fn epoch_change() {
                 let worker_cancel_handles = worker_network.broadcast(addresses, &message).await;
 
                 // Ensure the message has been received.
-                primary_cancel_handle.await;
+                primary_cancel_handle.await.unwrap();
                 join_all(worker_cancel_handles).await;
             }
         });

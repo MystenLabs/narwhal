@@ -1,9 +1,7 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-
 use crate::{BoundedExecutor, CancelHandler, MessageResult, RetryConfig, MAX_TASK_CONCURRENCY};
 use crypto::traits::VerifyingKey;
-use futures::FutureExt;
 use multiaddr::Multiaddr;
 use rand::{prelude::SliceRandom as _, rngs::SmallRng, SeedableRng as _};
 use std::collections::HashMap;
@@ -203,7 +201,7 @@ impl WorkerToPrimaryNetwork {
         &mut self,
         address: Multiaddr,
         message: &WorkerPrimaryMessage<PublicKey>,
-    ) -> CancelHandler<()> {
+    ) -> CancelHandler<MessageResult> {
         let new_client = match &self.address {
             None => true,
             Some(x) if x != &address => true,
@@ -218,20 +216,37 @@ impl WorkerToPrimaryNetwork {
         let message =
             BincodeEncodedPayload::try_from(message).expect("Failed to serialize payload");
         let client = self.client.as_mut().unwrap().clone();
+
+        let message_send = move || {
+            let mut client = client.clone();
+            let message = message.clone();
+
+            async move {
+                client.send_message(message).await.map_err(|e| {
+                    // this returns a backoff::Error::Transient
+                    // so that if tonic::Status is returned, we retry
+                    Into::<backoff::Error<anyhow::Error>>::into(anyhow::Error::from(e))
+                })
+            }
+        };
         let handle = self
             .executor
-            .spawn(
-                self.retry_config
-                    .retry(move || {
-                        let mut client = client.clone();
-                        let message = message.clone();
-                        async move { client.send_message(message).await.map_err(Into::into) }
-                    })
-                    .map(|response| {
-                        response.expect("we retry forever so this shouldn't fail");
-                    }),
-            )
-            .await;
+            .spawn_with_retries(self.retry_config, message_send);
+
+        // let handle = self
+        //     .executor
+        //     .spawn(
+        //         self.retry_config
+        //             .retry(move || {
+        //                 let mut client = client.clone();
+        //                 let message = message.clone();
+        //                 async move { client.send_message(message).await.map_err(Into::into) }
+        //             })
+        //             .map(|response| {
+        //                 response.expect("we retry forever so this shouldn't fail");
+        //             }),
+        //     )
+        //     .await;
         CancelHandler(handle)
     }
 }

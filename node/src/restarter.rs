@@ -102,7 +102,9 @@ impl NodeRestarter {
             let worker_cancel_handles = worker_network.broadcast(addresses, &message).await;
 
             // Ensure the message has been received.
-            primary_cancel_handle.await;
+            primary_cancel_handle
+                .await
+                .expect("Failed to notify primary");
             join_all(worker_cancel_handles).await;
             tracing::debug!("Committee reconfiguration message successfully sent");
 

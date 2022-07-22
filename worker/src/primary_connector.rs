@@ -79,7 +79,7 @@ impl<PublicKey: VerifyingKey> PrimaryConnector<PublicKey> {
                     }
                 }
 
-                Some(()) = futures.next() => ()
+                Some(_result) = futures.next() => ()
             }
         }
     }
