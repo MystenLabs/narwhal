@@ -56,6 +56,9 @@
 <span id="50">50</span>
 <span id="51">51</span>
 <span id="52">52</span>
+<span id="53">53</span>
+<span id="54">54</span>
+<span id="55">55</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -77,6 +80,9 @@
     <span class="ident">retry::RetryConfig</span>,
     <span class="ident">worker::WorkerNetwork</span>,
 };
+
+<span class="comment">// the result of our network messages</span>
+<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">MessageResult</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">tonic::Response</span><span class="op">&lt;</span><span class="ident">types::Empty</span><span class="op">&gt;</span>, <span class="ident">anyhow::Error</span><span class="op">&gt;</span>;
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
 <span class="attribute">#[<span class="ident">must_use</span>]</span>
