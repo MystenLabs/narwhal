@@ -26,26 +26,24 @@ async fn test_node_staggered_starts() {
 
     tokio::time::sleep(node_staggered_delay).await;
 
-    let rounds = authorities_current_round(&cluster).await;
+    let rounds = authorities_latest_commit_round(&cluster).await;
     assert_eq!(
         rounds.len(),
-        1,
-        "Expected to have received metric only from one node"
+        0,
+        "No node should be able to commit, no reported round was expected"
     );
-    assert!(rounds.values().all(|v| v == &1.0), "We have (f+2) unavailable nodes and expected all nodes to have made progress up to round 1 only");
 
     // ==== Start second authority ====
     cluster.authority(1).start(false, Some(1)).await;
 
     tokio::time::sleep(node_staggered_delay).await;
 
-    let rounds = authorities_current_round(&cluster).await;
+    let rounds = authorities_latest_commit_round(&cluster).await;
     assert_eq!(
         rounds.len(),
-        2,
-        "Expected to have received metrics from only two nodes"
+        0,
+        "No node should be able to commit, no reported round was expected"
     );
-    assert!(rounds.values().all(|v| v == &1.0), "We have (f+1) unavailable nodes and expected all nodes to have made progress up to round 1 only");
 
     // ==== Start third authority ====
     // Now 2f + 1 nodes are becoming available and we expect all the nodes to
@@ -54,13 +52,13 @@ async fn test_node_staggered_starts() {
 
     tokio::time::sleep(node_staggered_delay).await;
 
-    let rounds = authorities_current_round(&cluster).await;
+    let rounds = authorities_latest_commit_round(&cluster).await;
     assert_eq!(
         rounds.len(),
         3,
-        "Expected to have received metrics from only three nodes"
+        "Expected to have received commit metrics from only three nodes"
     );
-    assert!(rounds.values().all(|v| v > &1.0), "We have only (f) unavailable nodes, so all should have made progress more than just the first round");
+    assert!(rounds.values().all(|v| v > &1.0), "We have only (f) unavailable nodes, so all should have made progress and committed at least after the first round");
 
     // We expect all the nodes to have managed to catch up by now
     // and be pretty much in similar rounds. The threshold here is
@@ -75,13 +73,13 @@ async fn test_node_staggered_starts() {
 
     tokio::time::sleep(node_staggered_delay).await;
 
-    let rounds = authorities_current_round(&cluster).await;
+    let rounds = authorities_latest_commit_round(&cluster).await;
     assert_eq!(
         rounds.len(),
         4,
-        "Expected to have received metrics from all nodes"
+        "Expected to have received commit metrics from all nodes"
     );
-    assert!(rounds.values().all(|v| v > &1.0), "We have no unavailable nodes, so all should have made progress more than just the first round");
+    assert!(rounds.values().all(|v| v > &1.0), "We have only (f) unavailable nodes, so all should have made progress and committed at least after the first round");
 
     // We expect all the nodes to have managed to catch up by now
     // and be pretty much in similar rounds. The threshold here is
@@ -90,24 +88,24 @@ async fn test_node_staggered_starts() {
     assert!(max - min <= 2.0, "Nodes shouldn't be that behind");
 }
 
-async fn authorities_current_round(cluster: &Cluster) -> HashMap<usize, f64> {
-    let mut authorities_current_round = HashMap::new();
+async fn authorities_latest_commit_round(cluster: &Cluster) -> HashMap<usize, f64> {
+    let mut authorities_latest_commit = HashMap::new();
 
     for authority in cluster.authorities().await {
         let primary = authority.primary().await;
-        if let Some(metric) = primary.metric("narwhal_primary_current_round") {
+        if let Some(metric) = primary.metric("narwhal_primary_last_committed_round") {
             let value = metric.get_gauge().get_value();
 
-            authorities_current_round.insert(primary.id, value);
+            authorities_latest_commit.insert(primary.id, value);
 
             info!(
-                "[Node {}] Metric narwhal_primary_current_round -> {value}",
+                "[Node {}] Metric narwhal_primary_last_committed_round -> {value}",
                 primary.id
             );
         }
     }
 
-    authorities_current_round
+    authorities_latest_commit
 }
 
 fn setup_tracing() -> TelemetryGuards {
