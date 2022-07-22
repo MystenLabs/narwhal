@@ -44,6 +44,8 @@ impl NodeRestarter {
 
         // Listen for new committees.
         loop {
+            tracing::info!("Starting epoch E{}", committee.epoch());
+
             // Get a fresh store for the new epoch.
             let mut store_path = storage_base_path.clone();
             store_path.push(format!("epoch{}", committee.epoch()));
@@ -80,6 +82,7 @@ impl NodeRestarter {
                 Some(x) => x,
                 None => break,
             };
+            tracing::info!("Starting reconfiguration with committee {committee}");
 
             // Shutdown all relevant components.
             let address = committee
@@ -103,9 +106,17 @@ impl NodeRestarter {
             // Ensure the message has been received.
             primary_cancel_handle.await;
             join_all(worker_cancel_handles).await;
+            tracing::debug!("Committee reconfiguration message successfully sent");
 
             // Wait for the components to shut down.
             join_all(handles.drain(..)).await;
+            tracing::debug!("All tasks successfully exited");
+
+            // Give it an extra second in case the last task to exit is a network server. The OS
+            // may need a moment to make the TCP ports available again.
+            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+            println!("[{name}] is out for E{}", committee.epoch());
+            tracing::debug!("Epoch E{} terminated", committee.epoch());
 
             // Update the settings for the next epoch.
             keypair = new_keypair;

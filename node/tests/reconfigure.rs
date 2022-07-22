@@ -227,7 +227,6 @@ async fn restart() {
             let mut current_epoch = 0u64;
             while let Some(output) = rx.recv().await {
                 let (outcome, _tx) = output;
-                println!("{outcome:?}");
                 match outcome {
                     Ok(epoch) => {
                         if epoch == 5 {
