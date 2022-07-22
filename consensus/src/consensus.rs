@@ -78,10 +78,7 @@ impl<PublicKey: VerifyingKey> ConsensusState<PublicKey> {
         if last_committed_round == 0 {
             return Self::new(genesis, metrics);
         }
-        metrics
-            .recovered_consensus_state
-            .with_label_values(&[])
-            .inc();
+        metrics.recovered_consensus_state.inc();
 
         let dag =
             Self::construct_dag_from_cert_store(cert_store, last_committed_round, gc_depth).await;
@@ -113,6 +110,7 @@ impl<PublicKey: VerifyingKey> ConsensusState<PublicKey> {
             })))
             .await;
 
+        let num_certs = cert_map.len();
         for (digest, cert) in cert_map {
             let inner = dag.get_mut(&cert.header.round);
             match inner {
@@ -126,6 +124,11 @@ impl<PublicKey: VerifyingKey> ConsensusState<PublicKey> {
                 }
             }
         }
+        info!(
+            "Dag was restored and contains {} certs for {} rounds",
+            num_certs,
+            dag.len()
+        );
 
         dag
     }

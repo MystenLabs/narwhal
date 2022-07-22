@@ -28,7 +28,7 @@ pub mod cluster_tests;
 
 pub struct Cluster {
     authorities: HashMap<usize, AuthorityDetails>,
-    committee_shared: Arc<ArcSwap<Committee<Ed25519PublicKey>>>,
+    pub committee_shared: SharedCommittee<Ed25519PublicKey>,
     #[allow(dead_code)]
     parameters: Parameters,
 }
@@ -134,8 +134,8 @@ impl Cluster {
 
     /// This method stops the authority (both the primary and the worker nodes)
     /// with the provided id.
-    pub fn stop_node(&mut self, id: usize) {
-        if let Some(node) = self.authorities.get_mut(&id) {
+    pub fn stop_node(&self, id: usize) {
+        if let Some(node) = self.authorities.get(&id) {
             node.stop_all();
             info!("Aborted node for id {id}");
         } else {
@@ -147,7 +147,7 @@ impl Cluster {
     /// * has been started ever
     /// * or has been stopped
     /// will not be returned by this method.
-    pub fn authorities(&mut self) -> Vec<AuthorityDetails> {
+    pub fn authorities(&self) -> Vec<AuthorityDetails> {
         self.authorities
             .iter()
             .filter(|(_, authority)| authority.is_running())
@@ -157,7 +157,7 @@ impl Cluster {
 
     /// Returns the authority identified by the provided id.
     /// Will panic if the authority with the id is not found.
-    pub fn authority(&mut self, id: usize) -> AuthorityDetails {
+    pub fn authority(&self, id: usize) -> AuthorityDetails {
         self.authorities
             .get(&id)
             .unwrap_or_else(|| panic!("Authority with id {} not found", id))
@@ -253,9 +253,10 @@ impl PrimaryNodeDetails {
         let h = tokio::spawn(async move {
             while let Some(t) = rx_transaction_confirmation.recv().await {
                 // send the transaction to the mpmc channel
-                transactions_sender
-                    .send(t)
-                    .expect("Couldn't send message to broadcast channel");
+                if let Err(e) = t.clone().0 {
+                    println!("The result from consensus is an error: {:?}", e);
+                }
+                _ = transactions_sender.send(t);
             }
         });
 

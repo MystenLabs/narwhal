@@ -28,6 +28,10 @@ use tracing::subscriber::set_global_default;
 #[cfg(feature = "benchmark")]
 use tracing_subscriber::filter::{EnvFilter, LevelFilter};
 
+#[cfg(feature = "dhat-heap")]
+#[global_allocator]
+static ALLOC: dhat::Alloc = dhat::Alloc;
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let matches = App::new(crate_name!())
