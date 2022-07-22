@@ -79,6 +79,7 @@ impl<PublicKey: VerifyingKey> PrimaryConnector<PublicKey> {
 }
 
 pub struct WorkerToPrimaryNetwork {
+    address: Option<Multiaddr>,
     client: Option<WorkerToPrimaryClient<Channel>>,
     config: mysten_network::config::Config,
     retry_config: RetryConfig,
@@ -94,6 +95,7 @@ impl Default for WorkerToPrimaryNetwork {
         };
 
         Self {
+            address: None,
             client: Default::default(),
             config: Default::default(),
             retry_config,
@@ -108,14 +110,20 @@ impl WorkerToPrimaryNetwork {
         address: Multiaddr,
         message: &WorkerPrimaryMessage<PublicKey>,
     ) -> CancelHandler<()> {
-        if self.client.is_none() {
+        let new_client = match &self.address {
+            None => true,
+            Some(x) if x != &address => true,
+            _ => false,
+        };
+        if new_client {
             let channel = self.config.connect_lazy(&address).unwrap();
             self.client = Some(WorkerToPrimaryClient::new(channel));
+            self.address = Some(address);
         }
+
         let message =
             BincodeEncodedPayload::try_from(message).expect("Failed to serialize payload");
         let client = self.client.as_mut().unwrap().clone();
-
         let handle = self
             .executor
             .spawn(
