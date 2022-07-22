@@ -183,7 +183,7 @@ opaque-debug = { version = "0.3", default-features = false }
 opentelemetry = { version = "0.17", features = ["async-trait", "crossbeam-channel", "percent-encoding", "pin-project", "rand", "rt-tokio", "tokio", "tokio-stream", "trace"] }
 opentelemetry-jaeger = { version = "0.16", features = ["rt-tokio", "tokio"] }
 opentelemetry-semantic-conventions = { version = "0.9", default-features = false }
-ordered-float = { version = "3", features = ["std"] }
+ordered-float = { version = "1", features = ["std"] }
 os_str_bytes = { version = "6", default-features = false, features = ["raw_os_str"] }
 parking_lot = { version = "0.12" }
 parking_lot_core = { version = "0.9", default-features = false }
