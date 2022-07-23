@@ -65,6 +65,7 @@ clap-f595c2ba2a3f28df = { package = "clap", version = "2", features = ["ansi_ter
 clap-7b89eefb6aaa9bf3 = { package = "clap", version = "3", features = ["atty", "color", "std", "strsim", "suggestions", "termcolor"] }
 clap_lex = { version = "0.2", default-features = false }
 collectable = { version = "0.0.2", default-features = false }
+console = { version = "0.15", default-features = false }
 const-oid = { version = "0.9", default-features = false }
 constant_time_eq = { version = "0.1", default-features = false }
 core2 = { version = "0.4", default-features = false, features = ["alloc"] }
@@ -142,6 +143,7 @@ hyper-timeout = { version = "0.4", default-features = false }
 idna = { version = "0.2", default-features = false }
 indenter = { version = "0.3" }
 indexmap = { version = "1", default-features = false, features = ["std"] }
+insta = { version = "1", features = ["colors", "console"] }
 instant = { version = "0.1", default-features = false }
 integer-encoding = { version = "3", default-features = false }
 itertools = { version = "0.10", features = ["use_alloc", "use_std"] }
@@ -260,6 +262,7 @@ sha2-274715c4dabd11b0 = { package = "sha2", version = "0.9", default-features = 
 sha3 = { version = "0.10", features = ["std"] }
 sharded-slab = { version = "0.1", default-features = false }
 signature = { version = "1", features = ["digest", "digest-preview", "rand-preview", "rand_core", "std"] }
+similar = { version = "2", features = ["inline", "text"] }
 slab = { version = "0.4", features = ["std"] }
 smallvec = { version = "1", default-features = false }
 socket2 = { version = "0.4", default-features = false, features = ["all"] }
@@ -274,6 +277,7 @@ sync_wrapper = { version = "0.1", default-features = false }
 telemetry-subscribers = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "123c9e40b529315e1c1d91a54fb717111c3e349c", features = ["chrome", "jaeger", "opentelemetry", "opentelemetry-jaeger", "tracing-chrome", "tracing-opentelemetry"] }
 tempfile = { version = "3", default-features = false }
 termcolor = { version = "1", default-features = false }
+terminal_size = { version = "0.1", default-features = false }
 termtree = { version = "0.2", default-features = false }
 textwrap-a6292c17cd707f01 = { package = "textwrap", version = "0.11", default-features = false }
 textwrap-3575ec1268b04181 = { package = "textwrap", version = "0.15", default-features = false }
