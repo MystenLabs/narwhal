@@ -94,6 +94,7 @@ difflib = { version = "0.4", default-features = false }
 digest-93f6ce9d446188ac = { package = "digest", version = "0.10", features = ["alloc", "block-buffer", "core-api", "mac", "std", "subtle"] }
 digest-274715c4dabd11b0 = { package = "digest", version = "0.9", default-features = false, features = ["alloc", "std"] }
 downcast = { version = "0.11", features = ["std"] }
+dyn-clone = { version = "1", default-features = false }
 ecdsa = { version = "0.14", default-features = false, features = ["alloc", "arithmetic", "der", "digest", "hazmat", "pkcs8", "rfc6979", "sign", "std", "verify"] }
 ed25519 = { version = "1", default-features = false, features = ["serde", "std"] }
 ed25519-dalek = { version = "1", features = ["batch", "merlin", "rand", "serde", "serde_bytes", "serde_crate", "std", "u64_backend"] }
@@ -149,7 +150,7 @@ itertools = { version = "0.10", features = ["use_alloc", "use_std"] }
 itoa-9fbad63c4bcf4a8f = { package = "itoa", version = "0.4", features = ["std"] }
 itoa-dff4ba8e3ae991db = { package = "itoa", version = "1", default-features = false }
 json = { version = "0.12", default-features = false }
-k256 = { version = "0.11", features = ["arithmetic", "digest", "ecdsa", "ecdsa-core", "pkcs8", "schnorr", "sha2", "sha256", "std"] }
+k256 = { version = "0.11", features = ["arithmetic", "digest", "ecdsa", "ecdsa-core", "keccak256", "pkcs8", "schnorr", "sha2", "sha256", "sha3", "std"] }
 keccak = { version = "0.1", default-features = false }
 lazy_static = { version = "1", default-features = false }
 libc = { version = "0.2", features = ["std"] }
@@ -241,11 +242,12 @@ rustls-pemfile = { version = "1", default-features = false }
 rusty-fork = { version = "0.3", default-features = false, features = ["timeout", "wait-timeout"] }
 ryu = { version = "1", default-features = false }
 same-file = { version = "1", default-features = false }
+schemars = { version = "0.8", features = ["derive", "schemars_derive"] }
 scopeguard = { version = "1", default-features = false }
 sct = { version = "0.7", default-features = false }
 sec1 = { version = "0.3", features = ["alloc", "base16ct", "der", "generic-array", "pkcs8", "point", "subtle", "zeroize"] }
-secp256k1 = { version = "0.24", features = ["alloc", "bitcoin_hashes", "rand", "std"] }
-secp256k1-sys = { version = "0.6", default-features = false, features = ["alloc", "std"] }
+secp256k1 = { version = "0.24", features = ["alloc", "bitcoin_hashes", "global-context", "rand", "rand-std", "recovery", "std"] }
+secp256k1-sys = { version = "0.6", default-features = false, features = ["alloc", "recovery", "std"] }
 serde = { version = "1", features = ["derive", "rc", "serde_derive", "std"] }
 serde-reflection = { version = "0.3", default-features = false }
 serde_bytes = { version = "0.11", features = ["std"] }
@@ -410,10 +412,12 @@ remove_dir_all = { version = "0.5", default-features = false }
 rustc-hash = { version = "1", features = ["std"] }
 rustc_version = { version = "0.3", default-features = false }
 rustversion = { version = "1", default-features = false }
+schemars_derive = { version = "0.8", default-features = false }
 semver = { version = "0.11" }
 semver-parser = { version = "0.10", default-features = false }
 serde = { version = "1", features = ["derive", "rc", "serde_derive", "std"] }
 serde_derive = { version = "1" }
+serde_derive_internals = { version = "0.26", default-features = false }
 serde_with_macros = { version = "1", default-features = false }
 shlex = { version = "1", features = ["std"] }
 strsim-93f6ce9d446188ac = { package = "strsim", version = "0.10", default-features = false }
