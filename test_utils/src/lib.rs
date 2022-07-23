@@ -66,12 +66,12 @@ pub fn committee_from_keys(keys: &[Ed25519KeyPair]) -> Committee<Ed25519PublicKe
     pure_committee_from_keys(keys)
 }
 
-pub fn make_authority() -> Authority {
+pub fn make_authority_with_port_getter<F: FnMut() -> u16>(mut get_port: F) -> Authority {
     let primary = PrimaryAddresses {
-        primary_to_primary: format!("/ip4/127.0.0.1/tcp/{}/http", get_available_port())
+        primary_to_primary: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
             .parse()
             .unwrap(),
-        worker_to_primary: format!("/ip4/127.0.0.1/tcp/{}/http", get_available_port())
+        worker_to_primary: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
             .parse()
             .unwrap(),
     };
@@ -79,13 +79,13 @@ pub fn make_authority() -> Authority {
         (
             0,
             WorkerAddresses {
-                primary_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_available_port())
+                primary_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
                     .parse()
                     .unwrap(),
-                transactions: format!("/ip4/127.0.0.1/tcp/{}/http", get_available_port())
+                transactions: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
                     .parse()
                     .unwrap(),
-                worker_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_available_port())
+                worker_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
                     .parse()
                     .unwrap(),
             },
@@ -93,13 +93,13 @@ pub fn make_authority() -> Authority {
         (
             1,
             WorkerAddresses {
-                primary_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_available_port())
+                primary_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
                     .parse()
                     .unwrap(),
-                transactions: format!("/ip4/127.0.0.1/tcp/{}/http", get_available_port())
+                transactions: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
                     .parse()
                     .unwrap(),
-                worker_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_available_port())
+                worker_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
                     .parse()
                     .unwrap(),
             },
@@ -107,13 +107,13 @@ pub fn make_authority() -> Authority {
         (
             2,
             WorkerAddresses {
-                primary_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_available_port())
+                primary_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
                     .parse()
                     .unwrap(),
-                transactions: format!("/ip4/127.0.0.1/tcp/{}/http", get_available_port())
+                transactions: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
                     .parse()
                     .unwrap(),
-                worker_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_available_port())
+                worker_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
                     .parse()
                     .unwrap(),
             },
@@ -121,13 +121,13 @@ pub fn make_authority() -> Authority {
         (
             3,
             WorkerAddresses {
-                primary_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_available_port())
+                primary_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
                     .parse()
                     .unwrap(),
-                transactions: format!("/ip4/127.0.0.1/tcp/{}/http", get_available_port())
+                transactions: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
                     .parse()
                     .unwrap(),
-                worker_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_available_port())
+                worker_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
                     .parse()
                     .unwrap(),
             },
@@ -142,6 +142,10 @@ pub fn make_authority() -> Authority {
         primary,
         workers,
     }
+}
+
+pub fn make_authority() -> Authority {
+    make_authority_with_port_getter(get_available_port)
 }
 
 pub fn pure_committee_from_keys(keys: &[Ed25519KeyPair]) -> Committee<Ed25519PublicKey> {
