@@ -191,12 +191,18 @@ impl Default for WorkerToPrimaryNetwork {
             client: Default::default(),
             config: Default::default(),
             retry_config,
+            // Note that this does not strictly break the primitive that BoundedExecutor is per address because
+            // this network sender only transmits to a single address.
             executor: BoundedExecutor::new(MAX_TASK_CONCURRENCY, Handle::current()),
         }
     }
 }
 
 impl WorkerToPrimaryNetwork {
+    // Safety
+    // Since this spawns an unbounded task, this should be called in a time-restricted fashion.
+    // Here the callers are [`WorkerToPrimaryNetwork::send`].
+    // See the TODO on spawn_with_retries for lifting this restriction.
     pub async fn send<PublicKey: VerifyingKey>(
         &mut self,
         address: Multiaddr,
@@ -233,20 +239,6 @@ impl WorkerToPrimaryNetwork {
             .executor
             .spawn_with_retries(self.retry_config, message_send);
 
-        // let handle = self
-        //     .executor
-        //     .spawn(
-        //         self.retry_config
-        //             .retry(move || {
-        //                 let mut client = client.clone();
-        //                 let message = message.clone();
-        //                 async move { client.send_message(message).await.map_err(Into::into) }
-        //             })
-        //             .map(|response| {
-        //                 response.expect("we retry forever so this shouldn't fail");
-        //             }),
-        //     )
-        //     .await;
         CancelHandler(handle)
     }
 }
