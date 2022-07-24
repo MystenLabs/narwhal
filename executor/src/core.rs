@@ -185,6 +185,8 @@ where
                 let (bail, result) = match result {
                     Ok((outcome, committee)) => {
                         if let Some(_committee) = committee {
+                            // TODO: Do we really need to receive back the committee here? We will know
+                            // once we try to integrate Narwhal with Sui. #580
                             // todo!();
                         }
 
