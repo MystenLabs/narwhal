@@ -162,6 +162,7 @@ impl<PublicKey: VerifyingKey> CertificateWaiter<PublicKey> {
                     match message {
                         ReconfigureNotification::NewCommittee(committee) => {
                             self.committee = committee;
+                            tracing::debug!("Committee updated to {}", self.committee);
                             self.pending.clear();
                         },
                         ReconfigureNotification::Shutdown => return

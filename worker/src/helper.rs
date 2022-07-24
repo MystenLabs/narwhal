@@ -112,7 +112,8 @@ impl<PublicKey: VerifyingKey> Helper<PublicKey> {
                     let message = self.rx_reconfigure.borrow().clone();
                     match message {
                         ReconfigureNotification::NewCommittee(new_committee) => {
-                            self.committee=new_committee;
+                            self.committee = new_committee;
+                            tracing::debug!("Committee updated to {}", self.committee);
                         },
                         ReconfigureNotification::Shutdown => return
                     }

@@ -533,6 +533,7 @@ impl<PublicKey: VerifyingKey> Core<PublicKey> {
 
         self.committee = committee;
         self.synchronizer.update_genesis(&self.committee);
+        tracing::debug!("Committee updated to {}", self.committee);
     }
 
     // Main loop listening to incoming messages.

@@ -205,6 +205,7 @@ impl<PublicKey: VerifyingKey> Synchronizer<PublicKey> {
                         let shutdown = match &message {
                             ReconfigureNotification::NewCommittee(new_committee) => {
                                 self.committee.swap(Arc::new(new_committee.clone()));
+                                tracing::debug!("Committee updated to {}", self.committee);
                                 self.pending.clear();
                                 self.round = 0;
                                 waiting.clear();

@@ -132,6 +132,7 @@ impl<PublicKey: VerifyingKey> Proposer<PublicKey> {
         self.committee = committee;
         self.round = 0;
         self.last_parents = Certificate::genesis(&self.committee);
+        tracing::debug!("Committee updated to {}", self.committee);
     }
 
     // Main loop listening to incoming messages.

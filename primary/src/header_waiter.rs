@@ -141,6 +141,7 @@ impl<PublicKey: VerifyingKey> HeaderWaiter<PublicKey> {
         self.parent_requests.clear();
 
         self.committee = committee;
+        tracing::debug!("Committee updated to {}", self.committee);
     }
 
     /// Helper function. It waits for particular data to become available in the storage

@@ -251,6 +251,7 @@ where
     ) -> StoreResult<ConsensusState<PublicKey>> {
         self.committee = new_committee.clone();
         self.protocol.update_committee(new_committee)?;
+        tracing::debug!("Committee updated to {}", self.committee);
 
         self.consensus_index = 0;
 

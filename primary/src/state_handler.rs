@@ -96,6 +96,7 @@ impl<PublicKey: VerifyingKey> StateHandler<PublicKey> {
                         ReconfigureNotification::NewCommittee(committee) => {
                             // Update the committee.
                             self.committee.swap(Arc::new(committee.clone()));
+                            tracing::debug!("Committee updated to {}", self.committee);
 
                             // Trigger cleanup on the primary.
                             self.consensus_round.store(0, Ordering::Relaxed);
