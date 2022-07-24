@@ -176,7 +176,7 @@
     <span class="ident">task::JoinHandle</span>,
     <span class="ident">time</span>::{<span class="ident">sleep</span>, <span class="ident">Duration</span>, <span class="ident">Instant</span>},
 };
-<span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">Batch</span>, <span class="ident">Reconfigure</span>, <span class="ident">Transaction</span>};
+<span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">error::DagError</span>, <span class="ident">Batch</span>, <span class="ident">ReconfigureNotification</span>, <span class="ident">Transaction</span>};
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="attribute">#[<span class="ident">path</span> <span class="op">=</span> <span class="string">&quot;tests/batch_maker_tests.rs&quot;</span>]</span>
@@ -191,7 +191,7 @@
     <span class="doccomment">/// The maximum delay after which to seal the batch.</span>
     <span class="ident">max_batch_delay</span>: <span class="ident">Duration</span>,
     <span class="doccomment">/// Receive reconfiguration updates.</span>
-    <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">Reconfigure</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="doccomment">/// Channel to receive transactions from the network.</span>
     <span class="ident">rx_transaction</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Transaction</span><span class="op">&gt;</span>,
     <span class="doccomment">/// Output channel to deliver sealed batches to the `QuorumWaiter`.</span>
@@ -207,7 +207,7 @@
         <span class="ident">committee</span>: <span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
         <span class="ident">batch_size</span>: <span class="ident">usize</span>,
         <span class="ident">max_batch_delay</span>: <span class="ident">Duration</span>,
-        <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">Reconfigure</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">rx_transaction</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Transaction</span><span class="op">&gt;</span>,
         <span class="ident">tx_message</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">Batch</span><span class="op">&gt;</span>,
     ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
@@ -257,10 +257,11 @@
                     <span class="ident">result</span>.<span class="ident">expect</span>(<span class="string">&quot;Committee channel dropped&quot;</span>);
                     <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">rx_reconfigure</span>.<span class="ident">borrow</span>().<span class="ident">clone</span>();
                     <span class="kw">match</span> <span class="ident">message</span> {
-                        <span class="ident">Reconfigure::NewCommittee</span>(<span class="ident">new_committee</span>) =&gt; {
-                            <span class="self">self</span>.<span class="ident">committee</span><span class="op">=</span><span class="ident">new_committee</span>;
+                        <span class="ident">ReconfigureNotification::NewCommittee</span>(<span class="ident">new_committee</span>) =&gt; {
+                            <span class="self">self</span>.<span class="ident">committee</span> <span class="op">=</span> <span class="ident">new_committee</span>;
+                            <span class="macro">tracing::debug!</span>(<span class="string">&quot;Committee updated to {}&quot;</span>, <span class="self">self</span>.<span class="ident">committee</span>);
                         },
-                        <span class="ident">Reconfigure::Shutdown</span>(<span class="ident">_token</span>) =&gt; <span class="kw">return</span>
+                        <span class="ident">ReconfigureNotification::Shutdown</span> =&gt; <span class="kw">return</span>
                     }
                 }
             }
@@ -312,10 +313,9 @@
         }
 
         <span class="comment">// Send the batch through the deliver channel for further processing.</span>
-        <span class="self">self</span>.<span class="ident">tx_message</span>
-            .<span class="ident">send</span>(<span class="ident">batch</span>)
-            .<span class="kw">await</span>
-            .<span class="ident">expect</span>(<span class="string">&quot;Failed to deliver batch&quot;</span>);
+        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">tx_message</span>.<span class="ident">send</span>(<span class="ident">batch</span>).<span class="kw">await</span>.<span class="ident">is_err</span>() {
+            <span class="macro">tracing::debug!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">DagError::ShuttingDown</span>);
+        }
     }
 }
 </code></pre></div>

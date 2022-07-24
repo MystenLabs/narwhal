@@ -326,6 +326,7 @@
 <span id="320">320</span>
 <span id="321">321</span>
 <span id="322">322</span>
+<span id="323">323</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright(C) Facebook, Inc. and its affiliates.</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -344,7 +345,7 @@
 <span class="kw">use</span> <span class="ident">tracing::debug</span>;
 <span class="kw">use</span> <span class="ident">types</span>::{
     <span class="ident">error</span>::{<span class="ident">DagError</span>, <span class="ident">DagResult</span>},
-    <span class="ident">BatchDigest</span>, <span class="ident">Certificate</span>, <span class="ident">Header</span>, <span class="ident">Reconfigure</span>, <span class="ident">Round</span>,
+    <span class="ident">BatchDigest</span>, <span class="ident">Certificate</span>, <span class="ident">Header</span>, <span class="ident">ReconfigureNotification</span>, <span class="ident">Round</span>,
 };
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
@@ -367,7 +368,7 @@
     <span class="ident">network_model</span>: <span class="ident">NetworkModel</span>,
 
     <span class="doccomment">/// Watch channel to reconfigure the committee.</span>
-    <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">Reconfigure</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="doccomment">/// Receives the parents to include in the next header (along with their round number).</span>
     <span class="ident">rx_core</span>: <span class="ident">Receiver</span><span class="op">&lt;</span>(<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">Round</span>, <span class="ident">Epoch</span>)<span class="op">&gt;</span>,
     <span class="doccomment">/// Receives the batches&#39; digests from our workers.</span>
@@ -398,7 +399,7 @@
         <span class="ident">header_size</span>: <span class="ident">usize</span>,
         <span class="ident">max_header_delay</span>: <span class="ident">Duration</span>,
         <span class="ident">network_model</span>: <span class="ident">NetworkModel</span>,
-        <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">Reconfigure</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">rx_core</span>: <span class="ident">Receiver</span><span class="op">&lt;</span>(<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">Round</span>, <span class="ident">Epoch</span>)<span class="op">&gt;</span>,
         <span class="ident">rx_workers</span>: <span class="ident">Receiver</span><span class="op">&lt;</span>(<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>)<span class="op">&gt;</span>,
         <span class="ident">tx_core</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">Header</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
@@ -460,6 +461,7 @@
         <span class="self">self</span>.<span class="ident">committee</span> <span class="op">=</span> <span class="ident">committee</span>;
         <span class="self">self</span>.<span class="ident">round</span> <span class="op">=</span> <span class="number">0</span>;
         <span class="self">self</span>.<span class="ident">last_parents</span> <span class="op">=</span> <span class="ident">Certificate::genesis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">committee</span>);
+        <span class="macro">tracing::debug!</span>(<span class="string">&quot;Committee updated to {}&quot;</span>, <span class="self">self</span>.<span class="ident">committee</span>);
     }
 
     <span class="comment">// Main loop listening to incoming messages.</span>
@@ -581,10 +583,10 @@
                         <span class="ident">Ordering::Greater</span> =&gt; {
                             <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">rx_reconfigure</span>.<span class="ident">borrow_and_update</span>().<span class="ident">clone</span>();
                             <span class="kw">match</span> <span class="ident">message</span>  {
-                                <span class="ident">Reconfigure::NewCommittee</span>(<span class="ident">new_committee</span>) =&gt; {
+                                <span class="ident">ReconfigureNotification::NewCommittee</span>(<span class="ident">new_committee</span>) =&gt; {
                                     <span class="self">self</span>.<span class="ident">update_committee</span>(<span class="ident">new_committee</span>);
                                 },
-                                <span class="ident">Reconfigure::Shutdown</span>(<span class="ident">_token</span>) =&gt; <span class="kw">return</span>,
+                                <span class="ident">ReconfigureNotification::Shutdown</span> =&gt; <span class="kw">return</span>,
                             }
                         }
                         <span class="ident">Ordering::Less</span> =&gt; {
@@ -638,10 +640,10 @@
                     <span class="ident">result</span>.<span class="ident">expect</span>(<span class="string">&quot;Committee channel dropped&quot;</span>);
                     <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">rx_reconfigure</span>.<span class="ident">borrow</span>().<span class="ident">clone</span>();
                     <span class="kw">match</span> <span class="ident">message</span> {
-                        <span class="ident">Reconfigure::NewCommittee</span>(<span class="ident">new_committee</span>) =&gt; {
+                        <span class="ident">ReconfigureNotification::NewCommittee</span>(<span class="ident">new_committee</span>) =&gt; {
                             <span class="self">self</span>.<span class="ident">update_committee</span>(<span class="ident">new_committee</span>);
                         },
-                        <span class="ident">Reconfigure::Shutdown</span>(<span class="ident">_token</span>) =&gt; <span class="kw">return</span>,
+                        <span class="ident">ReconfigureNotification::Shutdown</span> =&gt; <span class="kw">return</span>,
                     }
                 }
             }

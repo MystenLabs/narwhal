@@ -765,6 +765,55 @@
 <span id="759">759</span>
 <span id="760">760</span>
 <span id="761">761</span>
+<span id="762">762</span>
+<span id="763">763</span>
+<span id="764">764</span>
+<span id="765">765</span>
+<span id="766">766</span>
+<span id="767">767</span>
+<span id="768">768</span>
+<span id="769">769</span>
+<span id="770">770</span>
+<span id="771">771</span>
+<span id="772">772</span>
+<span id="773">773</span>
+<span id="774">774</span>
+<span id="775">775</span>
+<span id="776">776</span>
+<span id="777">777</span>
+<span id="778">778</span>
+<span id="779">779</span>
+<span id="780">780</span>
+<span id="781">781</span>
+<span id="782">782</span>
+<span id="783">783</span>
+<span id="784">784</span>
+<span id="785">785</span>
+<span id="786">786</span>
+<span id="787">787</span>
+<span id="788">788</span>
+<span id="789">789</span>
+<span id="790">790</span>
+<span id="791">791</span>
+<span id="792">792</span>
+<span id="793">793</span>
+<span id="794">794</span>
+<span id="795">795</span>
+<span id="796">796</span>
+<span id="797">797</span>
+<span id="798">798</span>
+<span id="799">799</span>
+<span id="800">800</span>
+<span id="801">801</span>
+<span id="802">802</span>
+<span id="803">803</span>
+<span id="804">804</span>
+<span id="805">805</span>
+<span id="806">806</span>
+<span id="807">807</span>
+<span id="808">808</span>
+<span id="809">809</span>
+<span id="810">810</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -1455,6 +1504,33 @@
     )
 }
 
+<span class="comment">// make rounds worth of unsigned certificates with the sampled number of parents</span>
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">make_certificates_with_epoch</span>(
+    <span class="ident">range</span>: <span class="ident">RangeInclusive</span><span class="op">&lt;</span><span class="ident">Round</span><span class="op">&gt;</span>,
+    <span class="ident">epoch</span>: <span class="ident">Epoch</span>,
+    <span class="ident">initial_parents</span>: <span class="kw-2">&amp;</span><span class="ident">BTreeSet</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span><span class="op">&gt;</span>,
+    <span class="ident">keys</span>: <span class="kw-2">&amp;</span>[<span class="ident">Ed25519PublicKey</span>],
+) -&gt; (
+    <span class="ident">VecDeque</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">Ed25519PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">BTreeSet</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span><span class="op">&gt;</span>,
+) {
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">certificates</span> <span class="op">=</span> <span class="ident">VecDeque::new</span>();
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">parents</span> <span class="op">=</span> <span class="ident">initial_parents</span>.<span class="ident">iter</span>().<span class="ident">cloned</span>().<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">BTreeSet</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>();
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">next_parents</span> <span class="op">=</span> <span class="ident">BTreeSet::new</span>();
+
+    <span class="kw">for</span> <span class="ident">round</span> <span class="kw">in</span> <span class="ident">range</span> {
+        <span class="ident">next_parents</span>.<span class="ident">clear</span>();
+        <span class="kw">for</span> <span class="ident">name</span> <span class="kw">in</span> <span class="ident">keys</span> {
+            <span class="kw">let</span> (<span class="ident">digest</span>, <span class="ident">certificate</span>) <span class="op">=</span>
+                <span class="ident">mock_certificate_with_epoch</span>(<span class="ident">name</span>.<span class="ident">clone</span>(), <span class="ident">round</span>, <span class="ident">epoch</span>, <span class="ident">parents</span>.<span class="ident">clone</span>());
+            <span class="ident">certificates</span>.<span class="ident">push_back</span>(<span class="ident">certificate</span>);
+            <span class="ident">next_parents</span>.<span class="ident">insert</span>(<span class="ident">digest</span>);
+        }
+        <span class="ident">parents</span> <span class="op">=</span> <span class="ident">next_parents</span>.<span class="ident">clone</span>();
+    }
+    (<span class="ident">certificates</span>, <span class="ident">next_parents</span>)
+}
+
 <span class="comment">// make rounds worth of signed certificates with the sampled number of parents</span>
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">make_signed_certificates</span>(
     <span class="ident">range</span>: <span class="ident">RangeInclusive</span><span class="op">&lt;</span><span class="ident">Round</span><span class="op">&gt;</span>,
@@ -1488,6 +1564,28 @@
         <span class="ident">header</span>: <span class="ident">Header</span> {
             <span class="ident">author</span>: <span class="ident">origin</span>,
             <span class="ident">round</span>,
+            <span class="ident">parents</span>,
+            <span class="ident">payload</span>: <span class="ident">fixture_payload</span>(<span class="number">1</span>),
+            ..<span class="ident">Header::default</span>()
+        },
+        ..<span class="ident">Certificate::default</span>()
+    };
+    (<span class="ident">certificate</span>.<span class="ident">digest</span>(), <span class="ident">certificate</span>)
+}
+
+<span class="comment">// Creates an unsigned certificate from its given round, epoch, origin, and parents,</span>
+<span class="comment">// Note: the certificate is unsigned</span>
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">mock_certificate_with_epoch</span>(
+    <span class="ident">origin</span>: <span class="ident">Ed25519PublicKey</span>,
+    <span class="ident">round</span>: <span class="ident">Round</span>,
+    <span class="ident">epoch</span>: <span class="ident">Epoch</span>,
+    <span class="ident">parents</span>: <span class="ident">BTreeSet</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span><span class="op">&gt;</span>,
+) -&gt; (<span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">Ed25519PublicKey</span><span class="op">&gt;</span>) {
+    <span class="kw">let</span> <span class="ident">certificate</span> <span class="op">=</span> <span class="ident">Certificate</span> {
+        <span class="ident">header</span>: <span class="ident">Header</span> {
+            <span class="ident">author</span>: <span class="ident">origin</span>,
+            <span class="ident">round</span>,
+            <span class="ident">epoch</span>,
             <span class="ident">parents</span>,
             <span class="ident">payload</span>: <span class="ident">fixture_payload</span>(<span class="number">1</span>),
             ..<span class="ident">Header::default</span>()

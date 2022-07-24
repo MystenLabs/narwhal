@@ -644,6 +644,34 @@
 <span id="638">638</span>
 <span id="639">639</span>
 <span id="640">640</span>
+<span id="641">641</span>
+<span id="642">642</span>
+<span id="643">643</span>
+<span id="644">644</span>
+<span id="645">645</span>
+<span id="646">646</span>
+<span id="647">647</span>
+<span id="648">648</span>
+<span id="649">649</span>
+<span id="650">650</span>
+<span id="651">651</span>
+<span id="652">652</span>
+<span id="653">653</span>
+<span id="654">654</span>
+<span id="655">655</span>
+<span id="656">656</span>
+<span id="657">657</span>
+<span id="658">658</span>
+<span id="659">659</span>
+<span id="660">660</span>
+<span id="661">661</span>
+<span id="662">662</span>
+<span id="663">663</span>
+<span id="664">664</span>
+<span id="665">665</span>
+<span id="666">666</span>
+<span id="667">667</span>
+<span id="668">668</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -1206,7 +1234,7 @@
 <span class="doccomment">/// Message to reconfigure worker tasks.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>)]</span>
 <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">bound</span>(<span class="ident">deserialize</span> <span class="op">=</span> <span class="string">&quot;PublicKey: VerifyingKey&quot;</span>))]</span>
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">PrimaryWorkerReconfigure</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">ReconfigureNotification</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> {
     <span class="doccomment">/// Indicate the committee has been updated.</span>
     <span class="ident">NewCommittee</span>(<span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>),
     <span class="doccomment">/// Indicate a shutdown.</span>
@@ -1222,7 +1250,7 @@
     <span class="doccomment">/// The primary indicates a round update.</span>
     <span class="ident">Cleanup</span>(<span class="ident">Round</span>),
     <span class="doccomment">/// Reconfigure the worker.</span>
-    <span class="ident">Reconfigure</span>(<span class="ident">PrimaryWorkerReconfigure</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>),
+    <span class="ident">Reconfigure</span>(<span class="ident">ReconfigureNotification</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>),
     <span class="doccomment">/// The primary requests a batch from the worker</span>
     <span class="ident">RequestBatch</span>(<span class="ident">BatchDigest</span>),
     <span class="doccomment">/// Delete the batches, dictated from the provided vector of digest, from the worker node</span>
@@ -1283,6 +1311,34 @@
     <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="ident">fmt::Result</span> {
         <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{:?}&quot;</span>, <span class="self">self</span>)
     }
+}
+
+<span class="doccomment">/// The messages sent by the workers to their primary.</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>)]</span>
+<span class="attribute">#[<span class="ident">serde</span>(<span class="ident">bound</span>(<span class="ident">deserialize</span> <span class="op">=</span> <span class="string">&quot;PublicKey: VerifyingKey&quot;</span>))]</span>
+<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">WorkerPrimaryMessage</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> {
+    <span class="doccomment">/// The worker indicates it sealed a new batch.</span>
+    <span class="ident">OurBatch</span>(<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>),
+    <span class="doccomment">/// The worker indicates it received a batch&#39;s digest from another authority.</span>
+    <span class="ident">OthersBatch</span>(<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>),
+    <span class="doccomment">/// The worker sends a requested batch</span>
+    <span class="ident">RequestedBatch</span>(<span class="ident">BatchDigest</span>, <span class="ident">Batch</span>),
+    <span class="doccomment">/// When batches are successfully deleted, this message is sent dictating the</span>
+    <span class="doccomment">/// batches that have been deleted from the worker.</span>
+    <span class="ident">DeletedBatches</span>(<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">BatchDigest</span><span class="op">&gt;</span>),
+    <span class="doccomment">/// An error has been returned by worker</span>
+    <span class="ident">Error</span>(<span class="ident">WorkerPrimaryError</span>),
+    <span class="doccomment">/// Reconfiguration message sent by the executor (usually upon epoch change).</span>
+    <span class="ident">Reconfigure</span>(<span class="ident">ReconfigureNotification</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>),
+}
+
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>, <span class="ident">thiserror::Error</span>, <span class="ident">Clone</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>)]</span>
+<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">WorkerPrimaryError</span> {
+    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Batch with id {0} has not been found&quot;</span>)]</span>
+    <span class="ident">RequestedBatchNotFound</span>(<span class="ident">BatchDigest</span>),
+
+    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;An error occurred while deleting batches. None deleted&quot;</span>)]</span>
+    <span class="ident">ErrorWhileDeletingBatches</span>(<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">BatchDigest</span><span class="op">&gt;</span>),
 }
 </code></pre></div>
 </section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (93ffde6f0 2022-07-23)" ></div>

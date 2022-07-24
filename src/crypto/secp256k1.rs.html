@@ -377,10 +377,10 @@
 <span id="371">371</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::pubkey_bytes::PublicKeyBytes</span>;
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::serde_helpers::keypair_decode_base64</span>;
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::traits</span>::{
-    <span class="ident">Authenticator</span>, <span class="ident">EncodeDecodeBase64</span>, <span class="ident">KeyPair</span>, <span class="ident">SigningKey</span>, <span class="ident">ToFromBytes</span>, <span class="ident">VerifyingKey</span>,
+<span class="kw">use</span> <span class="kw">crate</span>::{
+    <span class="ident">pubkey_bytes::PublicKeyBytes</span>,
+    <span class="ident">serde_helpers::keypair_decode_base64</span>,
+    <span class="ident">traits</span>::{<span class="ident">Authenticator</span>, <span class="ident">EncodeDecodeBase64</span>, <span class="ident">KeyPair</span>, <span class="ident">SigningKey</span>, <span class="ident">ToFromBytes</span>, <span class="ident">VerifyingKey</span>},
 };
 <span class="kw">use</span> <span class="ident">base64ct</span>::{<span class="ident">Base64</span>, <span class="ident">Encoding</span>};
 <span class="kw">use</span> <span class="ident">once_cell::sync::OnceCell</span>;

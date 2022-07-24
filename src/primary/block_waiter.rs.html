@@ -805,12 +805,9 @@
 <span id="799">799</span>
 <span id="800">800</span>
 <span id="801">801</span>
-<span id="802">802</span>
-<span id="803">803</span>
-<span id="804">804</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">block_synchronizer::handler::Handler</span>, <span class="ident">PrimaryWorkerMessage</span>};
+<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::block_synchronizer::handler::Handler</span>;
 <span class="kw">use</span> <span class="ident">config::Committee</span>;
 <span class="kw">use</span> <span class="ident">crypto</span>::{<span class="ident">traits::VerifyingKey</span>, <span class="ident">Digest</span>, <span class="ident">Hash</span>};
 <span class="kw">use</span> <span class="ident">futures</span>::{
@@ -834,7 +831,7 @@
 <span class="kw">use</span> <span class="ident">tracing</span>::{<span class="ident">debug</span>, <span class="ident">error</span>, <span class="ident">instrument</span>, <span class="ident">warn</span>};
 <span class="kw">use</span> <span class="ident">types</span>::{
     <span class="ident">BatchDigest</span>, <span class="ident">BatchMessage</span>, <span class="ident">BlockError</span>, <span class="ident">BlockErrorKind</span>, <span class="ident">BlockResult</span>, <span class="ident">Certificate</span>,
-    <span class="ident">CertificateDigest</span>, <span class="ident">Header</span>, <span class="ident">Reconfigure</span>, <span class="ident">ShutdownToken</span>,
+    <span class="ident">CertificateDigest</span>, <span class="ident">Header</span>, <span class="ident">PrimaryWorkerMessage</span>, <span class="ident">ReconfigureNotification</span>,
 };
 <span class="kw">use</span> <span class="prelude-ty">Result</span>::<span class="kw-2">*</span>;
 
@@ -934,7 +931,7 @@
 <span class="doccomment">/// # use primary::{BlockWaiter, BlockHeader, BlockCommand, block_synchronizer::{BlockSynchronizeResult, handler::{Error, Handler}}};</span>
 <span class="doccomment">/// # use types::{BatchMessage, BatchDigest, CertificateDigest, Batch};</span>
 <span class="doccomment">/// # use mockall::*;</span>
-<span class="doccomment">/// # use types::Reconfigure;</span>
+<span class="doccomment">/// # use types::ReconfigureNotification;</span>
 <span class="doccomment">/// # use crypto::traits::VerifyingKey;</span>
 <span class="doccomment">/// # use async_trait::async_trait;</span>
 <span class="doccomment">/// # use std::sync::Arc;</span>
@@ -967,7 +964,7 @@
 <span class="doccomment">///</span>
 <span class="doccomment">///     let name = Ed25519PublicKey::default();</span>
 <span class="doccomment">///     let committee = Committee{ epoch: 0, authorities: BTreeMap::new() };</span>
-<span class="doccomment">///     let (_tx_reconfigure, rx_reconfigure) = watch::channel(Reconfigure::NewCommittee(committee.clone()));</span>
+<span class="doccomment">///     let (_tx_reconfigure, rx_reconfigure) = watch::channel(ReconfigureNotification::NewCommittee(committee.clone()));</span>
 <span class="doccomment">///</span>
 <span class="doccomment">///     // A dummy certificate</span>
 <span class="doccomment">///     let certificate = Certificate::&lt;Ed25519PublicKey&gt;::default();</span>
@@ -1030,7 +1027,7 @@
     <span class="ident">worker_network</span>: <span class="ident">PrimaryToWorkerNetwork</span>,
 
     <span class="doccomment">/// Watch channel to reconfigure the committee.</span>
-    <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">Reconfigure</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 
     <span class="doccomment">/// The batch receive channel is listening for received</span>
     <span class="doccomment">/// messages for batches that have been requested</span>
@@ -1065,13 +1062,13 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(
         <span class="ident">name</span>: <span class="ident">PublicKey</span>,
         <span class="ident">committee</span>: <span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
-        <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">Reconfigure</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">rx_commands</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">BlockCommand</span><span class="op">&gt;</span>,
         <span class="ident">batch_receiver</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">BatchResult</span><span class="op">&gt;</span>,
         <span class="ident">block_synchronizer_handler</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SynchronizerHandler</span><span class="op">&gt;</span>,
     ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
-            <span class="kw">let</span> <span class="ident">shutdown_token</span> <span class="op">=</span> <span class="self">Self</span> {
+            <span class="self">Self</span> {
                 <span class="ident">name</span>,
                 <span class="ident">committee</span>,
                 <span class="ident">rx_commands</span>,
@@ -1086,11 +1083,10 @@
             }
             .<span class="ident">run</span>()
             .<span class="kw">await</span>;
-            <span class="ident">drop</span>(<span class="ident">shutdown_token</span>);
         })
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">run</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) -&gt; <span class="ident">ShutdownToken</span> {
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">run</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">waiting_get_block</span> <span class="op">=</span> <span class="ident">FuturesUnordered::new</span>();
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">waiting_get_blocks</span> <span class="op">=</span> <span class="ident">FuturesUnordered::new</span>();
 
@@ -1140,10 +1136,11 @@
                     <span class="ident">result</span>.<span class="ident">expect</span>(<span class="string">&quot;Committee channel dropped&quot;</span>);
                     <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">rx_reconfigure</span>.<span class="ident">borrow</span>().<span class="ident">clone</span>();
                     <span class="kw">match</span> <span class="ident">message</span> {
-                        <span class="ident">Reconfigure::NewCommittee</span>(<span class="ident">new_committee</span>) =&gt; {
+                        <span class="ident">ReconfigureNotification::NewCommittee</span>(<span class="ident">new_committee</span>) =&gt; {
                             <span class="self">self</span>.<span class="ident">committee</span> <span class="op">=</span> <span class="ident">new_committee</span>;
+                            <span class="macro">tracing::debug!</span>(<span class="string">&quot;Committee updated to {}&quot;</span>, <span class="self">self</span>.<span class="ident">committee</span>);
                         }
-                        <span class="ident">Reconfigure::Shutdown</span>(<span class="ident">token</span>) =&gt; <span class="kw">return</span> <span class="ident">token</span>,
+                        <span class="ident">ReconfigureNotification::Shutdown</span> =&gt; <span class="kw">return</span>,
                     }
                 }
             }
@@ -1587,10 +1584,7 @@
         <span class="comment">// ensure that we won&#39;t wait forever for a batch result to come</span>
         <span class="kw">let</span> <span class="ident">r</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">timeout</span>(<span class="ident">BATCH_RETRIEVE_TIMEOUT</span>, <span class="ident">batch_receiver</span>).<span class="kw">await</span> {
             <span class="prelude-val">Ok</span>(<span class="prelude-val">Ok</span>(<span class="ident">result</span>)) =&gt; <span class="ident">result</span>.<span class="ident">or</span>(<span class="prelude-val">Err</span>(<span class="ident">BlockErrorKind::BatchError</span>)),
-            <span class="prelude-val">Ok</span>(<span class="prelude-val">Err</span>(<span class="ident">err</span>)) =&gt; {
-                <span class="macro">println!</span>(<span class="string">&quot;Receiver error: {err}&quot;</span>);
-                <span class="prelude-val">Err</span>(<span class="ident">BlockErrorKind::BatchError</span>)
-            }
+            <span class="prelude-val">Ok</span>(<span class="prelude-val">Err</span>(<span class="kw">_</span>)) =&gt; <span class="prelude-val">Err</span>(<span class="ident">BlockErrorKind::BatchError</span>),
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="prelude-val">Err</span>(<span class="ident">BlockErrorKind::BatchTimeout</span>),
         };
 

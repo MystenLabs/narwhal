@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":[["NodeRestarter","every time the committee changes."]]};

@@ -630,6 +630,9 @@
 <span id="624">624</span>
 <span id="625">625</span>
 <span id="626">626</span>
+<span id="627">627</span>
+<span id="628">628</span>
+<span id="629">629</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -663,7 +666,7 @@
 <span class="kw">use</span> <span class="ident">types</span>::{
     <span class="ident">ensure</span>,
     <span class="ident">error</span>::{<span class="ident">DagError</span>, <span class="ident">DagResult</span>},
-    <span class="ident">Certificate</span>, <span class="ident">CertificateDigest</span>, <span class="ident">Header</span>, <span class="ident">HeaderDigest</span>, <span class="ident">Reconfigure</span>, <span class="ident">Round</span>, <span class="ident">Vote</span>,
+    <span class="ident">Certificate</span>, <span class="ident">CertificateDigest</span>, <span class="ident">Header</span>, <span class="ident">HeaderDigest</span>, <span class="ident">ReconfigureNotification</span>, <span class="ident">Round</span>, <span class="ident">Vote</span>,
 };
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
@@ -689,7 +692,7 @@
     <span class="ident">gc_depth</span>: <span class="ident">Round</span>,
 
     <span class="doccomment">/// Watch channel to reconfigure the committee.</span>
-    <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">Reconfigure</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="doccomment">/// Receiver for dag messages (headers, votes, certificates).</span>
     <span class="ident">rx_primaries</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">PrimaryMessage</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="doccomment">/// Receives loopback headers from the `HeaderWaiter`.</span>
@@ -734,7 +737,7 @@
         <span class="ident">signature_service</span>: <span class="ident">SignatureService</span><span class="op">&lt;</span><span class="ident">PublicKey::Sig</span><span class="op">&gt;</span>,
         <span class="ident">consensus_round</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">AtomicU64</span><span class="op">&gt;</span>,
         <span class="ident">gc_depth</span>: <span class="ident">Round</span>,
-        <span class="ident">rx_committee</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">Reconfigure</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">rx_committee</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">rx_primaries</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">PrimaryMessage</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">rx_header_waiter</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Header</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">rx_certificate_waiter</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
@@ -967,9 +970,11 @@
                 .<span class="ident">inc</span>();
 
             <span class="comment">// Process the new certificate.</span>
-            <span class="self">self</span>.<span class="ident">process_certificate</span>(<span class="ident">certificate</span>)
-                .<span class="kw">await</span>
-                .<span class="ident">expect</span>(<span class="string">&quot;Failed to process valid certificate&quot;</span>);
+            <span class="kw">match</span> <span class="self">self</span>.<span class="ident">process_certificate</span>(<span class="ident">certificate</span>).<span class="kw">await</span> {
+                <span class="prelude-val">Ok</span>(()) =&gt; (),
+                <span class="ident">result</span> @ <span class="prelude-val">Err</span>(<span class="ident">DagError::ShuttingDown</span>) =&gt; <span class="ident">result</span><span class="question-mark">?</span>,
+                <span class="kw">_</span> =&gt; <span class="macro">panic!</span>(<span class="string">&quot;Failed to process valid certificate&quot;</span>),
+            }
         }
         <span class="prelude-val">Ok</span>(())
     }
@@ -1145,7 +1150,7 @@
             .<span class="ident">expect</span>(<span class="string">&quot;Reconfigure channel dropped&quot;</span>)
         {
             <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">rx_reconfigure</span>.<span class="ident">borrow</span>().<span class="ident">clone</span>();
-            <span class="kw">if</span> <span class="kw">let</span> <span class="ident">Reconfigure::NewCommittee</span>(<span class="ident">new_committee</span>) <span class="op">=</span> <span class="ident">message</span> {
+            <span class="kw">if</span> <span class="kw">let</span> <span class="ident">ReconfigureNotification::NewCommittee</span>(<span class="ident">new_committee</span>) <span class="op">=</span> <span class="ident">message</span> {
                 <span class="self">self</span>.<span class="ident">update_committee</span>(<span class="ident">new_committee</span>);
                 <span class="comment">// Mark the value as seen.</span>
                 <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">rx_reconfigure</span>.<span class="ident">borrow_and_update</span>();
@@ -1163,6 +1168,7 @@
 
         <span class="self">self</span>.<span class="ident">committee</span> <span class="op">=</span> <span class="ident">committee</span>;
         <span class="self">self</span>.<span class="ident">synchronizer</span>.<span class="ident">update_genesis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">committee</span>);
+        <span class="macro">tracing::debug!</span>(<span class="string">&quot;Committee updated to {}&quot;</span>, <span class="self">self</span>.<span class="ident">committee</span>);
     }
 
     <span class="comment">// Main loop listening to incoming messages.</span>
@@ -1212,11 +1218,11 @@
                     <span class="ident">result</span>.<span class="ident">expect</span>(<span class="string">&quot;Committee channel dropped&quot;</span>);
                     <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">rx_reconfigure</span>.<span class="ident">borrow</span>().<span class="ident">clone</span>();
                     <span class="kw">match</span> <span class="ident">message</span> {
-                        <span class="ident">Reconfigure::NewCommittee</span>(<span class="ident">new_committee</span>) =&gt; {
+                        <span class="ident">ReconfigureNotification::NewCommittee</span>(<span class="ident">new_committee</span>) =&gt; {
                             <span class="self">self</span>.<span class="ident">update_committee</span>(<span class="ident">new_committee</span>);
                             <span class="prelude-val">Ok</span>(())
                         },
-                        <span class="ident">Reconfigure::Shutdown</span>(<span class="ident">_token</span>) =&gt; <span class="kw">return</span>
+                        <span class="ident">ReconfigureNotification::Shutdown</span> =&gt; <span class="kw">return</span>
                     }
                 }
             };

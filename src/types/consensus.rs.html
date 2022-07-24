@@ -96,21 +96,9 @@
 <span id="90">90</span>
 <span id="91">91</span>
 <span id="92">92</span>
-<span id="93">93</span>
-<span id="94">94</span>
-<span id="95">95</span>
-<span id="96">96</span>
-<span id="97">97</span>
-<span id="98">98</span>
-<span id="99">99</span>
-<span id="100">100</span>
-<span id="101">101</span>
-<span id="102">102</span>
-<span id="103">103</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">Certificate</span>, <span class="ident">CertificateDigest</span>, <span class="ident">Round</span>};
-<span class="kw">use</span> <span class="ident">config::Committee</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">CertificateDigest</span>, <span class="ident">Round</span>};
 <span class="kw">use</span> <span class="ident">crypto::traits::VerifyingKey</span>;
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">collections::HashMap</span>, <span class="ident">ops::RangeInclusive</span>};
 <span class="kw">use</span> <span class="ident">store</span>::{
@@ -124,23 +112,6 @@
 
 <span class="doccomment">/// Shutdown token dropped when a task is properly shut down.</span>
 <span class="kw">pub</span> <span class="kw">type</span> <span class="ident">ShutdownToken</span> <span class="op">=</span> <span class="ident">mpsc::Sender</span><span class="op">&lt;</span>()<span class="op">&gt;</span>;
-
-<span class="doccomment">/// Message to reconfigure tasks.</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>)]</span>
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">Reconfigure</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> {
-    <span class="doccomment">/// Indicates the committee has been updated.</span>
-    <span class="ident">NewCommittee</span>(<span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>),
-    <span class="doccomment">/// Indicate a shutdown.</span>
-    <span class="ident">Shutdown</span>(<span class="ident">ShutdownToken</span>),
-}
-
-<span class="doccomment">/// Message send by the consensus to the primary.</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">ConsensusPrimaryMessage</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> {
-    <span class="ident">Sequenced</span>(<span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>),
-    <span class="ident">Committee</span>(<span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>),
-    <span class="ident">Shutdown</span>(<span class="ident">ShutdownToken</span>),
-}
 
 <span class="doccomment">/// Convenience type to propagate store errors.</span>
 <span class="kw">pub</span> <span class="kw">type</span> <span class="ident">StoreResult</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">TypedStoreError</span><span class="op">&gt;</span>;
@@ -163,6 +134,13 @@
             <span class="ident">last_committed</span>,
             <span class="ident">sequence</span>,
         }
+    }
+
+    <span class="doccomment">/// Clear the store.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">clear</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">StoreResult</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">last_committed</span>.<span class="ident">clear</span>()<span class="question-mark">?</span>;
+        <span class="self">self</span>.<span class="ident">sequence</span>.<span class="ident">clear</span>()<span class="question-mark">?</span>;
+        <span class="prelude-val">Ok</span>(())
     }
 
     <span class="doccomment">/// Persist the consensus state.</span>

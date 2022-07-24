@@ -78,7 +78,7 @@
     <span class="ident">bounded_executor::BoundedExecutor</span>,
     <span class="ident">primary</span>::{<span class="ident">PrimaryNetwork</span>, <span class="ident">PrimaryToWorkerNetwork</span>},
     <span class="ident">retry::RetryConfig</span>,
-    <span class="ident">worker::WorkerNetwork</span>,
+    <span class="ident">worker</span>::{<span class="ident">WorkerNetwork</span>, <span class="ident">WorkerToPrimaryNetwork</span>},
 };
 
 <span class="comment">// the result of our network messages</span>
@@ -86,7 +86,7 @@
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
 <span class="attribute">#[<span class="ident">must_use</span>]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">CancelHandler</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(<span class="ident">tokio::task::JoinHandle</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>);
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">CancelHandler</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(<span class="kw">pub</span> <span class="ident">tokio::task::JoinHandle</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>);
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="ident">Drop</span> <span class="kw">for</span> <span class="ident">CancelHandler</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
     <span class="kw">fn</span> <span class="ident">drop</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
