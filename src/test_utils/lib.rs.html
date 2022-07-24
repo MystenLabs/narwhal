@@ -814,6 +814,10 @@
 <span id="808">808</span>
 <span id="809">809</span>
 <span id="810">810</span>
+<span id="811">811</span>
+<span id="812">812</span>
+<span id="813">813</span>
+<span id="814">814</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -882,12 +886,12 @@
     <span class="ident">pure_committee_from_keys</span>(<span class="ident">keys</span>)
 }
 
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">make_authority</span>() -&gt; <span class="ident">Authority</span> {
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">make_authority_with_port_getter</span><span class="op">&lt;</span><span class="ident">F</span>: <span class="ident">FnMut</span>() -&gt; <span class="ident">u16</span><span class="op">&gt;</span>(<span class="kw-2">mut</span> <span class="ident">get_port</span>: <span class="ident">F</span>) -&gt; <span class="ident">Authority</span> {
     <span class="kw">let</span> <span class="ident">primary</span> <span class="op">=</span> <span class="ident">PrimaryAddresses</span> {
-        <span class="ident">primary_to_primary</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_available_port</span>())
+        <span class="ident">primary_to_primary</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_port</span>())
             .<span class="ident">parse</span>()
             .<span class="ident">unwrap</span>(),
-        <span class="ident">worker_to_primary</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_available_port</span>())
+        <span class="ident">worker_to_primary</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_port</span>())
             .<span class="ident">parse</span>()
             .<span class="ident">unwrap</span>(),
     };
@@ -895,13 +899,13 @@
         (
             <span class="number">0</span>,
             <span class="ident">WorkerAddresses</span> {
-                <span class="ident">primary_to_worker</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_available_port</span>())
+                <span class="ident">primary_to_worker</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_port</span>())
                     .<span class="ident">parse</span>()
                     .<span class="ident">unwrap</span>(),
-                <span class="ident">transactions</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_available_port</span>())
+                <span class="ident">transactions</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_port</span>())
                     .<span class="ident">parse</span>()
                     .<span class="ident">unwrap</span>(),
-                <span class="ident">worker_to_worker</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_available_port</span>())
+                <span class="ident">worker_to_worker</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_port</span>())
                     .<span class="ident">parse</span>()
                     .<span class="ident">unwrap</span>(),
             },
@@ -909,13 +913,13 @@
         (
             <span class="number">1</span>,
             <span class="ident">WorkerAddresses</span> {
-                <span class="ident">primary_to_worker</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_available_port</span>())
+                <span class="ident">primary_to_worker</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_port</span>())
                     .<span class="ident">parse</span>()
                     .<span class="ident">unwrap</span>(),
-                <span class="ident">transactions</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_available_port</span>())
+                <span class="ident">transactions</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_port</span>())
                     .<span class="ident">parse</span>()
                     .<span class="ident">unwrap</span>(),
-                <span class="ident">worker_to_worker</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_available_port</span>())
+                <span class="ident">worker_to_worker</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_port</span>())
                     .<span class="ident">parse</span>()
                     .<span class="ident">unwrap</span>(),
             },
@@ -923,13 +927,13 @@
         (
             <span class="number">2</span>,
             <span class="ident">WorkerAddresses</span> {
-                <span class="ident">primary_to_worker</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_available_port</span>())
+                <span class="ident">primary_to_worker</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_port</span>())
                     .<span class="ident">parse</span>()
                     .<span class="ident">unwrap</span>(),
-                <span class="ident">transactions</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_available_port</span>())
+                <span class="ident">transactions</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_port</span>())
                     .<span class="ident">parse</span>()
                     .<span class="ident">unwrap</span>(),
-                <span class="ident">worker_to_worker</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_available_port</span>())
+                <span class="ident">worker_to_worker</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_port</span>())
                     .<span class="ident">parse</span>()
                     .<span class="ident">unwrap</span>(),
             },
@@ -937,13 +941,13 @@
         (
             <span class="number">3</span>,
             <span class="ident">WorkerAddresses</span> {
-                <span class="ident">primary_to_worker</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_available_port</span>())
+                <span class="ident">primary_to_worker</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_port</span>())
                     .<span class="ident">parse</span>()
                     .<span class="ident">unwrap</span>(),
-                <span class="ident">transactions</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_available_port</span>())
+                <span class="ident">transactions</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_port</span>())
                     .<span class="ident">parse</span>()
                     .<span class="ident">unwrap</span>(),
-                <span class="ident">worker_to_worker</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_available_port</span>())
+                <span class="ident">worker_to_worker</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_port</span>())
                     .<span class="ident">parse</span>()
                     .<span class="ident">unwrap</span>(),
             },
@@ -958,6 +962,10 @@
         <span class="ident">primary</span>,
         <span class="ident">workers</span>,
     }
+}
+
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">make_authority</span>() -&gt; <span class="ident">Authority</span> {
+    <span class="ident">make_authority_with_port_getter</span>(<span class="ident">get_available_port</span>)
 }
 
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">pure_committee_from_keys</span>(<span class="ident">keys</span>: <span class="kw-2">&amp;</span>[<span class="ident">Ed25519KeyPair</span>]) -&gt; <span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">Ed25519PublicKey</span><span class="op">&gt;</span> {
