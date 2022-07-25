@@ -14,10 +14,10 @@ use node::{
     metrics::{primary_metrics_registry, worker_metrics_registry},
     Node, NodeStorage,
 };
-use prometheus::Registry;
+use prometheus::{proto::Metric, Registry};
 use std::{cell::RefCell, collections::HashMap, path::PathBuf, rc::Rc, sync::Arc, time::Duration};
 use tokio::{
-    sync::{broadcast::Sender, mpsc::channel},
+    sync::{broadcast::Sender, mpsc::channel, RwLock},
     task::JoinHandle,
 };
 use tracing::info;
@@ -76,10 +76,15 @@ impl Cluster {
     /// The workers_per_authority dictates how many workers per authority should
     /// also be started (the same number will be started for each authority). If none
     /// is provided then the maximum number of workers will be started.
+    /// If the `boot_wait_time` is provided then between node starts we'll wait for this
+    /// time before the next node is started. This is useful to simulate staggered
+    /// node starts. If none is provided then the nodes will be started immediately
+    /// the one after the other.
     pub async fn start(
         &mut self,
         authorities_number: Option<usize>,
         workers_per_authority: Option<usize>,
+        boot_wait_time: Option<Duration>,
     ) {
         let max_authorities = self.committee_shared.load().authorities.len();
         let authorities = authorities_number.unwrap_or(max_authorities);
@@ -91,6 +96,17 @@ impl Cluster {
         for id in 0..authorities {
             info!("Spinning up node: {id}");
             self.start_node(id, false, workers_per_authority).await;
+
+            if let Some(d) = boot_wait_time {
+                // we don't want to wait after the last node has been boostraped
+                if id < authorities - 1 {
+                    info!(
+                        "#### Will wait for {} seconds before starting the next node ####",
+                        d.as_secs()
+                    );
+                    tokio::time::sleep(d).await;
+                }
+            }
         }
     }
 
@@ -134,9 +150,9 @@ impl Cluster {
 
     /// This method stops the authority (both the primary and the worker nodes)
     /// with the provided id.
-    pub fn stop_node(&self, id: usize) {
+    pub async fn stop_node(&self, id: usize) {
         if let Some(node) = self.authorities.get(&id) {
-            node.stop_all();
+            node.stop_all().await;
             info!("Aborted node for id {id}");
         } else {
             info!("Node with {id} not found - nothing to stop");
@@ -147,16 +163,21 @@ impl Cluster {
     /// * has been started ever
     /// * or has been stopped
     /// will not be returned by this method.
-    pub fn authorities(&self) -> Vec<AuthorityDetails> {
-        self.authorities
-            .iter()
-            .filter(|(_, authority)| authority.is_running())
-            .map(|(_, authority)| authority.clone())
-            .collect()
+    pub async fn authorities(&self) -> Vec<AuthorityDetails> {
+        let mut result = Vec::new();
+
+        for authority in self.authorities.values() {
+            if authority.is_running().await {
+                result.push(authority.clone());
+            }
+        }
+
+        result
     }
 
-    /// Returns the authority identified by the provided id.
-    /// Will panic if the authority with the id is not found.
+    /// Returns the authority identified by the provided id. Will panic if the
+    /// authority with the id is not found. The returned authority can be freely
+    /// cloned and managed without having the need to fetch again.
     pub fn authority(&self, id: usize) -> AuthorityDetails {
         self.authorities
             .get(&id)
@@ -177,9 +198,9 @@ impl Cluster {
 pub struct PrimaryNodeDetails {
     pub id: usize,
     pub key_pair: Arc<Ed25519KeyPair>,
-    pub store_path: PathBuf,
-    pub registry: Registry,
     pub tx_transaction_confirmation: Sender<(SubscriberResult<Vec<u8>>, SerializedTransaction)>,
+    registry: Registry,
+    store_path: PathBuf,
     committee: SharedCommittee<Ed25519PublicKey>,
     parameters: Parameters,
     handlers: Rc<RefCell<Vec<JoinHandle<()>>>>,
@@ -207,7 +228,16 @@ impl PrimaryNodeDetails {
         }
     }
 
-    pub async fn start(&mut self, preserve_store: bool) {
+    /// Returns the metric - if exists - identified by the provided name.
+    /// If metric has not been found then None is returned instead.
+    pub fn metric(&self, name: &str) -> Option<Metric> {
+        let metrics = self.registry.gather();
+
+        let metric = metrics.into_iter().find(|m| m.get_name() == name);
+        metric.map(|m| m.get_metric().first().unwrap().clone())
+    }
+
+    async fn start(&mut self, preserve_store: bool) {
         if self.is_running() {
             panic!("Tried to start a node that is already running");
         }
@@ -256,7 +286,7 @@ impl PrimaryNodeDetails {
                 if let Err(e) = t.clone().0 {
                     println!("The result from consensus is an error: {:?}", e);
                 }
-                _ = transactions_sender.send(t);
+                let _ = transactions_sender.send(t);
             }
         });
 
@@ -270,7 +300,7 @@ impl PrimaryNodeDetails {
         self.tx_transaction_confirmation = tx;
     }
 
-    pub fn stop(&self) {
+    fn stop(&self) {
         self.handlers.borrow().iter().for_each(|h| h.abort());
         info!("Aborted primary node for id {}", self.id);
     }
@@ -279,7 +309,7 @@ impl PrimaryNodeDetails {
     /// iterate over all the handlers and check whether there is still any
     /// that is not finished. If we find at least one, then we report the
     /// node as still running.
-    fn is_running(&self) -> bool {
+    pub fn is_running(&self) -> bool {
         if self.handlers.borrow().is_empty() {
             return false;
         }
@@ -321,7 +351,7 @@ impl WorkerNodeDetails {
     }
 
     /// Starts the node. When preserve_store is true then the last used
-    pub async fn start(&mut self, preserve_store: bool) {
+    async fn start(&mut self, preserve_store: bool) {
         if self.is_running() {
             panic!(
                 "Worker with id {} is already running, can't start again",
@@ -353,7 +383,7 @@ impl WorkerNodeDetails {
         self.registry = registry;
     }
 
-    pub fn stop(&self) {
+    fn stop(&self) {
         self.handlers.load().iter().for_each(|h| h.abort());
         info!("Aborted worker node for id {}", self.id);
     }
@@ -362,7 +392,7 @@ impl WorkerNodeDetails {
     /// iterate over all the handlers and check whether there is still any
     /// that is not finished. If we find at least one, then we report the
     /// node as still running.
-    fn is_running(&self) -> bool {
+    pub fn is_running(&self) -> bool {
         self.handlers.load().iter().any(|h| !h.is_finished())
     }
 }
@@ -371,13 +401,19 @@ impl WorkerNodeDetails {
 /// to identify and manage a specific authority. An authority is
 /// composed of its primary node and the worker nodes. Via this struct
 /// we can manage the nodes one by one or in batch fashion (ex stop_all).
+/// The Authority can be cloned and reused across the instances as its
+/// internals are thread safe. So changes made from one instance will be
+/// reflected to another.
 #[allow(dead_code)]
 #[derive(Clone)]
 pub struct AuthorityDetails {
     pub id: usize,
     pub name: Ed25519PublicKey,
-    pub registry: Registry,
-    pub primary: PrimaryNodeDetails,
+    internal: Arc<RwLock<AuthorityDetailsInternal>>,
+}
+
+struct AuthorityDetailsInternal {
+    primary: PrimaryNodeDetails,
     workers: HashMap<WorkerId, WorkerNodeDetails>,
 }
 
@@ -414,75 +450,111 @@ impl AuthorityDetails {
             workers.insert(worker_id, worker);
         }
 
+        let internal = AuthorityDetailsInternal { primary, workers };
+
         Self {
             id,
             name,
-            registry: Registry::new(),
-            primary,
-            workers,
+            internal: Arc::new(RwLock::new(internal)),
         }
     }
 
-    /// This method will return true either when the primary or any of
-    /// the workers is running. In order to make sure that we don't end up
-    /// in intermediate states we want to make sure that everything has
-    /// stopped before we report something as not running (in case we want
-    /// to start them again).
-    fn is_running(&self) -> bool {
-        if self.primary.is_running() {
-            return true;
+    /// Starts the node's primary and workers. If the num_of_workers is provided
+    /// then only those ones will be started. Otherwise all the available workers
+    /// will be started instead.
+    /// If the preserve_store value is true then the previous node's storage
+    /// will be preserved. If false then the node will  start with a fresh
+    /// (empty) storage.
+    pub async fn start(&self, preserve_store: bool, num_of_workers: Option<usize>) {
+        self.start_primary(preserve_store).await;
+
+        let workers_to_start;
+        {
+            let internal = self.internal.read().await;
+            workers_to_start = num_of_workers.unwrap_or(internal.workers.len());
         }
 
-        for (_, worker) in self.workers.iter() {
-            if worker.is_running() {
-                return true;
-            }
+        for id in 0..workers_to_start {
+            self.start_worker(id as WorkerId, preserve_store).await;
         }
-        false
     }
 
-    pub async fn start_primary(&mut self, preserve_store: bool) {
-        self.primary.start(preserve_store).await;
+    /// Starts the primary node. If the preserve_store value is true then the
+    /// previous node's storage will be preserved. If false then the node will
+    /// start with a fresh (empty) storage.
+    pub async fn start_primary(&self, preserve_store: bool) {
+        let mut internal = self.internal.write().await;
+
+        internal.primary.start(preserve_store).await;
     }
 
-    pub fn stop_primary(&self) {
-        self.primary.stop();
+    pub async fn stop_primary(&self) {
+        let internal = self.internal.read().await;
+
+        internal.primary.stop();
     }
 
-    pub async fn start_all_workers(&mut self, preserve_store: bool) {
-        for (_, worker) in self.workers.iter_mut() {
+    pub async fn start_all_workers(&self, preserve_store: bool) {
+        let mut internal = self.internal.write().await;
+
+        for (_, worker) in internal.workers.iter_mut() {
             worker.start(preserve_store).await;
         }
     }
 
-    pub async fn start_worker(&mut self, id: WorkerId, preserve_store: bool) {
-        self.workers
+    /// Starts the worker node by the provided id. If worker is not found then
+    /// a panic is raised. If the preserve_store value is true then the
+    /// previous node's storage will be preserved. If false then the node will
+    /// start with a fresh (empty) storage.
+    pub async fn start_worker(&self, id: WorkerId, preserve_store: bool) {
+        let mut internal = self.internal.write().await;
+
+        let worker = internal
+            .workers
             .get_mut(&id)
-            .unwrap_or_else(|| panic!("Worker with id {} not found ", id))
-            .start(preserve_store)
-            .await;
+            .unwrap_or_else(|| panic!("Worker with id {} not found ", id));
+
+        worker.start(preserve_store).await;
     }
 
-    pub fn stop_worker(&self, id: WorkerId) {
-        self.workers
+    pub async fn stop_worker(&self, id: WorkerId) {
+        let internal = self.internal.read().await;
+
+        internal
+            .workers
             .get(&id)
             .unwrap_or_else(|| panic!("Worker with id {} not found ", id))
             .stop();
     }
 
     /// Stops all the nodes (primary & workers)
-    pub fn stop_all(&self) {
-        self.primary.stop();
+    pub async fn stop_all(&self) {
+        let internal = self.internal.read().await;
 
-        for (_, worker) in self.workers.iter() {
+        internal.primary.stop();
+
+        for (_, worker) in internal.workers.iter() {
             worker.stop();
         }
     }
 
+    /// Returns the current primary node running as a clone. If the primary
+    ///node stops and starts again and it's needed by the user then this
+    /// method should be called again to get the latest one.
+    pub async fn primary(&self) -> PrimaryNodeDetails {
+        let internal = self.internal.read().await;
+
+        internal.primary.clone()
+    }
+
     /// Returns the worker with the provided id. If not found then a panic
-    /// is raised instead.
-    pub fn worker(&self, id: WorkerId) -> WorkerNodeDetails {
-        self.workers
+    /// is raised instead. If the worker is stopped and started again then
+    /// the worker will need to be fetched again via this method.
+    pub async fn worker(&self, id: WorkerId) -> WorkerNodeDetails {
+        let internal = self.internal.read().await;
+
+        internal
+            .workers
             .get(&id)
             .unwrap_or_else(|| panic!("Worker with id {} not found ", id))
             .clone()
@@ -492,8 +564,11 @@ impl AuthorityDetails {
     /// all the worker nodes.
     /// Important: only the addresses of the running workers will
     /// be returned.
-    pub fn worker_transaction_addresses(&self) -> Vec<Multiaddr> {
-        self.workers
+    pub async fn worker_transaction_addresses(&self) -> Vec<Multiaddr> {
+        let internal = self.internal.read().await;
+
+        internal
+            .workers
             .iter()
             .filter_map(|(_, worker)| {
                 if worker.is_running() {
@@ -503,5 +578,25 @@ impl AuthorityDetails {
                 }
             })
             .collect()
+    }
+
+    /// This method will return true either when the primary or any of
+    /// the workers is running. In order to make sure that we don't end up
+    /// in intermediate states we want to make sure that everything has
+    /// stopped before we report something as not running (in case we want
+    /// to start them again).
+    async fn is_running(&self) -> bool {
+        let internal = self.internal.read().await;
+
+        if internal.primary.is_running() {
+            return true;
+        }
+
+        for (_, worker) in internal.workers.iter() {
+            if worker.is_running() {
+                return true;
+            }
+        }
+        false
     }
 }
