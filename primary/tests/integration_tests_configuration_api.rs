@@ -198,6 +198,8 @@ async fn test_get_primary_address() {
 
     let (tx_new_certificates, rx_new_certificates) = channel(CHANNEL_CAPACITY);
     let (tx_feedback, rx_feedback) = channel(CHANNEL_CAPACITY);
+    let initial_committee = ReconfigureNotification::NewCommittee(committee.clone());
+    let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
     let consensus_metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
 
     Primary::spawn(
@@ -215,6 +217,7 @@ async fn test_get_primary_address() {
             Dag::new(&committee, rx_new_certificates, consensus_metrics).1,
         )),
         NetworkModel::Asynchronous,
+        tx_reconfigure,
         /* tx_committed_certificates */ tx_feedback,
         &Registry::new(),
     );
