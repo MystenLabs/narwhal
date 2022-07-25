@@ -58,7 +58,7 @@ async fn test_node_staggered_starts() {
         3,
         "Expected to have received commit metrics from only three nodes"
     );
-    assert!(rounds.values().all(|v| v > &1.0), "We have only (f) unavailable nodes, so all should have made progress and committed at least after the first round");
+    assert!(rounds.values().all(|v| *v > 1f64), "We have only (f) unavailable nodes, so all should have made progress and committed at least after the first round");
 
     // We expect all the nodes to have managed to catch up by now
     // and be pretty much in similar rounds. The threshold here is
@@ -79,7 +79,7 @@ async fn test_node_staggered_starts() {
         4,
         "Expected to have received commit metrics from all nodes"
     );
-    assert!(rounds.values().all(|v| v > &1.0), "We have only (f) unavailable nodes, so all should have made progress and committed at least after the first round");
+    assert!(rounds.values().all(|v| v > &1.0), "All nodes are available so all should have made progress and committed at least after the first round");
 
     // We expect all the nodes to have managed to catch up by now
     // and be pretty much in similar rounds. The threshold here is
