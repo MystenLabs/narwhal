@@ -22,6 +22,9 @@ mod proposer;
 mod validator;
 
 pub struct ConsensusAPIGrpc<SynchronizerHandler: Handler + Send + Sync + 'static> {
+    // Multiaddr of NW primary
+    primary_addr: Multiaddr,
+    // Multiaddr of gRPC server
     socket_addr: Multiaddr,
     tx_get_block_commands: Sender<BlockCommand>,
     tx_block_removal_commands: Sender<BlockRemoverCommand>,
@@ -35,6 +38,7 @@ pub struct ConsensusAPIGrpc<SynchronizerHandler: Handler + Send + Sync + 'static
 
 impl<SynchronizerHandler: Handler + Send + Sync + 'static> ConsensusAPIGrpc<SynchronizerHandler> {
     pub fn spawn(
+        primary_addr: Multiaddr,
         socket_addr: Multiaddr,
         tx_get_block_commands: Sender<BlockCommand>,
         tx_block_removal_commands: Sender<BlockRemoverCommand>,
@@ -47,6 +51,7 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> ConsensusAPIGrpc<Sync
     ) -> JoinHandle<()> {
         tokio::spawn(async move {
             let _ = Self {
+                primary_addr,
                 socket_addr,
                 tx_get_block_commands,
                 tx_block_removal_commands,
@@ -74,7 +79,8 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> ConsensusAPIGrpc<Sync
         );
 
         let narwhal_proposer = NarwhalProposer::new(self.dag.clone(), Arc::clone(&self.committee));
-        let narwhal_configuration = NarwhalConfiguration::new(Arc::clone(&self.committee));
+        let narwhal_configuration =
+            NarwhalConfiguration::new(self.primary_addr.to_owned(), Arc::clone(&self.committee));
 
         let config = mysten_network::config::Config::default();
         let server = config

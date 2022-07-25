@@ -7,6 +7,7 @@ use crypto::traits::KeyPair;
 use node::NodeStorage;
 use primary::{NetworkModel, Primary, CHANNEL_CAPACITY};
 use prometheus::Registry;
+use regex::Regex;
 use std::{sync::Arc, time::Duration};
 use test_utils::{committee, keys, temp_dir};
 use tokio::sync::{mpsc::channel, watch};
@@ -179,6 +180,58 @@ async fn test_new_network_info() {
     let response = client.new_network_info(request).await.unwrap();
     let actual_result = response.into_inner();
     assert_eq!(Empty {}, actual_result);
+}
+
+#[tokio::test]
+async fn test_get_primary_address() {
+    let parameters = Parameters {
+        batch_size: 200, // Two transactions.
+        ..Parameters::default()
+    };
+    let keypair = keys(None).pop().unwrap();
+    let name = keypair.public().clone();
+    let signer = keypair;
+    let committee = committee(None);
+
+    // Make the data store.
+    let store = NodeStorage::reopen(temp_dir());
+
+    let (tx_new_certificates, rx_new_certificates) = channel(CHANNEL_CAPACITY);
+    let (tx_feedback, rx_feedback) = channel(CHANNEL_CAPACITY);
+    let consensus_metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
+
+    Primary::spawn(
+        name.clone(),
+        signer,
+        Arc::new(ArcSwap::from_pointee(committee.clone())),
+        parameters.clone(),
+        store.header_store.clone(),
+        store.certificate_store.clone(),
+        store.payload_store.clone(),
+        /* tx_consensus */ tx_new_certificates,
+        /* rx_consensus */ rx_feedback,
+        /* dag */
+        Some(Arc::new(
+            Dag::new(&committee, rx_new_certificates, consensus_metrics).1,
+        )),
+        NetworkModel::Asynchronous,
+        /* tx_committed_certificates */ tx_feedback,
+        &Registry::new(),
+    );
+
+    // Wait for tasks to start
+    tokio::time::sleep(Duration::from_secs(1)).await;
+
+    // Test gRPC server with client call
+    let mut client = connect_to_configuration_client(parameters.clone());
+
+    let request = tonic::Request::new(Empty {});
+
+    let response = client.get_primary_address(request).await.unwrap();
+    let actual_result = response.into_inner();
+
+    let re = Regex::new(r"ip4\x2f127\.0\.0\.1\x2ftcp\x2f[0-9]*\x2fhttp").unwrap();
+    assert!(re.is_match(&actual_result.primary_addr.unwrap().address));
 }
 
 fn connect_to_configuration_client(parameters: Parameters) -> ConfigurationClient<Channel> {

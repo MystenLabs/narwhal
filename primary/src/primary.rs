@@ -331,6 +331,11 @@ impl Primary {
         let consensus_api_handle = if !internal_consensus {
             // Spawn a grpc server to accept requests from external consensus layer.
             Some(ConsensusAPIGrpc::spawn(
+                committee
+                    .load()
+                    .primary(&name)
+                    .expect("Our public key or worker id is not in the committee")
+                    .primary_to_primary,
                 parameters.consensus_api_grpc.socket_addr,
                 tx_get_block_commands,
                 tx_block_removal_commands,
