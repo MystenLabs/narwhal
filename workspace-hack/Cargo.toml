@@ -410,7 +410,7 @@ regex = { version = "1", features = ["aho-corasick", "memchr", "perf", "perf-cac
 regex-syntax = { version = "0.6", features = ["unicode", "unicode-age", "unicode-bool", "unicode-case", "unicode-gencat", "unicode-perl", "unicode-script", "unicode-segment"] }
 remove_dir_all = { version = "0.5", default-features = false }
 rustc-hash = { version = "1", features = ["std"] }
-rustc_version = { version = "0.3", default-features = false }
+rustc_version = { version = "0.4", default-features = false }
 rustversion = { version = "1", default-features = false }
 schemars_derive = { version = "0.8", default-features = false }
 semver = { version = "0.11" }
