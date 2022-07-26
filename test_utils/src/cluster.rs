@@ -20,7 +20,9 @@ use tokio::{
     sync::{broadcast::Sender, mpsc::channel, RwLock},
     task::JoinHandle,
 };
+use tonic::transport::Channel;
 use tracing::info;
+use types::ProposerClient;
 
 #[cfg(test)]
 #[path = "tests/cluster_tests.rs"]
@@ -37,11 +39,16 @@ impl Cluster {
     /// Initialises a new cluster by the provided parameters. The cluster will
     /// create all the authorities (primaries & workers) that are defined under
     /// the committee structure, but none of them will be started.
-    /// If a committee is provided then this will be used, otherwise the default
+    /// If an `input_committee` is provided then this will be used, otherwise the default
     /// will be used instead.
+    /// When the `internal_consensus_enabled` is true then the standard internal
+    /// consensus engine will be enabled. If false, then the internal consensus will
+    /// be disabled and the gRPC server will be enabled to manage the Collections & the
+    /// DAG externally.
     pub fn new(
         parameters: Option<Parameters>,
         input_committee: Option<Committee<Ed25519PublicKey>>,
+        internal_consensus_enabled: bool,
     ) -> Self {
         let c = input_committee.unwrap_or_else(|| committee(None));
         let shared_committee = Arc::new(ArcSwap::from_pointee(c));
@@ -55,8 +62,13 @@ impl Cluster {
         for (id, key_pair) in k.into_iter().enumerate() {
             info!("Key {id} -> {}", key_pair.public().clone());
 
-            let authority =
-                AuthorityDetails::new(id, key_pair, params.clone(), shared_committee.clone());
+            let authority = AuthorityDetails::new(
+                id,
+                key_pair,
+                params.clone(),
+                shared_committee.clone(),
+                internal_consensus_enabled,
+            );
             nodes.insert(id, authority);
         }
 
@@ -204,6 +216,7 @@ pub struct PrimaryNodeDetails {
     committee: SharedCommittee<Ed25519PublicKey>,
     parameters: Parameters,
     handlers: Rc<RefCell<Vec<JoinHandle<()>>>>,
+    internal_consensus_enabled: bool,
 }
 
 impl PrimaryNodeDetails {
@@ -212,6 +225,7 @@ impl PrimaryNodeDetails {
         key_pair: Ed25519KeyPair,
         parameters: Parameters,
         committee: SharedCommittee<Ed25519PublicKey>,
+        internal_consensus_enabled: bool,
     ) -> Self {
         // used just to initialise the struct value
         let (tx, _) = tokio::sync::broadcast::channel(1);
@@ -225,6 +239,7 @@ impl PrimaryNodeDetails {
             committee,
             parameters,
             handlers: Rc::new(RefCell::new(Vec::new())),
+            internal_consensus_enabled,
         }
     }
 
@@ -268,7 +283,7 @@ impl PrimaryNodeDetails {
             self.committee.clone(),
             &primary_store,
             self.parameters.clone(),
-            /* consensus */ true,
+            /* consensus */ self.internal_consensus_enabled,
             /* execution_state */ Arc::new(SimpleExecutionState),
             tx_transaction_confirmation,
             &registry,
@@ -423,10 +438,17 @@ impl AuthorityDetails {
         key_pair: Ed25519KeyPair,
         parameters: Parameters,
         committee: SharedCommittee<Ed25519PublicKey>,
+        internal_consensus_enabled: bool,
     ) -> Self {
         // Create all the nodes we have in the committee
         let name = key_pair.public().clone();
-        let primary = PrimaryNodeDetails::new(id, key_pair, parameters.clone(), committee.clone());
+        let primary = PrimaryNodeDetails::new(
+            id,
+            key_pair,
+            parameters.clone(),
+            committee.clone(),
+            internal_consensus_enabled,
+        );
 
         // Create all the workers - even if we don't intend to start them all. Those
         // act as place holder setups. That gives us the power in a clear way manage
@@ -578,6 +600,24 @@ impl AuthorityDetails {
                 }
             })
             .collect()
+    }
+
+    /// Creates a new proposer client that connects to the corresponding client.
+    /// This should be available only if the internal consensus is disabled. If
+    /// the internal consensus is enabled then a panic will be thrown instead.
+    pub async fn new_proposer_client(&self) -> ProposerClient<Channel> {
+        let internal = self.internal.read().await;
+
+        if internal.primary.internal_consensus_enabled {
+            panic!("External consensus is disabled, won't create a proposer client");
+        }
+
+        let config = mysten_network::config::Config::new();
+        let channel = config
+            .connect_lazy(&internal.primary.parameters.consensus_api_grpc.socket_addr)
+            .unwrap();
+
+        ProposerClient::new(channel)
     }
 
     /// This method will return true either when the primary or any of
