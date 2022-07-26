@@ -940,7 +940,6 @@ dependencies = [
  "proptest-derive",
  "rand 0.7.3",
  "readonly",
- "schemars",
  "secp256k1",
  "serde",
  "serde_bytes",
