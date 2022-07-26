@@ -503,7 +503,7 @@
     <span class="doccomment">/// * Internal: An internal error caused</span>
     <span class="doccomment">/// * BlockDeliveryTimeout: Timed out while waiting for the certificate to become available</span>
     <span class="doccomment">/// after submitting it for processing to core</span>
-    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span><span class="op">=</span><span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>, <span class="ident">fields</span>(<span class="ident">block_ids</span> <span class="op">=</span> <span class="question-mark">?</span><span class="ident">block_ids</span>))]</span>
+    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span><span class="op">=</span><span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>, <span class="ident">fields</span>(<span class="ident">num_block_ids</span> <span class="op">=</span> <span class="ident">block_ids</span>.<span class="ident">len</span>()))]</span>
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get_and_synchronize_block_headers</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">block_ids</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span><span class="op">&gt;</span>,
@@ -568,7 +568,7 @@
         <span class="ident">results</span>
     }
 
-    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span><span class="op">=</span><span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>, <span class="ident">fields</span>(<span class="ident">block_ids</span> <span class="op">=</span> <span class="question-mark">?</span><span class="ident">block_ids</span>))]</span>
+    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span><span class="op">=</span><span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>, <span class="ident">fields</span>(<span class="ident">num_block_ids</span> <span class="op">=</span> <span class="ident">block_ids</span>.<span class="ident">len</span>()))]</span>
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get_block_headers</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">block_ids</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span><span class="op">&gt;</span>,

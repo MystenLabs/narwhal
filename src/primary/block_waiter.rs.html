@@ -1174,7 +1174,7 @@
         }
     }
 
-    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span><span class="op">=</span><span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>, <span class="ident">fields</span>(<span class="ident">block_ids</span> <span class="op">=</span> <span class="question-mark">?</span><span class="ident">ids</span>))]</span>
+    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span><span class="op">=</span><span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>, <span class="ident">fields</span>(<span class="ident">num_block_ids</span> <span class="op">=</span> <span class="ident">ids</span>.<span class="ident">len</span>()))]</span>
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">handle_get_blocks_command</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">ids</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span><span class="op">&gt;</span>,
@@ -1228,7 +1228,7 @@
     <span class="doccomment">/// fetch it via the peers. Otherwise if available on the storage</span>
     <span class="doccomment">/// should return the result immediately. The method is blocking to</span>
     <span class="doccomment">/// retrieve all the results.</span>
-    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span> <span class="op">=</span> <span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>, <span class="ident">fields</span>(<span class="ident">certificate_ids</span> <span class="op">=</span> <span class="question-mark">?</span><span class="ident">ids</span>))]</span>
+    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span> <span class="op">=</span> <span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>, <span class="ident">fields</span>(<span class="ident">num_certificate_ids</span> <span class="op">=</span> <span class="ident">ids</span>.<span class="ident">len</span>()))]</span>
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get_certificates</span>(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">ids</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span><span class="op">&gt;</span>,
@@ -1332,7 +1332,7 @@
     <span class="comment">// handles received commands and returns back a future if needs to</span>
     <span class="comment">// wait for further results. Otherwise, an empty option is returned</span>
     <span class="comment">// if no further waiting on processing is needed.</span>
-    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span><span class="op">=</span><span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>, <span class="ident">fields</span>(<span class="ident">block_ids</span> <span class="op">=</span> <span class="question-mark">?</span><span class="ident">id</span>))]</span>
+    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span><span class="op">=</span><span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>, <span class="ident">fields</span>(<span class="ident">block_id</span> <span class="op">=</span> <span class="question-mark">?</span><span class="ident">id</span>))]</span>
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">handle_get_block_command</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">id</span>: <span class="ident">CertificateDigest</span>,

@@ -708,7 +708,7 @@
         }
     }
 
-    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span> <span class="op">=</span> <span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>, <span class="ident">fields</span>(<span class="ident">certificate</span> <span class="op">=</span> <span class="question-mark">?</span><span class="ident">certificate</span>), <span class="ident">err</span>)]</span>
+    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span> <span class="op">=</span> <span class="string">&quot;trace&quot;</span>, <span class="ident">skip_all</span>, <span class="ident">fields</span>(<span class="ident">certificate</span> <span class="op">=</span> <span class="question-mark">?</span><span class="ident">certificate</span>), <span class="ident">err</span>)]</span>
     <span class="kw">fn</span> <span class="ident">insert</span>(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">certificate</span>: <span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
@@ -739,13 +739,13 @@
     <span class="doccomment">/// Returns whether the dag has ever contained a node with the provided digest. The method will return</span>
     <span class="doccomment">/// true either when the node is live (uncompressed) or has been already compressed as still exists</span>
     <span class="doccomment">/// as weak reference.</span>
-    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span> <span class="op">=</span> <span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>, <span class="ident">fields</span>(<span class="ident">digest</span> <span class="op">=</span> <span class="question-mark">?</span><span class="ident">digest</span>))]</span>
+    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span> <span class="op">=</span> <span class="string">&quot;trace&quot;</span>, <span class="ident">skip_all</span>, <span class="ident">fields</span>(<span class="ident">digest</span> <span class="op">=</span> <span class="question-mark">?</span><span class="ident">digest</span>))]</span>
     <span class="kw">fn</span> <span class="ident">has_ever_contained</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">digest</span>: <span class="ident">CertificateDigest</span>) -&gt; <span class="ident">bool</span> {
         <span class="self">self</span>.<span class="ident">dag</span>.<span class="ident">contains</span>(<span class="ident">digest</span>)
     }
 
     <span class="doccomment">/// Returns the oldest and newest rounds for which a validator has (live) certificates in the DAG</span>
-    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span> <span class="op">=</span> <span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>, <span class="ident">fields</span>(<span class="ident">origin</span> <span class="op">=</span> <span class="question-mark">?</span><span class="ident">origin</span>), <span class="ident">err</span>)]</span>
+    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span> <span class="op">=</span> <span class="string">&quot;trace&quot;</span>, <span class="ident">skip_all</span>, <span class="ident">fields</span>(<span class="ident">origin</span> <span class="op">=</span> <span class="question-mark">?</span><span class="ident">origin</span>), <span class="ident">err</span>)]</span>
     <span class="kw">fn</span> <span class="ident">rounds</span>(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">origin</span>: <span class="ident">PublicKey</span>,
@@ -789,7 +789,7 @@
 
     <span class="doccomment">/// Returns a breadth first traversal of the Dag, starting with the certified collection</span>
     <span class="doccomment">/// passed as argument.</span>
-    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span> <span class="op">=</span> <span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>, <span class="ident">fields</span>(<span class="ident">start_certificate_id</span> <span class="op">=</span> <span class="question-mark">?</span><span class="ident">start</span>), <span class="ident">err</span>)]</span>
+    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span> <span class="op">=</span> <span class="string">&quot;trace&quot;</span>, <span class="ident">skip_all</span>, <span class="ident">fields</span>(<span class="ident">start_certificate_id</span> <span class="op">=</span> <span class="question-mark">?</span><span class="ident">start</span>), <span class="ident">err</span>)]</span>
     <span class="kw">fn</span> <span class="ident">read_causal</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">start</span>: <span class="ident">CertificateDigest</span>,
@@ -800,7 +800,7 @@
 
     <span class="doccomment">/// Returns a breadth first traversal of the Dag, starting with the certified collection</span>
     <span class="doccomment">/// passed as argument.</span>
-    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span> <span class="op">=</span> <span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>, <span class="ident">fields</span>(<span class="ident">origin</span> <span class="op">=</span> <span class="question-mark">?</span><span class="ident">origin</span>, <span class="ident">round</span> <span class="op">=</span> <span class="question-mark">?</span><span class="ident">round</span>), <span class="ident">err</span>)]</span>
+    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span> <span class="op">=</span> <span class="string">&quot;trace&quot;</span>, <span class="ident">skip_all</span>, <span class="ident">fields</span>(<span class="ident">origin</span> <span class="op">=</span> <span class="question-mark">?</span><span class="ident">origin</span>, <span class="ident">round</span> <span class="op">=</span> <span class="question-mark">?</span><span class="ident">round</span>), <span class="ident">err</span>)]</span>
     <span class="kw">fn</span> <span class="ident">node_read_causal</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">origin</span>: <span class="ident">PublicKey</span>,
@@ -814,7 +814,7 @@
     }
 
     <span class="doccomment">/// Removes certificates from the Dag, reclaiming memory in the process.</span>
-    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span> <span class="op">=</span> <span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>, <span class="ident">fields</span>(<span class="ident">certificate_ids</span> <span class="op">=</span> <span class="question-mark">?</span><span class="ident">digests</span>), <span class="ident">err</span>)]</span>
+    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span> <span class="op">=</span> <span class="string">&quot;trace&quot;</span>, <span class="ident">skip_all</span>, <span class="ident">fields</span>(<span class="ident">num_certificate_ids</span> <span class="op">=</span> <span class="ident">digests</span>.<span class="ident">len</span>()), <span class="ident">err</span>)]</span>
     <span class="kw">fn</span> <span class="ident">remove</span>(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">digests</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span><span class="op">&gt;</span>,
