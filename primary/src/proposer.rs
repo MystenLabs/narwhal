@@ -208,6 +208,15 @@ impl<PublicKey: VerifyingKey> Proposer<PublicKey> {
         let timer = sleep(self.max_header_delay);
         tokio::pin!(timer);
 
+        // Master control variables
+        let target_min_batch_per_round = 1.0;
+        let weighted_ave_latest = 0.5;
+        let max_multiplier = 30.0;
+
+        // Dependent variables for control
+        let mut ave_batch_per_round: f64 = target_min_batch_per_round;
+        let mut multiplier = 1.0;
+
         loop {
             // Check if we can propose a new header. We propose a new header when we have a quorum of parents
             // and one of the following conditions is met:
@@ -227,6 +236,37 @@ impl<PublicKey: VerifyingKey> Proposer<PublicKey> {
 
                 // Advance to the next round.
                 self.round += 1;
+
+                // Implement a control system to ensure that some min amount of work
+                // happen in every round, and extend the rounds if it does not. Here we set a target
+                // number of batches committes per round `target_min_batch_per_round`. We then
+                // observe a weighted average of how many batches we commit per round and compute
+                // a multiplier of the max header delay to try to hit this number of rounds
+                // between 1 and `max_multiplier`.
+                let round_diff = self.round - self.metrics.core_metrics.last_commit_round();
+                let batch_diff = self.metrics.core_metrics.current_batches()
+                    - self.metrics.core_metrics.last_commit_batches();
+                if round_diff > 0 {
+                    // Compute the weighted average
+                    ave_batch_per_round = (1.0 - weighted_ave_latest) * ave_batch_per_round
+                        + (batch_diff as f64) * weighted_ave_latest / (round_diff as f64);
+                }
+                debug!(
+                    "Velocity: batch diff / round diff = {} / {} Ave = {:2.2}",
+                    batch_diff, round_diff, ave_batch_per_round
+                );
+
+                // The control system sets log(multiplier) = log(multiplier) + log(target) - log(weighted_ave)
+                // with multiplier clipped between 1 and max_multiplier
+                multiplier = f64::max(
+                    1.0,
+                    f64::min(
+                        max_multiplier,
+                        multiplier * target_min_batch_per_round / (ave_batch_per_round + 0.1),
+                    ),
+                );
+                debug!("Multiplier: {:2.2}", multiplier);
+
                 self.metrics
                     .current_round
                     .with_label_values(&[&self.committee.epoch.to_string()])
@@ -241,8 +281,8 @@ impl<PublicKey: VerifyingKey> Proposer<PublicKey> {
                 }
                 self.payload_size = 0;
 
-                // Reschedule the timer.
-                let deadline = Instant::now() + self.max_header_delay;
+                // Reschedule the timer, note the use of the multiplier
+                let deadline = Instant::now() + self.max_header_delay.mul_f64(multiplier);
                 timer.as_mut().reset(deadline);
             }
 

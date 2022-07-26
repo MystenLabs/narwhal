@@ -1,7 +1,7 @@
 // Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crate::primary::PrimaryWorkerMessage;
+use crate::{metrics::CoreCounters, primary::PrimaryWorkerMessage};
 use config::SharedCommittee;
 use crypto::traits::VerifyingKey;
 use network::PrimaryToWorkerNetwork;
@@ -33,6 +33,8 @@ pub struct StateHandler<PublicKey: VerifyingKey> {
     last_committed_round: Round,
     /// A network sender to notify our workers of cleanup events.
     worker_network: PrimaryToWorkerNetwork,
+    /// The core counter to update the consensus round
+    core_counters: Option<Arc<CoreCounters>>,
 }
 
 impl<PublicKey: VerifyingKey> StateHandler<PublicKey> {
@@ -43,6 +45,7 @@ impl<PublicKey: VerifyingKey> StateHandler<PublicKey> {
         rx_consensus: Receiver<Certificate<PublicKey>>,
         rx_reconfigure: Receiver<ReconfigureNotification<PublicKey>>,
         tx_reconfigure: watch::Sender<ReconfigureNotification<PublicKey>>,
+        core_counters: Option<Arc<CoreCounters>>,
     ) -> JoinHandle<()> {
         tokio::spawn(async move {
             Self {
@@ -54,6 +57,7 @@ impl<PublicKey: VerifyingKey> StateHandler<PublicKey> {
                 tx_reconfigure,
                 last_committed_round: 0,
                 worker_network: Default::default(),
+                core_counters,
             }
             .run()
             .await;
@@ -69,6 +73,11 @@ impl<PublicKey: VerifyingKey> StateHandler<PublicKey> {
 
             // Trigger cleanup on the primary.
             self.consensus_round.store(round, Ordering::Relaxed);
+
+            // Update the global counters
+            if let Some(counters) = self.core_counters.as_ref() {
+                counters.set_commit_round(round);
+            }
 
             // Trigger cleanup on the workers..
             let addresses = self

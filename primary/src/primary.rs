@@ -304,7 +304,7 @@ impl Primary {
             /* rx_core */ rx_parents,
             /* rx_workers */ rx_our_digests,
             /* tx_core */ tx_headers,
-            node_metrics,
+            node_metrics.clone(),
         );
 
         // The `Helper` is dedicated to reply to certificates & payload availability requests
@@ -341,6 +341,7 @@ impl Primary {
             rx_consensus,
             rx_state_handler,
             tx_reconfigure,
+            Some(node_metrics.core_metrics.clone()),
         );
 
         // NOTE: This log entry is used to compute performance.
@@ -540,6 +541,7 @@ impl<PublicKey: VerifyingKey> WorkerToPrimary for WorkerReceiverHandler<PublicKe
                     .batches_received
                     .with_label_values(&[&worker_id.to_string(), "our_batch"])
                     .inc();
+                self.metrics.core_metrics.inc_batches();
                 self.tx_our_digests
                     .send((digest, worker_id))
                     .await
@@ -550,6 +552,7 @@ impl<PublicKey: VerifyingKey> WorkerToPrimary for WorkerReceiverHandler<PublicKe
                     .batches_received
                     .with_label_values(&[&worker_id.to_string(), "others_batch"])
                     .inc();
+                self.metrics.core_metrics.inc_batches();
                 self.tx_others_digests
                     .send((digest, worker_id))
                     .await

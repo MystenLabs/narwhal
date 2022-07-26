@@ -6,7 +6,13 @@ use prometheus::{
     default_registry, register_histogram_vec_with_registry, register_int_counter_vec_with_registry,
     register_int_gauge_vec_with_registry, HistogramVec, IntCounterVec, IntGaugeVec, Registry,
 };
-use std::time::Duration;
+use std::{
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc,
+    },
+    time::Duration,
+};
 use tonic::Code;
 
 #[derive(Clone)]
@@ -33,6 +39,42 @@ pub(crate) fn initialise_metrics(metrics_registry: &Registry) -> Metrics {
         node_metrics: Some(node_metrics),
         endpoint_metrics: Some(endpoint_metrics),
         primary_endpoint_metrics: Some(primary_endpoint_metrics),
+    }
+}
+
+#[derive(Default)]
+pub struct CoreCounters {
+    current_batches: AtomicU64,
+    last_commit_round: AtomicU64,
+    last_commit_batches: AtomicU64,
+}
+
+impl CoreCounters {
+    pub fn new() -> Arc<Self> {
+        Arc::new(Self::default())
+    }
+
+    pub fn set_commit_round(&self, round: u64) {
+        self.last_commit_round.store(round, Ordering::Relaxed);
+        let batches_now = self.current_batches.load(Ordering::Relaxed);
+        self.last_commit_batches
+            .store(batches_now, Ordering::Relaxed);
+    }
+
+    pub fn inc_batches(&self) {
+        self.current_batches.fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn current_batches(&self) -> u64 {
+        self.current_batches.load(Ordering::Relaxed)
+    }
+
+    pub fn last_commit_round(&self) -> u64 {
+        self.last_commit_round.load(Ordering::Relaxed)
+    }
+
+    pub fn last_commit_batches(&self) -> u64 {
+        self.last_commit_batches.load(Ordering::Relaxed)
     }
 }
 
@@ -66,6 +108,9 @@ pub struct PrimaryMetrics {
     pub parent_requests_header_waiter: IntGaugeVec,
     /// Number of elements in pending list of certificate_waiter
     pub pending_elements_certificate_waiter: IntGaugeVec,
+
+    // Core metrics sneaking in
+    pub core_metrics: Arc<CoreCounters>,
 }
 
 impl PrimaryMetrics {
@@ -169,6 +214,8 @@ impl PrimaryMetrics {
                 registry
             )
             .unwrap(),
+
+            core_metrics: CoreCounters::new(),
         }
     }
 }

@@ -91,7 +91,7 @@ class LogParser:
         rate = int(search(r'Transactions rate: (\d+)', log).group(1))
 
         tmp = search(r'(.*?) .* Start ', log).group(1)
-        start = self._to_posix(tmp)
+        start = self._to_posix(tmp[:24])
 
         misses = len(findall(r'rate too high', log))
 
@@ -158,7 +158,7 @@ class LogParser:
         return sizes, samples, ip
 
     def _to_posix(self, string):
-        x = parser.isoparse(string)
+        x = parser.isoparse(string[:24])
         return datetime.timestamp(x)
 
     def _consensus_throughput(self):
