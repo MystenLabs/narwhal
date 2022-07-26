@@ -243,11 +243,14 @@ impl<PublicKey: VerifyingKey> Proposer<PublicKey> {
                 // observe a weighted average of how many batches we commit per round and compute
                 // a multiplier of the max header delay to try to hit this number of rounds
                 // between 1 and `max_multiplier`.
+
+                // The number of rounds since we last committed.
                 let round_diff = self.round - self.metrics.core_metrics.last_commit_round();
+                // The number of additional batches since we last committed.
                 let batch_diff = self.metrics.core_metrics.current_batches()
                     - self.metrics.core_metrics.last_commit_batches();
                 if round_diff > 0 {
-                    // Compute the weighted average
+                    // Compute the weighted average of batches per round included.
                     ave_batch_per_round = (1.0 - weighted_ave_latest) * ave_batch_per_round
                         + (batch_diff as f64) * weighted_ave_latest / (round_diff as f64);
                 }
