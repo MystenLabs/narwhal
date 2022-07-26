@@ -269,7 +269,7 @@ impl PrimaryNodeDetails {
             &primary_store,
             self.parameters.clone(),
             /* consensus */ true,
-            /* execution_state */ Arc::new(SimpleExecutionState),
+            /* execution_state */ Arc::new(SimpleExecutionState::default()),
             tx_transaction_confirmation,
             &registry,
         )
