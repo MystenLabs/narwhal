@@ -45,11 +45,6 @@ async fn cluster_setup_with_consensus_disabled() {
     // give some time for nodes to boostrap
     tokio::time::sleep(Duration::from_secs(2)).await;
 
-    // fetch all the running authorities
-    let authorities = cluster.authorities().await;
-
-    assert_eq!(authorities.len(), 2);
-
     // connect to the gRPC address and send a simple request
     let authority = cluster.authority(0);
 
