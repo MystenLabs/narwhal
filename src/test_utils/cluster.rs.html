@@ -606,6 +606,32 @@
 <span id="600">600</span>
 <span id="601">601</span>
 <span id="602">602</span>
+<span id="603">603</span>
+<span id="604">604</span>
+<span id="605">605</span>
+<span id="606">606</span>
+<span id="607">607</span>
+<span id="608">608</span>
+<span id="609">609</span>
+<span id="610">610</span>
+<span id="611">611</span>
+<span id="612">612</span>
+<span id="613">613</span>
+<span id="614">614</span>
+<span id="615">615</span>
+<span id="616">616</span>
+<span id="617">617</span>
+<span id="618">618</span>
+<span id="619">619</span>
+<span id="620">620</span>
+<span id="621">621</span>
+<span id="622">622</span>
+<span id="623">623</span>
+<span id="624">624</span>
+<span id="625">625</span>
+<span id="626">626</span>
+<span id="627">627</span>
+<span id="628">628</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">committee</span>, <span class="ident">keys</span>, <span class="ident">temp_dir</span>};
@@ -1146,6 +1172,23 @@
         }
     }
 
+    <span class="doccomment">/// Will restart the node with the current setup that has been chosen</span>
+    <span class="doccomment">/// (ex same number of nodes).</span>
+    <span class="doccomment">/// `preserve_store`: if true then the same storage will be used for the</span>
+    <span class="doccomment">/// node</span>
+    <span class="doccomment">/// `delay`: before starting again we&#39;ll wait for that long. If zero provided</span>
+    <span class="doccomment">/// then won&#39;t wait at all</span>
+    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">restart</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">preserve_store</span>: <span class="ident">bool</span>, <span class="ident">delay</span>: <span class="ident">Duration</span>) {
+        <span class="kw">let</span> <span class="ident">num_of_workers</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">workers</span>().<span class="kw">await</span>.<span class="ident">len</span>();
+
+        <span class="self">self</span>.<span class="ident">stop_all</span>().<span class="kw">await</span>;
+
+        <span class="ident">tokio::time::sleep</span>(<span class="ident">delay</span>).<span class="kw">await</span>;
+
+        <span class="comment">// now start again the node with the same workers</span>
+        <span class="self">self</span>.<span class="ident">start</span>(<span class="ident">preserve_store</span>, <span class="prelude-val">Some</span>(<span class="ident">num_of_workers</span>)).<span class="kw">await</span>;
+    }
+
     <span class="doccomment">/// Returns the current primary node running as a clone. If the primary</span>
     <span class="doccomment">///node stops and starts again and it&#39;s needed by the user then this</span>
     <span class="doccomment">/// method should be called again to get the latest one.</span>
@@ -1173,6 +1216,15 @@
     <span class="doccomment">/// Important: only the addresses of the running workers will</span>
     <span class="doccomment">/// be returned.</span>
     <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">worker_transaction_addresses</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Multiaddr</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">workers</span>()
+            .<span class="kw">await</span>
+            .<span class="ident">iter</span>()
+            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">w</span><span class="op">|</span> <span class="ident">w</span>.<span class="ident">transactions_address</span>.<span class="ident">clone</span>())
+            .<span class="ident">collect</span>()
+    }
+
+    <span class="doccomment">/// Returns all the running workers</span>
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">workers</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">WorkerNodeDetails</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">internal</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">internal</span>.<span class="ident">read</span>().<span class="kw">await</span>;
 
         <span class="ident">internal</span>
@@ -1180,7 +1232,7 @@
             .<span class="ident">iter</span>()
             .<span class="ident">filter_map</span>(<span class="op">|</span>(<span class="kw">_</span>, <span class="ident">worker</span>)<span class="op">|</span> {
                 <span class="kw">if</span> <span class="ident">worker</span>.<span class="ident">is_running</span>() {
-                    <span class="prelude-val">Some</span>(<span class="ident">worker</span>.<span class="ident">transactions_address</span>.<span class="ident">clone</span>())
+                    <span class="prelude-val">Some</span>(<span class="ident">worker</span>.<span class="ident">clone</span>())
                 } <span class="kw">else</span> {
                     <span class="prelude-val">None</span>
                 }
@@ -1209,5 +1261,5 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="test_utils" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (6dbae3ad1 2022-07-25)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="test_utils" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (4d6d601c8 2022-07-26)" ></div>
 </body></html>
