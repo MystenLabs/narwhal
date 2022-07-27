@@ -68,6 +68,15 @@ fn test_public_key_bytes_conversion() {
 }
 
 #[test]
+fn test_public_key_recovery() {
+    let kp = keys().pop().unwrap();
+    let message: &[u8] = b"Hello, world!";
+    let signature: Secp256k1Signature = kp.sign(message);
+    let recovered_key = signature.recover( <sha3::Keccak256 as sha3::digest::Digest>::digest(message).as_slice()).unwrap();
+    assert_eq!(*kp.public(), recovered_key);
+}
+
+#[test]
 fn import_export_secret_key() {
     let kpref = keys().pop().unwrap();
     let secret_key = kpref.private();
