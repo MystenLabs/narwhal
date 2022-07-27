@@ -2751,7 +2751,6 @@ dependencies = [
  "prometheus",
  "prost",
  "rand 0.7.3",
- "regex",
  "serde",
  "telemetry-subscribers",
  "tempfile",

@@ -126,7 +126,7 @@ message NewEpochRequest {
 }
 
 message GetPrimaryAddressResponse {
-    MultiAddr primary_addr = 1;
+    MultiAddr primary_address = 1;
 }
 
 // A bincode encoded payload. This is intended to be used in the short-term

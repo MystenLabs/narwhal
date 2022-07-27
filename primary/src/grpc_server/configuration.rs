@@ -160,7 +160,7 @@ impl Configuration for NarwhalConfiguration {
         _request: Request<Empty>,
     ) -> Result<Response<GetPrimaryAddressResponse>, Status> {
         Ok(Response::new(GetPrimaryAddressResponse {
-            primary_addr: Some(MultiAddrProto {
+            primary_address: Some(MultiAddrProto {
                 address: self.primary_addr.to_string(),
             }),
         }))

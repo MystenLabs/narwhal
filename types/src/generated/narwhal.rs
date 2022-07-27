@@ -154,7 +154,7 @@ pub struct NewEpochRequest {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetPrimaryAddressResponse {
     #[prost(message, optional, tag="1")]
-    pub primary_addr: ::core::option::Option<MultiAddr>,
+    pub primary_address: ::core::option::Option<MultiAddr>,
 }
 /// A bincode encoded payload. This is intended to be used in the short-term
 /// while we don't have good protobuf definitions for Narwhal types
