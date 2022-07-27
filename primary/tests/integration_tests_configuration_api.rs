@@ -29,10 +29,14 @@ async fn test_new_epoch() {
     let request = tonic::Request::new(NewEpochRequest {
         epoch_number: 0,
         validators: vec![ValidatorData {
-            public_key: Some(public_key.clone()),
-            stake_weight,
-            primary_addresses: None,
-        }],
+                    public_key: Some(public_key.clone()),
+                    stake_weight,
+        <<<<<<< HEAD
+                    primary_addresses: None,
+        =======
+                    primary_addresses: Some(PrimaryAddressesProto::default()),
+        >>>>>>> 6f98468d (make multiaddr optional)
+                }],
     });
 
     let status = client.new_epoch(request).await.unwrap_err();

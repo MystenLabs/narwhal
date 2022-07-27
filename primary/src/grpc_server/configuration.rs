@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 use tonic::{Request, Response, Status};
 use types::{
     Configuration, Empty, GetPrimaryAddressResponse, MultiAddrProto, NewEpochRequest,
-    NewNetworkInfoRequest, PublicKeyProto,
+    NewNetworkInfoRequest, PrimaryAddressesProto, PublicKeyProto,
 };
 
 pub struct NarwhalConfiguration {
