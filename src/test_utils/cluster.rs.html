@@ -632,6 +632,46 @@
 <span id="626">626</span>
 <span id="627">627</span>
 <span id="628">628</span>
+<span id="629">629</span>
+<span id="630">630</span>
+<span id="631">631</span>
+<span id="632">632</span>
+<span id="633">633</span>
+<span id="634">634</span>
+<span id="635">635</span>
+<span id="636">636</span>
+<span id="637">637</span>
+<span id="638">638</span>
+<span id="639">639</span>
+<span id="640">640</span>
+<span id="641">641</span>
+<span id="642">642</span>
+<span id="643">643</span>
+<span id="644">644</span>
+<span id="645">645</span>
+<span id="646">646</span>
+<span id="647">647</span>
+<span id="648">648</span>
+<span id="649">649</span>
+<span id="650">650</span>
+<span id="651">651</span>
+<span id="652">652</span>
+<span id="653">653</span>
+<span id="654">654</span>
+<span id="655">655</span>
+<span id="656">656</span>
+<span id="657">657</span>
+<span id="658">658</span>
+<span id="659">659</span>
+<span id="660">660</span>
+<span id="661">661</span>
+<span id="662">662</span>
+<span id="663">663</span>
+<span id="664">664</span>
+<span id="665">665</span>
+<span id="666">666</span>
+<span id="667">667</span>
+<span id="668">668</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">committee</span>, <span class="ident">keys</span>, <span class="ident">temp_dir</span>};
@@ -654,7 +694,9 @@
     <span class="ident">sync</span>::{<span class="ident">broadcast::Sender</span>, <span class="ident">mpsc::channel</span>, <span class="ident">RwLock</span>},
     <span class="ident">task::JoinHandle</span>,
 };
+<span class="kw">use</span> <span class="ident">tonic::transport::Channel</span>;
 <span class="kw">use</span> <span class="ident">tracing::info</span>;
+<span class="kw">use</span> <span class="ident">types::ProposerClient</span>;
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="attribute">#[<span class="ident">path</span> <span class="op">=</span> <span class="string">&quot;tests/cluster_tests.rs&quot;</span>]</span>
@@ -671,11 +713,16 @@
     <span class="doccomment">/// Initialises a new cluster by the provided parameters. The cluster will</span>
     <span class="doccomment">/// create all the authorities (primaries &amp; workers) that are defined under</span>
     <span class="doccomment">/// the committee structure, but none of them will be started.</span>
-    <span class="doccomment">/// If a committee is provided then this will be used, otherwise the default</span>
+    <span class="doccomment">/// If an `input_committee` is provided then this will be used, otherwise the default</span>
     <span class="doccomment">/// will be used instead.</span>
+    <span class="doccomment">/// When the `internal_consensus_enabled` is true then the standard internal</span>
+    <span class="doccomment">/// consensus engine will be enabled. If false, then the internal consensus will</span>
+    <span class="doccomment">/// be disabled and the gRPC server will be enabled to manage the Collections &amp; the</span>
+    <span class="doccomment">/// DAG externally.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(
         <span class="ident">parameters</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Parameters</span><span class="op">&gt;</span>,
         <span class="ident">input_committee</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">Ed25519PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">internal_consensus_enabled</span>: <span class="ident">bool</span>,
     ) -&gt; <span class="self">Self</span> {
         <span class="kw">let</span> <span class="ident">c</span> <span class="op">=</span> <span class="ident">input_committee</span>.<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">committee</span>(<span class="prelude-val">None</span>));
         <span class="kw">let</span> <span class="ident">shared_committee</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">ArcSwap::from_pointee</span>(<span class="ident">c</span>));
@@ -689,8 +736,13 @@
         <span class="kw">for</span> (<span class="ident">id</span>, <span class="ident">key_pair</span>) <span class="kw">in</span> <span class="ident">k</span>.<span class="ident">into_iter</span>().<span class="ident">enumerate</span>() {
             <span class="macro">info!</span>(<span class="string">&quot;Key {id} -&gt; {}&quot;</span>, <span class="ident">key_pair</span>.<span class="ident">public</span>().<span class="ident">clone</span>());
 
-            <span class="kw">let</span> <span class="ident">authority</span> <span class="op">=</span>
-                <span class="ident">AuthorityDetails::new</span>(<span class="ident">id</span>, <span class="ident">key_pair</span>, <span class="ident">params</span>.<span class="ident">clone</span>(), <span class="ident">shared_committee</span>.<span class="ident">clone</span>());
+            <span class="kw">let</span> <span class="ident">authority</span> <span class="op">=</span> <span class="ident">AuthorityDetails::new</span>(
+                <span class="ident">id</span>,
+                <span class="ident">key_pair</span>,
+                <span class="ident">params</span>.<span class="ident">clone</span>(),
+                <span class="ident">shared_committee</span>.<span class="ident">clone</span>(),
+                <span class="ident">internal_consensus_enabled</span>,
+            );
             <span class="ident">nodes</span>.<span class="ident">insert</span>(<span class="ident">id</span>, <span class="ident">authority</span>);
         }
 
@@ -838,6 +890,7 @@
     <span class="ident">committee</span>: <span class="ident">SharedCommittee</span><span class="op">&lt;</span><span class="ident">Ed25519PublicKey</span><span class="op">&gt;</span>,
     <span class="ident">parameters</span>: <span class="ident">Parameters</span>,
     <span class="ident">handlers</span>: <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">RefCell</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">internal_consensus_enabled</span>: <span class="ident">bool</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">PrimaryNodeDetails</span> {
@@ -846,6 +899,7 @@
         <span class="ident">key_pair</span>: <span class="ident">Ed25519KeyPair</span>,
         <span class="ident">parameters</span>: <span class="ident">Parameters</span>,
         <span class="ident">committee</span>: <span class="ident">SharedCommittee</span><span class="op">&lt;</span><span class="ident">Ed25519PublicKey</span><span class="op">&gt;</span>,
+        <span class="ident">internal_consensus_enabled</span>: <span class="ident">bool</span>,
     ) -&gt; <span class="self">Self</span> {
         <span class="comment">// used just to initialise the struct value</span>
         <span class="kw">let</span> (<span class="ident">tx</span>, <span class="kw">_</span>) <span class="op">=</span> <span class="ident">tokio::sync::broadcast::channel</span>(<span class="number">1</span>);
@@ -859,6 +913,7 @@
             <span class="ident">committee</span>,
             <span class="ident">parameters</span>,
             <span class="ident">handlers</span>: <span class="ident">Rc::new</span>(<span class="ident">RefCell::new</span>(<span class="ident">Vec::new</span>())),
+            <span class="ident">internal_consensus_enabled</span>,
         }
     }
 
@@ -902,7 +957,7 @@
             <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">clone</span>(),
             <span class="kw-2">&amp;</span><span class="ident">primary_store</span>,
             <span class="self">self</span>.<span class="ident">parameters</span>.<span class="ident">clone</span>(),
-            <span class="comment">/* consensus */</span> <span class="bool-val">true</span>,
+            <span class="comment">/* consensus */</span> <span class="self">self</span>.<span class="ident">internal_consensus_enabled</span>,
             <span class="comment">/* execution_state */</span> <span class="ident">Arc::new</span>(<span class="ident">SimpleExecutionState</span>),
             <span class="ident">tx_transaction_confirmation</span>,
             <span class="kw-2">&amp;</span><span class="ident">registry</span>,
@@ -1057,10 +1112,17 @@
         <span class="ident">key_pair</span>: <span class="ident">Ed25519KeyPair</span>,
         <span class="ident">parameters</span>: <span class="ident">Parameters</span>,
         <span class="ident">committee</span>: <span class="ident">SharedCommittee</span><span class="op">&lt;</span><span class="ident">Ed25519PublicKey</span><span class="op">&gt;</span>,
+        <span class="ident">internal_consensus_enabled</span>: <span class="ident">bool</span>,
     ) -&gt; <span class="self">Self</span> {
         <span class="comment">// Create all the nodes we have in the committee</span>
         <span class="kw">let</span> <span class="ident">name</span> <span class="op">=</span> <span class="ident">key_pair</span>.<span class="ident">public</span>().<span class="ident">clone</span>();
-        <span class="kw">let</span> <span class="ident">primary</span> <span class="op">=</span> <span class="ident">PrimaryNodeDetails::new</span>(<span class="ident">id</span>, <span class="ident">key_pair</span>, <span class="ident">parameters</span>.<span class="ident">clone</span>(), <span class="ident">committee</span>.<span class="ident">clone</span>());
+        <span class="kw">let</span> <span class="ident">primary</span> <span class="op">=</span> <span class="ident">PrimaryNodeDetails::new</span>(
+            <span class="ident">id</span>,
+            <span class="ident">key_pair</span>,
+            <span class="ident">parameters</span>.<span class="ident">clone</span>(),
+            <span class="ident">committee</span>.<span class="ident">clone</span>(),
+            <span class="ident">internal_consensus_enabled</span>,
+        );
 
         <span class="comment">// Create all the workers - even if we don&#39;t intend to start them all. Those</span>
         <span class="comment">// act as place holder setups. That gives us the power in a clear way manage</span>
@@ -1238,6 +1300,24 @@
                 }
             })
             .<span class="ident">collect</span>()
+    }
+
+    <span class="doccomment">/// Creates a new proposer client that connects to the corresponding client.</span>
+    <span class="doccomment">/// This should be available only if the internal consensus is disabled. If</span>
+    <span class="doccomment">/// the internal consensus is enabled then a panic will be thrown instead.</span>
+    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">new_proposer_client</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">ProposerClient</span><span class="op">&lt;</span><span class="ident">Channel</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">internal</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">internal</span>.<span class="ident">read</span>().<span class="kw">await</span>;
+
+        <span class="kw">if</span> <span class="ident">internal</span>.<span class="ident">primary</span>.<span class="ident">internal_consensus_enabled</span> {
+            <span class="macro">panic!</span>(<span class="string">&quot;External consensus is disabled, won&#39;t create a proposer client&quot;</span>);
+        }
+
+        <span class="kw">let</span> <span class="ident">config</span> <span class="op">=</span> <span class="ident">mysten_network::config::Config::new</span>();
+        <span class="kw">let</span> <span class="ident">channel</span> <span class="op">=</span> <span class="ident">config</span>
+            .<span class="ident">connect_lazy</span>(<span class="kw-2">&amp;</span><span class="ident">internal</span>.<span class="ident">primary</span>.<span class="ident">parameters</span>.<span class="ident">consensus_api_grpc</span>.<span class="ident">socket_addr</span>)
+            .<span class="ident">unwrap</span>();
+
+        <span class="ident">ProposerClient::new</span>(<span class="ident">channel</span>)
     }
 
     <span class="doccomment">/// This method will return true either when the primary or any of</span>

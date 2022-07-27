@@ -597,6 +597,14 @@
 <span id="591">591</span>
 <span id="592">592</span>
 <span id="593">593</span>
+<span id="594">594</span>
+<span id="595">595</span>
+<span id="596">596</span>
+<span id="597">597</span>
+<span id="598">598</span>
+<span id="599">599</span>
+<span id="600">600</span>
+<span id="601">601</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -917,21 +925,6 @@
             <span class="ident">rx_helper_requests</span>,
         );
 
-        <span class="kw">if</span> <span class="op">!</span><span class="ident">internal_consensus</span> {
-            <span class="comment">// Spawn a grpc server to accept requests from external consensus layer.</span>
-            <span class="ident">ConsensusAPIGrpc::spawn</span>(
-                <span class="ident">parameters</span>.<span class="ident">consensus_api_grpc</span>.<span class="ident">socket_addr</span>,
-                <span class="ident">tx_get_block_commands</span>,
-                <span class="ident">tx_block_removal_commands</span>,
-                <span class="ident">parameters</span>.<span class="ident">consensus_api_grpc</span>.<span class="ident">get_collections_timeout</span>,
-                <span class="ident">parameters</span>.<span class="ident">consensus_api_grpc</span>.<span class="ident">remove_collections_timeout</span>,
-                <span class="ident">block_synchronizer_handler</span>,
-                <span class="ident">dag</span>,
-                <span class="ident">committee</span>.<span class="ident">clone</span>(),
-                <span class="ident">endpoint_metrics</span>,
-            );
-        }
-
         <span class="comment">// Keeps track of the latest consensus round and allows other tasks to clean up their their internal state</span>
         <span class="kw">let</span> <span class="ident">state_handler_handle</span> <span class="op">=</span> <span class="ident">StateHandler::spawn</span>(
             <span class="ident">name</span>.<span class="ident">clone</span>(),
@@ -941,6 +934,23 @@
             <span class="ident">rx_state_handler</span>,
             <span class="ident">tx_reconfigure</span>,
         );
+
+        <span class="kw">let</span> <span class="ident">consensus_api_handle</span> <span class="op">=</span> <span class="kw">if</span> <span class="op">!</span><span class="ident">internal_consensus</span> {
+            <span class="comment">// Spawn a grpc server to accept requests from external consensus layer.</span>
+            <span class="prelude-val">Some</span>(<span class="ident">ConsensusAPIGrpc::spawn</span>(
+                <span class="ident">parameters</span>.<span class="ident">consensus_api_grpc</span>.<span class="ident">socket_addr</span>,
+                <span class="ident">tx_get_block_commands</span>,
+                <span class="ident">tx_block_removal_commands</span>,
+                <span class="ident">parameters</span>.<span class="ident">consensus_api_grpc</span>.<span class="ident">get_collections_timeout</span>,
+                <span class="ident">parameters</span>.<span class="ident">consensus_api_grpc</span>.<span class="ident">remove_collections_timeout</span>,
+                <span class="ident">block_synchronizer_handler</span>,
+                <span class="ident">dag</span>,
+                <span class="ident">committee</span>.<span class="ident">clone</span>(),
+                <span class="ident">endpoint_metrics</span>,
+            ))
+        } <span class="kw">else</span> {
+            <span class="prelude-val">None</span>
+        };
 
         <span class="comment">// NOTE: This log entry is used to compute performance.</span>
         <span class="macro">info!</span>(
@@ -953,7 +963,7 @@
                 .<span class="ident">primary_to_primary</span>
         );
 
-        <span class="macro">vec!</span>[
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">handles</span> <span class="op">=</span> <span class="macro">vec!</span>[
             <span class="ident">primary_receiver_handle</span>,
             <span class="ident">worker_receiver_handle</span>,
             <span class="ident">core_handle</span>,
@@ -966,7 +976,13 @@
             <span class="ident">proposer_handle</span>,
             <span class="ident">helper_handle</span>,
             <span class="ident">state_handler_handle</span>,
-        ]
+        ];
+
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">h</span>) <span class="op">=</span> <span class="ident">consensus_api_handle</span> {
+            <span class="ident">handles</span>.<span class="ident">push</span>(<span class="ident">h</span>);
+        }
+
+        <span class="ident">handles</span>
     }
 }
 

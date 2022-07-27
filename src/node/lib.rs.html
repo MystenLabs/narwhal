@@ -334,6 +334,9 @@
 <span id="328">328</span>
 <span id="329">329</span>
 <span id="330">330</span>
+<span id="331">331</span>
+<span id="332">332</span>
+<span id="333">333</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">Parameters</span>, <span class="ident">SharedCommittee</span>, <span class="ident">WorkerId</span>};
@@ -477,8 +480,11 @@
         <span class="kw">let</span> (<span class="ident">dag</span>, <span class="ident">network_model</span>) <span class="op">=</span> <span class="kw">if</span> <span class="op">!</span><span class="ident">internal_consensus</span> {
             <span class="macro">debug!</span>(<span class="string">&quot;Consensus is disabled: the primary will run w/o Tusk&quot;</span>);
             <span class="kw">let</span> <span class="ident">consensus_metrics</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">ConsensusMetrics::new</span>(<span class="ident">registry</span>));
-            <span class="kw">let</span> (<span class="ident">_handle</span>, <span class="ident">dag</span>) <span class="op">=</span>
+            <span class="kw">let</span> (<span class="ident">handle</span>, <span class="ident">dag</span>) <span class="op">=</span>
                 <span class="ident">Dag::new</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">committee</span>.<span class="ident">load</span>(), <span class="ident">rx_new_certificates</span>, <span class="ident">consensus_metrics</span>);
+
+            <span class="ident">handles</span>.<span class="ident">push</span>(<span class="ident">handle</span>);
+
             (<span class="prelude-val">Some</span>(<span class="ident">Arc::new</span>(<span class="ident">dag</span>)), <span class="ident">NetworkModel::Asynchronous</span>)
         } <span class="kw">else</span> {
             <span class="kw">let</span> <span class="ident">consensus_handles</span> <span class="op">=</span> <span class="ident"><span class="self">Self</span>::spawn_consensus</span>(
