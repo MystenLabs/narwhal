@@ -463,7 +463,7 @@
     <span class="kw">where</span>
         <span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span>,
         <span class="ident">Keys</span>: <span class="ident">KeyPair</span><span class="op">&lt;</span><span class="ident">PubKey</span> <span class="op">=</span> <span class="ident">PublicKey</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Signer</span><span class="op">&lt;</span><span class="ident">PublicKey::Sig</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-        <span class="ident">State</span>: <span class="ident">ExecutionState</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+        <span class="ident">State</span>: <span class="ident">ExecutionState</span><span class="op">&lt;</span><span class="ident">PubKey</span> <span class="op">=</span> <span class="ident">PublicKey</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
         <span class="ident">State::Outcome</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
         <span class="ident">State::Error</span>: <span class="ident">Debug</span>,
     {
@@ -576,7 +576,7 @@
     ) -&gt; <span class="ident">SubscriberResult</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>
     <span class="kw">where</span>
         <span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span>,
-        <span class="ident">State</span>: <span class="ident">ExecutionState</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+        <span class="ident">State</span>: <span class="ident">ExecutionState</span><span class="op">&lt;</span><span class="ident">PubKey</span> <span class="op">=</span> <span class="ident">PublicKey</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
         <span class="ident">State::Outcome</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
         <span class="ident">State::Error</span>: <span class="ident">Debug</span>,
     {

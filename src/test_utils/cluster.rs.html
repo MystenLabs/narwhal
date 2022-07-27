@@ -958,7 +958,7 @@
             <span class="kw-2">&amp;</span><span class="ident">primary_store</span>,
             <span class="self">self</span>.<span class="ident">parameters</span>.<span class="ident">clone</span>(),
             <span class="comment">/* consensus */</span> <span class="self">self</span>.<span class="ident">internal_consensus_enabled</span>,
-            <span class="comment">/* execution_state */</span> <span class="ident">Arc::new</span>(<span class="ident">SimpleExecutionState</span>),
+            <span class="comment">/* execution_state */</span> <span class="ident">Arc::new</span>(<span class="ident">SimpleExecutionState::default</span>()),
             <span class="ident">tx_transaction_confirmation</span>,
             <span class="kw-2">&amp;</span><span class="ident">registry</span>,
         )

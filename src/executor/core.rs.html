@@ -267,6 +267,8 @@
 <span id="261">261</span>
 <span id="262">262</span>
 <span id="263">263</span>
+<span id="264">264</span>
+<span id="265">265</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="kw">crate</span>::{
@@ -299,7 +301,7 @@
 <span class="doccomment">/// consensus messages in the right and complete order. All transactions data referenced by the</span>
 <span class="doccomment">/// certificate should already be downloaded in the temporary storage. This module ensures it does</span>
 <span class="doccomment">/// not processes twice the same transaction (despite crash-recovery).</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Core</span><span class="op">&lt;</span><span class="ident">State</span>: <span class="ident">ExecutionState</span>, <span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Core</span><span class="op">&lt;</span><span class="ident">State</span>: <span class="ident">ExecutionState</span><span class="op">&lt;</span><span class="ident">PubKey</span> <span class="op">=</span> <span class="ident">PublicKey</span><span class="op">&gt;</span>, <span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> {
     <span class="doccomment">/// The temporary storage holding all transactions&#39; data (that may be too big to hold in memory).</span>
     <span class="ident">store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">BatchDigest</span>, <span class="ident">SerializedBatchMessage</span><span class="op">&gt;</span>,
     <span class="doccomment">/// The (global) state to perform execution.</span>
@@ -314,7 +316,9 @@
     <span class="ident">execution_indices</span>: <span class="ident">ExecutionIndices</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">State</span>: <span class="ident">ExecutionState</span>, <span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> <span class="ident">Drop</span> <span class="kw">for</span> <span class="ident">Core</span><span class="op">&lt;</span><span class="ident">State</span>, <span class="ident">PublicKey</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">State</span>: <span class="ident">ExecutionState</span><span class="op">&lt;</span><span class="ident">PubKey</span> <span class="op">=</span> <span class="ident">PublicKey</span><span class="op">&gt;</span>, <span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> <span class="ident">Drop</span>
+    <span class="kw">for</span> <span class="ident">Core</span><span class="op">&lt;</span><span class="ident">State</span>, <span class="ident">PublicKey</span><span class="op">&gt;</span>
+{
     <span class="kw">fn</span> <span class="ident">drop</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
         <span class="self">self</span>.<span class="ident">execution_state</span>.<span class="ident">release_consensus_write_lock</span>();
     }
@@ -322,7 +326,7 @@
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">State</span>, <span class="ident">PublicKey</span><span class="op">&gt;</span> <span class="ident">Core</span><span class="op">&lt;</span><span class="ident">State</span>, <span class="ident">PublicKey</span><span class="op">&gt;</span>
 <span class="kw">where</span>
-    <span class="ident">State</span>: <span class="ident">ExecutionState</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+    <span class="ident">State</span>: <span class="ident">ExecutionState</span><span class="op">&lt;</span><span class="ident">PubKey</span> <span class="op">=</span> <span class="ident">PublicKey</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
     <span class="ident">State::Outcome</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
     <span class="ident">State::Error</span>: <span class="ident">Debug</span>,
     <span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span>,

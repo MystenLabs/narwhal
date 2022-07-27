@@ -176,6 +176,8 @@
 <span id="170">170</span>
 <span id="171">171</span>
 <span id="172">172</span>
+<span id="173">173</span>
+<span id="174">174</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">mod</span> <span class="ident">batch_loader</span>;
@@ -228,6 +230,8 @@
 
 <span class="attribute">#[<span class="ident">async_trait</span>]</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">ExecutionState</span> {
+    <span class="kw">type</span> <span class="ident">PubKey</span>: <span class="ident">VerifyingKey</span>;
+
     <span class="doccomment">/// The type of the transaction to process.</span>
     <span class="kw">type</span> <span class="ident">Transaction</span>: <span class="ident">DeserializeOwned</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Debug</span>;
 
@@ -240,12 +244,12 @@
     <span class="doccomment">/// Execute the transaction and atomically persist the consensus index. This function</span>
     <span class="doccomment">/// returns an execution outcome that will be output by the executor channel. It may</span>
     <span class="doccomment">/// also return a new committee to reconfigure the system.</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">handle_consensus_transaction</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span>(
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">handle_consensus_transaction</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">consensus_output</span>: <span class="kw-2">&amp;</span><span class="ident">ConsensusOutput</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
+        <span class="ident">consensus_output</span>: <span class="kw-2">&amp;</span><span class="ident">ConsensusOutput</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::PubKey</span><span class="op">&gt;</span>,
         <span class="ident">execution_indices</span>: <span class="ident">ExecutionIndices</span>,
         <span class="ident">transaction</span>: <span class="ident"><span class="self">Self</span>::Transaction</span>,
-    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident"><span class="self">Self</span>::Outcome</span>, <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>), <span class="ident"><span class="self">Self</span>::Error</span><span class="op">&gt;</span>;
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident"><span class="self">Self</span>::Outcome</span>, <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Committee</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::PubKey</span><span class="op">&gt;</span><span class="op">&gt;</span>), <span class="ident"><span class="self">Self</span>::Error</span><span class="op">&gt;</span>;
 
     <span class="doccomment">/// Simple guardrail ensuring there is a single instance using the state</span>
     <span class="doccomment">/// to call `handle_consensus_transaction`. Many instances may read the state,</span>
@@ -282,7 +286,7 @@
         <span class="ident">tx_output</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">ExecutorOutput</span><span class="op">&lt;</span><span class="ident">State</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     ) -&gt; <span class="ident">SubscriberResult</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>
     <span class="kw">where</span>
-        <span class="ident">State</span>: <span class="ident">ExecutionState</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+        <span class="ident">State</span>: <span class="ident">ExecutionState</span><span class="op">&lt;</span><span class="ident">PubKey</span> <span class="op">=</span> <span class="ident">PublicKey</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
         <span class="ident">State::Outcome</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
         <span class="ident">State::Error</span>: <span class="ident">Debug</span>,
         <span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span>,
