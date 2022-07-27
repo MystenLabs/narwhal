@@ -60,14 +60,15 @@ impl Configuration for NarwhalConfiguration {
             let public_key = self.get_public_key(validator.public_key.as_ref())?;
 
             let stake_weight = validator.stake_weight;
+            let default_primary_address = PrimaryAddressesProto::default();
             let primary_addresses = validator
                 .primary_addresses
                 .as_ref()
-                .ok_or_else(|| Status::invalid_argument("Missing primary addresses"))?;
+                .unwrap_or(&default_primary_address);
             let primary_to_primary = primary_addresses
                 .primary_to_primary
                 .as_ref()
-                .ok_or_else(|| Status::invalid_argument("Missing primary to primary address"))?
+                .unwrap_or(&MultiAddrProto::default())
                 .address
                 .parse()
                 .map_err(|err| {
@@ -76,7 +77,7 @@ impl Configuration for NarwhalConfiguration {
             let worker_to_primary = primary_addresses
                 .primary_to_primary
                 .as_ref()
-                .ok_or_else(|| Status::invalid_argument("Missing worker to primary address"))?
+                .unwrap_or(&MultiAddrProto::default())
                 .address
                 .parse()
                 .map_err(|err| {
@@ -113,19 +114,19 @@ impl Configuration for NarwhalConfiguration {
         let mut new_network_info = BTreeMap::new();
         for validator in validators.iter() {
             let public_key = self.get_public_key(validator.public_key.as_ref())?;
-
             let stake_weight: u32 = validator
                 .stake_weight
                 .try_into()
                 .map_err(|_| Status::invalid_argument("Invalid stake weight"))?;
+            let default_primary_address = PrimaryAddressesProto::default();
             let primary_addresses = validator
                 .primary_addresses
                 .as_ref()
-                .ok_or_else(|| Status::invalid_argument("Missing primary addresses"))?;
+                .unwrap_or(&default_primary_address);
             let primary_to_primary = primary_addresses
                 .primary_to_primary
                 .as_ref()
-                .ok_or_else(|| Status::invalid_argument("Missing primary to primary address"))?
+                .unwrap_or(&MultiAddrProto::default())
                 .address
                 .parse()
                 .map_err(|err| {
@@ -134,7 +135,7 @@ impl Configuration for NarwhalConfiguration {
             let worker_to_primary = primary_addresses
                 .primary_to_primary
                 .as_ref()
-                .ok_or_else(|| Status::invalid_argument("Missing worker to primary address"))?
+                .unwrap_or(&MultiAddrProto::default())
                 .address
                 .parse()
                 .map_err(|err| {

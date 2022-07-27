@@ -24,6 +24,24 @@ async fn test_new_epoch() {
 
     let public_key = PublicKeyProto::from(name);
     let stake_weight = 1;
+
+    // test empty multiaddr does not fail.
+    let request = tonic::Request::new(NewEpochRequest {
+        epoch_number: 0,
+        validators: vec![ValidatorData {
+            public_key: Some(public_key.clone()),
+            stake_weight,
+            primary_addresses: Some(PrimaryAddressesProto::default()),
+        }],
+    });
+
+    let status = client.new_epoch(request).await.unwrap_err();
+
+    println!("message: {:?}", status.message());
+
+    // Not fully implemented but a 'Not Implemented!' message indicates no parsing errors.
+    assert!(status.message().contains("Not Implemented!"));
+
     let primary_to_primary = Some(MultiAddrProto {
         address: "/ip4/127.0.0.1".to_string(),
     });
@@ -70,6 +88,30 @@ async fn test_new_network_info() {
     let public_keys: Vec<_> = committee.load().authorities.keys().cloned().collect();
 
     let mut validators = Vec::new();
+
+    // test empty multiaddr does not fail.
+    for public_key in public_keys.iter() {
+        let public_key_proto = PublicKeyProto::from(public_key.clone());
+        let stake_weight = 1;
+
+        validators.push(ValidatorData {
+            public_key: Some(public_key_proto),
+            stake_weight,
+            primary_addresses: Some(PrimaryAddressesProto::default()),
+        });
+    }
+
+    let request = tonic::Request::new(NewNetworkInfoRequest {
+        epoch_number: 0,
+        validators: validators.clone(),
+    });
+
+    let response = client.new_network_info(request).await.unwrap();
+    let actual_result = response.into_inner();
+    assert_eq!(Empty {}, actual_result);
+
+    validators.clear();
+
     for public_key in public_keys.iter() {
         let public_key_proto = PublicKeyProto::from(public_key.clone());
         let stake_weight = 1;
