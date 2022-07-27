@@ -538,6 +538,23 @@ impl AuthorityDetails {
         }
     }
 
+    /// Will restart the node with the current setup that has been chosen
+    /// (ex same number of nodes).
+    /// `preserve_store`: if true then the same storage will be used for the
+    /// node
+    /// `delay`: before starting again we'll wait for that long. If zero provided
+    /// then won't wait at all
+    pub async fn restart(&self, preserve_store: bool, delay: Duration) {
+        let num_of_workers = self.workers().await.len();
+
+        self.stop_all().await;
+
+        tokio::time::sleep(delay).await;
+
+        // now start again the node with the same workers
+        self.start(preserve_store, Some(num_of_workers)).await;
+    }
+
     /// Returns the current primary node running as a clone. If the primary
     ///node stops and starts again and it's needed by the user then this
     /// method should be called again to get the latest one.
@@ -565,6 +582,15 @@ impl AuthorityDetails {
     /// Important: only the addresses of the running workers will
     /// be returned.
     pub async fn worker_transaction_addresses(&self) -> Vec<Multiaddr> {
+        self.workers()
+            .await
+            .iter()
+            .map(|w| w.transactions_address.clone())
+            .collect()
+    }
+
+    /// Returns all the running workers
+    async fn workers(&self) -> Vec<WorkerNodeDetails> {
         let internal = self.internal.read().await;
 
         internal
@@ -572,7 +598,7 @@ impl AuthorityDetails {
             .iter()
             .filter_map(|(_, worker)| {
                 if worker.is_running() {
-                    Some(worker.transactions_address.clone())
+                    Some(worker.clone())
                 } else {
                     None
                 }
