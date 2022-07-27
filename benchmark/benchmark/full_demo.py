@@ -59,10 +59,10 @@ class Demo:
             sleep(0.5)  # Removing the store may take time.
 
             # Recompile the latest code.
-            cmd = CommandMaker.compile().split()
+            cmd = CommandMaker.compile(False)
             subprocess.run(cmd, check=True, cwd=PathMaker.node_crate_path())
             # Recompile the latest code.
-            cmd = CommandMaker.compile().split()
+            cmd = CommandMaker.compile(False)
             subprocess.run(cmd, check=True,
                            cwd=PathMaker.examples_crate_path())
 

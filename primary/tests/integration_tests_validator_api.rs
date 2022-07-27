@@ -25,7 +25,7 @@ use types::{
     Batch, BatchDigest, Certificate, CertificateDigest, CertificateDigestProto,
     CollectionRetrievalResult, Empty, GetCollectionsRequest, Header, HeaderDigest,
     ReadCausalRequest, ReconfigureNotification, RemoveCollectionsRequest, RetrievalResult,
-    SerializedBatchMessage, ValidatorClient,
+    SerializedBatchMessage, Transaction, ValidatorClient,
 };
 use worker::{
     metrics::{Metrics, WorkerEndpointMetrics, WorkerMetrics},
@@ -157,7 +157,7 @@ async fn test_get_collections() {
 
     assert!(status
         .message()
-        .contains("Attemped fetch of no collections!"));
+        .contains("Attempted fetch of no collections!"));
 
     // Test get 1 collection
     let request = tonic::Request::new(GetCollectionsRequest {
@@ -170,7 +170,7 @@ async fn test_get_collections() {
 
     assert!(matches!(
         actual_result[0].retrieval_result,
-        Some(types::RetrievalResult::TransactionList(_))
+        Some(types::RetrievalResult::Collection(_))
     ));
 
     // Test get 5 collections
@@ -190,7 +190,7 @@ async fn test_get_collections() {
             .iter()
             .filter(|&r| matches!(
                 r.retrieval_result,
-                Some(types::RetrievalResult::TransactionList(_))
+                Some(types::RetrievalResult::Collection(_))
             ))
             .count()
     );
@@ -361,7 +361,7 @@ async fn test_remove_collections() {
 
     assert!(status
         .message()
-        .contains("Attemped to remove no collections!"));
+        .contains("Attempted to remove no collections!"));
 
     // Test remove 1 collection
     let request = tonic::Request::new(RemoveCollectionsRequest {
@@ -852,8 +852,8 @@ async fn test_get_collections_with_missing_certificates() {
 
     // AND keep a map of batches and payload
     let mut batches_map = HashMap::new();
-    batches_map.insert(batch_1.digest(), batch_1);
-    batches_map.insert(batch_2.digest(), batch_2);
+    batches_map.insert(certificate_1.digest(), batch_1);
+    batches_map.insert(certificate_2.digest(), batch_2);
 
     let block_ids = vec![certificate_1.digest(), certificate_2.digest()];
 
@@ -966,19 +966,26 @@ async fn test_get_collections_with_missing_certificates() {
             .iter()
             .filter(|&r| matches!(
                 r.retrieval_result,
-                Some(types::RetrievalResult::TransactionList(_))
+                Some(types::RetrievalResult::Collection(_))
             ))
             .count()
     );
 
     for result in actual_result {
         match result.retrieval_result.unwrap() {
-            RetrievalResult::TransactionList(transaction_list) => {
-                let id: BatchDigest = transaction_list.id.unwrap().into();
-                let result_batch: Batch = transaction_list.transactions.unwrap().into();
+            RetrievalResult::Collection(collection) => {
+                let id: CertificateDigest = collection.id.unwrap().try_into().unwrap();
+                let result_transactions: Vec<Transaction> = collection
+                    .transactions
+                    .into_iter()
+                    .map(Into::into)
+                    .collect::<Vec<Transaction>>();
 
                 if let Some(expected_batch) = batches_map.get(&id) {
-                    assert_eq!(result_batch, *expected_batch, "Batch payload doesn't match");
+                    assert_eq!(
+                        result_transactions, *expected_batch.0,
+                        "Batch payload doesn't match"
+                    );
                 } else {
                     panic!("Unexpected batch!");
                 }
