@@ -23,9 +23,9 @@ mod validator;
 
 pub struct ConsensusAPIGrpc<SynchronizerHandler: Handler + Send + Sync + 'static> {
     // Multiaddr of NW primary
-    primary_addr: Multiaddr,
+    primary_address: Multiaddr,
     // Multiaddr of gRPC server
-    socket_addr: Multiaddr,
+    socket_address: Multiaddr,
     tx_get_block_commands: Sender<BlockCommand>,
     tx_block_removal_commands: Sender<BlockRemoverCommand>,
     get_collections_timeout: Duration,
@@ -38,8 +38,8 @@ pub struct ConsensusAPIGrpc<SynchronizerHandler: Handler + Send + Sync + 'static
 
 impl<SynchronizerHandler: Handler + Send + Sync + 'static> ConsensusAPIGrpc<SynchronizerHandler> {
     pub fn spawn(
-        primary_addr: Multiaddr,
-        socket_addr: Multiaddr,
+        primary_address: Multiaddr,
+        socket_address: Multiaddr,
         tx_get_block_commands: Sender<BlockCommand>,
         tx_block_removal_commands: Sender<BlockRemoverCommand>,
         get_collections_timeout: Duration,
@@ -51,8 +51,8 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> ConsensusAPIGrpc<Sync
     ) -> JoinHandle<()> {
         tokio::spawn(async move {
             let _ = Self {
-                primary_addr,
-                socket_addr,
+                primary_address,
+                socket_address,
                 tx_get_block_commands,
                 tx_block_removal_commands,
                 get_collections_timeout,
@@ -80,7 +80,7 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> ConsensusAPIGrpc<Sync
 
         let narwhal_proposer = NarwhalProposer::new(self.dag.clone(), Arc::clone(&self.committee));
         let narwhal_configuration =
-            NarwhalConfiguration::new(self.primary_addr.to_owned(), Arc::clone(&self.committee));
+            NarwhalConfiguration::new(self.primary_address.to_owned(), Arc::clone(&self.committee));
 
         let config = mysten_network::config::Config::default();
         let server = config
@@ -88,7 +88,7 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> ConsensusAPIGrpc<Sync
             .add_service(ValidatorServer::new(narwhal_validator))
             .add_service(ConfigurationServer::new(narwhal_configuration))
             .add_service(ProposerServer::new(narwhal_proposer))
-            .bind(&self.socket_addr)
+            .bind(&self.socket_address)
             .await?;
         let local_addr = server.local_addr();
         info!("Consensus API gRPC Server listening on {local_addr}");

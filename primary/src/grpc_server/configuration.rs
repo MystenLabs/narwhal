@@ -11,15 +11,15 @@ use types::{
 };
 
 pub struct NarwhalConfiguration {
-    primary_addr: Multiaddr,
+    primary_address: Multiaddr,
     /// The committee
     committee: SharedCommittee,
 }
 
 impl NarwhalConfiguration {
-    pub fn new(primary_addr: Multiaddr, committee: SharedCommittee) -> Self {
+    pub fn new(primary_address: Multiaddr, committee: SharedCommittee) -> Self {
         Self {
-            primary_addr,
+            primary_address,
             committee,
         }
     }
@@ -161,7 +161,7 @@ impl Configuration for NarwhalConfiguration {
     ) -> Result<Response<GetPrimaryAddressResponse>, Status> {
         Ok(Response::new(GetPrimaryAddressResponse {
             primary_address: Some(MultiAddrProto {
-                address: self.primary_addr.to_string(),
+                address: self.primary_address.to_string(),
             }),
         }))
     }
