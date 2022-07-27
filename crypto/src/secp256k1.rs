@@ -393,3 +393,14 @@ impl From<Secp256k1PrivateKey> for Secp256k1KeyPair {
         Secp256k1KeyPair { name, secret }
     }
 }
+
+impl Secp256k1Signature {
+    /// Recover public key from signature
+    pub fn recover(&self, hashed_msg: &[u8]) -> Result<Secp256k1PublicKey, signature::Error> {
+        let hashed_msg = rust_secp256k1::Message::from_slice(hashed_msg).unwrap();
+        match self.sig.recover(&hashed_msg) {
+            Ok(pubkey) => Secp256k1PublicKey::from_bytes(pubkey.serialize().as_slice()),
+            Err(_) => Err(signature::Error::new()),
+        }
+    }
+}
