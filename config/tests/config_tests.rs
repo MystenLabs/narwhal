@@ -1,6 +1,21 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+// This file contains tests that detect changes in Narwhal configs and parameters.
+// If a PR breaks one or more tests here, the PR probably has a real impact
+// on a Narwhal configuration file. When test failure happens, the PR should
+// be marked as a breaking change and reviewers should be aware of this.
+//
+// Owners and operators of production configuration files can add themselves to
+// .github/CODEOWNERS for the corresponding snapshot tests, so they can get notified
+// of changes. PRs that modifies snapshot files should wait for reviews from
+// code owners (if any) before merging.
+//
+// To review snapshot changes, and fix snapshot differences,
+// 0. Install cargo-insta
+// 1. Run `cargo insta test --review` under `./config`.
+// 2. Review, accept or reject changes.
+
 use std::collections::BTreeMap;
 
 use config::{
