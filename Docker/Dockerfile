@@ -61,7 +61,7 @@ ARG FEATURES="celo,benchmark"
 COPY --from=planner /narwhal/Cargo.toml Cargo.toml
 COPY --from=planner /narwhal/Cargo.lock Cargo.lock
 COPY --from=planner /narwhal/workspace-hack workspace-hack
-RUN cargo build --${BUILD_MODE} --features ${FEATURES}
+RUN cargo build --${BUILD_MODE} --all-features
 
 #################################################################
 # Stage 2.5 : Building
