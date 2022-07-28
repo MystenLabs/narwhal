@@ -21,7 +21,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get -qq update \
     libssl-dev \
     pkg-config \
     clang \
-    cmake  2> /dev/null > /dev/null \
+    cmake > /dev/null 2>&1 \
     && rm -rf /var/lib/apt/lists/*
 # Install the fmt
 RUN rustup component add rustfmt
