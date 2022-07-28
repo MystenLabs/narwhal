@@ -11,7 +11,7 @@ WORKDIR "$WORKDIR/narwhal"
 ARG BUILD_MODE
 
 # Install basic dependencies
-RUN apt-get -qq update \
+RUN DEBIAN_FRONTEND=noninteractive apt-get -qq update \
     && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get -qq install -y --no-install-recommends \
     tzdata \
     git \
@@ -21,7 +21,7 @@ RUN apt-get -qq update \
     libssl-dev \
     pkg-config \
     clang \
-    cmake \
+    cmake  2> /dev/null > /dev/null \
     && rm -rf /var/lib/apt/lists/*
 # Install the fmt
 RUN rustup component add rustfmt
