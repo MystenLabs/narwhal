@@ -1,11 +1,11 @@
-use mysten_network::metrics::MetricsCallbackProvider;
-use std::time::Duration;
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
+use mysten_network::metrics::MetricsCallbackProvider;
 use prometheus::{
     default_registry, register_histogram_vec_with_registry, register_int_counter_vec_with_registry,
     register_int_gauge_vec_with_registry, HistogramVec, IntCounterVec, IntGaugeVec, Registry,
 };
+use std::time::Duration;
 use tonic::Code;
 
 #[derive(Clone)]
