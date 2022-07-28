@@ -158,7 +158,7 @@
 <span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">Committee</span>, <span class="ident">Stake</span>, <span class="ident">WorkerId</span>};
 <span class="kw">use</span> <span class="ident">crypto::traits::VerifyingKey</span>;
 <span class="kw">use</span> <span class="ident">futures::stream</span>::{<span class="ident">futures_unordered::FuturesUnordered</span>, <span class="ident">StreamExt</span> <span class="kw">as</span> <span class="kw">_</span>};
-<span class="kw">use</span> <span class="ident">network</span>::{<span class="ident">CancelHandler</span>, <span class="ident">MessageResult</span>, <span class="ident">WorkerNetwork</span>};
+<span class="kw">use</span> <span class="ident">network</span>::{<span class="ident">CancelOnDropHandler</span>, <span class="ident">MessageResult</span>, <span class="ident">WorkerNetwork</span>};
 <span class="kw">use</span> <span class="ident">tokio</span>::{
     <span class="ident">sync</span>::{
         <span class="ident">mpsc</span>::{<span class="ident">Receiver</span>, <span class="ident">Sender</span>},
@@ -218,7 +218,7 @@
     }
 
     <span class="doccomment">/// Helper function. It waits for a future to complete and then delivers a value.</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">waiter</span>(<span class="ident">wait_for</span>: <span class="ident">CancelHandler</span><span class="op">&lt;</span><span class="ident">MessageResult</span><span class="op">&gt;</span>, <span class="ident">deliver</span>: <span class="ident">Stake</span>) -&gt; <span class="ident">Stake</span> {
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">waiter</span>(<span class="ident">wait_for</span>: <span class="ident">CancelOnDropHandler</span><span class="op">&lt;</span><span class="ident">MessageResult</span><span class="op">&gt;</span>, <span class="ident">deliver</span>: <span class="ident">Stake</span>) -&gt; <span class="ident">Stake</span> {
         <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">wait_for</span>.<span class="kw">await</span>;
         <span class="ident">deliver</span>
     }
@@ -301,5 +301,5 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (4d6d601c8 2022-07-26)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (2643b1646 2022-07-27)" ></div>
 </body></html>

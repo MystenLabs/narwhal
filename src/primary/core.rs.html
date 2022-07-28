@@ -645,7 +645,7 @@
 <span class="kw">use</span> <span class="ident">async_recursion::async_recursion</span>;
 <span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">Committee</span>, <span class="ident">Epoch</span>};
 <span class="kw">use</span> <span class="ident">crypto</span>::{<span class="ident">traits::VerifyingKey</span>, <span class="ident">Hash</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">SignatureService</span>};
-<span class="kw">use</span> <span class="ident">network</span>::{<span class="ident">CancelHandler</span>, <span class="ident">MessageResult</span>, <span class="ident">PrimaryNetwork</span>};
+<span class="kw">use</span> <span class="ident">network</span>::{<span class="ident">CancelOnDropHandler</span>, <span class="ident">MessageResult</span>, <span class="ident">PrimaryNetwork</span>};
 <span class="kw">use</span> <span class="ident">std</span>::{
     <span class="ident">collections</span>::{<span class="ident">HashMap</span>, <span class="ident">HashSet</span>},
     <span class="ident">sync</span>::{
@@ -721,7 +721,7 @@
     <span class="doccomment">/// A network sender to send the batches to the other workers.</span>
     <span class="ident">network</span>: <span class="ident">PrimaryNetwork</span>,
     <span class="doccomment">/// Keeps the cancel handlers of the messages we sent.</span>
-    <span class="ident">cancel_handlers</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">Round</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">CancelHandler</span><span class="op">&lt;</span><span class="ident">MessageResult</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">cancel_handlers</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">Round</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">CancelOnDropHandler</span><span class="op">&lt;</span><span class="ident">MessageResult</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="doccomment">/// Metrics handler</span>
     <span class="ident">metrics</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">PrimaryMetrics</span><span class="op">&gt;</span>,
 }
@@ -1263,5 +1263,5 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (4d6d601c8 2022-07-26)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (2643b1646 2022-07-27)" ></div>
 </body></html>

@@ -274,10 +274,18 @@
 <span id="268">268</span>
 <span id="269">269</span>
 <span id="270">270</span>
+<span id="271">271</span>
+<span id="272">272</span>
+<span id="273">273</span>
+<span id="274">274</span>
+<span id="275">275</span>
+<span id="276">276</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 
-<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">BoundedExecutor</span>, <span class="ident">CancelHandler</span>, <span class="ident">MessageResult</span>, <span class="ident">RetryConfig</span>, <span class="ident">MAX_TASK_CONCURRENCY</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::{
+    <span class="ident">BoundedExecutor</span>, <span class="ident">CancelOnDropHandler</span>, <span class="ident">MessageResult</span>, <span class="ident">RetryConfig</span>, <span class="ident">MAX_TASK_CONCURRENCY</span>,
+};
 <span class="kw">use</span> <span class="ident">crypto::traits::VerifyingKey</span>;
 <span class="kw">use</span> <span class="ident">multiaddr::Multiaddr</span>;
 <span class="kw">use</span> <span class="ident">rand</span>::{<span class="ident">prelude::SliceRandom</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">rngs::SmallRng</span>, <span class="ident">SeedableRng</span> <span class="kw">as</span> <span class="kw">_</span>};
@@ -342,7 +350,7 @@
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">address</span>: <span class="ident">Multiaddr</span>,
         <span class="ident">message</span>: <span class="kw-2">&amp;</span><span class="ident">PrimaryMessage</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="ident">CancelHandler</span><span class="op">&lt;</span><span class="ident">MessageResult</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="ident">CancelOnDropHandler</span><span class="op">&lt;</span><span class="ident">MessageResult</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span>
             <span class="ident">BincodeEncodedPayload::try_from</span>(<span class="ident">message</span>).<span class="ident">expect</span>(<span class="string">&quot;Failed to serialize payload&quot;</span>);
         <span class="self">self</span>.<span class="ident">send_message</span>(<span class="ident">address</span>, <span class="ident">message</span>).<span class="kw">await</span>
@@ -358,7 +366,7 @@
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">address</span>: <span class="ident">Multiaddr</span>,
         <span class="ident">message</span>: <span class="ident">BincodeEncodedPayload</span>,
-    ) -&gt; <span class="ident">CancelHandler</span><span class="op">&lt;</span><span class="ident">MessageResult</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="ident">CancelOnDropHandler</span><span class="op">&lt;</span><span class="ident">MessageResult</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">client</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">client</span>(<span class="ident">address</span>.<span class="ident">clone</span>());
 
         <span class="kw">let</span> <span class="ident">message_send</span> <span class="op">=</span> <span class="kw">move</span> <span class="op">|</span><span class="op">|</span> {
@@ -380,14 +388,14 @@
             .<span class="ident">or_insert_with</span>(<span class="ident">default_executor</span>)
             .<span class="ident">spawn_with_retries</span>(<span class="self">self</span>.<span class="ident">retry_config</span>, <span class="ident">message_send</span>);
 
-        <span class="ident">CancelHandler</span>(<span class="ident">handle</span>)
+        <span class="ident">CancelOnDropHandler</span>(<span class="ident">handle</span>)
     }
 
     <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">broadcast</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span>(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">addresses</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Multiaddr</span><span class="op">&gt;</span>,
         <span class="ident">message</span>: <span class="kw-2">&amp;</span><span class="ident">PrimaryMessage</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">CancelHandler</span><span class="op">&lt;</span><span class="ident">MessageResult</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">CancelOnDropHandler</span><span class="op">&lt;</span><span class="ident">MessageResult</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span>
             <span class="ident">BincodeEncodedPayload::try_from</span>(<span class="ident">message</span>).<span class="ident">expect</span>(<span class="string">&quot;Failed to serialize payload&quot;</span>);
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">handlers</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
@@ -415,8 +423,8 @@
             .<span class="kw">await</span>
     }
 
-    <span class="doccomment">/// Pick a few addresses at random (specified by `nodes`) and try (best-effort) to send the</span>
-    <span class="doccomment">/// message only to them. This is useful to pick nodes with whom to sync.</span>
+    <span class="doccomment">/// Broadcasts a message to all `addresses` passed as an argument.</span>
+    <span class="doccomment">/// The attempts to send individual messages are best effort and will not be retried.</span>
     <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">unreliable_broadcast</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span>(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">addresses</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Multiaddr</span><span class="op">&gt;</span>,
@@ -506,7 +514,9 @@
         <span class="ident">PrimaryToWorkerClient::new</span>(<span class="ident">channel</span>)
     }
 
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">send</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span>(
+    <span class="doccomment">/// Sends a message to an `address` passed as an argument.</span>
+    <span class="doccomment">/// The attempt to send a message is best effort and will not be retried.</span>
+    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">unreliable_send</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span>(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">address</span>: <span class="ident">Multiaddr</span>,
         <span class="ident">message</span>: <span class="kw-2">&amp;</span><span class="ident">PrimaryWorkerMessage</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>,
@@ -521,7 +531,9 @@
             .<span class="kw">await</span>
     }
 
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">broadcast</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span>(
+    <span class="doccomment">/// Broadcasts a message to all `addresses` passed as an argument.</span>
+    <span class="doccomment">/// The attempts to send individual messages are best effort and will not be retried.</span>
+    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">unreliable_broadcast</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span>(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">addresses</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Multiaddr</span><span class="op">&gt;</span>,
         <span class="ident">message</span>: <span class="kw-2">&amp;</span><span class="ident">PrimaryWorkerMessage</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>,
@@ -545,5 +557,5 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="network" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (4d6d601c8 2022-07-26)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="network" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (2643b1646 2022-07-27)" ></div>
 </body></html>

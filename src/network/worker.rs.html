@@ -248,9 +248,13 @@
 <span id="242">242</span>
 <span id="243">243</span>
 <span id="244">244</span>
+<span id="245">245</span>
+<span id="246">246</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">BoundedExecutor</span>, <span class="ident">CancelHandler</span>, <span class="ident">MessageResult</span>, <span class="ident">RetryConfig</span>, <span class="ident">MAX_TASK_CONCURRENCY</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::{
+    <span class="ident">BoundedExecutor</span>, <span class="ident">CancelOnDropHandler</span>, <span class="ident">MessageResult</span>, <span class="ident">RetryConfig</span>, <span class="ident">MAX_TASK_CONCURRENCY</span>,
+};
 <span class="kw">use</span> <span class="ident">crypto::traits::VerifyingKey</span>;
 <span class="kw">use</span> <span class="ident">multiaddr::Multiaddr</span>;
 <span class="kw">use</span> <span class="ident">rand</span>::{<span class="ident">prelude::SliceRandom</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">rngs::SmallRng</span>, <span class="ident">SeedableRng</span> <span class="kw">as</span> <span class="kw">_</span>};
@@ -314,7 +318,7 @@
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">address</span>: <span class="ident">Multiaddr</span>,
         <span class="ident">message</span>: <span class="kw-2">&amp;</span><span class="ident">WorkerMessage</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="ident">CancelHandler</span><span class="op">&lt;</span><span class="ident">MessageResult</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="ident">CancelOnDropHandler</span><span class="op">&lt;</span><span class="ident">MessageResult</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span>
             <span class="ident">BincodeEncodedPayload::try_from</span>(<span class="ident">message</span>).<span class="ident">expect</span>(<span class="string">&quot;Failed to serialize payload&quot;</span>);
         <span class="self">self</span>.<span class="ident">send_message</span>(<span class="ident">address</span>, <span class="ident">message</span>).<span class="kw">await</span>
@@ -330,7 +334,7 @@
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">address</span>: <span class="ident">Multiaddr</span>,
         <span class="ident">message</span>: <span class="ident">BincodeEncodedPayload</span>,
-    ) -&gt; <span class="ident">CancelHandler</span><span class="op">&lt;</span><span class="ident">MessageResult</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="ident">CancelOnDropHandler</span><span class="op">&lt;</span><span class="ident">MessageResult</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">client</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">client</span>(<span class="ident">address</span>.<span class="ident">clone</span>());
 
         <span class="kw">let</span> <span class="ident">message_send</span> <span class="op">=</span> <span class="kw">move</span> <span class="op">|</span><span class="op">|</span> {
@@ -352,14 +356,14 @@
             .<span class="ident">or_insert_with</span>(<span class="ident">default_executor</span>)
             .<span class="ident">spawn_with_retries</span>(<span class="self">self</span>.<span class="ident">retry_config</span>, <span class="ident">message_send</span>);
 
-        <span class="ident">CancelHandler</span>(<span class="ident">handle</span>)
+        <span class="ident">CancelOnDropHandler</span>(<span class="ident">handle</span>)
     }
 
     <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">broadcast</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span>(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">addresses</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Multiaddr</span><span class="op">&gt;</span>,
         <span class="ident">message</span>: <span class="kw-2">&amp;</span><span class="ident">WorkerMessage</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">CancelHandler</span><span class="op">&lt;</span><span class="ident">MessageResult</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">CancelOnDropHandler</span><span class="op">&lt;</span><span class="ident">MessageResult</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span>
             <span class="ident">BincodeEncodedPayload::try_from</span>(<span class="ident">message</span>).<span class="ident">expect</span>(<span class="string">&quot;Failed to serialize payload&quot;</span>);
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">handlers</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
@@ -457,7 +461,7 @@
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">address</span>: <span class="ident">Multiaddr</span>,
         <span class="ident">message</span>: <span class="kw-2">&amp;</span><span class="ident">WorkerPrimaryMessage</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="ident">CancelHandler</span><span class="op">&lt;</span><span class="ident">MessageResult</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="ident">CancelOnDropHandler</span><span class="op">&lt;</span><span class="ident">MessageResult</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">new_client</span> <span class="op">=</span> <span class="kw">match</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">address</span> {
             <span class="prelude-val">None</span> =&gt; <span class="bool-val">true</span>,
             <span class="prelude-val">Some</span>(<span class="ident">x</span>) <span class="kw">if</span> <span class="ident">x</span> <span class="op">!</span><span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">address</span> =&gt; <span class="bool-val">true</span>,
@@ -489,9 +493,9 @@
             .<span class="ident">executor</span>
             .<span class="ident">spawn_with_retries</span>(<span class="self">self</span>.<span class="ident">retry_config</span>, <span class="ident">message_send</span>);
 
-        <span class="ident">CancelHandler</span>(<span class="ident">handle</span>)
+        <span class="ident">CancelOnDropHandler</span>(<span class="ident">handle</span>)
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="network" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (4d6d601c8 2022-07-26)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="network" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (2643b1646 2022-07-27)" ></div>
 </body></html>
