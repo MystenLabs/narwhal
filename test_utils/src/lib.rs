@@ -6,9 +6,8 @@ use config::{
     WorkerId,
 };
 use crypto::{
-    ed25519::{Ed25519KeyPair, Ed25519PublicKey, Ed25519Signature},
-    traits::{KeyPair, Signer},
-    Digest, Hash as _,
+    traits::{KeyPair as _, Signer as _},
+    Digest, Hash as _, KeyPair, PublicKey, Signature,
 };
 use futures::Stream;
 use multiaddr::Multiaddr;
@@ -47,7 +46,7 @@ pub fn temp_dir() -> std::path::PathBuf {
 ////////////////////////////////////////////////////////////////
 
 // Fixture
-pub fn keys(rng_seed: impl Into<Option<u64>>) -> Vec<Ed25519KeyPair> {
+pub fn keys(rng_seed: impl Into<Option<u64>>) -> Vec<KeyPair> {
     let seed = rng_seed.into().unwrap_or(0u64).to_le_bytes();
     let mut rng_arg = [0u8; 32];
     for i in 0..4 {
@@ -55,14 +54,14 @@ pub fn keys(rng_seed: impl Into<Option<u64>>) -> Vec<Ed25519KeyPair> {
     }
 
     let mut rng = StdRng::from_seed(rng_arg);
-    (0..4).map(|_| Ed25519KeyPair::generate(&mut rng)).collect()
+    (0..4).map(|_| KeyPair::generate(&mut rng)).collect()
 }
 
 // Fixture
 pub fn committee(rng_seed: impl Into<Option<u64>>) -> Committee {
     committee_from_keys(&keys(rng_seed))
 }
-pub fn committee_from_keys(keys: &[Ed25519KeyPair]) -> Committee {
+pub fn committee_from_keys(keys: &[KeyPair]) -> Committee {
     pure_committee_from_keys(keys)
 }
 
@@ -148,7 +147,7 @@ pub fn make_authority() -> Authority {
     make_authority_with_port_getter(get_available_port)
 }
 
-pub fn pure_committee_from_keys(keys: &[Ed25519KeyPair]) -> Committee {
+pub fn pure_committee_from_keys(keys: &[KeyPair]) -> Committee {
     Committee {
         epoch: Epoch::default(),
         authorities: keys
@@ -163,7 +162,7 @@ pub fn pure_committee_from_keys(keys: &[Ed25519KeyPair]) -> Committee {
 ////////////////////////////////////////////////////////////////
 
 // Fixture
-pub fn mock_committee(keys: &[Ed25519PublicKey]) -> Committee {
+pub fn mock_committee(keys: &[PublicKey]) -> Committee {
     Committee {
         epoch: Epoch::default(),
         authorities: keys
@@ -193,7 +192,7 @@ pub fn make_consensus_store(store_path: &std::path::Path) -> Arc<ConsensusStore>
         .expect("Failed creating database");
 
     let (last_committed_map, sequence_map) = reopen!(&rocksdb,
-        LAST_COMMITTED_CF;<Ed25519PublicKey, Round>,
+        LAST_COMMITTED_CF;<PublicKey, Round>,
         SEQUENCE_CF;<SequenceNumber, CertificateDigest>
     );
 
@@ -354,7 +353,7 @@ pub fn votes(header: &Header) -> Vec<Vote> {
                     epoch: header.epoch,
                     origin: header.author.clone(),
                     author: kp.public().clone(),
-                    signature: Ed25519Signature::default(),
+                    signature: Signature::default(),
                 };
                 Some(Vote {
                     signature: kp.sign(Digest::from(vote.digest()).as_ref()),
@@ -523,7 +522,7 @@ impl WorkerToWorker for WorkerToWorkerMockServer {
 }
 
 // helper method to get a name and a committee.
-pub fn resolve_name_and_committee() -> (Ed25519PublicKey, Committee) {
+pub fn resolve_name_and_committee() -> (PublicKey, Committee) {
     let mut keys = keys(None);
     let _ = keys.pop().unwrap(); // Skip the header' author.
     let kp = keys.pop().unwrap();
@@ -603,7 +602,7 @@ pub fn open_batch_store() -> Store<BatchDigest, types::SerializedBatchMessage> {
 pub fn make_optimal_certificates(
     range: RangeInclusive<Round>,
     initial_parents: &BTreeSet<CertificateDigest>,
-    keys: &[Ed25519PublicKey],
+    keys: &[PublicKey],
 ) -> (VecDeque<Certificate>, BTreeSet<CertificateDigest>) {
     make_certificates(range, initial_parents, keys, 0.0)
 }
@@ -612,7 +611,7 @@ pub fn make_optimal_certificates(
 pub fn make_optimal_signed_certificates(
     range: RangeInclusive<Round>,
     initial_parents: &BTreeSet<CertificateDigest>,
-    keys: &[Ed25519KeyPair],
+    keys: &[KeyPair],
 ) -> (VecDeque<Certificate>, BTreeSet<CertificateDigest>) {
     make_signed_certificates(range, initial_parents, keys, 0.0)
 }
@@ -637,10 +636,10 @@ fn this_cert_parents(
 fn rounds_of_certificates(
     range: RangeInclusive<Round>,
     initial_parents: &BTreeSet<CertificateDigest>,
-    keys: &[Ed25519PublicKey],
+    keys: &[PublicKey],
     failure_probability: f64,
     make_one_certificate: impl Fn(
-        Ed25519PublicKey,
+        PublicKey,
         Round,
         BTreeSet<CertificateDigest>,
     ) -> (CertificateDigest, Certificate),
@@ -668,7 +667,7 @@ fn rounds_of_certificates(
 pub fn make_certificates(
     range: RangeInclusive<Round>,
     initial_parents: &BTreeSet<CertificateDigest>,
-    keys: &[Ed25519PublicKey],
+    keys: &[PublicKey],
     failure_probability: f64,
 ) -> (VecDeque<Certificate>, BTreeSet<CertificateDigest>) {
     rounds_of_certificates(
@@ -685,7 +684,7 @@ pub fn make_certificates_with_epoch(
     range: RangeInclusive<Round>,
     epoch: Epoch,
     initial_parents: &BTreeSet<CertificateDigest>,
-    keys: &[Ed25519PublicKey],
+    keys: &[PublicKey],
 ) -> (VecDeque<Certificate>, BTreeSet<CertificateDigest>) {
     let mut certificates = VecDeque::new();
     let mut parents = initial_parents.iter().cloned().collect::<BTreeSet<_>>();
@@ -708,7 +707,7 @@ pub fn make_certificates_with_epoch(
 pub fn make_signed_certificates(
     range: RangeInclusive<Round>,
     initial_parents: &BTreeSet<CertificateDigest>,
-    keys: &[Ed25519KeyPair],
+    keys: &[KeyPair],
     failure_probability: f64,
 ) -> (VecDeque<Certificate>, BTreeSet<CertificateDigest>) {
     let public_keys = keys.iter().map(|k| k.public().clone()).collect::<Vec<_>>();
@@ -726,7 +725,7 @@ pub fn make_signed_certificates(
 // Creates an unsigned certificate from its given round, origin and parents,
 // Note: the certificate is unsigned
 pub fn mock_certificate(
-    origin: Ed25519PublicKey,
+    origin: PublicKey,
     round: Round,
     parents: BTreeSet<CertificateDigest>,
 ) -> (CertificateDigest, Certificate) {
@@ -746,7 +745,7 @@ pub fn mock_certificate(
 // Creates an unsigned certificate from its given round, epoch, origin, and parents,
 // Note: the certificate is unsigned
 pub fn mock_certificate_with_epoch(
-    origin: Ed25519PublicKey,
+    origin: PublicKey,
     round: Round,
     epoch: Epoch,
     parents: BTreeSet<CertificateDigest>,
@@ -767,8 +766,8 @@ pub fn mock_certificate_with_epoch(
 
 // Creates one signed certificate from a set of signers - the signers must include the origin
 pub fn mock_signed_certificate(
-    signers: &[Ed25519KeyPair],
-    origin: Ed25519PublicKey,
+    signers: &[KeyPair],
+    origin: PublicKey,
     round: Round,
     parents: BTreeSet<CertificateDigest>,
 ) -> (CertificateDigest, Certificate) {

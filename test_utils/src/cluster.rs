@@ -3,10 +3,7 @@
 use crate::{committee, keys, temp_dir};
 use arc_swap::ArcSwap;
 use config::{Committee, Parameters, SharedCommittee, WorkerId};
-use crypto::{
-    ed25519::{Ed25519KeyPair, Ed25519PublicKey},
-    traits::KeyPair,
-};
+use crypto::{traits::KeyPair as _, KeyPair, PublicKey};
 use executor::{SerializedTransaction, SubscriberResult, DEFAULT_CHANNEL_SIZE};
 use multiaddr::Multiaddr;
 use node::{
@@ -209,7 +206,7 @@ impl Cluster {
 #[derive(Clone)]
 pub struct PrimaryNodeDetails {
     pub id: usize,
-    pub key_pair: Arc<Ed25519KeyPair>,
+    pub key_pair: Arc<KeyPair>,
     pub tx_transaction_confirmation: Sender<(SubscriberResult<Vec<u8>>, SerializedTransaction)>,
     registry: Registry,
     store_path: PathBuf,
@@ -222,7 +219,7 @@ pub struct PrimaryNodeDetails {
 impl PrimaryNodeDetails {
     fn new(
         id: usize,
-        key_pair: Ed25519KeyPair,
+        key_pair: KeyPair,
         parameters: Parameters,
         committee: SharedCommittee,
         internal_consensus_enabled: bool,
@@ -338,7 +335,7 @@ pub struct WorkerNodeDetails {
     pub id: WorkerId,
     pub transactions_address: Multiaddr,
     pub registry: Registry,
-    name: Ed25519PublicKey,
+    name: PublicKey,
     committee: SharedCommittee,
     parameters: Parameters,
     store_path: PathBuf,
@@ -348,7 +345,7 @@ pub struct WorkerNodeDetails {
 impl WorkerNodeDetails {
     fn new(
         id: WorkerId,
-        name: Ed25519PublicKey,
+        name: PublicKey,
         parameters: Parameters,
         transactions_address: Multiaddr,
         committee: SharedCommittee,
@@ -423,7 +420,7 @@ impl WorkerNodeDetails {
 #[derive(Clone)]
 pub struct AuthorityDetails {
     pub id: usize,
-    pub name: Ed25519PublicKey,
+    pub name: PublicKey,
     internal: Arc<RwLock<AuthorityDetailsInternal>>,
 }
 
@@ -435,7 +432,7 @@ struct AuthorityDetailsInternal {
 impl AuthorityDetails {
     pub fn new(
         id: usize,
-        key_pair: Ed25519KeyPair,
+        key_pair: KeyPair,
         parameters: Parameters,
         committee: SharedCommittee,
         internal_consensus_enabled: bool,
