@@ -27,25 +27,17 @@
 <span id="21">21</span>
 <span id="22">22</span>
 <span id="23">23</span>
-<span id="24">24</span>
-<span id="25">25</span>
-<span id="26">26</span>
-<span id="27">27</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="ident">config::WorkerId</span>;
-<span class="kw">use</span> <span class="ident">crypto::traits::VerifyingKey</span>;
 <span class="kw">use</span> <span class="ident">std::collections::HashMap</span>;
 <span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">BatchDigest</span>, <span class="ident">Certificate</span>};
 
 <span class="comment">// a helper method that collects all the batches from each certificate and maps</span>
 <span class="comment">// them by the worker id.</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">map_certificate_batches_by_worker</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>(
-    <span class="ident">certificates</span>: <span class="kw-2">&amp;</span>[<span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>],
-) -&gt; <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">WorkerId</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">BatchDigest</span><span class="op">&gt;</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span>,
-{
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">map_certificate_batches_by_worker</span>(
+    <span class="ident">certificates</span>: <span class="kw-2">&amp;</span>[<span class="ident">Certificate</span>],
+) -&gt; <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">WorkerId</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">BatchDigest</span><span class="op">&gt;</span><span class="op">&gt;</span> {
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">batches_by_worker</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">WorkerId</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">BatchDigest</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">HashMap::new</span>();
     <span class="kw">for</span> <span class="ident">certificate</span> <span class="kw">in</span> <span class="ident">certificates</span>.<span class="ident">iter</span>() {
         <span class="kw">for</span> (<span class="ident">batch_id</span>, <span class="ident">worker_id</span>) <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">certificate</span>.<span class="ident">header</span>.<span class="ident">payload</span> {

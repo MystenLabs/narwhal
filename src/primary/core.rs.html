@@ -644,7 +644,7 @@
 };
 <span class="kw">use</span> <span class="ident">async_recursion::async_recursion</span>;
 <span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">Committee</span>, <span class="ident">Epoch</span>};
-<span class="kw">use</span> <span class="ident">crypto</span>::{<span class="ident">traits::VerifyingKey</span>, <span class="ident">Hash</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">SignatureService</span>};
+<span class="kw">use</span> <span class="ident">crypto</span>::{<span class="ident">Hash</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">PublicKey</span>, <span class="ident">Signature</span>, <span class="ident">SignatureService</span>};
 <span class="kw">use</span> <span class="ident">network</span>::{<span class="ident">CancelOnDropHandler</span>, <span class="ident">MessageResult</span>, <span class="ident">PrimaryNetwork</span>};
 <span class="kw">use</span> <span class="ident">std</span>::{
     <span class="ident">collections</span>::{<span class="ident">HashMap</span>, <span class="ident">HashSet</span>},
@@ -673,38 +673,38 @@
 <span class="attribute">#[<span class="ident">path</span> <span class="op">=</span> <span class="string">&quot;tests/core_tests.rs&quot;</span>]</span>
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">core_tests</span>;
 
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Core</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Core</span> {
     <span class="doccomment">/// The public key of this primary.</span>
     <span class="ident">name</span>: <span class="ident">PublicKey</span>,
     <span class="doccomment">/// The committee information.</span>
-    <span class="ident">committee</span>: <span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
+    <span class="ident">committee</span>: <span class="ident">Committee</span>,
     <span class="doccomment">/// The persistent storage keyed to headers.</span>
-    <span class="ident">header_store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">HeaderDigest</span>, <span class="ident">Header</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">header_store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">HeaderDigest</span>, <span class="ident">Header</span><span class="op">&gt;</span>,
     <span class="doccomment">/// The persistent storage keyed to certificates.</span>
-    <span class="ident">certificate_store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">certificate_store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span><span class="op">&gt;</span>,
     <span class="doccomment">/// Handles synchronization with other nodes and our workers.</span>
-    <span class="ident">synchronizer</span>: <span class="ident">Synchronizer</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
+    <span class="ident">synchronizer</span>: <span class="ident">Synchronizer</span>,
     <span class="doccomment">/// Service to sign headers.</span>
-    <span class="ident">signature_service</span>: <span class="ident">SignatureService</span><span class="op">&lt;</span><span class="ident">PublicKey::Sig</span><span class="op">&gt;</span>,
+    <span class="ident">signature_service</span>: <span class="ident">SignatureService</span><span class="op">&lt;</span><span class="ident">Signature</span><span class="op">&gt;</span>,
     <span class="doccomment">/// The current consensus round (used for cleanup).</span>
     <span class="ident">consensus_round</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">AtomicU64</span><span class="op">&gt;</span>,
     <span class="doccomment">/// The depth of the garbage collector.</span>
     <span class="ident">gc_depth</span>: <span class="ident">Round</span>,
 
     <span class="doccomment">/// Watch channel to reconfigure the committee.</span>
-    <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
     <span class="doccomment">/// Receiver for dag messages (headers, votes, certificates).</span>
-    <span class="ident">rx_primaries</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">PrimaryMessage</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">rx_primaries</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">PrimaryMessage</span><span class="op">&gt;</span>,
     <span class="doccomment">/// Receives loopback headers from the `HeaderWaiter`.</span>
-    <span class="ident">rx_header_waiter</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Header</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">rx_header_waiter</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Header</span><span class="op">&gt;</span>,
     <span class="doccomment">/// Receives loopback certificates from the `CertificateWaiter`.</span>
-    <span class="ident">rx_certificate_waiter</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">rx_certificate_waiter</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span>,
     <span class="doccomment">/// Receives our newly created headers from the `Proposer`.</span>
-    <span class="ident">rx_proposer</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Header</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">rx_proposer</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Header</span><span class="op">&gt;</span>,
     <span class="doccomment">/// Output all certificates to the consensus layer.</span>
-    <span class="ident">tx_consensus</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">tx_consensus</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span>,
     <span class="doccomment">/// Send valid a quorum of certificates&#39; ids to the `Proposer` (along with their round).</span>
-    <span class="ident">tx_proposer</span>: <span class="ident">Sender</span><span class="op">&lt;</span>(<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">Round</span>, <span class="ident">Epoch</span>)<span class="op">&gt;</span>,
+    <span class="ident">tx_proposer</span>: <span class="ident">Sender</span><span class="op">&lt;</span>(<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span>, <span class="ident">Round</span>, <span class="ident">Epoch</span>)<span class="op">&gt;</span>,
 
     <span class="doccomment">/// The last garbage collected round.</span>
     <span class="ident">gc_round</span>: <span class="ident">Round</span>,
@@ -713,11 +713,11 @@
     <span class="doccomment">/// The set of headers we are currently processing.</span>
     <span class="ident">processing</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">Round</span>, <span class="ident">HashSet</span><span class="op">&lt;</span><span class="ident">HeaderDigest</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="doccomment">/// The last header we proposed (for which we are waiting votes).</span>
-    <span class="ident">current_header</span>: <span class="ident">Header</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
+    <span class="ident">current_header</span>: <span class="ident">Header</span>,
     <span class="doccomment">/// Aggregates votes into a certificate.</span>
-    <span class="ident">votes_aggregator</span>: <span class="ident">VotesAggregator</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
+    <span class="ident">votes_aggregator</span>: <span class="ident">VotesAggregator</span>,
     <span class="doccomment">/// Aggregates certificates to use as parents for new headers.</span>
-    <span class="ident">certificates_aggregators</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">Round</span>, <span class="ident">Box</span><span class="op">&lt;</span><span class="ident">CertificatesAggregator</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">certificates_aggregators</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">Round</span>, <span class="ident">Box</span><span class="op">&lt;</span><span class="ident">CertificatesAggregator</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="doccomment">/// A network sender to send the batches to the other workers.</span>
     <span class="ident">network</span>: <span class="ident">PrimaryNetwork</span>,
     <span class="doccomment">/// Keeps the cancel handlers of the messages we sent.</span>
@@ -726,24 +726,24 @@
     <span class="ident">metrics</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">PrimaryMetrics</span><span class="op">&gt;</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> <span class="ident">Core</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span> {
+<span class="kw">impl</span> <span class="ident">Core</span> {
     <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy::too_many_arguments</span>)]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(
         <span class="ident">name</span>: <span class="ident">PublicKey</span>,
-        <span class="ident">committee</span>: <span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
-        <span class="ident">header_store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">HeaderDigest</span>, <span class="ident">Header</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-        <span class="ident">certificate_store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-        <span class="ident">synchronizer</span>: <span class="ident">Synchronizer</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
-        <span class="ident">signature_service</span>: <span class="ident">SignatureService</span><span class="op">&lt;</span><span class="ident">PublicKey::Sig</span><span class="op">&gt;</span>,
+        <span class="ident">committee</span>: <span class="ident">Committee</span>,
+        <span class="ident">header_store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">HeaderDigest</span>, <span class="ident">Header</span><span class="op">&gt;</span>,
+        <span class="ident">certificate_store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span><span class="op">&gt;</span>,
+        <span class="ident">synchronizer</span>: <span class="ident">Synchronizer</span>,
+        <span class="ident">signature_service</span>: <span class="ident">SignatureService</span><span class="op">&lt;</span><span class="ident">Signature</span><span class="op">&gt;</span>,
         <span class="ident">consensus_round</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">AtomicU64</span><span class="op">&gt;</span>,
         <span class="ident">gc_depth</span>: <span class="ident">Round</span>,
-        <span class="ident">rx_committee</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-        <span class="ident">rx_primaries</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">PrimaryMessage</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-        <span class="ident">rx_header_waiter</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Header</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-        <span class="ident">rx_certificate_waiter</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-        <span class="ident">rx_proposer</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Header</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-        <span class="ident">tx_consensus</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-        <span class="ident">tx_proposer</span>: <span class="ident">Sender</span><span class="op">&lt;</span>(<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">Round</span>, <span class="ident">Epoch</span>)<span class="op">&gt;</span>,
+        <span class="ident">rx_committee</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
+        <span class="ident">rx_primaries</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">PrimaryMessage</span><span class="op">&gt;</span>,
+        <span class="ident">rx_header_waiter</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Header</span><span class="op">&gt;</span>,
+        <span class="ident">rx_certificate_waiter</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span>,
+        <span class="ident">rx_proposer</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Header</span><span class="op">&gt;</span>,
+        <span class="ident">tx_consensus</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span>,
+        <span class="ident">tx_proposer</span>: <span class="ident">Sender</span><span class="op">&lt;</span>(<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span>, <span class="ident">Round</span>, <span class="ident">Epoch</span>)<span class="op">&gt;</span>,
         <span class="ident">metrics</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">PrimaryMetrics</span><span class="op">&gt;</span>,
     ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
@@ -779,7 +779,7 @@
     }
 
     <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span> <span class="op">=</span> <span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>)]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">process_own_header</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">header</span>: <span class="ident">Header</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>) -&gt; <span class="ident">DagResult</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">process_own_header</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">header</span>: <span class="ident">Header</span>) -&gt; <span class="ident">DagResult</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="ident">header</span>.<span class="ident">epoch</span> <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">epoch</span>() {
             <span class="macro">debug!</span>(<span class="string">&quot;Proposer outdated&quot;</span>);
             <span class="kw">return</span> <span class="prelude-val">Ok</span>(());
@@ -813,7 +813,7 @@
 
     <span class="attribute">#[<span class="ident">async_recursion</span>]</span>
     <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span> <span class="op">=</span> <span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>)]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">process_header</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">header</span>: <span class="kw-2">&amp;</span><span class="ident">Header</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>) -&gt; <span class="ident">DagResult</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">process_header</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">header</span>: <span class="kw-2">&amp;</span><span class="ident">Header</span>) -&gt; <span class="ident">DagResult</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="macro">debug!</span>(<span class="string">&quot;Processing {:?} round:{:?}&quot;</span>, <span class="ident">header</span>, <span class="ident">header</span>.<span class="ident">round</span>);
         <span class="kw">let</span> <span class="ident">header_source</span> <span class="op">=</span> <span class="kw">if</span> <span class="self">self</span>.<span class="ident">name</span>.<span class="ident">eq</span>(<span class="kw-2">&amp;</span><span class="ident">header</span>.<span class="ident">author</span>) {
             <span class="string">&quot;own&quot;</span>
@@ -854,7 +854,7 @@
         <span class="comment">// Ensure we have the parents. If at least one parent is missing, the synchronizer returns an empty</span>
         <span class="comment">// vector; it will gather the missing parents (as well as all ancestors) from other nodes and then</span>
         <span class="comment">// reschedule processing of this header.</span>
-        <span class="kw">let</span> <span class="ident">parents</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">synchronizer</span>.<span class="ident">get_parents</span>(<span class="ident">header</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">parents</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">synchronizer</span>.<span class="ident">get_parents</span>(<span class="ident">header</span>).<span class="kw">await</span><span class="question-mark">?</span>;
         <span class="kw">if</span> <span class="ident">parents</span>.<span class="ident">is_empty</span>() {
             <span class="self">self</span>.<span class="ident">metrics</span>
                 .<span class="ident">headers_suspended</span>
@@ -940,7 +940,7 @@
 
     <span class="attribute">#[<span class="ident">async_recursion</span>]</span>
     <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span> <span class="op">=</span> <span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>)]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">process_vote</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">vote</span>: <span class="ident">Vote</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>) -&gt; <span class="ident">DagResult</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">process_vote</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">vote</span>: <span class="ident">Vote</span>) -&gt; <span class="ident">DagResult</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="macro">debug!</span>(<span class="string">&quot;Processing {:?}&quot;</span>, <span class="ident">vote</span>);
 
         <span class="comment">// Add it to the votes&#39; aggregator and try to make a new certificate.</span>
@@ -981,7 +981,7 @@
 
     <span class="attribute">#[<span class="ident">async_recursion</span>]</span>
     <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span> <span class="op">=</span> <span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>)]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">process_certificate</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">certificate</span>: <span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>) -&gt; <span class="ident">DagResult</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">process_certificate</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">certificate</span>: <span class="ident">Certificate</span>) -&gt; <span class="ident">DagResult</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="macro">debug!</span>(
             <span class="string">&quot;Processing {:?} round:{:?}&quot;</span>,
             <span class="ident">certificate</span>,
@@ -1070,7 +1070,7 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">fn</span> <span class="ident">sanitize_header</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">header</span>: <span class="kw-2">&amp;</span><span class="ident">Header</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>) -&gt; <span class="ident">DagResult</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">sanitize_header</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">header</span>: <span class="kw-2">&amp;</span><span class="ident">Header</span>) -&gt; <span class="ident">DagResult</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="ident">header</span>.<span class="ident">epoch</span> <span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">epoch</span>() {
             <span class="self">self</span>.<span class="ident">try_update_committee</span>();
         }
@@ -1094,7 +1094,7 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">fn</span> <span class="ident">sanitize_vote</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">vote</span>: <span class="kw-2">&amp;</span><span class="ident">Vote</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>) -&gt; <span class="ident">DagResult</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">sanitize_vote</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">vote</span>: <span class="kw-2">&amp;</span><span class="ident">Vote</span>) -&gt; <span class="ident">DagResult</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="ident">vote</span>.<span class="ident">epoch</span> <span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">epoch</span>() {
             <span class="self">self</span>.<span class="ident">try_update_committee</span>();
         }
@@ -1122,7 +1122,7 @@
         <span class="ident">vote</span>.<span class="ident">verify</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">committee</span>).<span class="ident">map_err</span>(<span class="ident">DagError::from</span>)
     }
 
-    <span class="kw">fn</span> <span class="ident">sanitize_certificate</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">certificate</span>: <span class="kw-2">&amp;</span><span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>) -&gt; <span class="ident">DagResult</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">sanitize_certificate</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">certificate</span>: <span class="kw-2">&amp;</span><span class="ident">Certificate</span>) -&gt; <span class="ident">DagResult</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="ident">certificate</span>.<span class="ident">epoch</span>() <span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">epoch</span>() {
             <span class="self">self</span>.<span class="ident">try_update_committee</span>();
         }
@@ -1159,7 +1159,7 @@
     }
 
     <span class="doccomment">/// Update the committee and cleanup internal state.</span>
-    <span class="kw">fn</span> <span class="ident">update_committee</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">committee</span>: <span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>) {
+    <span class="kw">fn</span> <span class="ident">update_committee</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">committee</span>: <span class="ident">Committee</span>) {
         <span class="macro">tracing::info!</span>(<span class="string">&quot;Committee updated to epoch {}&quot;</span>, <span class="ident">committee</span>.<span class="ident">epoch</span>);
         <span class="self">self</span>.<span class="ident">last_voted</span>.<span class="ident">clear</span>();
         <span class="self">self</span>.<span class="ident">processing</span>.<span class="ident">clear</span>();

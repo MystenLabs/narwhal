@@ -669,18 +669,12 @@
 <span id="663">663</span>
 <span id="664">664</span>
 <span id="665">665</span>
-<span id="666">666</span>
-<span id="667">667</span>
-<span id="668">668</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">committee</span>, <span class="ident">keys</span>, <span class="ident">temp_dir</span>};
 <span class="kw">use</span> <span class="ident">arc_swap::ArcSwap</span>;
 <span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">Committee</span>, <span class="ident">Parameters</span>, <span class="ident">SharedCommittee</span>, <span class="ident">WorkerId</span>};
-<span class="kw">use</span> <span class="ident">crypto</span>::{
-    <span class="ident">ed25519</span>::{<span class="ident">Ed25519KeyPair</span>, <span class="ident">Ed25519PublicKey</span>},
-    <span class="ident">traits::KeyPair</span>,
-};
+<span class="kw">use</span> <span class="ident">crypto</span>::{<span class="ident">traits::KeyPair</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">KeyPair</span>, <span class="ident">PublicKey</span>};
 <span class="kw">use</span> <span class="ident">executor</span>::{<span class="ident">SerializedTransaction</span>, <span class="ident">SubscriberResult</span>, <span class="ident">DEFAULT_CHANNEL_SIZE</span>};
 <span class="kw">use</span> <span class="ident">multiaddr::Multiaddr</span>;
 <span class="kw">use</span> <span class="ident">node</span>::{
@@ -704,7 +698,7 @@
 
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Cluster</span> {
     <span class="ident">authorities</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">usize</span>, <span class="ident">AuthorityDetails</span><span class="op">&gt;</span>,
-    <span class="kw">pub</span> <span class="ident">committee_shared</span>: <span class="ident">SharedCommittee</span><span class="op">&lt;</span><span class="ident">Ed25519PublicKey</span><span class="op">&gt;</span>,
+    <span class="kw">pub</span> <span class="ident">committee_shared</span>: <span class="ident">SharedCommittee</span>,
     <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">dead_code</span>)]</span>
     <span class="ident">parameters</span>: <span class="ident">Parameters</span>,
 }
@@ -721,7 +715,7 @@
     <span class="doccomment">/// DAG externally.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(
         <span class="ident">parameters</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Parameters</span><span class="op">&gt;</span>,
-        <span class="ident">input_committee</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">Ed25519PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">input_committee</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Committee</span><span class="op">&gt;</span>,
         <span class="ident">internal_consensus_enabled</span>: <span class="ident">bool</span>,
     ) -&gt; <span class="self">Self</span> {
         <span class="kw">let</span> <span class="ident">c</span> <span class="op">=</span> <span class="ident">input_committee</span>.<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">committee</span>(<span class="prelude-val">None</span>));
@@ -883,11 +877,11 @@
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">PrimaryNodeDetails</span> {
     <span class="kw">pub</span> <span class="ident">id</span>: <span class="ident">usize</span>,
-    <span class="kw">pub</span> <span class="ident">key_pair</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Ed25519KeyPair</span><span class="op">&gt;</span>,
+    <span class="kw">pub</span> <span class="ident">key_pair</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">KeyPair</span><span class="op">&gt;</span>,
     <span class="kw">pub</span> <span class="ident">tx_transaction_confirmation</span>: <span class="ident">Sender</span><span class="op">&lt;</span>(<span class="ident">SubscriberResult</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">SerializedTransaction</span>)<span class="op">&gt;</span>,
     <span class="ident">registry</span>: <span class="ident">Registry</span>,
     <span class="ident">store_path</span>: <span class="ident">PathBuf</span>,
-    <span class="ident">committee</span>: <span class="ident">SharedCommittee</span><span class="op">&lt;</span><span class="ident">Ed25519PublicKey</span><span class="op">&gt;</span>,
+    <span class="ident">committee</span>: <span class="ident">SharedCommittee</span>,
     <span class="ident">parameters</span>: <span class="ident">Parameters</span>,
     <span class="ident">handlers</span>: <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">RefCell</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">internal_consensus_enabled</span>: <span class="ident">bool</span>,
@@ -896,9 +890,9 @@
 <span class="kw">impl</span> <span class="ident">PrimaryNodeDetails</span> {
     <span class="kw">fn</span> <span class="ident">new</span>(
         <span class="ident">id</span>: <span class="ident">usize</span>,
-        <span class="ident">key_pair</span>: <span class="ident">Ed25519KeyPair</span>,
+        <span class="ident">key_pair</span>: <span class="ident">KeyPair</span>,
         <span class="ident">parameters</span>: <span class="ident">Parameters</span>,
-        <span class="ident">committee</span>: <span class="ident">SharedCommittee</span><span class="op">&lt;</span><span class="ident">Ed25519PublicKey</span><span class="op">&gt;</span>,
+        <span class="ident">committee</span>: <span class="ident">SharedCommittee</span>,
         <span class="ident">internal_consensus_enabled</span>: <span class="ident">bool</span>,
     ) -&gt; <span class="self">Self</span> {
         <span class="comment">// used just to initialise the struct value</span>
@@ -951,7 +945,7 @@
             <span class="ident">channel</span>(<span class="ident">Node::CHANNEL_CAPACITY</span>);
 
         <span class="comment">// Primary node</span>
-        <span class="kw">let</span> <span class="ident">primary_store</span>: <span class="ident">NodeStorage</span><span class="op">&lt;</span><span class="ident">Ed25519PublicKey</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">NodeStorage::reopen</span>(<span class="ident">store_path</span>.<span class="ident">clone</span>());
+        <span class="kw">let</span> <span class="ident">primary_store</span>: <span class="ident">NodeStorage</span> <span class="op">=</span> <span class="ident">NodeStorage::reopen</span>(<span class="ident">store_path</span>.<span class="ident">clone</span>());
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">primary_handlers</span> <span class="op">=</span> <span class="ident">Node::spawn_primary</span>(
             <span class="self">self</span>.<span class="ident">key_pair</span>.<span class="ident">copy</span>(),
             <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">clone</span>(),
@@ -1012,8 +1006,8 @@
     <span class="kw">pub</span> <span class="ident">id</span>: <span class="ident">WorkerId</span>,
     <span class="kw">pub</span> <span class="ident">transactions_address</span>: <span class="ident">Multiaddr</span>,
     <span class="kw">pub</span> <span class="ident">registry</span>: <span class="ident">Registry</span>,
-    <span class="ident">name</span>: <span class="ident">Ed25519PublicKey</span>,
-    <span class="ident">committee</span>: <span class="ident">SharedCommittee</span><span class="op">&lt;</span><span class="ident">Ed25519PublicKey</span><span class="op">&gt;</span>,
+    <span class="ident">name</span>: <span class="ident">PublicKey</span>,
+    <span class="ident">committee</span>: <span class="ident">SharedCommittee</span>,
     <span class="ident">parameters</span>: <span class="ident">Parameters</span>,
     <span class="ident">store_path</span>: <span class="ident">PathBuf</span>,
     <span class="ident">handlers</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">ArcSwap</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
@@ -1022,10 +1016,10 @@
 <span class="kw">impl</span> <span class="ident">WorkerNodeDetails</span> {
     <span class="kw">fn</span> <span class="ident">new</span>(
         <span class="ident">id</span>: <span class="ident">WorkerId</span>,
-        <span class="ident">name</span>: <span class="ident">Ed25519PublicKey</span>,
+        <span class="ident">name</span>: <span class="ident">PublicKey</span>,
         <span class="ident">parameters</span>: <span class="ident">Parameters</span>,
         <span class="ident">transactions_address</span>: <span class="ident">Multiaddr</span>,
-        <span class="ident">committee</span>: <span class="ident">SharedCommittee</span><span class="op">&lt;</span><span class="ident">Ed25519PublicKey</span><span class="op">&gt;</span>,
+        <span class="ident">committee</span>: <span class="ident">SharedCommittee</span>,
     ) -&gt; <span class="self">Self</span> {
         <span class="self">Self</span> {
             <span class="ident">id</span>,
@@ -1097,7 +1091,7 @@
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">AuthorityDetails</span> {
     <span class="kw">pub</span> <span class="ident">id</span>: <span class="ident">usize</span>,
-    <span class="kw">pub</span> <span class="ident">name</span>: <span class="ident">Ed25519PublicKey</span>,
+    <span class="kw">pub</span> <span class="ident">name</span>: <span class="ident">PublicKey</span>,
     <span class="ident">internal</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">RwLock</span><span class="op">&lt;</span><span class="ident">AuthorityDetailsInternal</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 }
 
@@ -1109,9 +1103,9 @@
 <span class="kw">impl</span> <span class="ident">AuthorityDetails</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(
         <span class="ident">id</span>: <span class="ident">usize</span>,
-        <span class="ident">key_pair</span>: <span class="ident">Ed25519KeyPair</span>,
+        <span class="ident">key_pair</span>: <span class="ident">KeyPair</span>,
         <span class="ident">parameters</span>: <span class="ident">Parameters</span>,
-        <span class="ident">committee</span>: <span class="ident">SharedCommittee</span><span class="op">&lt;</span><span class="ident">Ed25519PublicKey</span><span class="op">&gt;</span>,
+        <span class="ident">committee</span>: <span class="ident">SharedCommittee</span>,
         <span class="ident">internal_consensus_enabled</span>: <span class="ident">bool</span>,
     ) -&gt; <span class="self">Self</span> {
         <span class="comment">// Create all the nodes we have in the committee</span>

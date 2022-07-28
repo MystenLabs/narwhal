@@ -802,16 +802,11 @@
 <span id="796">796</span>
 <span id="797">797</span>
 <span id="798">798</span>
-<span id="799">799</span>
-<span id="800">800</span>
-<span id="801">801</span>
-<span id="802">802</span>
-<span id="803">803</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::block_synchronizer::handler::Handler</span>;
 <span class="kw">use</span> <span class="ident">config::Committee</span>;
-<span class="kw">use</span> <span class="ident">crypto</span>::{<span class="ident">traits::VerifyingKey</span>, <span class="ident">Digest</span>, <span class="ident">Hash</span>};
+<span class="kw">use</span> <span class="ident">crypto</span>::{<span class="ident">Digest</span>, <span class="ident">Hash</span>, <span class="ident">PublicKey</span>};
 <span class="kw">use</span> <span class="ident">futures</span>::{
     <span class="ident">future</span>::{<span class="ident">try_join_all</span>, <span class="ident">BoxFuture</span>},
     <span class="ident">stream</span>::{<span class="ident">futures_unordered::FuturesUnordered</span>, <span class="ident">StreamExt</span> <span class="kw">as</span> <span class="kw">_</span>},
@@ -942,17 +937,17 @@
 <span class="doccomment">/// struct BlockSynchronizerHandler;</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// #[async_trait]</span>
-<span class="doccomment">/// impl&lt;PublicKey: VerifyingKey&gt; Handler&lt;PublicKey&gt; for BlockSynchronizerHandler {</span>
+<span class="doccomment">/// impl Handler for BlockSynchronizerHandler {</span>
 <span class="doccomment">///</span>
-<span class="doccomment">///     async fn get_and_synchronize_block_headers(&amp;self, block_ids: Vec&lt;CertificateDigest&gt;) -&gt; Vec&lt;Result&lt;Certificate&lt;PublicKey&gt;, Error&gt;&gt; {</span>
+<span class="doccomment">///     async fn get_and_synchronize_block_headers(&amp;self, block_ids: Vec&lt;CertificateDigest&gt;) -&gt; Vec&lt;Result&lt;Certificate, Error&gt;&gt; {</span>
 <span class="doccomment">///         vec![]</span>
 <span class="doccomment">///     }</span>
 <span class="doccomment">///</span>
-<span class="doccomment">///     async fn get_block_headers(&amp;self, block_ids: Vec&lt;CertificateDigest&gt;) -&gt; Vec&lt;BlockSynchronizeResult&lt;BlockHeader&lt;PublicKey&gt;&gt;&gt; {</span>
+<span class="doccomment">///     async fn get_block_headers(&amp;self, block_ids: Vec&lt;CertificateDigest&gt;) -&gt; Vec&lt;BlockSynchronizeResult&lt;BlockHeader&gt;&gt; {</span>
 <span class="doccomment">///         vec![]</span>
 <span class="doccomment">///     }</span>
 <span class="doccomment">///</span>
-<span class="doccomment">///     async fn synchronize_block_payloads(&amp;self, certificates: Vec&lt;Certificate&lt;PublicKey&gt;&gt;) -&gt; Vec&lt;Result&lt;Certificate&lt;PublicKey&gt;, Error&gt;&gt; {</span>
+<span class="doccomment">///     async fn synchronize_block_payloads(&amp;self, certificates: Vec&lt;Certificate&gt;) -&gt; Vec&lt;Result&lt;Certificate, Error&gt;&gt; {</span>
 <span class="doccomment">///         vec![]</span>
 <span class="doccomment">///     }</span>
 <span class="doccomment">///</span>
@@ -969,7 +964,7 @@
 <span class="doccomment">///     let (_tx_reconfigure, rx_reconfigure) = watch::channel(ReconfigureNotification::NewCommittee(committee.clone()));</span>
 <span class="doccomment">///</span>
 <span class="doccomment">///     // A dummy certificate</span>
-<span class="doccomment">///     let certificate = Certificate::&lt;Ed25519PublicKey&gt;::default();</span>
+<span class="doccomment">///     let certificate = Certificate::default();</span>
 <span class="doccomment">///</span>
 <span class="doccomment">///     // Dummy - we expect the BlockSynchronizer to actually respond, here</span>
 <span class="doccomment">///     // we are using a mock</span>
@@ -1005,15 +1000,12 @@
 <span class="doccomment">///     }</span>
 <span class="doccomment">/// # }</span>
 <span class="doccomment">/// ```</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BlockWaiter</span><span class="op">&lt;</span>
-    <span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span>,
-    <span class="ident">SynchronizerHandler</span>: <span class="ident">Handler</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-<span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BlockWaiter</span><span class="op">&lt;</span><span class="ident">SynchronizerHandler</span>: <span class="ident">Handler</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> {
     <span class="doccomment">/// The public key of this primary.</span>
     <span class="ident">name</span>: <span class="ident">PublicKey</span>,
 
     <span class="doccomment">/// The committee information.</span>
-    <span class="ident">committee</span>: <span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
+    <span class="ident">committee</span>: <span class="ident">Committee</span>,
 
     <span class="doccomment">/// Receive all the requests to get a block</span>
     <span class="ident">rx_commands</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">BlockCommand</span><span class="op">&gt;</span>,
@@ -1023,13 +1015,13 @@
     <span class="doccomment">/// we have a result back - or timeout - we expect to remove</span>
     <span class="doccomment">/// the digest from the map. The key is the block id, and</span>
     <span class="doccomment">/// the value is the corresponding certificate.</span>
-    <span class="ident">pending_get_block</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">pending_get_block</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span><span class="op">&gt;</span>,
 
     <span class="doccomment">/// Network driver allowing to send messages.</span>
     <span class="ident">worker_network</span>: <span class="ident">PrimaryToWorkerNetwork</span>,
 
     <span class="doccomment">/// Watch channel to reconfigure the committee.</span>
-    <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
 
     <span class="doccomment">/// The batch receive channel is listening for received</span>
     <span class="doccomment">/// messages for batches that have been requested</span>
@@ -1056,15 +1048,13 @@
     <span class="ident">block_synchronizer_handler</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SynchronizerHandler</span><span class="op">&gt;</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span>, <span class="ident">SynchronizerHandler</span>: <span class="ident">Handler</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span>
-    <span class="ident">BlockWaiter</span><span class="op">&lt;</span><span class="ident">PublicKey</span>, <span class="ident">SynchronizerHandler</span><span class="op">&gt;</span>
-{
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">SynchronizerHandler</span>: <span class="ident">Handler</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">BlockWaiter</span><span class="op">&lt;</span><span class="ident">SynchronizerHandler</span><span class="op">&gt;</span> {
     <span class="comment">// Create a new waiter and start listening on incoming</span>
     <span class="comment">// commands to fetch a block</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(
         <span class="ident">name</span>: <span class="ident">PublicKey</span>,
-        <span class="ident">committee</span>: <span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
-        <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">committee</span>: <span class="ident">Committee</span>,
+        <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
         <span class="ident">rx_commands</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">BlockCommand</span><span class="op">&gt;</span>,
         <span class="ident">batch_receiver</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">BatchResult</span><span class="op">&gt;</span>,
         <span class="ident">block_synchronizer_handler</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SynchronizerHandler</span><span class="op">&gt;</span>,
@@ -1218,7 +1208,7 @@
 
     <span class="doccomment">/// Helper method to retrieve a single certificate.</span>
     <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span> <span class="op">=</span> <span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>, <span class="ident">fields</span>(<span class="ident">certificate_id</span> <span class="op">=</span> <span class="question-mark">?</span><span class="ident">id</span>))]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get_certificate</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">id</span>: <span class="ident">CertificateDigest</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get_certificate</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">id</span>: <span class="ident">CertificateDigest</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="kw">_</span>, <span class="ident">c</span>)) <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_certificates</span>(<span class="macro">vec!</span>[<span class="ident">id</span>]).<span class="kw">await</span>.<span class="ident">first</span>() {
             <span class="kw">return</span> <span class="ident">c</span>.<span class="ident">to_owned</span>();
         }
@@ -1234,7 +1224,7 @@
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get_certificates</span>(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">ids</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">CertificateDigest</span>, <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>)<span class="op">&gt;</span> {
+    ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">CertificateDigest</span>, <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span>)<span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">results</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
 
         <span class="kw">let</span> <span class="ident">block_header_results</span> <span class="op">=</span> <span class="self">self</span>
@@ -1261,7 +1251,7 @@
     <span class="doccomment">/// will immediately be sent to the consumer.</span>
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get_blocks</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
-        <span class="ident">certificates</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">CertificateDigest</span>, <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>)<span class="op">&gt;</span>,
+        <span class="ident">certificates</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">CertificateDigest</span>, <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span>)<span class="op">&gt;</span>,
     ) -&gt; (
         <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">BoxFuture</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">BlockResult</span><span class="op">&lt;</span><span class="ident">GetBlockResponse</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">BoxFuture</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">BlocksResult</span><span class="op">&gt;</span>,
@@ -1271,7 +1261,7 @@
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ids</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
 
         <span class="comment">// ensure payloads are synchronized for the found certificates</span>
-        <span class="kw">let</span> <span class="ident">found_certificates</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">certificates</span>
+        <span class="kw">let</span> <span class="ident">found_certificates</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">certificates</span>
             .<span class="ident">clone</span>()
             .<span class="ident">into_iter</span>()
             .<span class="ident">filter</span>(<span class="op">|</span>(<span class="kw">_</span>, <span class="ident">c</span>)<span class="op">|</span> <span class="ident">c</span>.<span class="ident">is_some</span>())
@@ -1378,7 +1368,7 @@
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get_block</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">id</span>: <span class="ident">CertificateDigest</span>,
-        <span class="ident">certificate</span>: <span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
+        <span class="ident">certificate</span>: <span class="ident">Certificate</span>,
         <span class="ident">sender</span>: <span class="ident">oneshot::Sender</span><span class="op">&lt;</span><span class="ident">BlockResult</span><span class="op">&lt;</span><span class="ident">GetBlockResponse</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     ) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">BoxFuture</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">BlockResult</span><span class="op">&lt;</span><span class="ident">GetBlockResponse</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="comment">// If similar request is already under processing, don&#39;t start a new one</span>
@@ -1421,7 +1411,7 @@
     <span class="doccomment">/// `true`: If the payload was already synchronized or the synchronization</span>
     <span class="doccomment">/// was successful</span>
     <span class="doccomment">/// `false`: When synchronization failed</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">ensure_payload_is_synchronized</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">certificate</span>: <span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>) -&gt; <span class="ident">bool</span> {
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">ensure_payload_is_synchronized</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">certificate</span>: <span class="ident">Certificate</span>) -&gt; <span class="ident">bool</span> {
         <span class="kw">let</span> <span class="ident">sync_result</span> <span class="op">=</span> <span class="self">self</span>
             .<span class="ident">block_synchronizer_handler</span>
             .<span class="ident">synchronize_block_payloads</span>(<span class="macro">vec!</span>[<span class="ident">certificate</span>.<span class="ident">clone</span>()])
@@ -1495,7 +1485,7 @@
     <span class="comment">// channel of the fetched batch.</span>
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">send_batch_requests</span>(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
-        <span class="ident">header</span>: <span class="ident">Header</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
+        <span class="ident">header</span>: <span class="ident">Header</span>,
     ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">BatchDigest</span>, <span class="ident">oneshot::Receiver</span><span class="op">&lt;</span><span class="ident">BatchResult</span><span class="op">&gt;</span>)<span class="op">&gt;</span> {
         <span class="comment">// Get the &quot;now&quot; time</span>
         <span class="kw">let</span> <span class="ident">now</span> <span class="op">=</span> <span class="ident">SystemTime::now</span>()
@@ -1520,7 +1510,7 @@
                 .<span class="ident">expect</span>(<span class="string">&quot;Worker id not found&quot;</span>)
                 .<span class="ident">primary_to_worker</span>;
 
-            <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">PrimaryWorkerMessage</span>::<span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="ident">::RequestBatch</span>(<span class="ident">digest</span>);
+            <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">PrimaryWorkerMessage::RequestBatch</span>(<span class="ident">digest</span>);
 
             <span class="self">self</span>.<span class="ident">worker_network</span>
                 .<span class="ident">unreliable_send</span>(<span class="ident">worker_address</span>, <span class="kw-2">&amp;</span><span class="ident">message</span>)

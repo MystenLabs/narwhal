@@ -95,7 +95,7 @@
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="ident">config::Committee</span>;
-<span class="kw">use</span> <span class="ident">crypto::traits::VerifyingKey</span>;
+<span class="kw">use</span> <span class="ident">crypto::PublicKey</span>;
 <span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">stream::FuturesUnordered</span>, <span class="ident">StreamExt</span>};
 <span class="kw">use</span> <span class="ident">network::WorkerToPrimaryNetwork</span>;
 <span class="kw">use</span> <span class="ident">tokio</span>::{
@@ -108,25 +108,25 @@
 <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">MAX_PENDING_DIGESTS</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">10_000</span>;
 
 <span class="comment">// Send batches&#39; digests to the primary.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">PrimaryConnector</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">PrimaryConnector</span> {
     <span class="doccomment">/// The public key of this authority.</span>
     <span class="ident">name</span>: <span class="ident">PublicKey</span>,
     <span class="doccomment">/// The committee information.</span>
-    <span class="ident">committee</span>: <span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
+    <span class="ident">committee</span>: <span class="ident">Committee</span>,
     <span class="doccomment">/// Receive reconfiguration updates.</span>
-    <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
     <span class="doccomment">/// Input channel to receive the messages to send to the primary.</span>
-    <span class="ident">rx_digest</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">WorkerPrimaryMessage</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">rx_digest</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">WorkerPrimaryMessage</span><span class="op">&gt;</span>,
     <span class="doccomment">/// A network sender to send the batches&#39; digests to the primary.</span>
     <span class="ident">primary_client</span>: <span class="ident">WorkerToPrimaryNetwork</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> <span class="ident">PrimaryConnector</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span> {
+<span class="kw">impl</span> <span class="ident">PrimaryConnector</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(
         <span class="ident">name</span>: <span class="ident">PublicKey</span>,
-        <span class="ident">committee</span>: <span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
-        <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-        <span class="ident">rx_digest</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">WorkerPrimaryMessage</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">committee</span>: <span class="ident">Committee</span>,
+        <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
+        <span class="ident">rx_digest</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">WorkerPrimaryMessage</span><span class="op">&gt;</span>,
     ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
             <span class="self">Self</span> {

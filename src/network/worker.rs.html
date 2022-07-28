@@ -249,13 +249,11 @@
 <span id="243">243</span>
 <span id="244">244</span>
 <span id="245">245</span>
-<span id="246">246</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="kw">crate</span>::{
     <span class="ident">BoundedExecutor</span>, <span class="ident">CancelOnDropHandler</span>, <span class="ident">MessageResult</span>, <span class="ident">RetryConfig</span>, <span class="ident">MAX_TASK_CONCURRENCY</span>,
 };
-<span class="kw">use</span> <span class="ident">crypto::traits::VerifyingKey</span>;
 <span class="kw">use</span> <span class="ident">multiaddr::Multiaddr</span>;
 <span class="kw">use</span> <span class="ident">rand</span>::{<span class="ident">prelude::SliceRandom</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">rngs::SmallRng</span>, <span class="ident">SeedableRng</span> <span class="kw">as</span> <span class="kw">_</span>};
 <span class="kw">use</span> <span class="ident">std::collections::HashMap</span>;
@@ -314,10 +312,10 @@
         <span class="ident">WorkerToWorkerClient::new</span>(<span class="ident">channel</span>)
     }
 
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">send</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span>(
+    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">send</span>(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">address</span>: <span class="ident">Multiaddr</span>,
-        <span class="ident">message</span>: <span class="kw-2">&amp;</span><span class="ident">WorkerMessage</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>,
+        <span class="ident">message</span>: <span class="kw-2">&amp;</span><span class="ident">WorkerMessage</span>,
     ) -&gt; <span class="ident">CancelOnDropHandler</span><span class="op">&lt;</span><span class="ident">MessageResult</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span>
             <span class="ident">BincodeEncodedPayload::try_from</span>(<span class="ident">message</span>).<span class="ident">expect</span>(<span class="string">&quot;Failed to serialize payload&quot;</span>);
@@ -359,10 +357,10 @@
         <span class="ident">CancelOnDropHandler</span>(<span class="ident">handle</span>)
     }
 
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">broadcast</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span>(
+    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">broadcast</span>(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">addresses</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Multiaddr</span><span class="op">&gt;</span>,
-        <span class="ident">message</span>: <span class="kw-2">&amp;</span><span class="ident">WorkerMessage</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>,
+        <span class="ident">message</span>: <span class="kw-2">&amp;</span><span class="ident">WorkerMessage</span>,
     ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">CancelOnDropHandler</span><span class="op">&lt;</span><span class="ident">MessageResult</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span>
             <span class="ident">BincodeEncodedPayload::try_from</span>(<span class="ident">message</span>).<span class="ident">expect</span>(<span class="string">&quot;Failed to serialize payload&quot;</span>);
@@ -374,10 +372,10 @@
         <span class="ident">handlers</span>
     }
 
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">unreliable_send</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span>(
+    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">unreliable_send</span>(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">address</span>: <span class="ident">Multiaddr</span>,
-        <span class="ident">message</span>: <span class="kw-2">&amp;</span><span class="ident">WorkerMessage</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>,
+        <span class="ident">message</span>: <span class="kw-2">&amp;</span><span class="ident">WorkerMessage</span>,
     ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span>
             <span class="ident">BincodeEncodedPayload::try_from</span>(<span class="ident">message</span>).<span class="ident">expect</span>(<span class="string">&quot;Failed to serialize payload&quot;</span>);
@@ -402,10 +400,10 @@
 
     <span class="doccomment">/// Pick a few addresses at random (specified by `nodes`) and try (best-effort) to send the</span>
     <span class="doccomment">/// message only to them. This is useful to pick nodes with whom to sync.</span>
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">lucky_broadcast</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span>(
+    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">lucky_broadcast</span>(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="kw-2">mut</span> <span class="ident">addresses</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Multiaddr</span><span class="op">&gt;</span>,
-        <span class="ident">message</span>: <span class="kw-2">&amp;</span><span class="ident">WorkerMessage</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>,
+        <span class="ident">message</span>: <span class="kw-2">&amp;</span><span class="ident">WorkerMessage</span>,
         <span class="ident">nodes</span>: <span class="ident">usize</span>,
     ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="ident">addresses</span>.<span class="ident">shuffle</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">rng</span>);
@@ -457,10 +455,10 @@
     <span class="comment">// Since this spawns an unbounded task, this should be called in a time-restricted fashion.</span>
     <span class="comment">// Here the callers are [`WorkerToPrimaryNetwork::send`].</span>
     <span class="comment">// See the TODO on spawn_with_retries for lifting this restriction.</span>
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">send</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span>(
+    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">send</span>(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">address</span>: <span class="ident">Multiaddr</span>,
-        <span class="ident">message</span>: <span class="kw-2">&amp;</span><span class="ident">WorkerPrimaryMessage</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
+        <span class="ident">message</span>: <span class="kw-2">&amp;</span><span class="ident">WorkerPrimaryMessage</span>,
     ) -&gt; <span class="ident">CancelOnDropHandler</span><span class="op">&lt;</span><span class="ident">MessageResult</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">new_client</span> <span class="op">=</span> <span class="kw">match</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">address</span> {
             <span class="prelude-val">None</span> =&gt; <span class="bool-val">true</span>,

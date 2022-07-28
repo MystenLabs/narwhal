@@ -635,8 +635,6 @@
 <span id="629">629</span>
 <span id="630">630</span>
 <span id="631">631</span>
-<span id="632">632</span>
-<span id="633">633</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="attribute">#![<span class="ident">allow</span>(<span class="ident">dead_code</span>)]</span>
@@ -645,7 +643,7 @@
 <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">utils</span>, <span class="ident">PayloadToken</span>};
 <span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">Committee</span>, <span class="ident">WorkerId</span>};
 <span class="kw">use</span> <span class="ident">consensus::dag</span>::{<span class="ident">Dag</span>, <span class="ident">ValidatorDagError</span>};
-<span class="kw">use</span> <span class="ident">crypto</span>::{<span class="ident">traits::VerifyingKey</span>, <span class="ident">Digest</span>, <span class="ident">Hash</span>};
+<span class="kw">use</span> <span class="ident">crypto</span>::{<span class="ident">Digest</span>, <span class="ident">Hash</span>, <span class="ident">PublicKey</span>};
 <span class="kw">use</span> <span class="ident">futures</span>::{
     <span class="ident">future</span>::{<span class="ident">join_all</span>, <span class="ident">try_join_all</span>, <span class="ident">BoxFuture</span>},
     <span class="ident">stream</span>::{<span class="ident">futures_unordered::FuturesUnordered</span>, <span class="ident">StreamExt</span> <span class="kw">as</span> <span class="kw">_</span>},
@@ -750,8 +748,8 @@
 <span class="doccomment">///         .expect(&quot;Failed creating database&quot;);</span>
 <span class="doccomment">///</span>
 <span class="doccomment">///     let (certificate_map, headers_map, payload_map) = reopen!(&amp;rocksdb,</span>
-<span class="doccomment">///             CERTIFICATES_CF;&lt;CertificateDigest, Certificate&lt;Ed25519PublicKey&gt;&gt;,</span>
-<span class="doccomment">///             HEADERS_CF;&lt;HeaderDigest, Header&lt;Ed25519PublicKey&gt;&gt;,</span>
+<span class="doccomment">///             CERTIFICATES_CF;&lt;CertificateDigest, Certificate&gt;,</span>
+<span class="doccomment">///             HEADERS_CF;&lt;HeaderDigest, Header&gt;,</span>
 <span class="doccomment">///             PAYLOAD_CF;&lt;(BatchDigest, WorkerId), PayloadToken&gt;);</span>
 <span class="doccomment">///     let certificate_store = Store::new(certificate_map);</span>
 <span class="doccomment">///     let headers_store = Store::new(headers_map);</span>
@@ -792,7 +790,7 @@
 <span class="doccomment">///     );</span>
 <span class="doccomment">///</span>
 <span class="doccomment">///     // A dummy certificate</span>
-<span class="doccomment">///     let certificate = Certificate::&lt;Ed25519PublicKey&gt;::default();</span>
+<span class="doccomment">///     let certificate = Certificate::default();</span>
 <span class="doccomment">///</span>
 <span class="doccomment">///     // Send a command to receive a block</span>
 <span class="doccomment">///     tx_commands</span>
@@ -820,36 +818,36 @@
 <span class="doccomment">///     }</span>
 <span class="doccomment">/// # }</span>
 <span class="doccomment">/// ```</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BlockRemover</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BlockRemover</span> {
     <span class="doccomment">/// The public key of this primary.</span>
     <span class="ident">name</span>: <span class="ident">PublicKey</span>,
 
     <span class="doccomment">/// The committee information.</span>
-    <span class="ident">committee</span>: <span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
+    <span class="ident">committee</span>: <span class="ident">Committee</span>,
 
     <span class="doccomment">/// Storage that keeps the Certificates by their digest id.</span>
-    <span class="ident">certificate_store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">certificate_store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span><span class="op">&gt;</span>,
 
     <span class="doccomment">/// Storage that keeps the headers by their digest id</span>
-    <span class="ident">header_store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">HeaderDigest</span>, <span class="ident">Header</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">header_store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">HeaderDigest</span>, <span class="ident">Header</span><span class="op">&gt;</span>,
 
     <span class="doccomment">/// The persistent storage for payload markers from workers.</span>
     <span class="ident">payload_store</span>: <span class="ident">Store</span><span class="op">&lt;</span>(<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>), <span class="ident">PayloadToken</span><span class="op">&gt;</span>,
 
     <span class="doccomment">/// The Dag structure for managing the stored certificates</span>
-    <span class="ident">dag</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Dag</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">dag</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Dag</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 
     <span class="doccomment">/// Network driver allowing to send messages.</span>
     <span class="ident">worker_network</span>: <span class="ident">PrimaryToWorkerNetwork</span>,
 
     <span class="doccomment">/// Watch channel to reconfigure the committee.</span>
-    <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
 
     <span class="doccomment">/// Receives the commands to execute against</span>
     <span class="ident">rx_commands</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">BlockRemoverCommand</span><span class="op">&gt;</span>,
 
     <span class="doccomment">/// Checks whether a pending request already exists</span>
-    <span class="ident">pending_removal_requests</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">RequestKey</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">pending_removal_requests</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">RequestKey</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 
     <span class="doccomment">/// Holds the senders that are pending to be notified for</span>
     <span class="doccomment">/// a removal request.</span>
@@ -863,22 +861,22 @@
     <span class="ident">rx_delete_batches</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">DeleteBatchResult</span><span class="op">&gt;</span>,
 
     <span class="doccomment">/// Outputs all the successfully deleted certificates</span>
-    <span class="ident">tx_removed_certificates</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">tx_removed_certificates</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> <span class="ident">BlockRemover</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span> {
+<span class="kw">impl</span> <span class="ident">BlockRemover</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(
         <span class="ident">name</span>: <span class="ident">PublicKey</span>,
-        <span class="ident">committee</span>: <span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
-        <span class="ident">certificate_store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-        <span class="ident">header_store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">HeaderDigest</span>, <span class="ident">Header</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">committee</span>: <span class="ident">Committee</span>,
+        <span class="ident">certificate_store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span><span class="op">&gt;</span>,
+        <span class="ident">header_store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">HeaderDigest</span>, <span class="ident">Header</span><span class="op">&gt;</span>,
         <span class="ident">payload_store</span>: <span class="ident">Store</span><span class="op">&lt;</span>(<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>), <span class="ident">PayloadToken</span><span class="op">&gt;</span>,
-        <span class="ident">dag</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Dag</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">dag</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Dag</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">worker_network</span>: <span class="ident">PrimaryToWorkerNetwork</span>,
-        <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
         <span class="ident">rx_commands</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">BlockRemoverCommand</span><span class="op">&gt;</span>,
         <span class="ident">rx_delete_batches</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">DeleteBatchResult</span><span class="op">&gt;</span>,
-        <span class="ident">removed_certificates</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">removed_certificates</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span>,
     ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
             <span class="self">Self</span> {
@@ -1014,9 +1012,9 @@
 
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">cleanup_internal_state</span>(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
-        <span class="ident">certificates</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">certificates</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span>,
         <span class="ident">batches_by_worker</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">WorkerId</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">BatchDigest</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">Either</span><span class="op">&lt;</span><span class="ident">TypedStoreError</span>, <span class="ident">ValidatorDagError</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">Either</span><span class="op">&lt;</span><span class="ident">TypedStoreError</span>, <span class="ident">ValidatorDagError</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">header_ids</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">HeaderDigest</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">certificates</span>.<span class="ident">iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">c</span><span class="op">|</span> <span class="ident">c</span>.<span class="ident">header</span>.<span class="ident">id</span>).<span class="ident">collect</span>();
 
         <span class="self">self</span>.<span class="ident">header_store</span>
@@ -1102,15 +1100,13 @@
                 <span class="comment">// find the blocks in certificates store</span>
                 <span class="kw">match</span> <span class="self">self</span>.<span class="ident">certificate_store</span>.<span class="ident">read_all</span>(<span class="ident">ids</span>.<span class="ident">clone</span>()).<span class="kw">await</span> {
                     <span class="prelude-val">Ok</span>(<span class="ident">certificates</span>) =&gt; {
-                        <span class="kw">let</span> <span class="ident">non_found_certificates</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(
-                            <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-                            <span class="ident">CertificateDigest</span>,
-                        )<span class="op">&gt;</span> <span class="op">=</span> <span class="ident">certificates</span>
-                            .<span class="ident">clone</span>()
-                            .<span class="ident">into_iter</span>()
-                            .<span class="ident">zip</span>(<span class="ident">ids</span>.<span class="ident">clone</span>())
-                            .<span class="ident">filter</span>(<span class="op">|</span>(<span class="ident">c</span>, <span class="ident">digest</span>)<span class="op">|</span> <span class="ident">c</span>.<span class="ident">is_none</span>())
-                            .<span class="ident">collect</span>();
+                        <span class="kw">let</span> <span class="ident">non_found_certificates</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span>, <span class="ident">CertificateDigest</span>)<span class="op">&gt;</span> <span class="op">=</span>
+                            <span class="ident">certificates</span>
+                                .<span class="ident">clone</span>()
+                                .<span class="ident">into_iter</span>()
+                                .<span class="ident">zip</span>(<span class="ident">ids</span>.<span class="ident">clone</span>())
+                                .<span class="ident">filter</span>(<span class="op">|</span>(<span class="ident">c</span>, <span class="ident">digest</span>)<span class="op">|</span> <span class="ident">c</span>.<span class="ident">is_none</span>())
+                                .<span class="ident">collect</span>();
 
                         <span class="kw">if</span> <span class="op">!</span><span class="ident">non_found_certificates</span>.<span class="ident">is_empty</span>() {
                             <span class="kw">let</span> <span class="ident">c</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span><span class="op">&gt;</span> <span class="op">=</span>
@@ -1119,7 +1115,7 @@
                         }
 
                         <span class="comment">// ensure that we store only the found certificates</span>
-                        <span class="kw">let</span> <span class="ident">found_certificates</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span>
+                        <span class="kw">let</span> <span class="ident">found_certificates</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span> <span class="op">=</span>
                             <span class="ident">certificates</span>.<span class="ident">into_iter</span>().<span class="ident">flatten</span>().<span class="ident">collect</span>();
 
                         <span class="kw">let</span> <span class="ident">receivers</span> <span class="op">=</span> <span class="self">self</span>
@@ -1161,7 +1157,7 @@
 
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">send_delete_requests_to_workers</span>(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
-        <span class="ident">certificates</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">certificates</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span>,
     ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">RequestKey</span>, <span class="ident">oneshot::Receiver</span><span class="op">&lt;</span><span class="ident">DeleteBatchResult</span><span class="op">&gt;</span>)<span class="op">&gt;</span> {
         <span class="comment">// For each certificate, batch the requests by worker</span>
         <span class="comment">// and send the requests</span>
@@ -1178,7 +1174,7 @@
                 .<span class="ident">expect</span>(<span class="string">&quot;Worker id not found&quot;</span>)
                 .<span class="ident">primary_to_worker</span>;
 
-            <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">PrimaryWorkerMessage</span>::<span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="ident">::DeleteBatches</span>(<span class="ident">batch_ids</span>.<span class="ident">clone</span>());
+            <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">PrimaryWorkerMessage::DeleteBatches</span>(<span class="ident">batch_ids</span>.<span class="ident">clone</span>());
 
             <span class="comment">// send the request</span>
             <span class="self">self</span>.<span class="ident">worker_network</span>

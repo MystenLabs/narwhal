@@ -259,7 +259,7 @@
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::block_synchronizer</span>::{<span class="ident">BlockHeader</span>, <span class="ident">BlockSynchronizeResult</span>, <span class="ident">Command</span>};
-<span class="kw">use</span> <span class="ident">crypto</span>::{<span class="ident">traits::VerifyingKey</span>, <span class="ident">Hash</span>};
+<span class="kw">use</span> <span class="ident">crypto::Hash</span>;
 <span class="kw">use</span> <span class="ident">std::collections::HashMap</span>;
 <span class="kw">use</span> <span class="ident">tokio::sync</span>::{
     <span class="ident">mpsc</span>::{<span class="ident">channel</span>, <span class="ident">Receiver</span>, <span class="ident">Sender</span>},
@@ -268,17 +268,17 @@
 <span class="kw">use</span> <span class="ident">types::CertificateDigest</span>;
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
-<span class="kw">enum</span> <span class="ident">Core</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> {
+<span class="kw">enum</span> <span class="ident">Core</span> {
     <span class="ident">SynchronizeBlockHeaders</span> {
         <span class="ident">block_ids</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span><span class="op">&gt;</span>,
         <span class="ident">times</span>: <span class="ident">u32</span>,
-        <span class="ident">result</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">BlockSynchronizeResult</span><span class="op">&lt;</span><span class="ident">BlockHeader</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">result</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">BlockSynchronizeResult</span><span class="op">&lt;</span><span class="ident">BlockHeader</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">ready</span>: <span class="ident">oneshot::Sender</span><span class="op">&lt;</span>()<span class="op">&gt;</span>,
     },
     <span class="ident">SynchronizeBlockPayload</span> {
         <span class="ident">block_ids</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span><span class="op">&gt;</span>,
         <span class="ident">times</span>: <span class="ident">u32</span>,
-        <span class="ident">result</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">BlockSynchronizeResult</span><span class="op">&lt;</span><span class="ident">BlockHeader</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">result</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">BlockSynchronizeResult</span><span class="op">&lt;</span><span class="ident">BlockHeader</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">ready</span>: <span class="ident">oneshot::Sender</span><span class="op">&lt;</span>()<span class="op">&gt;</span>,
     },
     <span class="ident">AssertExpectations</span> {
@@ -286,26 +286,26 @@
     },
 }
 
-<span class="kw">struct</span> <span class="ident">MockBlockSynchronizerCore</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> {
+<span class="kw">struct</span> <span class="ident">MockBlockSynchronizerCore</span> {
     <span class="doccomment">/// A map that holds the expected requests for sync block headers and their</span>
     <span class="doccomment">/// stubbed response.</span>
     <span class="ident">block_headers_expected_requests</span>:
-        <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span><span class="op">&gt;</span>, (<span class="ident">u32</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">BlockSynchronizeResult</span><span class="op">&lt;</span><span class="ident">BlockHeader</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>)<span class="op">&gt;</span>,
+        <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span><span class="op">&gt;</span>, (<span class="ident">u32</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">BlockSynchronizeResult</span><span class="op">&lt;</span><span class="ident">BlockHeader</span><span class="op">&gt;</span><span class="op">&gt;</span>)<span class="op">&gt;</span>,
 
     <span class="doccomment">/// A map that holds the expected requests for sync block payload and their</span>
     <span class="doccomment">/// stubbed response.</span>
     <span class="ident">block_payload_expected_requests</span>:
-        <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span><span class="op">&gt;</span>, (<span class="ident">u32</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">BlockSynchronizeResult</span><span class="op">&lt;</span><span class="ident">BlockHeader</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>)<span class="op">&gt;</span>,
+        <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span><span class="op">&gt;</span>, (<span class="ident">u32</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">BlockSynchronizeResult</span><span class="op">&lt;</span><span class="ident">BlockHeader</span><span class="op">&gt;</span><span class="op">&gt;</span>)<span class="op">&gt;</span>,
 
     <span class="doccomment">/// Channel to receive the messages that are supposed to be sent to the</span>
     <span class="doccomment">/// block synchronizer.</span>
-    <span class="ident">rx_commands</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Command</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">rx_commands</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Command</span><span class="op">&gt;</span>,
 
     <span class="doccomment">/// Channel to receive the commands to mock the requests.</span>
-    <span class="ident">rx_core</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Core</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">rx_core</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Core</span><span class="op">&gt;</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> <span class="ident">MockBlockSynchronizerCore</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span> {
+<span class="kw">impl</span> <span class="ident">MockBlockSynchronizerCore</span> {
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">run</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
         <span class="kw">loop</span> {
             <span class="macro">tokio::select!</span> {
@@ -409,12 +409,12 @@
 <span class="doccomment">/// A mock helper for the BlockSynchronizer to help us mock the responses</span>
 <span class="doccomment">/// eliminating the need to wire in the actual BlockSynchronizer when needed</span>
 <span class="doccomment">/// for other components.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">MockBlockSynchronizer</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> {
-    <span class="ident">tx_core</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">Core</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">MockBlockSynchronizer</span> {
+    <span class="ident">tx_core</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">Core</span><span class="op">&gt;</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> <span class="ident">MockBlockSynchronizer</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">rx_commands</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Command</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>) -&gt; <span class="self">Self</span> {
+<span class="kw">impl</span> <span class="ident">MockBlockSynchronizer</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">rx_commands</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Command</span><span class="op">&gt;</span>) -&gt; <span class="self">Self</span> {
         <span class="kw">let</span> (<span class="ident">tx_core</span>, <span class="ident">rx_core</span>) <span class="op">=</span> <span class="ident">channel</span>(<span class="number">1</span>);
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">core</span> <span class="op">=</span> <span class="ident">MockBlockSynchronizerCore</span> {
@@ -439,7 +439,7 @@
     <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">expect_synchronize_block_headers</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">block_ids</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span><span class="op">&gt;</span>,
-        <span class="ident">result</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">BlockSynchronizeResult</span><span class="op">&lt;</span><span class="ident">BlockHeader</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">result</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">BlockSynchronizeResult</span><span class="op">&lt;</span><span class="ident">BlockHeader</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">times</span>: <span class="ident">u32</span>,
     ) {
         <span class="kw">let</span> (<span class="ident">tx</span>, <span class="ident">rx</span>) <span class="op">=</span> <span class="ident">oneshot::channel</span>();
@@ -466,7 +466,7 @@
     <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">expect_synchronize_block_payload</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">block_ids</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span><span class="op">&gt;</span>,
-        <span class="ident">result</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">BlockSynchronizeResult</span><span class="op">&lt;</span><span class="ident">BlockHeader</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">result</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">BlockSynchronizeResult</span><span class="op">&lt;</span><span class="ident">BlockHeader</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">times</span>: <span class="ident">u32</span>,
     ) {
         <span class="kw">let</span> (<span class="ident">tx</span>, <span class="ident">rx</span>) <span class="op">=</span> <span class="ident">oneshot::channel</span>();

@@ -259,16 +259,6 @@
 <span id="253">253</span>
 <span id="254">254</span>
 <span id="255">255</span>
-<span id="256">256</span>
-<span id="257">257</span>
-<span id="258">258</span>
-<span id="259">259</span>
-<span id="260">260</span>
-<span id="261">261</span>
-<span id="262">262</span>
-<span id="263">263</span>
-<span id="264">264</span>
-<span id="265">265</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="kw">crate</span>::{
@@ -279,7 +269,6 @@
 };
 <span class="kw">use</span> <span class="ident">config::Committee</span>;
 <span class="kw">use</span> <span class="ident">consensus::ConsensusOutput</span>;
-<span class="kw">use</span> <span class="ident">crypto::traits::VerifyingKey</span>;
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">fmt::Debug</span>, <span class="ident">sync::Arc</span>};
 <span class="kw">use</span> <span class="ident">store::Store</span>;
 <span class="kw">use</span> <span class="ident">tokio</span>::{
@@ -301,42 +290,39 @@
 <span class="doccomment">/// consensus messages in the right and complete order. All transactions data referenced by the</span>
 <span class="doccomment">/// certificate should already be downloaded in the temporary storage. This module ensures it does</span>
 <span class="doccomment">/// not processes twice the same transaction (despite crash-recovery).</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Core</span><span class="op">&lt;</span><span class="ident">State</span>: <span class="ident">ExecutionState</span><span class="op">&lt;</span><span class="ident">PubKey</span> <span class="op">=</span> <span class="ident">PublicKey</span><span class="op">&gt;</span>, <span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Core</span><span class="op">&lt;</span><span class="ident">State</span>: <span class="ident">ExecutionState</span><span class="op">&gt;</span> {
     <span class="doccomment">/// The temporary storage holding all transactions&#39; data (that may be too big to hold in memory).</span>
     <span class="ident">store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">BatchDigest</span>, <span class="ident">SerializedBatchMessage</span><span class="op">&gt;</span>,
     <span class="doccomment">/// The (global) state to perform execution.</span>
     <span class="ident">execution_state</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">State</span><span class="op">&gt;</span>,
     <span class="doccomment">/// Receive reconfiguration updates.</span>
-    <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
     <span class="doccomment">/// Receive ordered consensus output to execute.</span>
-    <span class="ident">rx_subscriber</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">rx_subscriber</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&gt;</span>,
     <span class="doccomment">/// Outputs executed transactions.</span>
     <span class="ident">tx_output</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">ExecutorOutput</span><span class="op">&lt;</span><span class="ident">State</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="doccomment">/// The indices ensuring we do not execute twice the same transaction.</span>
     <span class="ident">execution_indices</span>: <span class="ident">ExecutionIndices</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">State</span>: <span class="ident">ExecutionState</span><span class="op">&lt;</span><span class="ident">PubKey</span> <span class="op">=</span> <span class="ident">PublicKey</span><span class="op">&gt;</span>, <span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> <span class="ident">Drop</span>
-    <span class="kw">for</span> <span class="ident">Core</span><span class="op">&lt;</span><span class="ident">State</span>, <span class="ident">PublicKey</span><span class="op">&gt;</span>
-{
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">State</span>: <span class="ident">ExecutionState</span><span class="op">&gt;</span> <span class="ident">Drop</span> <span class="kw">for</span> <span class="ident">Core</span><span class="op">&lt;</span><span class="ident">State</span><span class="op">&gt;</span> {
     <span class="kw">fn</span> <span class="ident">drop</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
         <span class="self">self</span>.<span class="ident">execution_state</span>.<span class="ident">release_consensus_write_lock</span>();
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">State</span>, <span class="ident">PublicKey</span><span class="op">&gt;</span> <span class="ident">Core</span><span class="op">&lt;</span><span class="ident">State</span>, <span class="ident">PublicKey</span><span class="op">&gt;</span>
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">State</span><span class="op">&gt;</span> <span class="ident">Core</span><span class="op">&lt;</span><span class="ident">State</span><span class="op">&gt;</span>
 <span class="kw">where</span>
-    <span class="ident">State</span>: <span class="ident">ExecutionState</span><span class="op">&lt;</span><span class="ident">PubKey</span> <span class="op">=</span> <span class="ident">PublicKey</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+    <span class="ident">State</span>: <span class="ident">ExecutionState</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
     <span class="ident">State::Outcome</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
     <span class="ident">State::Error</span>: <span class="ident">Debug</span>,
-    <span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span>,
 {
     <span class="doccomment">/// Spawn a new executor in a dedicated tokio task.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(
         <span class="ident">store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">BatchDigest</span>, <span class="ident">SerializedBatchMessage</span><span class="op">&gt;</span>,
         <span class="ident">execution_state</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">State</span><span class="op">&gt;</span>,
-        <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-        <span class="ident">rx_subscriber</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
+        <span class="ident">rx_subscriber</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&gt;</span>,
         <span class="ident">tx_output</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">ExecutorOutput</span><span class="op">&lt;</span><span class="ident">State</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
@@ -385,10 +371,7 @@
     }
 
     <span class="doccomment">/// Execute a single certificate.</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">execute_certificate</span>(
-        <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
-        <span class="ident">message</span>: <span class="kw-2">&amp;</span><span class="ident">ConsensusOutput</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="ident">SubscriberResult</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">execute_certificate</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">message</span>: <span class="kw-2">&amp;</span><span class="ident">ConsensusOutput</span>) -&gt; <span class="ident">SubscriberResult</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="comment">// Skip the certificate if it contains no transactions.</span>
         <span class="kw">if</span> <span class="ident">message</span>.<span class="ident">certificate</span>.<span class="ident">header</span>.<span class="ident">payload</span>.<span class="ident">is_empty</span>() {
             <span class="self">self</span>.<span class="ident">execution_indices</span>.<span class="ident">skip_certificate</span>();
@@ -412,7 +395,7 @@
     <span class="doccomment">/// Execute a single batch of transactions.</span>
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">execute_batch</span>(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
-        <span class="ident">consensus_output</span>: <span class="kw-2">&amp;</span><span class="ident">ConsensusOutput</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
+        <span class="ident">consensus_output</span>: <span class="kw-2">&amp;</span><span class="ident">ConsensusOutput</span>,
         <span class="ident">batch_digest</span>: <span class="ident">BatchDigest</span>,
         <span class="ident">total_batches</span>: <span class="ident">usize</span>,
     ) -&gt; <span class="ident">SubscriberResult</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
@@ -433,7 +416,7 @@
 
         <span class="comment">// Deserialize the consensus workers&#39; batch message to retrieve a list of transactions.</span>
         <span class="kw">let</span> <span class="ident">transactions</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="kw-2">&amp;</span><span class="ident">batch</span>)<span class="question-mark">?</span> {
-            <span class="ident">WorkerMessage</span>::<span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="ident">::Batch</span>(<span class="ident">Batch</span>(<span class="ident">x</span>)) =&gt; <span class="ident">x</span>,
+            <span class="ident">WorkerMessage::Batch</span>(<span class="ident">Batch</span>(<span class="ident">x</span>)) =&gt; <span class="ident">x</span>,
             <span class="kw">_</span> =&gt; <span class="macro">bail!</span>(<span class="ident">SubscriberError::UnexpectedProtocolMessage</span>),
         };
 
@@ -498,14 +481,11 @@
     <span class="doccomment">/// Execute a single transaction.</span>
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">execute_transaction</span>(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
-        <span class="ident">consensus_output</span>: <span class="kw-2">&amp;</span><span class="ident">ConsensusOutput</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
+        <span class="ident">consensus_output</span>: <span class="kw-2">&amp;</span><span class="ident">ConsensusOutput</span>,
         <span class="ident">serialized</span>: <span class="ident">SerializedTransaction</span>,
         <span class="ident">total_transactions</span>: <span class="ident">usize</span>,
         <span class="ident">total_batches</span>: <span class="ident">usize</span>,
-    ) -&gt; <span class="ident">SubscriberResult</span><span class="op">&lt;</span>(
-        <span class="op">&lt;</span><span class="ident">State</span> <span class="kw">as</span> <span class="ident">ExecutionState</span><span class="op">&gt;</span><span class="ident">::Outcome</span>,
-        <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Committee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    )<span class="op">&gt;</span> {
+    ) -&gt; <span class="ident">SubscriberResult</span><span class="op">&lt;</span>(<span class="op">&lt;</span><span class="ident">State</span> <span class="kw">as</span> <span class="ident">ExecutionState</span><span class="op">&gt;</span><span class="ident">::Outcome</span>, <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Committee</span><span class="op">&gt;</span>)<span class="op">&gt;</span> {
         <span class="comment">// Compute the next expected indices. Those will be persisted upon transaction execution</span>
         <span class="comment">// and are only used for crash-recovery.</span>
         <span class="self">self</span>.<span class="ident">execution_indices</span>

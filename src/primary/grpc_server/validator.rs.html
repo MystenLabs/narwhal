@@ -220,12 +220,6 @@
 <span id="214">214</span>
 <span id="215">215</span>
 <span id="216">216</span>
-<span id="217">217</span>
-<span id="218">218</span>
-<span id="219">219</span>
-<span id="220">220</span>
-<span id="221">221</span>
-<span id="222">222</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">sync::Arc</span>, <span class="ident">time::Duration</span>};
@@ -235,7 +229,6 @@
     <span class="ident">BlockRemoverCommand</span>,
 };
 <span class="kw">use</span> <span class="ident">consensus::dag::Dag</span>;
-<span class="kw">use</span> <span class="ident">crypto::traits::VerifyingKey</span>;
 <span class="kw">use</span> <span class="ident">tokio</span>::{
     <span class="ident">sync</span>::{
         <span class="ident">mpsc</span>::{<span class="ident">channel</span>, <span class="ident">Sender</span>},
@@ -251,28 +244,23 @@
     <span class="ident">Validator</span>,
 };
 
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">NarwhalValidator</span><span class="op">&lt;</span>
-    <span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span>,
-    <span class="ident">SynchronizerHandler</span>: <span class="ident">Handler</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-<span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">NarwhalValidator</span><span class="op">&lt;</span><span class="ident">SynchronizerHandler</span>: <span class="ident">Handler</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> {
     <span class="ident">tx_get_block_commands</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">BlockCommand</span><span class="op">&gt;</span>,
     <span class="ident">tx_block_removal_commands</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">BlockRemoverCommand</span><span class="op">&gt;</span>,
     <span class="ident">get_collections_timeout</span>: <span class="ident">Duration</span>,
     <span class="ident">remove_collections_timeout</span>: <span class="ident">Duration</span>,
     <span class="ident">block_synchronizer_handler</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SynchronizerHandler</span><span class="op">&gt;</span>,
-    <span class="ident">dag</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Dag</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">dag</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Dag</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span>, <span class="ident">SynchronizerHandler</span>: <span class="ident">Handler</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span>
-    <span class="ident">NarwhalValidator</span><span class="op">&lt;</span><span class="ident">PublicKey</span>, <span class="ident">SynchronizerHandler</span><span class="op">&gt;</span>
-{
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">SynchronizerHandler</span>: <span class="ident">Handler</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">NarwhalValidator</span><span class="op">&lt;</span><span class="ident">SynchronizerHandler</span><span class="op">&gt;</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(
         <span class="ident">tx_get_block_commands</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">BlockCommand</span><span class="op">&gt;</span>,
         <span class="ident">tx_block_removal_commands</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">BlockRemoverCommand</span><span class="op">&gt;</span>,
         <span class="ident">get_collections_timeout</span>: <span class="ident">Duration</span>,
         <span class="ident">remove_collections_timeout</span>: <span class="ident">Duration</span>,
         <span class="ident">block_synchronizer_handler</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SynchronizerHandler</span><span class="op">&gt;</span>,
-        <span class="ident">dag</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Dag</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">dag</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Dag</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     ) -&gt; <span class="self">Self</span> {
         <span class="self">Self</span> {
             <span class="ident">tx_get_block_commands</span>,
@@ -286,8 +274,8 @@
 }
 
 <span class="attribute">#[<span class="ident">tonic::async_trait</span>]</span>
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span>, <span class="ident">SynchronizerHandler</span>: <span class="ident">Handler</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span>
-    <span class="ident">Validator</span> <span class="kw">for</span> <span class="ident">NarwhalValidator</span><span class="op">&lt;</span><span class="ident">PublicKey</span>, <span class="ident">SynchronizerHandler</span><span class="op">&gt;</span>
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">SynchronizerHandler</span>: <span class="ident">Handler</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">Validator</span>
+    <span class="kw">for</span> <span class="ident">NarwhalValidator</span><span class="op">&lt;</span><span class="ident">SynchronizerHandler</span><span class="op">&gt;</span>
 {
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">read_causal</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,

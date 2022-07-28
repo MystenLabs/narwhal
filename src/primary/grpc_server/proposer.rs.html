@@ -103,7 +103,7 @@
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="ident">config::SharedCommittee</span>;
 <span class="kw">use</span> <span class="ident">consensus::dag::Dag</span>;
-<span class="kw">use</span> <span class="ident">crypto::traits::VerifyingKey</span>;
+<span class="kw">use</span> <span class="ident">crypto</span>::{<span class="ident">traits::ToFromBytes</span>, <span class="ident">PublicKey</span>};
 <span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 <span class="kw">use</span> <span class="ident">tonic</span>::{<span class="ident">Request</span>, <span class="ident">Response</span>, <span class="ident">Status</span>};
 <span class="kw">use</span> <span class="ident">types</span>::{
@@ -111,16 +111,16 @@
     <span class="ident">RoundsResponse</span>,
 };
 
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">NarwhalProposer</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">NarwhalProposer</span> {
     <span class="doccomment">/// The dag that holds the available certificates to propose</span>
-    <span class="ident">dag</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Dag</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">dag</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Dag</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 
     <span class="doccomment">/// The committee</span>
-    <span class="ident">committee</span>: <span class="ident">SharedCommittee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
+    <span class="ident">committee</span>: <span class="ident">SharedCommittee</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> <span class="ident">NarwhalProposer</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">dag</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Dag</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">committee</span>: <span class="ident">SharedCommittee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>) -&gt; <span class="self">Self</span> {
+<span class="kw">impl</span> <span class="ident">NarwhalProposer</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">dag</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Dag</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">committee</span>: <span class="ident">SharedCommittee</span>) -&gt; <span class="self">Self</span> {
         <span class="self">Self</span> { <span class="ident">dag</span>, <span class="ident">committee</span> }
     }
 
@@ -146,7 +146,7 @@
 }
 
 <span class="attribute">#[<span class="ident">tonic::async_trait</span>]</span>
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> <span class="ident">Proposer</span> <span class="kw">for</span> <span class="ident">NarwhalProposer</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span> {
+<span class="kw">impl</span> <span class="ident">Proposer</span> <span class="kw">for</span> <span class="ident">NarwhalProposer</span> {
     <span class="doccomment">/// Retrieves the min &amp; max rounds that contain collections available for</span>
     <span class="doccomment">/// block proposal for the dictated validator.</span>
     <span class="doccomment">/// by the provided public key.</span>

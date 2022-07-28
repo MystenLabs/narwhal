@@ -175,9 +175,6 @@
 <span id="169">169</span>
 <span id="170">170</span>
 <span id="171">171</span>
-<span id="172">172</span>
-<span id="173">173</span>
-<span id="174">174</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">mod</span> <span class="ident">batch_loader</span>;
@@ -205,7 +202,7 @@
 <span class="kw">use</span> <span class="ident">async_trait::async_trait</span>;
 <span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">Committee</span>, <span class="ident">SharedCommittee</span>};
 <span class="kw">use</span> <span class="ident">consensus</span>::{<span class="ident">ConsensusOutput</span>, <span class="ident">ConsensusSyncRequest</span>};
-<span class="kw">use</span> <span class="ident">crypto::traits::VerifyingKey</span>;
+<span class="kw">use</span> <span class="ident">crypto::PublicKey</span>;
 <span class="kw">use</span> <span class="ident">serde::de::DeserializeOwned</span>;
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">fmt::Debug</span>, <span class="ident">sync::Arc</span>};
 <span class="kw">use</span> <span class="ident">store::Store</span>;
@@ -230,8 +227,6 @@
 
 <span class="attribute">#[<span class="ident">async_trait</span>]</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">ExecutionState</span> {
-    <span class="kw">type</span> <span class="ident">PubKey</span>: <span class="ident">VerifyingKey</span>;
-
     <span class="doccomment">/// The type of the transaction to process.</span>
     <span class="kw">type</span> <span class="ident">Transaction</span>: <span class="ident">DeserializeOwned</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Debug</span>;
 
@@ -246,10 +241,10 @@
     <span class="doccomment">/// also return a new committee to reconfigure the system.</span>
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">handle_consensus_transaction</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">consensus_output</span>: <span class="kw-2">&amp;</span><span class="ident">ConsensusOutput</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::PubKey</span><span class="op">&gt;</span>,
+        <span class="ident">consensus_output</span>: <span class="kw-2">&amp;</span><span class="ident">ConsensusOutput</span>,
         <span class="ident">execution_indices</span>: <span class="ident">ExecutionIndices</span>,
         <span class="ident">transaction</span>: <span class="ident"><span class="self">Self</span>::Transaction</span>,
-    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident"><span class="self">Self</span>::Outcome</span>, <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Committee</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::PubKey</span><span class="op">&gt;</span><span class="op">&gt;</span>), <span class="ident"><span class="self">Self</span>::Error</span><span class="op">&gt;</span>;
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident"><span class="self">Self</span>::Outcome</span>, <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Committee</span><span class="op">&gt;</span>), <span class="ident"><span class="self">Self</span>::Error</span><span class="op">&gt;</span>;
 
     <span class="doccomment">/// Simple guardrail ensuring there is a single instance using the state</span>
     <span class="doccomment">/// to call `handle_consensus_transaction`. Many instances may read the state,</span>
@@ -275,21 +270,20 @@
 
 <span class="kw">impl</span> <span class="ident">Executor</span> {
     <span class="doccomment">/// Spawn a new client subscriber.</span>
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">spawn</span><span class="op">&lt;</span><span class="ident">State</span>, <span class="ident">PublicKey</span><span class="op">&gt;</span>(
+    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">spawn</span><span class="op">&lt;</span><span class="ident">State</span><span class="op">&gt;</span>(
         <span class="ident">name</span>: <span class="ident">PublicKey</span>,
-        <span class="ident">committee</span>: <span class="ident">SharedCommittee</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
+        <span class="ident">committee</span>: <span class="ident">SharedCommittee</span>,
         <span class="ident">store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">BatchDigest</span>, <span class="ident">SerializedBatchMessage</span><span class="op">&gt;</span>,
         <span class="ident">execution_state</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">State</span><span class="op">&gt;</span>,
-        <span class="ident">tx_reconfigure</span>: <span class="kw-2">&amp;</span><span class="ident">watch::Sender</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-        <span class="ident">rx_consensus</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">tx_reconfigure</span>: <span class="kw-2">&amp;</span><span class="ident">watch::Sender</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
+        <span class="ident">rx_consensus</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&gt;</span>,
         <span class="ident">tx_consensus</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">ConsensusSyncRequest</span><span class="op">&gt;</span>,
         <span class="ident">tx_output</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">ExecutorOutput</span><span class="op">&lt;</span><span class="ident">State</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     ) -&gt; <span class="ident">SubscriberResult</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>
     <span class="kw">where</span>
-        <span class="ident">State</span>: <span class="ident">ExecutionState</span><span class="op">&lt;</span><span class="ident">PubKey</span> <span class="op">=</span> <span class="ident">PublicKey</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+        <span class="ident">State</span>: <span class="ident">ExecutionState</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
         <span class="ident">State::Outcome</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
         <span class="ident">State::Error</span>: <span class="ident">Debug</span>,
-        <span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span>,
     {
         <span class="kw">let</span> (<span class="ident">tx_batch_loader</span>, <span class="ident">rx_batch_loader</span>) <span class="op">=</span> <span class="ident">channel</span>(<span class="ident">DEFAULT_CHANNEL_SIZE</span>);
         <span class="kw">let</span> (<span class="ident">tx_executor</span>, <span class="ident">rx_executor</span>) <span class="op">=</span> <span class="ident">channel</span>(<span class="ident">DEFAULT_CHANNEL_SIZE</span>);
@@ -305,7 +299,7 @@
         <span class="kw">let</span> <span class="ident">next_consensus_index</span> <span class="op">=</span> <span class="ident">execution_indices</span>.<span class="ident">next_certificate_index</span>;
 
         <span class="comment">// Spawn the subscriber.</span>
-        <span class="kw">let</span> <span class="ident">subscriber_handle</span> <span class="op">=</span> <span class="ident">Subscriber</span>::<span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="ident">::spawn</span>(
+        <span class="kw">let</span> <span class="ident">subscriber_handle</span> <span class="op">=</span> <span class="ident">Subscriber::spawn</span>(
             <span class="ident">store</span>.<span class="ident">clone</span>(),
             <span class="ident">tx_reconfigure</span>.<span class="ident">subscribe</span>(),
             <span class="ident">rx_consensus</span>,
@@ -316,7 +310,7 @@
         );
 
         <span class="comment">// Spawn the executor&#39;s core.</span>
-        <span class="kw">let</span> <span class="ident">executor_handle</span> <span class="op">=</span> <span class="ident">Core</span>::<span class="op">&lt;</span><span class="ident">State</span>, <span class="ident">PublicKey</span><span class="op">&gt;</span><span class="ident">::spawn</span>(
+        <span class="kw">let</span> <span class="ident">executor_handle</span> <span class="op">=</span> <span class="ident">Core</span>::<span class="op">&lt;</span><span class="ident">State</span><span class="op">&gt;</span><span class="ident">::spawn</span>(
             <span class="ident">store</span>.<span class="ident">clone</span>(),
             <span class="ident">execution_state</span>,
             <span class="ident">tx_reconfigure</span>.<span class="ident">subscribe</span>(),

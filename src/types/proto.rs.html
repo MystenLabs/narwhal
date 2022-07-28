@@ -160,7 +160,7 @@
     <span class="ident">Batch</span>, <span class="ident">BatchDigest</span>, <span class="ident">BatchMessage</span>, <span class="ident">BlockError</span>, <span class="ident">BlockErrorKind</span>, <span class="ident">CertificateDigest</span>, <span class="ident">Transaction</span>,
 };
 <span class="kw">use</span> <span class="ident">bytes</span>::{<span class="ident">Buf</span>, <span class="ident">Bytes</span>};
-<span class="kw">use</span> <span class="ident">crypto::traits::VerifyingKey</span>;
+<span class="kw">use</span> <span class="ident">crypto::PublicKey</span>;
 
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">narwhal</span>::{
     <span class="ident">collection_retrieval_result::RetrievalResult</span>,
@@ -189,7 +189,7 @@
     <span class="ident">RoundsRequest</span>, <span class="ident">RoundsResponse</span>, <span class="ident">Transaction</span> <span class="kw">as</span> <span class="ident">TransactionProto</span>, <span class="ident">ValidatorData</span>,
 };
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">PublicKeyProto</span> {
+<span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">PublicKeyProto</span> {
     <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">pub_key</span>: <span class="ident">PublicKey</span>) -&gt; <span class="self">Self</span> {
         <span class="ident">PublicKeyProto</span> {
             <span class="ident">bytes</span>: <span class="ident">Bytes::from</span>(<span class="ident">pub_key</span>.<span class="ident">as_ref</span>().<span class="ident">to_vec</span>()),

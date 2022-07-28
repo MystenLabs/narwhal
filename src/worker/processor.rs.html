@@ -88,13 +88,11 @@
 <span id="82">82</span>
 <span id="83">83</span>
 <span id="84">84</span>
-<span id="85">85</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 
 <span class="kw">use</span> <span class="ident">config::WorkerId</span>;
-<span class="kw">use</span> <span class="ident">crypto::traits::VerifyingKey</span>;
 <span class="kw">use</span> <span class="ident">store::Store</span>;
 <span class="kw">use</span> <span class="ident">tokio</span>::{
     <span class="ident">sync</span>::{
@@ -117,17 +115,17 @@
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Processor</span>;
 
 <span class="kw">impl</span> <span class="ident">Processor</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span>(
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(
         <span class="comment">// Our worker&#39;s id.</span>
         <span class="ident">id</span>: <span class="ident">WorkerId</span>,
         <span class="comment">// The persistent storage.</span>
         <span class="ident">store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">BatchDigest</span>, <span class="ident">SerializedBatchMessage</span><span class="op">&gt;</span>,
         <span class="comment">// Receive reconfiguration signals.</span>
-        <span class="kw-2">mut</span> <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="kw-2">mut</span> <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
         <span class="comment">// Input channel to receive batches.</span>
         <span class="kw-2">mut</span> <span class="ident">rx_batch</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">SerializedBatchMessage</span><span class="op">&gt;</span>,
         <span class="comment">// Output channel to send out batches&#39; digests.</span>
-        <span class="ident">tx_digest</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">WorkerPrimaryMessage</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">tx_digest</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">WorkerPrimaryMessage</span><span class="op">&gt;</span>,
         <span class="comment">// Whether we are processing our own batches or the batches of other nodes.</span>
         <span class="ident">own_digest</span>: <span class="ident">bool</span>,
     ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {

@@ -227,7 +227,6 @@
 <span id="221">221</span>
 <span id="222">222</span>
 <span id="223">223</span>
-<span id="224">224</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="kw">crate</span>::{
@@ -235,7 +234,6 @@
     <span class="ident">errors</span>::{<span class="ident">SubscriberError</span>, <span class="ident">SubscriberResult</span>},
 };
 <span class="kw">use</span> <span class="ident">consensus</span>::{<span class="ident">ConsensusOutput</span>, <span class="ident">ConsensusSyncRequest</span>};
-<span class="kw">use</span> <span class="ident">crypto::traits::VerifyingKey</span>;
 <span class="kw">use</span> <span class="ident">futures</span>::{
     <span class="ident">future::try_join_all</span>,
     <span class="ident">stream</span>::{<span class="ident">FuturesOrdered</span>, <span class="ident">StreamExt</span>},
@@ -260,33 +258,33 @@
 <span class="doccomment">/// transaction it references. We assume that the messages we receives from consensus has</span>
 <span class="doccomment">/// already been authenticated (ie. they really come from a trusted consensus node) and</span>
 <span class="doccomment">/// integrity-validated (ie. no corrupted messages).</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Subscriber</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Subscriber</span> {
     <span class="doccomment">/// The temporary storage holding all transactions&#39; data (that may be too big to hold in memory).</span>
     <span class="ident">store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">BatchDigest</span>, <span class="ident">SerializedBatchMessage</span><span class="op">&gt;</span>,
     <span class="doccomment">/// Receive reconfiguration updates.</span>
-    <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
     <span class="doccomment">/// A channel to receive consensus messages.</span>
-    <span class="ident">rx_consensus</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">rx_consensus</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&gt;</span>,
     <span class="doccomment">/// A channel to send sync request to consensus for missed messages.</span>
     <span class="ident">tx_consensus</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">ConsensusSyncRequest</span><span class="op">&gt;</span>,
     <span class="doccomment">/// A channel to the batch loader to download transaction&#39;s data.</span>
-    <span class="ident">tx_batch_loader</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">tx_batch_loader</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&gt;</span>,
     <span class="doccomment">/// A channel to send the complete and ordered list of consensus outputs to the executor. This</span>
     <span class="doccomment">/// channel is used once all transactions data are downloaded.</span>
-    <span class="ident">tx_executor</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">tx_executor</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&gt;</span>,
     <span class="doccomment">/// The index of the next expected consensus output.</span>
     <span class="ident">next_consensus_index</span>: <span class="ident">SequenceNumber</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> <span class="ident">Subscriber</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span> {
+<span class="kw">impl</span> <span class="ident">Subscriber</span> {
     <span class="doccomment">/// Spawn a new subscriber in a new tokio task.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(
         <span class="ident">store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">BatchDigest</span>, <span class="ident">SerializedBatchMessage</span><span class="op">&gt;</span>,
-        <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-        <span class="ident">rx_consensus</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
+        <span class="ident">rx_consensus</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&gt;</span>,
         <span class="ident">tx_consensus</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">ConsensusSyncRequest</span><span class="op">&gt;</span>,
-        <span class="ident">tx_batch_loader</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-        <span class="ident">tx_executor</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">tx_batch_loader</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&gt;</span>,
+        <span class="ident">tx_executor</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&gt;</span>,
         <span class="ident">next_consensus_index</span>: <span class="ident">SequenceNumber</span>,
     ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
@@ -313,7 +311,7 @@
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">last_known_client_index</span>: <span class="ident">SequenceNumber</span>,
         <span class="ident">last_known_server_index</span>: <span class="ident">SequenceNumber</span>,
-    ) -&gt; <span class="ident">SubscriberResult</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="ident">SubscriberResult</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="comment">// Send a sync request.</span>
         <span class="kw">let</span> <span class="ident">request</span> <span class="op">=</span> <span class="ident">ConsensusSyncRequest</span> {
             <span class="ident">missing</span>: (<span class="ident">last_known_client_index</span> <span class="op">+</span> <span class="number">1</span>..<span class="op">=</span><span class="ident">last_known_server_index</span>),
@@ -358,8 +356,8 @@
     <span class="doccomment">/// we first sync every missing output and return them on the right order.</span>
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">handle_consensus_message</span>(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
-        <span class="ident">message</span>: <span class="kw-2">&amp;</span><span class="ident">ConsensusOutput</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="ident">SubscriberResult</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="ident">message</span>: <span class="kw-2">&amp;</span><span class="ident">ConsensusOutput</span>,
+    ) -&gt; <span class="ident">SubscriberResult</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">consensus_index</span> <span class="op">=</span> <span class="ident">message</span>.<span class="ident">consensus_index</span>;
 
         <span class="comment">// Check that the latest consensus index is as expected; otherwise synchronize.</span>

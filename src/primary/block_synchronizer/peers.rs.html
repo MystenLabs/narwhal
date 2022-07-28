@@ -408,23 +408,14 @@
 <span id="402">402</span>
 <span id="403">403</span>
 <span id="404">404</span>
-<span id="405">405</span>
-<span id="406">406</span>
-<span id="407">407</span>
-<span id="408">408</span>
-<span id="409">409</span>
-<span id="410">410</span>
-<span id="411">411</span>
-<span id="412">412</span>
-<span id="413">413</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="kw">use</span> <span class="ident">crypto</span>::{<span class="ident">traits::VerifyingKey</span>, <span class="ident">Hash</span>};
+<span class="kw">use</span> <span class="ident">crypto</span>::{<span class="ident">Hash</span>, <span class="ident">PublicKey</span>};
 <span class="kw">use</span> <span class="ident">rand</span>::{<span class="ident">prelude::SliceRandom</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">rngs::SmallRng</span>};
 <span class="kw">use</span> <span class="ident">std::collections::HashMap</span>;
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Peer</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span>, <span class="ident">Value</span>: <span class="ident">Hash</span> <span class="op">+</span> <span class="ident">Clone</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Peer</span><span class="op">&lt;</span><span class="ident">Value</span>: <span class="ident">Hash</span> <span class="op">+</span> <span class="ident">Clone</span><span class="op">&gt;</span> {
     <span class="kw">pub</span> <span class="ident">name</span>: <span class="ident">PublicKey</span>,
 
     <span class="doccomment">/// Those are the values that we got from the peer and that is able</span>
@@ -435,7 +426,7 @@
     <span class="ident">assigned_values</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">Value</span> <span class="kw">as</span> <span class="ident">Hash</span><span class="op">&gt;</span><span class="ident">::TypedDigest</span>, <span class="ident">Value</span><span class="op">&gt;</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span>, <span class="ident">Value</span>: <span class="ident">Hash</span> <span class="op">+</span> <span class="ident">Clone</span><span class="op">&gt;</span> <span class="ident">Peer</span><span class="op">&lt;</span><span class="ident">PublicKey</span>, <span class="ident">Value</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Value</span>: <span class="ident">Hash</span> <span class="op">+</span> <span class="ident">Clone</span><span class="op">&gt;</span> <span class="ident">Peer</span><span class="op">&lt;</span><span class="ident">Value</span><span class="op">&gt;</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">name</span>: <span class="ident">PublicKey</span>, <span class="ident">values_able_to_serve</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Value</span><span class="op">&gt;</span>) -&gt; <span class="self">Self</span> {
         <span class="kw">let</span> <span class="ident">certs</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">Value</span> <span class="kw">as</span> <span class="ident">crypto::Hash</span><span class="op">&gt;</span><span class="ident">::TypedDigest</span>, <span class="ident">Value</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">values_able_to_serve</span>
             .<span class="ident">into_iter</span>()
@@ -465,9 +456,9 @@
 <span class="doccomment">/// the re-balancing process is not guaranteed to be atomic and</span>
 <span class="doccomment">/// thread safe which could lead to potential issues if used in</span>
 <span class="doccomment">/// such environment.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Peers</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span>, <span class="ident">Value</span>: <span class="ident">Hash</span> <span class="op">+</span> <span class="ident">Clone</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Peers</span><span class="op">&lt;</span><span class="ident">Value</span>: <span class="ident">Hash</span> <span class="op">+</span> <span class="ident">Clone</span><span class="op">&gt;</span> {
     <span class="doccomment">/// A map with all the peers assigned on this pool.</span>
-    <span class="ident">peers</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">PublicKey</span>, <span class="ident">Peer</span><span class="op">&lt;</span><span class="ident">PublicKey</span>, <span class="ident">Value</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">peers</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">PublicKey</span>, <span class="ident">Peer</span><span class="op">&lt;</span><span class="ident">Value</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 
     <span class="doccomment">/// When true, it means that the values have been assigned to peers and no</span>
     <span class="doccomment">/// more mutating operations can be applied</span>
@@ -482,7 +473,7 @@
     <span class="ident">rng</span>: <span class="ident">SmallRng</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span>, <span class="ident">Value</span>: <span class="ident">Hash</span> <span class="op">+</span> <span class="ident">Clone</span><span class="op">&gt;</span> <span class="ident">Peers</span><span class="op">&lt;</span><span class="ident">PublicKey</span>, <span class="ident">Value</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Value</span>: <span class="ident">Hash</span> <span class="op">+</span> <span class="ident">Clone</span><span class="op">&gt;</span> <span class="ident">Peers</span><span class="op">&lt;</span><span class="ident">Value</span><span class="op">&gt;</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">rng</span>: <span class="ident">SmallRng</span>) -&gt; <span class="self">Self</span> {
         <span class="self">Self</span> {
             <span class="ident">peers</span>: <span class="ident">HashMap::new</span>(),
@@ -492,7 +483,7 @@
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">peers</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">PublicKey</span>, <span class="ident">Peer</span><span class="op">&lt;</span><span class="ident">PublicKey</span>, <span class="ident">Value</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">peers</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">PublicKey</span>, <span class="ident">Peer</span><span class="op">&lt;</span><span class="ident">Value</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">peers</span>
     }
 
@@ -550,12 +541,9 @@
     <span class="doccomment">/// 1) Will filter only the peers that value dictated by the</span>
     <span class="doccomment">/// provided `value_id`</span>
     <span class="doccomment">/// 2) Will pick a peer in random to assign the value to</span>
-    <span class="kw">fn</span> <span class="ident">peer_to_assign_value</span>(
-        <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
-        <span class="ident">value_id</span>: <span class="op">&lt;</span><span class="ident">Value</span> <span class="kw">as</span> <span class="ident">Hash</span><span class="op">&gt;</span><span class="ident">::TypedDigest</span>,
-    ) -&gt; <span class="ident">Peer</span><span class="op">&lt;</span><span class="ident">PublicKey</span>, <span class="ident">Value</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">peer_to_assign_value</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">value_id</span>: <span class="op">&lt;</span><span class="ident">Value</span> <span class="kw">as</span> <span class="ident">Hash</span><span class="op">&gt;</span><span class="ident">::TypedDigest</span>) -&gt; <span class="ident">Peer</span><span class="op">&lt;</span><span class="ident">Value</span><span class="op">&gt;</span> {
         <span class="comment">// step 1 - find the peers who have this id</span>
-        <span class="kw">let</span> <span class="ident">peers_with_value</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Peer</span><span class="op">&lt;</span><span class="ident">PublicKey</span>, <span class="ident">Value</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="self">self</span>
+        <span class="kw">let</span> <span class="ident">peers_with_value</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Peer</span><span class="op">&lt;</span><span class="ident">Value</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="self">self</span>
             .<span class="ident">peers</span>
             .<span class="ident">iter</span>()
             .<span class="ident">filter</span>(<span class="op">|</span><span class="ident">p</span><span class="op">|</span> <span class="ident">p</span>.<span class="number">1</span>.<span class="ident">values_able_to_serve</span>.<span class="ident">contains_key</span>(<span class="kw-2">&amp;</span><span class="ident">value_id</span>))
@@ -593,11 +581,7 @@
 <span class="kw">mod</span> <span class="ident">tests</span> {
     <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::block_synchronizer::peers::Peers</span>;
     <span class="kw">use</span> <span class="ident">blake2</span>::{<span class="ident">digest::Update</span>, <span class="ident">VarBlake2b</span>};
-    <span class="kw">use</span> <span class="ident">crypto</span>::{
-        <span class="ident">ed25519</span>::{<span class="ident">Ed25519KeyPair</span>, <span class="ident">Ed25519PublicKey</span>},
-        <span class="ident">traits::KeyPair</span>,
-        <span class="ident">Digest</span>, <span class="ident">Hash</span>, <span class="ident">DIGEST_LEN</span>,
-    };
+    <span class="kw">use</span> <span class="ident">crypto</span>::{<span class="ident">traits::KeyPair</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">Digest</span>, <span class="ident">Hash</span>, <span class="ident">KeyPair</span>, <span class="ident">DIGEST_LEN</span>};
     <span class="kw">use</span> <span class="ident">rand</span>::{
         <span class="ident">rngs</span>::{<span class="ident">SmallRng</span>, <span class="ident">StdRng</span>},
         <span class="ident">SeedableRng</span>,
@@ -651,11 +635,10 @@
 
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">rng</span> <span class="op">=</span> <span class="ident">StdRng::from_seed</span>([<span class="number">0</span>; <span class="number">32</span>]);
 
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">peers</span> <span class="op">=</span>
-                <span class="ident">Peers</span>::<span class="op">&lt;</span><span class="ident">Ed25519PublicKey</span>, <span class="ident">MockCertificate</span><span class="op">&gt;</span><span class="ident">::new</span>(<span class="ident">SmallRng::from_entropy</span>());
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">peers</span> <span class="op">=</span> <span class="ident">Peers</span>::<span class="op">&lt;</span><span class="ident">MockCertificate</span><span class="op">&gt;</span><span class="ident">::new</span>(<span class="ident">SmallRng::from_entropy</span>());
 
             <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">test</span>.<span class="ident">num_of_peers</span> {
-                <span class="kw">let</span> <span class="ident">key_pair</span> <span class="op">=</span> <span class="ident">Ed25519KeyPair::generate</span>(<span class="kw-2">&amp;mut</span> <span class="ident">rng</span>);
+                <span class="kw">let</span> <span class="ident">key_pair</span> <span class="op">=</span> <span class="ident">KeyPair::generate</span>(<span class="kw-2">&amp;mut</span> <span class="ident">rng</span>);
                 <span class="ident">peers</span>.<span class="ident">add_peer</span>(<span class="ident">key_pair</span>.<span class="ident">public</span>().<span class="ident">clone</span>(), <span class="ident">mock_certificates</span>.<span class="ident">clone</span>());
             }
 
@@ -736,11 +719,10 @@
 
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">rng</span> <span class="op">=</span> <span class="ident">StdRng::from_seed</span>([<span class="number">0</span>; <span class="number">32</span>]);
 
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">peers</span> <span class="op">=</span>
-                <span class="ident">Peers</span>::<span class="op">&lt;</span><span class="ident">Ed25519PublicKey</span>, <span class="ident">MockCertificate</span><span class="op">&gt;</span><span class="ident">::new</span>(<span class="ident">SmallRng::from_entropy</span>());
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">peers</span> <span class="op">=</span> <span class="ident">Peers</span>::<span class="op">&lt;</span><span class="ident">MockCertificate</span><span class="op">&gt;</span><span class="ident">::new</span>(<span class="ident">SmallRng::from_entropy</span>());
 
             <span class="kw">for</span> <span class="ident">peer_index</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">test</span>.<span class="ident">num_of_peers</span> {
-                <span class="kw">let</span> <span class="ident">key_pair</span> <span class="op">=</span> <span class="ident">Ed25519KeyPair::generate</span>(<span class="kw-2">&amp;mut</span> <span class="ident">rng</span>);
+                <span class="kw">let</span> <span class="ident">key_pair</span> <span class="op">=</span> <span class="ident">KeyPair::generate</span>(<span class="kw-2">&amp;mut</span> <span class="ident">rng</span>);
                 <span class="kw">let</span> <span class="ident">peer_name</span> <span class="op">=</span> <span class="ident">key_pair</span>.<span class="ident">public</span>().<span class="ident">clone</span>();
                 <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">mock_certificates</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
 

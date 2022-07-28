@@ -99,7 +99,7 @@
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">CertificateDigest</span>, <span class="ident">Round</span>};
-<span class="kw">use</span> <span class="ident">crypto::traits::VerifyingKey</span>;
+<span class="kw">use</span> <span class="ident">crypto::PublicKey</span>;
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">collections::HashMap</span>, <span class="ident">ops::RangeInclusive</span>};
 <span class="kw">use</span> <span class="ident">store</span>::{
     <span class="ident">rocks</span>::{<span class="ident">DBMap</span>, <span class="ident">TypedStoreError</span>},
@@ -117,14 +117,14 @@
 <span class="kw">pub</span> <span class="kw">type</span> <span class="ident">StoreResult</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">TypedStoreError</span><span class="op">&gt;</span>;
 
 <span class="doccomment">/// The persistent storage of the sequencer.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ConsensusStore</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ConsensusStore</span> {
     <span class="doccomment">/// The latest committed round of each validator.</span>
     <span class="ident">last_committed</span>: <span class="ident">DBMap</span><span class="op">&lt;</span><span class="ident">PublicKey</span>, <span class="ident">Round</span><span class="op">&gt;</span>,
     <span class="doccomment">/// The global consensus sequence.</span>
     <span class="ident">sequence</span>: <span class="ident">DBMap</span><span class="op">&lt;</span><span class="ident">SequenceNumber</span>, <span class="ident">CertificateDigest</span><span class="op">&gt;</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> <span class="ident">ConsensusStore</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span> {
+<span class="kw">impl</span> <span class="ident">ConsensusStore</span> {
     <span class="doccomment">/// Create a new consensus store structure by using already loaded maps.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(
         <span class="ident">last_committed</span>: <span class="ident">DBMap</span><span class="op">&lt;</span><span class="ident">PublicKey</span>, <span class="ident">Round</span><span class="op">&gt;</span>,

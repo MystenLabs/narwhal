@@ -77,7 +77,7 @@
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">HeaderDigest</span>, <span class="ident">Round</span>};
 <span class="kw">use</span> <span class="ident">config::Epoch</span>;
-<span class="kw">use</span> <span class="ident">crypto</span>::{<span class="ident">CryptoError</span>, <span class="ident">Digest</span>};
+<span class="kw">use</span> <span class="ident">crypto::Digest</span>;
 <span class="kw">use</span> <span class="ident">store::StoreError</span>;
 <span class="kw">use</span> <span class="ident">thiserror::Error</span>;
 
@@ -102,7 +102,7 @@
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Error</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">DagError</span> {
     <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Invalid signature&quot;</span>)]</span>
-    <span class="ident">InvalidSignature</span>(<span class="attribute">#[<span class="ident">from</span>]</span> <span class="ident">CryptoError</span>),
+    <span class="ident">InvalidSignature</span>(<span class="attribute">#[<span class="ident">from</span>]</span> <span class="ident">signature::Error</span>),
 
     <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Storage failure: {0}&quot;</span>)]</span>
     <span class="ident">StoreError</span>(<span class="attribute">#[<span class="ident">from</span>]</span> <span class="ident">StoreError</span>),

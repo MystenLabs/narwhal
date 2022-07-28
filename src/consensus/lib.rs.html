@@ -45,7 +45,6 @@
 <span id="39">39</span>
 <span id="40">40</span>
 <span id="41">41</span>
-<span id="42">42</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="attribute">#![<span class="ident">warn</span>(
@@ -64,7 +63,7 @@
 <span class="kw">mod</span> <span class="ident">utils</span>;
 
 <span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">consensus::Consensus</span>, <span class="ident">subscriber::SubscriberHandler</span>};
-<span class="kw">use</span> <span class="ident">crypto::traits::VerifyingKey</span>;
+
 <span class="kw">use</span> <span class="ident">serde</span>::{<span class="ident">Deserialize</span>, <span class="ident">Serialize</span>};
 <span class="kw">use</span> <span class="ident">std::ops::RangeInclusive</span>;
 <span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">Certificate</span>, <span class="ident">SequenceNumber</span>};
@@ -74,10 +73,9 @@
 
 <span class="doccomment">/// The output format of the consensus.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Serialize</span>, <span class="ident">Deserialize</span>, <span class="ident">Clone</span>, <span class="ident">Debug</span>)]</span>
-<span class="attribute">#[<span class="ident">serde</span>(<span class="ident">bound</span>(<span class="ident">deserialize</span> <span class="op">=</span> <span class="string">&quot;PublicKey: VerifyingKey&quot;</span>))]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ConsensusOutput</span><span class="op">&lt;</span><span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ConsensusOutput</span> {
     <span class="doccomment">/// The sequenced certificate.</span>
-    <span class="kw">pub</span> <span class="ident">certificate</span>: <span class="ident">Certificate</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
+    <span class="kw">pub</span> <span class="ident">certificate</span>: <span class="ident">Certificate</span>,
     <span class="doccomment">/// The (global) index associated with this certificate.</span>
     <span class="kw">pub</span> <span class="ident">consensus_index</span>: <span class="ident">SequenceNumber</span>,
 }

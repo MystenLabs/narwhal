@@ -161,6 +161,22 @@
 <span id="155">155</span>
 <span id="156">156</span>
 <span id="157">157</span>
+<span id="158">158</span>
+<span id="159">159</span>
+<span id="160">160</span>
+<span id="161">161</span>
+<span id="162">162</span>
+<span id="163">163</span>
+<span id="164">164</span>
+<span id="165">165</span>
+<span id="166">166</span>
+<span id="167">167</span>
+<span id="168">168</span>
+<span id="169">169</span>
+<span id="170">170</span>
+<span id="171">171</span>
+<span id="172">172</span>
+<span id="173">173</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -177,13 +193,12 @@
 <span class="kw">use</span> <span class="ident">rand</span>::{<span class="ident">rngs::OsRng</span>, <span class="ident">CryptoRng</span>, <span class="ident">RngCore</span>};
 <span class="kw">use</span> <span class="ident">serde</span>::{<span class="ident">Deserialize</span>, <span class="ident">Serialize</span>};
 
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">signature</span>::{<span class="ident">Signature</span>, <span class="ident">Verifier</span>};
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">signature</span>::{<span class="ident">Signature</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">Verifier</span>};
 <span class="kw">use</span> <span class="ident">std::fmt</span>;
 <span class="kw">use</span> <span class="ident">tokio::sync</span>::{
     <span class="ident">mpsc</span>::{<span class="ident">channel</span>, <span class="ident">Sender</span>},
     <span class="ident">oneshot</span>,
 };
-<span class="kw">use</span> <span class="ident">traits</span>::{<span class="ident">Authenticator</span>, <span class="ident">KeyPair</span>};
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="attribute">#[<span class="ident">path</span> <span class="op">=</span> <span class="string">&quot;tests/pubkey_bytes_tests.rs&quot;</span>]</span>
@@ -207,17 +222,34 @@
 <span class="attribute">#[<span class="ident">path</span> <span class="op">=</span> <span class="string">&quot;tests/bls12381_tests.rs&quot;</span>]</span>
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">bls12381_tests</span>;
 
+<span class="comment">// Signing traits</span>
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">traits</span>;
+<span class="comment">// Key scheme implementations</span>
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">bls12381</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">ed25519</span>;
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">secp256k1</span>;
+<span class="comment">// Other tooling</span>
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">hkdf</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">pubkey_bytes</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">serde_helpers</span>;
 
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">secp256k1</span>;
-
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">traits</span>;
-
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">CryptoError</span> <span class="op">=</span> <span class="ident">ed25519_dalek::ed25519::Error</span>;
+<span class="comment">////////////////////////////////////////////////////////////////////////</span>
+<span class="doccomment">/// Type aliases selecting the signature algorithm for the code base.</span>
+<span class="comment">////////////////////////////////////////////////////////////////////////</span>
+<span class="comment">// Here we select the types that are used by default in the code base.</span>
+<span class="comment">// The whole code base should only:</span>
+<span class="comment">// - refer to those aliases and not use the individual scheme implementations</span>
+<span class="comment">// - not use the schemes in a way that break genericity (e.g. using their Struct impl functions)</span>
+<span class="comment">// - swap one of those aliases to point to another type if necessary</span>
+<span class="comment">//</span>
+<span class="comment">// Beware: if you change those aliases to point to another scheme implementation, you will have</span>
+<span class="comment">// to change all four aliases to point to concrete types that work with each other. Failure to do</span>
+<span class="comment">// so will result in a ton of compilation errors, and worse: it will not make sense!</span>
+<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">PublicKey</span> <span class="op">=</span> <span class="ident">ed25519::Ed25519PublicKey</span>;
+<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">Signature</span> <span class="op">=</span> <span class="ident">ed25519::Ed25519Signature</span>;
+<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">PrivateKey</span> <span class="op">=</span> <span class="ident">ed25519::Ed25519PrivateKey</span>;
+<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">KeyPair</span> <span class="op">=</span> <span class="ident">ed25519::Ed25519KeyPair</span>;
+<span class="comment">////////////////////////////////////////////////////////////////////////</span>
 
 <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">DIGEST_LEN</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">32</span>;
 
@@ -275,11 +307,11 @@
 <span class="comment">// Generic Keypair</span>
 <span class="comment">////////////////////////////////////////////////////////////////</span>
 
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">generate_production_keypair</span><span class="op">&lt;</span><span class="ident">K</span>: <span class="ident">KeyPair</span><span class="op">&gt;</span>() -&gt; <span class="ident">K</span> {
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">generate_production_keypair</span><span class="op">&lt;</span><span class="ident">K</span>: <span class="ident">traits::KeyPair</span><span class="op">&gt;</span>() -&gt; <span class="ident">K</span> {
     <span class="ident">generate_keypair</span>::<span class="op">&lt;</span><span class="ident">K</span>, <span class="kw">_</span><span class="op">&gt;</span>(<span class="kw-2">&amp;mut</span> <span class="ident">OsRng</span>)
 }
 
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">generate_keypair</span><span class="op">&lt;</span><span class="ident">K</span>: <span class="ident">KeyPair</span>, <span class="ident">R</span><span class="op">&gt;</span>(<span class="ident">csprng</span>: <span class="kw-2">&amp;mut</span> <span class="ident">R</span>) -&gt; <span class="ident">K</span>
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">generate_keypair</span><span class="op">&lt;</span><span class="ident">K</span>: <span class="ident">traits::KeyPair</span>, <span class="ident">R</span><span class="op">&gt;</span>(<span class="ident">csprng</span>: <span class="kw-2">&amp;mut</span> <span class="ident">R</span>) -&gt; <span class="ident">K</span>
 <span class="kw">where</span>
     <span class="ident">R</span>: <span class="ident">CryptoRng</span> <span class="op">+</span> <span class="ident">RngCore</span>,
 {
@@ -289,11 +321,11 @@
 <span class="doccomment">/// This service holds the node&#39;s private key. It takes digests as input and returns a signature</span>
 <span class="doccomment">/// over the digest (through a one-shot channel).</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">SignatureService</span><span class="op">&lt;</span><span class="ident">Signature</span>: <span class="ident">Authenticator</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">SignatureService</span><span class="op">&lt;</span><span class="ident">Signature</span>: <span class="ident">traits::Authenticator</span><span class="op">&gt;</span> {
     <span class="ident">channel</span>: <span class="ident">Sender</span><span class="op">&lt;</span>(<span class="ident">Digest</span>, <span class="ident">oneshot::Sender</span><span class="op">&lt;</span><span class="ident">Signature</span><span class="op">&gt;</span>)<span class="op">&gt;</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Signature</span>: <span class="ident">Authenticator</span><span class="op">&gt;</span> <span class="ident">SignatureService</span><span class="op">&lt;</span><span class="ident">Signature</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Signature</span>: <span class="ident">traits::Authenticator</span><span class="op">&gt;</span> <span class="ident">SignatureService</span><span class="op">&lt;</span><span class="ident">Signature</span><span class="op">&gt;</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>(<span class="ident">signer</span>: <span class="ident">S</span>) -&gt; <span class="self">Self</span>
     <span class="kw">where</span>
         <span class="ident">S</span>: <span class="ident">signature::Signer</span><span class="op">&lt;</span><span class="ident">Signature</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
