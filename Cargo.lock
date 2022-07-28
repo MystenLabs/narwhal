@@ -4316,6 +4316,7 @@ dependencies = [
  "rustversion",
  "serde",
  "serde_test",
+ "signature",
  "thiserror",
  "tokio",
  "tokio-util",
