@@ -412,6 +412,16 @@
 <span id="406">406</span>
 <span id="407">407</span>
 <span id="408">408</span>
+<span id="409">409</span>
+<span id="410">410</span>
+<span id="411">411</span>
+<span id="412">412</span>
+<span id="413">413</span>
+<span id="414">414</span>
+<span id="415">415</span>
+<span id="416">416</span>
+<span id="417">417</span>
+<span id="418">418</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="kw">crate</span>::{
@@ -421,7 +431,12 @@
 };
 <span class="kw">use</span> <span class="ident">base64ct</span>::{<span class="ident">Base64</span>, <span class="ident">Encoding</span>};
 <span class="kw">use</span> <span class="ident">once_cell::sync::OnceCell</span>;
-<span class="kw">use</span> <span class="ident">rust_secp256k1</span>::{<span class="ident">constants</span>, <span class="ident">rand::rngs::OsRng</span>, <span class="ident">Message</span>, <span class="ident">PublicKey</span>, <span class="ident">Secp256k1</span>, <span class="ident">SecretKey</span>};
+<span class="kw">use</span> <span class="ident">rust_secp256k1</span>::{
+    <span class="ident">constants</span>,
+    <span class="ident">ecdsa</span>::{<span class="ident">RecoverableSignature</span>, <span class="ident">RecoveryId</span>},
+    <span class="ident">rand::rngs::OsRng</span>,
+    <span class="ident">Message</span>, <span class="ident">PublicKey</span>, <span class="ident">Secp256k1</span>, <span class="ident">SecretKey</span>,
+};
 <span class="kw">use</span> <span class="ident">serde</span>::{<span class="ident">de</span>, <span class="ident">Deserialize</span>, <span class="ident">Serialize</span>};
 <span class="kw">use</span> <span class="ident">signature</span>::{<span class="ident">Signature</span>, <span class="ident">Signer</span>, <span class="ident">Verifier</span>};
 <span class="kw">use</span> <span class="ident">std</span>::{
@@ -645,14 +660,19 @@
 
 <span class="kw">impl</span> <span class="ident">Signature</span> <span class="kw">for</span> <span class="ident">Secp256k1Signature</span> {
     <span class="kw">fn</span> <span class="ident">from_bytes</span>(<span class="ident">bytes</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">signature::Error</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">recovery_id</span> <span class="op">=</span> <span class="ident">rust_secp256k1::ecdsa::RecoveryId::from_i32</span>(<span class="ident">bytes</span>[<span class="number">64</span>] <span class="kw">as</span> <span class="ident">i32</span>).<span class="ident">unwrap</span>();
-        <span class="kw">match</span> <span class="ident">rust_secp256k1::ecdsa::RecoverableSignature::from_compact</span>(<span class="kw-2">&amp;</span><span class="ident">bytes</span>[..<span class="number">64</span>], <span class="ident">recovery_id</span>) {
-            <span class="prelude-val">Ok</span>(<span class="ident">sig</span>) =&gt; <span class="prelude-val">Ok</span>(<span class="ident">Secp256k1Signature</span> {
-                <span class="ident">sig</span>,
-                <span class="ident">bytes</span>: <span class="ident">OnceCell::new</span>(),
-            }),
-            <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="prelude-val">Err</span>(<span class="ident">signature::Error::new</span>()),
+        <span class="kw">if</span> <span class="ident">bytes</span>.<span class="ident">len</span>() <span class="op">!</span><span class="op">=</span> <span class="number">65</span> {
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">signature::Error::new</span>());
         }
+        <span class="ident">RecoveryId::from_i32</span>(<span class="ident">bytes</span>[<span class="number">64</span>] <span class="kw">as</span> <span class="ident">i32</span>)
+            .<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">rec_id</span><span class="op">|</span> {
+                <span class="ident">RecoverableSignature::from_compact</span>(<span class="kw-2">&amp;</span><span class="ident">bytes</span>[..<span class="number">64</span>], <span class="ident">rec_id</span>).<span class="ident">map</span>(<span class="op">|</span><span class="ident">sig</span><span class="op">|</span> {
+                    <span class="ident">Secp256k1Signature</span> {
+                        <span class="ident">sig</span>,
+                        <span class="ident">bytes</span>: <span class="ident">OnceCell::new</span>(),
+                    }
+                })
+            })
+            .<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">signature::Error::new</span>())
     }
 }
 
