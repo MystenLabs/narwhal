@@ -30,7 +30,7 @@ pub mod cluster_tests;
 
 pub struct Cluster {
     authorities: HashMap<usize, AuthorityDetails>,
-    pub committee_shared: SharedCommittee<Ed25519PublicKey>,
+    pub committee_shared: SharedCommittee,
     #[allow(dead_code)]
     parameters: Parameters,
 }
@@ -47,7 +47,7 @@ impl Cluster {
     /// DAG externally.
     pub fn new(
         parameters: Option<Parameters>,
-        input_committee: Option<Committee<Ed25519PublicKey>>,
+        input_committee: Option<Committee>,
         internal_consensus_enabled: bool,
     ) -> Self {
         let c = input_committee.unwrap_or_else(|| committee(None));
@@ -213,7 +213,7 @@ pub struct PrimaryNodeDetails {
     pub tx_transaction_confirmation: Sender<(SubscriberResult<Vec<u8>>, SerializedTransaction)>,
     registry: Registry,
     store_path: PathBuf,
-    committee: SharedCommittee<Ed25519PublicKey>,
+    committee: SharedCommittee,
     parameters: Parameters,
     handlers: Rc<RefCell<Vec<JoinHandle<()>>>>,
     internal_consensus_enabled: bool,
@@ -224,7 +224,7 @@ impl PrimaryNodeDetails {
         id: usize,
         key_pair: Ed25519KeyPair,
         parameters: Parameters,
-        committee: SharedCommittee<Ed25519PublicKey>,
+        committee: SharedCommittee,
         internal_consensus_enabled: bool,
     ) -> Self {
         // used just to initialise the struct value
@@ -277,7 +277,7 @@ impl PrimaryNodeDetails {
             channel(Node::CHANNEL_CAPACITY);
 
         // Primary node
-        let primary_store: NodeStorage<Ed25519PublicKey> = NodeStorage::reopen(store_path.clone());
+        let primary_store: NodeStorage = NodeStorage::reopen(store_path.clone());
         let mut primary_handlers = Node::spawn_primary(
             self.key_pair.copy(),
             self.committee.clone(),
@@ -339,7 +339,7 @@ pub struct WorkerNodeDetails {
     pub transactions_address: Multiaddr,
     pub registry: Registry,
     name: Ed25519PublicKey,
-    committee: SharedCommittee<Ed25519PublicKey>,
+    committee: SharedCommittee,
     parameters: Parameters,
     store_path: PathBuf,
     handlers: Arc<ArcSwap<Vec<JoinHandle<()>>>>,
@@ -351,7 +351,7 @@ impl WorkerNodeDetails {
         name: Ed25519PublicKey,
         parameters: Parameters,
         transactions_address: Multiaddr,
-        committee: SharedCommittee<Ed25519PublicKey>,
+        committee: SharedCommittee,
     ) -> Self {
         Self {
             id,
@@ -437,7 +437,7 @@ impl AuthorityDetails {
         id: usize,
         key_pair: Ed25519KeyPair,
         parameters: Parameters,
-        committee: SharedCommittee<Ed25519PublicKey>,
+        committee: SharedCommittee,
         internal_consensus_enabled: bool,
     ) -> Self {
         // Create all the nodes we have in the committee

@@ -59,10 +59,10 @@ pub fn keys(rng_seed: impl Into<Option<u64>>) -> Vec<Ed25519KeyPair> {
 }
 
 // Fixture
-pub fn committee(rng_seed: impl Into<Option<u64>>) -> Committee<Ed25519PublicKey> {
+pub fn committee(rng_seed: impl Into<Option<u64>>) -> Committee {
     committee_from_keys(&keys(rng_seed))
 }
-pub fn committee_from_keys(keys: &[Ed25519KeyPair]) -> Committee<Ed25519PublicKey> {
+pub fn committee_from_keys(keys: &[Ed25519KeyPair]) -> Committee {
     pure_committee_from_keys(keys)
 }
 
@@ -148,7 +148,7 @@ pub fn make_authority() -> Authority {
     make_authority_with_port_getter(get_available_port)
 }
 
-pub fn pure_committee_from_keys(keys: &[Ed25519KeyPair]) -> Committee<Ed25519PublicKey> {
+pub fn pure_committee_from_keys(keys: &[Ed25519KeyPair]) -> Committee {
     Committee {
         epoch: Epoch::default(),
         authorities: keys
@@ -163,7 +163,7 @@ pub fn pure_committee_from_keys(keys: &[Ed25519KeyPair]) -> Committee<Ed25519Pub
 ////////////////////////////////////////////////////////////////
 
 // Fixture
-pub fn mock_committee(keys: &[Ed25519PublicKey]) -> Committee<Ed25519PublicKey> {
+pub fn mock_committee(keys: &[Ed25519PublicKey]) -> Committee {
     Committee {
         epoch: Epoch::default(),
         authorities: keys
@@ -185,7 +185,7 @@ pub fn mock_committee(keys: &[Ed25519PublicKey]) -> Committee<Ed25519PublicKey> 
     }
 }
 
-pub fn make_consensus_store(store_path: &std::path::Path) -> Arc<ConsensusStore<Ed25519PublicKey>> {
+pub fn make_consensus_store(store_path: &std::path::Path) -> Arc<ConsensusStore> {
     const LAST_COMMITTED_CF: &str = "last_committed";
     const SEQUENCE_CF: &str = "sequence";
 
@@ -201,12 +201,12 @@ pub fn make_consensus_store(store_path: &std::path::Path) -> Arc<ConsensusStore<
 }
 
 // Fixture
-pub fn header() -> Header<Ed25519PublicKey> {
+pub fn header() -> Header {
     header_with_epoch(&committee(None))
 }
 
 // Fixture
-pub fn headers() -> Vec<Header<Ed25519PublicKey>> {
+pub fn headers() -> Vec<Header> {
     keys(None)
         .into_iter()
         .map(|kp| {
@@ -230,7 +230,7 @@ pub fn headers() -> Vec<Header<Ed25519PublicKey>> {
 }
 
 // Fixture
-pub fn header_with_epoch(committee: &Committee<Ed25519PublicKey>) -> Header<Ed25519PublicKey> {
+pub fn header_with_epoch(committee: &Committee) -> Header {
     let kp = keys(None).pop().unwrap();
     let header = Header {
         author: kp.public().clone(),
@@ -252,16 +252,16 @@ pub fn header_with_epoch(committee: &Committee<Ed25519PublicKey>) -> Header<Ed25
 }
 
 #[allow(dead_code)]
-pub fn fixture_header() -> Header<Ed25519PublicKey> {
+pub fn fixture_header() -> Header {
     let kp = keys(None).pop().unwrap();
 
     fixture_header_builder().build(&kp).unwrap()
 }
 
-pub fn fixture_header_builder() -> types::HeaderBuilder<Ed25519PublicKey> {
+pub fn fixture_header_builder() -> types::HeaderBuilder {
     let kp = keys(None).pop().unwrap();
 
-    let builder = types::HeaderBuilder::<Ed25519PublicKey>::default();
+    let builder = types::HeaderBuilder::default();
     builder
         .author(kp.public().clone())
         .round(1)
@@ -277,12 +277,12 @@ pub fn fixture_header_builder() -> types::HeaderBuilder<Ed25519PublicKey> {
 pub fn fixture_headers_round(
     prior_round: Round,
     parents: &BTreeSet<CertificateDigest>,
-) -> (Round, Vec<Header<Ed25519PublicKey>>) {
+) -> (Round, Vec<Header>) {
     let round = prior_round + 1;
     let next_headers: Vec<_> = keys(None)
         .into_iter()
         .map(|kp| {
-            let builder = types::HeaderBuilder::<Ed25519PublicKey>::default();
+            let builder = types::HeaderBuilder::default();
             builder
                 .author(kp.public().clone())
                 .round(round)
@@ -314,7 +314,7 @@ pub fn fixture_payload(number_of_batches: u8) -> BTreeMap<BatchDigest, WorkerId>
     payload
 }
 
-pub fn fixture_header_with_payload(number_of_batches: u8) -> Header<Ed25519PublicKey> {
+pub fn fixture_header_with_payload(number_of_batches: u8) -> Header {
     let kp = keys(None).pop().unwrap();
     let payload: BTreeMap<BatchDigest, WorkerId> = fixture_payload(number_of_batches);
 
@@ -339,7 +339,7 @@ pub fn transaction() -> Transaction {
 }
 
 // Fixture
-pub fn votes(header: &Header<Ed25519PublicKey>) -> Vec<Vote<Ed25519PublicKey>> {
+pub fn votes(header: &Header) -> Vec<Vote> {
     keys(None)
         .into_iter()
         .flat_map(|kp| {
@@ -366,7 +366,7 @@ pub fn votes(header: &Header<Ed25519PublicKey>) -> Vec<Vote<Ed25519PublicKey>> {
 }
 
 // Fixture
-pub fn certificate(header: &Header<Ed25519PublicKey>) -> Certificate<Ed25519PublicKey> {
+pub fn certificate(header: &Header) -> Certificate {
     Certificate {
         header: header.clone(),
         votes: votes(header)
@@ -523,7 +523,7 @@ impl WorkerToWorker for WorkerToWorkerMockServer {
 }
 
 // helper method to get a name and a committee.
-pub fn resolve_name_and_committee() -> (Ed25519PublicKey, Committee<Ed25519PublicKey>) {
+pub fn resolve_name_and_committee() -> (Ed25519PublicKey, Committee) {
     let mut keys = keys(None);
     let _ = keys.pop().unwrap(); // Skip the header' author.
     let kp = keys.pop().unwrap();
@@ -558,7 +558,7 @@ pub fn serialized_batch() -> Vec<u8> {
 }
 
 pub fn serialize_batch_message(batch: Batch) -> Vec<u8> {
-    let message = worker::WorkerMessage::<Ed25519PublicKey>::Batch(batch);
+    let message = worker::WorkerMessage::Batch(batch);
     bincode::serialize(&message).unwrap()
 }
 
@@ -604,10 +604,7 @@ pub fn make_optimal_certificates(
     range: RangeInclusive<Round>,
     initial_parents: &BTreeSet<CertificateDigest>,
     keys: &[Ed25519PublicKey],
-) -> (
-    VecDeque<Certificate<Ed25519PublicKey>>,
-    BTreeSet<CertificateDigest>,
-) {
+) -> (VecDeque<Certificate>, BTreeSet<CertificateDigest>) {
     make_certificates(range, initial_parents, keys, 0.0)
 }
 
@@ -616,10 +613,7 @@ pub fn make_optimal_signed_certificates(
     range: RangeInclusive<Round>,
     initial_parents: &BTreeSet<CertificateDigest>,
     keys: &[Ed25519KeyPair],
-) -> (
-    VecDeque<Certificate<Ed25519PublicKey>>,
-    BTreeSet<CertificateDigest>,
-) {
+) -> (VecDeque<Certificate>, BTreeSet<CertificateDigest>) {
     make_signed_certificates(range, initial_parents, keys, 0.0)
 }
 
@@ -649,11 +643,8 @@ fn rounds_of_certificates(
         Ed25519PublicKey,
         Round,
         BTreeSet<CertificateDigest>,
-    ) -> (CertificateDigest, Certificate<Ed25519PublicKey>),
-) -> (
-    VecDeque<Certificate<Ed25519PublicKey>>,
-    BTreeSet<CertificateDigest>,
-) {
+    ) -> (CertificateDigest, Certificate),
+) -> (VecDeque<Certificate>, BTreeSet<CertificateDigest>) {
     let mut certificates = VecDeque::new();
     let mut parents = initial_parents.iter().cloned().collect::<BTreeSet<_>>();
     let mut next_parents = BTreeSet::new();
@@ -679,10 +670,7 @@ pub fn make_certificates(
     initial_parents: &BTreeSet<CertificateDigest>,
     keys: &[Ed25519PublicKey],
     failure_probability: f64,
-) -> (
-    VecDeque<Certificate<Ed25519PublicKey>>,
-    BTreeSet<CertificateDigest>,
-) {
+) -> (VecDeque<Certificate>, BTreeSet<CertificateDigest>) {
     rounds_of_certificates(
         range,
         initial_parents,
@@ -698,10 +686,7 @@ pub fn make_certificates_with_epoch(
     epoch: Epoch,
     initial_parents: &BTreeSet<CertificateDigest>,
     keys: &[Ed25519PublicKey],
-) -> (
-    VecDeque<Certificate<Ed25519PublicKey>>,
-    BTreeSet<CertificateDigest>,
-) {
+) -> (VecDeque<Certificate>, BTreeSet<CertificateDigest>) {
     let mut certificates = VecDeque::new();
     let mut parents = initial_parents.iter().cloned().collect::<BTreeSet<_>>();
     let mut next_parents = BTreeSet::new();
@@ -725,10 +710,7 @@ pub fn make_signed_certificates(
     initial_parents: &BTreeSet<CertificateDigest>,
     keys: &[Ed25519KeyPair],
     failure_probability: f64,
-) -> (
-    VecDeque<Certificate<Ed25519PublicKey>>,
-    BTreeSet<CertificateDigest>,
-) {
+) -> (VecDeque<Certificate>, BTreeSet<CertificateDigest>) {
     let public_keys = keys.iter().map(|k| k.public().clone()).collect::<Vec<_>>();
     let generator = |pk, round, parents| mock_signed_certificate(keys, pk, round, parents);
 
@@ -747,7 +729,7 @@ pub fn mock_certificate(
     origin: Ed25519PublicKey,
     round: Round,
     parents: BTreeSet<CertificateDigest>,
-) -> (CertificateDigest, Certificate<Ed25519PublicKey>) {
+) -> (CertificateDigest, Certificate) {
     let certificate = Certificate {
         header: Header {
             author: origin,
@@ -768,7 +750,7 @@ pub fn mock_certificate_with_epoch(
     round: Round,
     epoch: Epoch,
     parents: BTreeSet<CertificateDigest>,
-) -> (CertificateDigest, Certificate<Ed25519PublicKey>) {
+) -> (CertificateDigest, Certificate) {
     let certificate = Certificate {
         header: Header {
             author: origin,
@@ -789,7 +771,7 @@ pub fn mock_signed_certificate(
     origin: Ed25519PublicKey,
     round: Round,
     parents: BTreeSet<CertificateDigest>,
-) -> (CertificateDigest, Certificate<Ed25519PublicKey>) {
+) -> (CertificateDigest, Certificate) {
     let author = signers.iter().find(|kp| *kp.public() == origin).unwrap();
     let header_builder = HeaderBuilder::default()
         .author(origin.clone())
