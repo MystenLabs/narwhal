@@ -9,11 +9,20 @@ publish = false
 [dependencies]
 anyhow = { version = "1.0.59", features = ["backtrace"] }
 base64ct = { version = "1.5.1", features = ["alloc"] }
-ed25519-dalek = { version = "1.0.1", features = ["batch", "serde"] }
+ed25519-consensus = { version = "1.2.1", features = ["serde"] }
 eyre = "0.6.8"
 hex = "0.4.3"
+<<<<<<< HEAD
 rand = { version = "0.7.3", features = ["std"] }
+<<<<<<< HEAD
 serde = { version = "1.0.142", features = ["derive"] }
+=======
+serde = { version = "1.0.141", features = ["derive"] }
+=======
+rand = { version = "0.8.5", features = ["std"] }
+serde = { version = "1.0.140", features = ["derive"] }
+>>>>>>> db88503e (crypto: replace ed25519-dalek with ed25519-consensus)
+>>>>>>> 5107ce38 (crypto: replace ed25519-dalek with ed25519-consensus)
 zeroize = "1.5.7"
 signature = "1.5.0"
 tokio = { version = "1.20.1", features = ["sync", "rt", "macros"] }
