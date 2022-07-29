@@ -93,14 +93,8 @@ impl Verifier<Secp256k1Signature> for Secp256k1PublicKey {
         // If pubkey recovered from signature matches original pubkey, verifies signature.
         // To ensure non-malleability, signature.verify_ecdsa() is not used since it will verify [r, s, v] and [r, s, -v].
         match signature.sig.recover(&message) {
-            Ok(recovered_key) => {
-                if self.as_bytes() == recovered_key.serialize().as_slice() {
-                    Ok(())
-                } else {
-                    Err(signature::Error::new())
-                }
-            }
-            Err(_) => Err(signature::Error::new()),
+            Ok(recovered_key) if self.as_bytes() == recovered_key.serialize().as_slice() => Ok(()),
+            _ => Err(signature::Error::new()),
         }
     }
 }
