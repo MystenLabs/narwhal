@@ -182,7 +182,7 @@ fn parameters_import_snapshot_matches() {
          },
          "max_concurrent_requests": 500000,
          "prometheus_metrics": {
-            "socket_addr": "/ip4/127.0.0.1/tcp/0/http",
+            "socket_addr": "/ip4/127.0.0.1/tcp/0/http"
          }
       }"#;
 
@@ -196,7 +196,8 @@ fn parameters_import_snapshot_matches() {
     writeln!(file, "{input}").expect("Couldn't write to file");
 
     // WHEN
-    let params = Parameters::import(file_path.to_str().unwrap()).expect("Error raised");
+    let params = Parameters::import(file_path.to_str().unwrap())
+        .expect("Failed to import given Parameters json");
 
     // THEN
     assert_json_snapshot!("parameters_import", params)
