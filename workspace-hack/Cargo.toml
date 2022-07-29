@@ -104,7 +104,6 @@ eyre = { version = "0.6", features = ["auto-install", "track-caller"] }
 fastrand = { version = "1", default-features = false }
 fdlimit = { version = "0.2", default-features = false }
 ff = { version = "0.12", default-features = false }
-fixedbitset = { version = "0.4", default-features = false }
 float-cmp = { version = "0.9", features = ["num-traits", "ratio"] }
 fnv = { version = "1", features = ["std"] }
 form_urlencoded = { version = "1", default-features = false }
@@ -127,7 +126,6 @@ h2 = { version = "0.3", default-features = false }
 half = { version = "1", default-features = false }
 hashbrown = { version = "0.12", features = ["ahash", "inline-more", "raw"] }
 hdrhistogram = { version = "7", default-features = false }
-heck-9fbad63c4bcf4a8f = { package = "heck", version = "0.4" }
 hex = { version = "0.4", features = ["alloc", "std"] }
 hkdf = { version = "0.12", default-features = false, features = ["std"] }
 hmac = { version = "0.12", default-features = false, features = ["reset", "std"] }
@@ -172,7 +170,6 @@ mio = { version = "0.8", features = ["net", "os-ext", "os-poll"] }
 mockall = { version = "0.11", default-features = false }
 multiaddr = { version = "0.14", features = ["url"] }
 multihash = { version = "0.16", default-features = false, features = ["alloc", "derive", "identity", "multihash-derive", "multihash-impl", "std"] }
-multimap = { version = "0.8", default-features = false }
 mysten-network-c01aa52156ee3946 = { package = "mysten-network", git = "https://github.com/mystenlabs/mysten-infra.git", rev = "123c9e40b529315e1c1d91a54fb717111c3e349c", default-features = false }
 mysten-network-4bfefd54e41eb1ee = { package = "mysten-network", git = "https://github.com/mystenlabs/mysten-infra.git", rev = "20ef52a00135114eb361e28673cfaa9bf4560f6f", default-features = false }
 normalize-line-endings = { version = "0.3", default-features = false }
@@ -194,7 +191,6 @@ parking_lot-5ef9efb8ec2df382 = { package = "parking_lot", version = "0.12" }
 parking_lot_core-c38e5c1d305a1b54 = { package = "parking_lot_core", version = "0.8", default-features = false }
 parking_lot_core-274715c4dabd11b0 = { package = "parking_lot_core", version = "0.9", default-features = false }
 percent-encoding = { version = "2", default-features = false }
-petgraph = { version = "0.6", default-features = false }
 pin-project = { version = "1", default-features = false }
 pin-project-lite = { version = "0.2", default-features = false }
 pin-utils = { version = "0.1", default-features = false }
@@ -207,17 +203,12 @@ predicates = { version = "2", features = ["diff", "difflib", "float-cmp", "norma
 predicates-core = { version = "1", default-features = false }
 predicates-tree = { version = "1", default-features = false }
 pretty_assertions = { version = "1", features = ["std"] }
-prettyplease = { version = "0.1", default-features = false }
-proc-macro2-dff4ba8e3ae991db = { package = "proc-macro2", version = "1", features = ["proc-macro", "span-locations"] }
 prometheus = { version = "0.13", features = ["protobuf"] }
 proptest = { version = "1", features = ["bit-set", "break-dead-code", "fork", "lazy_static", "quick-error", "regex-syntax", "rusty-fork", "std", "tempfile", "timeout"] }
 prost = { version = "0.10", features = ["prost-derive", "std"] }
-prost-build = { version = "0.10" }
-prost-types = { version = "0.10", default-features = false }
 protobuf = { version = "2", default-features = false }
 quick-error-dff4ba8e3ae991db = { package = "quick-error", version = "1", default-features = false }
 quick-error-f595c2ba2a3f28df = { package = "quick-error", version = "2", default-features = false }
-quote-dff4ba8e3ae991db = { package = "quote", version = "1", features = ["proc-macro"] }
 rand-ca01ad9e24f5d932 = { package = "rand", version = "0.7", features = ["alloc", "getrandom", "getrandom_package", "libc", "rand_pcg", "small_rng", "std"] }
 rand-c38e5c1d305a1b54 = { package = "rand", version = "0.8", features = ["alloc", "getrandom", "libc", "rand_chacha", "small_rng", "std", "std_rng"] }
 rand_chacha = { version = "0.3", features = ["std"] }
@@ -270,7 +261,6 @@ strsim-93f6ce9d446188ac = { package = "strsim", version = "0.10", default-featur
 strsim-c38e5c1d305a1b54 = { package = "strsim", version = "0.8", default-features = false }
 structopt = { version = "0.3" }
 subtle = { version = "2", default-features = false, features = ["i128", "std"] }
-syn-dff4ba8e3ae991db = { package = "syn", version = "1", features = ["clone-impls", "derive", "extra-traits", "full", "parsing", "printing", "proc-macro", "quote", "visit", "visit-mut"] }
 sync_wrapper = { version = "0.1", default-features = false }
 telemetry-subscribers = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "123c9e40b529315e1c1d91a54fb717111c3e349c", features = ["chrome", "jaeger", "opentelemetry", "opentelemetry-jaeger", "tracing-chrome", "tracing-opentelemetry"] }
 tempfile = { version = "3", default-features = false }
@@ -294,7 +284,6 @@ tokio-rustls = { version = "0.23", features = ["logging", "tls12"] }
 tokio-stream = { version = "0.1", features = ["net", "time"] }
 tokio-util = { version = "0.7", features = ["codec", "tracing"] }
 tonic = { version = "0.7", features = ["async-trait", "axum", "channel", "codegen", "h2", "hyper", "hyper-timeout", "prost", "prost-derive", "prost1", "rustls-pemfile", "tls", "tokio", "tokio-rustls", "tower", "tracing-futures", "transport"] }
-tonic-build = { version = "0.7", features = ["prost", "prost-build", "transport"] }
 tonic-health = { version = "0.6", features = ["transport"] }
 tower = { version = "0.4", features = ["__common", "balance", "buffer", "discover", "filter", "full", "futures-core", "futures-util", "hdrhistogram", "hedge", "indexmap", "limit", "load", "load-shed", "log", "make", "pin-project", "pin-project-lite", "rand", "ready-cache", "reconnect", "retry", "slab", "spawn-ready", "steer", "timeout", "tokio", "tokio-util", "tracing", "util"] }
 tower-http = { version = "0.3", features = ["map-response-body", "propagate-header", "set-header", "tower", "trace", "tracing", "util"] }
@@ -315,7 +304,6 @@ try-lock = { version = "0.2", default-features = false }
 typed-store = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "123c9e40b529315e1c1d91a54fb717111c3e349c", default-features = false }
 typenum = { version = "1", default-features = false }
 unicode-bidi = { version = "0.3", features = ["hardcoded-data", "std"] }
-unicode-ident = { version = "1", default-features = false }
 unicode-normalization = { version = "0.1", features = ["std"] }
 unicode-width = { version = "0.1" }
 unsigned-varint = { version = "0.7", default-features = false, features = ["std"] }
