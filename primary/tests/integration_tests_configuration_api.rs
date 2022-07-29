@@ -180,8 +180,10 @@ async fn test_get_primary_address() {
         committee
             .load()
             .primary(&name)
-            .expect("Our public key or worker id is not in the committee")
+            .unwrap()
+            .unwrap()
             .primary_to_primary
+            .unwrap()
             .to_string()
     )
 }

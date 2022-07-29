@@ -33,11 +33,11 @@ Committee:
     - authorities:
         MAP:
           KEY:
-            TYPENAME: PublicKey
+            TYPENAME: Ed25519PublicKey
           VALUE:
             TYPENAME: Authority
     - epoch: U64
-PublicKey:
+Ed25519PublicKey:
   NEWTYPESTRUCT: STR
 Ed25519Signature:
   STRUCT:
@@ -45,7 +45,7 @@ Ed25519Signature:
 Header:
   STRUCT:
     - author:
-        TYPENAME: PublicKey
+        TYPENAME: Ed25519PublicKey
     - round: U64
     - epoch: U64
     - payload:
@@ -78,7 +78,7 @@ PrimaryWorkerMessage:
         TUPLE:
           - SEQ:
               TYPENAME: BatchDigest
-          - TYPENAME: PublicKey
+          - TYPENAME: Ed25519PublicKey
     1:
       Cleanup:
         NEWTYPE: U64
