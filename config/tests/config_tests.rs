@@ -118,7 +118,7 @@ fn parameters_snapshot_matches() {
         ..ConsensusAPIGrpcParameters::default()
     };
     let prometheus_metrics_parameters = PrometheusMetricsParameters {
-        socket_addr: "/ip4/127.0.0.1/tcp/8081".parse().unwrap(),
+        socket_addr: "/ip4/127.0.0.1/tcp/8081/http".parse().unwrap(),
     };
 
     let parameters = Parameters {

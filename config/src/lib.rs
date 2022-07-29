@@ -561,7 +561,7 @@ mod tests {
         assert!(logs_contain("Remove collections timeout set to 5000 ms"));
         assert!(logs_contain("Max concurrent requests set to 500000"));
         assert!(logs_contain(
-            "Prometheus metrics server will run on 127.0.0.1"
+            "Prometheus metrics server will run on /ip4/127.0.0.1/tcp"
         ));
     }
 }
