@@ -812,7 +812,7 @@
     <span class="ident">stream</span>::{<span class="ident">futures_unordered::FuturesUnordered</span>, <span class="ident">StreamExt</span> <span class="kw">as</span> <span class="kw">_</span>},
     <span class="ident">FutureExt</span>,
 };
-<span class="kw">use</span> <span class="ident">network::PrimaryToWorkerNetwork</span>;
+<span class="kw">use</span> <span class="ident">network</span>::{<span class="ident">PrimaryToWorkerNetwork</span>, <span class="ident">UnreliableNetwork</span>};
 <span class="kw">use</span> <span class="ident">std</span>::{
     <span class="ident">collections</span>::{<span class="ident">HashMap</span>, <span class="ident">HashSet</span>},
     <span class="ident">fmt</span>,

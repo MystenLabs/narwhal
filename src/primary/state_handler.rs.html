@@ -136,7 +136,7 @@
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::primary::PrimaryWorkerMessage</span>;
 <span class="kw">use</span> <span class="ident">config::SharedCommittee</span>;
 <span class="kw">use</span> <span class="ident">crypto::PublicKey</span>;
-<span class="kw">use</span> <span class="ident">network::PrimaryToWorkerNetwork</span>;
+<span class="kw">use</span> <span class="ident">network</span>::{<span class="ident">PrimaryToWorkerNetwork</span>, <span class="ident">UnreliableNetwork</span>};
 <span class="kw">use</span> <span class="ident">std::sync</span>::{
     <span class="ident">atomic</span>::{<span class="ident">AtomicU64</span>, <span class="ident">Ordering</span>},
     <span class="ident">Arc</span>,

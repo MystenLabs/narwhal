@@ -60,6 +60,9 @@
 <span id="54">54</span>
 <span id="55">55</span>
 <span id="56">56</span>
+<span id="57">57</span>
+<span id="58">58</span>
+<span id="59">59</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -69,16 +72,19 @@
     <span class="ident">rust_2018_idioms</span>,
     <span class="ident">rust_2021_compatibility</span>
 )]</span>
+<span class="attribute">#![<span class="ident">allow</span>(<span class="ident">clippy::async_yields_async</span>)]</span>
 
 <span class="kw">mod</span> <span class="ident">bounded_executor</span>;
 <span class="kw">mod</span> <span class="ident">primary</span>;
 <span class="kw">mod</span> <span class="ident">retry</span>;
+<span class="kw">mod</span> <span class="ident">traits</span>;
 <span class="kw">mod</span> <span class="ident">worker</span>;
 
 <span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::{
     <span class="ident">bounded_executor::BoundedExecutor</span>,
     <span class="ident">primary</span>::{<span class="ident">PrimaryNetwork</span>, <span class="ident">PrimaryToWorkerNetwork</span>},
     <span class="ident">retry::RetryConfig</span>,
+    <span class="ident">traits</span>::{<span class="ident">LuckyNetwork</span>, <span class="ident">ReliableNetwork</span>, <span class="ident">UnreliableNetwork</span>},
     <span class="ident">worker</span>::{<span class="ident">WorkerNetwork</span>, <span class="ident">WorkerToPrimaryNetwork</span>},
 };
 

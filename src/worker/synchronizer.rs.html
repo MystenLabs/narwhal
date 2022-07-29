@@ -338,7 +338,7 @@
 <span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">SharedCommittee</span>, <span class="ident">WorkerId</span>};
 <span class="kw">use</span> <span class="ident">crypto::PublicKey</span>;
 <span class="kw">use</span> <span class="ident">futures::stream</span>::{<span class="ident">futures_unordered::FuturesUnordered</span>, <span class="ident">StreamExt</span> <span class="kw">as</span> <span class="kw">_</span>};
-<span class="kw">use</span> <span class="ident">network::WorkerNetwork</span>;
+<span class="kw">use</span> <span class="ident">network</span>::{<span class="ident">LuckyNetwork</span>, <span class="ident">UnreliableNetwork</span>, <span class="ident">WorkerNetwork</span>};
 <span class="kw">use</span> <span class="ident">primary::PrimaryWorkerMessage</span>;
 <span class="kw">use</span> <span class="ident">std</span>::{
     <span class="ident">collections::HashMap</span>,

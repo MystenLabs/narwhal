@@ -136,7 +136,7 @@
 <span class="kw">use</span> <span class="ident">crypto</span>::{<span class="ident">traits::KeyPair</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">KeyPair</span>};
 <span class="kw">use</span> <span class="ident">executor</span>::{<span class="ident">ExecutionState</span>, <span class="ident">ExecutorOutput</span>};
 <span class="kw">use</span> <span class="ident">futures::future::join_all</span>;
-<span class="kw">use</span> <span class="ident">network</span>::{<span class="ident">PrimaryToWorkerNetwork</span>, <span class="ident">WorkerToPrimaryNetwork</span>};
+<span class="kw">use</span> <span class="ident">network</span>::{<span class="ident">PrimaryToWorkerNetwork</span>, <span class="ident">ReliableNetwork</span>, <span class="ident">UnreliableNetwork</span>, <span class="ident">WorkerToPrimaryNetwork</span>};
 <span class="kw">use</span> <span class="ident">prometheus::Registry</span>;
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">fmt::Debug</span>, <span class="ident">path::PathBuf</span>, <span class="ident">sync::Arc</span>};
 <span class="kw">use</span> <span class="ident">tokio::sync::mpsc</span>::{<span class="ident">Receiver</span>, <span class="ident">Sender</span>};

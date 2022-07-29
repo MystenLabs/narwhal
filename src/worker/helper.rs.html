@@ -134,7 +134,7 @@
 <span class="kw">use</span> <span class="ident">bytes::Bytes</span>;
 <span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">Committee</span>, <span class="ident">WorkerId</span>};
 <span class="kw">use</span> <span class="ident">crypto::PublicKey</span>;
-<span class="kw">use</span> <span class="ident">network::WorkerNetwork</span>;
+<span class="kw">use</span> <span class="ident">network</span>::{<span class="ident">UnreliableNetwork</span>, <span class="ident">WorkerNetwork</span>};
 <span class="kw">use</span> <span class="ident">store::Store</span>;
 <span class="kw">use</span> <span class="ident">tokio</span>::{
     <span class="ident">sync</span>::{
@@ -211,7 +211,7 @@
                     <span class="kw">for</span> <span class="ident">digest</span> <span class="kw">in</span> <span class="ident">digests</span> {
                         <span class="kw">match</span> <span class="self">self</span>.<span class="ident">store</span>.<span class="ident">read</span>(<span class="ident">digest</span>).<span class="kw">await</span> {
                             <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="ident">data</span>)) =&gt; {
-                                <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">network</span>.<span class="ident">unreliable_send_message</span>(<span class="ident">address</span>.<span class="ident">clone</span>(), <span class="ident">Bytes::from</span>(<span class="ident">data</span>)).<span class="kw">await</span>;
+                                <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">network</span>.<span class="ident">unreliable_send_message</span>(<span class="ident">address</span>.<span class="ident">clone</span>(), <span class="ident">Bytes::from</span>(<span class="ident">data</span>).<span class="ident">into</span>()).<span class="kw">await</span>;
                             }
                             <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>) =&gt; {
                                 <span class="macro">trace!</span>(<span class="string">&quot;No Batches found for requested digests {:?}&quot;</span>, <span class="ident">digest</span>);
