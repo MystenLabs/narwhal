@@ -422,6 +422,11 @@
 <span id="416">416</span>
 <span id="417">417</span>
 <span id="418">418</span>
+<span id="419">419</span>
+<span id="420">420</span>
+<span id="421">421</span>
+<span id="422">422</span>
+<span id="423">423</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="kw">crate</span>::{
@@ -514,9 +519,12 @@
         <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">test</span>))]</span>
         <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">Message::from_hashed_data</span>::<span class="op">&lt;</span><span class="ident">rust_secp256k1::hashes::sha256::Hash</span><span class="op">&gt;</span>(<span class="ident">msg</span>);
 
-        <span class="kw">let</span> <span class="ident">vrfy</span> <span class="op">=</span> <span class="ident">Secp256k1::verification_only</span>();
-        <span class="ident">vrfy</span>.<span class="ident">verify_ecdsa</span>(<span class="kw-2">&amp;</span><span class="ident">message</span>, <span class="kw-2">&amp;</span><span class="ident">signature</span>.<span class="ident">sig</span>.<span class="ident">to_standard</span>(), <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">pubkey</span>)
-            .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">_e</span><span class="op">|</span> <span class="ident">signature::Error::new</span>())
+        <span class="comment">// If pubkey recovered from signature matches original pubkey, verifies signature.</span>
+        <span class="comment">// To ensure non-malleability, signature.verify_ecdsa() is not used since it will verify [r, s, v] and [r, s, -v].</span>
+        <span class="kw">match</span> <span class="ident">signature</span>.<span class="ident">sig</span>.<span class="ident">recover</span>(<span class="kw-2">&amp;</span><span class="ident">message</span>) {
+            <span class="prelude-val">Ok</span>(<span class="ident">recovered_key</span>) <span class="kw">if</span> <span class="self">self</span>.<span class="ident">as_bytes</span>() <span class="op">==</span> <span class="ident">recovered_key</span>.<span class="ident">serialize</span>().<span class="ident">as_slice</span>() =&gt; <span class="prelude-val">Ok</span>(()),
+            <span class="kw">_</span> =&gt; <span class="prelude-val">Err</span>(<span class="ident">signature::Error::new</span>()),
+        }
     }
 }
 
@@ -800,6 +808,8 @@
         <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">test</span>))]</span>
         <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">Message::from_hashed_data</span>::<span class="op">&lt;</span><span class="ident">rust_secp256k1::hashes::sha256::Hash</span><span class="op">&gt;</span>(<span class="ident">msg</span>);
 
+        <span class="comment">// Creates a 65-bytes sigature of shape [r, s, v] where v can be 0 or 1.</span>
+        <span class="comment">// Pseudo-random deterministic nonce generation is used according to RFC6979.</span>
         <span class="prelude-val">Ok</span>(<span class="ident">Secp256k1Signature</span> {
             <span class="ident">sig</span>: <span class="ident">secp</span>.<span class="ident">sign_ecdsa_recoverable</span>(<span class="kw-2">&amp;</span><span class="ident">message</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">secret</span>.<span class="ident">privkey</span>),
             <span class="ident">bytes</span>: <span class="ident">OnceCell::new</span>(),
