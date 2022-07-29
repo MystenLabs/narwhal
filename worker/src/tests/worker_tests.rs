@@ -58,7 +58,12 @@ async fn handle_clients_transactions() {
     let serialized_batch = serialize_batch_message(batch.clone());
     let batch_digest = serialized_batch_digest(&serialized_batch).unwrap();
 
-    let primary_address = committee.primary(&name).unwrap().worker_to_primary;
+    let primary_address = committee
+        .primary(&name)
+        .unwrap()
+        .unwrap()
+        .worker_to_primary
+        .unwrap();
     let expected = bincode::serialize(&WorkerPrimaryMessage::OurBatch(batch_digest, id)).unwrap();
     let mut handle = WorkerToPrimaryMockServer::spawn(primary_address);
 

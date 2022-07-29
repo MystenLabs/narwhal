@@ -69,7 +69,7 @@ fn update_primary_network_info_test() {
         .authorities
         .iter()
         .map(|(pk, a)| (pk.clone(), (a.stake, a.primary.clone())))
-        .collect::<BTreeMap<_, (Stake, PrimaryAddresses)>>();
+        .collect::<BTreeMap<_, (Stake, Option<PrimaryAddresses>)>>();
     let res2 = committee
         .clone()
         .update_primary_network_info(invalid_new_info)
@@ -89,7 +89,7 @@ fn update_primary_network_info_test() {
         .iter()
         // change the stake
         .map(|(pk, a)| (pk.clone(), (a.stake + 1, a.primary.clone())))
-        .collect::<BTreeMap<_, (Stake, PrimaryAddresses)>>();
+        .collect::<BTreeMap<_, (Stake, Option<PrimaryAddresses>)>>();
     let res2 = committee
         .clone()
         .update_primary_network_info(invalid_new_info)
@@ -117,7 +117,7 @@ fn update_primary_network_info_test() {
         .into_iter()
         .zip(addresses)
         .map(|((pk, stk), addr)| (pk, (stk, addr)))
-        .collect::<BTreeMap<PublicKey, (Stake, PrimaryAddresses)>>();
+        .collect::<BTreeMap<PublicKey, (Stake, Option<PrimaryAddresses>)>>();
 
     let mut comm = committee;
     let res = comm.update_primary_network_info(new_info.clone());

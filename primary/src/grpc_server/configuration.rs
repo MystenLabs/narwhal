@@ -58,38 +58,15 @@ impl Configuration for NarwhalConfiguration {
         let mut parsed_input = vec![];
         for validator in validators.iter() {
             let public_key = self.get_public_key(validator.public_key.as_ref())?;
+            let stake_weight: u32 = validator
+                .stake_weight
+                .try_into()
+                .map_err(|_| Status::invalid_argument("Invalid stake weight"))?;
+            let primary_addresses = parse_primary_addresses(&validator.primary_addresses)?;
 
-            let stake_weight = validator.stake_weight;
-            let default_primary_address = PrimaryAddressesProto::default();
-            let primary_addresses = validator
-                .primary_addresses
-                .as_ref()
-                .unwrap_or(&default_primary_address);
-            let primary_to_primary = primary_addresses
-                .primary_to_primary
-                .as_ref()
-                .unwrap_or(&MultiAddrProto::default())
-                .address
-                .parse()
-                .map_err(|err| {
-                    Status::invalid_argument(format!("Could not serialize: {:?}", err))
-                })?;
-            let worker_to_primary = primary_addresses
-                .primary_to_primary
-                .as_ref()
-                .unwrap_or(&MultiAddrProto::default())
-                .address
-                .parse()
-                .map_err(|err| {
-                    Status::invalid_argument(format!("Could not serialize: {:?}", err))
-                })?;
-            let primary = PrimaryAddresses {
-                primary_to_primary,
-                worker_to_primary,
-            };
             parsed_input.push(format!(
                 "public_key: {:?} stake_weight: {:?} primary addresses: {:?}",
-                public_key, stake_weight, primary
+                public_key, stake_weight, primary_addresses
             ));
         }
         Err(Status::internal(format!(
@@ -118,34 +95,8 @@ impl Configuration for NarwhalConfiguration {
                 .stake_weight
                 .try_into()
                 .map_err(|_| Status::invalid_argument("Invalid stake weight"))?;
-            let default_primary_address = PrimaryAddressesProto::default();
-            let primary_addresses = validator
-                .primary_addresses
-                .as_ref()
-                .unwrap_or(&default_primary_address);
-            let primary_to_primary = primary_addresses
-                .primary_to_primary
-                .as_ref()
-                .unwrap_or(&MultiAddrProto::default())
-                .address
-                .parse()
-                .map_err(|err| {
-                    Status::invalid_argument(format!("Could not serialize: {:?}", err))
-                })?;
-            let worker_to_primary = primary_addresses
-                .primary_to_primary
-                .as_ref()
-                .unwrap_or(&MultiAddrProto::default())
-                .address
-                .parse()
-                .map_err(|err| {
-                    Status::invalid_argument(format!("Could not serialize: {:?}", err))
-                })?;
-            let primary = PrimaryAddresses {
-                primary_to_primary,
-                worker_to_primary,
-            };
-            new_network_info.insert(public_key, (stake_weight, primary));
+            let primary_addresses = parse_primary_addresses(&validator.primary_addresses)?;
+            new_network_info.insert(public_key, (stake_weight, primary_addresses));
         }
         let mut new_committee = (**self.committee.load()).clone();
         let res = new_committee.update_primary_network_info(new_network_info);
@@ -166,5 +117,31 @@ impl Configuration for NarwhalConfiguration {
                 address: self.primary_address.to_string(),
             }),
         }))
+    }
+}
+
+fn parse_primary_addresses(
+    primary_addresses: &Option<PrimaryAddressesProto>,
+) -> Result<Option<PrimaryAddresses>, Status> {
+    match primary_addresses {
+        Some(primary_addresses) => {
+            let primary_to_primary = match &primary_addresses.primary_to_primary {
+                Some(addr) => Some(addr.address.parse().map_err(|err| {
+                    Status::invalid_argument(format!("Could not serialize: {:?}", err))
+                })?),
+                None => None,
+            };
+            let worker_to_primary = match &primary_addresses.worker_to_primary {
+                Some(addr) => Some(addr.address.parse().map_err(|err| {
+                    Status::invalid_argument(format!("Could not serialize: {:?}", err))
+                })?),
+                None => None,
+            };
+            Ok(Some(PrimaryAddresses {
+                primary_to_primary,
+                worker_to_primary,
+            }))
+        }
+        None => Ok(None),
     }
 }

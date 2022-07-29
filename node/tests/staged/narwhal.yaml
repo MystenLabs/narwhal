@@ -3,7 +3,8 @@ Authority:
   STRUCT:
     - stake: U32
     - primary:
-        TYPENAME: PrimaryAddresses
+        OPTION:
+          TYPENAME: PrimaryAddresses
 Batch:
   NEWTYPESTRUCT:
     SEQ:
@@ -66,8 +67,10 @@ HeaderDigest:
       SIZE: 32
 PrimaryAddresses:
   STRUCT:
-    - primary_to_primary: BYTES
-    - worker_to_primary: BYTES
+    - primary_to_primary:
+        OPTION: BYTES
+    - worker_to_primary:
+        OPTION: BYTES
 PrimaryWorkerMessage:
   ENUM:
     0:

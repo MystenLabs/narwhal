@@ -43,7 +43,9 @@ async fn process_header() {
     let address = committee
         .primary(&header().author)
         .unwrap()
-        .primary_to_primary;
+        .unwrap()
+        .primary_to_primary
+        .unwrap();
     let mut handle = PrimaryToPrimaryMockServer::spawn(address);
 
     // Make a synchronizer for the core.
@@ -343,7 +345,9 @@ async fn process_votes() {
     let mut handles: Vec<_> = committee
         .others_primaries(&name)
         .into_iter()
-        .map(|(_, address)| PrimaryToPrimaryMockServer::spawn(address.primary_to_primary))
+        .map(|(_, address)| {
+            PrimaryToPrimaryMockServer::spawn(address.unwrap().primary_to_primary.unwrap())
+        })
         .collect();
 
     // Send a votes to the core.
@@ -583,7 +587,9 @@ async fn reconfigure_core() {
     let address = new_committee
         .primary(&header.author)
         .unwrap()
-        .primary_to_primary;
+        .unwrap()
+        .primary_to_primary
+        .unwrap();
     let mut handle = PrimaryToPrimaryMockServer::spawn(address);
 
     // Make a synchronizer for the core.

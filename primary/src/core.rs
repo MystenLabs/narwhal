@@ -157,12 +157,14 @@ impl Core {
         self.current_header = header.clone();
         self.votes_aggregator = VotesAggregator::new();
 
-        // Broadcast the new header in a reliable manner.
+        // Broadcast the new header in a reliable manner to primaries we have
+        // addresses for.
         let addresses = self
             .committee
             .others_primaries(&self.name)
             .into_iter()
-            .map(|(_, x)| x.primary_to_primary)
+            .filter(|(_, x)| x.is_some())
+            .filter_map(|(_, x)| x.unwrap().primary_to_primary)
             .collect();
 
         let message = PrimaryMessage::Header(header.clone());
@@ -289,7 +291,9 @@ impl Core {
                     .committee
                     .primary(&header.author)
                     .expect("Author of valid header is not in the committee")
-                    .primary_to_primary;
+                    .expect("Primary addresses of the author of valid header are not in the committee")
+                    .primary_to_primary
+                    .expect("Primary to primary address of the author of valid header is not in the committee");
                 let handler = self
                     .network
                     .send(address, &PrimaryMessage::Vote(vote))
@@ -315,12 +319,13 @@ impl Core {
         {
             debug!("Assembled {:?}", certificate);
 
-            // Broadcast the certificate.
+            // Broadcast the certificate to all primaries we have addresses for.
             let addresses = self
                 .committee
                 .others_primaries(&self.name)
                 .into_iter()
-                .map(|(_, x)| x.primary_to_primary)
+                .filter(|(_, x)| x.is_some())
+                .filter_map(|(_, x)| x.unwrap().primary_to_primary)
                 .collect();
             let message = PrimaryMessage::Certificate(certificate.clone());
             let handlers = self.network.broadcast(addresses, &message).await;

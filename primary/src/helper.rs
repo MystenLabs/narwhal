@@ -23,6 +23,9 @@ enum HelperError {
     #[error("Received message from unknown authority {0}")]
     UnknownAuthority(String),
 
+    #[error("Received message from authority {0} with unknown address")]
+    UnknownAuthorityAddress(String),
+
     #[error("Storage failure: {0}")]
     StoreError(#[from] StoreError),
 
@@ -146,12 +149,13 @@ impl Helper {
         origin: PublicKey,
     ) -> Result<(), HelperError> {
         // get the requestor's address.
-        let address = match self.committee.primary(&origin) {
-            Ok(x) => x.primary_to_primary,
-            Err(_) => {
-                return Err(HelperError::UnknownAuthority(origin.encode_base64()));
-            }
-        };
+        let address = self
+            .committee
+            .primary(&origin)
+            .map_err(|_| HelperError::UnknownAuthority(origin.encode_base64()))?
+            .ok_or_else(|| HelperError::UnknownAuthorityAddress(origin.encode_base64()))?
+            .primary_to_primary
+            .ok_or_else(|| HelperError::UnknownAuthorityAddress(origin.encode_base64()))?;
 
         let mut result: Vec<(CertificateDigest, bool)> = Vec::new();
 
@@ -226,12 +230,13 @@ impl Helper {
         }
 
         // get the requestor's address.
-        let address = match self.committee.primary(&origin) {
-            Ok(x) => x.primary_to_primary,
-            Err(_) => {
-                return Err(HelperError::UnknownAuthority(origin.encode_base64()));
-            }
-        };
+        let address = self
+            .committee
+            .primary(&origin)
+            .map_err(|_| HelperError::UnknownAuthority(origin.encode_base64()))?
+            .ok_or_else(|| HelperError::UnknownAuthorityAddress(origin.encode_base64()))?
+            .primary_to_primary
+            .ok_or_else(|| HelperError::UnknownAuthorityAddress(origin.encode_base64()))?;
 
         // TODO [issue #195]: Do some accounting to prevent bad nodes from monopolizing our resources.
         let certificates = match self.certificate_store.read_all(digests.to_owned()).await {

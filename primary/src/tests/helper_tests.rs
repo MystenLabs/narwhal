@@ -61,8 +61,8 @@ async fn test_process_certificates_stream_mode() {
     }
 
     // AND spin up a mock node
-    let address = committee.primary(&name).unwrap();
-    let mut handler = PrimaryToPrimaryMockServer::spawn(address.primary_to_primary);
+    let address = committee.primary(&name).unwrap().unwrap();
+    let mut handler = PrimaryToPrimaryMockServer::spawn(address.primary_to_primary.unwrap());
 
     // WHEN requesting the certificates
     tx_primaries
@@ -146,8 +146,8 @@ async fn test_process_certificates_batch_mode() {
     }
 
     // AND spin up a mock node
-    let address = committee.primary(&name).unwrap();
-    let mut handler = PrimaryToPrimaryMockServer::spawn(address.primary_to_primary);
+    let address = committee.primary(&name).unwrap().unwrap();
+    let mut handler = PrimaryToPrimaryMockServer::spawn(address.primary_to_primary.unwrap());
 
     // WHEN requesting the certificates in batch mode
     tx_primaries
@@ -247,8 +247,8 @@ async fn test_process_payload_availability_success() {
     }
 
     // AND spin up a mock node
-    let address = committee.primary(&name).unwrap();
-    let mut handler = PrimaryToPrimaryMockServer::spawn(address.primary_to_primary);
+    let address = committee.primary(&name).unwrap().unwrap();
+    let mut handler = PrimaryToPrimaryMockServer::spawn(address.primary_to_primary.unwrap());
 
     // WHEN requesting the payload availability for all the certificates
     tx_primaries
@@ -369,8 +369,8 @@ async fn test_process_payload_availability_when_failures() {
     }
 
     // AND spin up a mock node
-    let address = committee.primary(&name).unwrap();
-    let mut handler = PrimaryToPrimaryMockServer::spawn(address.primary_to_primary);
+    let address = committee.primary(&name).unwrap().unwrap();
+    let mut handler = PrimaryToPrimaryMockServer::spawn(address.primary_to_primary.unwrap());
 
     // WHEN requesting the payload availability for all the certificates
     tx_primaries

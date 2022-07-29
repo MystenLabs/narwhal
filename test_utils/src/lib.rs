@@ -138,14 +138,18 @@ pub fn pure_committee_from_keys(keys: &[KeyPair]) -> Committee {
 }
 
 pub fn make_authority_with_port_getter<F: FnMut() -> u16>(mut get_port: F) -> Authority {
-    let primary = PrimaryAddresses {
-        primary_to_primary: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
-            .parse()
-            .unwrap(),
-        worker_to_primary: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
-            .parse()
-            .unwrap(),
-    };
+    let primary = Some(PrimaryAddresses {
+        primary_to_primary: Some(
+            format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
+                .parse()
+                .unwrap(),
+        ),
+        worker_to_primary: Some(
+            format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
+                .parse()
+                .unwrap(),
+        ),
+    });
 
     Authority { stake: 1, primary }
 }
@@ -258,10 +262,10 @@ pub fn mock_committee(keys: &[PublicKey]) -> Committee {
                     id.clone(),
                     Authority {
                         stake: 1,
-                        primary: PrimaryAddresses {
-                            primary_to_primary: "/ip4/0.0.0.0/tcp/0/http".parse().unwrap(),
-                            worker_to_primary: "/ip4/0.0.0.0/tcp/0/http".parse().unwrap(),
-                        },
+                        primary: Some(PrimaryAddresses {
+                            primary_to_primary: Some("/ip4/0.0.0.0/tcp/0/http".parse().unwrap()),
+                            worker_to_primary: Some("/ip4/0.0.0.0/tcp/0/http".parse().unwrap()),
+                        }),
                     },
                 )
             })

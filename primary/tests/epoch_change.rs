@@ -94,7 +94,14 @@ async fn test_simple_epoch_change() {
         let addresses: Vec<_> = old_committee
             .authorities
             .values()
-            .map(|authority| authority.primary.worker_to_primary.clone())
+            .map(|authority| {
+                authority
+                    .primary
+                    .clone()
+                    .unwrap()
+                    .worker_to_primary
+                    .unwrap()
+            })
             .collect();
         let message = WorkerPrimaryMessage::Reconfigure(ReconfigureNotification::NewEpoch(
             new_committee.clone(),
@@ -275,7 +282,14 @@ async fn test_partial_committee_change() {
     let addresses: Vec<_> = committee_0
         .authorities
         .values()
-        .map(|authority| authority.primary.worker_to_primary.clone())
+        .map(|authority| {
+            authority
+                .primary
+                .clone()
+                .unwrap()
+                .worker_to_primary
+                .unwrap()
+        })
         .collect();
     let message =
         WorkerPrimaryMessage::Reconfigure(ReconfigureNotification::NewEpoch(committee_1.clone()));
@@ -371,7 +385,14 @@ async fn test_restart_with_new_committee_change() {
     let addresses: Vec<_> = committee_0
         .authorities
         .values()
-        .map(|authority| authority.primary.worker_to_primary.clone())
+        .map(|authority| {
+            authority
+                .primary
+                .clone()
+                .unwrap()
+                .worker_to_primary
+                .unwrap()
+        })
         .collect();
     let message = WorkerPrimaryMessage::Reconfigure(ReconfigureNotification::Shutdown);
     let mut _do_not_drop: Vec<CancelOnDropHandler<_>> = Vec::new();
@@ -451,7 +472,14 @@ async fn test_restart_with_new_committee_change() {
         let addresses: Vec<_> = committee_0
             .authorities
             .values()
-            .map(|authority| authority.primary.worker_to_primary.clone())
+            .map(|authority| {
+                authority
+                    .primary
+                    .clone()
+                    .unwrap()
+                    .worker_to_primary
+                    .unwrap()
+            })
             .collect();
         let message = WorkerPrimaryMessage::Reconfigure(ReconfigureNotification::Shutdown);
         let mut _do_not_drop: Vec<CancelOnDropHandler<_>> = Vec::new();

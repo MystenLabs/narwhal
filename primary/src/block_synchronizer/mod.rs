@@ -628,13 +628,16 @@ impl BlockSynchronizer {
     // It returns back the primary names to which we have sent the requests.
     #[instrument(level = "trace", skip_all)]
     async fn broadcast_batch_request(&mut self, message: PrimaryMessage) -> Vec<PublicKey> {
-        // Naively now just broadcast the request to all the primaries
-
+        // Naively now just broadcast the request to all the primaries we have
+        // addresses for.
         let (primaries_names, primaries_addresses) = self
             .committee
             .others_primaries(&self.name)
             .into_iter()
-            .map(|(name, address)| (name, address.primary_to_primary))
+            .filter(|(_, address)| address.is_some())
+            .map(|(name, address)| (name, address.unwrap().primary_to_primary))
+            .filter(|(_, primary_to_primary)| primary_to_primary.is_some())
+            .map(|(name, primary_to_primary)| (name, primary_to_primary.unwrap()))
             .unzip();
 
         self.primary_network

@@ -289,10 +289,10 @@ async fn epoch_change() {
                 let address = committee
                     .primary(&name_clone)
                     .expect("Our key is not in the committee")
-                    .primary_to_primary;
-                let message = WorkerPrimaryMessage::Reconfigure(ReconfigureNotification::NewEpoch(
-                    committee.clone(),
-                ));
+                    .expect("Primary addresses have not been initialized.")
+                    .primary_to_primary
+                    .expect("Primary to primary address has not been initialized.");
+                let message = WorkerPrimaryMessage::NewEpoch(committee.clone());
                 let primary_cancel_handle = primary_network.send(address, &message).await;
 
                 let addresses = worker_cache_clone

@@ -31,7 +31,7 @@ async fn test_new_epoch() {
         validators: vec![ValidatorData {
             public_key: Some(public_key.clone()),
             stake_weight,
-            primary_addresses: Some(PrimaryAddressesProto::default()),
+            primary_addresses: None,
         }],
     });
 
@@ -97,7 +97,7 @@ async fn test_new_network_info() {
         validators.push(ValidatorData {
             public_key: Some(public_key_proto),
             stake_weight,
-            primary_addresses: Some(PrimaryAddressesProto::default()),
+            primary_addresses: None,
         });
     }
 
