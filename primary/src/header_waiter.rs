@@ -217,8 +217,7 @@ impl HeaderWaiter {
                                     .expect("Author of valid header is not in the committee")
                                     .primary_to_worker;
 
-                                // TODO [issue #423]: This network transmission needs to be reliable. The worker may crash-recover
-                                // or a committee change may change the worker's IP address.
+                                // TODO [issue #423]: This network transmission needs to be reliable: the worker may crash-recover.
                                 let message = PrimaryWorkerMessage::Synchronize(digests, author.clone());
                                 self.worker_network.unreliable_send(address, &message).await;
                             }
