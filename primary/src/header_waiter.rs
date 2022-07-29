@@ -138,12 +138,15 @@ impl HeaderWaiter {
 
     /// Update the committee and cleanup internal state.
     fn update_committee(&mut self, committee: Committee) {
-        self.pending.clear();
-        self.batch_requests.clear();
-        self.parent_requests.clear();
-
+        let old_epoch = self.committee.epoch();
         self.committee = committee;
         tracing::debug!("Committee updated to {}", self.committee);
+
+        if self.committee.epoch() > old_epoch {
+            self.pending.clear();
+            self.batch_requests.clear();
+            self.parent_requests.clear();
+        }
     }
 
     /// Helper function. It waits for particular data to become available in the storage

@@ -129,10 +129,14 @@ impl Proposer {
 
     /// Update the committee and cleanup internal state.
     fn update_committee(&mut self, committee: Committee) {
+        let old_epoch = self.committee.epoch();
         self.committee = committee;
-        self.round = 0;
-        self.last_parents = Certificate::genesis(&self.committee);
         tracing::debug!("Committee updated to {}", self.committee);
+
+        if self.committee.epoch() > old_epoch {
+            self.round = 0;
+            self.last_parents = Certificate::genesis(&self.committee);
+        }
     }
 
     // Main loop listening to incoming messages.
