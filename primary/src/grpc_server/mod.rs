@@ -10,6 +10,7 @@ use crate::{
 use config::SharedCommittee;
 use consensus::dag::Dag;
 
+use crypto::PublicKey;
 use multiaddr::Multiaddr;
 use std::{sync::Arc, time::Duration};
 use tokio::{sync::mpsc::Sender, task::JoinHandle};
@@ -22,8 +23,7 @@ mod proposer;
 mod validator;
 
 pub struct ConsensusAPIGrpc<SynchronizerHandler: Handler + Send + Sync + 'static> {
-    // Multiaddr of NW primary
-    primary_address: Multiaddr,
+    name: PublicKey,
     // Multiaddr of gRPC server
     socket_address: Multiaddr,
     tx_get_block_commands: Sender<BlockCommand>,
@@ -38,7 +38,7 @@ pub struct ConsensusAPIGrpc<SynchronizerHandler: Handler + Send + Sync + 'static
 
 impl<SynchronizerHandler: Handler + Send + Sync + 'static> ConsensusAPIGrpc<SynchronizerHandler> {
     pub fn spawn(
-        primary_address: Multiaddr,
+        name: PublicKey,
         socket_address: Multiaddr,
         tx_get_block_commands: Sender<BlockCommand>,
         tx_block_removal_commands: Sender<BlockRemoverCommand>,
@@ -51,7 +51,7 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> ConsensusAPIGrpc<Sync
     ) -> JoinHandle<()> {
         tokio::spawn(async move {
             let _ = Self {
-                primary_address,
+                name,
                 socket_address,
                 tx_get_block_commands,
                 tx_block_removal_commands,
@@ -79,8 +79,14 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> ConsensusAPIGrpc<Sync
         );
 
         let narwhal_proposer = NarwhalProposer::new(self.dag.clone(), Arc::clone(&self.committee));
-        let narwhal_configuration =
-            NarwhalConfiguration::new(self.primary_address.to_owned(), Arc::clone(&self.committee));
+        let narwhal_configuration = NarwhalConfiguration::new(
+            self.committee
+                .load()
+                .primary(&self.name)
+                .expect("Our public key is not in the committee")
+                .primary_to_primary,
+            Arc::clone(&self.committee),
+        );
 
         let config = mysten_network::config::Config::default();
         let server = config
