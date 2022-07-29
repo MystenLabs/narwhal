@@ -360,6 +360,18 @@
 <span id="354">354</span>
 <span id="355">355</span>
 <span id="356">356</span>
+<span id="357">357</span>
+<span id="358">358</span>
+<span id="359">359</span>
+<span id="360">360</span>
+<span id="361">361</span>
+<span id="362">362</span>
+<span id="363">363</span>
+<span id="364">364</span>
+<span id="365">365</span>
+<span id="366">366</span>
+<span id="367">367</span>
+<span id="368">368</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) The Diem Core Contributors</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -378,7 +390,7 @@
     <span class="ident">task::JoinHandle</span>,
 };
 
-<span class="kw">use</span> <span class="ident">tracing::info</span>;
+<span class="kw">use</span> <span class="ident">tracing::debug</span>;
 
 <span class="kw">use</span> <span class="ident">thiserror::Error</span>;
 
@@ -428,10 +440,15 @@
         <span class="kw">match</span> <span class="ident">semaphore</span>.<span class="ident">clone</span>().<span class="ident">try_acquire_owned</span>() {
             <span class="prelude-val">Ok</span>(<span class="ident">p</span>) =&gt; <span class="ident">p</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; {
-                <span class="macro">info!</span>(<span class="string">&quot;concurrent task limit reached, waiting...&quot;</span>);
+                <span class="macro">debug!</span>(<span class="string">&quot;concurrent task limit reached, waiting...&quot;</span>);
                 <span class="ident">semaphore</span>.<span class="ident">acquire_owned</span>().<span class="kw">await</span>.<span class="ident">unwrap</span>()
             }
         }
+    }
+
+    <span class="doccomment">/// Returns the executor available capacity for running tasks.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">available_capacity</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">usize</span> {
+        <span class="self">self</span>.<span class="ident">semaphore</span>.<span class="ident">available_permits</span>()
     }
 
     <span class="doccomment">/// Spawn a [`Future`] on the `BoundedExecutor`. This function is async and</span>
@@ -593,12 +610,16 @@
         <span class="kw">let</span> (<span class="ident">tx2</span>, <span class="ident">rx2</span>) <span class="op">=</span> <span class="ident">oneshot::channel</span>();
 
         <span class="comment">// executor has a free slot, spawn should succeed</span>
+        <span class="macro">assert_eq!</span>(<span class="ident">executor</span>.<span class="ident">available_capacity</span>(), <span class="number">1</span>);
 
         <span class="kw">let</span> <span class="ident">f1</span> <span class="op">=</span> <span class="ident">executor</span>.<span class="ident">try_spawn</span>(<span class="ident">rx1</span>).<span class="ident">unwrap</span>();
 
         <span class="comment">// executor is full, try_spawn should return err and give back the task</span>
         <span class="comment">// we attempted to spawn</span>
         <span class="kw">let</span> <span class="ident">BoundedExecutionError::Full</span>(<span class="ident">rx2</span>) <span class="op">=</span> <span class="ident">executor</span>.<span class="ident">try_spawn</span>(<span class="ident">rx2</span>).<span class="ident">unwrap_err</span>();
+
+        <span class="comment">// currently running tasks is updated</span>
+        <span class="macro">assert_eq!</span>(<span class="ident">executor</span>.<span class="ident">available_capacity</span>(), <span class="number">0</span>);
 
         <span class="comment">// complete f1 future, should open a free slot in executor</span>
 
@@ -612,6 +633,9 @@
 
         <span class="ident">tx2</span>.<span class="ident">send</span>(()).<span class="ident">unwrap</span>();
         <span class="ident">block_on</span>(<span class="ident">f2</span>).<span class="ident">unwrap</span>().<span class="ident">unwrap</span>();
+
+        <span class="comment">//ensure current running goes back to one</span>
+        <span class="macro">assert_eq!</span>(<span class="ident">executor</span>.<span class="ident">available_capacity</span>(), <span class="number">1</span>);
     }
 
     <span class="comment">// ensure tasks spawned with retries do not hog the semaphore</span>

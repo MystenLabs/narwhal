@@ -602,6 +602,38 @@
 <span id="596">596</span>
 <span id="597">597</span>
 <span id="598">598</span>
+<span id="599">599</span>
+<span id="600">600</span>
+<span id="601">601</span>
+<span id="602">602</span>
+<span id="603">603</span>
+<span id="604">604</span>
+<span id="605">605</span>
+<span id="606">606</span>
+<span id="607">607</span>
+<span id="608">608</span>
+<span id="609">609</span>
+<span id="610">610</span>
+<span id="611">611</span>
+<span id="612">612</span>
+<span id="613">613</span>
+<span id="614">614</span>
+<span id="615">615</span>
+<span id="616">616</span>
+<span id="617">617</span>
+<span id="618">618</span>
+<span id="619">619</span>
+<span id="620">620</span>
+<span id="621">621</span>
+<span id="622">622</span>
+<span id="623">623</span>
+<span id="624">624</span>
+<span id="625">625</span>
+<span id="626">626</span>
+<span id="627">627</span>
+<span id="628">628</span>
+<span id="629">629</span>
+<span id="630">630</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -629,7 +661,7 @@
     <span class="ident">PublicKey</span>, <span class="ident">Signature</span>, <span class="ident">SignatureService</span>,
 };
 <span class="kw">use</span> <span class="ident">multiaddr</span>::{<span class="ident">Multiaddr</span>, <span class="ident">Protocol</span>};
-<span class="kw">use</span> <span class="ident">network</span>::{<span class="ident">PrimaryNetwork</span>, <span class="ident">PrimaryToWorkerNetwork</span>};
+<span class="kw">use</span> <span class="ident">network</span>::{<span class="ident">metrics::Metrics</span>, <span class="ident">PrimaryNetwork</span>, <span class="ident">PrimaryToWorkerNetwork</span>};
 <span class="kw">use</span> <span class="ident">prometheus::Registry</span>;
 <span class="kw">use</span> <span class="ident">std</span>::{
     <span class="ident">net::Ipv4Addr</span>,
@@ -715,6 +747,7 @@
         <span class="kw">let</span> <span class="ident">endpoint_metrics</span> <span class="op">=</span> <span class="ident">metrics</span>.<span class="ident">endpoint_metrics</span>.<span class="ident">unwrap</span>();
         <span class="kw">let</span> <span class="ident">primary_endpoint_metrics</span> <span class="op">=</span> <span class="ident">metrics</span>.<span class="ident">primary_endpoint_metrics</span>.<span class="ident">unwrap</span>();
         <span class="kw">let</span> <span class="ident">node_metrics</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">metrics</span>.<span class="ident">node_metrics</span>.<span class="ident">unwrap</span>());
+        <span class="kw">let</span> <span class="ident">network_metrics</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">metrics</span>.<span class="ident">network_metrics</span>.<span class="ident">unwrap</span>());
 
         <span class="comment">// Atomic variable use to synchronize all tasks with the latest consensus round. This is only</span>
         <span class="comment">// used for cleanup. The only task that write into this variable is `GarbageCollector`.</span>
@@ -786,6 +819,10 @@
         <span class="kw">let</span> <span class="ident">signature_service</span> <span class="op">=</span> <span class="ident">SignatureService::new</span>(<span class="ident">signer</span>);
 
         <span class="comment">// The `Core` receives and handles headers, votes, and certificates from the other primaries.</span>
+        <span class="kw">let</span> <span class="ident">core_primary_network</span> <span class="op">=</span> <span class="ident">PrimaryNetwork::new</span>(<span class="ident">Metrics::new</span>(
+            <span class="ident">network_metrics</span>.<span class="ident">clone</span>(),
+            <span class="string">&quot;primary_core&quot;</span>.<span class="ident">to_string</span>(),
+        ));
         <span class="kw">let</span> <span class="ident">core_handle</span> <span class="op">=</span> <span class="ident">Core::spawn</span>(
             <span class="ident">name</span>.<span class="ident">clone</span>(),
             (<span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">committee</span>.<span class="ident">load</span>()).<span class="ident">clone</span>(),
@@ -803,6 +840,7 @@
             <span class="ident">tx_consensus</span>,
             <span class="comment">/* tx_proposer */</span> <span class="ident">tx_parents</span>,
             <span class="ident">node_metrics</span>.<span class="ident">clone</span>(),
+            <span class="ident">core_primary_network</span>,
         );
 
         <span class="comment">// Receives batch digests from other workers. They are only used to validate headers.</span>
@@ -822,6 +860,10 @@
 
         <span class="comment">// Retrieves a block&#39;s data by contacting the worker nodes that contain the</span>
         <span class="comment">// underlying batches and their transactions.</span>
+        <span class="kw">let</span> <span class="ident">block_waiter_primary_network</span> <span class="op">=</span> <span class="ident">PrimaryToWorkerNetwork::new</span>(<span class="ident">Metrics::new</span>(
+            <span class="ident">network_metrics</span>.<span class="ident">clone</span>(),
+            <span class="string">&quot;block_waiter&quot;</span>.<span class="ident">to_string</span>(),
+        ));
         <span class="kw">let</span> <span class="ident">block_waiter_handle</span> <span class="op">=</span> <span class="ident">BlockWaiter::spawn</span>(
             <span class="ident">name</span>.<span class="ident">clone</span>(),
             (<span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">committee</span>.<span class="ident">load</span>()).<span class="ident">clone</span>(),
@@ -829,12 +871,17 @@
             <span class="ident">rx_get_block_commands</span>,
             <span class="ident">rx_batches</span>,
             <span class="ident">block_synchronizer_handler</span>.<span class="ident">clone</span>(),
+            <span class="ident">block_waiter_primary_network</span>,
         );
 
         <span class="comment">// Indicator variable for the gRPC server</span>
         <span class="kw">let</span> <span class="ident">internal_consensus</span> <span class="op">=</span> <span class="ident">dag</span>.<span class="ident">is_none</span>();
 
         <span class="comment">// Orchestrates the removal of blocks across the primary and worker nodes.</span>
+        <span class="kw">let</span> <span class="ident">block_remover_primary_network</span> <span class="op">=</span> <span class="ident">PrimaryToWorkerNetwork::new</span>(<span class="ident">Metrics::new</span>(
+            <span class="ident">network_metrics</span>.<span class="ident">clone</span>(),
+            <span class="string">&quot;block_remover&quot;</span>.<span class="ident">to_string</span>(),
+        ));
         <span class="kw">let</span> <span class="ident">block_remover_handle</span> <span class="op">=</span> <span class="ident">BlockRemover::spawn</span>(
             <span class="ident">name</span>.<span class="ident">clone</span>(),
             (<span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">committee</span>.<span class="ident">load</span>()).<span class="ident">clone</span>(),
@@ -842,7 +889,7 @@
             <span class="ident">header_store</span>,
             <span class="ident">payload_store</span>.<span class="ident">clone</span>(),
             <span class="ident">dag</span>.<span class="ident">clone</span>(),
-            <span class="ident">PrimaryToWorkerNetwork::default</span>(),
+            <span class="ident">block_remover_primary_network</span>,
             <span class="ident">tx_reconfigure</span>.<span class="ident">subscribe</span>(),
             <span class="ident">rx_block_removal_commands</span>,
             <span class="ident">rx_batch_removal</span>,
@@ -851,6 +898,10 @@
 
         <span class="comment">// Responsible for finding missing blocks (certificates) and fetching</span>
         <span class="comment">// them from the primary peers by synchronizing also their batches.</span>
+        <span class="kw">let</span> <span class="ident">block_synchronizer_network</span> <span class="op">=</span> <span class="ident">PrimaryNetwork::new</span>(<span class="ident">Metrics::new</span>(
+            <span class="ident">network_metrics</span>.<span class="ident">clone</span>(),
+            <span class="string">&quot;block_synchronizer_handler&quot;</span>.<span class="ident">to_string</span>(),
+        ));
         <span class="kw">let</span> <span class="ident">block_synchronizer_handle</span> <span class="op">=</span> <span class="ident">BlockSynchronizer::spawn</span>(
             <span class="ident">name</span>.<span class="ident">clone</span>(),
             (<span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">committee</span>.<span class="ident">load</span>()).<span class="ident">clone</span>(),
@@ -858,7 +909,7 @@
             <span class="ident">rx_block_synchronizer_commands</span>,
             <span class="ident">rx_certificate_responses</span>,
             <span class="ident">rx_payload_availability_responses</span>,
-            <span class="ident">PrimaryNetwork::default</span>(),
+            <span class="ident">block_synchronizer_network</span>,
             <span class="ident">payload_store</span>.<span class="ident">clone</span>(),
             <span class="ident">certificate_store</span>.<span class="ident">clone</span>(),
             <span class="ident">parameters</span>.<span class="ident">block_synchronizer</span>,
@@ -867,6 +918,14 @@
         <span class="comment">// Whenever the `Synchronizer` does not manage to validate a header due to missing parent certificates of</span>
         <span class="comment">// batch digests, it commands the `HeaderWaiter` to synchronize with other nodes, wait for their reply, and</span>
         <span class="comment">// re-schedule execution of the header once we have all missing data.</span>
+        <span class="kw">let</span> <span class="ident">header_waiter_primary_network</span> <span class="op">=</span> <span class="ident">PrimaryNetwork::new</span>(<span class="ident">Metrics::new</span>(
+            <span class="ident">network_metrics</span>.<span class="ident">clone</span>(),
+            <span class="string">&quot;header_waiter&quot;</span>.<span class="ident">to_string</span>(),
+        ));
+        <span class="kw">let</span> <span class="ident">header_waiter_worker_network</span> <span class="op">=</span> <span class="ident">PrimaryToWorkerNetwork::new</span>(<span class="ident">Metrics::new</span>(
+            <span class="ident">network_metrics</span>.<span class="ident">clone</span>(),
+            <span class="string">&quot;header_waiter&quot;</span>.<span class="ident">to_string</span>(),
+        ));
         <span class="kw">let</span> <span class="ident">header_waiter_handle</span> <span class="op">=</span> <span class="ident">HeaderWaiter::spawn</span>(
             <span class="ident">name</span>.<span class="ident">clone</span>(),
             (<span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">committee</span>.<span class="ident">load</span>()).<span class="ident">clone</span>(),
@@ -880,6 +939,8 @@
             <span class="comment">/* rx_synchronizer */</span> <span class="ident">rx_sync_headers</span>,
             <span class="comment">/* tx_core */</span> <span class="ident">tx_headers_loopback</span>,
             <span class="ident">node_metrics</span>.<span class="ident">clone</span>(),
+            <span class="ident">header_waiter_primary_network</span>,
+            <span class="ident">header_waiter_worker_network</span>,
         );
 
         <span class="comment">// The `CertificateWaiter` waits to receive all the ancestors of a certificate before looping it back to the</span>
@@ -913,6 +974,8 @@
 
         <span class="comment">// The `Helper` is dedicated to reply to certificates &amp; payload availability requests</span>
         <span class="comment">// from other primaries.</span>
+        <span class="kw">let</span> <span class="ident">helper_primary_network</span> <span class="op">=</span>
+            <span class="ident">PrimaryNetwork::new</span>(<span class="ident">Metrics::new</span>(<span class="ident">network_metrics</span>, <span class="string">&quot;primary_helper&quot;</span>.<span class="ident">to_string</span>()));
         <span class="kw">let</span> <span class="ident">helper_handle</span> <span class="op">=</span> <span class="ident">Helper::spawn</span>(
             <span class="ident">name</span>.<span class="ident">clone</span>(),
             (<span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">committee</span>.<span class="ident">load</span>()).<span class="ident">clone</span>(),
@@ -920,6 +983,7 @@
             <span class="ident">payload_store</span>,
             <span class="ident">tx_reconfigure</span>.<span class="ident">subscribe</span>(),
             <span class="ident">rx_helper_requests</span>,
+            <span class="ident">helper_primary_network</span>,
         );
 
         <span class="comment">// Keeps track of the latest consensus round and allows other tasks to clean up their their internal state</span>

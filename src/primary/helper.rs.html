@@ -273,6 +273,7 @@
 <span id="267">267</span>
 <span id="268">268</span>
 <span id="269">269</span>
+<span id="270">270</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -332,6 +333,7 @@
         <span class="ident">payload_store</span>: <span class="ident">Store</span><span class="op">&lt;</span>(<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>), <span class="ident">PayloadToken</span><span class="op">&gt;</span>,
         <span class="ident">rx_committee</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
         <span class="ident">rx_primaries</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">PrimaryMessage</span><span class="op">&gt;</span>,
+        <span class="ident">primary_network</span>: <span class="ident">PrimaryNetwork</span>,
     ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
             <span class="self">Self</span> {
@@ -341,7 +343,7 @@
                 <span class="ident">payload_store</span>,
                 <span class="ident">rx_committee</span>,
                 <span class="ident">rx_primaries</span>,
-                <span class="ident">primary_network</span>: <span class="ident">PrimaryNetwork::default</span>(),
+                <span class="ident">primary_network</span>,
             }
             .<span class="ident">run</span>()
             .<span class="kw">await</span>;

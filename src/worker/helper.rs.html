@@ -128,6 +128,7 @@
 <span id="122">122</span>
 <span id="123">123</span>
 <span id="124">124</span>
+<span id="125">125</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -176,6 +177,7 @@
         <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
         <span class="ident">rx_worker_request</span>: <span class="ident">Receiver</span><span class="op">&lt;</span>(<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">BatchDigest</span><span class="op">&gt;</span>, <span class="ident">PublicKey</span>)<span class="op">&gt;</span>,
         <span class="ident">rx_client_request</span>: <span class="ident">Receiver</span><span class="op">&lt;</span>(<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">BatchDigest</span><span class="op">&gt;</span>, <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">SerializedBatchMessage</span><span class="op">&gt;</span>)<span class="op">&gt;</span>,
+        <span class="ident">network</span>: <span class="ident">WorkerNetwork</span>,
     ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
             <span class="self">Self</span> {
@@ -185,7 +187,7 @@
                 <span class="ident">rx_reconfigure</span>,
                 <span class="ident">rx_worker_request</span>,
                 <span class="ident">rx_client_request</span>,
-                <span class="ident">network</span>: <span class="ident">WorkerNetwork::default</span>(),
+                <span class="ident">network</span>,
             }
             .<span class="ident">run</span>()
             .<span class="kw">await</span>;

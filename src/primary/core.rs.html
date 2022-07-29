@@ -633,6 +633,7 @@
 <span id="627">627</span>
 <span id="628">628</span>
 <span id="629">629</span>
+<span id="630">630</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -745,6 +746,7 @@
         <span class="ident">tx_consensus</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span>,
         <span class="ident">tx_proposer</span>: <span class="ident">Sender</span><span class="op">&lt;</span>(<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span>, <span class="ident">Round</span>, <span class="ident">Epoch</span>)<span class="op">&gt;</span>,
         <span class="ident">metrics</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">PrimaryMetrics</span><span class="op">&gt;</span>,
+        <span class="ident">primary_network</span>: <span class="ident">PrimaryNetwork</span>,
     ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
             <span class="self">Self</span> {
@@ -769,7 +771,7 @@
                 <span class="ident">current_header</span>: <span class="ident">Header::default</span>(),
                 <span class="ident">votes_aggregator</span>: <span class="ident">VotesAggregator::new</span>(),
                 <span class="ident">certificates_aggregators</span>: <span class="ident">HashMap::with_capacity</span>(<span class="number">2</span> <span class="op">*</span> <span class="ident">gc_depth</span> <span class="kw">as</span> <span class="ident">usize</span>),
-                <span class="ident">network</span>: <span class="ident">Default::default</span>(),
+                <span class="ident">network</span>: <span class="ident">primary_network</span>,
                 <span class="ident">cancel_handlers</span>: <span class="ident">HashMap::with_capacity</span>(<span class="number">2</span> <span class="op">*</span> <span class="ident">gc_depth</span> <span class="kw">as</span> <span class="ident">usize</span>),
                 <span class="ident">metrics</span>,
             }

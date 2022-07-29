@@ -383,6 +383,8 @@
 <span id="377">377</span>
 <span id="378">378</span>
 <span id="379">379</span>
+<span id="380">380</span>
+<span id="381">381</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -493,6 +495,8 @@
         <span class="ident">rx_synchronizer</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">WaiterMessage</span><span class="op">&gt;</span>,
         <span class="ident">tx_core</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">Header</span><span class="op">&gt;</span>,
         <span class="ident">metrics</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">PrimaryMetrics</span><span class="op">&gt;</span>,
+        <span class="ident">primary_network</span>: <span class="ident">PrimaryNetwork</span>,
+        <span class="ident">worker_network</span>: <span class="ident">PrimaryToWorkerNetwork</span>,
     ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
             <span class="self">Self</span> {
@@ -507,8 +511,8 @@
                 <span class="ident">rx_reconfigure</span>,
                 <span class="ident">rx_synchronizer</span>,
                 <span class="ident">tx_core</span>,
-                <span class="ident">primary_network</span>: <span class="ident">Default::default</span>(),
-                <span class="ident">worker_network</span>: <span class="ident">Default::default</span>(),
+                <span class="ident">primary_network</span>,
+                <span class="ident">worker_network</span>,
                 <span class="ident">parent_requests</span>: <span class="ident">HashMap::new</span>(),
                 <span class="ident">batch_requests</span>: <span class="ident">HashMap::new</span>(),
                 <span class="ident">pending</span>: <span class="ident">HashMap::new</span>(),

@@ -802,6 +802,9 @@
 <span id="796">796</span>
 <span id="797">797</span>
 <span id="798">798</span>
+<span id="799">799</span>
+<span id="800">800</span>
+<span id="801">801</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::block_synchronizer::handler::Handler</span>;
@@ -932,6 +935,7 @@
 <span class="doccomment">/// # use crypto::traits::VerifyingKey;</span>
 <span class="doccomment">/// # use async_trait::async_trait;</span>
 <span class="doccomment">/// # use std::sync::Arc;</span>
+<span class="doccomment">/// # use network::PrimaryToWorkerNetwork;</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// # // A mock implementation of the BlockSynchronizerHandler</span>
 <span class="doccomment">/// struct BlockSynchronizerHandler;</span>
@@ -975,6 +979,7 @@
 <span class="doccomment">///         rx_commands,</span>
 <span class="doccomment">///         rx_batches,</span>
 <span class="doccomment">///         Arc::new(BlockSynchronizerHandler{}),</span>
+<span class="doccomment">///         PrimaryToWorkerNetwork::default()</span>
 <span class="doccomment">///     );</span>
 <span class="doccomment">///</span>
 <span class="doccomment">///     // Send a command to receive a block</span>
@@ -1058,6 +1063,7 @@
         <span class="ident">rx_commands</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">BlockCommand</span><span class="op">&gt;</span>,
         <span class="ident">batch_receiver</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">BatchResult</span><span class="op">&gt;</span>,
         <span class="ident">block_synchronizer_handler</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SynchronizerHandler</span><span class="op">&gt;</span>,
+        <span class="ident">worker_network</span>: <span class="ident">PrimaryToWorkerNetwork</span>,
     ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
             <span class="self">Self</span> {
@@ -1065,7 +1071,7 @@
                 <span class="ident">committee</span>,
                 <span class="ident">rx_commands</span>,
                 <span class="ident">pending_get_block</span>: <span class="ident">HashMap::new</span>(),
-                <span class="ident">worker_network</span>: <span class="ident">PrimaryToWorkerNetwork::default</span>(),
+                <span class="ident">worker_network</span>,
                 <span class="ident">rx_reconfigure</span>,
                 <span class="ident">rx_batch_receiver</span>: <span class="ident">batch_receiver</span>,
                 <span class="ident">tx_pending_batch</span>: <span class="ident">HashMap::new</span>(),

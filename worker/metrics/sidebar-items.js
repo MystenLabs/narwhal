@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":[["initialise_metrics","Initialises the metrics. Should be called only once when the worker node is initialised, otherwise it will lead to erroneously creating multiple registries."]],"struct":[["Metrics",""],["WorkerEndpointMetrics",""],["WorkerMetrics",""]]};
+window.SIDEBAR_ITEMS = {"fn":[["initialise_metrics","Initialises the metrics"]],"struct":[["Metrics",""],["WorkerEndpointMetrics",""],["WorkerMetrics",""]]};
