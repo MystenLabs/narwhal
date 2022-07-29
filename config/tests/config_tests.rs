@@ -118,7 +118,7 @@ fn parameters_snapshot_matches() {
         ..ConsensusAPIGrpcParameters::default()
     };
     let prometheus_metrics_parameters = PrometheusMetricsParameters {
-        socket_addr: "127.0.0.1:8081".parse().unwrap(),
+        socket_addr: "/ip4/127.0.0.1/tcp/8081".parse().unwrap(),
     };
 
     let parameters = Parameters {
@@ -182,7 +182,7 @@ fn parameters_import_snapshot_matches() {
          },
          "max_concurrent_requests": 500000,
          "prometheus_metrics": {
-             "socket_addr": "127.0.0.1:0"
+            "socket_addr": "/ip4/127.0.0.1/tcp/0/http",
          }
       }"#;
 

@@ -120,7 +120,7 @@ cat > ${target}/parameters.json <<EOF
     "sync_retry_delay": "10_000ms",
     "sync_retry_nodes": 3,
     "prometheus_metrics": {
-        "socket_addr": "0.0.0.0:8010"
+        "socket_addr": "/ip4/0.0.0.0/tcp/8010"
     }
 }
 EOF
