@@ -146,6 +146,7 @@
 <span id="140">140</span>
 <span id="141">141</span>
 <span id="142">142</span>
+<span id="143">143</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 
@@ -183,10 +184,11 @@
     <span class="ident">Batch</span> <span class="kw">as</span> <span class="ident">BatchProto</span>, <span class="ident">BatchDigest</span> <span class="kw">as</span> <span class="ident">BatchDigestProto</span>, <span class="ident">BatchMessage</span> <span class="kw">as</span> <span class="ident">BatchMessageProto</span>,
     <span class="ident">BincodeEncodedPayload</span>, <span class="ident">CertificateDigest</span> <span class="kw">as</span> <span class="ident">CertificateDigestProto</span>, <span class="ident">CollectionError</span>,
     <span class="ident">CollectionErrorType</span>, <span class="ident">CollectionRetrievalResult</span>, <span class="ident">Empty</span>, <span class="ident">GetCollectionsRequest</span>,
-    <span class="ident">GetCollectionsResponse</span>, <span class="ident">MultiAddr</span> <span class="kw">as</span> <span class="ident">MultiAddrProto</span>, <span class="ident">NewEpochRequest</span>, <span class="ident">NewNetworkInfoRequest</span>,
-    <span class="ident">NodeReadCausalRequest</span>, <span class="ident">NodeReadCausalResponse</span>, <span class="ident">PrimaryAddresses</span> <span class="kw">as</span> <span class="ident">PrimaryAddressesProto</span>,
-    <span class="ident">PublicKey</span> <span class="kw">as</span> <span class="ident">PublicKeyProto</span>, <span class="ident">ReadCausalRequest</span>, <span class="ident">ReadCausalResponse</span>, <span class="ident">RemoveCollectionsRequest</span>,
-    <span class="ident">RoundsRequest</span>, <span class="ident">RoundsResponse</span>, <span class="ident">Transaction</span> <span class="kw">as</span> <span class="ident">TransactionProto</span>, <span class="ident">ValidatorData</span>,
+    <span class="ident">GetCollectionsResponse</span>, <span class="ident">GetPrimaryAddressResponse</span>, <span class="ident">MultiAddr</span> <span class="kw">as</span> <span class="ident">MultiAddrProto</span>,
+    <span class="ident">NewEpochRequest</span>, <span class="ident">NewNetworkInfoRequest</span>, <span class="ident">NodeReadCausalRequest</span>, <span class="ident">NodeReadCausalResponse</span>,
+    <span class="ident">PrimaryAddresses</span> <span class="kw">as</span> <span class="ident">PrimaryAddressesProto</span>, <span class="ident">PublicKey</span> <span class="kw">as</span> <span class="ident">PublicKeyProto</span>, <span class="ident">ReadCausalRequest</span>,
+    <span class="ident">ReadCausalResponse</span>, <span class="ident">RemoveCollectionsRequest</span>, <span class="ident">RoundsRequest</span>, <span class="ident">RoundsResponse</span>,
+    <span class="ident">Transaction</span> <span class="kw">as</span> <span class="ident">TransactionProto</span>, <span class="ident">ValidatorData</span>,
 };
 
 <span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">PublicKeyProto</span> {

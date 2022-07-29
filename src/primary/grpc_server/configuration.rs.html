@@ -153,22 +153,49 @@
 <span id="147">147</span>
 <span id="148">148</span>
 <span id="149">149</span>
+<span id="150">150</span>
+<span id="151">151</span>
+<span id="152">152</span>
+<span id="153">153</span>
+<span id="154">154</span>
+<span id="155">155</span>
+<span id="156">156</span>
+<span id="157">157</span>
+<span id="158">158</span>
+<span id="159">159</span>
+<span id="160">160</span>
+<span id="161">161</span>
+<span id="162">162</span>
+<span id="163">163</span>
+<span id="164">164</span>
+<span id="165">165</span>
+<span id="166">166</span>
+<span id="167">167</span>
+<span id="168">168</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">PrimaryAddresses</span>, <span class="ident">SharedCommittee</span>};
 <span class="kw">use</span> <span class="ident">crypto</span>::{<span class="ident">traits::ToFromBytes</span>, <span class="ident">PublicKey</span>};
+<span class="kw">use</span> <span class="ident">multiaddr::Multiaddr</span>;
 <span class="kw">use</span> <span class="ident">std::collections::BTreeMap</span>;
 <span class="kw">use</span> <span class="ident">tonic</span>::{<span class="ident">Request</span>, <span class="ident">Response</span>, <span class="ident">Status</span>};
-<span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">Configuration</span>, <span class="ident">Empty</span>, <span class="ident">NewEpochRequest</span>, <span class="ident">NewNetworkInfoRequest</span>, <span class="ident">PublicKeyProto</span>};
+<span class="kw">use</span> <span class="ident">types</span>::{
+    <span class="ident">Configuration</span>, <span class="ident">Empty</span>, <span class="ident">GetPrimaryAddressResponse</span>, <span class="ident">MultiAddrProto</span>, <span class="ident">NewEpochRequest</span>,
+    <span class="ident">NewNetworkInfoRequest</span>, <span class="ident">PublicKeyProto</span>,
+};
 
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">NarwhalConfiguration</span> {
+    <span class="ident">primary_address</span>: <span class="ident">Multiaddr</span>,
     <span class="doccomment">/// The committee</span>
     <span class="ident">committee</span>: <span class="ident">SharedCommittee</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">NarwhalConfiguration</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">committee</span>: <span class="ident">SharedCommittee</span>) -&gt; <span class="self">Self</span> {
-        <span class="self">Self</span> { <span class="ident">committee</span> }
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">primary_address</span>: <span class="ident">Multiaddr</span>, <span class="ident">committee</span>: <span class="ident">SharedCommittee</span>) -&gt; <span class="self">Self</span> {
+        <span class="self">Self</span> {
+            <span class="ident">primary_address</span>,
+            <span class="ident">committee</span>,
+        }
     }
 
     <span class="doccomment">/// Extracts and verifies the public key provided from the RoundsRequest.</span>
@@ -300,6 +327,17 @@
         <span class="ident">res</span>.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">err</span><span class="op">|</span> <span class="ident">Status::internal</span>(<span class="macro">format!</span>(<span class="string">&quot;Could not update network info: {:?}&quot;</span>, <span class="ident">err</span>)))<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(<span class="ident">Response::new</span>(<span class="ident">Empty</span> {}))
+    }
+
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get_primary_address</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">_request</span>: <span class="ident">Request</span><span class="op">&lt;</span><span class="ident">Empty</span><span class="op">&gt;</span>,
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Response</span><span class="op">&lt;</span><span class="ident">GetPrimaryAddressResponse</span><span class="op">&gt;</span>, <span class="ident">Status</span><span class="op">&gt;</span> {
+        <span class="prelude-val">Ok</span>(<span class="ident">Response::new</span>(<span class="ident">GetPrimaryAddressResponse</span> {
+            <span class="ident">primary_address</span>: <span class="prelude-val">Some</span>(<span class="ident">MultiAddrProto</span> {
+                <span class="ident">address</span>: <span class="self">self</span>.<span class="ident">primary_address</span>.<span class="ident">to_string</span>(),
+            }),
+        }))
     }
 }
 </code></pre></div>

@@ -98,6 +98,18 @@
 <span id="92">92</span>
 <span id="93">93</span>
 <span id="94">94</span>
+<span id="95">95</span>
+<span id="96">96</span>
+<span id="97">97</span>
+<span id="98">98</span>
+<span id="99">99</span>
+<span id="100">100</span>
+<span id="101">101</span>
+<span id="102">102</span>
+<span id="103">103</span>
+<span id="104">104</span>
+<span id="105">105</span>
+<span id="106">106</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 
@@ -110,6 +122,7 @@
 <span class="kw">use</span> <span class="ident">config::SharedCommittee</span>;
 <span class="kw">use</span> <span class="ident">consensus::dag::Dag</span>;
 
+<span class="kw">use</span> <span class="ident">crypto::PublicKey</span>;
 <span class="kw">use</span> <span class="ident">multiaddr::Multiaddr</span>;
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">sync::Arc</span>, <span class="ident">time::Duration</span>};
 <span class="kw">use</span> <span class="ident">tokio</span>::{<span class="ident">sync::mpsc::Sender</span>, <span class="ident">task::JoinHandle</span>};
@@ -122,7 +135,9 @@
 <span class="kw">mod</span> <span class="ident">validator</span>;
 
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ConsensusAPIGrpc</span><span class="op">&lt;</span><span class="ident">SynchronizerHandler</span>: <span class="ident">Handler</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> {
-    <span class="ident">socket_addr</span>: <span class="ident">Multiaddr</span>,
+    <span class="ident">name</span>: <span class="ident">PublicKey</span>,
+    <span class="comment">// Multiaddr of gRPC server</span>
+    <span class="ident">socket_address</span>: <span class="ident">Multiaddr</span>,
     <span class="ident">tx_get_block_commands</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">BlockCommand</span><span class="op">&gt;</span>,
     <span class="ident">tx_block_removal_commands</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">BlockRemoverCommand</span><span class="op">&gt;</span>,
     <span class="ident">get_collections_timeout</span>: <span class="ident">Duration</span>,
@@ -135,7 +150,8 @@
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">SynchronizerHandler</span>: <span class="ident">Handler</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">ConsensusAPIGrpc</span><span class="op">&lt;</span><span class="ident">SynchronizerHandler</span><span class="op">&gt;</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(
-        <span class="ident">socket_addr</span>: <span class="ident">Multiaddr</span>,
+        <span class="ident">name</span>: <span class="ident">PublicKey</span>,
+        <span class="ident">socket_address</span>: <span class="ident">Multiaddr</span>,
         <span class="ident">tx_get_block_commands</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">BlockCommand</span><span class="op">&gt;</span>,
         <span class="ident">tx_block_removal_commands</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">BlockRemoverCommand</span><span class="op">&gt;</span>,
         <span class="ident">get_collections_timeout</span>: <span class="ident">Duration</span>,
@@ -147,7 +163,8 @@
     ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
             <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">Self</span> {
-                <span class="ident">socket_addr</span>,
+                <span class="ident">name</span>,
+                <span class="ident">socket_address</span>,
                 <span class="ident">tx_get_block_commands</span>,
                 <span class="ident">tx_block_removal_commands</span>,
                 <span class="ident">get_collections_timeout</span>,
@@ -174,7 +191,14 @@
         );
 
         <span class="kw">let</span> <span class="ident">narwhal_proposer</span> <span class="op">=</span> <span class="ident">NarwhalProposer::new</span>(<span class="self">self</span>.<span class="ident">dag</span>.<span class="ident">clone</span>(), <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">committee</span>));
-        <span class="kw">let</span> <span class="ident">narwhal_configuration</span> <span class="op">=</span> <span class="ident">NarwhalConfiguration::new</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">committee</span>));
+        <span class="kw">let</span> <span class="ident">narwhal_configuration</span> <span class="op">=</span> <span class="ident">NarwhalConfiguration::new</span>(
+            <span class="self">self</span>.<span class="ident">committee</span>
+                .<span class="ident">load</span>()
+                .<span class="ident">primary</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">name</span>)
+                .<span class="ident">expect</span>(<span class="string">&quot;Our public key is not in the committee&quot;</span>)
+                .<span class="ident">primary_to_primary</span>,
+            <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">committee</span>),
+        );
 
         <span class="kw">let</span> <span class="ident">config</span> <span class="op">=</span> <span class="ident">mysten_network::config::Config::default</span>();
         <span class="kw">let</span> <span class="ident">server</span> <span class="op">=</span> <span class="ident">config</span>
@@ -182,7 +206,7 @@
             .<span class="ident">add_service</span>(<span class="ident">ValidatorServer::new</span>(<span class="ident">narwhal_validator</span>))
             .<span class="ident">add_service</span>(<span class="ident">ConfigurationServer::new</span>(<span class="ident">narwhal_configuration</span>))
             .<span class="ident">add_service</span>(<span class="ident">ProposerServer::new</span>(<span class="ident">narwhal_proposer</span>))
-            .<span class="ident">bind</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">socket_addr</span>)
+            .<span class="ident">bind</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">socket_address</span>)
             .<span class="kw">await</span><span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">local_addr</span> <span class="op">=</span> <span class="ident">server</span>.<span class="ident">local_addr</span>();
         <span class="macro">info!</span>(<span class="string">&quot;Consensus API gRPC Server listening on {local_addr}&quot;</span>);
