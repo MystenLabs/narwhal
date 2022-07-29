@@ -19,7 +19,7 @@ use tokio::{
 };
 use tonic::transport::Channel;
 use tracing::info;
-use types::ProposerClient;
+use types::{ConfigurationClient, ProposerClient};
 
 #[cfg(test)]
 #[path = "tests/cluster_tests.rs"]
@@ -641,6 +641,24 @@ impl AuthorityDetails {
             .unwrap();
 
         ProposerClient::new(channel)
+    }
+
+    /// Creates a new configuration client that connects to the corresponding client.
+    /// This should be available only if the internal consensus is disabled. If
+    /// the internal consensus is enabled then a panic will be thrown instead.
+    pub async fn new_configuration_client(&self) -> ConfigurationClient<Channel> {
+        let internal = self.internal.read().await;
+
+        if internal.primary.internal_consensus_enabled {
+            panic!("External consensus is disabled, won't create a configuration client");
+        }
+
+        let config = mysten_network::config::Config::new();
+        let channel = config
+            .connect_lazy(&internal.primary.parameters.consensus_api_grpc.socket_addr)
+            .unwrap();
+
+        ConfigurationClient::new(channel)
     }
 
     /// This method will return true either when the primary or any of
