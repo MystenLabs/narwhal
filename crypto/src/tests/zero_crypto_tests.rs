@@ -4,12 +4,12 @@
 
 use super::*;
 use crate::{
-    zero_crypto::{
-        ZeroAggregateSignature, ZeroKeyPair, ZeroPrivateKey, ZeroPublicKey,
-        ZeroPublicKeyBytes, ZeroSignature,
-    },
     hkdf::hkdf_generate_from_ikm,
     traits::{AggregateAuthenticator, EncodeDecodeBase64, KeyPair, ToFromBytes, VerifyingKey},
+    zero_crypto::{
+        ZeroAggregateSignature, ZeroKeyPair, ZeroPrivateKey, ZeroPublicKey, ZeroPublicKeyBytes,
+        ZeroSignature,
+    },
 };
 
 use rand::{rngs::StdRng, SeedableRng as _};
@@ -55,10 +55,7 @@ fn test_serde_signatures_human_readable() {
 
     let serialized = serde_json::to_string(&signature).unwrap();
     println!("{:?}", serialized);
-    assert_eq!(
-        "{}",
-        serialized
-    );
+    assert_eq!("{}", serialized);
     let deserialized: ZeroSignature = serde_json::from_str(&serialized).unwrap();
     assert_eq!(deserialized, signature);
 }
@@ -145,7 +142,6 @@ fn verify_valid_aggregate_signature() {
     let res = aggregated_signature.verify(&pubkeys[..], &digest.0);
     assert!(res.is_ok(), "{:?}", res);
 }
-
 
 #[test]
 fn verify_batch_aggregate_signature() {

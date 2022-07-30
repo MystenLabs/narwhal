@@ -5,7 +5,7 @@
  * This file contains an implementation of a negligible-cost (apart from some ocassional pk copying) trivial
  * cryptographic scheme. The purpose of this library is to allow seamless benchmarking of systems without
  * taking into account the cost of cryptographic primitives - and hence providing a theoretical maximal
- * throughput that a system could achieve if the cost of crypto is optimized away. 
+ * throughput that a system could achieve if the cost of crypto is optimized away.
  */
 use base64ct::{Base64, Encoding};
 use digest::Digest;
