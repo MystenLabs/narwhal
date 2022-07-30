@@ -37,6 +37,7 @@ readonly = "0.2.1"
 serde_bytes = "0.11.6"
 digest = "0.10.3"
 workspace-hack = { version = "0.1", path = "../workspace-hack" }
+sha3 = "0.10.1"
 
 [[bench]]
 name = "crypto"
@@ -49,11 +50,11 @@ harness = false
 default = []
 celo = ["ark-ec", "ark-ff", "ark-serialize", "ark-bls12-377", "ark-std", "celo-bls"]
 copy_key = []
+zero_crypto = []
 
 [dev-dependencies]
 bincode = "1.3.3"
 criterion = "0.3.6"
-sha3 = "0.10.1"
 hex-literal = "0.3.4"
 proptest = "1.0.0"
 proptest-derive = "0.3.0"

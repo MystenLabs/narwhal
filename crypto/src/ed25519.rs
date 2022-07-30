@@ -6,7 +6,7 @@ use serde::{de, Deserialize, Serialize};
 use serde_with::serde_as;
 use signature::{Signature, Signer, Verifier};
 use std::{
-    fmt::{self, Display},
+    fmt::{self, Debug, Display},
     str::FromStr,
 };
 
@@ -22,7 +22,7 @@ use crate::{
 /// Define Structs
 ///
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Ed25519PublicKey(pub ed25519_dalek::PublicKey);
 
 pub type Ed25519PublicKeyBytes = PublicKeyBytes<Ed25519PublicKey, { Ed25519PublicKey::LENGTH }>;
@@ -102,6 +102,12 @@ impl Default for Ed25519PublicKey {
 impl Display for Ed25519PublicKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(f, "{}", Base64::encode_string(self.0.as_bytes()))
+    }
+}
+
+impl Debug for Ed25519PublicKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        <Self as Display>::fmt(self, f)
     }
 }
 

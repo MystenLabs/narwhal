@@ -49,6 +49,9 @@ pub mod traits;
 pub mod bls12381;
 pub mod ed25519;
 pub mod secp256k1;
+// #[cfg(feature = "zero_crypto")]
+pub mod zero_crypto;
+
 // Other tooling
 pub mod hkdf;
 pub mod pubkey_bytes;
