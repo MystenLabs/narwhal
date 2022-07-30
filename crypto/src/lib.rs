@@ -52,7 +52,7 @@ pub mod traits;
 pub mod bls12381;
 pub mod ed25519;
 pub mod secp256k1;
-// #[cfg(feature = "zero_crypto")]
+#[cfg(feature = "zero_crypto")]
 #[path = "test_utils/zero_crypto.rs"]
 pub mod zero_crypto;
 
