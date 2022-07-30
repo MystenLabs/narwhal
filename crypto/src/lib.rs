@@ -42,6 +42,9 @@ pub mod bls12377;
 #[cfg(test)]
 #[path = "tests/bls12381_tests.rs"]
 pub mod bls12381_tests;
+#[cfg(all(test, feature = "zero_crypto"))]
+#[path = "tests/zero_crypto_tests.rs"]
+pub mod zero_crypto_tests;
 
 // Signing traits
 pub mod traits;

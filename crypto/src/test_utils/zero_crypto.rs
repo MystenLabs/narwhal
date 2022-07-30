@@ -1,5 +1,12 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
+
+/*
+ * This file contains an implementation of a negligible-cost (apart from some ocassional pk copying) trivial
+ * cryptographic scheme. The purpose of this library is to allow seamless benchmarking of systems without
+ * taking into account the cost of cryptographic primitives - and hence providing a theoretical maximal
+ * throughput that a system could achieve if the cost of crypto is optimized away. 
+ */
 use base64ct::{Base64, Encoding};
 use digest::Digest;
 use rand::Rng;
@@ -27,17 +34,17 @@ use sha3::Sha3_256;
 /// Define Structs
 ///
 
-const PRIVATE_KEY_LENGTH: usize = 20;
-const PUBLIC_KEY_LENGTH: usize = 20;
+const PRIVATE_KEY_LENGTH: usize = 32;
+const PUBLIC_KEY_LENGTH: usize = 32;
 
 #[readonly::make]
 #[derive(Default, Debug, Clone)]
-pub struct ZeroPublicKey([u8; PUBLIC_KEY_LENGTH]);
+pub struct ZeroPublicKey(pub [u8; PUBLIC_KEY_LENGTH]);
 
 pub type ZeroPublicKeyBytes = PublicKeyBytes<ZeroPublicKey, { PUBLIC_KEY_LENGTH }>;
 
 #[derive(Default, Debug)]
-pub struct ZeroPrivateKey([u8; PRIVATE_KEY_LENGTH]);
+pub struct ZeroPrivateKey(pub [u8; PRIVATE_KEY_LENGTH]);
 
 // There is a strong requirement for this specific impl. in Fab benchmarks
 #[derive(Debug, Serialize, Deserialize)]
@@ -47,7 +54,6 @@ pub struct ZeroKeyPair {
     secret: ZeroPrivateKey,
 }
 
-#[serde_as]
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct ZeroSignature {}
 
@@ -177,8 +183,8 @@ impl std::hash::Hash for ZeroSignature {
 }
 
 impl PartialEq for ZeroSignature {
-    fn eq(&self, other: &Self) -> bool {
-        self == other
+    fn eq(&self, _other: &Self) -> bool {
+        true
     }
 }
 
@@ -208,7 +214,7 @@ impl Authenticator for ZeroSignature {
 
 impl AsRef<[u8]> for ZeroPrivateKey {
     fn as_ref(&self) -> &[u8] {
-        &[]
+        &self.0
     }
 }
 
