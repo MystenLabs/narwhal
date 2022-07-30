@@ -48,11 +48,11 @@ pub struct ZeroKeyPair {
 }
 
 #[serde_as]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct ZeroSignature {}
 
 #[serde_as]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct ZeroAggregateSignature {}
 
 ///
@@ -190,12 +190,6 @@ impl Signature for ZeroSignature {
     }
 }
 
-impl Default for ZeroSignature {
-    fn default() -> Self {
-        ZeroSignature {}
-    }
-}
-
 impl Display for ZeroSignature {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(f, "{}", Base64::encode_string(self.as_ref()))
@@ -267,10 +261,7 @@ impl Signer<ZeroSignature> for ZeroPrivateKey {
 impl From<ZeroPrivateKey> for ZeroKeyPair {
     fn from(secret: ZeroPrivateKey) -> Self {
         let pk: ZeroPublicKey = (&secret).into();
-        ZeroKeyPair {
-            name: pk,
-            secret: secret,
-        }
+        ZeroKeyPair { name: pk, secret }
     }
 }
 
@@ -348,11 +339,6 @@ impl Display for ZeroAggregateSignature {
 }
 
 // see [#34](https://github.com/MystenLabs/narwhal/issues/34)
-impl Default for ZeroAggregateSignature {
-    fn default() -> Self {
-        ZeroAggregateSignature {}
-    }
-}
 
 impl AggregateAuthenticator for ZeroAggregateSignature {
     type PrivKey = ZeroPrivateKey;
