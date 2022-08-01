@@ -10,10 +10,11 @@ use crypto::{
     Digest, Hash as _, KeyPair, PublicKey, Signature,
 };
 use futures::Stream;
+use indexmap::IndexMap;
 use multiaddr::Multiaddr;
 use rand::{rngs::StdRng, Rng, SeedableRng as _};
 use std::{
-    collections::{BTreeMap, BTreeSet, HashMap, VecDeque},
+    collections::{BTreeSet, HashMap, VecDeque},
     ops::RangeInclusive,
     pin::Pin,
     sync::Arc,
@@ -295,8 +296,8 @@ pub fn fixture_headers_round(
     (round, next_headers)
 }
 
-pub fn fixture_payload(number_of_batches: u8) -> BTreeMap<BatchDigest, WorkerId> {
-    let mut payload: BTreeMap<BatchDigest, WorkerId> = BTreeMap::new();
+pub fn fixture_payload(number_of_batches: u8) -> IndexMap<BatchDigest, WorkerId> {
+    let mut payload: IndexMap<BatchDigest, WorkerId> = IndexMap::new();
 
     for i in 0..number_of_batches {
         let dummy_serialized_batch = vec![
@@ -315,7 +316,7 @@ pub fn fixture_payload(number_of_batches: u8) -> BTreeMap<BatchDigest, WorkerId>
 
 pub fn fixture_header_with_payload(number_of_batches: u8) -> Header {
     let kp = keys(None).pop().unwrap();
-    let payload: BTreeMap<BatchDigest, WorkerId> = fixture_payload(number_of_batches);
+    let payload = fixture_payload(number_of_batches);
 
     let builder = fixture_header_builder();
     builder.payload(payload).build(&kp).unwrap()
