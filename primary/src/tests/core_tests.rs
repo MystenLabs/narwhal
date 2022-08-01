@@ -427,16 +427,18 @@ async fn process_certificates() {
             .unwrap();
     }
 
-    // Ensure the core sends the parents of the certificates to the proposer.
-    //
-    // The first messages are the core letting us know about the round of parent certificates
+    // Ensure the core sends the parents of the certificates to the proposer. The first message
+    // The second messages is the core letting us know about the round of parent certificates
     for _i in 0..3 {
         let received = rx_parents.recv().await.unwrap();
-        assert_eq!(received, (vec![], 0, 0));
+        assert_eq!(received, ProposerMessage::NewParents(vec![], 0, 0));
     }
     // the next message actually contains the parents
     let received = rx_parents.recv().await.unwrap();
-    assert_eq!(received, (certificates.clone(), 1, 0));
+    assert_eq!(
+        received,
+        ProposerMessage::NewParents(certificates.clone(), 1, 0)
+    );
 
     // Ensure the core sends the certificates to the consensus.
     for x in certificates.clone() {

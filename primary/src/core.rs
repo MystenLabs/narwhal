@@ -356,6 +356,16 @@ impl Core {
             certificate.round()
         );
 
+        // If the certificate is not empty, signal it to the proposer. The proposer will use this information
+        // to know whether another node has transactions to commit. This feature does not replace the need to
+        // implement proper access control before accepting client transactions.
+        if !certificate.is_empty() {
+            self.tx_proposer
+                .send(ProposerMessage::MeaningfulRound(certificate.round()))
+                .await
+                .map_err(|_| DagError::ShuttingDown)?;
+        }
+
         // Let the proposer draw early conclusions from a certificate at this round and epoch, without its
         // parents or payload (which we may not have yet).
         //

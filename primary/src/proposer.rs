@@ -4,7 +4,10 @@
 use crate::{metrics::PrimaryMetrics, NetworkModel};
 use config::{Committee, Epoch, WorkerId};
 use crypto::{Digest, Hash as _, PublicKey, Signature, SignatureService};
-use std::{cmp::Ordering, sync::Arc};
+use std::{
+    cmp::{max, Ordering},
+    sync::Arc,
+};
 use tokio::{
     sync::{
         mpsc::{Receiver, Sender},
@@ -23,6 +26,8 @@ use types::{
 #[path = "tests/proposer_tests.rs"]
 pub mod proposer_tests;
 
+#[derive(Debug)]
+#[cfg_attr(test, derive(PartialEq))]
 pub enum ProposerMessage {
     NewParents(Vec<Certificate>, Round, Epoch),
     MeaningfulRound(Round),
@@ -38,8 +43,8 @@ pub struct Proposer {
     signature_service: SignatureService<Signature>,
     /// The size of the headers' payload.
     header_size: usize,
-    /// The maximum delay to wait for batches' digests.
-    max_header_delay: Duration,
+    /// The maximum message delay after GST (only meaningful in partial-synchrony).
+    delta: Duration,
     /// The network model in which the node operates.
     network_model: NetworkModel,
 
@@ -62,9 +67,11 @@ pub struct Proposer {
     digests: Vec<(BatchDigest, WorkerId)>,
     /// Keeps track of the size (in bytes) of batches' digests that we received so far.
     payload_size: usize,
-    /// Whether the dag can advance to the next round. Note that if we timeout, we ignore this
-    /// check and advance anyway.
-    advance: bool,
+    /// Whether we are on the happy path: i.e., we are after GST and the leader is not Byzantine.
+    /// Note that `common_case` is only used in partial synchrony (it is alway set to `true` when
+    /// running the DAG in asynchrony).
+    common_case: bool,
+    highest_useful_round: Round,
 
     /// Metrics handler
     metrics: Arc<PrimaryMetrics>,
@@ -93,7 +100,7 @@ impl Proposer {
                 committee,
                 signature_service,
                 header_size,
-                max_header_delay,
+                delta: max_header_delay,
                 network_model,
                 rx_reconfigure,
                 rx_core,
@@ -104,7 +111,8 @@ impl Proposer {
                 last_leader: None,
                 digests: Vec::with_capacity(2 * header_size),
                 payload_size: 0,
-                advance: true,
+                common_case: true,
+                highest_useful_round: 0,
                 metrics,
             }
             .run()
@@ -198,7 +206,7 @@ impl Proposer {
 
     /// Whether we can advance the DAG or need to wait for the leader/more votes. This is only relevant in
     /// partial synchrony. Note that if we timeout, we ignore this check and advance anyway.
-    fn ready(&mut self) -> bool {
+    fn is_common_case(&mut self) -> bool {
         match self.network_model {
             // In asynchrony we advance immediately.
             NetworkModel::Asynchronous => true,
@@ -231,30 +239,33 @@ impl Proposer {
             }
         }
 
-        // Check whether we can advance to the next round. Note that if we timeout,
-        // we ignore this check and advance anyway.
-        self.advance = self.ready();
+        // Check whether we are on the happy path (we can vote for the leader or the leader has enough
+        // votes to enable a commit).
+        self.common_case = self.is_common_case();
     }
 
     /// Main loop listening to incoming messages.
     pub async fn run(&mut self) {
         debug!("Dag starting at round {}", self.round);
 
-        let timer = sleep(self.max_header_delay);
+        let timer = sleep(self.delta);
         tokio::pin!(timer);
 
         loop {
-            // Check if we can propose a new header. We propose a new header when we have a quorum of parents
-            // and one of the following conditions is met:
-            // (i) the timer expired (we timed out on the leader or gave up gather votes for the leader),
-            // (ii) we have enough digests (minimum header size) and we are on the happy path (we can vote for
-            // the leader or the leader has enough votes to enable a commit). The latter condition only matters
-            // in partially synchrony.
+            // Check if we have enough parents; if we have enough digests; if other primaries already
+            // made a non-certificate for this round (and need our certificate to make progress); and
+            // if the timer expired (only meaningful in partial-synchrony).
             let enough_parents = !self.last_parents.is_empty();
-            let enough_digests = self.payload_size >= self.header_size;
+            let we_have_enough_digests = self.payload_size >= self.header_size;
+            let others_have_digests = self.round == self.highest_useful_round;
             let timer_expired = timer.is_elapsed();
 
-            if (timer_expired || (enough_digests && self.advance)) && enough_parents {
+            // Check whether advancing round allows the system to make meaningful progress. The system
+            // makes meaningful progress if it advances with non-empty certificates.
+            let meaningful_progress = we_have_enough_digests || others_have_digests;
+
+            // Check whether we can move to the next round and proposer a new header.
+            if (self.common_case || timer_expired) && enough_parents && meaningful_progress {
                 if timer_expired && matches!(self.network_model, NetworkModel::PartiallySynchronous)
                 {
                     debug!("Timer expired for round {}", self.round);
@@ -277,7 +288,7 @@ impl Proposer {
                 self.payload_size = 0;
 
                 // Reschedule the timer.
-                let deadline = Instant::now() + self.max_header_delay;
+                let deadline = Instant::now() + self.delta;
                 timer.as_mut().reset(deadline);
             }
 
@@ -297,8 +308,8 @@ impl Proposer {
                                 }
                             }
                             Ordering::Less => {
-                                // We already updated committee but the core is slow. Ignore the parents
-                                // from older epochs.
+                                // We already updated the committee but the core is slow. Ignore
+                                // the parents from older epochs.
                                 continue;
                             }
                             Ordering::Equal => {
@@ -310,7 +321,9 @@ impl Proposer {
                         self.update_state(parents, round);
 
                     },
-                    ProposerMessage::MeaningfulRound(round) => (),
+                    ProposerMessage::MeaningfulRound(round) => {
+                        self.highest_useful_round = max(self.highest_useful_round, round);
+                    },
                 },
 
                 // Receive digests from our workers.

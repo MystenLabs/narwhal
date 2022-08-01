@@ -439,6 +439,10 @@ impl Certificate {
     pub fn origin(&self) -> PublicKey {
         self.header.author.clone()
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.header.payload.is_empty()
+    }
 }
 #[derive(Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct CertificateDigest([u8; DIGEST_LEN]);
