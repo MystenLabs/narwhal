@@ -395,7 +395,7 @@ remove_dir_all = { version = "0.5", default-features = false }
 rustc-hash = { version = "1", features = ["std"] }
 rustc_version = { version = "0.3", default-features = false }
 rustversion = { version = "1", default-features = false }
-semver = { version = "0.11" }
+semver = { version = "1.0" }
 semver-parser = { version = "0.10", default-features = false }
 serde = { version = "1", features = ["alloc", "derive", "rc", "serde_derive", "std"] }
 serde_derive = { version = "1" }
