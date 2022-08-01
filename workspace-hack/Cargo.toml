@@ -383,7 +383,7 @@ num-integer = { version = "0.1", default-features = false, features = ["i128"] }
 num-traits = { version = "0.2", features = ["i128", "std"] }
 paste = { version = "1", default-features = false }
 peeking_take_while = { version = "0.1", default-features = false }
-pest = { version = "2", default-features = false }
+pest = { version = "2", features = ["std", "thiserror"] }
 petgraph = { version = "0.6", default-features = false }
 pin-project-internal = { version = "1", default-features = false }
 pkg-config = { version = "0.3", default-features = false }
@@ -426,7 +426,7 @@ toml = { version = "0.5" }
 tonic-build = { version = "0.7", features = ["prost", "prost-build", "transport"] }
 tracing-attributes = { version = "0.1", default-features = false }
 tracing-test-macro = { version = "0.2", default-features = false }
-ucd-trie = { version = "0.1", features = ["std"] }
+ucd-trie = { version = "0.1", default-features = false, features = ["std"] }
 unicode-ident = { version = "1", default-features = false }
 unicode-segmentation = { version = "1", default-features = false }
 unicode-xid-c65f7effa3be6d31 = { package = "unicode-xid", version = "0.1" }
