@@ -659,6 +659,12 @@
 <span id="659">659</span>
 <span id="660">660</span>
 <span id="661">661</span>
+<span id="662">662</span>
+<span id="663">663</span>
+<span id="664">664</span>
+<span id="665">665</span>
+<span id="666">666</span>
+<span id="667">667</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -668,7 +674,7 @@
 };
 <span class="kw">use</span> <span class="ident">blake2</span>::{<span class="ident">digest::Update</span>, <span class="ident">VarBlake2b</span>};
 <span class="kw">use</span> <span class="ident">bytes::Bytes</span>;
-<span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">Committee</span>, <span class="ident">Epoch</span>, <span class="ident">WorkerId</span>};
+<span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">Committee</span>, <span class="ident">Epoch</span>, <span class="ident">WorkerId</span>, <span class="ident">WorkerInfo</span>};
 <span class="kw">use</span> <span class="ident">crypto</span>::{
     <span class="ident">traits</span>::{<span class="ident">EncodeDecodeBase64</span>, <span class="ident">Signer</span>, <span class="ident">VerifyingKey</span>},
     <span class="ident">Digest</span>, <span class="ident">Hash</span>, <span class="ident">PublicKey</span>, <span class="ident">Signature</span>, <span class="ident">SignatureService</span>, <span class="ident">Verifier</span>, <span class="ident">DIGEST_LEN</span>,
@@ -678,7 +684,7 @@
 <span class="kw">use</span> <span class="ident">proptest_derive::Arbitrary</span>;
 <span class="kw">use</span> <span class="ident">serde</span>::{<span class="ident">Deserialize</span>, <span class="ident">Serialize</span>};
 <span class="kw">use</span> <span class="ident">std</span>::{
-    <span class="ident">collections</span>::{<span class="ident">BTreeMap</span>, <span class="ident">BTreeSet</span>, <span class="ident">HashSet</span>},
+    <span class="ident">collections</span>::{<span class="ident">BTreeMap</span>, <span class="ident">BTreeSet</span>, <span class="ident">HashMap</span>, <span class="ident">HashSet</span>},
     <span class="ident">fmt</span>,
     <span class="ident">fmt::Formatter</span>,
 };
@@ -1319,6 +1325,12 @@
 
     <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;An error occurred while deleting batches. None deleted&quot;</span>)]</span>
     <span class="ident">ErrorWhileDeletingBatches</span>(<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">BatchDigest</span><span class="op">&gt;</span>),
+}
+
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>, <span class="ident">Debug</span>)]</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">WorkerInfoResponse</span> {
+    <span class="doccomment">/// Map of workers&#39; id and their network addresses.</span>
+    <span class="kw">pub</span> <span class="ident">workers</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">WorkerId</span>, <span class="ident">WorkerInfo</span><span class="op">&gt;</span>,
 }
 </code></pre></div>
 </section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (f9cba6374 2022-07-31)" ></div></body></html>

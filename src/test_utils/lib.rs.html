@@ -793,12 +793,17 @@
 <span id="793">793</span>
 <span id="794">794</span>
 <span id="795">795</span>
+<span id="796">796</span>
+<span id="797">797</span>
+<span id="798">798</span>
+<span id="799">799</span>
+<span id="800">800</span>
+<span id="801">801</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="ident">config</span>::{
-    <span class="ident">utils::get_available_port</span>, <span class="ident">Authority</span>, <span class="ident">Committee</span>, <span class="ident">Epoch</span>, <span class="ident">PrimaryAddresses</span>, <span class="ident">WorkerAddresses</span>,
-    <span class="ident">WorkerId</span>,
+    <span class="ident">utils::get_available_port</span>, <span class="ident">Authority</span>, <span class="ident">Committee</span>, <span class="ident">Epoch</span>, <span class="ident">PrimaryAddresses</span>, <span class="ident">WorkerId</span>, <span class="ident">WorkerInfo</span>,
 };
 <span class="kw">use</span> <span class="ident">crypto</span>::{
     <span class="ident">traits</span>::{<span class="ident">KeyPair</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">Signer</span> <span class="kw">as</span> <span class="kw">_</span>},
@@ -872,7 +877,7 @@
     <span class="kw">let</span> <span class="ident">workers</span> <span class="op">=</span> <span class="macro">vec!</span>[
         (
             <span class="number">0</span>,
-            <span class="ident">WorkerAddresses</span> {
+            <span class="ident">WorkerInfo</span> {
                 <span class="ident">primary_to_worker</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_port</span>())
                     .<span class="ident">parse</span>()
                     .<span class="ident">unwrap</span>(),
@@ -886,7 +891,7 @@
         ),
         (
             <span class="number">1</span>,
-            <span class="ident">WorkerAddresses</span> {
+            <span class="ident">WorkerInfo</span> {
                 <span class="ident">primary_to_worker</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_port</span>())
                     .<span class="ident">parse</span>()
                     .<span class="ident">unwrap</span>(),
@@ -900,7 +905,7 @@
         ),
         (
             <span class="number">2</span>,
-            <span class="ident">WorkerAddresses</span> {
+            <span class="ident">WorkerInfo</span> {
                 <span class="ident">primary_to_worker</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_port</span>())
                     .<span class="ident">parse</span>()
                     .<span class="ident">unwrap</span>(),
@@ -914,7 +919,7 @@
         ),
         (
             <span class="number">3</span>,
-            <span class="ident">WorkerAddresses</span> {
+            <span class="ident">WorkerInfo</span> {
                 <span class="ident">primary_to_worker</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_port</span>())
                     .<span class="ident">parse</span>()
                     .<span class="ident">unwrap</span>(),
@@ -1235,6 +1240,13 @@
     ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">tonic::Response</span><span class="op">&lt;</span><span class="ident">Empty</span><span class="op">&gt;</span>, <span class="ident">tonic::Status</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">sender</span>.<span class="ident">send</span>(<span class="ident">request</span>.<span class="ident">into_inner</span>()).<span class="kw">await</span>.<span class="ident">unwrap</span>();
         <span class="prelude-val">Ok</span>(<span class="ident">Response::new</span>(<span class="ident">Empty</span> {}))
+    }
+
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">worker_info</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">_request</span>: <span class="ident">tonic::Request</span><span class="op">&lt;</span><span class="ident">Empty</span><span class="op">&gt;</span>,
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">tonic::Response</span><span class="op">&lt;</span><span class="ident">BincodeEncodedPayload</span><span class="op">&gt;</span>, <span class="ident">tonic::Status</span><span class="op">&gt;</span> {
+        <span class="macro">unimplemented!</span>()
     }
 }
 
