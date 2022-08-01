@@ -150,6 +150,60 @@ async fn test_second_node_restart() {
     assert!(max - min <= 2.0, "Nodes shouldn't be that behind");
 }
 
+#[ignore]
+#[tokio::test]
+/// We are testing the loss of liveness of a healthy cluster. While 3f+1 nodes run
+/// we are shutting down f+1 nodes. Then we resume and ensure that system is able
+/// to advance as normal.
+async fn test_loss_of_liveness() {
+    // Enabled debug tracing so we can easily observe the
+    // nodes logs.
+    let _guard = setup_tracing();
+
+    let node_advance_delay = Duration::from_secs(120);
+
+    // A cluster of 4 nodes will be created
+    let mut cluster = Cluster::new(None, None, true);
+
+    // ===== Start the cluster ====
+    cluster.start(Some(4), Some(1), None).await;
+
+    // Let the nodes advance a bit
+    tokio::time::sleep(node_advance_delay).await;
+
+    // Ensure that nodes have made progress
+    cluster.assert_progress(4, 2).await;
+
+    // Now stop node 2 & 3
+    cluster.authority(2).stop_all().await;
+    cluster.authority(3).stop_all().await;
+
+    // wait and fetch the latest commit round
+    tokio::time::sleep(node_advance_delay).await;
+    let rounds_1 = cluster.assert_progress(2, 0).await;
+
+    // wait and fetch again the rounds
+    tokio::time::sleep(node_advance_delay).await;
+    let rounds_2 = cluster.assert_progress(2, 0).await;
+
+    // We assert that nodes haven't advanced at all
+    assert_eq!(rounds_1, rounds_2);
+
+    // Now bring up nodes
+    cluster.authority(2).start(true, Some(1)).await;
+    cluster.authority(3).start(true, Some(1)).await;
+
+    // wait and fetch the latest commit round
+    tokio::time::sleep(node_advance_delay).await;
+    let rounds_3 = cluster.assert_progress(4, 0).await;
+
+    let round_2_max = rounds_2.values().into_iter().max().unwrap();
+    assert!(
+        rounds_3.values().all(|v| v > round_2_max),
+        "All the nodes should have advanced more from the previous round"
+    );
+}
+
 async fn authorities_latest_commit_round(cluster: &Cluster) -> HashMap<usize, f64> {
     let mut authorities_latest_commit = HashMap::new();
 
