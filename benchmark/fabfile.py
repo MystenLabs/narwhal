@@ -1,10 +1,9 @@
 # Copyright(C) Facebook, Inc. and its affiliates.
 from fabric import task
-from benchmark.seed import SeedData
 
+from benchmark.seed import SeedData
 from benchmark.local import LocalBench
 from benchmark.full_demo import Demo
-
 from benchmark.logs import ParseError, LogParser
 from benchmark.utils import Print
 from benchmark.plot import Ploter, PlotError
@@ -77,6 +76,7 @@ def demo(ctx, debug=True):
         "consensus_api_grpc": {
             "get_collections_timeout": "5_000ms",
             "remove_collections_timeout": "5_000ms",
+            # Use a random available local port.
             "socket_addr": "/ip4/0.0.0.0/tcp/0/http"
         },
         "gc_depth": 50,  # rounds
@@ -87,6 +87,7 @@ def demo(ctx, debug=True):
         "sync_retry_delay": "10_000ms",  # ms
         "sync_retry_nodes": 3,  # number of nodes
         'prometheus_metrics': {
+            # Use a random available local port.
             "socket_addr": "/ip4/127.0.0.1/tcp/0/http"
         }
     }

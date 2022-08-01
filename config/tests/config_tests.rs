@@ -106,6 +106,12 @@ fn update_primary_network_info_test() {
     }
 }
 
+// If one or both of the parameters_xx_matches() tests are broken by a change, the following additional places are
+// highly likely needed to be updated as well:
+// 1. Docker/validators/parameters.json for starting Narwhal cluster with Docker Compose.
+// 2. benchmark/fabfile.py for benchmarking a Narwhal cluster locally.
+// 3. Sui configurations & snapshot tests when upgrading Narwhal in Sui to include the change.
+
 #[test]
 fn parameters_snapshot_matches() {
     // This configuration is load-bearing in the NW benchmarks,
@@ -127,35 +133,6 @@ fn parameters_snapshot_matches() {
         ..Parameters::default()
     };
     assert_json_snapshot!("parameters", parameters)
-}
-
-#[test]
-fn commmittee_snapshot_matches() {
-    // The shape of this configuration is load-bearing in the NW benchmarks,
-    // and in Sui (prod)
-    let keys = test_utils::keys(None);
-
-    let committee = Committee {
-        epoch: Epoch::default(),
-        authorities: keys
-            .iter()
-            .map(|kp| {
-                let mut port = 0;
-                let increment_port_getter = || {
-                    port += 1;
-                    port
-                };
-                (
-                    kp.public().clone(),
-                    make_authority_with_port_getter(increment_port_getter),
-                )
-            })
-            .collect(),
-    };
-    // we need authorities to be serialized in order
-    let mut settings = insta::Settings::clone_current();
-    settings.set_sort_maps(true);
-    settings.bind(|| assert_json_snapshot!("committee", committee));
 }
 
 #[test]
@@ -201,4 +178,33 @@ fn parameters_import_snapshot_matches() {
 
     // THEN
     assert_json_snapshot!("parameters_import", params)
+}
+
+#[test]
+fn commmittee_snapshot_matches() {
+    // The shape of this configuration is load-bearing in the NW benchmarks,
+    // and in Sui (prod)
+    let keys = test_utils::keys(None);
+
+    let committee = Committee {
+        epoch: Epoch::default(),
+        authorities: keys
+            .iter()
+            .map(|kp| {
+                let mut port = 0;
+                let increment_port_getter = || {
+                    port += 1;
+                    port
+                };
+                (
+                    kp.public().clone(),
+                    make_authority_with_port_getter(increment_port_getter),
+                )
+            })
+            .collect(),
+    };
+    // we need authorities to be serialized in order
+    let mut settings = insta::Settings::clone_current();
+    settings.set_sort_maps(true);
+    settings.bind(|| assert_json_snapshot!("committee", committee));
 }
