@@ -367,12 +367,10 @@ impl Core {
         }
 
         // Let the proposer draw early conclusions from a certificate at this round and epoch, without its
-        // parents or payload (which we may not have yet).
-        //
-        // Since our certificate is well-signed, it shows a majority of honest signers stand at round r,
-        // so to make a successful proposal, our proposer must use parents at least at round r-1.
-        //
-        // This allows the proposer not to fire proposals at rounds strictly below the certificate we witnessed.
+        // parents or payload (which we may not have yet). This is not needed for safety or liveness, but is
+        // useful in the following case. A slow node has digests to include in its next proposal and learns
+        // about higher-rounds empty certificates (but not enough to form a quorum). We thus avoid proposing
+        // a low-round certificate that will likely never be committed.
         let minimal_round_for_parents = certificate.round().saturating_sub(1);
         let proposer_message =
             ProposerMessage::NewParents(vec![], minimal_round_for_parents, certificate.epoch());
