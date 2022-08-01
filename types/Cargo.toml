@@ -15,7 +15,7 @@ derive_builder = "0.11.2"
 ed25519-dalek = "1.0.1"
 proptest = "1.0.0"
 proptest-derive = "0.3.0"
-prost = "0.10.4"
+prost = "0.11.0"
 rand = "0.7.3"
 serde = { version = "1.0.140", features = ["derive"] }
 signature = "1.5.0"

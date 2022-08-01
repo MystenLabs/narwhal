@@ -211,7 +211,7 @@ prettyplease = { version = "0.1", default-features = false }
 proc-macro2-dff4ba8e3ae991db = { package = "proc-macro2", version = "1", features = ["proc-macro", "span-locations"] }
 prometheus = { version = "0.13", features = ["protobuf"] }
 proptest = { version = "1", features = ["bit-set", "break-dead-code", "fork", "lazy_static", "quick-error", "regex-syntax", "rusty-fork", "std", "tempfile", "timeout"] }
-prost = { version = "0.10", features = ["prost-derive", "std"] }
+prost = { version = "0.11", features = ["prost-derive", "std"] }
 prost-build = { version = "0.10" }
 prost-types = { version = "0.10", default-features = false }
 protobuf = { version = "2", default-features = false }
@@ -394,7 +394,7 @@ proc-macro-error-attr = { version = "1", default-features = false }
 proc-macro2-9fbad63c4bcf4a8f = { package = "proc-macro2", version = "0.4", features = ["proc-macro"] }
 proc-macro2-dff4ba8e3ae991db = { package = "proc-macro2", version = "1", features = ["proc-macro", "span-locations"] }
 proptest-derive = { version = "0.3", default-features = false }
-prost = { version = "0.10", features = ["prost-derive", "std"] }
+prost = { version = "0.11", features = ["prost-derive", "std"] }
 prost-build = { version = "0.10" }
 prost-derive = { version = "0.10", default-features = false }
 prost-types = { version = "0.10", default-features = false }
