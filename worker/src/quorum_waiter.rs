@@ -124,6 +124,11 @@ impl QuorumWaiter {
                                         tracing::debug!("Committee updated to {}", self.committee);
                                         break; // Don't wait for acknowledgements.
                                     },
+                                    ReconfigureNotification::UpdateCommittee(new_committee) => {
+                                        self.committee = new_committee;
+                                        tracing::debug!("Committee updated to {}", self.committee);
+                                        break; // Don't wait for acknowledgements.
+                                    },
                                     ReconfigureNotification::Shutdown => return
                                 }
                             }
@@ -138,10 +143,14 @@ impl QuorumWaiter {
                     match message {
                         ReconfigureNotification::NewCommittee(new_committee) => {
                             self.committee = new_committee;
-                            tracing::debug!("Committee updated to {}", self.committee);
+                        },
+                        ReconfigureNotification::UpdateCommittee(new_committee) => {
+                            self.committee = new_committee;
+
                         },
                         ReconfigureNotification::Shutdown => return
                     }
+                    tracing::debug!("Committee updated to {}", self.committee);
                 }
             }
         }

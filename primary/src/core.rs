@@ -517,7 +517,7 @@ impl Core {
         {
             let message = self.rx_reconfigure.borrow().clone();
             if let ReconfigureNotification::NewCommittee(new_committee) = message {
-                self.update_committee(new_committee);
+                self.change_epoch(new_committee);
                 // Mark the value as seen.
                 let _ = self.rx_reconfigure.borrow_and_update();
             }
@@ -525,19 +525,15 @@ impl Core {
     }
 
     /// Update the committee and cleanup internal state.
-    fn update_committee(&mut self, committee: Committee) {
-        let old_epoch = self.committee.epoch();
+    fn change_epoch(&mut self, committee: Committee) {
         self.committee = committee;
-        tracing::debug!("Committee updated to {}", self.committee);
 
-        if self.committee.epoch() > old_epoch {
-            self.last_voted.clear();
-            self.processing.clear();
-            self.certificates_aggregators.clear();
-            self.cancel_handlers.clear();
+        self.last_voted.clear();
+        self.processing.clear();
+        self.certificates_aggregators.clear();
+        self.cancel_handlers.clear();
 
-            self.synchronizer.update_genesis(&self.committee);
-        }
+        self.synchronizer.update_genesis(&self.committee);
     }
 
     // Main loop listening to incoming messages.
@@ -588,11 +584,15 @@ impl Core {
                     let message = self.rx_reconfigure.borrow().clone();
                     match message {
                         ReconfigureNotification::NewCommittee(new_committee) => {
-                            self.update_committee(new_committee);
-                            Ok(())
+                            self.change_epoch(new_committee);
+                        },
+                        ReconfigureNotification::UpdateCommittee(new_committee) => {
+                            self.committee = new_committee;
                         },
                         ReconfigureNotification::Shutdown => return
                     }
+                    tracing::debug!("Committee updated to {}", self.committee);
+                    Ok(())
                 }
             };
             match result {

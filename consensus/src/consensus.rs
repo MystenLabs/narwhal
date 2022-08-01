@@ -243,19 +243,14 @@ where
         })
     }
 
-    fn reconfigure(&mut self, new_committee: Committee) -> StoreResult<Option<ConsensusState>> {
-        let old_epoch = self.committee.epoch();
+    fn change_epoch(&mut self, new_committee: Committee) -> StoreResult<ConsensusState> {
         self.committee = new_committee.clone();
         self.protocol.update_committee(new_committee)?;
-        tracing::debug!("Committee updated to {}", self.committee);
 
-        if self.committee.epoch() > old_epoch {
-            self.consensus_index = 0;
+        self.consensus_index = 0;
 
-            let genesis = Certificate::genesis(&self.committee);
-            return Ok(Some(ConsensusState::new(genesis, self.metrics.clone())));
-        }
-        Ok(None)
+        let genesis = Certificate::genesis(&self.committee);
+        Ok(ConsensusState::new(genesis, self.metrics.clone()))
     }
 
     async fn run(
@@ -286,12 +281,14 @@ where
                             let message = self.rx_reconfigure.borrow_and_update().clone();
                             match message  {
                                 ReconfigureNotification::NewCommittee(new_committee) => {
-                                    if let Some(new_state) = self.reconfigure(new_committee)? {
-                                        state = new_state;
-                                    }
+                                    state = self.change_epoch(new_committee)?;
                                 },
+                                ReconfigureNotification::UpdateCommittee(new_committee) => {
+                                    self.committee = new_committee;
+                                }
                                 ReconfigureNotification::Shutdown => return Ok(()),
                             }
+                            tracing::debug!("Committee updated to {}", self.committee);
                         }
                         Ordering::Less => {
                             // We already updated committee but the core is slow.
@@ -342,12 +339,14 @@ where
                     let message = self.rx_reconfigure.borrow().clone();
                     match message {
                         ReconfigureNotification::NewCommittee(new_committee) => {
-                            if let Some(new_state) = self.reconfigure(new_committee)? {
-                                state = new_state;
-                            }
+                            state = self.change_epoch(new_committee)?;
                         },
+                        ReconfigureNotification::UpdateCommittee(new_committee) => {
+                            self.committee = new_committee;
+                        }
                         ReconfigureNotification::Shutdown => return Ok(())
                     }
+                    tracing::debug!("Committee updated to {}", self.committee);
                 }
             }
         }

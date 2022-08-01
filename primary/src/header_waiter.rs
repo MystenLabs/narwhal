@@ -137,16 +137,12 @@ impl HeaderWaiter {
     }
 
     /// Update the committee and cleanup internal state.
-    fn update_committee(&mut self, committee: Committee) {
-        let old_epoch = self.committee.epoch();
+    fn change_epoch(&mut self, committee: Committee) {
         self.committee = committee;
-        tracing::debug!("Committee updated to {}", self.committee);
 
-        if self.committee.epoch() > old_epoch {
-            self.pending.clear();
-            self.batch_requests.clear();
-            self.parent_requests.clear();
-        }
+        self.pending.clear();
+        self.batch_requests.clear();
+        self.parent_requests.clear();
     }
 
     /// Helper function. It waits for particular data to become available in the storage
@@ -329,10 +325,14 @@ impl HeaderWaiter {
                     let message = self.rx_reconfigure.borrow().clone();
                     match message {
                         ReconfigureNotification::NewCommittee(new_committee) => {
-                            self.update_committee(new_committee);
+                            self.change_epoch(new_committee);
+                        },
+                        ReconfigureNotification::UpdateCommittee(new_committee) => {
+                            self.committee = new_committee;
                         },
                         ReconfigureNotification::Shutdown => return
                     }
+                    tracing::debug!("Committee updated to {}", self.committee);
                 }
             }
 

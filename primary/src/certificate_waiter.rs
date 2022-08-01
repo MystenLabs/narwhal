@@ -160,16 +160,15 @@ impl CertificateWaiter {
                     let message = self.rx_reconfigure.borrow_and_update().clone();
                     match message {
                         ReconfigureNotification::NewCommittee(committee) => {
-                            let old_epoch = self.committee.epoch();
                             self.committee = committee;
-                            tracing::debug!("Committee updated to {}", self.committee);
-
-                            if self.committee.epoch() > old_epoch {
-                                self.pending.clear();
-                            }
+                            self.pending.clear();
+                        },
+                        ReconfigureNotification::UpdateCommittee(committee) => {
+                            self.committee = committee;
                         },
                         ReconfigureNotification::Shutdown => return
                     }
+                    tracing::debug!("Committee updated to {}", self.committee);
 
                 }
                 () = &mut timer => {

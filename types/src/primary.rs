@@ -553,11 +553,13 @@ pub enum PrimaryMessage {
     },
 }
 
-/// Message to reconfigure worker tasks.
+/// Message to reconfigure worker tasks. This message must be sent by a trusted source.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ReconfigureNotification {
-    /// Indicate the committee has been updated.
+    /// Indicate the committee has changed. This happens at epoch change.
     NewCommittee(Committee),
+    /// Update some network information of the committee.
+    UpdateCommittee(Committee),
     /// Indicate a shutdown.
     Shutdown,
 }
