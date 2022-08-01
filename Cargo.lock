@@ -48,9 +48,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.58"
+version = "1.0.59"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb07d2053ccdbe10e2af2995a2f116c1330396493dc1269f6a91d0ae82e19704"
+checksum = "c91f1f46651137be86f3a2b9a8359f9ab421d04d941c62b5982e1ca21113adf9"
 dependencies = [
  "backtrace",
 ]
@@ -1830,9 +1830,9 @@ dependencies = [
 
 [[package]]
 name = "insta"
-version = "1.17.0"
+version = "1.17.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e21173d5699a654cf191b0c05b0a937bb4f7cf07ee2e32da2af07a963e31577"
+checksum = "1585a0f4924236ca3c8dac97bc6a3efaacc08b1ed9264ff2155ec7ab2906a8ea"
 dependencies = [
  "console",
  "once_cell",
