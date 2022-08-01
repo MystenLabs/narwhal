@@ -3390,9 +3390,9 @@ dependencies = [
 
 [[package]]
 name = "serde_test"
-version = "1.0.140"
+version = "1.0.141"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "38b0651a2f427e4a4d74d458947aa5ca36c62c1b503344d143763ec06216a975"
+checksum = "02dcf22b2d7b217b72a5b26c45a2ec9f8a84dd83b35b4561e406e64cf67477d6"
 dependencies = [
  "serde",
 ]
@@ -3540,9 +3540,9 @@ dependencies = [
 
 [[package]]
 name = "similar"
-version = "2.1.0"
+version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2e24979f63a11545f5f2c60141afe249d4f19f84581ea2138065e400941d83d3"
+checksum = "62ac7f900db32bf3fd12e0117dd3dc4da74bc52ebaac97f39668446d89694803"
 
 [[package]]
 name = "slab"
