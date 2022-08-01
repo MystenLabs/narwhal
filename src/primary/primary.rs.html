@@ -630,6 +630,80 @@
 <span id="630">630</span>
 <span id="631">631</span>
 <span id="632">632</span>
+<span id="633">633</span>
+<span id="634">634</span>
+<span id="635">635</span>
+<span id="636">636</span>
+<span id="637">637</span>
+<span id="638">638</span>
+<span id="639">639</span>
+<span id="640">640</span>
+<span id="641">641</span>
+<span id="642">642</span>
+<span id="643">643</span>
+<span id="644">644</span>
+<span id="645">645</span>
+<span id="646">646</span>
+<span id="647">647</span>
+<span id="648">648</span>
+<span id="649">649</span>
+<span id="650">650</span>
+<span id="651">651</span>
+<span id="652">652</span>
+<span id="653">653</span>
+<span id="654">654</span>
+<span id="655">655</span>
+<span id="656">656</span>
+<span id="657">657</span>
+<span id="658">658</span>
+<span id="659">659</span>
+<span id="660">660</span>
+<span id="661">661</span>
+<span id="662">662</span>
+<span id="663">663</span>
+<span id="664">664</span>
+<span id="665">665</span>
+<span id="666">666</span>
+<span id="667">667</span>
+<span id="668">668</span>
+<span id="669">669</span>
+<span id="670">670</span>
+<span id="671">671</span>
+<span id="672">672</span>
+<span id="673">673</span>
+<span id="674">674</span>
+<span id="675">675</span>
+<span id="676">676</span>
+<span id="677">677</span>
+<span id="678">678</span>
+<span id="679">679</span>
+<span id="680">680</span>
+<span id="681">681</span>
+<span id="682">682</span>
+<span id="683">683</span>
+<span id="684">684</span>
+<span id="685">685</span>
+<span id="686">686</span>
+<span id="687">687</span>
+<span id="688">688</span>
+<span id="689">689</span>
+<span id="690">690</span>
+<span id="691">691</span>
+<span id="692">692</span>
+<span id="693">693</span>
+<span id="694">694</span>
+<span id="695">695</span>
+<span id="696">696</span>
+<span id="697">697</span>
+<span id="698">698</span>
+<span id="699">699</span>
+<span id="700">700</span>
+<span id="701">701</span>
+<span id="702">702</span>
+<span id="703">703</span>
+<span id="704">704</span>
+<span id="705">705</span>
+<span id="706">706</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -662,6 +736,7 @@
 <span class="kw">use</span> <span class="ident">std</span>::{
     <span class="ident">net::Ipv4Addr</span>,
     <span class="ident">sync</span>::{<span class="ident">atomic::AtomicU64</span>, <span class="ident">Arc</span>},
+    <span class="ident">time::Duration</span>,
 };
 <span class="kw">use</span> <span class="ident">store::Store</span>;
 <span class="kw">use</span> <span class="ident">tokio</span>::{
@@ -672,7 +747,7 @@
     <span class="ident">task::JoinHandle</span>,
 };
 <span class="kw">use</span> <span class="ident">tonic</span>::{<span class="ident">Request</span>, <span class="ident">Response</span>, <span class="ident">Status</span>};
-<span class="kw">use</span> <span class="ident">tracing::info</span>;
+<span class="kw">use</span> <span class="ident">tracing</span>::{<span class="ident">info</span>, <span class="ident">log::error</span>};
 <span class="kw">use</span> <span class="ident">types</span>::{
     <span class="ident">error::DagError</span>, <span class="ident">BatchDigest</span>, <span class="ident">BatchMessage</span>, <span class="ident">BincodeEncodedPayload</span>, <span class="ident">Certificate</span>,
     <span class="ident">CertificateDigest</span>, <span class="ident">Empty</span>, <span class="ident">Header</span>, <span class="ident">HeaderDigest</span>, <span class="ident">PrimaryToPrimary</span>, <span class="ident">PrimaryToPrimaryServer</span>,
@@ -734,6 +809,78 @@
         <span class="kw">let</span> (<span class="ident">tx_payload_availability_responses</span>, <span class="ident">rx_payload_availability_responses</span>) <span class="op">=</span>
             <span class="ident">channel</span>(<span class="ident">CHANNEL_CAPACITY</span>);
         <span class="kw">let</span> (<span class="ident">tx_state_handler</span>, <span class="ident">rx_state_handler</span>) <span class="op">=</span> <span class="ident">channel</span>(<span class="ident">CHANNEL_CAPACITY</span>);
+
+        <span class="comment">// Monitor of channel capacity</span>
+        <span class="kw">let</span> <span class="ident">mon_tx_others_digests</span> <span class="op">=</span> <span class="ident">tx_others_digests</span>.<span class="ident">clone</span>();
+        <span class="kw">let</span> <span class="ident">mon_tx_our_digests</span> <span class="op">=</span> <span class="ident">tx_our_digests</span>.<span class="ident">clone</span>();
+        <span class="kw">let</span> <span class="ident">mon_tx_parents</span> <span class="op">=</span> <span class="ident">tx_parents</span>.<span class="ident">clone</span>();
+        <span class="kw">let</span> <span class="ident">mon_tx_headers</span> <span class="op">=</span> <span class="ident">tx_headers</span>.<span class="ident">clone</span>();
+        <span class="kw">let</span> <span class="ident">mon_tx_sync_headers</span> <span class="op">=</span> <span class="ident">tx_sync_headers</span>.<span class="ident">clone</span>();
+        <span class="kw">let</span> <span class="ident">mon_tx_sync_certificates</span> <span class="op">=</span> <span class="ident">tx_sync_certificates</span>.<span class="ident">clone</span>();
+        <span class="kw">let</span> <span class="ident">mon_tx_headers_loopback</span> <span class="op">=</span> <span class="ident">tx_headers_loopback</span>.<span class="ident">clone</span>();
+        <span class="kw">let</span> <span class="ident">mon_tx_certificates_loopback</span> <span class="op">=</span> <span class="ident">tx_certificates_loopback</span>.<span class="ident">clone</span>();
+        <span class="kw">let</span> <span class="ident">mon_tx_primary_messages</span> <span class="op">=</span> <span class="ident">tx_primary_messages</span>.<span class="ident">clone</span>();
+        <span class="kw">let</span> <span class="ident">mon_tx_helper_requests</span> <span class="op">=</span> <span class="ident">tx_helper_requests</span>.<span class="ident">clone</span>();
+        <span class="kw">let</span> <span class="ident">mon_tx_get_block_commands</span> <span class="op">=</span> <span class="ident">tx_get_block_commands</span>.<span class="ident">clone</span>();
+        <span class="kw">let</span> <span class="ident">mon_tx_batches</span> <span class="op">=</span> <span class="ident">tx_batches</span>.<span class="ident">clone</span>();
+        <span class="kw">let</span> <span class="ident">mon_tx_block_removal_commands</span> <span class="op">=</span> <span class="ident">tx_block_removal_commands</span>.<span class="ident">clone</span>();
+        <span class="kw">let</span> <span class="ident">mon_tx_batch_removal</span> <span class="op">=</span> <span class="ident">tx_batch_removal</span>.<span class="ident">clone</span>();
+        <span class="kw">let</span> <span class="ident">mon_tx_block_synchronizer_commands</span> <span class="op">=</span> <span class="ident">tx_block_synchronizer_commands</span>.<span class="ident">clone</span>();
+        <span class="kw">let</span> <span class="ident">mon_tx_certificate_responses</span> <span class="op">=</span> <span class="ident">tx_certificate_responses</span>.<span class="ident">clone</span>();
+        <span class="kw">let</span> <span class="ident">mon_tx_payload_availability_responses</span> <span class="op">=</span> <span class="ident">tx_payload_availability_responses</span>.<span class="ident">clone</span>();
+        <span class="kw">let</span> <span class="ident">mon_tx_state_handler</span> <span class="op">=</span> <span class="ident">tx_state_handler</span>.<span class="ident">clone</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">mon_rx_reconfigure</span> <span class="op">=</span> <span class="ident">tx_reconfigure</span>.<span class="ident">subscribe</span>();
+
+        <span class="kw">let</span> <span class="ident">channel_stats_handle</span> <span class="op">=</span> <span class="ident">tokio::task::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
+            <span class="kw">loop</span> {
+                <span class="kw">let</span> <span class="ident">timer</span> <span class="op">=</span> <span class="ident">tokio::time::sleep</span>(<span class="ident">Duration::from_secs</span>(<span class="number">5</span>));
+                <span class="macro">tokio::pin!</span>(<span class="ident">timer</span>);
+
+                <span class="macro">tokio::select!</span> {
+                        () <span class="op">=</span> <span class="kw-2">&amp;mut</span> <span class="ident">timer</span> =&gt; {
+                            <span class="comment">// Dump channel capacities every 5 seconds</span>
+                            <span class="kw">let</span> <span class="ident">capacities</span> <span class="op">=</span> <span class="macro">vec!</span>[
+                                <span class="ident">mon_tx_others_digests</span>.<span class="ident">capacity</span>(),
+                                <span class="ident">mon_tx_our_digests</span>.<span class="ident">capacity</span>(),
+                                <span class="ident">mon_tx_parents</span>.<span class="ident">capacity</span>(),
+                                <span class="ident">mon_tx_headers</span>.<span class="ident">capacity</span>(),
+                                <span class="ident">mon_tx_sync_headers</span>.<span class="ident">capacity</span>(),
+                                <span class="ident">mon_tx_sync_certificates</span>.<span class="ident">capacity</span>(),
+                                <span class="ident">mon_tx_headers_loopback</span>.<span class="ident">capacity</span>(),
+                                <span class="ident">mon_tx_certificates_loopback</span>.<span class="ident">capacity</span>(),
+                                <span class="ident">mon_tx_primary_messages</span>.<span class="ident">capacity</span>(),
+                                <span class="ident">mon_tx_helper_requests</span>.<span class="ident">capacity</span>(),
+                                <span class="ident">mon_tx_get_block_commands</span>.<span class="ident">capacity</span>(),
+                                <span class="ident">mon_tx_batches</span>.<span class="ident">capacity</span>(),
+                                <span class="ident">mon_tx_block_removal_commands</span>.<span class="ident">capacity</span>(),
+                                <span class="ident">mon_tx_batch_removal</span>.<span class="ident">capacity</span>(),
+                                <span class="ident">mon_tx_block_synchronizer_commands</span>.<span class="ident">capacity</span>(),
+                                <span class="ident">mon_tx_certificate_responses</span>.<span class="ident">capacity</span>(),
+                                <span class="ident">mon_tx_payload_availability_responses</span>.<span class="ident">capacity</span>(),
+                                <span class="ident">mon_tx_state_handler</span>.<span class="ident">capacity</span>(),
+                            ];
+
+                            <span class="kw">if</span> <span class="ident">capacities</span>.<span class="ident">iter</span>().<span class="ident">any</span>(<span class="op">|</span><span class="ident">c</span><span class="op">|</span> <span class="kw-2">*</span><span class="ident">c</span> <span class="op">==</span> <span class="number">0</span>) {
+                                <span class="macro">error!</span>(<span class="string">&quot;Primary Channel Capacities: {:?}&quot;</span>, <span class="ident">capacities</span>);
+                            } <span class="kw">else</span> {
+                                <span class="macro">info!</span>(<span class="string">&quot;Primary Channel Capacities: {:?}&quot;</span>, <span class="ident">capacities</span>);
+                            }
+                        },
+
+                        <span class="comment">// Check whether the committee changed.</span>
+                    <span class="ident">result</span> <span class="op">=</span> <span class="ident">mon_rx_reconfigure</span>.<span class="ident">changed</span>() =&gt; {
+                        <span class="ident">result</span>.<span class="ident">expect</span>(<span class="string">&quot;Committee channel dropped&quot;</span>);
+                        <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">mon_rx_reconfigure</span>.<span class="ident">borrow</span>().<span class="ident">clone</span>();
+                        <span class="kw">match</span> <span class="ident">message</span> {
+                            <span class="ident">ReconfigureNotification::NewCommittee</span>(<span class="ident">_new_committee</span>) =&gt; {
+                                <span class="comment">// noop</span>
+                            },
+                            <span class="ident">ReconfigureNotification::Shutdown</span> =&gt; <span class="kw">return</span>
+                        }
+                    }
+                }
+            }
+        });
 
         <span class="comment">// Write the parameters to the logs.</span>
         <span class="ident">parameters</span>.<span class="ident">tracing</span>();
@@ -1022,6 +1169,7 @@
         );
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">handles</span> <span class="op">=</span> <span class="macro">vec!</span>[
+            <span class="ident">channel_stats_handle</span>,
             <span class="ident">primary_receiver_handle</span>,
             <span class="ident">worker_receiver_handle</span>,
             <span class="ident">core_handle</span>,
