@@ -121,12 +121,12 @@ impl QuorumWaiter {
                                 match message {
                                     ReconfigureNotification::NewCommittee(new_committee) => {
                                         self.committee = new_committee;
-                                        tracing::debug!("Committee updated to {}", self.committee);
+                                        tracing::debug!("Dropping batch: committee updated to {}", self.committee);
                                         break; // Don't wait for acknowledgements.
                                     },
                                     ReconfigureNotification::UpdateCommittee(new_committee) => {
                                         self.committee = new_committee;
-                                        tracing::debug!("Committee updated to {}", self.committee);
+                                        tracing::debug!("Dropping batch: committee updated to {}", self.committee);
                                         break; // Don't wait for acknowledgements.
                                     },
                                     ReconfigureNotification::Shutdown => return
