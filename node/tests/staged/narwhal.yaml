@@ -103,6 +103,10 @@ ReconfigureNotification:
         NEWTYPE:
           TYPENAME: Committee
     1:
+      UpdateCommittee:
+        NEWTYPE:
+          TYPENAME: Committee
+    2:
       Shutdown: UNIT
 WorkerAddresses:
   STRUCT:
