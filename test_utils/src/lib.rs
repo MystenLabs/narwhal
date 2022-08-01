@@ -1,6 +1,7 @@
 // Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
+use anemo::Network;
 use config::{
     utils::get_available_port, Authority, Committee, Epoch, PrimaryAddresses, SharedWorkerCache,
     WorkerCache, WorkerId, WorkerIndex, WorkerInfo,
@@ -22,12 +23,13 @@ use std::{
 };
 use store::{reopen, rocks, rocks::DBMap, Store};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
-use tonic::Response;
+use tonic::{async_trait, Response};
+use tracing::info;
 use types::{
     serialized_batch_digest, Batch, BatchDigest, BincodeEncodedPayload, Certificate,
-    CertificateDigest, ConsensusStore, Empty, Header, HeaderBuilder, PrimaryToPrimary,
-    PrimaryToPrimaryServer, PrimaryToWorker, PrimaryToWorkerServer, Round, SequenceNumber,
-    Transaction, Vote, WorkerToPrimary, WorkerToPrimaryServer, WorkerToWorker,
+    CertificateDigest, ConsensusStore, Empty, Header, HeaderBuilder, PrimaryMessage,
+    PrimaryToPrimary, PrimaryToPrimaryServer, PrimaryToWorker, PrimaryToWorkerServer, Round,
+    SequenceNumber, Transaction, Vote, WorkerToPrimary, WorkerToPrimaryServer, WorkerToWorker,
     WorkerToWorkerServer,
 };
 
@@ -488,37 +490,39 @@ pub fn certificate(header: &Header) -> Certificate {
     }
 }
 
+#[derive(Clone)]
 pub struct PrimaryToPrimaryMockServer {
-    sender: Sender<BincodeEncodedPayload>,
+    sender: Sender<PrimaryMessage>,
 }
 
 impl PrimaryToPrimaryMockServer {
-    pub fn spawn(address: Multiaddr) -> Receiver<BincodeEncodedPayload> {
-        let (sender, receiver) = channel(1);
-        tokio::spawn(async move {
-            let config = mysten_network::config::Config::new();
-            let mock = Self { sender };
-            config
-                .server_builder()
-                .add_service(PrimaryToPrimaryServer::new(mock))
-                .bind(&address)
-                .await
-                .unwrap()
-                .serve()
-                .await
-        });
-        receiver
+    pub fn spawn(keypair: KeyPair, address: Multiaddr) -> (Receiver<PrimaryMessage>, Network) {
+        let addr = network::multiaddr_to_address(&address).unwrap();
+        let (sender, reciever) = channel(1);
+        let service = PrimaryToPrimaryServer::new(Self { sender });
+
+        let routes = anemo::Router::new().add_rpc_service(service);
+        let network = anemo::Network::bind(addr)
+            .server_name("narwhal")
+            .private_key(keypair.private().0.to_bytes())
+            .start(routes)
+            .unwrap();
+        info!("starting network on: {}", network.local_addr());
+        (reciever, network)
     }
 }
 
-#[tonic::async_trait]
+#[async_trait]
 impl PrimaryToPrimary for PrimaryToPrimaryMockServer {
     async fn send_message(
         &self,
-        request: tonic::Request<BincodeEncodedPayload>,
-    ) -> Result<tonic::Response<Empty>, tonic::Status> {
-        self.sender.send(request.into_inner()).await.unwrap();
-        Ok(Response::new(Empty {}))
+        request: anemo::Request<types::PrimaryMessage>,
+    ) -> Result<anemo::Response<()>, anemo::rpc::Status> {
+        let message = request.into_body();
+
+        self.sender.send(message).await.unwrap();
+
+        Ok(anemo::Response::new(()))
     }
 }
 
