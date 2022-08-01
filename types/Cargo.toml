@@ -10,14 +10,14 @@ publish = false
 base64 = "0.13.0"
 bincode = "1.3.3"
 blake2 = "0.9"
-bytes = "1.2.0"
+bytes = "1.2.1"
 derive_builder = "0.11.2"
 ed25519-dalek = "1.0.1"
 proptest = "1.0.0"
 proptest-derive = "0.3.0"
 prost = "0.10.4"
 rand = "0.7.3"
-serde = { version = "1.0.140", features = ["derive"] }
+serde = { version = "1.0.141", features = ["derive"] }
 signature = "1.5.0"
 store = { git = "https://github.com/mystenlabs/mysten-infra.git", package = "typed-store", rev = "123c9e40b529315e1c1d91a54fb717111c3e349c" }
 thiserror = "1.0.31"
@@ -34,7 +34,7 @@ workspace-hack = { version = "0.1", path = "../workspace-hack" }
 [dev-dependencies]
 hex = "0.4.3"
 prost-build = "0.10.4"
-serde_test = "1.0.140"
+serde_test = "1.0.141"
 tonic-build = { version = "0.7.2", features = [ "prost", "transport" ] }
 criterion = "0.3.6"
 

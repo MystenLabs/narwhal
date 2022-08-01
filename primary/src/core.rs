@@ -93,6 +93,7 @@ pub struct Core {
 
 impl Core {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn spawn(
         name: PublicKey,
         committee: Committee,
@@ -423,6 +424,16 @@ impl Core {
                 .send((parents, certificate.round(), certificate.epoch()))
                 .await
                 .map_err(|_| DagError::ShuttingDown)?;
+
+            let before = self.cancel_handlers.len();
+            if certificate.round() > 0 {
+                self.cancel_handlers
+                    .retain(|k, _| *k >= certificate.round() - 1);
+            }
+            debug!(
+                "Pruned {} messages from obsolete rounds.",
+                self.cancel_handlers.len() - before
+            );
         }
 
         // Send it to the consensus layer.
