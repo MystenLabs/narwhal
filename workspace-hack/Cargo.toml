@@ -294,7 +294,7 @@ tokio-rustls = { version = "0.23", features = ["logging", "tls12"] }
 tokio-stream = { version = "0.1", features = ["net", "time"] }
 tokio-util = { version = "0.7", features = ["codec", "tracing"] }
 tonic = { version = "0.7", features = ["async-trait", "axum", "channel", "codegen", "h2", "hyper", "hyper-timeout", "prost", "prost-derive", "prost1", "rustls-pemfile", "tls", "tokio", "tokio-rustls", "tower", "tracing-futures", "transport"] }
-tonic-build = { version = "0.7", features = ["prost", "prost-build", "transport"] }
+tonic-build = { version = "0.8", features = ["prost", "prost-build", "transport"] }
 tonic-health = { version = "0.6", features = ["transport"] }
 tower = { version = "0.4", features = ["__common", "balance", "buffer", "discover", "filter", "full", "futures-core", "futures-util", "hdrhistogram", "hedge", "indexmap", "limit", "load", "load-shed", "log", "make", "pin-project", "pin-project-lite", "rand", "ready-cache", "reconnect", "retry", "slab", "spawn-ready", "steer", "timeout", "tokio", "tokio-util", "tracing", "util"] }
 tower-http = { version = "0.3", features = ["map-response-body", "propagate-header", "set-header", "tower", "trace", "tracing", "util"] }
@@ -383,7 +383,7 @@ num-integer = { version = "0.1", default-features = false, features = ["i128"] }
 num-traits = { version = "0.2", features = ["i128", "std"] }
 paste = { version = "1", default-features = false }
 peeking_take_while = { version = "0.1", default-features = false }
-pest = { version = "2", default-features = false }
+pest = { version = "2", features = ["std", "thiserror"] }
 petgraph = { version = "0.6", default-features = false }
 pin-project-internal = { version = "1", default-features = false }
 pkg-config = { version = "0.3", default-features = false }
@@ -423,10 +423,10 @@ thiserror = { version = "1", default-features = false }
 thiserror-impl = { version = "1", default-features = false }
 tokio-macros = { version = "1", default-features = false }
 toml = { version = "0.5" }
-tonic-build = { version = "0.7", features = ["prost", "prost-build", "transport"] }
+tonic-build = { version = "0.8", features = ["prost", "prost-build", "transport"] }
 tracing-attributes = { version = "0.1", default-features = false }
 tracing-test-macro = { version = "0.2", default-features = false }
-ucd-trie = { version = "0.1", features = ["std"] }
+ucd-trie = { version = "0.1", default-features = false, features = ["std"] }
 unicode-ident = { version = "1", default-features = false }
 unicode-segmentation = { version = "1", default-features = false }
 unicode-xid-c65f7effa3be6d31 = { package = "unicode-xid", version = "0.1" }
