@@ -51,7 +51,7 @@ async fn process_certificate_missing_parents_in_reverse() {
     let (header_store, certificates_store, payload_store) = create_db_stores();
 
     // Signal consensus round
-    let (_tx_new_consensus_round, rx_consensus_round) = watch::channel(0u64);
+    let (_tx_consensus_round_updates, rx_consensus_round_updates) = watch::channel(0u64);
 
     // Make a synchronizer for the core.
     let synchronizer = Synchronizer::new(
@@ -73,7 +73,7 @@ async fn process_certificate_missing_parents_in_reverse() {
         committee(None),
         certificates_store.clone(),
         payload_store.clone(),
-        rx_consensus_round.clone(),
+        rx_consensus_round_updates.clone(),
         gc_depth,
         /* sync_retry_delay */ Duration::from_secs(5),
         /* sync_retry_nodes */ 3,
@@ -89,7 +89,7 @@ async fn process_certificate_missing_parents_in_reverse() {
     let _certificate_waiter_handle = CertificateWaiter::spawn(
         committee(None),
         certificates_store.clone(),
-        rx_consensus_round.clone(),
+        rx_consensus_round_updates.clone(),
         gc_depth,
         rx_reconfigure.clone(),
         rx_sync_certificates,
@@ -105,7 +105,7 @@ async fn process_certificate_missing_parents_in_reverse() {
         certificates_store.clone(),
         synchronizer,
         signature_service,
-        rx_consensus_round,
+        rx_consensus_round_updates,
         /* gc_depth */ gc_depth,
         rx_reconfigure,
         /* rx_primaries */ rx_primary_messages,
@@ -191,7 +191,7 @@ async fn process_certificate_check_gc_fires() {
     let (tx_parents, _rx_parents) = channel(100);
 
     // Signal consensus round
-    let (_tx_new_consensus_round, rx_consensus_round) = watch::channel(0u64);
+    let (_tx_consensus_round_updates, rx_consensus_round_updates) = watch::channel(0u64);
 
     // Create test stores.
     let (header_store, certificates_store, payload_store) = create_db_stores();
@@ -217,7 +217,7 @@ async fn process_certificate_check_gc_fires() {
         committee(None),
         certificates_store.clone(),
         payload_store.clone(),
-        rx_consensus_round.clone(),
+        rx_consensus_round_updates.clone(),
         gc_depth,
         /* sync_retry_delay */ Duration::from_secs(5),
         /* sync_retry_nodes */ 3,
@@ -233,7 +233,7 @@ async fn process_certificate_check_gc_fires() {
     let _certficate_waiter_handle = CertificateWaiter::spawn(
         committee(None),
         certificates_store.clone(),
-        rx_consensus_round.clone(),
+        rx_consensus_round_updates.clone(),
         gc_depth,
         rx_reconfigure.clone(),
         rx_sync_certificates,
@@ -249,7 +249,7 @@ async fn process_certificate_check_gc_fires() {
         certificates_store.clone(),
         synchronizer,
         signature_service,
-        rx_consensus_round,
+        rx_consensus_round_updates,
         /* gc_depth */ gc_depth,
         rx_reconfigure,
         /* rx_primaries */ rx_primary_messages,

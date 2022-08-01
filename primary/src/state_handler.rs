@@ -21,7 +21,7 @@ pub struct StateHandler {
     /// Receives the ordered certificates from consensus.
     rx_consensus: Receiver<Certificate>,
     /// Signals a new consensus round
-    tx_new_consensus_round: watch::Sender<u64>,
+    tx_consensus_round_updates: watch::Sender<u64>,
     /// Receives notifications to reconfigure the system.
     rx_reconfigure: Receiver<ReconfigureNotification>,
     /// Channel to signal committee changes.
@@ -38,7 +38,7 @@ impl StateHandler {
         name: PublicKey,
         committee: SharedCommittee,
         rx_consensus: Receiver<Certificate>,
-        tx_new_consensus_round: watch::Sender<u64>,
+        tx_consensus_round_updates: watch::Sender<u64>,
         rx_reconfigure: Receiver<ReconfigureNotification>,
         tx_reconfigure: watch::Sender<ReconfigureNotification>,
     ) -> JoinHandle<()> {
@@ -47,7 +47,7 @@ impl StateHandler {
                 name,
                 committee,
                 rx_consensus,
-                tx_new_consensus_round,
+                tx_consensus_round_updates,
                 rx_reconfigure,
                 tx_reconfigure,
                 last_committed_round: 0,
@@ -66,7 +66,7 @@ impl StateHandler {
             self.last_committed_round = round;
 
             // Trigger cleanup on the primary.
-            let _ = self.tx_new_consensus_round.send(round); // ignore error when receivers dropped.
+            let _ = self.tx_consensus_round_updates.send(round); // ignore error when receivers dropped.
 
             // Trigger cleanup on the workers..
             let addresses = self
@@ -99,7 +99,7 @@ impl StateHandler {
                             tracing::debug!("Committee updated to {}", self.committee);
 
                             // Trigger cleanup on the primary.
-                            let _ = self.tx_new_consensus_round.send(0); // ignore error when receivers dropped.
+                            let _ = self.tx_consensus_round_updates.send(0); // ignore error when receivers dropped.
 
                             false
                         },

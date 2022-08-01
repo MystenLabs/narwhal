@@ -32,7 +32,7 @@ async fn process_header() {
     let (_tx_headers, rx_headers) = channel(1);
     let (tx_consensus, _rx_consensus) = channel(1);
     let (tx_parents, _rx_parents) = channel(1);
-    let (_tx_new_consensus_round, rx_consensus_round) = watch::channel(0u64);
+    let (_tx_consensus_round_updates, rx_consensus_round_updates) = watch::channel(0u64);
 
     // Create test stores.
     let (header_store, certificates_store, payload_store) = create_db_stores();
@@ -68,7 +68,7 @@ async fn process_header() {
         certificates_store.clone(),
         synchronizer,
         signature_service,
-        rx_consensus_round,
+        rx_consensus_round_updates,
         /* gc_depth */ 50,
         rx_reconfigure,
         /* rx_primaries */ rx_primary_messages,
@@ -123,7 +123,7 @@ async fn process_header_missing_parent() {
     let (_tx_headers, rx_headers) = channel(1);
     let (tx_consensus, _rx_consensus) = channel(1);
     let (tx_parents, _rx_parents) = channel(1);
-    let (_tx_new_consensus_round, rx_consensus_round) = watch::channel(0u64);
+    let (_tx_consensus_round_updates, rx_consensus_round_updates) = watch::channel(0u64);
 
     // Create test stores.
     let (header_store, certificates_store, payload_store) = create_db_stores();
@@ -149,7 +149,7 @@ async fn process_header_missing_parent() {
         certificates_store.clone(),
         synchronizer,
         signature_service,
-        rx_consensus_round,
+        rx_consensus_round_updates,
         /* gc_depth */ 50,
         rx_reconfigure,
         /* rx_primaries */ rx_primary_messages,
@@ -200,7 +200,7 @@ async fn process_header_missing_payload() {
     let (_tx_headers, rx_headers) = channel(1);
     let (tx_consensus, _rx_consensus) = channel(1);
     let (tx_parents, _rx_parents) = channel(1);
-    let (_tx_new_consensus_round, rx_consensus_round) = watch::channel(0u64);
+    let (_tx_consensus_round_updates, rx_consensus_round_updates) = watch::channel(0u64);
 
     // Create test stores.
     let (header_store, certificates_store, payload_store) = create_db_stores();
@@ -226,7 +226,7 @@ async fn process_header_missing_payload() {
         certificates_store.clone(),
         synchronizer,
         signature_service,
-        rx_consensus_round,
+        rx_consensus_round_updates,
         /* gc_depth */ 50,
         rx_reconfigure,
         /* rx_primaries */ rx_primary_messages,
@@ -289,7 +289,7 @@ async fn process_votes() {
     let (_tx_headers, rx_headers) = channel(1);
     let (tx_consensus, _rx_consensus) = channel(1);
     let (tx_parents, _rx_parents) = channel(1);
-    let (_tx_new_consensus_round, rx_consensus_round) = watch::channel(0u64);
+    let (_tx_consensus_round_updates, rx_consensus_round_updates) = watch::channel(0u64);
 
     // Create test stores.
     let (header_store, certificates_store, payload_store) = create_db_stores();
@@ -315,7 +315,7 @@ async fn process_votes() {
         certificates_store.clone(),
         synchronizer,
         signature_service,
-        rx_consensus_round,
+        rx_consensus_round_updates,
         /* gc_depth */ 50,
         rx_reconfigure,
         /* rx_primaries */ rx_primary_messages,
@@ -383,7 +383,7 @@ async fn process_certificates() {
     let (_tx_headers, rx_headers) = channel(1);
     let (tx_consensus, mut rx_consensus) = channel(3);
     let (tx_parents, mut rx_parents) = channel(1);
-    let (_tx_new_consensus_round, rx_consensus_round) = watch::channel(0u64);
+    let (_tx_consensus_round_updates, rx_consensus_round_updates) = watch::channel(0u64);
 
     // Create test stores.
     let (header_store, certificates_store, payload_store) = create_db_stores();
@@ -409,7 +409,7 @@ async fn process_certificates() {
         certificates_store.clone(),
         synchronizer,
         signature_service,
-        rx_consensus_round,
+        rx_consensus_round_updates,
         /* gc_depth */ 50,
         rx_reconfigure,
         /* rx_primaries */ rx_primary_messages,
@@ -488,7 +488,7 @@ async fn shutdown_core() {
     let (_tx_headers, rx_headers) = channel(1);
     let (tx_consensus, _rx_consensus) = channel(1);
     let (tx_parents, _rx_parents) = channel(1);
-    let (_tx_new_consensus_round, rx_consensus_round) = watch::channel(0u64);
+    let (_tx_consensus_round_updates, rx_consensus_round_updates) = watch::channel(0u64);
 
     // Create test stores.
     let (header_store, certificates_store, payload_store) = create_db_stores();
@@ -512,7 +512,7 @@ async fn shutdown_core() {
         certificates_store,
         synchronizer,
         signature_service,
-        rx_consensus_round,
+        rx_consensus_round_updates,
         /* gc_depth */ 50,
         rx_reconfigure,
         /* rx_primaries */ rx_primary_messages,
@@ -555,7 +555,7 @@ async fn reconfigure_core() {
     let (_tx_headers, rx_headers) = channel(1);
     let (tx_consensus, _rx_consensus) = channel(1);
     let (tx_parents, _rx_parents) = channel(1);
-    let (_tx_new_consensus_round, rx_consensus_round) = watch::channel(0u64);
+    let (_tx_consensus_round_updates, rx_consensus_round_updates) = watch::channel(0u64);
 
     // Create test stores.
     let (header_store, certificates_store, payload_store) = create_db_stores();
@@ -590,7 +590,7 @@ async fn reconfigure_core() {
         certificates_store.clone(),
         synchronizer,
         signature_service,
-        rx_consensus_round,
+        rx_consensus_round_updates,
         /* gc_depth */ 50,
         rx_reconfigure,
         /* rx_primaries */ rx_primary_messages,

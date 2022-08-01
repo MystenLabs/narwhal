@@ -41,7 +41,7 @@ pub struct CertificateWaiter {
     /// The persistent storage.
     store: Store<CertificateDigest, Certificate>,
     /// Receiver for signal of round change
-    rx_consensus_round: watch::Receiver<u64>,
+    rx_consensus_round_updates: watch::Receiver<u64>,
     /// The depth of the garbage collector.
     gc_depth: Round,
     /// Watch channel notifying of epoch changes, it is only used for cleanup.
@@ -64,7 +64,7 @@ impl CertificateWaiter {
     pub fn spawn(
         committee: Committee,
         store: Store<CertificateDigest, Certificate>,
-        rx_consensus_round: watch::Receiver<u64>,
+        rx_consensus_round_updates: watch::Receiver<u64>,
         gc_depth: Round,
         rx_reconfigure: watch::Receiver<ReconfigureNotification>,
         rx_synchronizer: Receiver<Certificate>,
@@ -75,7 +75,7 @@ impl CertificateWaiter {
             Self {
                 committee,
                 store,
-                rx_consensus_round,
+                rx_consensus_round_updates,
                 gc_depth,
                 rx_reconfigure,
                 rx_synchronizer,
@@ -182,7 +182,7 @@ impl CertificateWaiter {
                     attempt_garbage_collection = true;
                 },
 
-                Ok(()) = self.rx_consensus_round.changed() => {
+                Ok(()) = self.rx_consensus_round_updates.changed() => {
                     attempt_garbage_collection = true;
                 }
 
@@ -190,7 +190,7 @@ impl CertificateWaiter {
 
             // Either upon time-out or round change
             if attempt_garbage_collection {
-                let round = *self.rx_consensus_round.borrow();
+                let round = *self.rx_consensus_round_updates.borrow();
                 if round > self.gc_depth {
                     let gc_round = round - self.gc_depth;
 

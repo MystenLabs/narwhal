@@ -29,14 +29,14 @@ async fn successfully_synchronize_batches() {
     let (tx_synchronizer, rx_synchronizer) = channel(10);
     let (tx_core, mut rx_core) = channel(10);
     let metrics = Arc::new(PrimaryMetrics::new(&Registry::new()));
-    let (_tx_new_consensus_round, rx_consensus_round) = watch::channel(0u64);
+    let (_tx_consensus_round_updates, rx_consensus_round_updates) = watch::channel(0u64);
 
     let _header_waiter_handle = HeaderWaiter::spawn(
         name.clone(),
         committee.clone(),
         certificate_store,
         payload_store.clone(),
-        rx_consensus_round,
+        rx_consensus_round_updates,
         gc_depth,
         /* sync_retry_delay */ Duration::from_secs(5),
         /* sync_retry_nodes */ 3,
