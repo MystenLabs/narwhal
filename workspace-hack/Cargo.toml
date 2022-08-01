@@ -174,7 +174,7 @@ multiaddr = { version = "0.14", features = ["url"] }
 multihash = { version = "0.16", default-features = false, features = ["alloc", "derive", "identity", "multihash-derive", "multihash-impl", "std"] }
 multimap = { version = "0.8", default-features = false }
 mysten-network-c01aa52156ee3946 = { package = "mysten-network", git = "https://github.com/mystenlabs/mysten-infra.git", rev = "123c9e40b529315e1c1d91a54fb717111c3e349c", default-features = false }
-mysten-network-a2655ef8805d82bb = { package = "mysten-network", git = "https://github.com/mystenlabs/mysten-infra.git", rev = "c6dc7a23a40b3517f138d122a76d3bc15f844f67", default-features = false }
+mysten-network-4bfefd54e41eb1ee = { package = "mysten-network", git = "https://github.com/mystenlabs/mysten-infra.git", rev = "20ef52a00135114eb361e28673cfaa9bf4560f6f", default-features = false }
 normalize-line-endings = { version = "0.3", default-features = false }
 num-bigint = { version = "0.4", default-features = false }
 num-integer = { version = "0.1", default-features = false, features = ["i128"] }
