@@ -989,6 +989,7 @@
 <span id="989">989</span>
 <span id="990">990</span>
 <span id="991">991</span>
+<span id="992">992</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="kw">crate</span>::{
@@ -1190,6 +1191,7 @@
 }
 
 <span class="kw">impl</span> <span class="ident">BlockSynchronizer</span> {
+    <span class="attribute">#[<span class="ident">must_use</span>]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(
         <span class="ident">name</span>: <span class="ident">PublicKey</span>,
         <span class="ident">committee</span>: <span class="ident">Committee</span>,

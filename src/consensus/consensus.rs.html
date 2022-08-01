@@ -345,6 +345,7 @@
 <span id="345">345</span>
 <span id="346">346</span>
 <span id="347">347</span>
+<span id="348">348</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -557,6 +558,7 @@
 <span class="kw">where</span>
     <span class="ident">Protocol</span>: <span class="ident">ConsensusProtocol</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 {
+    <span class="attribute">#[<span class="ident">must_use</span>]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(
         <span class="ident">committee</span>: <span class="ident">Committee</span>,
         <span class="ident">store</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">ConsensusStore</span><span class="op">&gt;</span>,

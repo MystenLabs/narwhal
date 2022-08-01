@@ -366,6 +366,8 @@
 <span id="366">366</span>
 <span id="367">367</span>
 <span id="368">368</span>
+<span id="369">369</span>
+<span id="370">370</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) The Diem Core Contributors</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -475,6 +477,7 @@
         }
     }
 
+    <span class="attribute">#[<span class="ident">must_use</span>]</span>
     <span class="kw">fn</span> <span class="ident">spawn_with_permit</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">f</span>: <span class="ident">F</span>,
@@ -516,6 +519,7 @@
     <span class="doccomment">/// TODO: this still spawns one task, unconditionally, per call.</span>
     <span class="doccomment">/// We would instead like to have one central task that drives all retries</span>
     <span class="doccomment">/// for the whole executor.</span>
+    <span class="attribute">#[<span class="ident">must_use</span>]</span>
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">spawn_with_retries</span><span class="op">&lt;</span><span class="ident">F</span>, <span class="ident">Fut</span>, <span class="ident">T</span>, <span class="ident">E</span><span class="op">&gt;</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">retry_config</span>: <span class="ident"><span class="kw">crate</span>::RetryConfig</span>,

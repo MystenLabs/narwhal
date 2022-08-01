@@ -628,6 +628,7 @@
 <span id="628">628</span>
 <span id="629">629</span>
 <span id="630">630</span>
+<span id="631">631</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">utils</span>, <span class="ident">PayloadToken</span>};
@@ -855,6 +856,7 @@
 }
 
 <span class="kw">impl</span> <span class="ident">BlockRemover</span> {
+    <span class="attribute">#[<span class="ident">must_use</span>]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(
         <span class="ident">name</span>: <span class="ident">PublicKey</span>,
         <span class="ident">committee</span>: <span class="ident">Committee</span>,

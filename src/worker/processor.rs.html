@@ -82,6 +82,7 @@
 <span id="82">82</span>
 <span id="83">83</span>
 <span id="84">84</span>
+<span id="85">85</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -109,6 +110,7 @@
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Processor</span>;
 
 <span class="kw">impl</span> <span class="ident">Processor</span> {
+    <span class="attribute">#[<span class="ident">must_use</span>]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(
         <span class="comment">// Our worker&#39;s id.</span>
         <span class="ident">id</span>: <span class="ident">WorkerId</span>,

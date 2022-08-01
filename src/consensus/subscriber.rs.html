@@ -126,6 +126,7 @@
 <span id="126">126</span>
 <span id="127">127</span>
 <span id="128">128</span>
+<span id="129">129</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">ConsensusOutput</span>, <span class="ident">ConsensusSyncRequest</span>};
@@ -165,6 +166,7 @@
 
 <span class="kw">impl</span> <span class="ident">SubscriberHandler</span> {
     <span class="doccomment">/// Spawn a new subscriber handler in a dedicated tokio task.</span>
+    <span class="attribute">#[<span class="ident">must_use</span>]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(
         <span class="ident">consensus_store</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">ConsensusStore</span><span class="op">&gt;</span>,
         <span class="ident">certificate_store</span>: <span class="ident">CertificateStore</span>,

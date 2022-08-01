@@ -32,6 +32,7 @@
 <span id="32">32</span>
 <span id="33">33</span>
 <span id="34">34</span>
+<span id="35">35</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -51,6 +52,7 @@
 }
 
 <span class="kw">impl</span> <span class="ident">PayloadReceiver</span> {
+    <span class="attribute">#[<span class="ident">must_use</span>]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(
         <span class="ident">store</span>: <span class="ident">Store</span><span class="op">&lt;</span>(<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>), <span class="ident">PayloadToken</span><span class="op">&gt;</span>,
         <span class="ident">rx_workers</span>: <span class="ident">Receiver</span><span class="op">&lt;</span>(<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>)<span class="op">&gt;</span>,

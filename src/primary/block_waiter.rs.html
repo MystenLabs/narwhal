@@ -799,6 +799,7 @@
 <span id="799">799</span>
 <span id="800">800</span>
 <span id="801">801</span>
+<span id="802">802</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::block_synchronizer::handler::Handler</span>;
@@ -1050,6 +1051,7 @@
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">SynchronizerHandler</span>: <span class="ident">Handler</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">BlockWaiter</span><span class="op">&lt;</span><span class="ident">SynchronizerHandler</span><span class="op">&gt;</span> {
     <span class="comment">// Create a new waiter and start listening on incoming</span>
     <span class="comment">// commands to fetch a block</span>
+    <span class="attribute">#[<span class="ident">must_use</span>]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(
         <span class="ident">name</span>: <span class="ident">PublicKey</span>,
         <span class="ident">committee</span>: <span class="ident">Committee</span>,

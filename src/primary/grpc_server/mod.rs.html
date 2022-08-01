@@ -104,6 +104,7 @@
 <span id="104">104</span>
 <span id="105">105</span>
 <span id="106">106</span>
+<span id="107">107</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 
@@ -143,6 +144,7 @@
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">SynchronizerHandler</span>: <span class="ident">Handler</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">ConsensusAPIGrpc</span><span class="op">&lt;</span><span class="ident">SynchronizerHandler</span><span class="op">&gt;</span> {
+    <span class="attribute">#[<span class="ident">must_use</span>]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(
         <span class="ident">name</span>: <span class="ident">PublicKey</span>,
         <span class="ident">socket_address</span>: <span class="ident">Multiaddr</span>,
