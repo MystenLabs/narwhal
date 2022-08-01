@@ -23,6 +23,11 @@ use types::{
 #[path = "tests/proposer_tests.rs"]
 pub mod proposer_tests;
 
+pub enum ProposerMessage {
+    NewParents(Vec<Certificate>, Round, Epoch),
+    MeaningfulRound(Round),
+}
+
 /// The proposer creates new headers and send them to the core for broadcasting and further processing.
 pub struct Proposer {
     /// The public key of this primary.
@@ -41,7 +46,7 @@ pub struct Proposer {
     /// Watch channel to reconfigure the committee.
     rx_reconfigure: watch::Receiver<ReconfigureNotification>,
     /// Receives the parents to include in the next header (along with their round number).
-    rx_core: Receiver<(Vec<Certificate>, Round, Epoch)>,
+    rx_core: Receiver<ProposerMessage>,
     /// Receives the batches' digests from our workers.
     rx_workers: Receiver<(BatchDigest, WorkerId)>,
     /// Sends newly created headers to the `Core`.
@@ -57,6 +62,10 @@ pub struct Proposer {
     digests: Vec<(BatchDigest, WorkerId)>,
     /// Keeps track of the size (in bytes) of batches' digests that we received so far.
     payload_size: usize,
+    /// Whether the dag can advance to the next round. Note that if we timeout, we ignore this
+    /// check and advance anyway.
+    advance: bool,
+
     /// Metrics handler
     metrics: Arc<PrimaryMetrics>,
 }
@@ -72,7 +81,7 @@ impl Proposer {
         max_header_delay: Duration,
         network_model: NetworkModel,
         rx_reconfigure: watch::Receiver<ReconfigureNotification>,
-        rx_core: Receiver<(Vec<Certificate>, Round, Epoch)>,
+        rx_core: Receiver<ProposerMessage>,
         rx_workers: Receiver<(BatchDigest, WorkerId)>,
         tx_core: Sender<Header>,
         metrics: Arc<PrimaryMetrics>,
@@ -95,6 +104,7 @@ impl Proposer {
                 last_leader: None,
                 digests: Vec::with_capacity(2 * header_size),
                 payload_size: 0,
+                advance: true,
                 metrics,
             }
             .run()
@@ -201,10 +211,34 @@ impl Proposer {
         }
     }
 
+    fn update_state(&mut self, parents: Vec<Certificate>, round: Round) {
+        // Compare the parents' round number with our current round.
+        match round.cmp(&self.round) {
+            Ordering::Greater => {
+                // We accept round bigger than our current round to jump ahead in case we were
+                // late (or just joined the network).
+                self.round = round;
+                self.last_parents = parents;
+            }
+            Ordering::Less => {
+                // Ignore parents from older rounds.
+                return;
+            }
+            Ordering::Equal => {
+                // The core gives us the parents the first time they are enough to form a quorum.
+                // Then it keeps giving us all the extra parents.
+                self.last_parents.extend(parents)
+            }
+        }
+
+        // Check whether we can advance to the next round. Note that if we timeout,
+        // we ignore this check and advance anyway.
+        self.advance = self.ready();
+    }
+
     /// Main loop listening to incoming messages.
     pub async fn run(&mut self) {
         debug!("Dag starting at round {}", self.round);
-        let mut advance = true;
 
         let timer = sleep(self.max_header_delay);
         tokio::pin!(timer);
@@ -220,7 +254,7 @@ impl Proposer {
             let enough_digests = self.payload_size >= self.header_size;
             let timer_expired = timer.is_elapsed();
 
-            if (timer_expired || (enough_digests && advance)) && enough_parents {
+            if (timer_expired || (enough_digests && self.advance)) && enough_parents {
                 if timer_expired && matches!(self.network_model, NetworkModel::PartiallySynchronous)
                 {
                     debug!("Timer expired for round {}", self.round);
@@ -248,53 +282,36 @@ impl Proposer {
             }
 
             tokio::select! {
-                Some((parents, round, epoch)) = self.rx_core.recv() => {
-                    // If the core already moved to the next epoch we should pull the next
-                    // committee as well.
-                    match epoch.cmp(&self.committee.epoch()) {
-                        Ordering::Greater => {
-                            let message = self.rx_reconfigure.borrow_and_update().clone();
-                            match message  {
-                                ReconfigureNotification::NewCommittee(new_committee) => {
-                                    self.update_committee(new_committee);
-                                },
-                                ReconfigureNotification::Shutdown => return,
+                Some(message) = self.rx_core.recv() => match message {
+                    ProposerMessage::NewParents(parents, round, epoch) => {
+                        // If the core already moved to the next epoch we should pull the next
+                        // committee as well.
+                        match epoch.cmp(&self.committee.epoch()) {
+                            Ordering::Greater => {
+                                let message = self.rx_reconfigure.borrow_and_update().clone();
+                                match message {
+                                    ReconfigureNotification::NewCommittee(new_committee) => {
+                                        self.update_committee(new_committee);
+                                    }
+                                    ReconfigureNotification::Shutdown => return,
+                                }
+                            }
+                            Ordering::Less => {
+                                // We already updated committee but the core is slow. Ignore the parents
+                                // from older epochs.
+                                continue;
+                            }
+                            Ordering::Equal => {
+                                // Nothing to do, we can proceed.
                             }
                         }
-                        Ordering::Less => {
-                            // We already updated committee but the core is slow. Ignore the parents
-                            // from older epochs.
-                            continue
-                        },
-                        Ordering::Equal => {
-                            // Nothing to do, we can proceed.
-                        }
-                    }
 
-                    // Compare the parents' round number with our current round.
-                    match round.cmp(&self.round) {
-                        Ordering::Greater => {
-                            // We accept round bigger than our current round to jump ahead in case we were
-                            // late (or just joined the network).
-                            self.round = round;
-                            self.last_parents = parents;
+                        // Update the internal state with the received information.
+                        self.update_state(parents, round);
 
-                        },
-                        Ordering::Less => {
-                            // Ignore parents from older rounds.
-                            continue;
-                        },
-                        Ordering::Equal => {
-                            // The core gives us the parents the first time they are enough to form a quorum.
-                            // Then it keeps giving us all the extra parents.
-                            self.last_parents.extend(parents)
-                        }
-                    }
-
-                    // Check whether we can advance to the next round. Note that if we timeout,
-                    // we ignore this check and advance anyway.
-                    advance = self.ready();
-                }
+                    },
+                    ProposerMessage::MeaningfulRound(round) => (),
+                },
 
                 // Receive digests from our workers.
                 Some((digest, worker_id)) = self.rx_workers.recv() => {

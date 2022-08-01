@@ -5,10 +5,11 @@ use crate::{
     aggregators::{CertificatesAggregator, VotesAggregator},
     metrics::PrimaryMetrics,
     primary::PrimaryMessage,
+    proposer::ProposerMessage,
     synchronizer::Synchronizer,
 };
 use async_recursion::async_recursion;
-use config::{Committee, Epoch};
+use config::Committee;
 use crypto::{Hash as _, PublicKey, Signature, SignatureService};
 use network::{CancelOnDropHandler, MessageResult, PrimaryNetwork, ReliableNetwork};
 use std::{
@@ -69,7 +70,7 @@ pub struct Core {
     /// Output all certificates to the consensus layer.
     tx_consensus: Sender<Certificate>,
     /// Send valid a quorum of certificates' ids to the `Proposer` (along with their round).
-    tx_proposer: Sender<(Vec<Certificate>, Round, Epoch)>,
+    tx_proposer: Sender<ProposerMessage>,
 
     /// The last garbage collected round.
     gc_round: Round,
@@ -109,7 +110,7 @@ impl Core {
         rx_certificate_waiter: Receiver<Certificate>,
         rx_proposer: Receiver<Header>,
         tx_consensus: Sender<Certificate>,
-        tx_proposer: Sender<(Vec<Certificate>, Round, Epoch)>,
+        tx_proposer: Sender<ProposerMessage>,
         metrics: Arc<PrimaryMetrics>,
         primary_network: PrimaryNetwork,
     ) -> JoinHandle<()> {
@@ -363,8 +364,10 @@ impl Core {
         //
         // This allows the proposer not to fire proposals at rounds strictly below the certificate we witnessed.
         let minimal_round_for_parents = certificate.round().saturating_sub(1);
+        let proposer_message =
+            ProposerMessage::NewParents(vec![], minimal_round_for_parents, certificate.epoch());
         self.tx_proposer
-            .send((vec![], minimal_round_for_parents, certificate.epoch()))
+            .send(proposer_message)
             .await
             .map_err(|_| DagError::ShuttingDown)?;
 
@@ -420,8 +423,10 @@ impl Core {
             .append(certificate.clone(), &self.committee)
         {
             // Send it to the `Proposer`.
+            let proposer_message =
+                ProposerMessage::NewParents(parents, certificate.round(), certificate.epoch());
             self.tx_proposer
-                .send((parents, certificate.round(), certificate.epoch()))
+                .send(proposer_message)
                 .await
                 .map_err(|_| DagError::ShuttingDown)?;
 
