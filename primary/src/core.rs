@@ -49,7 +49,7 @@ pub struct Core {
     /// Service to sign headers.
     signature_service: SignatureService<Signature>,
     /// Get a signal when the round changes
-    rx_new_consensus_round: watch::Receiver<u64>,
+    rx_consensus_round: watch::Receiver<u64>,
     /// The depth of the garbage collector.
     gc_depth: Round,
 
@@ -98,7 +98,7 @@ impl Core {
         certificate_store: Store<CertificateDigest, Certificate>,
         synchronizer: Synchronizer,
         signature_service: SignatureService<Signature>,
-        rx_new_consensus_round: watch::Receiver<u64>,
+        rx_consensus_round: watch::Receiver<u64>,
         gc_depth: Round,
         rx_committee: watch::Receiver<ReconfigureNotification>,
         rx_primaries: Receiver<PrimaryMessage>,
@@ -118,7 +118,7 @@ impl Core {
                 certificate_store,
                 synchronizer,
                 signature_service,
-                rx_new_consensus_round,
+                rx_consensus_round,
                 gc_depth,
                 rx_reconfigure: rx_committee,
                 rx_primaries,
@@ -601,8 +601,8 @@ impl Core {
                 }
 
                 // Check whether the consensus round has changed, to clean up structures
-                Ok(()) = self.rx_new_consensus_round.changed() => {
-                    let round = *self.rx_new_consensus_round.borrow();
+                Ok(()) = self.rx_consensus_round.changed() => {
+                    let round = *self.rx_consensus_round.borrow();
                     if round > self.gc_depth {
                         let now = Instant::now();
 

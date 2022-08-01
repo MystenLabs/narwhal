@@ -60,7 +60,7 @@ pub struct HeaderWaiter {
     /// The persistent storage for payload markers from workers.
     payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,
     /// A watch channel receiver to get consensus round updates.
-    rx_new_consensus_round: watch::Receiver<u64>,
+    rx_consensus_round: watch::Receiver<u64>,
     /// The depth of the garbage collector.
     gc_depth: Round,
     /// The delay to wait before re-trying sync requests.
@@ -98,7 +98,7 @@ impl HeaderWaiter {
         committee: Committee,
         certificate_store: Store<CertificateDigest, Certificate>,
         payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,
-        rx_new_consensus_round: watch::Receiver<u64>,
+        rx_consensus_round: watch::Receiver<u64>,
         gc_depth: Round,
         sync_retry_delay: Duration,
         sync_retry_nodes: usize,
@@ -115,7 +115,7 @@ impl HeaderWaiter {
                 committee,
                 certificate_store,
                 payload_store,
-                rx_new_consensus_round,
+                rx_consensus_round,
                 gc_depth,
                 sync_retry_delay,
                 sync_retry_nodes,
@@ -332,8 +332,8 @@ impl HeaderWaiter {
                 },
 
                 // Check for a new consensus round number
-                Ok(()) = self.rx_new_consensus_round.changed() => {
-                    let round = *self.rx_new_consensus_round.borrow();
+                Ok(()) = self.rx_consensus_round.changed() => {
+                    let round = *self.rx_consensus_round.borrow();
                     if round > self.gc_depth {
                         let now = Instant::now();
 

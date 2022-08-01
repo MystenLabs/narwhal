@@ -99,7 +99,7 @@ impl Primary {
         let (tx_payload_availability_responses, rx_payload_availability_responses) =
             channel(CHANNEL_CAPACITY);
         let (tx_state_handler, rx_state_handler) = channel(CHANNEL_CAPACITY);
-        let (tx_new_consensus_round, rx_new_consensus_round) = watch::channel(0u64);
+        let (tx_new_consensus_round, rx_consensus_round) = watch::channel(0u64);
 
         // Monitor of channel capacity
         let mon_tx_others_digests = tx_others_digests.clone();
@@ -269,7 +269,7 @@ impl Primary {
             certificate_store.clone(),
             synchronizer,
             signature_service.clone(),
-            rx_new_consensus_round.clone(),
+            rx_consensus_round.clone(),
             parameters.gc_depth,
             tx_reconfigure.subscribe(),
             /* rx_primaries */ rx_primary_messages,
@@ -370,7 +370,7 @@ impl Primary {
             (**committee.load()).clone(),
             certificate_store.clone(),
             payload_store.clone(),
-            rx_new_consensus_round.clone(),
+            rx_consensus_round.clone(),
             parameters.gc_depth,
             parameters.sync_retry_delay,
             parameters.sync_retry_nodes,
@@ -387,7 +387,7 @@ impl Primary {
         let certificate_waiter_handle = CertificateWaiter::spawn(
             (**committee.load()).clone(),
             certificate_store.clone(),
-            rx_new_consensus_round,
+            rx_consensus_round,
             parameters.gc_depth,
             tx_reconfigure.subscribe(),
             /* rx_synchronizer */ rx_sync_certificates,
