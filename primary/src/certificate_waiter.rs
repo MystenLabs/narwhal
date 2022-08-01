@@ -115,7 +115,6 @@ impl CertificateWaiter {
         let mut attempt_garbage_collection;
 
         loop {
-
             // Initially set to not garbage collect
             attempt_garbage_collection = false;
 
@@ -192,23 +191,23 @@ impl CertificateWaiter {
             // Either upon time-out or round change
             if attempt_garbage_collection {
                 let round = *self.rx_consensus_round.borrow();
-                    if round > self.gc_depth {
-                        let gc_round = round - self.gc_depth;
+                if round > self.gc_depth {
+                    let gc_round = round - self.gc_depth;
 
-                        self.pending.retain(|_digest, (r, once_cancel)| {
-                            if *r <= gc_round {
-                                // note: this send can fail, harmlessly, if the certificate has been delivered (`notify_read`)
-                                // and the present code path fires before the corresponding `waiting` item is unpacked above.
-                                let _ = once_cancel
-                                    .take()
-                                    .expect("This should be protected by a write lock")
-                                    .send(());
-                                false
-                            } else {
-                                true
-                            }
-                        });
-                    }
+                    self.pending.retain(|_digest, (r, once_cancel)| {
+                        if *r <= gc_round {
+                            // note: this send can fail, harmlessly, if the certificate has been delivered (`notify_read`)
+                            // and the present code path fires before the corresponding `waiting` item is unpacked above.
+                            let _ = once_cancel
+                                .take()
+                                .expect("This should be protected by a write lock")
+                                .send(());
+                            false
+                        } else {
+                            true
+                        }
+                    });
+                }
             }
 
             self.update_metrics();
