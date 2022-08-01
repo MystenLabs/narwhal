@@ -383,7 +383,7 @@ proc-macro2-9fbad63c4bcf4a8f = { package = "proc-macro2", version = "0.4", featu
 proc-macro2-dff4ba8e3ae991db = { package = "proc-macro2", version = "1", features = ["proc-macro", "span-locations"] }
 proptest-derive = { version = "0.3", default-features = false }
 prost = { version = "0.10", features = ["prost-derive", "std"] }
-prost-build = { version = "0.10" }
+prost-build = { version = "0.11" }
 prost-derive = { version = "0.10", default-features = false }
 prost-types = { version = "0.10", default-features = false }
 quote-3b31131e45eafb45 = { package = "quote", version = "0.6", features = ["proc-macro"] }
