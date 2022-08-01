@@ -397,7 +397,7 @@ impl Committee {
         self.authorities
             .iter()
             .filter(|(name, _)| *name != myself)
-            .map(|(name, authority)| (name.deref().clone(), authority.primary.clone()))
+            .map(|(name, authority)| (name.clone(), authority.primary.clone()))
             .collect()
     }
 
@@ -446,7 +446,7 @@ impl Committee {
                     .workers
                     .iter()
                     .find(|(worker_id, _)| worker_id == &id)
-                    .map(|(_, addresses)| (name.deref().clone(), addresses.clone()))
+                    .map(|(_, addresses)| (name.clone(), addresses.clone()))
             })
             .collect()
     }

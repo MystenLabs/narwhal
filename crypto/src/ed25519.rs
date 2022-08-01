@@ -428,9 +428,9 @@ impl AggregateAuthenticator for Ed25519AggregateSignature {
         batch.verify(OsRng).map_err(|_| signature::Error::new())
     }
 
-    fn batch_verify(
-        sigs: &[Self],
-        pks: &[&[Self::PubKey]],
+    fn batch_verify<'a>(
+        sigs: &[&Self],
+        pks: Vec<impl ExactSizeIterator<Item = &'a Self::PubKey>>,
         messages: &[&[u8]],
     ) -> Result<(), signature::Error> {
         if pks.len() != messages.len() || messages.len() != sigs.len() {

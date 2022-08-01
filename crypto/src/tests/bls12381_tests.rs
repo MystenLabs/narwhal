@@ -193,9 +193,11 @@ fn verify_batch_aggregate_signature() {
         verify_batch_aggregate_signature_inputs();
 
     assert!(BLS12381AggregateSignature::batch_verify(
-        &[aggregated_signature1, aggregated_signature2],
-        &[&pubkeys1[..], &pubkeys2[..]],
-        &[&digest1[..], &digest2[..]]
+=======
+        &[&aggregated_signature1, &aggregated_signature2],
+        vec![pubkeys1.iter(), pubkeys2.iter()],
+        &[&digest1.0[..], &digest2.0[..]]
+>>>>>>> 3bb91846 ([crypto] change to references on batch_verify)
     )
     .is_ok());
 }
