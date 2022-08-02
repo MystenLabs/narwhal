@@ -657,20 +657,12 @@
 <span id="657">657</span>
 <span id="658">658</span>
 <span id="659">659</span>
-<span id="660">660</span>
-<span id="661">661</span>
-<span id="662">662</span>
-<span id="663">663</span>
-<span id="664">664</span>
-<span id="665">665</span>
-<span id="666">666</span>
-<span id="667">667</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="kw">crate</span>::{
     <span class="ident">error</span>::{<span class="ident">DagError</span>, <span class="ident">DagResult</span>},
-    <span class="ident">BatchDigestProto</span>, <span class="ident">CertificateDigestProto</span>,
+    <span class="ident">CertificateDigestProto</span>,
 };
 <span class="kw">use</span> <span class="ident">blake2</span>::{<span class="ident">digest::Update</span>, <span class="ident">VarBlake2b</span>};
 <span class="kw">use</span> <span class="ident">bytes::Bytes</span>;
@@ -714,14 +706,6 @@
 <span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">BatchDigest</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Digest</span> {
     <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">digest</span>: <span class="ident">BatchDigest</span>) -&gt; <span class="self">Self</span> {
         <span class="ident">Digest::new</span>(<span class="ident">digest</span>.<span class="number">0</span>)
-    }
-}
-
-<span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">BatchDigest</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">BatchDigestProto</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">digest</span>: <span class="ident">BatchDigest</span>) -&gt; <span class="self">Self</span> {
-        <span class="ident">BatchDigestProto</span> {
-            <span class="ident">digest</span>: <span class="ident">Bytes::from</span>(<span class="ident">digest</span>.<span class="number">0</span>.<span class="ident">to_vec</span>()),
-        }
     }
 }
 
