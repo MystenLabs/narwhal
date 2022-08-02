@@ -114,19 +114,7 @@ async fn test_second_node_restart() {
     tokio::time::sleep(node_advance_delay).await;
 
     // Ensure that nodes have made progress
-    let rounds = authorities_latest_commit_round(&cluster).await;
-    assert_eq!(
-        rounds.len(),
-        4,
-        "Expected to have received commit metrics from all nodes"
-    );
-    assert!(rounds.values().all(|v| v > &1.0), "All nodes are available so all should have made progress and committed at least after the first round");
-
-    // We expect all the nodes to have managed to catch up by now
-    // and be pretty much in similar rounds. The threshold here is
-    // not defined by some rule but more of an expectation.
-    let (min, max) = rounds.values().into_iter().minmax().into_option().unwrap();
-    assert!(max - min <= 2.0, "Nodes shouldn't be that behind");
+    cluster.assert_progress(4, 2);
 
     // Now restart node 3 with some delay between
     cluster.authority(3).restart(true, restart_delay).await;
@@ -135,32 +123,22 @@ async fn test_second_node_restart() {
     tokio::time::sleep(node_advance_delay).await;
 
     // Ensure that nodes have made progress
-    let rounds = authorities_latest_commit_round(&cluster).await;
-    assert_eq!(
-        rounds.len(),
-        4,
-        "Expected to have received commit metrics from all nodes"
-    );
-    assert!(rounds.values().all(|v| v > &1.0), "All nodes are available so all should have made progress and committed at least after the first round");
-
-    // We expect all the nodes to have managed to catch up by now
-    // and be pretty much in similar rounds. The threshold here is
-    // not defined by some rule but more of an expectation.
-    let (min, max) = rounds.values().into_iter().minmax().into_option().unwrap();
-    assert!(max - min <= 2.0, "Nodes shouldn't be that behind");
+    cluster.assert_progress(4, 2);
 }
 
 #[ignore]
 #[tokio::test]
 /// We are testing the loss of liveness of a healthy cluster. While 3f+1 nodes run
-/// we are shutting down f+1 nodes. Then we resume and ensure that system is able
-/// to advance as normal.
-async fn test_loss_of_liveness() {
+/// we are shutting down f+1 nodes. Then we are bringing the f+1 nodes back again
+/// but we are not expecting now the cluster to be able to make progress. We expect
+/// the restarted nodes to not be able to make new proposals and effectively make
+/// the system stall.
+async fn test_loss_of_liveness_without_recovery() {
     // Enabled debug tracing so we can easily observe the
     // nodes logs.
     let _guard = setup_tracing();
 
-    let node_advance_delay = Duration::from_secs(120);
+    let node_advance_delay = Duration::from_secs(60);
 
     // A cluster of 4 nodes will be created
     let mut cluster = Cluster::new(None, None, true);
@@ -176,6 +154,62 @@ async fn test_loss_of_liveness() {
 
     // Now stop node 2 & 3
     cluster.authority(2).stop_all().await;
+    cluster.authority(3).stop_all().await;
+
+    // wait and fetch the latest commit round
+    tokio::time::sleep(node_advance_delay).await;
+    let rounds_1 = cluster.assert_progress(2, 0).await;
+
+    // wait and fetch again the rounds
+    tokio::time::sleep(node_advance_delay).await;
+    let rounds_2 = cluster.assert_progress(2, 0).await;
+
+    // We assert that nodes haven't advanced at all
+    assert_eq!(rounds_1, rounds_2);
+
+    // Now bring up nodes
+    cluster.authority(2).start(true, Some(1)).await;
+    cluster.authority(3).start(true, Some(1)).await;
+
+    // wait and fetch the latest commit round
+    tokio::time::sleep(node_advance_delay).await;
+    let rounds_3 = cluster.assert_progress(2, 0).await;
+
+    assert_eq!(rounds_2, rounds_3);
+}
+
+#[ignore]
+#[tokio::test]
+/// We are testing the loss of liveness of a healthy cluster. While 3f+1 nodes run
+/// we are shutting down f+1 nodes one by one with some delay between them.
+/// Then we are bringing the f+1 nodes back again. We expect the cluster to
+/// recover and effectively make progress.
+async fn test_loss_of_liveness_with_recovery() {
+    // Enabled debug tracing so we can easily observe the
+    // nodes logs.
+    let _guard = setup_tracing();
+
+    let node_advance_delay = Duration::from_secs(60);
+
+    // A cluster of 4 nodes will be created
+    let mut cluster = Cluster::new(None, None, true);
+
+    // ===== Start the cluster ====
+    cluster.start(Some(4), Some(1), None).await;
+
+    // Let the nodes advance a bit
+    tokio::time::sleep(node_advance_delay).await;
+
+    // Ensure that nodes have made progress
+    cluster.assert_progress(4, 2).await;
+
+    // Now stop node 2
+    cluster.authority(2).stop_all().await;
+
+    // allow other nodes to advance
+    tokio::time::sleep(node_advance_delay).await;
+
+    // Now stop node 3
     cluster.authority(3).stop_all().await;
 
     // wait and fetch the latest commit round
