@@ -18,7 +18,7 @@ use indexmap::IndexMap;
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
+    collections::{BTreeSet, HashMap, HashSet},
     fmt,
     fmt::Formatter,
 };
