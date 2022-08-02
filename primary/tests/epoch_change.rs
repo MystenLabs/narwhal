@@ -36,12 +36,14 @@ async fn spawn_test_worker(
             // Include the following batch into our next proposal.
             let message = WorkerPrimaryMessage::OurBatch(BatchDigest::default(), worker_id);
             if tx_digest.send(message).await.is_err() {
+                // This task exists when the primary connector is taken down.
                 return;
             }
 
             // Trick the primary to mark this digest as "available in storage".
             let message = WorkerPrimaryMessage::OthersBatch(BatchDigest::default(), worker_id);
             if tx_digest.send(message).await.is_err() {
+                // This task exists when the primary connector is taken down.
                 return;
             }
         }
