@@ -71,6 +71,7 @@ pub struct Proposer {
     /// Note that `common_case` is only used in partial synchrony (it is alway set to `true` when
     /// running the DAG in asynchrony).
     common_case: bool,
+    /// The highest round for which we received a non-empty certificate from other peers.
     highest_useful_round: Round,
 
     /// Metrics handler

@@ -2,22 +2,57 @@
 // SPDX-License-Identifier: Apache-2.0
 use arc_swap::ArcSwap;
 use config::{Committee, Epoch, Parameters};
-use crypto::traits::KeyPair;
+use crypto::{traits::KeyPair, PublicKey};
 use futures::future::join_all;
 use network::{CancelOnDropHandler, ReliableNetwork, WorkerToPrimaryNetwork};
 use node::NodeStorage;
 use primary::{NetworkModel, Primary, CHANNEL_CAPACITY};
 use prometheus::Registry;
-use std::{collections::BTreeMap, sync::Arc};
+use std::{collections::BTreeMap, sync::Arc, time::Duration};
 use test_utils::{keys, make_authority, pure_committee_from_keys, temp_dir};
-use tokio::sync::{mpsc::channel, watch};
-use types::{ReconfigureNotification, WorkerPrimaryMessage};
+use tokio::{
+    sync::{mpsc::channel, watch},
+    time::sleep,
+};
+use types::{BatchDigest, ReconfigureNotification, WorkerPrimaryMessage};
+
+/// Spawn a test worker that periodically sends batch digests to the primary. This is useful to
+/// ensure the primary's DAG makes progress.
+async fn spawn_test_worker(
+    name: PublicKey,
+    committee: Committee,
+    rx_reconfigure: watch::Receiver<ReconfigureNotification>,
+) {
+    let worker_id = 0;
+
+    let (tx_digest, rx_digest) = channel(100);
+    let handle = worker::PrimaryConnector::spawn(name, committee, rx_reconfigure, rx_digest);
+
+    tokio::spawn(async move {
+        let _do_not_drop = handle;
+        loop {
+            sleep(Duration::from_millis(10)).await;
+
+            // Include the following batch into our next proposal.
+            let message = WorkerPrimaryMessage::OurBatch(BatchDigest::default(), worker_id);
+            if tx_digest.send(message).await.is_err() {
+                return;
+            }
+
+            // Trick the primary to mark this digest as "available in storage".
+            let message = WorkerPrimaryMessage::OthersBatch(BatchDigest::default(), worker_id);
+            if tx_digest.send(message).await.is_err() {
+                return;
+            }
+        }
+    });
+}
 
 /// The epoch changes but the stake distribution and network addresses stay the same.
 #[tokio::test]
 async fn test_simple_epoch_change() {
     let parameters = Parameters {
-        batch_size: 200, // Two transactions.
+        header_size: 64, // Two batch digests.
         ..Parameters::default()
     };
 
@@ -38,12 +73,12 @@ async fn test_simple_epoch_change() {
         tx_channels.push(tx_feedback.clone());
 
         let initial_committee = ReconfigureNotification::NewCommittee(committee_0.clone());
-        let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
+        let (tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
 
         let store = NodeStorage::reopen(temp_dir());
 
         Primary::spawn(
-            name,
+            name.clone(),
             signer,
             Arc::new(ArcSwap::from_pointee(committee_0.clone())),
             parameters.clone(),
@@ -58,6 +93,9 @@ async fn test_simple_epoch_change() {
             /* tx_committed_certificates */ tx_feedback,
             &Registry::new(),
         );
+
+        // Spawn a test worker sending digests to the primary.
+        spawn_test_worker(name, committee_0.clone(), rx_reconfigure).await;
     }
 
     // Run for a while in epoch 0.
@@ -115,7 +153,7 @@ async fn test_simple_epoch_change() {
 #[tokio::test]
 async fn test_partial_committee_change() {
     let parameters = Parameters {
-        batch_size: 200, // Two transactions.
+        header_size: 64, // Two batch digests.
         ..Parameters::default()
     };
 
@@ -143,12 +181,12 @@ async fn test_partial_committee_change() {
         let (tx_feedback, rx_feedback) = channel(CHANNEL_CAPACITY);
         epoch_0_tx_channels.push(tx_feedback.clone());
         let initial_committee = ReconfigureNotification::NewCommittee(committee_0.clone());
-        let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
+        let (tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
 
         let store = NodeStorage::reopen(temp_dir());
 
         Primary::spawn(
-            name,
+            name.clone(),
             signer,
             Arc::new(ArcSwap::from_pointee(committee_0.clone())),
             parameters.clone(),
@@ -163,6 +201,9 @@ async fn test_partial_committee_change() {
             /* tx_committed_certificates */ tx_feedback,
             &Registry::new(),
         );
+
+        // Spawn a test worker sending digests to the primary.
+        spawn_test_worker(name, committee_0.clone(), rx_reconfigure).await;
     }
 
     // Run for a while in epoch 0.
@@ -220,12 +261,12 @@ async fn test_partial_committee_change() {
         epoch_1_tx_channels.push(tx_feedback.clone());
 
         let initial_committee = ReconfigureNotification::NewCommittee(committee_1.clone());
-        let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
+        let (tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
 
         let store = NodeStorage::reopen(temp_dir());
 
         Primary::spawn(
-            name,
+            name.clone(),
             signer,
             Arc::new(ArcSwap::from_pointee(committee_1.clone())),
             parameters.clone(),
@@ -240,6 +281,9 @@ async fn test_partial_committee_change() {
             /* tx_committed_certificates */ tx_feedback,
             &Registry::new(),
         );
+
+        // Spawn a test worker sending digests to the primary.
+        spawn_test_worker(name, committee_1.clone(), rx_reconfigure).await;
     }
 
     // Tell the nodes of epoch 0 to transition to epoch 1.
@@ -275,7 +319,7 @@ async fn test_partial_committee_change() {
 #[tokio::test]
 async fn test_restart_with_new_committee_change() {
     let parameters = Parameters {
-        batch_size: 200, // Two transactions.
+        header_size: 64, // Two batch digests.
         ..Parameters::default()
     };
 
@@ -297,12 +341,12 @@ async fn test_restart_with_new_committee_change() {
         tx_channels.push(tx_feedback.clone());
 
         let initial_committee = ReconfigureNotification::NewCommittee(committee_0.clone());
-        let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
+        let (tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
 
         let store = NodeStorage::reopen(temp_dir());
 
         let primary_handles = Primary::spawn(
-            name,
+            name.clone(),
             signer,
             Arc::new(ArcSwap::new(Arc::new(committee_0.clone()))),
             parameters.clone(),
@@ -318,6 +362,9 @@ async fn test_restart_with_new_committee_change() {
             &Registry::new(),
         );
         handles.extend(primary_handles);
+
+        // Spawn a test worker sending digests to the primary.
+        spawn_test_worker(name, committee_0.clone(), rx_reconfigure).await;
     }
 
     // Run for a while in epoch 0.
@@ -368,12 +415,12 @@ async fn test_restart_with_new_committee_change() {
             tx_channels.push(tx_feedback.clone());
 
             let initial_committee = ReconfigureNotification::NewCommittee(new_committee.clone());
-            let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
+            let (tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
 
             let store = NodeStorage::reopen(temp_dir());
 
             let primary_handles = Primary::spawn(
-                name,
+                name.clone(),
                 signer,
                 Arc::new(ArcSwap::new(Arc::new(new_committee.clone()))),
                 parameters.clone(),
@@ -389,6 +436,9 @@ async fn test_restart_with_new_committee_change() {
                 &Registry::new(),
             );
             handles.extend(primary_handles);
+
+            // Spawn a test worker sending digests to the primary.
+            spawn_test_worker(name, new_committee.clone(), rx_reconfigure).await;
         }
 
         // Run for a while.

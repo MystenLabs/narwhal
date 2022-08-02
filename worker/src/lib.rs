@@ -18,3 +18,6 @@ mod synchronizer;
 mod worker;
 
 pub use crate::worker::{Worker, WorkerMessage};
+
+// Useful to test the primary.
+pub use crate::primary_connector::PrimaryConnector;
