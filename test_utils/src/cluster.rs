@@ -218,6 +218,10 @@ impl Cluster {
         );
         assert!(rounds.values().all(|v| v > &1), "All nodes are available so all should have made progress and committed at least after the first round");
 
+        if expected_nodes == 0 {
+            return HashMap::new();
+        }
+
         let (min, max) = rounds.values().into_iter().minmax().into_option().unwrap();
         assert!(
             max - min <= commit_threshold,
