@@ -122,9 +122,6 @@
 <span id="122">122</span>
 <span id="123">123</span>
 <span id="124">124</span>
-<span id="125">125</span>
-<span id="126">126</span>
-<span id="127">127</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -132,10 +129,7 @@
 <span class="kw">use</span> <span class="ident">config::SharedCommittee</span>;
 <span class="kw">use</span> <span class="ident">crypto::PublicKey</span>;
 <span class="kw">use</span> <span class="ident">network</span>::{<span class="ident">PrimaryToWorkerNetwork</span>, <span class="ident">UnreliableNetwork</span>};
-<span class="kw">use</span> <span class="ident">std::sync</span>::{
-    <span class="ident">atomic</span>::{<span class="ident">AtomicU64</span>, <span class="ident">Ordering</span>},
-    <span class="ident">Arc</span>,
-};
+<span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 <span class="kw">use</span> <span class="ident">tokio</span>::{
     <span class="ident">sync</span>::{<span class="ident">mpsc::Receiver</span>, <span class="ident">watch</span>},
     <span class="ident">task::JoinHandle</span>,
@@ -148,10 +142,10 @@
     <span class="ident">name</span>: <span class="ident">PublicKey</span>,
     <span class="doccomment">/// The committee information.</span>
     <span class="ident">committee</span>: <span class="ident">SharedCommittee</span>,
-    <span class="doccomment">/// The current consensus round (used for cleanup).</span>
-    <span class="ident">consensus_round</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">AtomicU64</span><span class="op">&gt;</span>,
     <span class="doccomment">/// Receives the ordered certificates from consensus.</span>
     <span class="ident">rx_consensus</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span>,
+    <span class="doccomment">/// Signals a new consensus round</span>
+    <span class="ident">tx_consensus_round_updates</span>: <span class="ident">watch::Sender</span><span class="op">&lt;</span><span class="ident">u64</span><span class="op">&gt;</span>,
     <span class="doccomment">/// Receives notifications to reconfigure the system.</span>
     <span class="ident">rx_reconfigure</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
     <span class="doccomment">/// Channel to signal committee changes.</span>
@@ -167,8 +161,8 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(
         <span class="ident">name</span>: <span class="ident">PublicKey</span>,
         <span class="ident">committee</span>: <span class="ident">SharedCommittee</span>,
-        <span class="ident">consensus_round</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">AtomicU64</span><span class="op">&gt;</span>,
         <span class="ident">rx_consensus</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span>,
+        <span class="ident">tx_consensus_round_updates</span>: <span class="ident">watch::Sender</span><span class="op">&lt;</span><span class="ident">u64</span><span class="op">&gt;</span>,
         <span class="ident">rx_reconfigure</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
         <span class="ident">tx_reconfigure</span>: <span class="ident">watch::Sender</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
     ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
@@ -176,8 +170,8 @@
             <span class="self">Self</span> {
                 <span class="ident">name</span>,
                 <span class="ident">committee</span>,
-                <span class="ident">consensus_round</span>,
                 <span class="ident">rx_consensus</span>,
+                <span class="ident">tx_consensus_round_updates</span>,
                 <span class="ident">rx_reconfigure</span>,
                 <span class="ident">tx_reconfigure</span>,
                 <span class="ident">last_committed_round</span>: <span class="number">0</span>,
@@ -196,7 +190,7 @@
             <span class="self">self</span>.<span class="ident">last_committed_round</span> <span class="op">=</span> <span class="ident">round</span>;
 
             <span class="comment">// Trigger cleanup on the primary.</span>
-            <span class="self">self</span>.<span class="ident">consensus_round</span>.<span class="ident">store</span>(<span class="ident">round</span>, <span class="ident">Ordering::Relaxed</span>);
+            <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">tx_consensus_round_updates</span>.<span class="ident">send</span>(<span class="ident">round</span>); <span class="comment">// ignore error when receivers dropped.</span>
 
             <span class="comment">// Trigger cleanup on the workers..</span>
             <span class="kw">let</span> <span class="ident">addresses</span> <span class="op">=</span> <span class="self">self</span>
@@ -229,7 +223,7 @@
                             <span class="macro">tracing::debug!</span>(<span class="string">&quot;Committee updated to {}&quot;</span>, <span class="self">self</span>.<span class="ident">committee</span>);
 
                             <span class="comment">// Trigger cleanup on the primary.</span>
-                            <span class="self">self</span>.<span class="ident">consensus_round</span>.<span class="ident">store</span>(<span class="number">0</span>, <span class="ident">Ordering::Relaxed</span>);
+                            <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">tx_consensus_round_updates</span>.<span class="ident">send</span>(<span class="number">0</span>); <span class="comment">// ignore error when receivers dropped.</span>
 
                             <span class="bool-val">false</span>
                         },

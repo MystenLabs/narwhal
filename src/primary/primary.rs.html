@@ -721,14 +721,6 @@
 <span id="721">721</span>
 <span id="722">722</span>
 <span id="723">723</span>
-<span id="724">724</span>
-<span id="725">725</span>
-<span id="726">726</span>
-<span id="727">727</span>
-<span id="728">728</span>
-<span id="729">729</span>
-<span id="730">730</span>
-<span id="731">731</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -758,12 +750,7 @@
 <span class="kw">use</span> <span class="ident">multiaddr</span>::{<span class="ident">Multiaddr</span>, <span class="ident">Protocol</span>};
 <span class="kw">use</span> <span class="ident">network</span>::{<span class="ident">metrics::Metrics</span>, <span class="ident">PrimaryNetwork</span>, <span class="ident">PrimaryToWorkerNetwork</span>};
 <span class="kw">use</span> <span class="ident">prometheus::Registry</span>;
-<span class="kw">use</span> <span class="ident">std</span>::{
-    <span class="ident">collections::HashMap</span>,
-    <span class="ident">net::Ipv4Addr</span>,
-    <span class="ident">sync</span>::{<span class="ident">atomic::AtomicU64</span>, <span class="ident">Arc</span>},
-    <span class="ident">time::Duration</span>,
-};
+<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">collections::HashMap</span>, <span class="ident">net::Ipv4Addr</span>, <span class="ident">sync::Arc</span>, <span class="ident">time::Duration</span>};
 <span class="kw">use</span> <span class="ident">store::Store</span>;
 <span class="kw">use</span> <span class="ident">tokio</span>::{
     <span class="ident">sync</span>::{
@@ -835,6 +822,7 @@
         <span class="kw">let</span> (<span class="ident">tx_payload_availability_responses</span>, <span class="ident">rx_payload_availability_responses</span>) <span class="op">=</span>
             <span class="ident">channel</span>(<span class="ident">CHANNEL_CAPACITY</span>);
         <span class="kw">let</span> (<span class="ident">tx_state_handler</span>, <span class="ident">rx_state_handler</span>) <span class="op">=</span> <span class="ident">channel</span>(<span class="ident">CHANNEL_CAPACITY</span>);
+        <span class="kw">let</span> (<span class="ident">tx_consensus_round_updates</span>, <span class="ident">rx_consensus_round_updates</span>) <span class="op">=</span> <span class="ident">watch::channel</span>(<span class="number">0u64</span>);
 
         <span class="comment">// Monitor of channel capacity</span>
         <span class="kw">let</span> <span class="ident">mon_tx_others_digests</span> <span class="op">=</span> <span class="ident">tx_others_digests</span>.<span class="ident">clone</span>();
@@ -917,10 +905,6 @@
         <span class="kw">let</span> <span class="ident">primary_endpoint_metrics</span> <span class="op">=</span> <span class="ident">metrics</span>.<span class="ident">primary_endpoint_metrics</span>.<span class="ident">unwrap</span>();
         <span class="kw">let</span> <span class="ident">node_metrics</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">metrics</span>.<span class="ident">node_metrics</span>.<span class="ident">unwrap</span>());
         <span class="kw">let</span> <span class="ident">network_metrics</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">metrics</span>.<span class="ident">network_metrics</span>.<span class="ident">unwrap</span>());
-
-        <span class="comment">// Atomic variable use to synchronize all tasks with the latest consensus round. This is only</span>
-        <span class="comment">// used for cleanup. The only task that write into this variable is `GarbageCollector`.</span>
-        <span class="kw">let</span> <span class="ident">consensus_round</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">AtomicU64::new</span>(<span class="number">0</span>));
 
         <span class="kw">let</span> <span class="ident">our_workers</span> <span class="op">=</span> <span class="ident">committee</span>
             .<span class="ident">load</span>()
@@ -1008,7 +992,7 @@
             <span class="ident">certificate_store</span>.<span class="ident">clone</span>(),
             <span class="ident">synchronizer</span>,
             <span class="ident">signature_service</span>.<span class="ident">clone</span>(),
-            <span class="ident">consensus_round</span>.<span class="ident">clone</span>(),
+            <span class="ident">tx_consensus_round_updates</span>.<span class="ident">subscribe</span>(),
             <span class="ident">parameters</span>.<span class="ident">gc_depth</span>,
             <span class="ident">tx_reconfigure</span>.<span class="ident">subscribe</span>(),
             <span class="comment">/* rx_primaries */</span> <span class="ident">rx_primary_messages</span>,
@@ -1109,7 +1093,7 @@
             (<span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">committee</span>.<span class="ident">load</span>()).<span class="ident">clone</span>(),
             <span class="ident">certificate_store</span>.<span class="ident">clone</span>(),
             <span class="ident">payload_store</span>.<span class="ident">clone</span>(),
-            <span class="ident">consensus_round</span>.<span class="ident">clone</span>(),
+            <span class="ident">tx_consensus_round_updates</span>.<span class="ident">subscribe</span>(),
             <span class="ident">parameters</span>.<span class="ident">gc_depth</span>,
             <span class="ident">parameters</span>.<span class="ident">sync_retry_delay</span>,
             <span class="ident">parameters</span>.<span class="ident">sync_retry_nodes</span>,
@@ -1126,7 +1110,7 @@
         <span class="kw">let</span> <span class="ident">certificate_waiter_handle</span> <span class="op">=</span> <span class="ident">CertificateWaiter::spawn</span>(
             (<span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">committee</span>.<span class="ident">load</span>()).<span class="ident">clone</span>(),
             <span class="ident">certificate_store</span>.<span class="ident">clone</span>(),
-            <span class="ident">consensus_round</span>.<span class="ident">clone</span>(),
+            <span class="ident">rx_consensus_round_updates</span>,
             <span class="ident">parameters</span>.<span class="ident">gc_depth</span>,
             <span class="ident">tx_reconfigure</span>.<span class="ident">subscribe</span>(),
             <span class="comment">/* rx_synchronizer */</span> <span class="ident">rx_sync_certificates</span>,
@@ -1168,8 +1152,8 @@
         <span class="kw">let</span> <span class="ident">state_handler_handle</span> <span class="op">=</span> <span class="ident">StateHandler::spawn</span>(
             <span class="ident">name</span>.<span class="ident">clone</span>(),
             <span class="ident">committee</span>.<span class="ident">clone</span>(),
-            <span class="ident">consensus_round</span>,
             <span class="ident">rx_consensus</span>,
+            <span class="ident">tx_consensus_round_updates</span>,
             <span class="ident">rx_state_handler</span>,
             <span class="ident">tx_reconfigure</span>,
         );

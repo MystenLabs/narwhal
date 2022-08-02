@@ -212,6 +212,15 @@
 <span id="212">212</span>
 <span id="213">213</span>
 <span id="214">214</span>
+<span id="215">215</span>
+<span id="216">216</span>
+<span id="217">217</span>
+<span id="218">218</span>
+<span id="219">219</span>
+<span id="220">220</span>
+<span id="221">221</span>
+<span id="222">222</span>
+<span id="223">223</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -223,10 +232,7 @@
     <span class="ident">stream</span>::{<span class="ident">futures_unordered::FuturesUnordered</span>, <span class="ident">StreamExt</span> <span class="kw">as</span> <span class="kw">_</span>},
 };
 <span class="kw">use</span> <span class="ident">once_cell::sync::OnceCell</span>;
-<span class="kw">use</span> <span class="ident">std::sync</span>::{
-    <span class="ident">atomic</span>::{<span class="ident">AtomicU64</span>, <span class="ident">Ordering</span>},
-    <span class="ident">Arc</span>,
-};
+<span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 <span class="kw">use</span> <span class="ident">store::Store</span>;
 <span class="kw">use</span> <span class="ident">tokio</span>::{
     <span class="ident">sync</span>::{
@@ -257,8 +263,8 @@
     <span class="ident">committee</span>: <span class="ident">Committee</span>,
     <span class="doccomment">/// The persistent storage.</span>
     <span class="ident">store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span><span class="op">&gt;</span>,
-    <span class="doccomment">/// The current consensus round (used for cleanup).</span>
-    <span class="ident">consensus_round</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">AtomicU64</span><span class="op">&gt;</span>,
+    <span class="doccomment">/// Receiver for signal of round change</span>
+    <span class="ident">rx_consensus_round_updates</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">u64</span><span class="op">&gt;</span>,
     <span class="doccomment">/// The depth of the garbage collector.</span>
     <span class="ident">gc_depth</span>: <span class="ident">Round</span>,
     <span class="doccomment">/// Watch channel notifying of epoch changes, it is only used for cleanup.</span>
@@ -281,7 +287,7 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(
         <span class="ident">committee</span>: <span class="ident">Committee</span>,
         <span class="ident">store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span><span class="op">&gt;</span>,
-        <span class="ident">consensus_round</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">AtomicU64</span><span class="op">&gt;</span>,
+        <span class="ident">rx_consensus_round_updates</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">u64</span><span class="op">&gt;</span>,
         <span class="ident">gc_depth</span>: <span class="ident">Round</span>,
         <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
         <span class="ident">rx_synchronizer</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span>,
@@ -292,7 +298,7 @@
             <span class="self">Self</span> {
                 <span class="ident">committee</span>,
                 <span class="ident">store</span>,
-                <span class="ident">consensus_round</span>,
+                <span class="ident">rx_consensus_round_updates</span>,
                 <span class="ident">gc_depth</span>,
                 <span class="ident">rx_reconfigure</span>,
                 <span class="ident">rx_synchronizer</span>,
@@ -329,8 +335,12 @@
 
         <span class="kw">let</span> <span class="ident">timer</span> <span class="op">=</span> <span class="ident">sleep</span>(<span class="ident">Duration::from_millis</span>(<span class="ident">GC_RESOLUTION</span>));
         <span class="macro">tokio::pin!</span>(<span class="ident">timer</span>);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">attempt_garbage_collection</span>;
 
         <span class="kw">loop</span> {
+            <span class="comment">// Initially set to not garbage collect</span>
+            <span class="ident">attempt_garbage_collection</span> <span class="op">=</span> <span class="bool-val">false</span>;
+
             <span class="macro">tokio::select!</span> {
                 <span class="prelude-val">Some</span>(<span class="ident">certificate</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">rx_synchronizer</span>.<span class="ident">recv</span>() =&gt; {
                     <span class="kw">if</span> <span class="ident">certificate</span>.<span class="ident">epoch</span>() <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">epoch</span>() {
@@ -392,27 +402,35 @@
 
                     <span class="comment">// Reschedule the timer.</span>
                     <span class="ident">timer</span>.<span class="ident">as_mut</span>().<span class="ident">reset</span>(<span class="ident">Instant::now</span>() <span class="op">+</span> <span class="ident">Duration::from_millis</span>(<span class="ident">GC_RESOLUTION</span>));
+                    <span class="ident">attempt_garbage_collection</span> <span class="op">=</span> <span class="bool-val">true</span>;
                 },
+
+                <span class="prelude-val">Ok</span>(()) <span class="op">=</span> <span class="self">self</span>.<span class="ident">rx_consensus_round_updates</span>.<span class="ident">changed</span>() =&gt; {
+                    <span class="ident">attempt_garbage_collection</span> <span class="op">=</span> <span class="bool-val">true</span>;
+                }
+
             }
 
-            <span class="comment">// Cleanup internal state. Deliver the certificates waiting on garbage collected ancestors.</span>
-            <span class="kw">let</span> <span class="ident">round</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">consensus_round</span>.<span class="ident">load</span>(<span class="ident">Ordering::Relaxed</span>);
-            <span class="kw">if</span> <span class="ident">round</span> <span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">gc_depth</span> {
-                <span class="kw">let</span> <span class="ident">gc_round</span> <span class="op">=</span> <span class="ident">round</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">gc_depth</span>;
+            <span class="comment">// Either upon time-out or round change</span>
+            <span class="kw">if</span> <span class="ident">attempt_garbage_collection</span> {
+                <span class="kw">let</span> <span class="ident">round</span> <span class="op">=</span> <span class="kw-2">*</span><span class="self">self</span>.<span class="ident">rx_consensus_round_updates</span>.<span class="ident">borrow</span>();
+                <span class="kw">if</span> <span class="ident">round</span> <span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">gc_depth</span> {
+                    <span class="kw">let</span> <span class="ident">gc_round</span> <span class="op">=</span> <span class="ident">round</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">gc_depth</span>;
 
-                <span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">retain</span>(<span class="op">|</span><span class="ident">_digest</span>, (<span class="ident">r</span>, <span class="ident">once_cancel</span>)<span class="op">|</span> {
-                    <span class="kw">if</span> <span class="kw-2">*</span><span class="ident">r</span> <span class="op">&lt;</span><span class="op">=</span> <span class="ident">gc_round</span> {
-                        <span class="comment">// note: this send can fail, harmlessly, if the certificate has been delivered (`notify_read`)</span>
-                        <span class="comment">// and the present code path fires before the corresponding `waiting` item is unpacked above.</span>
-                        <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">once_cancel</span>
-                            .<span class="ident">take</span>()
-                            .<span class="ident">expect</span>(<span class="string">&quot;This should be protected by a write lock&quot;</span>)
-                            .<span class="ident">send</span>(());
-                        <span class="bool-val">false</span>
-                    } <span class="kw">else</span> {
-                        <span class="bool-val">true</span>
-                    }
-                });
+                    <span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">retain</span>(<span class="op">|</span><span class="ident">_digest</span>, (<span class="ident">r</span>, <span class="ident">once_cancel</span>)<span class="op">|</span> {
+                        <span class="kw">if</span> <span class="kw-2">*</span><span class="ident">r</span> <span class="op">&lt;</span><span class="op">=</span> <span class="ident">gc_round</span> {
+                            <span class="comment">// note: this send can fail, harmlessly, if the certificate has been delivered (`notify_read`)</span>
+                            <span class="comment">// and the present code path fires before the corresponding `waiting` item is unpacked above.</span>
+                            <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">once_cancel</span>
+                                .<span class="ident">take</span>()
+                                .<span class="ident">expect</span>(<span class="string">&quot;This should be protected by a write lock&quot;</span>)
+                                .<span class="ident">send</span>(());
+                            <span class="bool-val">false</span>
+                        } <span class="kw">else</span> {
+                            <span class="bool-val">true</span>
+                        }
+                    });
+                }
             }
 
             <span class="self">self</span>.<span class="ident">update_metrics</span>();
