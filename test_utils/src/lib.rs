@@ -2,8 +2,7 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use config::{
-    utils::get_available_port, Authority, Committee, Epoch, PrimaryAddresses, WorkerAddresses,
-    WorkerId,
+    utils::get_available_port, Authority, Committee, Epoch, PrimaryAddresses, WorkerId, WorkerInfo,
 };
 use crypto::{
     traits::{KeyPair as _, Signer as _},
@@ -77,7 +76,7 @@ pub fn make_authority_with_port_getter<F: FnMut() -> u16>(mut get_port: F) -> Au
     let workers = vec![
         (
             0,
-            WorkerAddresses {
+            WorkerInfo {
                 primary_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
                     .parse()
                     .unwrap(),
@@ -91,7 +90,7 @@ pub fn make_authority_with_port_getter<F: FnMut() -> u16>(mut get_port: F) -> Au
         ),
         (
             1,
-            WorkerAddresses {
+            WorkerInfo {
                 primary_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
                     .parse()
                     .unwrap(),
@@ -105,7 +104,7 @@ pub fn make_authority_with_port_getter<F: FnMut() -> u16>(mut get_port: F) -> Au
         ),
         (
             2,
-            WorkerAddresses {
+            WorkerInfo {
                 primary_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
                     .parse()
                     .unwrap(),
@@ -119,7 +118,7 @@ pub fn make_authority_with_port_getter<F: FnMut() -> u16>(mut get_port: F) -> Au
         ),
         (
             3,
-            WorkerAddresses {
+            WorkerInfo {
                 primary_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
                     .parse()
                     .unwrap(),
@@ -440,6 +439,13 @@ impl WorkerToPrimary for WorkerToPrimaryMockServer {
     ) -> Result<tonic::Response<Empty>, tonic::Status> {
         self.sender.send(request.into_inner()).await.unwrap();
         Ok(Response::new(Empty {}))
+    }
+
+    async fn worker_info(
+        &self,
+        _request: tonic::Request<Empty>,
+    ) -> Result<tonic::Response<BincodeEncodedPayload>, tonic::Status> {
+        unimplemented!()
     }
 }
 

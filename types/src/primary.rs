@@ -3,11 +3,11 @@
 // SPDX-License-Identifier: Apache-2.0
 use crate::{
     error::{DagError, DagResult},
-    BatchDigestProto, CertificateDigestProto,
+    CertificateDigestProto,
 };
 use blake2::{digest::Update, VarBlake2b};
 use bytes::Bytes;
-use config::{Committee, Epoch, WorkerId};
+use config::{Committee, Epoch, WorkerId, WorkerInfo};
 use crypto::{
     traits::{EncodeDecodeBase64, Signer, VerifyingKey},
     Digest, Hash, PublicKey, Signature, SignatureService, Verifier, DIGEST_LEN,
@@ -17,7 +17,7 @@ use derive_builder::Builder;
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::{BTreeMap, BTreeSet, HashSet},
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     fmt,
     fmt::Formatter,
 };
@@ -47,14 +47,6 @@ impl fmt::Display for BatchDigest {
 impl From<BatchDigest> for Digest {
     fn from(digest: BatchDigest) -> Self {
         Digest::new(digest.0)
-    }
-}
-
-impl From<BatchDigest> for BatchDigestProto {
-    fn from(digest: BatchDigest) -> Self {
-        BatchDigestProto {
-            digest: Bytes::from(digest.0.to_vec()),
-        }
     }
 }
 
@@ -660,4 +652,10 @@ pub enum WorkerPrimaryError {
 
     #[error("An error occurred while deleting batches. None deleted")]
     ErrorWhileDeletingBatches(Vec<BatchDigest>),
+}
+
+#[derive(Clone, Serialize, Deserialize, Eq, PartialEq, Debug)]
+pub struct WorkerInfoResponse {
+    /// Map of workers' id and their network addresses.
+    pub workers: HashMap<WorkerId, WorkerInfo>,
 }

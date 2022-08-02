@@ -18,7 +18,7 @@ use crate::{
     BlockRemover, CertificatesResponse, DeleteBatchMessage, PayloadAvailabilityResponse,
 };
 use async_trait::async_trait;
-use config::{Parameters, SharedCommittee, WorkerId};
+use config::{Parameters, SharedCommittee, WorkerId, WorkerInfo};
 use consensus::dag::Dag;
 use crypto::{
     traits::{EncodeDecodeBase64, Signer},
@@ -27,11 +27,7 @@ use crypto::{
 use multiaddr::{Multiaddr, Protocol};
 use network::{metrics::Metrics, PrimaryNetwork, PrimaryToWorkerNetwork};
 use prometheus::Registry;
-use std::{
-    net::Ipv4Addr,
-    sync::{atomic::AtomicU64, Arc},
-    time::Duration,
-};
+use std::{collections::HashMap, net::Ipv4Addr, sync::Arc, time::Duration};
 use store::Store;
 use tokio::{
     sync::{
@@ -45,8 +41,8 @@ use tracing::{info, log::error};
 use types::{
     error::DagError, BatchDigest, BatchMessage, BincodeEncodedPayload, Certificate,
     CertificateDigest, Empty, Header, HeaderDigest, PrimaryToPrimary, PrimaryToPrimaryServer,
-    ReconfigureNotification, WorkerPrimaryError, WorkerPrimaryMessage, WorkerToPrimary,
-    WorkerToPrimaryServer,
+    ReconfigureNotification, WorkerInfoResponse, WorkerPrimaryError, WorkerPrimaryMessage,
+    WorkerToPrimary, WorkerToPrimaryServer,
 };
 pub use types::{PrimaryMessage, PrimaryWorkerMessage};
 
@@ -103,6 +99,7 @@ impl Primary {
         let (tx_payload_availability_responses, rx_payload_availability_responses) =
             channel(CHANNEL_CAPACITY);
         let (tx_state_handler, rx_state_handler) = channel(CHANNEL_CAPACITY);
+        let (tx_consensus_round_updates, rx_consensus_round_updates) = watch::channel(0u64);
 
         // Monitor of channel capacity
         let mon_tx_others_digests = tx_others_digests.clone();
@@ -183,9 +180,13 @@ impl Primary {
         let node_metrics = Arc::new(metrics.node_metrics.unwrap());
         let network_metrics = Arc::new(metrics.network_metrics.unwrap());
 
-        // Atomic variable use to synchronize all tasks with the latest consensus round. This is only
-        // used for cleanup. The only task that write into this variable is `GarbageCollector`.
-        let consensus_round = Arc::new(AtomicU64::new(0));
+        let our_workers = committee
+            .load()
+            .authorities
+            .get(&name)
+            .expect("Our public key or worker id is not in the committee")
+            .workers
+            .clone();
 
         // Spawn the network receiver listening to messages from the other primaries.
         let address = committee
@@ -229,6 +230,7 @@ impl Primary {
             tx_batches,
             tx_batch_removal,
             tx_state_handler,
+            our_workers,
             metrics: node_metrics.clone(),
         }
         .spawn(address.clone(), tx_reconfigure.subscribe());
@@ -264,7 +266,7 @@ impl Primary {
             certificate_store.clone(),
             synchronizer,
             signature_service.clone(),
-            consensus_round.clone(),
+            tx_consensus_round_updates.subscribe(),
             parameters.gc_depth,
             tx_reconfigure.subscribe(),
             /* rx_primaries */ rx_primary_messages,
@@ -365,7 +367,7 @@ impl Primary {
             (**committee.load()).clone(),
             certificate_store.clone(),
             payload_store.clone(),
-            consensus_round.clone(),
+            tx_consensus_round_updates.subscribe(),
             parameters.gc_depth,
             parameters.sync_retry_delay,
             parameters.sync_retry_nodes,
@@ -382,7 +384,7 @@ impl Primary {
         let certificate_waiter_handle = CertificateWaiter::spawn(
             (**committee.load()).clone(),
             certificate_store.clone(),
-            consensus_round.clone(),
+            rx_consensus_round_updates,
             parameters.gc_depth,
             tx_reconfigure.subscribe(),
             /* rx_synchronizer */ rx_sync_certificates,
@@ -424,8 +426,8 @@ impl Primary {
         let state_handler_handle = StateHandler::spawn(
             name.clone(),
             committee.clone(),
-            consensus_round,
             rx_consensus,
+            tx_consensus_round_updates,
             rx_state_handler,
             tx_reconfigure,
         );
@@ -596,6 +598,7 @@ struct WorkerReceiverHandler {
     tx_batches: Sender<BatchResult>,
     tx_batch_removal: Sender<DeleteBatchResult>,
     tx_state_handler: Sender<ReconfigureNotification>,
+    our_workers: HashMap<WorkerId, WorkerInfo>,
     metrics: Arc<PrimaryMetrics>,
 }
 
@@ -699,5 +702,19 @@ impl WorkerToPrimary for WorkerReceiverHandler {
         .map_err(|e| Status::not_found(e.to_string()))?;
 
         Ok(Response::new(Empty {}))
+    }
+
+    async fn worker_info(
+        &self,
+        _request: Request<Empty>,
+    ) -> Result<Response<BincodeEncodedPayload>, Status> {
+        let workers = WorkerInfoResponse {
+            workers: self.our_workers.clone(),
+        };
+
+        let response = BincodeEncodedPayload::try_from(&workers)
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(response))
     }
 }
