@@ -112,7 +112,7 @@ impl Proposer {
                 digests: Vec::with_capacity(2 * header_size),
                 payload_size: 0,
                 common_case: true,
-                highest_useful_round: 0,
+                highest_useful_round: 1,
                 metrics,
             }
             .run()
@@ -263,6 +263,13 @@ impl Proposer {
             // Check whether advancing round allows the system to make meaningful progress. The system
             // makes meaningful progress if it advances with non-empty certificates.
             let meaningful_progress = we_have_enough_digests || others_have_digests;
+
+            // Print a few debug logs.
+            debug!("Do we have enough parents: {enough_parents}");
+            debug!("Do we have enough digests: {we_have_enough_digests}");
+            debug!("Have we learned about a non-empty certificate for this round: {others_have_digests}");
+            debug!("Are we in the common case: {}", self.common_case);
+            debug!("Did the timer expire: {timer_expired}");
 
             // Check whether we can move to the next round and proposer a new header.
             if (self.common_case || timer_expired) && enough_parents && meaningful_progress {
