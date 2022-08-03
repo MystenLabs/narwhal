@@ -524,7 +524,7 @@ impl Core {
             .expect("Reconfigure channel dropped")
         {
             let message = self.rx_reconfigure.borrow().clone();
-            if let ReconfigureNotification::NewCommittee(new_committee) = message {
+            if let ReconfigureNotification::NewEpoch(new_committee) = message {
                 self.change_epoch(new_committee);
                 // Mark the value as seen.
                 let _ = self.rx_reconfigure.borrow_and_update();
@@ -591,7 +591,7 @@ impl Core {
                     result.expect("Committee channel dropped");
                     let message = self.rx_reconfigure.borrow().clone();
                     match message {
-                        ReconfigureNotification::NewCommittee(new_committee) => {
+                        ReconfigureNotification::NewEpoch(new_committee) => {
                             self.change_epoch(new_committee);
                         },
                         ReconfigureNotification::UpdateCommittee(new_committee) => {

@@ -281,7 +281,7 @@ where
                         Ordering::Greater => {
                             let message = self.rx_reconfigure.borrow_and_update().clone();
                             match message  {
-                                ReconfigureNotification::NewCommittee(new_committee) => {
+                                ReconfigureNotification::NewEpoch(new_committee) => {
                                     state = self.change_epoch(new_committee)?;
                                 },
                                 ReconfigureNotification::UpdateCommittee(new_committee) => {
@@ -339,7 +339,7 @@ where
                     result.expect("Committee channel dropped");
                     let message = self.rx_reconfigure.borrow().clone();
                     match message {
-                        ReconfigureNotification::NewCommittee(new_committee) => {
+                        ReconfigureNotification::NewEpoch(new_committee) => {
                             state = self.change_epoch(new_committee)?;
                         },
                         ReconfigureNotification::UpdateCommittee(new_committee) => {

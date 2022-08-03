@@ -205,7 +205,7 @@ impl Synchronizer {
                     PrimaryWorkerMessage::Reconfigure(message) => {
                         // Reconfigure this task and update the shared committee.
                         let shutdown = match &message {
-                            ReconfigureNotification::NewCommittee(new_committee) => {
+                            ReconfigureNotification::NewEpoch(new_committee) => {
                                 self.committee.swap(Arc::new(new_committee.clone()));
 
                                 self.pending.clear();

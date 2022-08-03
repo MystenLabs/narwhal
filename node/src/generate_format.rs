@@ -108,9 +108,9 @@ fn get_registry() -> Result<Registry> {
     let delete_batch = PrimaryWorkerMessage::DeleteBatches(vec![BatchDigest([0u8; 32])]);
     let sync = PrimaryWorkerMessage::Synchronize(vec![BatchDigest([0u8; 32])], pk.clone());
     let epoch_change =
-        PrimaryWorkerMessage::Reconfigure(ReconfigureNotification::NewCommittee(committee.clone()));
+        PrimaryWorkerMessage::Reconfigure(ReconfigureNotification::NewEpoch(committee.clone()));
     let update_committee =
-        PrimaryWorkerMessage::Reconfigure(ReconfigureNotification::NewCommittee(committee));
+        PrimaryWorkerMessage::Reconfigure(ReconfigureNotification::NewEpoch(committee));
     let shutdown = PrimaryWorkerMessage::Reconfigure(ReconfigureNotification::Shutdown);
     tracer.trace_value(&mut samples, &cleanup)?;
     tracer.trace_value(&mut samples, &request_batch)?;

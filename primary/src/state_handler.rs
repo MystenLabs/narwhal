@@ -93,7 +93,7 @@ impl StateHandler {
 
                 Some(message) = self.rx_reconfigure.recv() => {
                     let shutdown = match &message {
-                        ReconfigureNotification::NewCommittee(committee) => {
+                        ReconfigureNotification::NewEpoch(committee) => {
                             // Update the committee.
                             self.committee.swap(Arc::new(committee.clone()));
 

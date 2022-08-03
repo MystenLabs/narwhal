@@ -310,7 +310,7 @@ impl BlockSynchronizer {
                     result.expect("Committee channel dropped");
                     let message = self.rx_reconfigure.borrow().clone();
                     match message {
-                        ReconfigureNotification::NewCommittee(new_committee)=> {
+                        ReconfigureNotification::NewEpoch(new_committee)=> {
                             self.committee = new_committee;
                         }
                         ReconfigureNotification::UpdateCommittee(new_committee)=> {

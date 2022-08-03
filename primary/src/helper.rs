@@ -115,7 +115,7 @@ impl Helper {
                     result.expect("Committee channel dropped");
                     let message = self.rx_committee.borrow().clone();
                     match message {
-                        ReconfigureNotification::NewCommittee(new_committee) => {
+                        ReconfigureNotification::NewEpoch(new_committee) => {
                             self.committee = new_committee;
                         },
                         ReconfigureNotification::UpdateCommittee(new_committee) => {

@@ -37,7 +37,7 @@ async fn test_simple_epoch_change() {
         let (tx_feedback, rx_feedback) = channel(CHANNEL_CAPACITY);
         tx_channels.push(tx_feedback.clone());
 
-        let initial_committee = ReconfigureNotification::NewCommittee(committee_0.clone());
+        let initial_committee = ReconfigureNotification::NewEpoch(committee_0.clone());
         let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
 
         let store = NodeStorage::reopen(temp_dir());
@@ -86,7 +86,7 @@ async fn test_simple_epoch_change() {
             .values()
             .map(|authority| authority.primary.worker_to_primary.clone())
             .collect();
-        let message = WorkerPrimaryMessage::Reconfigure(ReconfigureNotification::NewCommittee(
+        let message = WorkerPrimaryMessage::Reconfigure(ReconfigureNotification::NewEpoch(
             new_committee.clone(),
         ));
         let mut _do_not_drop: Vec<CancelOnDropHandler<_>> = Vec::new();
@@ -142,7 +142,7 @@ async fn test_partial_committee_change() {
         epoch_0_rx_channels.push(rx_new_certificates);
         let (tx_feedback, rx_feedback) = channel(CHANNEL_CAPACITY);
         epoch_0_tx_channels.push(tx_feedback.clone());
-        let initial_committee = ReconfigureNotification::NewCommittee(committee_0.clone());
+        let initial_committee = ReconfigureNotification::NewEpoch(committee_0.clone());
         let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
 
         let store = NodeStorage::reopen(temp_dir());
@@ -219,7 +219,7 @@ async fn test_partial_committee_change() {
         let (tx_feedback, rx_feedback) = channel(CHANNEL_CAPACITY);
         epoch_1_tx_channels.push(tx_feedback.clone());
 
-        let initial_committee = ReconfigureNotification::NewCommittee(committee_1.clone());
+        let initial_committee = ReconfigureNotification::NewEpoch(committee_1.clone());
         let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
 
         let store = NodeStorage::reopen(temp_dir());
@@ -248,9 +248,8 @@ async fn test_partial_committee_change() {
         .values()
         .map(|authority| authority.primary.worker_to_primary.clone())
         .collect();
-    let message = WorkerPrimaryMessage::Reconfigure(ReconfigureNotification::NewCommittee(
-        committee_1.clone(),
-    ));
+    let message =
+        WorkerPrimaryMessage::Reconfigure(ReconfigureNotification::NewEpoch(committee_1.clone()));
     let mut _do_not_drop: Vec<CancelOnDropHandler<_>> = Vec::new();
     for address in addresses {
         _do_not_drop.push(
@@ -296,7 +295,7 @@ async fn test_restart_with_new_committee_change() {
         let (tx_feedback, rx_feedback) = channel(CHANNEL_CAPACITY);
         tx_channels.push(tx_feedback.clone());
 
-        let initial_committee = ReconfigureNotification::NewCommittee(committee_0.clone());
+        let initial_committee = ReconfigureNotification::NewEpoch(committee_0.clone());
         let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
 
         let store = NodeStorage::reopen(temp_dir());
@@ -367,7 +366,7 @@ async fn test_restart_with_new_committee_change() {
             let (tx_feedback, rx_feedback) = channel(CHANNEL_CAPACITY);
             tx_channels.push(tx_feedback.clone());
 
-            let initial_committee = ReconfigureNotification::NewCommittee(new_committee.clone());
+            let initial_committee = ReconfigureNotification::NewEpoch(new_committee.clone());
             let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
 
             let store = NodeStorage::reopen(temp_dir());
@@ -446,7 +445,7 @@ async fn test_simple_committee_update() {
         let (tx_feedback, rx_feedback) = channel(CHANNEL_CAPACITY);
         tx_channels.push(tx_feedback.clone());
 
-        let initial_committee = ReconfigureNotification::NewCommittee(committee_0.clone());
+        let initial_committee = ReconfigureNotification::NewEpoch(committee_0.clone());
         let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
 
         let store = NodeStorage::reopen(temp_dir());
@@ -501,7 +500,7 @@ async fn test_simple_committee_update() {
             }
         }
 
-        // Notify the old committee to change epoch.
+        // Notify the old committee about the change in committee information.
         let addresses: Vec<_> = old_committee
             .authorities
             .values()

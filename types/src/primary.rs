@@ -549,7 +549,7 @@ pub enum PrimaryMessage {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ReconfigureNotification {
     /// Indicate the committee has changed. This happens at epoch change.
-    NewCommittee(Committee),
+    NewEpoch(Committee),
     /// Update some network information of the committee.
     UpdateCommittee(Committee),
     /// Indicate a shutdown.
