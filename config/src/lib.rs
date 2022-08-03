@@ -293,14 +293,6 @@ impl Parameters {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct PrimaryAddresses {
-    /// Address to receive messages from other primaries (WAN).
-    pub primary_to_primary: Multiaddr,
-    /// Address to receive messages from our workers (LAN).
-    pub worker_to_primary: Multiaddr,
-}
-
 #[derive(Clone, Serialize, Deserialize, Eq, Hash, PartialEq, Debug)]
 pub struct WorkerInfo {
     /// Address to receive client transactions (WAN).
@@ -311,14 +303,153 @@ pub struct WorkerInfo {
     pub primary_to_worker: Multiaddr,
 }
 
+pub type SharedWorkerCache = Arc<ArcSwap<WorkerCache>>;
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct WorkerIndex(pub HashMap<WorkerId, WorkerInfo>);
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct WorkerCache {
+    /// The authority to worker index.
+    pub workers: BTreeMap<PublicKey, WorkerIndex>,
+    /// The epoch number for workers
+    pub epoch: Epoch,
+}
+
+//TODO: Test this print out
+impl std::fmt::Display for WorkerIndex {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Worker Index {:?}",
+            self.0
+                .iter()
+                .map(|(key, value)| { format!("{}:{:?}", key, value) })
+                .collect::<Vec<_>>()
+        )
+    }
+}
+
+impl std::fmt::Display for WorkerCache {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Worker Cache E{}: {:?}",
+            self.epoch(),
+            self.workers
+                .iter()
+                .map(|(k, v)| { format!("{}: {}", k.encode_base64().get(0..16).unwrap(), v) })
+                .collect::<Vec<_>>()
+        )
+    }
+}
+
+impl WorkerCache {
+    /// Returns the current epoch.
+    pub fn epoch(&self) -> Epoch {
+        self.epoch
+    }
+
+    /// Returns the addresses of a specific worker (`id`) of a specific authority (`to`).
+    pub fn worker(&self, to: &PublicKey, id: &WorkerId) -> Result<WorkerInfo, ConfigError> {
+        self.workers
+            .iter()
+            .find(|(name, _)| *name == to)
+            .map(|(_, authority)| authority)
+            .ok_or_else(|| {
+                ConfigError::NotInCommittee(ToString::to_string(&(*to).encode_base64()))
+            })?
+            .0
+            .iter()
+            .find(|(worker_id, _)| worker_id == &id)
+            .map(|(_, worker)| worker.clone())
+            .ok_or_else(|| ConfigError::NotInCommittee((*to).encode_base64()))
+    }
+
+    /// Returns the addresses of all our workers.
+    pub fn our_workers(&self, myself: &PublicKey) -> Result<Vec<WorkerInfo>, ConfigError> {
+        let res = self
+            .workers
+            .iter()
+            .find(|(name, _)| *name == myself)
+            .map(|(_, authority)| authority)
+            .ok_or_else(|| ConfigError::NotInCommittee((*myself).encode_base64()))?
+            .0
+            .values()
+            .cloned()
+            .collect();
+        Ok(res)
+    }
+
+    /// Returns the addresses of all workers with a specific id except the ones of the authority
+    /// specified by `myself`.
+    pub fn others_workers(
+        &self,
+        myself: &PublicKey,
+        id: &WorkerId,
+    ) -> Vec<(PublicKey, WorkerInfo)> {
+        self.workers
+            .iter()
+            .filter(|(name, _)| *name != myself)
+            .filter_map(|(name, authority)| {
+                authority
+                    .0
+                    .iter()
+                    .find(|(worker_id, _)| worker_id == &id)
+                    .map(|(_, addresses)| (name.deref().clone(), addresses.clone()))
+            })
+            .collect()
+    }
+
+    /// Return all the network addresses in the worker cache.
+    fn get_all_network_addresses(&self) -> HashSet<&Multiaddr> {
+        self.workers
+            .values()
+            .flat_map(|authority| {
+                authority
+                    .0
+                    .values()
+                    .map(|address| &address.transactions)
+                    .chain(
+                        authority
+                            .0
+                            .values()
+                            .map(|address| &address.worker_to_worker),
+                    )
+                    .chain(
+                        authority
+                            .0
+                            .values()
+                            .map(|address| &address.primary_to_worker),
+                    )
+            })
+            .collect()
+    }
+
+    /// Return the network addresses that are present in the current worker cache
+    /// but that are absent from the new worker cache (provided as argument).
+    pub fn network_diff<'a>(&'a self, other: &'a Self) -> HashSet<&Multiaddr> {
+        self.get_all_network_addresses()
+            .difference(&other.get_all_network_addresses())
+            .cloned()
+            .collect()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PrimaryAddresses {
+    /// Address to receive messages from other primaries (WAN).
+    pub primary_to_primary: Multiaddr,
+    /// Address to receive messages from our workers (LAN).
+    pub worker_to_primary: Multiaddr,
+}
+
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Authority {
     /// The voting power of this authority.
     pub stake: Stake,
     /// The network addresses of the primary.
     pub primary: PrimaryAddresses,
-    /// Map of workers' id and their network addresses.
-    pub workers: HashMap<WorkerId, WorkerInfo>,
 }
 
 pub type SharedCommittee = Arc<ArcSwap<Committee>>;
@@ -346,7 +477,7 @@ impl std::fmt::Display for Committee {
 }
 
 impl Committee {
-    /// Returns the number of authorities.
+    /// Returns the current epoch.
     pub fn epoch(&self) -> Epoch {
         self.epoch
     }
@@ -413,56 +544,6 @@ impl Committee {
             .collect()
     }
 
-    /// Returns the addresses of a specific worker (`id`) of a specific authority (`to`).
-    pub fn worker(&self, to: &PublicKey, id: &WorkerId) -> Result<WorkerInfo, ConfigError> {
-        self.authorities
-            .iter()
-            .find(|(name, _)| *name == to)
-            .map(|(_, authority)| authority)
-            .ok_or_else(|| {
-                ConfigError::NotInCommittee(ToString::to_string(&(*to).encode_base64()))
-            })?
-            .workers
-            .iter()
-            .find(|(worker_id, _)| worker_id == &id)
-            .map(|(_, worker)| worker.clone())
-            .ok_or_else(|| ConfigError::NotInCommittee((*to).encode_base64()))
-    }
-    /// Returns the addresses of all our workers.
-    pub fn our_workers(&self, myself: &PublicKey) -> Result<Vec<WorkerInfo>, ConfigError> {
-        let res = self
-            .authorities
-            .iter()
-            .find(|(name, _)| *name == myself)
-            .map(|(_, authority)| authority)
-            .ok_or_else(|| ConfigError::NotInCommittee((*myself).encode_base64()))?
-            .workers
-            .values()
-            .cloned()
-            .collect();
-        Ok(res)
-    }
-
-    /// Returns the addresses of all workers with a specific id except the ones of the authority
-    /// specified by `myself`.
-    pub fn others_workers(
-        &self,
-        myself: &PublicKey,
-        id: &WorkerId,
-    ) -> Vec<(PublicKey, WorkerInfo)> {
-        self.authorities
-            .iter()
-            .filter(|(name, _)| *name != myself)
-            .filter_map(|(name, authority)| {
-                authority
-                    .workers
-                    .iter()
-                    .find(|(worker_id, _)| worker_id == &id)
-                    .map(|(_, addresses)| (name.deref().clone(), addresses.clone()))
-            })
-            .collect()
-    }
-
     /// Return all the network addresses in the committee.
     fn get_all_network_addresses(&self) -> HashSet<&Multiaddr> {
         self.authorities
@@ -470,24 +551,6 @@ impl Committee {
             .flat_map(|authority| {
                 std::iter::once(&authority.primary.primary_to_primary)
                     .chain(std::iter::once(&authority.primary.worker_to_primary))
-                    .chain(
-                        authority
-                            .workers
-                            .values()
-                            .map(|address| &address.transactions),
-                    )
-                    .chain(
-                        authority
-                            .workers
-                            .values()
-                            .map(|address| &address.worker_to_worker),
-                    )
-                    .chain(
-                        authority
-                            .workers
-                            .values()
-                            .map(|address| &address.primary_to_worker),
-                    )
             })
             .collect()
     }

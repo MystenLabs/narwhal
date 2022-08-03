@@ -4,7 +4,7 @@
 use super::*;
 use fastcrypto::traits::KeyPair;
 use prometheus::Registry;
-use test_utils::{committee, keys};
+use test_utils::{committee, keys, worker_cache};
 
 #[tokio::test]
 async fn propose_empty() {
@@ -39,7 +39,8 @@ async fn propose_empty() {
     let header = rx_headers.recv().await.unwrap();
     assert_eq!(header.round, 1);
     assert!(header.payload.is_empty());
-    assert!(header.verify(&committee(None)).is_ok());
+    // TODO check if the same keys should be used here
+    assert!(header.verify(&committee(None), &worker_cache(None)).is_ok());
 }
 
 #[tokio::test]
@@ -84,5 +85,5 @@ async fn propose_payload() {
     let header = rx_headers.recv().await.unwrap();
     assert_eq!(header.round, 1);
     assert_eq!(header.payload.get(&digest), Some(&worker_id));
-    assert!(header.verify(&committee(None)).is_ok());
+    assert!(header.verify(&committee(None), &worker_cache(None)).is_ok());
 }

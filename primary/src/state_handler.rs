@@ -2,7 +2,7 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use crate::primary::PrimaryWorkerMessage;
-use config::SharedCommittee;
+use config::{SharedCommittee, SharedWorkerCache};
 use crypto::PublicKey;
 use network::{PrimaryToWorkerNetwork, UnreliableNetwork};
 use std::sync::Arc;
@@ -16,6 +16,8 @@ pub struct StateHandler {
     name: PublicKey,
     /// The committee information.
     committee: SharedCommittee,
+    /// The worker information cache.
+    worker_cache: SharedWorkerCache,
     /// Receives the ordered certificates from consensus.
     rx_consensus: Receiver<Certificate>,
     /// Signals a new consensus round
@@ -35,6 +37,7 @@ impl StateHandler {
     pub fn spawn(
         name: PublicKey,
         committee: SharedCommittee,
+        worker_cache: SharedWorkerCache,
         rx_consensus: Receiver<Certificate>,
         tx_consensus_round_updates: watch::Sender<u64>,
         rx_reconfigure: Receiver<ReconfigureNotification>,
@@ -44,6 +47,7 @@ impl StateHandler {
             Self {
                 name,
                 committee,
+                worker_cache,
                 rx_consensus,
                 tx_consensus_round_updates,
                 rx_reconfigure,
@@ -68,10 +72,10 @@ impl StateHandler {
 
             // Trigger cleanup on the workers..
             let addresses = self
-                .committee
+                .worker_cache
                 .load()
                 .our_workers(&self.name)
-                .expect("Our public key or worker id is not in the committee")
+                .expect("Our public key or worker id is not in the worker cache")
                 .into_iter()
                 .map(|x| x.primary_to_worker)
                 .collect();

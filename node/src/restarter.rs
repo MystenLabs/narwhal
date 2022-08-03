@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use crate::{Node, NodeStorage};
 use arc_swap::ArcSwap;
-use config::{Committee, Parameters};
+use config::{Committee, Parameters, WorkerCache};
 use crypto::KeyPair;
 use executor::BatchExecutionState;
 use fastcrypto::traits::KeyPair as _;
@@ -21,6 +21,7 @@ impl NodeRestarter {
     pub async fn watch<State>(
         keypair: KeyPair,
         committee: &Committee,
+        worker_cache: &WorkerCache,
         storage_base_path: PathBuf,
         execution_state: Arc<State>,
         parameters: Parameters,
@@ -33,6 +34,7 @@ impl NodeRestarter {
         let mut keypair = keypair;
         let mut name = keypair.public().clone();
         let mut committee = committee.clone();
+        let worker_cache = worker_cache.clone();
 
         let mut handles = Vec::new();
         let mut primary_network = WorkerToPrimaryNetwork::default();
@@ -51,6 +53,7 @@ impl NodeRestarter {
             let primary_handles = Node::spawn_primary(
                 keypair,
                 Arc::new(ArcSwap::new(Arc::new(committee.clone()))),
+                Arc::new(ArcSwap::new(Arc::new(worker_cache.clone()))),
                 &store,
                 parameters.clone(),
                 /* consensus */ true,
@@ -64,6 +67,7 @@ impl NodeRestarter {
                 name.clone(),
                 /* worker_ids */ vec![0],
                 Arc::new(ArcSwap::new(Arc::new(committee.clone()))),
+                Arc::new(ArcSwap::new(Arc::new(worker_cache.clone()))),
                 &store,
                 parameters.clone(),
                 registry,
@@ -87,9 +91,9 @@ impl NodeRestarter {
             let message = WorkerPrimaryMessage::Reconfigure(ReconfigureNotification::Shutdown);
             let primary_cancel_handle = primary_network.send(address, &message).await;
 
-            let addresses = committee
+            let addresses = worker_cache
                 .our_workers(&name)
-                .expect("Our key is not in the committee")
+                .expect("Our key is not in the worker cache")
                 .into_iter()
                 .map(|x| x.primary_to_worker)
                 .collect();
@@ -121,6 +125,7 @@ impl NodeRestarter {
             keypair = new_keypair;
             name = keypair.public().clone();
             committee = new_committee;
+            // TODO update new_worker
         }
     }
 }

@@ -30,6 +30,8 @@ use std::{fs::File, io::Write};
 use tempfile::tempdir;
 use test_utils::make_authority_with_port_getter;
 
+// TODO if we want to keep workers.json should add test here?
+
 #[test]
 fn leader_election_rotates_through_all() {
     // this committee has equi-sized stakes
