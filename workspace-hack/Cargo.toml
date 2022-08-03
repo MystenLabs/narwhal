@@ -139,7 +139,7 @@ hyper = { version = "0.14", features = ["client", "full", "h2", "http1", "http2"
 hyper-timeout = { version = "0.4", default-features = false }
 idna = { version = "0.2", default-features = false }
 indenter = { version = "0.3" }
-indexmap = { version = "1", default-features = false, features = ["std"] }
+indexmap = { version = "1", default-features = false, features = ["serde", "std"] }
 insta = { version = "1", features = ["colors", "console"] }
 instant = { version = "0.1", default-features = false }
 integer-encoding = { version = "3", default-features = false }
@@ -352,7 +352,7 @@ heck-468e82937335b1c9 = { package = "heck", version = "0.3", default-features = 
 heck-9fbad63c4bcf4a8f = { package = "heck", version = "0.4" }
 hex-literal = { version = "0.3", default-features = false }
 ident_case = { version = "1", default-features = false }
-indexmap = { version = "1", default-features = false, features = ["std"] }
+indexmap = { version = "1", default-features = false, features = ["serde", "std"] }
 itertools = { version = "0.10", features = ["use_alloc", "use_std"] }
 jobserver = { version = "0.1", default-features = false }
 lazy_static = { version = "1", default-features = false }
