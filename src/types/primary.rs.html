@@ -659,6 +659,8 @@
 <span id="659">659</span>
 <span id="660">660</span>
 <span id="661">661</span>
+<span id="662">662</span>
+<span id="663">663</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -675,10 +677,11 @@
 };
 <span class="kw">use</span> <span class="ident">dag::node_dag::Affiliated</span>;
 <span class="kw">use</span> <span class="ident">derive_builder::Builder</span>;
+<span class="kw">use</span> <span class="ident">indexmap::IndexMap</span>;
 <span class="kw">use</span> <span class="ident">proptest_derive::Arbitrary</span>;
 <span class="kw">use</span> <span class="ident">serde</span>::{<span class="ident">Deserialize</span>, <span class="ident">Serialize</span>};
 <span class="kw">use</span> <span class="ident">std</span>::{
-    <span class="ident">collections</span>::{<span class="ident">BTreeMap</span>, <span class="ident">BTreeSet</span>, <span class="ident">HashMap</span>, <span class="ident">HashSet</span>},
+    <span class="ident">collections</span>::{<span class="ident">BTreeSet</span>, <span class="ident">HashMap</span>, <span class="ident">HashSet</span>},
     <span class="ident">fmt</span>,
     <span class="ident">fmt::Formatter</span>,
 };
@@ -733,7 +736,8 @@
     <span class="kw">pub</span> <span class="ident">author</span>: <span class="ident">PublicKey</span>,
     <span class="kw">pub</span> <span class="ident">round</span>: <span class="ident">Round</span>,
     <span class="kw">pub</span> <span class="ident">epoch</span>: <span class="ident">Epoch</span>,
-    <span class="kw">pub</span> <span class="ident">payload</span>: <span class="ident">BTreeMap</span><span class="op">&lt;</span><span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span><span class="op">&gt;</span>,
+    <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">with</span> <span class="op">=</span> <span class="string">&quot;indexmap::serde_seq&quot;</span>)]</span>
+    <span class="kw">pub</span> <span class="ident">payload</span>: <span class="ident">IndexMap</span><span class="op">&lt;</span><span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span><span class="op">&gt;</span>,
     <span class="kw">pub</span> <span class="ident">parents</span>: <span class="ident">BTreeSet</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span><span class="op">&gt;</span>,
     <span class="kw">pub</span> <span class="ident">id</span>: <span class="ident">HeaderDigest</span>,
     <span class="kw">pub</span> <span class="ident">signature</span>: <span class="ident">Signature</span>,
@@ -764,7 +768,7 @@
     <span class="comment">// helper method to set directly values to the payload</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">with_payload_batch</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">batch</span>: <span class="ident">Batch</span>, <span class="ident">worker_id</span>: <span class="ident">WorkerId</span>) -&gt; <span class="self">Self</span> {
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">payload</span>.<span class="ident">is_none</span>() {
-            <span class="self">self</span>.<span class="ident">payload</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">BTreeMap::new</span>());
+            <span class="self">self</span>.<span class="ident">payload</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">Default::default</span>());
         }
         <span class="kw">let</span> <span class="ident">payload</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">payload</span>.<span class="ident">as_mut</span>().<span class="ident">unwrap</span>();
 
@@ -779,7 +783,7 @@
         <span class="ident">author</span>: <span class="ident">PublicKey</span>,
         <span class="ident">round</span>: <span class="ident">Round</span>,
         <span class="ident">epoch</span>: <span class="ident">Epoch</span>,
-        <span class="ident">payload</span>: <span class="ident">BTreeMap</span><span class="op">&lt;</span><span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span><span class="op">&gt;</span>,
+        <span class="ident">payload</span>: <span class="ident">IndexMap</span><span class="op">&lt;</span><span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span><span class="op">&gt;</span>,
         <span class="ident">parents</span>: <span class="ident">BTreeSet</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span><span class="op">&gt;</span>,
         <span class="ident">signature_service</span>: <span class="kw-2">&amp;mut</span> <span class="ident">SignatureService</span><span class="op">&lt;</span><span class="ident">Signature</span><span class="op">&gt;</span>,
     ) -&gt; <span class="self">Self</span> {
