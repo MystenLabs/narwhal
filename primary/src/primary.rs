@@ -37,7 +37,7 @@ use tokio::{
     task::JoinHandle,
 };
 use tonic::{Request, Response, Status};
-use tracing::{info, log::error};
+use tracing::{debug, info, log::error};
 use types::{
     error::DagError, BatchDigest, BatchMessage, BincodeEncodedPayload, Certificate,
     CertificateDigest, Empty, Header, HeaderDigest, PrimaryToPrimary, PrimaryToPrimaryServer,
@@ -158,7 +158,7 @@ impl Primary {
                             }
                         },
 
-                        // Check whether the committee changed.
+                    // Check whether the committee changed.
                     result = mon_rx_reconfigure.changed() => {
                         result.expect("Committee channel dropped");
                         let message = mon_rx_reconfigure.borrow().clone();
@@ -517,6 +517,7 @@ impl PrimaryReceiverHandler {
         tokio::spawn(async move {
             let mut config = mysten_network::config::Config::new();
             config.concurrency_limit_per_connection = Some(max_concurrent_requests);
+            debug!("PrimaryReceiverHandler is starting.");
             tokio::select! {
                 _result = config
                     .server_builder_with_metrics(primary_endpoint_metrics)
@@ -621,6 +622,7 @@ impl WorkerReceiverHandler {
         rx_reconfigure: watch::Receiver<ReconfigureNotification>,
     ) -> JoinHandle<()> {
         tokio::spawn(async move {
+            debug!("WorkerReceiverHandler is starting.");
             tokio::select! {
                 _result = mysten_network::config::Config::default()
                     .server_builder()

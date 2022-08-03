@@ -171,6 +171,7 @@ impl HeaderWaiter {
         let timer = sleep(Duration::from_millis(TIMER_RESOLUTION));
         tokio::pin!(timer);
 
+        debug!("HeaderWaiter on {} is starting.", self.name);
         loop {
             let mut attempt_garbage_collection = false;
 

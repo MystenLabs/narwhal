@@ -246,6 +246,7 @@ impl BlockSynchronizer {
         // processing.
         let mut waiting = FuturesUnordered::new();
 
+        debug!("BlockSynchronizer on {} is starting.", self.name);
         loop {
             tokio::select! {
                 Some(command) = self.rx_commands.recv() => {

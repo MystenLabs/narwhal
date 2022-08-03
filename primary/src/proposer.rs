@@ -209,6 +209,7 @@ impl Proposer {
         let timer = sleep(self.max_header_delay);
         tokio::pin!(timer);
 
+        debug!("Proposer on {} is starting.", self.name);
         loop {
             // Check if we can propose a new header. We propose a new header when we have a quorum of parents
             // and one of the following conditions is met:

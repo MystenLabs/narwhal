@@ -264,6 +264,7 @@ impl BlockRemover {
     async fn run(&mut self) {
         let mut waiting = FuturesUnordered::new();
 
+        debug!("BlockRemover on {} is starting.", self.name);
         loop {
             tokio::select! {
                 Some(command) = self.rx_commands.recv() => {

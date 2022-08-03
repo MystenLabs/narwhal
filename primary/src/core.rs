@@ -546,6 +546,7 @@ impl Core {
 
     // Main loop listening to incoming messages.
     pub async fn run(&mut self) {
+        debug!("Core on {} is starting.", self.name);
         loop {
             let result = tokio::select! {
                 // We receive here messages from other primaries.

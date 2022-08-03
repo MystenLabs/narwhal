@@ -10,6 +10,7 @@ use tokio::{
     sync::{mpsc::Receiver, watch},
     task::JoinHandle,
 };
+use tracing::debug;
 use types::{Certificate, ReconfigureNotification, Round};
 
 /// Receives the highest round reached by consensus and update it for all tasks.
@@ -85,6 +86,7 @@ impl StateHandler {
     }
 
     async fn run(&mut self) {
+        debug!("StateHandler on {} is starting.", self.name);
         loop {
             tokio::select! {
                 Some(certificate) = self.rx_consensus.recv() => {

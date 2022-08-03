@@ -282,6 +282,7 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> BlockWaiter<Synchroni
         let mut waiting_get_block = FuturesUnordered::new();
         let mut waiting_get_blocks = FuturesUnordered::new();
 
+        debug!("BlockWaiter on {} is starting.", self.name);
         loop {
             tokio::select! {
                 Some(command) = self.rx_commands.recv() => {
