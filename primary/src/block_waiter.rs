@@ -158,7 +158,7 @@ type RequestKey = Vec<u8>;
 ///
 ///     let name = Ed25519PublicKey::default();
 ///     let committee = Committee{ epoch: 0, authorities: BTreeMap::new() };
-///     let (_tx_reconfigure, rx_reconfigure) = watch::channel(ReconfigureNotification::NewCommittee(committee.clone()));
+///     let (_tx_reconfigure, rx_reconfigure) = watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));
 ///
 ///     // A dummy certificate
 ///     let certificate = Certificate::default();

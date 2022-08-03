@@ -122,7 +122,7 @@ pub struct DeleteBatchMessage {
 ///
 ///     let name = Ed25519PublicKey::default();
 ///     let committee = Committee{ epoch: 0, authorities: BTreeMap::new() };
-///     let (_tx_reconfigure, rx_reconfigure) = watch::channel(ReconfigureNotification::NewCommittee(committee.clone()));
+///     let (_tx_reconfigure, rx_reconfigure) = watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));
 ///     let consensus_metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
 ///     // A dag with genesis for the committee
 ///     let (tx_new_certificates, rx_new_certificates) = channel(1);
