@@ -23,7 +23,7 @@ async fn process_header() {
     let committee = committee(None);
 
     let (_tx_reconfigure, rx_reconfigure) =
-        watch::channel(ReconfigureNotification::NewCommittee(committee.clone()));
+        watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));
     let (tx_sync_headers, _rx_sync_headers) = channel(1);
     let (tx_sync_certificates, _rx_sync_certificates) = channel(1);
     let (tx_primary_messages, rx_primary_messages) = channel(1);
@@ -32,6 +32,7 @@ async fn process_header() {
     let (_tx_headers, rx_headers) = channel(1);
     let (tx_consensus, _rx_consensus) = channel(1);
     let (tx_parents, _rx_parents) = channel(1);
+    let (_tx_consensus_round_updates, rx_consensus_round_updates) = watch::channel(0u64);
 
     // Create test stores.
     let (header_store, certificates_store, payload_store) = create_db_stores();
@@ -67,7 +68,7 @@ async fn process_header() {
         certificates_store.clone(),
         synchronizer,
         signature_service,
-        /* consensus_round */ Arc::new(AtomicU64::new(0)),
+        rx_consensus_round_updates,
         /* gc_depth */ 50,
         rx_reconfigure,
         /* rx_primaries */ rx_primary_messages,
@@ -112,8 +113,7 @@ async fn process_header_missing_parent() {
     let name = kp.public().clone();
     let signature_service = SignatureService::new(kp);
 
-    let (_, rx_reconfigure) =
-        watch::channel(ReconfigureNotification::NewCommittee(committee(None)));
+    let (_, rx_reconfigure) = watch::channel(ReconfigureNotification::NewEpoch(committee(None)));
     let (tx_sync_headers, _rx_sync_headers) = channel(1);
     let (tx_sync_certificates, _rx_sync_certificates) = channel(1);
     let (tx_primary_messages, rx_primary_messages) = channel(1);
@@ -122,6 +122,7 @@ async fn process_header_missing_parent() {
     let (_tx_headers, rx_headers) = channel(1);
     let (tx_consensus, _rx_consensus) = channel(1);
     let (tx_parents, _rx_parents) = channel(1);
+    let (_tx_consensus_round_updates, rx_consensus_round_updates) = watch::channel(0u64);
 
     // Create test stores.
     let (header_store, certificates_store, payload_store) = create_db_stores();
@@ -147,7 +148,7 @@ async fn process_header_missing_parent() {
         certificates_store.clone(),
         synchronizer,
         signature_service,
-        /* consensus_round */ Arc::new(AtomicU64::new(0)),
+        rx_consensus_round_updates,
         /* gc_depth */ 50,
         rx_reconfigure,
         /* rx_primaries */ rx_primary_messages,
@@ -188,8 +189,7 @@ async fn process_header_missing_payload() {
     let name = kp.public().clone();
     let signature_service = SignatureService::new(kp);
 
-    let (_, rx_reconfigure) =
-        watch::channel(ReconfigureNotification::NewCommittee(committee(None)));
+    let (_, rx_reconfigure) = watch::channel(ReconfigureNotification::NewEpoch(committee(None)));
     let (tx_sync_headers, _rx_sync_headers) = channel(1);
     let (tx_sync_certificates, _rx_sync_certificates) = channel(1);
     let (tx_primary_messages, rx_primary_messages) = channel(1);
@@ -198,6 +198,7 @@ async fn process_header_missing_payload() {
     let (_tx_headers, rx_headers) = channel(1);
     let (tx_consensus, _rx_consensus) = channel(1);
     let (tx_parents, _rx_parents) = channel(1);
+    let (_tx_consensus_round_updates, rx_consensus_round_updates) = watch::channel(0u64);
 
     // Create test stores.
     let (header_store, certificates_store, payload_store) = create_db_stores();
@@ -223,7 +224,7 @@ async fn process_header_missing_payload() {
         certificates_store.clone(),
         synchronizer,
         signature_service,
-        /* consensus_round */ Arc::new(AtomicU64::new(0)),
+        rx_consensus_round_updates,
         /* gc_depth */ 50,
         rx_reconfigure,
         /* rx_primaries */ rx_primary_messages,
@@ -277,7 +278,7 @@ async fn process_votes() {
     let committee = committee(None);
 
     let (_tx_reconfigure, rx_reconfigure) =
-        watch::channel(ReconfigureNotification::NewCommittee(committee.clone()));
+        watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));
     let (tx_sync_headers, _rx_sync_headers) = channel(1);
     let (tx_sync_certificates, _rx_sync_certificates) = channel(1);
     let (tx_primary_messages, rx_primary_messages) = channel(1);
@@ -286,6 +287,7 @@ async fn process_votes() {
     let (_tx_headers, rx_headers) = channel(1);
     let (tx_consensus, _rx_consensus) = channel(1);
     let (tx_parents, _rx_parents) = channel(1);
+    let (_tx_consensus_round_updates, rx_consensus_round_updates) = watch::channel(0u64);
 
     // Create test stores.
     let (header_store, certificates_store, payload_store) = create_db_stores();
@@ -311,7 +313,7 @@ async fn process_votes() {
         certificates_store.clone(),
         synchronizer,
         signature_service,
-        /* consensus_round */ Arc::new(AtomicU64::new(0)),
+        rx_consensus_round_updates,
         /* gc_depth */ 50,
         rx_reconfigure,
         /* rx_primaries */ rx_primary_messages,
@@ -370,7 +372,7 @@ async fn process_certificates() {
     let signature_service = SignatureService::new(kp);
 
     let (_tx_reconfigure, rx_reconfigure) =
-        watch::channel(ReconfigureNotification::NewCommittee(committee(None)));
+        watch::channel(ReconfigureNotification::NewEpoch(committee(None)));
     let (tx_sync_headers, _rx_sync_headers) = channel(1);
     let (tx_sync_certificates, _rx_sync_certificates) = channel(1);
     let (tx_primary_messages, rx_primary_messages) = channel(3);
@@ -379,6 +381,7 @@ async fn process_certificates() {
     let (_tx_headers, rx_headers) = channel(1);
     let (tx_consensus, mut rx_consensus) = channel(3);
     let (tx_parents, mut rx_parents) = channel(1);
+    let (_tx_consensus_round_updates, rx_consensus_round_updates) = watch::channel(0u64);
 
     // Create test stores.
     let (header_store, certificates_store, payload_store) = create_db_stores();
@@ -404,7 +407,7 @@ async fn process_certificates() {
         certificates_store.clone(),
         synchronizer,
         signature_service,
-        /* consensus_round */ Arc::new(AtomicU64::new(0)),
+        rx_consensus_round_updates,
         /* gc_depth */ 50,
         rx_reconfigure,
         /* rx_primaries */ rx_primary_messages,
@@ -476,7 +479,7 @@ async fn shutdown_core() {
     let committee = committee(None);
 
     let (tx_reconfigure, rx_reconfigure) =
-        watch::channel(ReconfigureNotification::NewCommittee(committee.clone()));
+        watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));
     let (tx_sync_headers, _rx_sync_headers) = channel(1);
     let (tx_sync_certificates, _rx_sync_certificates) = channel(1);
     let (_tx_primary_messages, rx_primary_messages) = channel(1);
@@ -485,6 +488,7 @@ async fn shutdown_core() {
     let (_tx_headers, rx_headers) = channel(1);
     let (tx_consensus, _rx_consensus) = channel(1);
     let (tx_parents, _rx_parents) = channel(1);
+    let (_tx_consensus_round_updates, rx_consensus_round_updates) = watch::channel(0u64);
 
     // Create test stores.
     let (header_store, certificates_store, payload_store) = create_db_stores();
@@ -508,7 +512,7 @@ async fn shutdown_core() {
         certificates_store,
         synchronizer,
         signature_service,
-        /* consensus_round */ Arc::new(AtomicU64::new(0)),
+        rx_consensus_round_updates,
         /* gc_depth */ 50,
         rx_reconfigure,
         /* rx_primaries */ rx_primary_messages,
@@ -542,7 +546,7 @@ async fn reconfigure_core() {
 
     // All the channels to interface with the core.
     let (tx_reconfigure, rx_reconfigure) =
-        watch::channel(ReconfigureNotification::NewCommittee(committee.clone()));
+        watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));
     let (tx_sync_headers, _rx_sync_headers) = channel(1);
     let (tx_sync_certificates, _rx_sync_certificates) = channel(1);
     let (tx_primary_messages, rx_primary_messages) = channel(1);
@@ -551,6 +555,7 @@ async fn reconfigure_core() {
     let (_tx_headers, rx_headers) = channel(1);
     let (tx_consensus, _rx_consensus) = channel(1);
     let (tx_parents, _rx_parents) = channel(1);
+    let (_tx_consensus_round_updates, rx_consensus_round_updates) = watch::channel(0u64);
 
     // Create test stores.
     let (header_store, certificates_store, payload_store) = create_db_stores();
@@ -585,7 +590,7 @@ async fn reconfigure_core() {
         certificates_store.clone(),
         synchronizer,
         signature_service,
-        /* consensus_round */ Arc::new(AtomicU64::new(0)),
+        rx_consensus_round_updates,
         /* gc_depth */ 50,
         rx_reconfigure,
         /* rx_primaries */ rx_primary_messages,
@@ -599,7 +604,7 @@ async fn reconfigure_core() {
     );
 
     // Change committee
-    let message = ReconfigureNotification::NewCommittee(new_committee.clone());
+    let message = ReconfigureNotification::NewEpoch(new_committee.clone());
     tx_reconfigure.send(message).unwrap();
 
     // Send a header to the core.

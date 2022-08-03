@@ -25,7 +25,7 @@ use types::{
     Batch, BatchDigest, Certificate, CertificateDigest, CertificateDigestProto,
     CollectionRetrievalResult, Empty, GetCollectionsRequest, Header, HeaderDigest,
     ReadCausalRequest, ReconfigureNotification, RemoveCollectionsRequest, RetrievalResult,
-    SerializedBatchMessage, ValidatorClient,
+    SerializedBatchMessage, Transaction, ValidatorClient,
 };
 use worker::{
     metrics::{Metrics, WorkerEndpointMetrics, WorkerMetrics},
@@ -101,7 +101,7 @@ async fn test_get_collections() {
 
     let (tx_new_certificates, rx_new_certificates) = channel(CHANNEL_CAPACITY);
     let (tx_feedback, rx_feedback) = channel(CHANNEL_CAPACITY);
-    let initial_committee = ReconfigureNotification::NewCommittee(committee.clone());
+    let initial_committee = ReconfigureNotification::NewEpoch(committee.clone());
     let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
     let consensus_metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
 
@@ -157,7 +157,7 @@ async fn test_get_collections() {
 
     assert!(status
         .message()
-        .contains("Attemped fetch of no collections!"));
+        .contains("Attempted fetch of no collections!"));
 
     // Test get 1 collection
     let request = tonic::Request::new(GetCollectionsRequest {
@@ -170,7 +170,7 @@ async fn test_get_collections() {
 
     assert!(matches!(
         actual_result[0].retrieval_result,
-        Some(types::RetrievalResult::Batch(_))
+        Some(types::RetrievalResult::Collection(_))
     ));
 
     // Test get 5 collections
@@ -188,7 +188,10 @@ async fn test_get_collections() {
         4,
         actual_result
             .iter()
-            .filter(|&r| matches!(r.retrieval_result, Some(types::RetrievalResult::Batch(_))))
+            .filter(|&r| matches!(
+                r.retrieval_result,
+                Some(types::RetrievalResult::Collection(_))
+            ))
             .count()
     );
 
@@ -284,7 +287,7 @@ async fn test_remove_collections() {
     }
 
     let (tx_feedback, rx_feedback) = channel(CHANNEL_CAPACITY);
-    let initial_committee = ReconfigureNotification::NewCommittee(committee.clone());
+    let initial_committee = ReconfigureNotification::NewEpoch(committee.clone());
     let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
 
     Primary::spawn(
@@ -358,7 +361,7 @@ async fn test_remove_collections() {
 
     assert!(status
         .message()
-        .contains("Attemped to remove no collections!"));
+        .contains("Attempted to remove no collections!"));
 
     // Test remove 1 collection
     let request = tonic::Request::new(RemoveCollectionsRequest {
@@ -487,7 +490,7 @@ async fn test_read_causal_signed_certificates() {
 
     let (tx_feedback, rx_feedback) = channel(CHANNEL_CAPACITY);
 
-    let initial_committee = ReconfigureNotification::NewCommittee(committee.clone());
+    let initial_committee = ReconfigureNotification::NewEpoch(committee.clone());
     let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
 
     let primary_1_parameters = Parameters {
@@ -518,7 +521,7 @@ async fn test_read_causal_signed_certificates() {
     let (tx_new_certificates_2, rx_new_certificates_2) = channel(CHANNEL_CAPACITY);
     let (tx_feedback_2, rx_feedback_2) = channel(CHANNEL_CAPACITY);
 
-    let initial_committee = ReconfigureNotification::NewCommittee(committee.clone());
+    let initial_committee = ReconfigureNotification::NewEpoch(committee.clone());
     let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
 
     let primary_2_parameters = Parameters {
@@ -693,7 +696,7 @@ async fn test_read_causal_unsigned_certificates() {
 
     let (tx_feedback, rx_feedback) = channel(CHANNEL_CAPACITY);
 
-    let initial_committee = ReconfigureNotification::NewCommittee(committee.clone());
+    let initial_committee = ReconfigureNotification::NewEpoch(committee.clone());
     let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
 
     // Spawn Primary 1 that we will be interacting with.
@@ -716,7 +719,7 @@ async fn test_read_causal_unsigned_certificates() {
 
     let (tx_new_certificates_2, rx_new_certificates_2) = channel(CHANNEL_CAPACITY);
     let (tx_feedback_2, rx_feedback_2) = channel(CHANNEL_CAPACITY);
-    let initial_committee = ReconfigureNotification::NewCommittee(committee.clone());
+    let initial_committee = ReconfigureNotification::NewEpoch(committee.clone());
     let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
     let consensus_metrics_2 = Arc::new(ConsensusMetrics::new(&Registry::new()));
 
@@ -849,15 +852,15 @@ async fn test_get_collections_with_missing_certificates() {
 
     // AND keep a map of batches and payload
     let mut batches_map = HashMap::new();
-    batches_map.insert(batch_1.digest(), batch_1);
-    batches_map.insert(batch_2.digest(), batch_2);
+    batches_map.insert(certificate_1.digest(), batch_1);
+    batches_map.insert(certificate_2.digest(), batch_2);
 
     let block_ids = vec![certificate_1.digest(), certificate_2.digest()];
 
     // Spawn the primary 1 (which will be the one that we'll interact with)
     let (tx_new_certificates_1, rx_new_certificates_1) = channel(CHANNEL_CAPACITY);
     let (tx_feedback_1, rx_feedback_1) = channel(CHANNEL_CAPACITY);
-    let initial_committee = ReconfigureNotification::NewCommittee(committee.clone());
+    let initial_committee = ReconfigureNotification::NewEpoch(committee.clone());
     let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
     let consensus_metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
 
@@ -901,7 +904,7 @@ async fn test_get_collections_with_missing_certificates() {
     // Spawn the primary 2 - a peer to fetch missing certificates from
     let (tx_new_certificates_2, _) = channel(CHANNEL_CAPACITY);
     let (tx_feedback_2, rx_feedback_2) = channel(CHANNEL_CAPACITY);
-    let initial_committee = ReconfigureNotification::NewCommittee(committee.clone());
+    let initial_committee = ReconfigureNotification::NewEpoch(committee.clone());
     let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
 
     Primary::spawn(
@@ -961,18 +964,28 @@ async fn test_get_collections_with_missing_certificates() {
         2,
         actual_result
             .iter()
-            .filter(|&r| matches!(r.retrieval_result, Some(types::RetrievalResult::Batch(_))))
+            .filter(|&r| matches!(
+                r.retrieval_result,
+                Some(types::RetrievalResult::Collection(_))
+            ))
             .count()
     );
 
     for result in actual_result {
         match result.retrieval_result.unwrap() {
-            RetrievalResult::Batch(batch) => {
-                let id: BatchDigest = batch.id.unwrap().into();
-                let result_batch: Batch = batch.transactions.unwrap().into();
+            RetrievalResult::Collection(collection) => {
+                let id: CertificateDigest = collection.id.unwrap().try_into().unwrap();
+                let result_transactions: Vec<Transaction> = collection
+                    .transactions
+                    .into_iter()
+                    .map(Into::into)
+                    .collect::<Vec<Transaction>>();
 
                 if let Some(expected_batch) = batches_map.get(&id) {
-                    assert_eq!(result_batch, *expected_batch, "Batch payload doesn't match");
+                    assert_eq!(
+                        result_transactions, *expected_batch.0,
+                        "Batch payload doesn't match"
+                    );
                 } else {
                     panic!("Unexpected batch!");
                 }
