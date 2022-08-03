@@ -727,6 +727,7 @@ dependencies = [
  "dag",
  "ed25519-dalek",
  "futures",
+ "indexmap",
  "match_opt",
  "pprof",
  "prometheus",
@@ -1336,6 +1337,7 @@ dependencies = [
  "consensus",
  "crypto",
  "futures",
+ "indexmap",
  "multiaddr",
  "mysten-network 0.1.0 (git+https://github.com/mystenlabs/mysten-infra.git?rev=123c9e40b529315e1c1d91a54fb717111c3e349c)",
  "primary",
@@ -2745,6 +2747,7 @@ dependencies = [
  "ed25519-dalek",
  "executor",
  "futures",
+ "indexmap",
  "itertools",
  "mockall",
  "multiaddr",
@@ -3329,9 +3332,9 @@ dependencies = [
 
 [[package]]
 name = "serde"
-version = "1.0.141"
+version = "1.0.142"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7af873f2c95b99fcb0bd0fe622a43e29514658873c8ceba88c4cb88833a22500"
+checksum = "e590c437916fb6b221e1d00df6e3294f3fccd70ca7e92541c475d6ed6ef5fee2"
 dependencies = [
  "serde_derive",
 ]
@@ -3368,9 +3371,9 @@ dependencies = [
 
 [[package]]
 name = "serde_derive"
-version = "1.0.141"
+version = "1.0.142"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75743a150d003dd863b51dc809bcad0d73f2102c53632f1e954e738192a3413f"
+checksum = "34b5b8d809babe02f538c2cfec6f2c1ed10804c0e5a6a041a049a4f5588ccc2e"
 dependencies = [
  "proc-macro2 1.0.40",
  "quote 1.0.20",
@@ -3780,6 +3783,7 @@ dependencies = [
  "ed25519-dalek",
  "executor",
  "futures",
+ "indexmap",
  "multiaddr",
  "mysten-network 0.1.0 (git+https://github.com/mystenlabs/mysten-infra.git?rev=123c9e40b529315e1c1d91a54fb717111c3e349c)",
  "node",
@@ -4313,6 +4317,7 @@ dependencies = [
  "derive_builder",
  "ed25519-dalek",
  "hex",
+ "indexmap",
  "proptest",
  "proptest-derive",
  "prost",
