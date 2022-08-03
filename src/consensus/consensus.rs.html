@@ -346,6 +346,13 @@
 <span id="346">346</span>
 <span id="347">347</span>
 <span id="348">348</span>
+<span id="349">349</span>
+<span id="350">350</span>
+<span id="351">351</span>
+<span id="352">352</span>
+<span id="353">353</span>
+<span id="354">354</span>
+<span id="355">355</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -592,10 +599,9 @@
         })
     }
 
-    <span class="kw">fn</span> <span class="ident">reconfigure</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">new_committee</span>: <span class="ident">Committee</span>) -&gt; <span class="ident">StoreResult</span><span class="op">&lt;</span><span class="ident">ConsensusState</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">change_epoch</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">new_committee</span>: <span class="ident">Committee</span>) -&gt; <span class="ident">StoreResult</span><span class="op">&lt;</span><span class="ident">ConsensusState</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">committee</span> <span class="op">=</span> <span class="ident">new_committee</span>.<span class="ident">clone</span>();
         <span class="self">self</span>.<span class="ident">protocol</span>.<span class="ident">update_committee</span>(<span class="ident">new_committee</span>)<span class="question-mark">?</span>;
-        <span class="macro">tracing::debug!</span>(<span class="string">&quot;Committee updated to {}&quot;</span>, <span class="self">self</span>.<span class="ident">committee</span>);
 
         <span class="self">self</span>.<span class="ident">consensus_index</span> <span class="op">=</span> <span class="number">0</span>;
 
@@ -630,11 +636,15 @@
                         <span class="ident">Ordering::Greater</span> =&gt; {
                             <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">rx_reconfigure</span>.<span class="ident">borrow_and_update</span>().<span class="ident">clone</span>();
                             <span class="kw">match</span> <span class="ident">message</span>  {
-                                <span class="ident">ReconfigureNotification::NewCommittee</span>(<span class="ident">new_committee</span>) =&gt; {
-                                    <span class="ident">state</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">reconfigure</span>(<span class="ident">new_committee</span>)<span class="question-mark">?</span>;
+                                <span class="ident">ReconfigureNotification::NewEpoch</span>(<span class="ident">new_committee</span>) =&gt; {
+                                    <span class="ident">state</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">change_epoch</span>(<span class="ident">new_committee</span>)<span class="question-mark">?</span>;
                                 },
+                                <span class="ident">ReconfigureNotification::UpdateCommittee</span>(<span class="ident">new_committee</span>) =&gt; {
+                                    <span class="self">self</span>.<span class="ident">committee</span> <span class="op">=</span> <span class="ident">new_committee</span>;
+                                }
                                 <span class="ident">ReconfigureNotification::Shutdown</span> =&gt; <span class="kw">return</span> <span class="prelude-val">Ok</span>(()),
                             }
+                            <span class="macro">tracing::debug!</span>(<span class="string">&quot;Committee updated to {}&quot;</span>, <span class="self">self</span>.<span class="ident">committee</span>);
                         }
                         <span class="ident">Ordering::Less</span> =&gt; {
                             <span class="comment">// We already updated committee but the core is slow.</span>
@@ -684,15 +694,19 @@
                     <span class="ident">result</span>.<span class="ident">expect</span>(<span class="string">&quot;Committee channel dropped&quot;</span>);
                     <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">rx_reconfigure</span>.<span class="ident">borrow</span>().<span class="ident">clone</span>();
                     <span class="kw">match</span> <span class="ident">message</span> {
-                        <span class="ident">ReconfigureNotification::NewCommittee</span>(<span class="ident">new_committee</span>) =&gt; {
-                            <span class="ident">state</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">reconfigure</span>(<span class="ident">new_committee</span>)<span class="question-mark">?</span>;
+                        <span class="ident">ReconfigureNotification::NewEpoch</span>(<span class="ident">new_committee</span>) =&gt; {
+                            <span class="ident">state</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">change_epoch</span>(<span class="ident">new_committee</span>)<span class="question-mark">?</span>;
                         },
+                        <span class="ident">ReconfigureNotification::UpdateCommittee</span>(<span class="ident">new_committee</span>) =&gt; {
+                            <span class="self">self</span>.<span class="ident">committee</span> <span class="op">=</span> <span class="ident">new_committee</span>;
+                        }
                         <span class="ident">ReconfigureNotification::Shutdown</span> =&gt; <span class="kw">return</span> <span class="prelude-val">Ok</span>(())
                     }
+                    <span class="macro">tracing::debug!</span>(<span class="string">&quot;Committee updated to {}&quot;</span>, <span class="self">self</span>.<span class="ident">committee</span>);
                 }
             }
         }
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="consensus" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (fe3342816 2022-08-01)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="consensus" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (4493a0f47 2022-08-02)" ></div></body></html>

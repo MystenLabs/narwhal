@@ -148,6 +148,15 @@
 <span id="148">148</span>
 <span id="149">149</span>
 <span id="150">150</span>
+<span id="151">151</span>
+<span id="152">152</span>
+<span id="153">153</span>
+<span id="154">154</span>
+<span id="155">155</span>
+<span id="156">156</span>
+<span id="157">157</span>
+<span id="158">158</span>
+<span id="159">159</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -270,9 +279,14 @@
                                 <span class="ident">result</span>.<span class="ident">expect</span>(<span class="string">&quot;Committee channel dropped&quot;</span>);
                                 <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">rx_reconfigure</span>.<span class="ident">borrow</span>().<span class="ident">clone</span>();
                                 <span class="kw">match</span> <span class="ident">message</span> {
-                                    <span class="ident">ReconfigureNotification::NewCommittee</span>(<span class="ident">new_committee</span>) =&gt; {
-                                        <span class="self">self</span>.<span class="ident">committee</span><span class="op">=</span><span class="ident">new_committee</span>;
-                                        <span class="macro">tracing::debug!</span>(<span class="string">&quot;Committee updated to {}&quot;</span>, <span class="self">self</span>.<span class="ident">committee</span>);
+                                    <span class="ident">ReconfigureNotification::NewEpoch</span>(<span class="ident">new_committee</span>) =&gt; {
+                                        <span class="self">self</span>.<span class="ident">committee</span> <span class="op">=</span> <span class="ident">new_committee</span>;
+                                        <span class="macro">tracing::debug!</span>(<span class="string">&quot;Dropping batch: committee updated to {}&quot;</span>, <span class="self">self</span>.<span class="ident">committee</span>);
+                                        <span class="kw">break</span>; <span class="comment">// Don&#39;t wait for acknowledgements.</span>
+                                    },
+                                    <span class="ident">ReconfigureNotification::UpdateCommittee</span>(<span class="ident">new_committee</span>) =&gt; {
+                                        <span class="self">self</span>.<span class="ident">committee</span> <span class="op">=</span> <span class="ident">new_committee</span>;
+                                        <span class="macro">tracing::debug!</span>(<span class="string">&quot;Dropping batch: committee updated to {}&quot;</span>, <span class="self">self</span>.<span class="ident">committee</span>);
                                         <span class="kw">break</span>; <span class="comment">// Don&#39;t wait for acknowledgements.</span>
                                     },
                                     <span class="ident">ReconfigureNotification::Shutdown</span> =&gt; <span class="kw">return</span>
@@ -287,16 +301,20 @@
                     <span class="ident">result</span>.<span class="ident">expect</span>(<span class="string">&quot;Committee channel dropped&quot;</span>);
                     <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">rx_reconfigure</span>.<span class="ident">borrow</span>().<span class="ident">clone</span>();
                     <span class="kw">match</span> <span class="ident">message</span> {
-                        <span class="ident">ReconfigureNotification::NewCommittee</span>(<span class="ident">new_committee</span>) =&gt; {
+                        <span class="ident">ReconfigureNotification::NewEpoch</span>(<span class="ident">new_committee</span>) =&gt; {
                             <span class="self">self</span>.<span class="ident">committee</span> <span class="op">=</span> <span class="ident">new_committee</span>;
-                            <span class="macro">tracing::debug!</span>(<span class="string">&quot;Committee updated to {}&quot;</span>, <span class="self">self</span>.<span class="ident">committee</span>);
+                        },
+                        <span class="ident">ReconfigureNotification::UpdateCommittee</span>(<span class="ident">new_committee</span>) =&gt; {
+                            <span class="self">self</span>.<span class="ident">committee</span> <span class="op">=</span> <span class="ident">new_committee</span>;
+
                         },
                         <span class="ident">ReconfigureNotification::Shutdown</span> =&gt; <span class="kw">return</span>
                     }
+                    <span class="macro">tracing::debug!</span>(<span class="string">&quot;Committee updated to {}&quot;</span>, <span class="self">self</span>.<span class="ident">committee</span>);
                 }
             }
         }
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (fe3342816 2022-08-01)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (4493a0f47 2022-08-02)" ></div></body></html>

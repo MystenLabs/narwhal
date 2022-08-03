@@ -657,6 +657,8 @@
 <span id="657">657</span>
 <span id="658">658</span>
 <span id="659">659</span>
+<span id="660">660</span>
+<span id="661">661</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -1204,11 +1206,13 @@
     },
 }
 
-<span class="doccomment">/// Message to reconfigure worker tasks.</span>
+<span class="doccomment">/// Message to reconfigure worker tasks. This message must be sent by a trusted source.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">ReconfigureNotification</span> {
-    <span class="doccomment">/// Indicate the committee has been updated.</span>
-    <span class="ident">NewCommittee</span>(<span class="ident">Committee</span>),
+    <span class="doccomment">/// Indicate the committee has changed. This happens at epoch change.</span>
+    <span class="ident">NewEpoch</span>(<span class="ident">Committee</span>),
+    <span class="doccomment">/// Update some network information of the committee.</span>
+    <span class="ident">UpdateCommittee</span>(<span class="ident">Committee</span>),
     <span class="doccomment">/// Indicate a shutdown.</span>
     <span class="ident">Shutdown</span>,
 }
@@ -1317,4 +1321,4 @@
     <span class="kw">pub</span> <span class="ident">workers</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">WorkerId</span>, <span class="ident">WorkerInfo</span><span class="op">&gt;</span>,
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (fe3342816 2022-08-01)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (4493a0f47 2022-08-02)" ></div></body></html>

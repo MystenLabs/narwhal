@@ -462,7 +462,7 @@
         <span class="ident">State::Outcome</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
         <span class="ident">State::Error</span>: <span class="ident">Debug</span>,
     {
-        <span class="kw">let</span> <span class="ident">initial_committee</span> <span class="op">=</span> <span class="ident">ReconfigureNotification::NewCommittee</span>((<span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">committee</span>.<span class="ident">load</span>()).<span class="ident">clone</span>());
+        <span class="kw">let</span> <span class="ident">initial_committee</span> <span class="op">=</span> <span class="ident">ReconfigureNotification::NewEpoch</span>((<span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">committee</span>.<span class="ident">load</span>()).<span class="ident">clone</span>());
         <span class="kw">let</span> (<span class="ident">tx_reconfigure</span>, <span class="ident">_rx_reconfigure</span>) <span class="op">=</span> <span class="ident">watch::channel</span>(<span class="ident">initial_committee</span>);
 
         <span class="kw">let</span> (<span class="ident">tx_new_certificates</span>, <span class="ident">rx_new_certificates</span>) <span class="op">=</span> <span class="ident">channel</span>(<span class="ident"><span class="self">Self</span>::CHANNEL_CAPACITY</span>);
@@ -665,4 +665,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="node" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (fe3342816 2022-08-01)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="node" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (4493a0f47 2022-08-02)" ></div></body></html>

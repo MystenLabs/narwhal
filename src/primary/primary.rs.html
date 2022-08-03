@@ -718,9 +718,6 @@
 <span id="718">718</span>
 <span id="719">719</span>
 <span id="720">720</span>
-<span id="721">721</span>
-<span id="722">722</span>
-<span id="723">723</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -885,11 +882,8 @@
                     <span class="ident">result</span> <span class="op">=</span> <span class="ident">mon_rx_reconfigure</span>.<span class="ident">changed</span>() =&gt; {
                         <span class="ident">result</span>.<span class="ident">expect</span>(<span class="string">&quot;Committee channel dropped&quot;</span>);
                         <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">mon_rx_reconfigure</span>.<span class="ident">borrow</span>().<span class="ident">clone</span>();
-                        <span class="kw">match</span> <span class="ident">message</span> {
-                            <span class="ident">ReconfigureNotification::NewCommittee</span>(<span class="ident">_new_committee</span>) =&gt; {
-                                <span class="comment">// noop</span>
-                            },
-                            <span class="ident">ReconfigureNotification::Shutdown</span> =&gt; <span class="kw">return</span>
+                        <span class="kw">if</span> <span class="kw">let</span> <span class="ident">ReconfigureNotification::Shutdown</span> <span class="op">=</span> <span class="ident">message</span> {
+                            <span class="kw">return</span>;
                         }
                     }
                 }
@@ -1445,4 +1439,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (fe3342816 2022-08-01)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (4493a0f47 2022-08-02)" ></div></body></html>
