@@ -99,7 +99,7 @@ PrimaryWorkerMessage:
 ReconfigureNotification:
   ENUM:
     0:
-      NewCommittee:
+      NewEpoch:
         NEWTYPE:
           TYPENAME: Committee
     1:
