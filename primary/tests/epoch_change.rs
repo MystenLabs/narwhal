@@ -54,7 +54,7 @@ async fn spawn_test_worker(
 #[tokio::test]
 async fn test_simple_epoch_change() {
     let parameters = Parameters {
-        header_size: 64, // Two batch digests.
+        header_size: 32, // One batch digest.
         ..Parameters::default()
     };
 
@@ -155,7 +155,7 @@ async fn test_simple_epoch_change() {
 #[tokio::test]
 async fn test_partial_committee_change() {
     let parameters = Parameters {
-        header_size: 64, // Two batch digests.
+        header_size: 32, // One batch digest.
         ..Parameters::default()
     };
 
@@ -320,7 +320,7 @@ async fn test_partial_committee_change() {
 #[tokio::test]
 async fn test_restart_with_new_committee_change() {
     let parameters = Parameters {
-        header_size: 64, // Two batch digests.
+        header_size: 32, // One batch digest.
         ..Parameters::default()
     };
 
@@ -477,7 +477,7 @@ async fn test_restart_with_new_committee_change() {
 #[tokio::test]
 async fn test_simple_committee_update() {
     let parameters = Parameters {
-        batch_size: 200, // Two transactions.
+        header_size: 32, // One batch digest.
         ..Parameters::default()
     };
 
@@ -498,12 +498,12 @@ async fn test_simple_committee_update() {
         tx_channels.push(tx_feedback.clone());
 
         let initial_committee = ReconfigureNotification::NewEpoch(committee_0.clone());
-        let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
+        let (tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
 
         let store = NodeStorage::reopen(temp_dir());
 
         Primary::spawn(
-            name,
+            name.clone(),
             signer,
             Arc::new(ArcSwap::from_pointee(committee_0.clone())),
             parameters.clone(),
@@ -518,6 +518,9 @@ async fn test_simple_committee_update() {
             /* tx_committed_certificates */ tx_feedback,
             &Registry::new(),
         );
+
+        // Spawn a test worker sending digests to the primary.
+        spawn_test_worker(name, committee_0.clone(), rx_reconfigure).await;
     }
 
     // Run for a while in epoch 0.
