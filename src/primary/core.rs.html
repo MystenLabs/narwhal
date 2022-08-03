@@ -1109,7 +1109,7 @@
         <span class="comment">// Verify the header&#39;s signature.</span>
         <span class="ident">header</span>.<span class="ident">verify</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">committee</span>)<span class="question-mark">?</span>;
 
-        <span class="comment">// TODO [issue #3]: Prevent bad nodes from sending junk headers with high round numbers.</span>
+        <span class="comment">// TODO [issue #672]: Prevent bad nodes from sending junk headers with high round numbers.</span>
 
         <span class="prelude-val">Ok</span>(())
     }
