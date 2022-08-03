@@ -74,13 +74,8 @@ async fn test_simple_epoch_change() {
         let (tx_feedback, rx_feedback) = channel(CHANNEL_CAPACITY);
         tx_channels.push(tx_feedback.clone());
 
-<<<<<<< HEAD
-        let initial_committee = ReconfigureNotification::NewCommittee(committee_0.clone());
-        let (tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
-=======
         let initial_committee = ReconfigureNotification::NewEpoch(committee_0.clone());
-        let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
->>>>>>> main
+        let (tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
 
         let store = NodeStorage::reopen(temp_dir());
 
@@ -187,13 +182,8 @@ async fn test_partial_committee_change() {
         epoch_0_rx_channels.push(rx_new_certificates);
         let (tx_feedback, rx_feedback) = channel(CHANNEL_CAPACITY);
         epoch_0_tx_channels.push(tx_feedback.clone());
-<<<<<<< HEAD
-        let initial_committee = ReconfigureNotification::NewCommittee(committee_0.clone());
-        let (tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
-=======
         let initial_committee = ReconfigureNotification::NewEpoch(committee_0.clone());
-        let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
->>>>>>> main
+        let (tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
 
         let store = NodeStorage::reopen(temp_dir());
 
@@ -272,13 +262,8 @@ async fn test_partial_committee_change() {
         let (tx_feedback, rx_feedback) = channel(CHANNEL_CAPACITY);
         epoch_1_tx_channels.push(tx_feedback.clone());
 
-<<<<<<< HEAD
-        let initial_committee = ReconfigureNotification::NewCommittee(committee_1.clone());
-        let (tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
-=======
         let initial_committee = ReconfigureNotification::NewEpoch(committee_1.clone());
-        let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
->>>>>>> main
+        let (tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
 
         let store = NodeStorage::reopen(temp_dir());
 
@@ -356,13 +341,8 @@ async fn test_restart_with_new_committee_change() {
         let (tx_feedback, rx_feedback) = channel(CHANNEL_CAPACITY);
         tx_channels.push(tx_feedback.clone());
 
-<<<<<<< HEAD
-        let initial_committee = ReconfigureNotification::NewCommittee(committee_0.clone());
-        let (tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
-=======
         let initial_committee = ReconfigureNotification::NewEpoch(committee_0.clone());
-        let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
->>>>>>> main
+        let (tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
 
         let store = NodeStorage::reopen(temp_dir());
 
@@ -435,13 +415,8 @@ async fn test_restart_with_new_committee_change() {
             let (tx_feedback, rx_feedback) = channel(CHANNEL_CAPACITY);
             tx_channels.push(tx_feedback.clone());
 
-<<<<<<< HEAD
-            let initial_committee = ReconfigureNotification::NewCommittee(new_committee.clone());
-            let (tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
-=======
             let initial_committee = ReconfigureNotification::NewEpoch(new_committee.clone());
-            let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
->>>>>>> main
+            let (tx_reconfigure, rx_reconfigure) = watch::channel(initial_committee);
 
             let store = NodeStorage::reopen(temp_dir());
 
