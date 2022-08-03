@@ -26,7 +26,7 @@ async fn successfully_synchronize_batches() {
     let consensus_round = Arc::new(AtomicU64::new(0));
     let gc_depth: Round = 1;
     let (_tx_reconfigure, rx_reconfigure) =
-        watch::channel(ReconfigureNotification::NewCommittee(committee.clone()));
+        watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));
     let (tx_synchronizer, rx_synchronizer) = channel(10);
     let (tx_core, mut rx_core) = channel(10);
     let metrics = Arc::new(PrimaryMetrics::new(&Registry::new()));
