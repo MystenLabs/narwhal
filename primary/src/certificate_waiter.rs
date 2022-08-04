@@ -22,7 +22,7 @@ use tokio::{
     task::JoinHandle,
     time::{sleep, Duration, Instant},
 };
-use tracing::error;
+use tracing::{error, info};
 use types::{
     error::{DagError, DagResult},
     Certificate, CertificateDigest, HeaderDigest, ReconfigureNotification, Round,
@@ -112,10 +112,10 @@ impl CertificateWaiter {
 
     async fn run(&mut self) {
         let mut waiting = FuturesUnordered::new();
-
         let timer = sleep(Duration::from_millis(GC_RESOLUTION));
         tokio::pin!(timer);
 
+        info!("CertificateWaiter has started successfully.");
         loop {
             tokio::select! {
                 Some(certificate) = self.rx_synchronizer.recv() => {
