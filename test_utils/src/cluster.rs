@@ -5,6 +5,7 @@ use arc_swap::ArcSwap;
 use config::{Committee, Parameters, SharedCommittee, WorkerId};
 use crypto::{traits::KeyPair as _, KeyPair, PublicKey};
 use executor::{SerializedTransaction, SubscriberResult, DEFAULT_CHANNEL_SIZE};
+use itertools::Itertools;
 use multiaddr::Multiaddr;
 use node::{
     execution_state::SimpleExecutionState,
@@ -192,6 +193,62 @@ impl Cluster {
             .get(&id)
             .unwrap_or_else(|| panic!("Authority with id {} not found", id))
             .clone()
+    }
+
+    /// This method asserts the progress of the cluster.
+    /// `expected_nodes`: Nodes expected to have made progress. Any number different than that
+    /// will make the assertion fail.
+    /// `commit_threshold`: The acceptable threshold between the minimum and maximum reported
+    /// commit value from the nodes.
+    pub async fn assert_progress(
+        &self,
+        expected_nodes: u64,
+        commit_threshold: u64,
+    ) -> HashMap<usize, u64> {
+        let r = self.authorities_latest_commit_round().await;
+        let rounds: HashMap<usize, u64> = r
+            .into_iter()
+            .map(|(key, value)| (key, value as u64))
+            .collect();
+
+        assert_eq!(
+            rounds.len(),
+            expected_nodes as usize,
+            "Expected to have received commit metrics from {expected_nodes} nodes"
+        );
+        assert!(rounds.values().all(|v| v > &1), "All nodes are available so all should have made progress and committed at least after the first round");
+
+        if expected_nodes == 0 {
+            return HashMap::new();
+        }
+
+        let (min, max) = rounds.values().into_iter().minmax().into_option().unwrap();
+        assert!(
+            max - min <= commit_threshold,
+            "Nodes shouldn't be that behind"
+        );
+
+        rounds
+    }
+
+    async fn authorities_latest_commit_round(&self) -> HashMap<usize, f64> {
+        let mut authorities_latest_commit = HashMap::new();
+
+        for authority in self.authorities().await {
+            let primary = authority.primary().await;
+            if let Some(metric) = primary.metric("narwhal_primary_last_committed_round") {
+                let value = metric.get_gauge().get_value();
+
+                authorities_latest_commit.insert(primary.id, value);
+
+                info!(
+                    "[Node {}] Metric narwhal_primary_last_committed_round -> {value}",
+                    primary.id
+                );
+            }
+        }
+
+        authorities_latest_commit
     }
 
     fn parameters() -> Parameters {
