@@ -99,3 +99,48 @@ async fn propose_empty() {
     assert_eq!(header.payload.get(&digest), Some(&worker_id));
     assert!(header.verify(&committee(None)).is_ok());
 }
+
+#[tokio::test]
+async fn advance_to_help() {
+    let kp = keys(None).pop().unwrap();
+    let name = kp.public().clone();
+    let signature_service = SignatureService::new(kp);
+
+    let (_tx_reconfigure, rx_reconfigure) =
+        watch::channel(ReconfigureNotification::NewEpoch(committee(None)));
+    let (tx_parents, rx_parents) = channel(1);
+    let (_tx_our_digests, rx_our_digests) = channel(1);
+    let (tx_headers, mut rx_headers) = channel(1);
+
+    let metrics = Arc::new(PrimaryMetrics::new(&Registry::new()));
+
+    // Spawn the proposer.
+    let _proposer_handle = Proposer::spawn(
+        name.clone(),
+        committee(None),
+        signature_service,
+        /* header_size */ 1_000,
+        /* delta */
+        Duration::from_secs(1_000), // Ensure it is not triggered.
+        NetworkModel::PartiallySynchronous,
+        rx_reconfigure,
+        /* rx_core */ rx_parents,
+        /* rx_workers */ rx_our_digests,
+        /* tx_core */ tx_headers,
+        metrics,
+    );
+
+    // Other primaries have enough batches to make progress, we should then create a empty
+    // header to help them out.
+    tx_parents
+        .send(ProposerMessage::MeaningfulRound(1))
+        .await
+        .unwrap();
+
+    // Ensure the proposer makes a correct header from the provided payload.
+    let header = rx_headers.recv().await.unwrap();
+    assert_eq!(header.round, 1);
+    assert!(header.payload.is_empty());
+    // assert_eq!(header.payload.get(&digest), Some(&worker_id));
+    assert!(header.verify(&committee(None)).is_ok());
+}

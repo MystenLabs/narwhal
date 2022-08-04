@@ -468,6 +468,7 @@ impl Core {
                 received: header.epoch
             }
         );
+        ensure!(header.round > 0, DagError::MalformedHeader(header.id));
         ensure!(
             self.gc_round < header.round,
             DagError::TooOld(header.id.into(), header.round)

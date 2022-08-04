@@ -7,6 +7,7 @@
     rust_2018_idioms,
     rust_2021_compatibility
 )]
+#![feature(is_some_with)]
 
 mod aggregators;
 mod block_remover;

@@ -29,7 +29,10 @@ pub mod proposer_tests;
 #[derive(Debug)]
 #[cfg_attr(test, derive(PartialEq))]
 pub enum ProposerMessage {
+    /// Sent by the core to notify the proposer that it received a quorum of certificates with
+    /// the same round number.
     NewParents(Vec<Certificate>, Round, Epoch),
+    /// Sent the by core to notify the proposer it received a non-empty certificate.
     MeaningfulRound(Round),
 }
 
@@ -43,7 +46,8 @@ pub struct Proposer {
     signature_service: SignatureService<Signature>,
     /// The size of the headers' payload.
     header_size: usize,
-    /// The maximum message delay after GST (only meaningful in partial-synchrony).
+    /// The maximum message delay after Global Stabilization Time (GST). This is only meaningful in
+    /// partial-synchrony.
     delta: Duration,
     /// The network model in which the node operates.
     network_model: NetworkModel,
@@ -72,7 +76,7 @@ pub struct Proposer {
     /// running the DAG in asynchrony).
     common_case: bool,
     /// The highest round for which we received a non-empty certificate from other peers.
-    highest_useful_round: Round,
+    highest_peers_round: Option<Round>,
 
     /// Metrics handler
     metrics: Arc<PrimaryMetrics>,
@@ -113,7 +117,7 @@ impl Proposer {
                 digests: Vec::with_capacity(2 * header_size),
                 payload_size: 0,
                 common_case: true,
-                highest_useful_round: 1,
+                highest_peers_round: None,
                 metrics,
             }
             .run()
@@ -256,19 +260,21 @@ impl Proposer {
             // Check if we have enough parents; if we have enough digests; if other primaries already
             // made a non-certificate for this round (and need our certificate to make progress); and
             // if the timer expired (only meaningful in partial-synchrony).
-            let enough_parents = !self.last_parents.is_empty();
-            let we_have_enough_digests = self.payload_size >= self.header_size;
-            let others_have_digests = self.round == self.highest_useful_round;
             let timer_expired = timer.is_elapsed();
+            let enough_parents = !self.last_parents.is_empty();
+            let we_have_enough_batches = self.payload_size >= self.header_size;
+            let others_have_batches = self
+                .highest_peers_round
+                .is_some_and(|r| self.round == r - 1);
 
             // Check whether advancing round allows the system to make meaningful progress. The system
             // makes meaningful progress if it advances with non-empty certificates.
-            let meaningful_progress = we_have_enough_digests || others_have_digests;
+            let meaningful_progress = we_have_enough_batches || others_have_batches;
 
             // Print a few debug logs.
             debug!("Do we have enough parents: {enough_parents}");
-            debug!("Do we have enough digests: {we_have_enough_digests}");
-            debug!("Have we learned about a non-empty certificate for this round: {others_have_digests}");
+            debug!("Do we have enough digests: {we_have_enough_batches}");
+            debug!("Have we learned about a non-empty certificate for this round: {others_have_batches}");
             debug!("Are we in the common case: {}", self.common_case);
             debug!("Did the timer expire: {timer_expired}");
 
@@ -338,7 +344,8 @@ impl Proposer {
 
                     },
                     ProposerMessage::MeaningfulRound(round) => {
-                        self.highest_useful_round = max(self.highest_useful_round, round);
+                        self.highest_peers_round = self.highest_peers_round
+                            .map_or_else(|| Some(round), |r| Some(max(r, round)));
                     },
                 },
 
