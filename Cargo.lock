@@ -943,7 +943,7 @@ dependencies = [
  "blst",
  "criterion",
  "digest 0.10.3",
- "ed25519-dalek",
+ "ed25519-consensus",
  "eyre",
  "hex",
  "hex-literal",
@@ -952,7 +952,7 @@ dependencies = [
  "once_cell",
  "proptest",
  "proptest-derive",
- "rand 0.7.3",
+ "rand 0.8.5",
  "readonly",
  "secp256k1",
  "serde",
@@ -1040,6 +1040,19 @@ dependencies = [
  "digest 0.9.0",
  "rand_core 0.5.1",
  "subtle",
+ "zeroize",
+]
+
+[[package]]
+name = "curve25519-dalek-ng"
+version = "4.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1c359b7249347e46fb28804470d071c921156ad62b3eef5d34e2ba867533dec8"
+dependencies = [
+ "byteorder",
+ "digest 0.9.0",
+ "rand_core 0.6.3",
+ "subtle-ng",
  "zeroize",
 ]
 
@@ -1262,6 +1275,21 @@ checksum = "1e9c280362032ea4203659fc489832d0204ef09f247a0506f170dafcac08c369"
 dependencies = [
  "serde",
  "signature",
+]
+
+[[package]]
+name = "ed25519-consensus"
+version = "1.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "758e2a0cd8a6cdf483e1d369e7d081647e00b88d8953e34d8f2cbba05ae28368"
+dependencies = [
+ "curve25519-dalek-ng",
+ "hex",
+ "rand_core 0.6.3",
+ "serde",
+ "sha2 0.9.9",
+ "thiserror",
+ "zeroize",
 ]
 
 [[package]]
@@ -2288,7 +2316,7 @@ dependencies = [
  "pretty_assertions",
  "primary",
  "prometheus",
- "rand 0.7.3",
+ "rand 0.8.5",
  "serde-reflection",
  "serde_yaml",
  "structopt",
@@ -2757,7 +2785,7 @@ dependencies = [
  "once_cell",
  "prometheus",
  "prost",
- "rand 0.7.3",
+ "rand 0.8.5",
  "serde",
  "telemetry-subscribers",
  "tempfile",
@@ -3649,6 +3677,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6bdef32e8150c2a081110b42772ffe7d7c9032b606bc226c8260fd97e0976601"
 
 [[package]]
+name = "subtle-ng"
+version = "2.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "734676eb262c623cec13c3155096e08d1f8f29adce39ba17948b18dad1e54142"
+
+[[package]]
 name = "symbolic-common"
 version = "9.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3788,7 +3822,7 @@ dependencies = [
  "mysten-network 0.1.0 (git+https://github.com/mystenlabs/mysten-infra.git?rev=123c9e40b529315e1c1d91a54fb717111c3e349c)",
  "node",
  "prometheus",
- "rand 0.7.3",
+ "rand 0.8.5",
  "serde",
  "tempfile",
  "thiserror",
@@ -4761,6 +4795,7 @@ dependencies = [
  "csv",
  "csv-core",
  "curve25519-dalek",
+ "curve25519-dalek-ng",
  "darling",
  "darling_core",
  "darling_macro",
@@ -4779,6 +4814,7 @@ dependencies = [
  "downcast",
  "ecdsa",
  "ed25519",
+ "ed25519-consensus",
  "ed25519-dalek",
  "either",
  "elliptic-curve",
@@ -4986,6 +5022,7 @@ dependencies = [
  "structopt",
  "structopt-derive",
  "subtle",
+ "subtle-ng",
  "syn 0.15.44",
  "syn 1.0.98",
  "sync_wrapper",
