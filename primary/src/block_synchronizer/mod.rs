@@ -32,7 +32,7 @@ use tokio::{
     task::JoinHandle,
     time::{sleep, timeout},
 };
-use tracing::{debug, error, instrument, trace, warn};
+use tracing::{debug, error, info, instrument, trace, warn};
 use types::{
     BatchDigest, Certificate, CertificateDigest, PrimaryWorkerMessage, ReconfigureNotification,
 };
@@ -246,7 +246,10 @@ impl BlockSynchronizer {
         // processing.
         let mut waiting = FuturesUnordered::new();
 
-        debug!("BlockSynchronizer on {} is starting.", self.name);
+        info!(
+            "BlockSynchronizer on node {} has started successfully.",
+            self.name
+        );
         loop {
             tokio::select! {
                 Some(command) = self.rx_commands.recv() => {

@@ -11,7 +11,7 @@ use tokio::{
     sync::{mpsc::Receiver, watch},
     task::JoinHandle,
 };
-use tracing::{debug, error, instrument};
+use tracing::{error, info, instrument};
 use types::{BatchDigest, Certificate, CertificateDigest, ReconfigureNotification};
 
 #[cfg(test)]
@@ -76,8 +76,8 @@ impl Helper {
     }
 
     async fn run(&mut self) {
-        debug!(
-            "Helper for availability requests on {} is starting.",
+        info!(
+            "Helper for availability requests on node {} has started successfully.",
             self.name
         );
         loop {

@@ -24,7 +24,7 @@ use tokio::{
     },
     task::JoinHandle,
 };
-use tracing::{debug, error, instrument, warn};
+use tracing::{debug, error, info, instrument, warn};
 use types::{
     ensure,
     error::{DagError, DagResult},
@@ -546,7 +546,7 @@ impl Core {
 
     // Main loop listening to incoming messages.
     pub async fn run(&mut self) {
-        debug!("Core on {} is starting.", self.name);
+        info!("Core on node {} has started successfully.", self.name);
         loop {
             let result = tokio::select! {
                 // We receive here messages from other primaries.

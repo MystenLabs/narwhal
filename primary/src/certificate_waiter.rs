@@ -19,7 +19,7 @@ use tokio::{
     task::JoinHandle,
     time::{sleep, Duration, Instant},
 };
-use tracing::{debug, error};
+use tracing::{error, info};
 use types::{
     error::{DagError, DagResult},
     Certificate, CertificateDigest, HeaderDigest, ReconfigureNotification, Round,
@@ -113,7 +113,7 @@ impl CertificateWaiter {
         tokio::pin!(timer);
         let mut attempt_garbage_collection;
 
-        debug!("CertificateWaiter is starting.");
+        info!("CertificateWaiter has started successfully.");
         loop {
             // Initially set to not garbage collect
             attempt_garbage_collection = false;

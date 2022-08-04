@@ -37,7 +37,7 @@ use tokio::{
     task::JoinHandle,
 };
 use tonic::{Request, Response, Status};
-use tracing::{debug, info, log::error};
+use tracing::{info, log::error};
 use types::{
     error::DagError, BatchDigest, BatchMessage, BincodeEncodedPayload, Certificate,
     CertificateDigest, Empty, Header, HeaderDigest, PrimaryToPrimary, PrimaryToPrimaryServer,
@@ -517,7 +517,7 @@ impl PrimaryReceiverHandler {
         tokio::spawn(async move {
             let mut config = mysten_network::config::Config::new();
             config.concurrency_limit_per_connection = Some(max_concurrent_requests);
-            debug!("PrimaryReceiverHandler is starting.");
+            info!("PrimaryReceiverHandler has started successfully.");
             tokio::select! {
                 _result = config
                     .server_builder_with_metrics(primary_endpoint_metrics)
@@ -622,7 +622,7 @@ impl WorkerReceiverHandler {
         rx_reconfigure: watch::Receiver<ReconfigureNotification>,
     ) -> JoinHandle<()> {
         tokio::spawn(async move {
-            debug!("WorkerReceiverHandler is starting.");
+            info!("WorkerReceiverHandler has started successfully.");
             tokio::select! {
                 _result = mysten_network::config::Config::default()
                     .server_builder()

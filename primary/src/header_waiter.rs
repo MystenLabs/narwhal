@@ -27,7 +27,7 @@ use tokio::{
     task::JoinHandle,
     time::{sleep, Duration, Instant},
 };
-use tracing::{debug, error};
+use tracing::{debug, error, info};
 use types::{
     error::{DagError, DagResult},
     BatchDigest, Certificate, CertificateDigest, Header, HeaderDigest, ReconfigureNotification,
@@ -171,7 +171,10 @@ impl HeaderWaiter {
         let timer = sleep(Duration::from_millis(TIMER_RESOLUTION));
         tokio::pin!(timer);
 
-        debug!("HeaderWaiter on {} is starting.", self.name);
+        info!(
+            "HeaderWaiter on node {} has started successfully.",
+            self.name
+        );
         loop {
             let mut attempt_garbage_collection = false;
 
