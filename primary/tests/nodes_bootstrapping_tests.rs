@@ -100,7 +100,10 @@ async fn test_second_node_restart() {
 /// we are shutting down f+1 nodes. Then we are bringing the f+1 nodes back again
 /// but we are not expecting now the cluster to be able to make progress. We expect
 /// the restarted nodes to not be able to make new proposals and effectively make
-/// the system stall.
+/// the system stall. This is due to the issue that is described here
+/// https://github.com/MystenLabs/narwhal/issues/664 .
+/// Once this is fixed we would expect this test to fail as all the nodes should be
+/// able to propose from where they left of at last round.
 async fn test_loss_of_liveness_without_recovery() {
     // Enabled debug tracing so we can easily observe the
     // nodes logs.
