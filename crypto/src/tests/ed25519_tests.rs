@@ -41,9 +41,14 @@ fn serialize_deserialize() {
 
     let private_key = kpref.private();
     let bytes = bincode::serialize(&private_key).unwrap();
+
+    // serialize with Ed25519PrivateKey successes
     let privkey = bincode::deserialize::<Ed25519PrivateKey>(&bytes).unwrap();
     let bytes2 = bincode::serialize(&privkey).unwrap();
     assert_eq!(bytes, bytes2);
+
+    // serialize with Ed25519PublicKey fails
+    assert!(bincode::deserialize::<Ed25519PublicKey>(&bytes).is_err());
 }
 
 #[test]
