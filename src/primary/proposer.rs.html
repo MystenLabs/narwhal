@@ -335,6 +335,7 @@
 <span id="335">335</span>
 <span id="336">336</span>
 <span id="337">337</span>
+<span id="338">338</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright(C) Facebook, Inc. and its affiliates.</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -350,7 +351,7 @@
     <span class="ident">task::JoinHandle</span>,
     <span class="ident">time</span>::{<span class="ident">sleep</span>, <span class="ident">Duration</span>, <span class="ident">Instant</span>},
 };
-<span class="kw">use</span> <span class="ident">tracing::debug</span>;
+<span class="kw">use</span> <span class="ident">tracing</span>::{<span class="ident">debug</span>, <span class="ident">info</span>};
 <span class="kw">use</span> <span class="ident">types</span>::{
     <span class="ident">error</span>::{<span class="ident">DagError</span>, <span class="ident">DagResult</span>},
     <span class="ident">BatchDigest</span>, <span class="ident">Certificate</span>, <span class="ident">Header</span>, <span class="ident">ReconfigureNotification</span>, <span class="ident">Round</span>,
@@ -546,6 +547,7 @@
         <span class="kw">let</span> <span class="ident">timer</span> <span class="op">=</span> <span class="ident">sleep</span>(<span class="self">self</span>.<span class="ident">max_header_delay</span>);
         <span class="macro">tokio::pin!</span>(<span class="ident">timer</span>);
 
+        <span class="macro">info!</span>(<span class="string">&quot;Proposer on node {} has started successfully.&quot;</span>, <span class="self">self</span>.<span class="ident">name</span>);
         <span class="kw">loop</span> {
             <span class="comment">// Check if we can propose a new header. We propose a new header when we have a quorum of parents</span>
             <span class="comment">// and one of the following conditions is met:</span>

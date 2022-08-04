@@ -33,6 +33,8 @@
 <span id="33">33</span>
 <span id="34">34</span>
 <span id="35">35</span>
+<span id="36">36</span>
+<span id="37">37</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -40,6 +42,7 @@
 <span class="kw">use</span> <span class="ident">config::WorkerId</span>;
 <span class="kw">use</span> <span class="ident">store::Store</span>;
 <span class="kw">use</span> <span class="ident">tokio</span>::{<span class="ident">sync::mpsc::Receiver</span>, <span class="ident">task::JoinHandle</span>};
+<span class="kw">use</span> <span class="ident">tracing::info</span>;
 <span class="kw">use</span> <span class="ident">types::BatchDigest</span>;
 
 <span class="doccomment">/// Receives batches&#39; digests of other authorities. These are only needed to verify incoming</span>
@@ -63,6 +66,7 @@
     }
 
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">run</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
+        <span class="macro">info!</span>(<span class="string">&quot;PayloadReceiver has started successfully.&quot;</span>);
         <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">digest</span>, <span class="ident">worker_id</span>)) <span class="op">=</span> <span class="self">self</span>.<span class="ident">rx_workers</span>.<span class="ident">recv</span>().<span class="kw">await</span> {
             <span class="self">self</span>.<span class="ident">store</span>.<span class="ident">write</span>((<span class="ident">digest</span>, <span class="ident">worker_id</span>), <span class="number">0u8</span>).<span class="kw">await</span>;
         }

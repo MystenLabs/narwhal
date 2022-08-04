@@ -644,6 +644,7 @@
 <span id="644">644</span>
 <span id="645">645</span>
 <span id="646">646</span>
+<span id="647">647</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -670,7 +671,7 @@
     },
     <span class="ident">task::JoinHandle</span>,
 };
-<span class="kw">use</span> <span class="ident">tracing</span>::{<span class="ident">debug</span>, <span class="ident">error</span>, <span class="ident">instrument</span>, <span class="ident">warn</span>};
+<span class="kw">use</span> <span class="ident">tracing</span>::{<span class="ident">debug</span>, <span class="ident">error</span>, <span class="ident">info</span>, <span class="ident">instrument</span>, <span class="ident">warn</span>};
 <span class="kw">use</span> <span class="ident">types</span>::{
     <span class="ident">ensure</span>,
     <span class="ident">error</span>::{<span class="ident">DagError</span>, <span class="ident">DagResult</span>},
@@ -1192,6 +1193,7 @@
 
     <span class="comment">// Main loop listening to incoming messages.</span>
     <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">run</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
+        <span class="macro">info!</span>(<span class="string">&quot;Core on node {} has started successfully.&quot;</span>, <span class="self">self</span>.<span class="ident">name</span>);
         <span class="kw">loop</span> {
             <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="macro">tokio::select!</span> {
                 <span class="comment">// We receive here messages from other primaries.</span>

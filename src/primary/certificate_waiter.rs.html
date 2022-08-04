@@ -245,7 +245,7 @@
     <span class="ident">task::JoinHandle</span>,
     <span class="ident">time</span>::{<span class="ident">sleep</span>, <span class="ident">Duration</span>, <span class="ident">Instant</span>},
 };
-<span class="kw">use</span> <span class="ident">tracing::error</span>;
+<span class="kw">use</span> <span class="ident">tracing</span>::{<span class="ident">error</span>, <span class="ident">info</span>};
 <span class="kw">use</span> <span class="ident">types</span>::{
     <span class="ident">error</span>::{<span class="ident">DagError</span>, <span class="ident">DagResult</span>},
     <span class="ident">Certificate</span>, <span class="ident">CertificateDigest</span>, <span class="ident">HeaderDigest</span>, <span class="ident">ReconfigureNotification</span>, <span class="ident">Round</span>,
@@ -335,11 +335,11 @@
 
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">run</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">waiting</span> <span class="op">=</span> <span class="ident">FuturesUnordered::new</span>();
-
         <span class="kw">let</span> <span class="ident">timer</span> <span class="op">=</span> <span class="ident">sleep</span>(<span class="ident">Duration::from_millis</span>(<span class="ident">GC_RESOLUTION</span>));
         <span class="macro">tokio::pin!</span>(<span class="ident">timer</span>);
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">attempt_garbage_collection</span>;
 
+        <span class="macro">info!</span>(<span class="string">&quot;CertificateWaiter has started successfully.&quot;</span>);
         <span class="kw">loop</span> {
             <span class="comment">// Initially set to not garbage collect</span>
             <span class="ident">attempt_garbage_collection</span> <span class="op">=</span> <span class="bool-val">false</span>;

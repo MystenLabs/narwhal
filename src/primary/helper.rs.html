@@ -272,6 +272,10 @@
 <span id="272">272</span>
 <span id="273">273</span>
 <span id="274">274</span>
+<span id="275">275</span>
+<span id="276">276</span>
+<span id="277">277</span>
+<span id="278">278</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -285,7 +289,7 @@
     <span class="ident">sync</span>::{<span class="ident">mpsc::Receiver</span>, <span class="ident">watch</span>},
     <span class="ident">task::JoinHandle</span>,
 };
-<span class="kw">use</span> <span class="ident">tracing</span>::{<span class="ident">error</span>, <span class="ident">instrument</span>};
+<span class="kw">use</span> <span class="ident">tracing</span>::{<span class="ident">error</span>, <span class="ident">info</span>, <span class="ident">instrument</span>};
 <span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">BatchDigest</span>, <span class="ident">Certificate</span>, <span class="ident">CertificateDigest</span>, <span class="ident">ReconfigureNotification</span>};
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
@@ -350,6 +354,10 @@
     }
 
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">run</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
+        <span class="macro">info!</span>(
+            <span class="string">&quot;Helper for availability requests on node {} has started successfully.&quot;</span>,
+            <span class="self">self</span>.<span class="ident">name</span>
+        );
         <span class="kw">loop</span> {
             <span class="macro">tokio::select!</span> {
                 <span class="prelude-val">Some</span>(<span class="ident">request</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">rx_primaries</span>.<span class="ident">recv</span>() =&gt; <span class="kw">match</span> <span class="ident">request</span> {
