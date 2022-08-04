@@ -727,6 +727,7 @@ dependencies = [
  "dag",
  "ed25519-dalek",
  "futures",
+ "indexmap",
  "match_opt",
  "pprof",
  "prometheus",
@@ -942,7 +943,7 @@ dependencies = [
  "blst",
  "criterion",
  "digest 0.10.3",
- "ed25519-dalek",
+ "ed25519-consensus",
  "eyre",
  "hex",
  "hex-literal",
@@ -951,7 +952,7 @@ dependencies = [
  "once_cell",
  "proptest",
  "proptest-derive",
- "rand 0.7.3",
+ "rand 0.8.5",
  "readonly",
  "secp256k1",
  "serde",
@@ -1039,6 +1040,19 @@ dependencies = [
  "digest 0.9.0",
  "rand_core 0.5.1",
  "subtle",
+ "zeroize",
+]
+
+[[package]]
+name = "curve25519-dalek-ng"
+version = "4.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1c359b7249347e46fb28804470d071c921156ad62b3eef5d34e2ba867533dec8"
+dependencies = [
+ "byteorder",
+ "digest 0.9.0",
+ "rand_core 0.6.3",
+ "subtle-ng",
  "zeroize",
 ]
 
@@ -1264,6 +1278,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "ed25519-consensus"
+version = "1.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "758e2a0cd8a6cdf483e1d369e7d081647e00b88d8953e34d8f2cbba05ae28368"
+dependencies = [
+ "curve25519-dalek-ng",
+ "hex",
+ "rand_core 0.6.3",
+ "serde",
+ "sha2 0.9.9",
+ "thiserror",
+ "zeroize",
+]
+
+[[package]]
 name = "ed25519-dalek"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1287,9 +1316,9 @@ checksum = "3f107b87b6afc2a64fd13cac55fe06d6c8859f12d4b14cbcdd2c67d0976781be"
 
 [[package]]
 name = "elliptic-curve"
-version = "0.12.2"
+version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c47abd0a791d2ac0c7aa1118715f85b83689e4522c4e3a244e159d4fc9848a8d"
+checksum = "e7bb888ab5300a19b8e5bceef25ac745ad065f3c9f7efc6de1b91958110891d3"
 dependencies = [
  "base16ct",
  "crypto-bigint",
@@ -1336,6 +1365,7 @@ dependencies = [
  "consensus",
  "crypto",
  "futures",
+ "indexmap",
  "multiaddr",
  "mysten-network 0.1.0 (git+https://github.com/mystenlabs/mysten-infra.git?rev=123c9e40b529315e1c1d91a54fb717111c3e349c)",
  "primary",
@@ -2286,7 +2316,7 @@ dependencies = [
  "pretty_assertions",
  "primary",
  "prometheus",
- "rand 0.7.3",
+ "rand 0.8.5",
  "serde-reflection",
  "serde_yaml",
  "structopt",
@@ -2717,9 +2747,9 @@ dependencies = [
 
 [[package]]
 name = "prettyplease"
-version = "0.1.17"
+version = "0.1.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fffbe84bf1905c007253d1f10ffb85fbc8ca8624a40cff8f2ded6f36920e38e0"
+checksum = "697ae720ee02011f439e0701db107ffe2916d83f718342d65d7f8bf7b8a5fee9"
 dependencies = [
  "proc-macro2 1.0.40",
  "syn 1.0.98",
@@ -2745,6 +2775,7 @@ dependencies = [
  "ed25519-dalek",
  "executor",
  "futures",
+ "indexmap",
  "itertools",
  "mockall",
  "multiaddr",
@@ -2754,7 +2785,7 @@ dependencies = [
  "once_cell",
  "prometheus",
  "prost",
- "rand 0.7.3",
+ "rand 0.8.5",
  "serde",
  "telemetry-subscribers",
  "tempfile",
@@ -3228,9 +3259,9 @@ dependencies = [
 
 [[package]]
 name = "rustversion"
-version = "1.0.8"
+version = "1.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "24c8ad4f0c00e1eb5bc7614d236a7f1300e3dbd76b68cac8e06fb00b015ad8d8"
+checksum = "97477e48b4cf8603ad5f7aaf897467cf42ab4218a38ef76fb14c2d6773a6d6a8"
 
 [[package]]
 name = "rusty-fork"
@@ -3329,9 +3360,9 @@ dependencies = [
 
 [[package]]
 name = "serde"
-version = "1.0.141"
+version = "1.0.142"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7af873f2c95b99fcb0bd0fe622a43e29514658873c8ceba88c4cb88833a22500"
+checksum = "e590c437916fb6b221e1d00df6e3294f3fccd70ca7e92541c475d6ed6ef5fee2"
 dependencies = [
  "serde_derive",
 ]
@@ -3368,9 +3399,9 @@ dependencies = [
 
 [[package]]
 name = "serde_derive"
-version = "1.0.141"
+version = "1.0.142"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75743a150d003dd863b51dc809bcad0d73f2102c53632f1e954e738192a3413f"
+checksum = "34b5b8d809babe02f538c2cfec6f2c1ed10804c0e5a6a041a049a4f5588ccc2e"
 dependencies = [
  "proc-macro2 1.0.40",
  "quote 1.0.20",
@@ -3379,9 +3410,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.82"
+version = "1.0.83"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "82c2c1fdcd807d1098552c5b9a36e425e42e9fbd7c6a37a8425f390f781f7fa7"
+checksum = "38dd04e3c8279e75b31ef29dbdceebfe5ad89f4d0937213c53f7d49d01b3d5a7"
 dependencies = [
  "itoa 1.0.2",
  "ryu",
@@ -3390,9 +3421,9 @@ dependencies = [
 
 [[package]]
 name = "serde_test"
-version = "1.0.141"
+version = "1.0.142"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "02dcf22b2d7b217b72a5b26c45a2ec9f8a84dd83b35b4561e406e64cf67477d6"
+checksum = "bbf855c7d1704095906013b4491af507f67cad13d778ff408ca9696e9d195cf5"
 dependencies = [
  "serde",
 ]
@@ -3646,6 +3677,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6bdef32e8150c2a081110b42772ffe7d7c9032b606bc226c8260fd97e0976601"
 
 [[package]]
+name = "subtle-ng"
+version = "2.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "734676eb262c623cec13c3155096e08d1f8f29adce39ba17948b18dad1e54142"
+
+[[package]]
 name = "symbolic-common"
 version = "9.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3780,11 +3817,13 @@ dependencies = [
  "ed25519-dalek",
  "executor",
  "futures",
+ "indexmap",
+ "itertools",
  "multiaddr",
  "mysten-network 0.1.0 (git+https://github.com/mystenlabs/mysten-infra.git?rev=123c9e40b529315e1c1d91a54fb717111c3e349c)",
  "node",
  "prometheus",
- "rand 0.7.3",
+ "rand 0.8.5",
  "serde",
  "tempfile",
  "thiserror",
@@ -4313,6 +4352,7 @@ dependencies = [
  "derive_builder",
  "ed25519-dalek",
  "hex",
+ "indexmap",
  "proptest",
  "proptest-derive",
  "prost",
@@ -4756,6 +4796,7 @@ dependencies = [
  "csv",
  "csv-core",
  "curve25519-dalek",
+ "curve25519-dalek-ng",
  "darling",
  "darling_core",
  "darling_macro",
@@ -4774,6 +4815,7 @@ dependencies = [
  "downcast",
  "ecdsa",
  "ed25519",
+ "ed25519-consensus",
  "ed25519-dalek",
  "either",
  "elliptic-curve",
@@ -4981,6 +5023,7 @@ dependencies = [
  "structopt",
  "structopt-derive",
  "subtle",
+ "subtle-ng",
  "syn 0.15.44",
  "syn 1.0.98",
  "sync_wrapper",

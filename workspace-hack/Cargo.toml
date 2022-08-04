@@ -84,6 +84,7 @@ crypto-mac = { version = "0.8", default-features = false, features = ["std"] }
 csv = { version = "1", default-features = false }
 csv-core = { version = "0.1" }
 curve25519-dalek = { version = "3", default-features = false, features = ["alloc", "std", "u64_backend"] }
+curve25519-dalek-ng = { version = "4", default-features = false, features = ["alloc", "u64_backend"] }
 dashmap = { version = "5", default-features = false }
 data-encoding = { version = "2", features = ["alloc", "std"] }
 der = { version = "0.6", default-features = false, features = ["alloc", "const-oid", "oid", "zeroize"] }
@@ -96,6 +97,7 @@ digest-274715c4dabd11b0 = { package = "digest", version = "0.9", default-feature
 downcast = { version = "0.11", features = ["std"] }
 ecdsa = { version = "0.14", default-features = false, features = ["alloc", "arithmetic", "der", "digest", "hazmat", "pkcs8", "rfc6979", "sign", "std", "verify"] }
 ed25519 = { version = "1", default-features = false, features = ["serde", "std"] }
+ed25519-consensus = { version = "1", features = ["serde", "std", "thiserror"] }
 ed25519-dalek = { version = "1", features = ["batch", "merlin", "rand", "serde", "serde_bytes", "serde_crate", "std", "u64_backend"] }
 either = { version = "1", features = ["use_std"] }
 elliptic-curve = { version = "0.12", default-features = false, features = ["alloc", "arithmetic", "digest", "ff", "group", "hazmat", "pkcs8", "sec1", "std"] }
@@ -139,7 +141,7 @@ hyper = { version = "0.14", features = ["client", "full", "h2", "http1", "http2"
 hyper-timeout = { version = "0.4", default-features = false }
 idna = { version = "0.2", default-features = false }
 indenter = { version = "0.3" }
-indexmap = { version = "1", default-features = false, features = ["std"] }
+indexmap = { version = "1", default-features = false, features = ["serde", "std"] }
 insta = { version = "1", features = ["colors", "console"] }
 instant = { version = "0.1", default-features = false }
 integer-encoding = { version = "3", default-features = false }
@@ -261,6 +263,7 @@ strsim-93f6ce9d446188ac = { package = "strsim", version = "0.10", default-featur
 strsim-c38e5c1d305a1b54 = { package = "strsim", version = "0.8", default-features = false }
 structopt = { version = "0.3" }
 subtle = { version = "2", default-features = false, features = ["i128", "std"] }
+subtle-ng = { version = "2", default-features = false }
 sync_wrapper = { version = "0.1", default-features = false }
 telemetry-subscribers = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "123c9e40b529315e1c1d91a54fb717111c3e349c", features = ["chrome", "jaeger", "opentelemetry", "opentelemetry-jaeger", "tracing-chrome", "tracing-opentelemetry"] }
 tempfile = { version = "3", default-features = false }
@@ -352,7 +355,7 @@ heck-468e82937335b1c9 = { package = "heck", version = "0.3", default-features = 
 heck-9fbad63c4bcf4a8f = { package = "heck", version = "0.4" }
 hex-literal = { version = "0.3", default-features = false }
 ident_case = { version = "1", default-features = false }
-indexmap = { version = "1", default-features = false, features = ["std"] }
+indexmap = { version = "1", default-features = false, features = ["serde", "std"] }
 itertools = { version = "0.10", features = ["use_alloc", "use_std"] }
 jobserver = { version = "0.1", default-features = false }
 lazy_static = { version = "1", default-features = false }

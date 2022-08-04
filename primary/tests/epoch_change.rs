@@ -54,7 +54,7 @@ async fn spawn_test_worker(
 #[tokio::test]
 async fn test_simple_epoch_change() {
     let parameters = Parameters {
-        header_size: 32, // One batch digest.
+        header_size: 32, // One batch digest
         ..Parameters::default()
     };
 
@@ -155,7 +155,7 @@ async fn test_simple_epoch_change() {
 #[tokio::test]
 async fn test_partial_committee_change() {
     let parameters = Parameters {
-        header_size: 32, // One batch digest.
+        header_size: 32, // One batch digest
         ..Parameters::default()
     };
 
@@ -320,7 +320,7 @@ async fn test_partial_committee_change() {
 #[tokio::test]
 async fn test_restart_with_new_committee_change() {
     let parameters = Parameters {
-        header_size: 32, // One batch digest.
+        header_size: 32, // One batch digest
         ..Parameters::default()
     };
 
@@ -477,7 +477,7 @@ async fn test_restart_with_new_committee_change() {
 #[tokio::test]
 async fn test_simple_committee_update() {
     let parameters = Parameters {
-        header_size: 32, // One batch digest.
+        header_size: 32, // One batch digest
         ..Parameters::default()
     };
 

@@ -25,7 +25,7 @@ use tokio::{
     },
     task::JoinHandle,
 };
-use tracing::{debug, error, instrument, warn};
+use tracing::{debug, error, info, instrument, warn};
 use types::{
     ensure,
     error::{DagError, DagResult},
@@ -477,7 +477,7 @@ impl Core {
         // Verify the header's signature.
         header.verify(&self.committee)?;
 
-        // TODO [issue #3]: Prevent bad nodes from sending junk headers with high round numbers.
+        // TODO [issue #672]: Prevent bad nodes from sending junk headers with high round numbers.
 
         Ok(())
     }
@@ -560,6 +560,7 @@ impl Core {
 
     // Main loop listening to incoming messages.
     pub async fn run(&mut self) {
+        info!("Core on node {} has started successfully.", self.name);
         loop {
             let result = tokio::select! {
                 // We receive here messages from other primaries.

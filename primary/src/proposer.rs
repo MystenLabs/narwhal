@@ -16,7 +16,7 @@ use tokio::{
     task::JoinHandle,
     time::{sleep, Duration, Instant},
 };
-use tracing::debug;
+use tracing::{debug, info};
 use types::{
     error::{DagError, DagResult},
     BatchDigest, Certificate, Header, ReconfigureNotification, Round,
@@ -256,6 +256,7 @@ impl Proposer {
         let timer = sleep(self.delta);
         tokio::pin!(timer);
 
+        info!("Proposer on node {} has started successfully.", self.name);
         loop {
             // Check if we have enough parents; if we have enough digests; if other primaries already
             // made a non-certificate for this round (and need our certificate to make progress); and
