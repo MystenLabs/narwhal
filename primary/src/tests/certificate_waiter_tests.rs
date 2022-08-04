@@ -17,7 +17,7 @@ use test_utils::{
 };
 use tokio::sync::watch;
 use types::{Certificate, PrimaryMessage, ReconfigureNotification, Round};
-// TODO check if tests required new committees or can use clones
+
 #[tokio::test]
 async fn process_certificate_missing_parents_in_reverse() {
     let mut k = keys(None);

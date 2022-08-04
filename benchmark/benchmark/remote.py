@@ -10,7 +10,7 @@ from math import ceil
 from copy import deepcopy
 import subprocess
 
-from benchmark.config import Committee, Key, NodeParameters, BenchParameters, ConfigError
+from benchmark.config import Committee, Key, NodeParameters, WorkerCache, BenchParameters, ConfigError
 from benchmark.utils import BenchError, Print, PathMaker, progress_bar
 from benchmark.commands import CommandMaker
 from benchmark.logs import LogParser, ParseError
@@ -18,7 +18,7 @@ from benchmark.instance import InstanceManager
 
 
 class FabricError(Exception):
-    ''' Wrapper for Fabric exception with a meaningfull error message. '''
+    ''' Wrapper for Fabric exception with a meaningful error message. '''
 
     def __init__(self, error):
         assert isinstance(error, GroupException)
@@ -196,6 +196,11 @@ class Bench:
         committee = Committee(addresses, self.settings.base_port)
         committee.print(PathMaker.committee_file())
 
+        # 2 ports used per authority so add 2 * num authorities to base port
+        worker_cache = WorkerCache(
+            names, self.settings.base_port + (2 * len(names)))
+        worker_cache.print(PathMaker.workers_file())
+
         node_parameters.print(PathMaker.parameters_file())
 
         # Cleanup all nodes and upload configuration files.
@@ -206,12 +211,13 @@ class Bench:
                 c = Connection(ip, user='ubuntu', connect_kwargs=self.connect)
                 c.run(f'{CommandMaker.cleanup()} || true', hide=True)
                 c.put(PathMaker.committee_file(), '.')
+                c.put(PathMaker.workers_file(), '.')
                 c.put(PathMaker.key_file(i), '.')
                 c.put(PathMaker.parameters_file(), '.')
 
-        return committee
+        return (committee, worker_cache)
 
-    def _run_single(self, rate, committee, bench_parameters, debug=False):
+    def _run_single(self, rate, committee, worker_cache, bench_parameters, debug=False):
         faults = bench_parameters.faults
 
         # Kill any potentially unfinished run and delete logs.
@@ -222,8 +228,8 @@ class Bench:
         # Filter all faulty nodes from the client addresses (or they will wait
         # for the faulty nodes to be online).
         Print.info('Booting clients...')
-        workers_addresses = committee.load().workers_addresses(faults)
-        rate_share = ceil(rate / committee.load().workers())
+        workers_addresses = worker_cache.workers_addresses(faults)
+        rate_share = ceil(rate / worker_cache.workers())
         for i, addresses in enumerate(workers_addresses):
             for (id, address) in addresses:
                 host = Committee.ip(address)
@@ -243,6 +249,7 @@ class Bench:
             cmd = CommandMaker.run_primary(
                 PathMaker.key_file(i),
                 PathMaker.committee_file(),
+                PathMaker.workers_file(),
                 PathMaker.db_path(i),
                 PathMaker.parameters_file(),
                 debug=debug
@@ -258,6 +265,7 @@ class Bench:
                 cmd = CommandMaker.run_worker(
                     PathMaker.key_file(i),
                     PathMaker.committee_file(),
+                    PathMaker.workers_file(),
                     PathMaker.db_path(i, id),
                     PathMaker.parameters_file(),
                     id,  # The worker's id.
@@ -272,18 +280,20 @@ class Bench:
             sleep(ceil(duration / 20))
         self.kill(hosts=hosts, delete_logs=False)
 
-    def _logs(self, committee, faults):
+    def _logs(self, committee, worker_cache, faults):
         # Delete local logs (if any).
         cmd = CommandMaker.clean_logs()
         subprocess.run([cmd], shell=True, stderr=subprocess.DEVNULL)
 
         # Download log files.
-        workers_addresses = committee.load().workers_addresses(faults)
-        progress = progress_bar(workers_addresses, prefix='Downloading workers logs:')
+        workers_addresses = worker_cache.workers_addresses(faults)
+        progress = progress_bar(
+            workers_addresses, prefix='Downloading workers logs:')
         for i, addresses in enumerate(progress):
             for id, address in addresses:
                 host = Committee.ip(address)
-                c = Connection(host, user='ubuntu', connect_kwargs=self.connect)
+                c = Connection(host, user='ubuntu',
+                               connect_kwargs=self.connect)
                 c.get(
                     PathMaker.client_log_file(i, id),
                     local=PathMaker.client_log_file(i, id)
@@ -294,7 +304,8 @@ class Bench:
                 )
 
         primary_addresses = committee.load().primary_addresses(faults)
-        progress = progress_bar(primary_addresses, prefix='Downloading primaries logs:')
+        progress = progress_bar(
+            primary_addresses, prefix='Downloading primaries logs:')
         for i, address in enumerate(progress):
             host = Committee.ip(address)
             c = Connection(host, user='ubuntu', connect_kwargs=self.connect)
@@ -331,7 +342,7 @@ class Bench:
 
         # Upload all configuration files.
         try:
-            committee = self._config(
+            committee, worker_cache = self._config(
                 selected_hosts, node_parameters, bench_parameters
             )
         except (subprocess.SubprocessError, GroupException) as e:
@@ -343,6 +354,9 @@ class Bench:
             committee_copy = deepcopy(committee)
             committee_copy.remove_nodes(committee.size() - n)
 
+            worker_cache_copy = deepcopy(worker_cache)
+            worker_cache_copy.remove_nodes(worker_cache.size() - n)
+
             for r in bench_parameters.rate:
                 Print.heading(f'\nRunning {n} nodes (input rate: {r:,} tx/s)')
 
@@ -351,11 +365,12 @@ class Bench:
                     Print.heading(f'Run {i+1}/{bench_parameters.runs}')
                     try:
                         self._run_single(
-                            r, committee_copy, bench_parameters, debug
+                            r, committee_copy, worker_cache_copy, bench_parameters, debug
                         )
 
                         faults = bench_parameters.faults
-                        logger = self._logs(committee_copy, faults)
+                        logger = self._logs(
+                            committee_copy, worker_cache_copy, faults)
                         logger.print(PathMaker.result_file(
                             faults,
                             n,

@@ -53,7 +53,6 @@ impl Cluster {
         internal_consensus_enabled: bool,
     ) -> Self {
         let k = keys(None);
-        // TODO: Check and see if both have to be created from the same set of keys?
         let c = input_committee.unwrap_or_else(|| pure_committee_from_keys(&k));
         let wc = input_worker_cache.unwrap_or_else(|| worker_cache_from_keys(&k));
         let shared_committee = Arc::new(ArcSwap::from_pointee(c));

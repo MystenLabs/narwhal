@@ -39,7 +39,6 @@ async fn propose_empty() {
     let header = rx_headers.recv().await.unwrap();
     assert_eq!(header.round, 1);
     assert!(header.payload.is_empty());
-    // TODO check if the same keys should be used here
     assert!(header.verify(&committee(None), &worker_cache(None)).is_ok());
 }
 

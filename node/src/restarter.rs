@@ -125,7 +125,6 @@ impl NodeRestarter {
             keypair = new_keypair;
             name = keypair.public().clone();
             committee = new_committee;
-            // TODO update new_worker
         }
     }
 }

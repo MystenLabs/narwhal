@@ -10,7 +10,7 @@ use test_utils::{
     votes, worker_cache_from_keys, PrimaryToPrimaryMockServer,
 };
 use types::{Header, Vote};
-// TODO check if tests required new committees or can use clones
+
 #[tokio::test]
 async fn process_header() {
     let mut keys = keys(None);

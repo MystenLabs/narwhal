@@ -316,12 +316,11 @@ pub struct WorkerCache {
     pub epoch: Epoch,
 }
 
-//TODO: Test this print out
 impl std::fmt::Display for WorkerIndex {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Worker Index {:?}",
+            "WorkerIndex {:?}",
             self.0
                 .iter()
                 .map(|(key, value)| { format!("{}:{:?}", key, value) })
@@ -334,7 +333,7 @@ impl std::fmt::Display for WorkerCache {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Worker Cache E{}: {:?}",
+            "WorkerCache E{}: {:?}",
             self.epoch(),
             self.workers
                 .iter()
