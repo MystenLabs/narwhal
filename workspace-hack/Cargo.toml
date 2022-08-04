@@ -97,7 +97,7 @@ digest-274715c4dabd11b0 = { package = "digest", version = "0.9", default-feature
 downcast = { version = "0.11", features = ["std"] }
 ecdsa = { version = "0.14", default-features = false, features = ["alloc", "arithmetic", "der", "digest", "hazmat", "pkcs8", "rfc6979", "sign", "std", "verify"] }
 ed25519 = { version = "1", default-features = false, features = ["serde", "std"] }
-ed25519-consensus = { version = "1", features = ["serde", "std", "thiserror"] }
+ed25519-consensus = { version = "2", features = ["serde", "std", "thiserror"] }
 ed25519-dalek = { version = "1", features = ["batch", "merlin", "rand", "serde", "serde_bytes", "serde_crate", "std", "u64_backend"] }
 either = { version = "1", features = ["use_std"] }
 elliptic-curve = { version = "0.12", default-features = false, features = ["alloc", "arithmetic", "digest", "ff", "group", "hazmat", "pkcs8", "sec1", "std"] }
