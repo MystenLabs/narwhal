@@ -77,7 +77,7 @@ impl WorkerNetwork {
 
     pub fn cleanup<'a, I>(&mut self, to_remove: I)
     where
-        I: Iterator<Item = &'a Multiaddr>,
+        I: IntoIterator<Item = &'a Multiaddr>,
     {
         for address in to_remove {
             self.clients.remove(address);

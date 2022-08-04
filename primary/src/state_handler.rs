@@ -99,6 +99,9 @@ impl StateHandler {
                 Some(message) = self.rx_reconfigure.recv() => {
                     let shutdown = match &message {
                         ReconfigureNotification::NewEpoch(committee) => {
+                            // Cleanup the network.
+                            self.worker_network.cleanup(self.committee.load().network_diff(&committee));
+
                             // Update the committee.
                             self.committee.swap(Arc::new(committee.clone()));
 
@@ -109,6 +112,10 @@ impl StateHandler {
                             false
                         },
                         ReconfigureNotification::UpdateCommittee(committee) => {
+                            // Cleanup the network.
+                            self.worker_network.cleanup(self.committee.load().network_diff(&committee));
+
+                            // Update the committee.
                             self.committee.swap(Arc::new(committee.clone()));
 
                             tracing::debug!("Committee updated to {}", self.committee);
