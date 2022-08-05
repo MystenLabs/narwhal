@@ -100,7 +100,7 @@ async fn test_get_collections() {
         }
     }
 
-    let (tx_new_certificates, rx_new_certificates) = channel(CHANNEL_CAPACITY);
+    let (tx_new_certificates, rx_new_certificates) = test_utils::test_channel!(CHANNEL_CAPACITY);
     let (tx_feedback, rx_feedback) = channel(CHANNEL_CAPACITY);
     let initial_committee = ReconfigureNotification::NewEpoch(committee.clone());
     let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
@@ -237,7 +237,7 @@ async fn test_remove_collections() {
     let key = keys(None).pop().unwrap();
 
     // Make the Dag
-    let (tx_new_certificates, rx_new_certificates) = channel(CHANNEL_CAPACITY);
+    let (tx_new_certificates, rx_new_certificates) = test_utils::test_channel!(CHANNEL_CAPACITY);
     let consensus_metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
     let dag = Arc::new(Dag::new(&committee, rx_new_certificates, consensus_metrics).1);
     // No need to populate genesis in the Dag
@@ -430,7 +430,7 @@ async fn test_read_causal_signed_certificates() {
     let mut collection_ids: Vec<CertificateDigest> = Vec::new();
 
     // Make the Dag
-    let (tx_new_certificates, rx_new_certificates) = channel(CHANNEL_CAPACITY);
+    let (tx_new_certificates, rx_new_certificates) = test_utils::test_channel!(CHANNEL_CAPACITY);
     let consensus_metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
     let dag = Arc::new(Dag::new(&committee, rx_new_certificates, consensus_metrics).1);
 
@@ -519,7 +519,8 @@ async fn test_read_causal_signed_certificates() {
         &Registry::new(),
     );
 
-    let (tx_new_certificates_2, rx_new_certificates_2) = channel(CHANNEL_CAPACITY);
+    let (tx_new_certificates_2, rx_new_certificates_2) =
+        test_utils::test_channel!(CHANNEL_CAPACITY);
     let (tx_feedback_2, rx_feedback_2) = channel(CHANNEL_CAPACITY);
 
     let initial_committee = ReconfigureNotification::NewEpoch(committee.clone());
@@ -628,7 +629,7 @@ async fn test_read_causal_unsigned_certificates() {
     let mut collection_ids: Vec<CertificateDigest> = Vec::new();
 
     // Make the Dag
-    let (tx_new_certificates, rx_new_certificates) = channel(CHANNEL_CAPACITY);
+    let (tx_new_certificates, rx_new_certificates) = test_utils::test_channel!(CHANNEL_CAPACITY);
     let consensus_metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
     let dag = Arc::new(Dag::new(&committee, rx_new_certificates, consensus_metrics).1);
 
@@ -718,7 +719,8 @@ async fn test_read_causal_unsigned_certificates() {
         &Registry::new(),
     );
 
-    let (tx_new_certificates_2, rx_new_certificates_2) = channel(CHANNEL_CAPACITY);
+    let (tx_new_certificates_2, rx_new_certificates_2) =
+        test_utils::test_channel!(CHANNEL_CAPACITY);
     let (tx_feedback_2, rx_feedback_2) = channel(CHANNEL_CAPACITY);
     let initial_committee = ReconfigureNotification::NewEpoch(committee.clone());
     let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
@@ -859,7 +861,8 @@ async fn test_get_collections_with_missing_certificates() {
     let block_ids = vec![certificate_1.digest(), certificate_2.digest()];
 
     // Spawn the primary 1 (which will be the one that we'll interact with)
-    let (tx_new_certificates_1, rx_new_certificates_1) = channel(CHANNEL_CAPACITY);
+    let (tx_new_certificates_1, rx_new_certificates_1) =
+        test_utils::test_channel!(CHANNEL_CAPACITY);
     let (tx_feedback_1, rx_feedback_1) = channel(CHANNEL_CAPACITY);
     let initial_committee = ReconfigureNotification::NewEpoch(committee.clone());
     let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
@@ -903,7 +906,7 @@ async fn test_get_collections_with_missing_certificates() {
     );
 
     // Spawn the primary 2 - a peer to fetch missing certificates from
-    let (tx_new_certificates_2, _) = channel(CHANNEL_CAPACITY);
+    let (tx_new_certificates_2, _) = test_utils::test_channel!(CHANNEL_CAPACITY);
     let (tx_feedback_2, rx_feedback_2) = channel(CHANNEL_CAPACITY);
     let initial_committee = ReconfigureNotification::NewEpoch(committee.clone());
     let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);

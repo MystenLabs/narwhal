@@ -10,16 +10,21 @@ use tokio::sync::mpsc::{
     OwnedPermit, Permit,
 };
 
-#[cfg(test)]
-#[path = "tests/metered_channel_tests.rs"]
-mod metered_channel_tests;
-
 /// An [`mpsc::Sender`](tokio::sync::mpsc::Sender) with an [`IntGauge`]
 /// counting the number of currently queued items.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Sender<T> {
     inner: mpsc::Sender<T>,
     gauge: IntGauge,
+}
+
+impl<T> Clone for Sender<T> {
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+            gauge: self.gauge.clone(),
+        }
+    }
 }
 
 /// An [`mpsc::Receiver`](tokio::sync::mpsc::Receiver) with an [`IntGauge`]
@@ -152,7 +157,7 @@ impl<T> Sender<T> {
 
     /// Tries to acquire a slot in the channel without waiting for the slot to become
     /// available, returning an owned permit.
-    ///      Increments the gauge in case of a successful `try_reserve`.
+    ///      Increments the gauge in case of a successful `try_reserve_owned`.
     pub fn try_reserve_owned(self) -> Result<OwnedPermit<T>, TrySendError<Self>> {
         self.inner
             .try_reserve_owned()
@@ -173,11 +178,8 @@ impl<T> Sender<T> {
             })
     }
 
-    /// Returns `true` if senders belong to the same channel.
-    pub fn same_channel(&self, other: &Self) -> bool {
-        // this works if an only if we never use a constructor that unmoors the gauge from the channel
-        self.inner.same_channel(&other.inner)
-    }
+    // Note: not exposing `same_channel`, as it is hard to implement with callers able to
+    // break the coupling between channel and gauge using `wrap` or `gauge`.
 
     /// Returns the current capacity of the channel.
     pub fn capacity(&self) -> usize {
@@ -185,6 +187,12 @@ impl<T> Sender<T> {
     }
 
     // We're voluntarily not putting WeakSender under a facade.
+
+    /// Returns a reference to the underlying gauge.
+    // This hack is necessary to avoid a cyclic dependency in the initialization of consensus and primary
+    pub fn gauge(&self) -> &IntGauge {
+        &self.gauge
+    }
 }
 
 ////////////////////////////////
@@ -265,4 +273,23 @@ pub fn channel<T>(size: usize, gauge: &IntGauge) -> (Sender<T>, Receiver<T>) {
             gauge: gauge.clone(),
         },
     )
+}
+
+/// This allows one to wrap an IntGauge around an existing sender and receiver pair.
+/// This is safe only if the sender and receiver passed as an argument are both endpoints of the same channel.
+pub fn wrap<T>(
+    sender: mpsc::Sender<T>,
+    receiver: mpsc::Receiver<T>,
+    gauge: &IntGauge,
+) -> (Sender<T>, Receiver<T>) {
+    gauge.set(0);
+    let sender = Sender {
+        inner: sender,
+        gauge: gauge.clone(),
+    };
+    let receiver = Receiver {
+        inner: receiver,
+        gauge: gauge.clone(),
+    };
+    (sender, receiver)
 }

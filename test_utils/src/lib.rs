@@ -41,6 +41,16 @@ pub fn temp_dir() -> std::path::PathBuf {
         .into_path()
 }
 
+#[macro_export]
+macro_rules! test_channel {
+    ($e:expr) => {
+        types::metered_channel::channel(
+            $e,
+            &prometheus::IntGauge::new("TEST_COUNTER", "test counter").unwrap(),
+        );
+    };
+}
+
 ////////////////////////////////////////////////////////////////
 /// Keys, Committee
 ////////////////////////////////////////////////////////////////

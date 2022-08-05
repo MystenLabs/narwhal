@@ -1,7 +1,6 @@
 // Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crate::metered_channel;
 use futures::{
     executor::block_on,
     task::{noop_waker, Context, Poll},
@@ -9,6 +8,7 @@ use futures::{
 };
 use prometheus::IntGauge;
 use tokio::sync::mpsc::error::TrySendError;
+use types::metered_channel;
 
 #[test]
 fn test_send() {
