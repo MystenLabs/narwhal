@@ -7,7 +7,7 @@ use std::task::{Context, Poll};
 use tokio::sync::mpsc::{
     self,
     error::{SendError, TryRecvError, TrySendError},
-    OwnedPermit, Permit,
+    Permit,
 };
 
 /// An [`mpsc::Sender`](tokio::sync::mpsc::Sender) with an [`IntGauge`]
@@ -39,19 +39,23 @@ impl<T> Receiver<T> {
     /// Receives the next value for this receiver.
     /// Decrements the gauge in case of a successful `recv`.
     pub async fn recv(&mut self) -> Option<T> {
-        self.inner.recv().inspect(|_| self.gauge.dec()).await
+        self.inner
+            .recv()
+            .inspect(|opt| {
+                if opt.is_some() {
+                    self.gauge.dec();
+                }
+            })
+            .await
     }
 
     /// Attempts to receive the next value for this receiver.
     /// Decrements the gauge in case of a successful `try_recv`.
-    pub async fn try_recv(&mut self) -> Result<Option<T>, TryRecvError> {
-        self.inner
-            .recv()
-            .map(|val| {
-                self.gauge.dec();
-                Ok(val)
-            })
-            .await
+    pub fn try_recv(&mut self) -> Result<T, TryRecvError> {
+        self.inner.try_recv().map(|val| {
+            self.gauge.dec();
+            val
+        })
     }
 
     // TODO: facade [`blocking_recv`](tokio::mpsc::Receiver::blocking_recv) under the tokio feature flag "sync"
@@ -65,9 +69,9 @@ impl<T> Receiver<T> {
     ///  Decrements the gauge in case of a successful `poll_recv`.
     pub fn poll_recv(&mut self, cx: &mut Context<'_>) -> Poll<Option<T>> {
         match self.inner.poll_recv(cx) {
-            Poll::Ready(Some(val)) => {
+            res @ Poll::Ready(Some(_)) => {
                 self.gauge.dec();
-                Poll::Ready(Some(val))
+                res
             }
             s => s,
         }
@@ -123,22 +127,9 @@ impl<T> Sender<T> {
             .reserve()
             // remove this unsightly hack once https://github.com/rust-lang/rust/issues/91345 is resolved
             .map(|val| {
-                self.gauge.inc();
-                val
-            })
-            .await
-    }
-
-    /// Waits for channel capacity, moving the `Sender` and returning an owned
-    /// permit. Once capacity to send one message is available, it is reserved
-    /// for the caller.
-    /// Increments the gauge in case of a successful `reserve_owned`.
-    pub async fn reserve_owned(self) -> Result<OwnedPermit<T>, SendError<()>> {
-        self.inner
-            .reserve_owned()
-            // remove this unsightly hack once https://github.com/rust-lang/rust/issues/91345 is resolved
-            .map(|val| {
-                self.gauge.inc();
+                if val.is_ok() {
+                    self.gauge.inc();
+                }
                 val
             })
             .await
@@ -155,28 +146,7 @@ impl<T> Sender<T> {
         })
     }
 
-    /// Tries to acquire a slot in the channel without waiting for the slot to become
-    /// available, returning an owned permit.
-    ///      Increments the gauge in case of a successful `try_reserve_owned`.
-    pub fn try_reserve_owned(self) -> Result<OwnedPermit<T>, TrySendError<Self>> {
-        self.inner
-            .try_reserve_owned()
-            .map(|val| {
-                // remove this unsightly hack once https://github.com/rust-lang/rust/issues/91345 is resolved
-                self.gauge.inc();
-                val
-            })
-            .map_err(|err| match err {
-                TrySendError::Full(inner) => TrySendError::Full(Sender {
-                    inner,
-                    gauge: self.gauge.clone(),
-                }),
-                TrySendError::Closed(inner) => TrySendError::Closed(Sender {
-                    inner,
-                    gauge: self.gauge.clone(),
-                }),
-            })
-    }
+    // TODO: consider exposing the _owned methods
 
     // Note: not exposing `same_channel`, as it is hard to implement with callers able to
     // break the coupling between channel and gauge using `gauge`.
