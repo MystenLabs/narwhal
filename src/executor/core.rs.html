@@ -244,15 +244,6 @@
 <span id="244">244</span>
 <span id="245">245</span>
 <span id="246">246</span>
-<span id="247">247</span>
-<span id="248">248</span>
-<span id="249">249</span>
-<span id="250">250</span>
-<span id="251">251</span>
-<span id="252">252</span>
-<span id="253">253</span>
-<span id="254">254</span>
-<span id="255">255</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="kw">crate</span>::{
@@ -261,7 +252,6 @@
     <span class="ident">state::ExecutionIndices</span>,
     <span class="ident">ExecutionState</span>, <span class="ident">ExecutorOutput</span>, <span class="ident">SerializedTransaction</span>,
 };
-<span class="kw">use</span> <span class="ident">config::Committee</span>;
 <span class="kw">use</span> <span class="ident">consensus::ConsensusOutput</span>;
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">fmt::Debug</span>, <span class="ident">sync::Arc</span>};
 <span class="kw">use</span> <span class="ident">store::Store</span>;
@@ -433,15 +423,7 @@
                     .<span class="kw">await</span>;
 
                 <span class="kw">let</span> (<span class="ident">bail</span>, <span class="ident">result</span>) <span class="op">=</span> <span class="kw">match</span> <span class="ident">result</span> {
-                    <span class="prelude-val">Ok</span>((<span class="ident">outcome</span>, <span class="ident">committee</span>)) =&gt; {
-                        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">_committee</span>) <span class="op">=</span> <span class="ident">committee</span> {
-                            <span class="comment">// TODO: Do we really need to receive back the committee here? We will know</span>
-                            <span class="comment">// once we try to integrate Narwhal with Sui. #580</span>
-                            <span class="comment">// todo!();</span>
-                        }
-
-                        (<span class="prelude-val">None</span>, <span class="prelude-val">Ok</span>(<span class="ident">outcome</span>))
-                    }
+                    <span class="ident">outcome</span> @ <span class="prelude-val">Ok</span>(..) =&gt; (<span class="prelude-val">None</span>, <span class="ident">outcome</span>),
 
                     <span class="comment">// We may want to log the errors that are the user&#39;s fault (i.e., that are neither</span>
                     <span class="comment">// our fault or the fault of consensus) for debug purposes. It is safe to continue</span>
@@ -479,7 +461,7 @@
         <span class="ident">serialized</span>: <span class="ident">SerializedTransaction</span>,
         <span class="ident">total_transactions</span>: <span class="ident">usize</span>,
         <span class="ident">total_batches</span>: <span class="ident">usize</span>,
-    ) -&gt; <span class="ident">SubscriberResult</span><span class="op">&lt;</span>(<span class="op">&lt;</span><span class="ident">State</span> <span class="kw">as</span> <span class="ident">ExecutionState</span><span class="op">&gt;</span><span class="ident">::Outcome</span>, <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Committee</span><span class="op">&gt;</span>)<span class="op">&gt;</span> {
+    ) -&gt; <span class="ident">SubscriberResult</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">State</span> <span class="kw">as</span> <span class="ident">ExecutionState</span><span class="op">&gt;</span><span class="ident">::Outcome</span><span class="op">&gt;</span> {
         <span class="comment">// Compute the next expected indices. Those will be persisted upon transaction execution</span>
         <span class="comment">// and are only used for crash-recovery.</span>
         <span class="self">self</span>.<span class="ident">execution_indices</span>
