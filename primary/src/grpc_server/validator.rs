@@ -13,10 +13,10 @@ use tokio::{
 };
 use tonic::{Request, Response, Status};
 use types::{
-    metered_channel::Sender, BlockError, BlockRemoverErrorKind, CertificateDigest,
-    CertificateDigestProto, CollectionRetrievalResult, Empty, GetCollectionsRequest,
-    GetCollectionsResponse, ReadCausalRequest, ReadCausalResponse, RemoveCollectionsRequest,
-    Validator, BatchMessageProto,
+    metered_channel::Sender, BatchMessageProto, BlockError, BlockRemoverErrorKind,
+    CertificateDigest, CertificateDigestProto, CollectionRetrievalResult, Empty,
+    GetCollectionsRequest, GetCollectionsResponse, ReadCausalRequest, ReadCausalResponse,
+    RemoveCollectionsRequest, Validator,
 };
 
 pub struct NarwhalValidator<SynchronizerHandler: Handler + Send + Sync + 'static> {

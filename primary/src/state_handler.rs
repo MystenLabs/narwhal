@@ -5,7 +5,10 @@ use crate::primary::PrimaryWorkerMessage;
 use config::SharedCommittee;
 use crypto::PublicKey;
 use network::{PrimaryToWorkerNetwork, UnreliableNetwork};
-use std::sync::{Arc, atomic::{AtomicU64, Ordering}};
+use std::sync::{
+    atomic::{AtomicU64, Ordering},
+    Arc,
+};
 use tokio::{sync::watch, task::JoinHandle};
 use tracing::info;
 use types::{metered_channel::Receiver, Certificate, ReconfigureNotification, Round};

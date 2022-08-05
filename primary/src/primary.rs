@@ -27,8 +27,11 @@ use crypto::{
 use multiaddr::{Multiaddr, Protocol};
 use network::{metrics::Metrics, PrimaryNetwork, PrimaryToWorkerNetwork};
 use prometheus::Registry;
-use std::sync::{atomic::AtomicU64, Arc};
-use std::{collections::HashMap, net::Ipv4Addr};
+use std::{
+    collections::HashMap,
+    net::Ipv4Addr,
+    sync::{atomic::AtomicU64, Arc},
+};
 use store::Store;
 use tokio::{sync::watch, task::JoinHandle};
 use tonic::{Request, Response, Status};
