@@ -702,7 +702,7 @@ dependencies = [
  "crypto",
  "insta",
  "multiaddr",
- "rand 0.7.3",
+ "rand 0.8.5",
  "serde",
  "serde_json",
  "tempfile",
@@ -731,7 +731,7 @@ dependencies = [
  "match_opt",
  "pprof",
  "prometheus",
- "rand 0.7.3",
+ "rand 0.8.5",
  "rocksdb",
  "serde",
  "serde_bytes",
@@ -1369,7 +1369,7 @@ dependencies = [
  "multiaddr",
  "mysten-network 0.1.0 (git+https://github.com/mystenlabs/mysten-infra.git?rev=123c9e40b529315e1c1d91a54fb717111c3e349c)",
  "primary",
- "rand 0.7.3",
+ "rand 0.8.5",
  "rocksdb",
  "serde",
  "tempfile",
@@ -2267,7 +2267,7 @@ dependencies = [
  "multiaddr",
  "mysten-network 0.1.0 (git+https://github.com/mystenlabs/mysten-infra.git?rev=123c9e40b529315e1c1d91a54fb717111c3e349c)",
  "prometheus",
- "rand 0.7.3",
+ "rand 0.8.5",
  "serde",
  "test_utils",
  "thiserror",
@@ -3012,7 +3012,6 @@ dependencies = [
  "rand_chacha 0.2.2",
  "rand_core 0.5.1",
  "rand_hc",
- "rand_pcg",
 ]
 
 [[package]]
@@ -3069,15 +3068,6 @@ name = "rand_hc"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ca3129af7b92a17112d59ad498c6f81eaf463253766b90396d39ea7a39d6613c"
-dependencies = [
- "rand_core 0.5.1",
-]
-
-[[package]]
-name = "rand_pcg"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "16abd0c1b639e9eb4d7c50c0b8100b0d0f849be2349829c740fe8e6eb4816429"
 dependencies = [
  "rand_core 0.5.1",
 ]
@@ -4357,7 +4347,7 @@ dependencies = [
  "proptest-derive",
  "prost",
  "prost-build",
- "rand 0.7.3",
+ "rand 0.8.5",
  "rustversion",
  "serde",
  "serde_test",
@@ -4696,7 +4686,7 @@ dependencies = [
  "network",
  "primary",
  "prometheus",
- "rand 0.7.3",
+ "rand 0.8.5",
  "serde",
  "tempfile",
  "test_utils",
@@ -4967,7 +4957,6 @@ dependencies = [
  "rand_chacha 0.3.1",
  "rand_core 0.5.1",
  "rand_core 0.6.3",
- "rand_pcg",
  "rand_xorshift",
  "rayon",
  "rayon-core",
