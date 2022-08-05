@@ -3823,6 +3823,7 @@ dependencies = [
  "multiaddr",
  "mysten-network 0.1.0 (git+https://github.com/mystenlabs/mysten-infra.git?rev=123c9e40b529315e1c1d91a54fb717111c3e349c)",
  "node",
+ "primary",
  "prometheus",
  "rand 0.8.5",
  "serde",

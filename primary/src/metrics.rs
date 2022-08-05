@@ -94,6 +94,15 @@ pub struct PrimaryChannelMetrics {
 }
 
 impl PrimaryChannelMetrics {
+    // The consistent use of this constant in the below, as well as in `node::spawn_primary` is load-bearing, see `replace_registered_committed_certificates_metric`.
+    pub const NAME_COMMITTED_CERTS: &'static str = "tx_committed_certificates";
+    pub const DESC_COMMITTED_CERTS: &'static str =
+        "occupancy of the channel from the `Consensus` to the `primary::Core`";
+    // The consistent use of this constant in the below, as well as in `node::spawn_primary` is load-bearing, see `replace_registered_new_certificates_metric`.
+    pub const NAME_NEW_CERTS: &'static str = "tx_new_certificates";
+    pub const DESC_NEW_CERTS: &'static str =
+        "occupancy of the channel from the `primary::Core` to the `Consensus`";
+
     pub fn new(registry: &Registry) -> Self {
         Self {
             tx_others_digests: register_int_gauge_with_registry!(
@@ -192,35 +201,46 @@ impl PrimaryChannelMetrics {
                 registry
             ).unwrap(),
             tx_committed_certificates: register_int_gauge_with_registry!(
-                "tx_committed_certificates",
-                "occupancy of the channel from the `Consensus` to the `primary::Core`",
+                Self::NAME_COMMITTED_CERTS,
+                Self::DESC_COMMITTED_CERTS,
                 registry
             ).unwrap(),
             tx_new_certificates: register_int_gauge_with_registry!(
-                "tx_new_certificates",
-                "occupancy of the channel from the `primary::Core` to the `Consensus`",
+                Self::NAME_NEW_CERTS,
+                Self::DESC_NEW_CERTS,
                 registry
             ).unwrap(),
         }
     }
 
-    // this hack avoids a cyclic dependency in the initialization of consensus and primary
     pub fn replace_registered_new_certificates_metric(
-        &self,
+        &mut self,
         registry: &Registry,
         collector: Box<GenericGauge<AtomicI64>>,
     ) {
-        // Do not modify this without modifying the metric declaration above, but also the instance in `node::spawn_primary`.
-        let new_certificates_counter = IntGauge::new(
-            "tx_new_certificates",
-            "occupancy of the channel from the `primary::Core` to the `Consensus`",
-        )
-        .unwrap();
+        let new_certificates_counter =
+            IntGauge::new(Self::NAME_NEW_CERTS, Self::DESC_NEW_CERTS).unwrap();
         // TODO: Sanity-check by hashing the descs against one another
         registry
-            .unregister(Box::new(new_certificates_counter))
+            .unregister(Box::new(new_certificates_counter.clone()))
             .unwrap();
         registry.register(collector).unwrap();
+        self.tx_new_certificates = new_certificates_counter;
+    }
+
+    pub fn replace_registered_committed_certificates_metric(
+        &mut self,
+        registry: &Registry,
+        collector: Box<GenericGauge<AtomicI64>>,
+    ) {
+        let committed_certificates_counter =
+            IntGauge::new(Self::NAME_COMMITTED_CERTS, Self::DESC_COMMITTED_CERTS).unwrap();
+        // TODO: Sanity-check by hashing the descs against one another
+        registry
+            .unregister(Box::new(committed_certificates_counter.clone()))
+            .unwrap();
+        registry.register(collector).unwrap();
+        self.tx_committed_certificates = committed_certificates_counter;
     }
 }
 

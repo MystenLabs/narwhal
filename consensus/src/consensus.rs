@@ -189,7 +189,7 @@ pub struct Consensus<ConsensusProtocol> {
     /// if it already sent us its whole history.
     rx_primary: metered_channel::Receiver<Certificate>,
     /// Outputs the sequence of ordered certificates to the primary (for cleanup and feedback).
-    tx_primary: Sender<Certificate>,
+    tx_primary: metered_channel::Sender<Certificate>,
     /// Outputs the sequence of ordered certificates to the application layer.
     tx_output: Sender<ConsensusOutput>,
 
@@ -215,7 +215,7 @@ where
         cert_store: Store<CertificateDigest, Certificate>,
         rx_reconfigure: watch::Receiver<ReconfigureNotification>,
         rx_primary: metered_channel::Receiver<Certificate>,
-        tx_primary: Sender<Certificate>,
+        tx_primary: metered_channel::Sender<Certificate>,
         tx_output: Sender<ConsensusOutput>,
         protocol: Protocol,
         metrics: Arc<ConsensusMetrics>,

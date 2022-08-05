@@ -65,7 +65,7 @@ pub async fn spawn_node(
     certificate_store.write_all(to_store).await.unwrap();
 
     // Spawn the consensus engine and sink the primary channel.
-    let (tx_primary, mut rx_primary) = channel(1);
+    let (tx_primary, mut rx_primary) = test_utils::test_channel!(1);
     let (tx_output, rx_output) = channel(1);
     let gc_depth = 50;
     let tusk = Tusk::new(committee.clone(), consensus_store.clone(), gc_depth);

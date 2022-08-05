@@ -9,7 +9,7 @@ use crypto::{
     KeyPair, PublicKey,
 };
 use executor::{ExecutionState, Executor, ExecutorOutput, SerializedTransaction, SubscriberResult};
-use primary::{NetworkModel, PayloadToken, Primary};
+use primary::{NetworkModel, PayloadToken, Primary, PrimaryChannelMetrics};
 use prometheus::{IntGauge, Registry};
 use std::{fmt::Debug, sync::Arc};
 use store::{
@@ -132,16 +132,23 @@ impl Node {
         let initial_committee = ReconfigureNotification::NewEpoch((**committee.load()).clone());
         let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
 
-        // This gauge is porcelain: do not modify it without also modifying `primary::metrics::PrimaryChannelMetrics::replace_registered_new_certificates_metric`
+        // These gauge is porcelain: do not modify it without also modifying `primary::metrics::PrimaryChannelMetrics::replace_registered_new_certificates_metric`
         // This hack avoids a cyclic dependency in the initialization of consensus and primary
         let new_certificates_counter = IntGauge::new(
-            "tx_new_certificates",
-            "occupancy of the channel from the `primary::Core` to the `Consensus`",
+            PrimaryChannelMetrics::NAME_NEW_CERTS,
+            PrimaryChannelMetrics::DESC_NEW_CERTS,
         )
         .unwrap();
         let (tx_new_certificates, rx_new_certificates) =
-            types::metered_channel::channel(Self::CHANNEL_CAPACITY, &new_certificates_counter);
-        let (tx_consensus, rx_consensus) = channel(Self::CHANNEL_CAPACITY);
+            metered_channel::channel(Self::CHANNEL_CAPACITY, &new_certificates_counter);
+
+        let committed_certificates_counter = IntGauge::new(
+            PrimaryChannelMetrics::NAME_COMMITTED_CERTS,
+            PrimaryChannelMetrics::DESC_COMMITTED_CERTS,
+        )
+        .unwrap();
+        let (tx_consensus, rx_consensus) =
+            metered_channel::channel(Self::CHANNEL_CAPACITY, &committed_certificates_counter);
 
         // Compute the public key of this authority.
         let name = keypair.public().clone();
@@ -236,7 +243,7 @@ impl Node {
         execution_state: Arc<State>,
         tx_reconfigure: &watch::Sender<ReconfigureNotification>,
         rx_new_certificates: metered_channel::Receiver<Certificate>,
-        tx_feedback: Sender<Certificate>,
+        tx_feedback: metered_channel::Sender<Certificate>,
         tx_confirmation: Sender<(
             SubscriberResult<<State as ExecutionState>::Outcome>,
             SerializedTransaction,

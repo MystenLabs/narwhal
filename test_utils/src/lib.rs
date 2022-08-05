@@ -51,6 +51,44 @@ macro_rules! test_channel {
     };
 }
 
+// Note: use the following macros to initialize your Primary / Consensus channels
+// if your test is spawning a primary and you encounter an `AllReg` error.
+//
+// Rationale:
+// The primary initialization will try to edit a specific metric in its registry
+// for its new_certificates and committeed_certificates channel. The gauge situated
+// in the channel you're passing as an argument to the primary initialization is
+// the replacement. If that gauge is a dummy gauge, such as the one above, the
+// initialization of the primary will panic (to protect the production code against
+// an erroneous mistake in editing this bootstrap logic).
+#[macro_export]
+macro_rules! test_committed_certificates_channel {
+    ($e:expr) => {
+        types::metered_channel::channel(
+            $e,
+            &prometheus::IntGauge::new(
+                primary::PrimaryChannelMetrics::NAME_COMMITTED_CERTS,
+                primary::PrimaryChannelMetrics::DESC_COMMITTED_CERTS,
+            )
+            .unwrap(),
+        );
+    };
+}
+
+#[macro_export]
+macro_rules! test_new_certificates_channel {
+    ($e:expr) => {
+        types::metered_channel::channel(
+            $e,
+            &prometheus::IntGauge::new(
+                primary::PrimaryChannelMetrics::NAME_NEW_CERTS,
+                primary::PrimaryChannelMetrics::DESC_NEW_CERTS,
+            )
+            .unwrap(),
+        );
+    };
+}
+
 ////////////////////////////////////////////////////////////////
 /// Keys, Committee
 ////////////////////////////////////////////////////////////////

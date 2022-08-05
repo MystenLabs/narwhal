@@ -30,6 +30,7 @@ itertools = "0.10.3"
 
 config = { path = "../config" }
 crypto = { path = "../crypto", features = ["copy_key"] }
+primary = { path = "../primary" }
 types = { path = "../types" }
 worker = { path = "../worker"}
 node = { path = "../node"}

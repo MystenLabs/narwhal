@@ -179,7 +179,7 @@ impl<T> Sender<T> {
     }
 
     // Note: not exposing `same_channel`, as it is hard to implement with callers able to
-    // break the coupling between channel and gauge using `wrap` or `gauge`.
+    // break the coupling between channel and gauge using `gauge`.
 
     /// Returns the current capacity of the channel.
     pub fn capacity(&self) -> usize {
@@ -189,7 +189,6 @@ impl<T> Sender<T> {
     // We're voluntarily not putting WeakSender under a facade.
 
     /// Returns a reference to the underlying gauge.
-    // This hack is necessary to avoid a cyclic dependency in the initialization of consensus and primary
     pub fn gauge(&self) -> &IntGauge {
         &self.gauge
     }
@@ -273,23 +272,4 @@ pub fn channel<T>(size: usize, gauge: &IntGauge) -> (Sender<T>, Receiver<T>) {
             gauge: gauge.clone(),
         },
     )
-}
-
-/// This allows one to wrap an IntGauge around an existing sender and receiver pair.
-/// This is safe only if the sender and receiver passed as an argument are both endpoints of the same channel.
-pub fn wrap<T>(
-    sender: mpsc::Sender<T>,
-    receiver: mpsc::Receiver<T>,
-    gauge: &IntGauge,
-) -> (Sender<T>, Receiver<T>) {
-    gauge.set(0);
-    let sender = Sender {
-        inner: sender,
-        gauge: gauge.clone(),
-    };
-    let receiver = Receiver {
-        inner: receiver,
-        gauge: gauge.clone(),
-    };
-    (sender, receiver)
 }

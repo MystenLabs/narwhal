@@ -29,15 +29,12 @@ use network::{metrics::Metrics, PrimaryNetwork, PrimaryToWorkerNetwork};
 use prometheus::Registry;
 use std::{collections::HashMap, net::Ipv4Addr, sync::Arc};
 use store::Store;
-use tokio::{
-    sync::{mpsc, watch},
-    task::JoinHandle,
-};
+use tokio::{sync::watch, task::JoinHandle};
 use tonic::{Request, Response, Status};
 use tracing::info;
 use types::{
     error::DagError,
-    metered_channel::{self, channel, Sender},
+    metered_channel::{channel, Receiver, Sender},
     BatchDigest, BatchMessage, BincodeEncodedPayload, Certificate, CertificateDigest, Empty,
     Header, HeaderDigest, PrimaryToPrimary, PrimaryToPrimaryServer, ReconfigureNotification,
     WorkerInfoResponse, WorkerPrimaryError, WorkerPrimaryMessage, WorkerToPrimary,
@@ -72,11 +69,11 @@ impl Primary {
         certificate_store: Store<CertificateDigest, Certificate>,
         payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,
         tx_consensus: Sender<Certificate>,
-        rx_consensus: mpsc::Receiver<Certificate>,
+        rx_consensus: Receiver<Certificate>,
         dag: Option<Arc<Dag>>,
         network_model: NetworkModel,
         tx_reconfigure: watch::Sender<ReconfigureNotification>,
-        tx_committed_certificates: mpsc::Sender<Certificate>,
+        tx_committed_certificates: Sender<Certificate>,
         registry: &Registry,
     ) -> Vec<JoinHandle<()>> {
         // Write the parameters to the logs.
@@ -85,7 +82,7 @@ impl Primary {
         // Initialize the metrics
         let metrics = initialise_metrics(registry);
         let endpoint_metrics = metrics.endpoint_metrics.unwrap();
-        let primary_channel_metrics = metrics.primary_channel_metrics.unwrap();
+        let mut primary_channel_metrics = metrics.primary_channel_metrics.unwrap();
         let primary_endpoint_metrics = metrics.primary_endpoint_metrics.unwrap();
         let node_metrics = Arc::new(metrics.node_metrics.unwrap());
         let network_metrics = Arc::new(metrics.network_metrics.unwrap());
@@ -146,17 +143,18 @@ impl Primary {
         );
         let (tx_state_handler, rx_state_handler) =
             channel(CHANNEL_CAPACITY, &primary_channel_metrics.tx_state_handler);
-        // TODO: this channel pair name is highly counterintuitive: see initialization in node and rename(?)
-        let (tx_committed_certificates, rx_consensus) = metered_channel::wrap(
-            tx_committed_certificates,
-            rx_consensus,
-            &primary_channel_metrics.tx_committed_certificates,
-        );
+
         // we need to hack the gauge from this consensus channel into the primary registry
         // This avoids a cyclic dependency in the initialization of consensus and primary
-        let consensus_gauge = tx_consensus.gauge().clone();
+        // TODO: this (tx_committed_certificates, rx_consensus) channel pair name is highly counterintuitive: see initialization in node and rename(?)
+        let committed_certificates_gauge = tx_committed_certificates.gauge().clone();
+        primary_channel_metrics.replace_registered_committed_certificates_metric(
+            registry,
+            Box::new(committed_certificates_gauge),
+        );
+        let new_certificates_gauge = tx_consensus.gauge().clone();
         primary_channel_metrics
-            .replace_registered_new_certificates_metric(registry, Box::new(consensus_gauge));
+            .replace_registered_new_certificates_metric(registry, Box::new(new_certificates_gauge));
 
         let (tx_consensus_round_updates, rx_consensus_round_updates) = watch::channel(0u64);
 
