@@ -99,7 +99,7 @@ pub struct Node;
 
 impl Node {
     /// The default channel capacity.
-    pub const CHANNEL_CAPACITY: usize = 1_000;
+    pub const CHANNEL_CAPACITY: usize = 1;
 
     /// Spawn a new primary. Optionally also spawn the consensus and a client executing transactions.
     pub async fn spawn_primary<State>(
