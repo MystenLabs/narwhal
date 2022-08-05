@@ -22,7 +22,7 @@ use std::ops::RangeInclusive;
 use types::{Certificate, SequenceNumber};
 
 /// The default channel size used in the consensus and subscriber logic.
-pub const DEFAULT_CHANNEL_SIZE: usize = 1_000;
+pub const DEFAULT_CHANNEL_SIZE: usize = 1;
 
 /// The output format of the consensus.
 #[derive(Serialize, Deserialize, Clone, Debug)]

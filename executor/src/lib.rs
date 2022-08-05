@@ -40,7 +40,7 @@ use tracing::info;
 use types::{BatchDigest, ReconfigureNotification, SerializedBatchMessage};
 
 /// Default inter-task channel size.
-pub const DEFAULT_CHANNEL_SIZE: usize = 1_000;
+pub const DEFAULT_CHANNEL_SIZE: usize = 1;
 
 /// Convenience type representing a serialized transaction.
 pub type SerializedTransaction = Vec<u8>;
