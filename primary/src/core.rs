@@ -20,17 +20,12 @@ use std::{
     time::Instant,
 };
 use store::Store;
-use tokio::{
-    sync::{
-        mpsc::{Receiver, Sender},
-        watch,
-    },
-    task::JoinHandle,
-};
+use tokio::{sync::watch, task::JoinHandle};
 use tracing::{debug, error, info, instrument, warn};
 use types::{
     ensure,
     error::{DagError, DagResult},
+    metered_channel::{Receiver, Sender},
     Certificate, CertificateDigest, Header, HeaderDigest, ReconfigureNotification, Round, Vote,
 };
 
@@ -432,7 +427,7 @@ impl Core {
             }
             debug!(
                 "Pruned {} messages from obsolete rounds.",
-                self.cancel_handlers.len() - before
+                before.saturating_sub(self.cancel_handlers.len())
             );
         }
 

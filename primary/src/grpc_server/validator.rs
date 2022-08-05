@@ -8,18 +8,15 @@ use crate::{
 };
 use consensus::dag::Dag;
 use tokio::{
-    sync::{
-        mpsc::{channel, Sender},
-        oneshot,
-    },
+    sync::{mpsc::channel, oneshot},
     time::timeout,
 };
 use tonic::{Request, Response, Status};
 use types::{
-    BatchMessageProto, BlockError, BlockRemoverErrorKind, CertificateDigest,
+    metered_channel::Sender, BlockError, BlockRemoverErrorKind, CertificateDigest,
     CertificateDigestProto, CollectionRetrievalResult, Empty, GetCollectionsRequest,
     GetCollectionsResponse, ReadCausalRequest, ReadCausalResponse, RemoveCollectionsRequest,
-    Validator,
+    Validator, BatchMessageProto,
 };
 
 pub struct NarwhalValidator<SynchronizerHandler: Handler + Send + Sync + 'static> {

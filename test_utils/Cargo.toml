@@ -15,6 +15,7 @@ bytes = "1.2.1"
 derive_builder = "0.11.2"
 ed25519-dalek = "1.0.1"
 futures = "0.3.21"
+prometheus = "0.13.1"
 rand = "0.7.3"
 serde = { version = "1.0.141", features = ["derive"] }
 tempfile = "3.3.0"
@@ -24,11 +25,11 @@ tokio-util = { version = "0.7.3", features = ["codec"] }
 tonic = "0.7.2"
 multiaddr = "0.14.0"
 tracing = "0.1.36"
-prometheus = "0.13.1"
 indexmap = { version = "1.9.1", features = ["serde"] }
 
 config = { path = "../config" }
 crypto = { path = "../crypto", features = ["copy_key"] }
+primary = { path = "../primary" }
 types = { path = "../types" }
 worker = { path = "../worker"}
 node = { path = "../node"}

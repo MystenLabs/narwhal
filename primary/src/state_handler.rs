@@ -5,16 +5,10 @@ use crate::primary::PrimaryWorkerMessage;
 use config::SharedCommittee;
 use crypto::PublicKey;
 use network::{PrimaryToWorkerNetwork, UnreliableNetwork};
-use std::sync::{
-    atomic::{AtomicU64, Ordering},
-    Arc,
-};
-use tokio::{
-    sync::{mpsc::Receiver, watch},
-    task::JoinHandle,
-};
+use std::sync::{Arc, atomic::{AtomicU64, Ordering}};
+use tokio::{sync::watch, task::JoinHandle};
 use tracing::info;
-use types::{Certificate, ReconfigureNotification, Round};
+use types::{metered_channel::Receiver, Certificate, ReconfigureNotification, Round};
 
 /// Receives the highest round reached by consensus and update it for all tasks.
 pub struct StateHandler {
