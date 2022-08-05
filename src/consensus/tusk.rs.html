@@ -442,7 +442,7 @@
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">state_limits_test</span>() {
         <span class="kw">let</span> <span class="ident">gc_depth</span> <span class="op">=</span> <span class="number">12</span>;
-        <span class="kw">let</span> <span class="ident">rounds</span>: <span class="ident">Round</span> <span class="op">=</span> <span class="ident">rand::thread_rng</span>().<span class="ident">gen_range</span>(<span class="number">10</span>, <span class="number">100</span>);
+        <span class="kw">let</span> <span class="ident">rounds</span>: <span class="ident">Round</span> <span class="op">=</span> <span class="ident">rand::thread_rng</span>().<span class="ident">gen_range</span>(<span class="number">10</span>..<span class="number">100</span>);
 
         <span class="comment">// process certificates for rounds, check we don&#39;t grow the dag too much</span>
         <span class="kw">let</span> <span class="ident">keys</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">test_utils::keys</span>(<span class="prelude-val">None</span>)
@@ -489,7 +489,7 @@
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">imperfect_state_limits_test</span>() {
         <span class="kw">let</span> <span class="ident">gc_depth</span> <span class="op">=</span> <span class="number">12</span>;
-        <span class="kw">let</span> <span class="ident">rounds</span>: <span class="ident">Round</span> <span class="op">=</span> <span class="ident">rand::thread_rng</span>().<span class="ident">gen_range</span>(<span class="number">10</span>, <span class="number">100</span>);
+        <span class="kw">let</span> <span class="ident">rounds</span>: <span class="ident">Round</span> <span class="op">=</span> <span class="ident">rand::thread_rng</span>().<span class="ident">gen_range</span>(<span class="number">10</span>..<span class="number">100</span>);
 
         <span class="comment">// process certificates for rounds, check we don&#39;t grow the dag too much</span>
         <span class="kw">let</span> <span class="ident">keys</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">test_utils::keys</span>(<span class="prelude-val">None</span>)
