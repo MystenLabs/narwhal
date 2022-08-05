@@ -21,7 +21,7 @@ config = { path = "../config" }
 consensus = { path = "../consensus" }
 crypto = { path = "../crypto" }
 primary = { path = "../primary" }
-tonic = "0.7.2"
+tonic = "0.8.0"
 multiaddr = "0.14.0"
 
 types = { path = "../types" }

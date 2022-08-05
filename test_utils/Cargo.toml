@@ -22,7 +22,7 @@ tempfile = "3.3.0"
 thiserror = "1.0.31"
 tokio = { version = "1.20.1", features = ["sync", "rt", "macros"] }
 tokio-util = { version = "0.7.3", features = ["codec"] }
-tonic = "0.7.2"
+tonic = "0.8.0"
 multiaddr = "0.14.0"
 tracing = "0.1.36"
 indexmap = { version = "1.9.1", features = ["serde"] }

@@ -25,7 +25,7 @@ store = { git = "https://github.com/mystenlabs/mysten-infra.git", package = "typ
 thiserror = "1.0.31"
 tokio = { version = "1.20.1", features = ["sync", "rt", "macros"] }
 tokio-util = { version = "0.7.3", features = ["codec"] }
-tonic = { version = "0.7.2", features = ["tls"] }
+tonic = { version = "0.8.0", features = ["tls"] }
 indexmap = { version = "1.9.1", features = ["serde"] }
 
 config = { path = "../config" }
