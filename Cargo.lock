@@ -2951,7 +2951,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "71adf41db68aa0daaefc69bb30bcd68ded9b9abaad5d1fbb6304c4fb390e083e"
 dependencies = [
  "bytes",
- "prost-derive",
+ "prost-derive 0.10.1",
 ]
 
 [[package]]
@@ -2981,6 +2981,19 @@ name = "prost-derive"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7b670f45da57fb8542ebdbb6105a925fe571b67f9e7ed9f47a06a84e72b4e7cc"
+dependencies = [
+ "anyhow",
+ "itertools",
+ "proc-macro2 1.0.40",
+ "quote 1.0.20",
+ "syn 1.0.98",
+]
+
+[[package]]
+name = "prost-derive"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7345d5f0e08c0536d7ac7229952590239e77abf0a0100a1b1d890add6ea96364"
 dependencies = [
  "anyhow",
  "itertools",
@@ -3563,9 +3576,9 @@ dependencies = [
 
 [[package]]
 name = "sha3"
-version = "0.10.1"
+version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "881bf8156c87b6301fc5ca6b27f11eeb2761224c7081e69b409d5a1951a70c86"
+checksum = "0a31480366ec990f395a61b7c08122d99bd40544fdb5abcfc1b06bb29994312c"
 dependencies = [
  "digest 0.10.3",
  "keccak",
@@ -4113,7 +4126,7 @@ dependencies = [
  "percent-encoding",
  "pin-project",
  "prost",
- "prost-derive",
+ "prost-derive 0.10.1",
  "rustls-pemfile",
  "tokio",
  "tokio-rustls",
@@ -5021,7 +5034,7 @@ dependencies = [
  "proptest-derive",
  "prost",
  "prost-build",
- "prost-derive",
+ "prost-derive 0.11.0",
  "prost-types",
  "protobuf",
  "quick-error 1.2.3",
