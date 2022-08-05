@@ -3150,9 +3150,9 @@ dependencies = [
 
 [[package]]
 name = "readonly"
-version = "0.2.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1195d8cd0ebd43f09af81cbfabd0105419337d13baf2b537ee6788f2c63f825d"
+checksum = "6c0e08c3b00fcae55ee1dac341e1b9b5bc942e7e1931957436ab00b4a5e8dc18"
 dependencies = [
  "proc-macro2 1.0.40",
  "quote 1.0.20",
@@ -3292,9 +3292,9 @@ dependencies = [
 
 [[package]]
 name = "rustls-pemfile"
-version = "1.0.0"
+version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e7522c9de787ff061458fe9a829dc790a3f5b22dc571694fc5883f448b94d9a9"
+checksum = "0864aeff53f8c05aa08d86e5ef839d3dfcf07aeba2db32f12db0ef716e87bd55"
 dependencies = [
  "base64",
 ]
