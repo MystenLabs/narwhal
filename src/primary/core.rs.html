@@ -640,11 +640,6 @@
 <span id="640">640</span>
 <span id="641">641</span>
 <span id="642">642</span>
-<span id="643">643</span>
-<span id="644">644</span>
-<span id="645">645</span>
-<span id="646">646</span>
-<span id="647">647</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -664,17 +659,12 @@
     <span class="ident">time::Instant</span>,
 };
 <span class="kw">use</span> <span class="ident">store::Store</span>;
-<span class="kw">use</span> <span class="ident">tokio</span>::{
-    <span class="ident">sync</span>::{
-        <span class="ident">mpsc</span>::{<span class="ident">Receiver</span>, <span class="ident">Sender</span>},
-        <span class="ident">watch</span>,
-    },
-    <span class="ident">task::JoinHandle</span>,
-};
+<span class="kw">use</span> <span class="ident">tokio</span>::{<span class="ident">sync::watch</span>, <span class="ident">task::JoinHandle</span>};
 <span class="kw">use</span> <span class="ident">tracing</span>::{<span class="ident">debug</span>, <span class="ident">error</span>, <span class="ident">info</span>, <span class="ident">instrument</span>, <span class="ident">warn</span>};
 <span class="kw">use</span> <span class="ident">types</span>::{
     <span class="ident">ensure</span>,
     <span class="ident">error</span>::{<span class="ident">DagError</span>, <span class="ident">DagResult</span>},
+    <span class="ident">metered_channel</span>::{<span class="ident">Receiver</span>, <span class="ident">Sender</span>},
     <span class="ident">Certificate</span>, <span class="ident">CertificateDigest</span>, <span class="ident">Header</span>, <span class="ident">HeaderDigest</span>, <span class="ident">ReconfigureNotification</span>, <span class="ident">Round</span>, <span class="ident">Vote</span>,
 };
 
@@ -1076,7 +1066,7 @@
             }
             <span class="macro">debug!</span>(
                 <span class="string">&quot;Pruned {} messages from obsolete rounds.&quot;</span>,
-                <span class="self">self</span>.<span class="ident">cancel_handlers</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="ident">before</span>
+                <span class="ident">before</span>.<span class="ident">saturating_sub</span>(<span class="self">self</span>.<span class="ident">cancel_handlers</span>.<span class="ident">len</span>())
             );
         }
 
@@ -1293,4 +1283,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (1b57946a4 2022-08-03)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (f6f9d5e73 2022-08-04)" ></div></body></html>

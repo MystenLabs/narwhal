@@ -130,9 +130,6 @@
 <span id="130">130</span>
 <span id="131">131</span>
 <span id="132">132</span>
-<span id="133">133</span>
-<span id="134">134</span>
-<span id="135">135</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -141,12 +138,9 @@
 <span class="kw">use</span> <span class="ident">crypto::PublicKey</span>;
 <span class="kw">use</span> <span class="ident">network</span>::{<span class="ident">PrimaryToWorkerNetwork</span>, <span class="ident">UnreliableNetwork</span>};
 <span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
-<span class="kw">use</span> <span class="ident">tokio</span>::{
-    <span class="ident">sync</span>::{<span class="ident">mpsc::Receiver</span>, <span class="ident">watch</span>},
-    <span class="ident">task::JoinHandle</span>,
-};
+<span class="kw">use</span> <span class="ident">tokio</span>::{<span class="ident">sync::watch</span>, <span class="ident">task::JoinHandle</span>};
 <span class="kw">use</span> <span class="ident">tracing::info</span>;
-<span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">Certificate</span>, <span class="ident">ReconfigureNotification</span>, <span class="ident">Round</span>};
+<span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">metered_channel::Receiver</span>, <span class="ident">Certificate</span>, <span class="ident">ReconfigureNotification</span>, <span class="ident">Round</span>};
 
 <span class="doccomment">/// Receives the highest round reached by consensus and update it for all tasks.</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">StateHandler</span> {
@@ -269,4 +263,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (1b57946a4 2022-08-03)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (f6f9d5e73 2022-08-04)" ></div></body></html>

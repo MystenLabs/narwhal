@@ -997,6 +997,7 @@
 <span id="997">997</span>
 <span id="998">998</span>
 <span id="999">999</span>
+<span id="1000">1000</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="kw">crate</span>::{
@@ -1033,7 +1034,8 @@
 };
 <span class="kw">use</span> <span class="ident">tracing</span>::{<span class="ident">debug</span>, <span class="ident">error</span>, <span class="ident">info</span>, <span class="ident">instrument</span>, <span class="ident">trace</span>, <span class="ident">warn</span>};
 <span class="kw">use</span> <span class="ident">types</span>::{
-    <span class="ident">BatchDigest</span>, <span class="ident">Certificate</span>, <span class="ident">CertificateDigest</span>, <span class="ident">PrimaryWorkerMessage</span>, <span class="ident">ReconfigureNotification</span>,
+    <span class="ident">metered_channel</span>, <span class="ident">BatchDigest</span>, <span class="ident">Certificate</span>, <span class="ident">CertificateDigest</span>, <span class="ident">PrimaryWorkerMessage</span>,
+    <span class="ident">ReconfigureNotification</span>,
 };
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
@@ -1158,14 +1160,14 @@
     <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
 
     <span class="doccomment">/// Receive the commands for the synchronizer</span>
-    <span class="ident">rx_commands</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Command</span><span class="op">&gt;</span>,
+    <span class="ident">rx_commands</span>: <span class="ident">metered_channel::Receiver</span><span class="op">&lt;</span><span class="ident">Command</span><span class="op">&gt;</span>,
 
     <span class="doccomment">/// Receive the requested list of certificates through this channel</span>
-    <span class="ident">rx_certificate_responses</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">CertificatesResponse</span><span class="op">&gt;</span>,
+    <span class="ident">rx_certificate_responses</span>: <span class="ident">metered_channel::Receiver</span><span class="op">&lt;</span><span class="ident">CertificatesResponse</span><span class="op">&gt;</span>,
 
     <span class="doccomment">/// Receive the availability for the requested certificates through this</span>
     <span class="doccomment">/// channel</span>
-    <span class="ident">rx_payload_availability_responses</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">PayloadAvailabilityResponse</span><span class="op">&gt;</span>,
+    <span class="ident">rx_payload_availability_responses</span>: <span class="ident">metered_channel::Receiver</span><span class="op">&lt;</span><span class="ident">PayloadAvailabilityResponse</span><span class="op">&gt;</span>,
 
     <span class="doccomment">/// Pending block requests either for header or payload type</span>
     <span class="ident">pending_requests</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">PendingIdentifier</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">ResultSender</span><span class="op">&gt;</span><span class="op">&gt;</span>,
@@ -1203,9 +1205,9 @@
         <span class="ident">name</span>: <span class="ident">PublicKey</span>,
         <span class="ident">committee</span>: <span class="ident">Committee</span>,
         <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
-        <span class="ident">rx_commands</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Command</span><span class="op">&gt;</span>,
-        <span class="ident">rx_certificate_responses</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">CertificatesResponse</span><span class="op">&gt;</span>,
-        <span class="ident">rx_payload_availability_responses</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">PayloadAvailabilityResponse</span><span class="op">&gt;</span>,
+        <span class="ident">rx_commands</span>: <span class="ident">metered_channel::Receiver</span><span class="op">&lt;</span><span class="ident">Command</span><span class="op">&gt;</span>,
+        <span class="ident">rx_certificate_responses</span>: <span class="ident">metered_channel::Receiver</span><span class="op">&lt;</span><span class="ident">CertificatesResponse</span><span class="op">&gt;</span>,
+        <span class="ident">rx_payload_availability_responses</span>: <span class="ident">metered_channel::Receiver</span><span class="op">&lt;</span><span class="ident">PayloadAvailabilityResponse</span><span class="op">&gt;</span>,
         <span class="ident">network</span>: <span class="ident">PrimaryNetwork</span>,
         <span class="ident">payload_store</span>: <span class="ident">Store</span><span class="op">&lt;</span>(<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>), <span class="ident">PayloadToken</span><span class="op">&gt;</span>,
         <span class="ident">certificate_store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span><span class="op">&gt;</span>,
@@ -1997,4 +1999,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (1b57946a4 2022-08-03)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (f6f9d5e73 2022-08-04)" ></div></body></html>

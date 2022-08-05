@@ -351,8 +351,6 @@
 <span id="351">351</span>
 <span id="352">352</span>
 <span id="353">353</span>
-<span id="354">354</span>
-<span id="355">355</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -366,15 +364,13 @@
 };
 <span class="kw">use</span> <span class="ident">store::Store</span>;
 <span class="kw">use</span> <span class="ident">tokio</span>::{
-    <span class="ident">sync</span>::{
-        <span class="ident">mpsc</span>::{<span class="ident">Receiver</span>, <span class="ident">Sender</span>},
-        <span class="ident">watch</span>,
-    },
+    <span class="ident">sync</span>::{<span class="ident">mpsc::Sender</span>, <span class="ident">watch</span>},
     <span class="ident">task::JoinHandle</span>,
 };
 <span class="kw">use</span> <span class="ident">tracing</span>::{<span class="ident">info</span>, <span class="ident">instrument</span>};
 <span class="kw">use</span> <span class="ident">types</span>::{
-    <span class="ident">Certificate</span>, <span class="ident">CertificateDigest</span>, <span class="ident">ConsensusStore</span>, <span class="ident">ReconfigureNotification</span>, <span class="ident">Round</span>, <span class="ident">StoreResult</span>,
+    <span class="ident">metered_channel</span>, <span class="ident">Certificate</span>, <span class="ident">CertificateDigest</span>, <span class="ident">ConsensusStore</span>, <span class="ident">ReconfigureNotification</span>,
+    <span class="ident">Round</span>, <span class="ident">StoreResult</span>,
 };
 
 <span class="doccomment">/// The representation of the DAG in memory.</span>
@@ -544,9 +540,9 @@
     <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
     <span class="doccomment">/// Receives new certificates from the primary. The primary should send us new certificates only</span>
     <span class="doccomment">/// if it already sent us its whole history.</span>
-    <span class="ident">rx_primary</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span>,
+    <span class="ident">rx_primary</span>: <span class="ident">metered_channel::Receiver</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span>,
     <span class="doccomment">/// Outputs the sequence of ordered certificates to the primary (for cleanup and feedback).</span>
-    <span class="ident">tx_primary</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span>,
+    <span class="ident">tx_primary</span>: <span class="ident">metered_channel::Sender</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span>,
     <span class="doccomment">/// Outputs the sequence of ordered certificates to the application layer.</span>
     <span class="ident">tx_output</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&gt;</span>,
 
@@ -571,8 +567,8 @@
         <span class="ident">store</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">ConsensusStore</span><span class="op">&gt;</span>,
         <span class="ident">cert_store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span><span class="op">&gt;</span>,
         <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
-        <span class="ident">rx_primary</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span>,
-        <span class="ident">tx_primary</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span>,
+        <span class="ident">rx_primary</span>: <span class="ident">metered_channel::Receiver</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span>,
+        <span class="ident">tx_primary</span>: <span class="ident">metered_channel::Sender</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span>,
         <span class="ident">tx_output</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&gt;</span>,
         <span class="ident">protocol</span>: <span class="ident">Protocol</span>,
         <span class="ident">metrics</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">ConsensusMetrics</span><span class="op">&gt;</span>,
@@ -709,4 +705,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="consensus" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (1b57946a4 2022-08-03)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="consensus" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (f6f9d5e73 2022-08-04)" ></div></body></html>

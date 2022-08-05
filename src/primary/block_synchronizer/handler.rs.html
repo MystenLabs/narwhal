@@ -319,9 +319,6 @@
 <span id="319">319</span>
 <span id="320">320</span>
 <span id="321">321</span>
-<span id="322">322</span>
-<span id="323">323</span>
-<span id="324">324</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="kw">crate</span>::{
@@ -339,12 +336,9 @@
 <span class="kw">use</span> <span class="ident">std::time::Duration</span>;
 <span class="kw">use</span> <span class="ident">store::Store</span>;
 <span class="kw">use</span> <span class="ident">thiserror::Error</span>;
-<span class="kw">use</span> <span class="ident">tokio</span>::{
-    <span class="ident">sync::mpsc</span>::{<span class="ident">channel</span>, <span class="ident">Sender</span>},
-    <span class="ident">time::timeout</span>,
-};
+<span class="kw">use</span> <span class="ident">tokio</span>::{<span class="ident">sync::mpsc::channel</span>, <span class="ident">time::timeout</span>};
 <span class="kw">use</span> <span class="ident">tracing</span>::{<span class="ident">debug</span>, <span class="ident">error</span>, <span class="ident">instrument</span>, <span class="ident">trace</span>};
-<span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">Certificate</span>, <span class="ident">CertificateDigest</span>, <span class="ident">PrimaryMessage</span>};
+<span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">metered_channel</span>, <span class="ident">Certificate</span>, <span class="ident">CertificateDigest</span>, <span class="ident">PrimaryMessage</span>};
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="attribute">#[<span class="ident">path</span> <span class="op">=</span> <span class="string">&quot;tests/handler_tests.rs&quot;</span>]</span>
@@ -423,12 +417,12 @@
 <span class="doccomment">/// process them and causally complete their history.</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BlockSynchronizerHandler</span> {
     <span class="doccomment">/// Channel to send commands to the block_synchronizer.</span>
-    <span class="ident">tx_block_synchronizer</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">Command</span><span class="op">&gt;</span>,
+    <span class="ident">tx_block_synchronizer</span>: <span class="ident">metered_channel::Sender</span><span class="op">&lt;</span><span class="ident">Command</span><span class="op">&gt;</span>,
 
     <span class="doccomment">/// Channel to send the fetched certificates to Core for</span>
     <span class="doccomment">/// further processing, validation and possibly causal</span>
     <span class="doccomment">/// completion.</span>
-    <span class="ident">tx_core</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">PrimaryMessage</span><span class="op">&gt;</span>,
+    <span class="ident">tx_core</span>: <span class="ident">metered_channel::Sender</span><span class="op">&lt;</span><span class="ident">PrimaryMessage</span><span class="op">&gt;</span>,
 
     <span class="doccomment">/// The store that holds the certificates.</span>
     <span class="ident">certificate_store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span><span class="op">&gt;</span>,
@@ -440,8 +434,8 @@
 
 <span class="kw">impl</span> <span class="ident">BlockSynchronizerHandler</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(
-        <span class="ident">tx_block_synchronizer</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">Command</span><span class="op">&gt;</span>,
-        <span class="ident">tx_core</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">PrimaryMessage</span><span class="op">&gt;</span>,
+        <span class="ident">tx_block_synchronizer</span>: <span class="ident">metered_channel::Sender</span><span class="op">&lt;</span><span class="ident">Command</span><span class="op">&gt;</span>,
+        <span class="ident">tx_core</span>: <span class="ident">metered_channel::Sender</span><span class="op">&lt;</span><span class="ident">PrimaryMessage</span><span class="op">&gt;</span>,
         <span class="ident">certificate_store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span><span class="op">&gt;</span>,
         <span class="ident">certificate_deliver_timeout</span>: <span class="ident">Duration</span>,
     ) -&gt; <span class="self">Self</span> {
@@ -647,4 +641,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (1b57946a4 2022-08-03)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (f6f9d5e73 2022-08-04)" ></div></body></html>

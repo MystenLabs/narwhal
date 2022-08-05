@@ -249,17 +249,14 @@
 <span id="249">249</span>
 <span id="250">250</span>
 <span id="251">251</span>
-<span id="252">252</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::block_synchronizer</span>::{<span class="ident">BlockHeader</span>, <span class="ident">BlockSynchronizeResult</span>, <span class="ident">Command</span>};
 <span class="kw">use</span> <span class="ident">crypto::Hash</span>;
+<span class="kw">use</span> <span class="ident">prometheus::IntGauge</span>;
 <span class="kw">use</span> <span class="ident">std::collections::HashMap</span>;
-<span class="kw">use</span> <span class="ident">tokio::sync</span>::{
-    <span class="ident">mpsc</span>::{<span class="ident">channel</span>, <span class="ident">Receiver</span>, <span class="ident">Sender</span>},
-    <span class="ident">oneshot</span>,
-};
-<span class="kw">use</span> <span class="ident">types::CertificateDigest</span>;
+<span class="kw">use</span> <span class="ident">tokio::sync::oneshot</span>;
+<span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">metered_channel</span>, <span class="ident">CertificateDigest</span>};
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
 <span class="kw">enum</span> <span class="ident">Core</span> {
@@ -293,10 +290,10 @@
 
     <span class="doccomment">/// Channel to receive the messages that are supposed to be sent to the</span>
     <span class="doccomment">/// block synchronizer.</span>
-    <span class="ident">rx_commands</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Command</span><span class="op">&gt;</span>,
+    <span class="ident">rx_commands</span>: <span class="ident">metered_channel::Receiver</span><span class="op">&lt;</span><span class="ident">Command</span><span class="op">&gt;</span>,
 
     <span class="doccomment">/// Channel to receive the commands to mock the requests.</span>
-    <span class="ident">rx_core</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Core</span><span class="op">&gt;</span>,
+    <span class="ident">rx_core</span>: <span class="ident">metered_channel::Receiver</span><span class="op">&lt;</span><span class="ident">Core</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">MockBlockSynchronizerCore</span> {
@@ -404,12 +401,13 @@
 <span class="doccomment">/// eliminating the need to wire in the actual BlockSynchronizer when needed</span>
 <span class="doccomment">/// for other components.</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">MockBlockSynchronizer</span> {
-    <span class="ident">tx_core</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">Core</span><span class="op">&gt;</span>,
+    <span class="ident">tx_core</span>: <span class="ident">metered_channel::Sender</span><span class="op">&lt;</span><span class="ident">Core</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">MockBlockSynchronizer</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">rx_commands</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Command</span><span class="op">&gt;</span>) -&gt; <span class="self">Self</span> {
-        <span class="kw">let</span> (<span class="ident">tx_core</span>, <span class="ident">rx_core</span>) <span class="op">=</span> <span class="ident">channel</span>(<span class="number">1</span>);
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">rx_commands</span>: <span class="ident">metered_channel::Receiver</span><span class="op">&lt;</span><span class="ident">Command</span><span class="op">&gt;</span>) -&gt; <span class="self">Self</span> {
+        <span class="kw">let</span> <span class="ident">mock_counter</span> <span class="op">=</span> <span class="ident">IntGauge::new</span>(<span class="string">&quot;MOCK_COUNTER&quot;</span>, <span class="string">&quot;mock counter&quot;</span>).<span class="ident">unwrap</span>();
+        <span class="kw">let</span> (<span class="ident">tx_core</span>, <span class="ident">rx_core</span>) <span class="op">=</span> <span class="ident">metered_channel::channel</span>(<span class="number">1</span>, <span class="kw-2">&amp;</span><span class="ident">mock_counter</span>);
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">core</span> <span class="op">=</span> <span class="ident">MockBlockSynchronizerCore</span> {
             <span class="ident">block_headers_expected_requests</span>: <span class="ident">HashMap::new</span>(),
@@ -503,4 +501,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (1b57946a4 2022-08-03)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (f6f9d5e73 2022-08-04)" ></div></body></html>

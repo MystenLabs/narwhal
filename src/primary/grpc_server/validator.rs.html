@@ -217,8 +217,6 @@
 <span id="217">217</span>
 <span id="218">218</span>
 <span id="219">219</span>
-<span id="220">220</span>
-<span id="221">221</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">sync::Arc</span>, <span class="ident">time::Duration</span>};
@@ -229,17 +227,15 @@
 };
 <span class="kw">use</span> <span class="ident">consensus::dag::Dag</span>;
 <span class="kw">use</span> <span class="ident">tokio</span>::{
-    <span class="ident">sync</span>::{
-        <span class="ident">mpsc</span>::{<span class="ident">channel</span>, <span class="ident">Sender</span>},
-        <span class="ident">oneshot</span>,
-    },
+    <span class="ident">sync</span>::{<span class="ident">mpsc::channel</span>, <span class="ident">oneshot</span>},
     <span class="ident">time::timeout</span>,
 };
 <span class="kw">use</span> <span class="ident">tonic</span>::{<span class="ident">Request</span>, <span class="ident">Response</span>, <span class="ident">Status</span>};
 <span class="kw">use</span> <span class="ident">types</span>::{
-    <span class="ident">BlockError</span>, <span class="ident">BlockRemoverErrorKind</span>, <span class="ident">CertificateDigest</span>, <span class="ident">CertificateDigestProto</span>, <span class="ident">Collection</span>,
-    <span class="ident">CollectionRetrievalResult</span>, <span class="ident">Empty</span>, <span class="ident">GetCollectionsRequest</span>, <span class="ident">GetCollectionsResponse</span>,
-    <span class="ident">ReadCausalRequest</span>, <span class="ident">ReadCausalResponse</span>, <span class="ident">RemoveCollectionsRequest</span>, <span class="ident">TransactionProto</span>, <span class="ident">Validator</span>,
+    <span class="ident">metered_channel::Sender</span>, <span class="ident">BlockError</span>, <span class="ident">BlockRemoverErrorKind</span>, <span class="ident">CertificateDigest</span>,
+    <span class="ident">CertificateDigestProto</span>, <span class="ident">Collection</span>, <span class="ident">CollectionRetrievalResult</span>, <span class="ident">Empty</span>, <span class="ident">GetCollectionsRequest</span>,
+    <span class="ident">GetCollectionsResponse</span>, <span class="ident">ReadCausalRequest</span>, <span class="ident">ReadCausalResponse</span>, <span class="ident">RemoveCollectionsRequest</span>,
+    <span class="ident">TransactionProto</span>, <span class="ident">Validator</span>,
 };
 
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">NarwhalValidator</span><span class="op">&lt;</span><span class="ident">SynchronizerHandler</span>: <span class="ident">Handler</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> {
@@ -441,4 +437,4 @@
     <span class="prelude-val">Ok</span>(<span class="ident">ids</span>)
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (1b57946a4 2022-08-03)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (f6f9d5e73 2022-08-04)" ></div></body></html>

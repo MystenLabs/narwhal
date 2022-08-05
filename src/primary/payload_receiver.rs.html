@@ -41,9 +41,9 @@
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::primary::PayloadToken</span>;
 <span class="kw">use</span> <span class="ident">config::WorkerId</span>;
 <span class="kw">use</span> <span class="ident">store::Store</span>;
-<span class="kw">use</span> <span class="ident">tokio</span>::{<span class="ident">sync::mpsc::Receiver</span>, <span class="ident">task::JoinHandle</span>};
+<span class="kw">use</span> <span class="ident">tokio::task::JoinHandle</span>;
 <span class="kw">use</span> <span class="ident">tracing::info</span>;
-<span class="kw">use</span> <span class="ident">types::BatchDigest</span>;
+<span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">metered_channel::Receiver</span>, <span class="ident">BatchDigest</span>};
 
 <span class="doccomment">/// Receives batches&#39; digests of other authorities. These are only needed to verify incoming</span>
 <span class="doccomment">/// headers (i.e.. make sure we have their payload).</span>
@@ -73,4 +73,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (1b57946a4 2022-08-03)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0-nightly (f6f9d5e73 2022-08-04)" ></div></body></html>
