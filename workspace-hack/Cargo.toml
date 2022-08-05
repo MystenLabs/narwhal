@@ -286,7 +286,7 @@ tokio-rustls = { version = "0.23", features = ["logging", "tls12"] }
 tokio-stream = { version = "0.1", features = ["net", "time"] }
 tokio-util = { version = "0.7", features = ["codec", "tracing"] }
 tonic = { version = "0.7", features = ["async-trait", "axum", "channel", "codegen", "h2", "hyper", "hyper-timeout", "prost", "prost-derive", "prost1", "rustls-pemfile", "tls", "tokio", "tokio-rustls", "tower", "tracing-futures", "transport"] }
-tonic-health = { version = "0.6", features = ["transport"] }
+tonic-health = { version = "0.7", features = ["transport"] }
 tower = { version = "0.4", features = ["__common", "balance", "buffer", "discover", "filter", "full", "futures-core", "futures-util", "hdrhistogram", "hedge", "indexmap", "limit", "load", "load-shed", "log", "make", "pin-project", "pin-project-lite", "rand", "ready-cache", "reconnect", "retry", "slab", "spawn-ready", "steer", "timeout", "tokio", "tokio-util", "tracing", "util"] }
 tower-http = { version = "0.3", features = ["map-response-body", "propagate-header", "set-header", "tower", "trace", "tracing", "util"] }
 tower-layer = { version = "0.3", default-features = false }
