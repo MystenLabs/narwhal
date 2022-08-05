@@ -17,6 +17,7 @@ mod core;
 mod grpc_server;
 mod header_waiter;
 mod helper;
+mod metered_channel;
 mod payload_receiver;
 mod primary;
 mod proposer;
