@@ -429,7 +429,7 @@ impl Core {
             }
             debug!(
                 "Pruned {} messages from obsolete rounds.",
-                self.cancel_handlers.len() - before
+                before.saturating_sub(self.cancel_handlers.len())
             );
         }
 
