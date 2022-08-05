@@ -1,13 +1,13 @@
 {
     "key": {
-        "name": "aws-sui",
-        "path": "/Users/username/.ssh/aws-sui.pem"
+        "name": "arun-aws",
+        "path": "/Users/arunkoshy/.ssh/aws"
     },
     "port": 5000,
     "repo": {
         "name": "narwhal",
         "url": "https://github.com/mystenlabs/narwhal",
-        "branch": "main"
+        "branch": "worker"
     },
     "instances": {
         "type": "m5d.8xlarge",

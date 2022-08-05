@@ -2,7 +2,7 @@
 from collections import OrderedDict
 from fabric import Connection, ThreadingGroup as Group
 from fabric.exceptions import GroupException
-from paramiko import RSAKey
+from paramiko import Ed25519Key
 from paramiko.ssh_exception import PasswordRequiredException, SSHException
 from os.path import basename, splitext
 from time import sleep
@@ -35,7 +35,7 @@ class Bench:
         self.manager = InstanceManager.make()
         self.settings = self.manager.settings
         try:
-            ctx.connect_kwargs.pkey = RSAKey.from_private_key_file(
+            ctx.connect_kwargs.pkey = Ed25519Key.from_private_key_file(
                 self.manager.settings.key_path
             )
             self.connect = ctx.connect_kwargs
@@ -136,8 +136,8 @@ class Bench:
         output = c.run(cmd, hide=True)
         self._check_stderr(output)
 
-    def _update(self, hosts, collocate):
-        if collocate:
+    def _update(self, hosts, bench_parameters):
+        if bench_parameters.collocate:
             ips = list(set(hosts))
         else:
             ips = list(set([x for y in hosts for x in y]))
@@ -145,12 +145,14 @@ class Bench:
         Print.info(
             f'Updating {len(ips)} machines (branch "{self.settings.branch}")...'
         )
+        compile_cmd = ' '.join(CommandMaker.compile(
+            mem_profiling=bench_parameters.mem_profile))
         cmd = [
             f'(cd {self.settings.repo_name} && git fetch -f)',
             f'(cd {self.settings.repo_name} && git checkout -f {self.settings.branch})',
             f'(cd {self.settings.repo_name} && git pull -f)',
             'source $HOME/.cargo/env',
-            f'(cd {self.settings.repo_name}/node && {CommandMaker.compile()})',
+            f'(cd {self.settings.repo_name}/node && {compile_cmd})',
             CommandMaker.alias_binaries(
                 f'./{self.settings.repo_name}/target/release/'
             )
@@ -164,9 +166,11 @@ class Bench:
         # Cleanup all local configuration files.
         cmd = CommandMaker.cleanup()
         subprocess.run([cmd], shell=True, stderr=subprocess.DEVNULL)
+        sleep(0.5)  # Removing the store may take time.
 
         # Recompile the latest code.
-        cmd = CommandMaker.compile(mem_profiling=self.mem_profile)
+        cmd = CommandMaker.compile(
+            mem_profiling=bench_parameters.mem_profile)
         Print.info(f"About to run {cmd}...")
         subprocess.run(cmd, check=True, cwd=PathMaker.node_crate_path())
 
@@ -198,7 +202,7 @@ class Bench:
 
         # 2 ports used per authority so add 2 * num authorities to base port
         worker_cache = WorkerCache(
-            names, self.settings.base_port + (2 * len(names)))
+            addresses, self.settings.base_port + (2 * len(names)))
         worker_cache.print(PathMaker.workers_file())
 
         node_parameters.print(PathMaker.parameters_file())
@@ -207,7 +211,7 @@ class Bench:
         names = names[:len(names)-bench_parameters.faults]
         progress = progress_bar(names, prefix='Uploading config files:')
         for i, name in enumerate(progress):
-            for ip in committee.ips(name):
+            for ip in list(committee.ips(name) | worker_cache.ips(name)):
                 c = Connection(ip, user='ubuntu', connect_kwargs=self.connect)
                 c.run(f'{CommandMaker.cleanup()} || true', hide=True)
                 c.put(PathMaker.committee_file(), '.')
@@ -221,7 +225,7 @@ class Bench:
         faults = bench_parameters.faults
 
         # Kill any potentially unfinished run and delete logs.
-        hosts = committee.ips()
+        hosts = list(committee.ips() | worker_cache.ips())
         self.kill(hosts=hosts, delete_logs=True)
 
         # Run the clients (they will wait for the nodes to be ready).
@@ -232,7 +236,7 @@ class Bench:
         rate_share = ceil(rate / worker_cache.workers())
         for i, addresses in enumerate(workers_addresses):
             for (id, address) in addresses:
-                host = Committee.ip(address)
+                host = address.split(':')[1].strip("/")
                 cmd = CommandMaker.run_client(
                     address,
                     bench_parameters.tx_size,
@@ -244,8 +248,8 @@ class Bench:
 
         # Run the primaries (except the faulty ones).
         Print.info('Booting primaries...')
-        for i, address in enumerate(committee.load().primary_addresses(faults)):
-            host = Committee.ip(address)
+        for i, address in enumerate(committee.primary_addresses(faults)):
+            host = address.split(':')[1].strip("/")
             cmd = CommandMaker.run_primary(
                 PathMaker.key_file(i),
                 PathMaker.committee_file(),
@@ -261,7 +265,7 @@ class Bench:
         Print.info('Booting workers...')
         for i, addresses in enumerate(workers_addresses):
             for (id, address) in addresses:
-                host = Committee.ip(address)
+                host = address.split(':')[1].strip("/")
                 cmd = CommandMaker.run_worker(
                     PathMaker.key_file(i),
                     PathMaker.committee_file(),
@@ -291,7 +295,7 @@ class Bench:
             workers_addresses, prefix='Downloading workers logs:')
         for i, addresses in enumerate(progress):
             for id, address in addresses:
-                host = Committee.ip(address)
+                host = address.split(':')[1].strip("/")
                 c = Connection(host, user='ubuntu',
                                connect_kwargs=self.connect)
                 c.get(
@@ -303,11 +307,11 @@ class Bench:
                     local=PathMaker.worker_log_file(i, id)
                 )
 
-        primary_addresses = committee.load().primary_addresses(faults)
+        primary_addresses = committee.primary_addresses(faults)
         progress = progress_bar(
             primary_addresses, prefix='Downloading primaries logs:')
         for i, address in enumerate(progress):
-            host = Committee.ip(address)
+            host = address.split(':')[1].strip("/")
             c = Connection(host, user='ubuntu', connect_kwargs=self.connect)
             c.get(
                 PathMaker.primary_log_file(i),
@@ -335,7 +339,7 @@ class Bench:
 
         # Update nodes.
         try:
-            self._update(selected_hosts, bench_parameters.collocate)
+            self._update(selected_hosts, bench_parameters)
         except (GroupException, ExecutionError) as e:
             e = FabricError(e) if isinstance(e, GroupException) else e
             raise BenchError('Failed to update nodes', e)

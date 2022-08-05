@@ -46,7 +46,7 @@ class WorkerCache:
         assert isinstance(addresses, OrderedDict)
         assert all(isinstance(x, str) for x in addresses.keys())
         assert all(
-            isinstance(x, list) and len(x) > 1 for x in addresses.values()
+            isinstance(x, list) and len(x) >= 1 for x in addresses.values()
         )
         assert all(
             isinstance(x, str) for y in addresses.values() for x in y
@@ -57,10 +57,9 @@ class WorkerCache:
         port = base_port
         self.json = {'workers': OrderedDict(), 'epoch': 0}
         for name, hosts in addresses.items():
-            host = hosts.pop(0)
-
             workers_addr = OrderedDict()
             for j, host in enumerate(hosts):
+                hosts.pop(0)
                 workers_addr[j] = {
                     'primary_to_worker': f'/ip4/{host}/tcp/{port}/http',
                     'transactions': f'/ip4/{host}/tcp/{port + 1}/http',
@@ -97,10 +96,31 @@ class WorkerCache:
         for _ in range(nodes):
             self.json['workers'].popitem()
 
+    def ips(self, name=None):
+        ''' Returns all the ips associated with an workers (in any order). '''
+        if name is None:
+            names = list(self.json['workers'].keys())
+        else:
+            names = [name]
+
+        ips = set()
+        for name in names:
+            for worker in self.json['workers'][name].values():
+                ips.add(self.ip(worker['primary_to_worker']))
+                ips.add(self.ip(worker['worker_to_worker']))
+                ips.add(self.ip(worker['transactions']))
+        return ips
+
     def print(self, filename):
         assert isinstance(filename, str)
         with open(filename, 'w') as f:
             dump(self.json, f, indent=4, sort_keys=True)
+
+    @staticmethod
+    def ip(multi_address):
+        address = multiaddr_to_url_data(multi_address)
+        assert isinstance(address, str)
+        return address.split(':')[1].strip("/")
 
 
 class LocalWorkerCache(WorkerCache):
@@ -183,12 +203,7 @@ class Committee:
             ips.add(self.ip(addresses['primary_to_primary']))
             ips.add(self.ip(addresses['worker_to_primary']))
 
-            for worker in self.json['authorities'][name]['workers'].values():
-                ips.add(self.ip(worker['primary_to_worker']))
-                ips.add(self.ip(worker['worker_to_worker']))
-                ips.add(self.ip(worker['transactions']))
-
-        return list(ips)
+        return ips
 
     def remove_nodes(self, nodes):
         ''' remove the `nodes` last nodes from the committee. '''
@@ -209,7 +224,7 @@ class Committee:
     def ip(multi_address):
         address = multiaddr_to_url_data(multi_address)
         assert isinstance(address, str)
-        return address.split(':')[0]
+        return address.split(':')[1].strip("/")
 
 
 class LocalCommittee(Committee):
