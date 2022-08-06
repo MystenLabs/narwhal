@@ -4,10 +4,7 @@
 use crate::metrics::PrimaryMetrics;
 use config::Committee;
 use dashmap::DashMap;
-use futures::{
-    future::try_join_all,
-    stream::{futures_unordered::FuturesUnordered, StreamExt as _},
-};
+use futures::{future::try_join_all, stream::futures_unordered::FuturesUnordered, TryStreamExt};
 use once_cell::sync::OnceCell;
 use std::sync::Arc;
 use store::Store;
@@ -16,11 +13,12 @@ use tokio::{
     task::JoinHandle,
     time::{sleep, Duration, Instant},
 };
-use tracing::{error, info};
+use tracing::info;
 use types::{
     error::{DagError, DagResult},
     metered_channel::{Receiver, Sender},
-    Certificate, CertificateDigest, HeaderDigest, ReconfigureNotification, Round,
+    try_fut_and_permit, Certificate, CertificateDigest, HeaderDigest, ReconfigureNotification,
+    Round,
 };
 
 #[cfg(test)]
@@ -142,18 +140,11 @@ impl CertificateWaiter {
                     let fut = Self::waiter(wait_for, &self.store, certificate, rx_cancel);
                     waiting.push(fut);
                 }
-                Some(result) = waiting.next() => match result {
-                    Ok(certificate) => {
+                (Some(certificate), permit) = try_fut_and_permit!(waiting.try_next(), self.tx_core) => {
                         // TODO [issue #115]: To ensure crash-recovery of consensus, it is not enough to send every
                         // certificate for which their ancestors are in the storage. After recovery, we may also
                         // need to send a all parents certificates with rounds greater then `last_committed`.
-
-                        self.tx_core.send(certificate).await.expect("Failed to send certificate");
-                    },
-                    Err(e) => {
-                        error!("{e}");
-                        panic!("Storage failure: killing node.");
-                    }
+                        permit.send(certificate);
                 },
                 result = self.rx_reconfigure.changed() => {
                     result.expect("Committee channel dropped");

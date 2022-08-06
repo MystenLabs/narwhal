@@ -9,7 +9,8 @@ use config::{Committee, WorkerId};
 use crypto::PublicKey;
 use futures::{
     future::{try_join_all, BoxFuture},
-    stream::{futures_unordered::FuturesUnordered, StreamExt as _},
+    stream::futures_unordered::FuturesUnordered,
+    TryStreamExt,
 };
 use network::{LuckyNetwork, PrimaryNetwork, PrimaryToWorkerNetwork, UnreliableNetwork};
 use serde::{de::DeserializeOwned, Serialize};
@@ -24,12 +25,12 @@ use tokio::{
     task::JoinHandle,
     time::{sleep, Duration, Instant},
 };
-use tracing::{debug, error, info};
+use tracing::{debug, info};
 use types::{
     error::{DagError, DagResult},
     metered_channel::{Receiver, Sender},
-    BatchDigest, Certificate, CertificateDigest, Header, HeaderDigest, ReconfigureNotification,
-    Round,
+    try_fut_and_permit, BatchDigest, Certificate, CertificateDigest, Header, HeaderDigest,
+    ReconfigureNotification, Round,
 };
 
 #[cfg(test)]
@@ -130,15 +131,6 @@ impl HeaderWaiter {
             .run()
             .await;
         })
-    }
-
-    /// Update the committee and cleanup internal state.
-    fn change_epoch(&mut self, committee: Committee) {
-        self.committee = committee;
-
-        self.pending.clear();
-        self.batch_requests.clear();
-        self.parent_requests.clear();
     }
 
     /// Helper function. It waits for particular data to become available in the storage
@@ -266,9 +258,9 @@ impl HeaderWaiter {
                         }
                     }
                 },
-
-                Some(result) = waiting.next() => match result {
-                    Ok(Some(header)) => {
+                // Note : we poll the availability of a slot to send the result to the core simultaneously
+                (Some(result), permit) = try_fut_and_permit!(waiting.try_next(), self.tx_core) => match result {
+                    Some(header) => {
                         let _ = self.pending.remove(&header.id);
                         for x in header.payload.keys() {
                             let _ = self.batch_requests.remove(x);
@@ -276,17 +268,11 @@ impl HeaderWaiter {
                         for x in &header.parents {
                             let _ = self.parent_requests.remove(x);
                         }
-                        if self.tx_core.send(header).await.is_err() {
-                           debug!("{}", DagError::ShuttingDown)
-                        }
+                        permit.send(header);
                     },
-                    Ok(None) => {
+                    None => {
                         // This request has been canceled.
                     },
-                    Err(e) => {
-                        error!("{e}");
-                        panic!("Storage failure: killing node.");
-                    }
                 },
 
                 () = &mut timer => {
@@ -327,7 +313,12 @@ impl HeaderWaiter {
                     let message = self.rx_reconfigure.borrow().clone();
                     match message {
                         ReconfigureNotification::NewEpoch(new_committee) => {
-                            self.change_epoch(new_committee);
+                            // Update the committee and cleanup internal state.
+                            self.committee = new_committee;
+
+                            self.pending.clear();
+                            self.batch_requests.clear();
+                            self.parent_requests.clear();
                         },
                         ReconfigureNotification::UpdateCommittee(new_committee) => {
                             self.committee = new_committee;
