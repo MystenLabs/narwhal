@@ -1,11 +1,11 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crate::errors::{SubscriberError, SubscriberResult};
-use consensus::ConsensusOutput;
-use futures::{
-    future::try_join_all,
-    stream::{FuturesOrdered, StreamExt},
+use crate::{
+    errors::{SubscriberError, SubscriberResult},
+    try_fut_and_permit,
 };
+use consensus::ConsensusOutput;
+use futures::{future::try_join_all, stream::FuturesOrdered, FutureExt, TryStreamExt};
 use store::Store;
 use tokio::{
     sync::{
@@ -14,7 +14,6 @@ use tokio::{
     },
     task::JoinHandle,
 };
-use tracing::debug;
 use types::{BatchDigest, ReconfigureNotification, SerializedBatchMessage};
 
 #[cfg(test)]
@@ -83,12 +82,9 @@ impl Subscriber {
         loop {
             tokio::select! {
                 // Receive the ordered sequence of consensus messages from a consensus node.
-                Some(message) = self.rx_consensus.recv() => {
+                (Some(message), permit) = try_fut_and_permit!(self.rx_consensus.recv().map(Ok), self.tx_batch_loader) => {
                     // Send the certificate to the batch loader to download all transactions' data.
-                    self.tx_batch_loader
-                        .send(message.clone())
-                        .await
-                        .expect("Failed to send message ot batch loader");
+                    permit.send(message.clone());
 
                     // Wait for the transaction data to be available in the store. We will then forward these
                     // transactions to the Executor Core for execution.
@@ -98,11 +94,8 @@ impl Subscriber {
                 },
 
                 // Receive here consensus messages for which we have downloaded all transactions data.
-                Some(message) = waiting.next() => {
-                    if self.tx_executor.send(message?).await.is_err() {
-                        debug!("Executor core is shutting down");
-                        return Ok(());
-                    }
+                (Some(message), permit) = try_fut_and_permit!(waiting.try_next(), self.tx_executor) => {
+                    permit.send(message)
                 },
 
                 // Check whether the committee changed.
