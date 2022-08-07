@@ -347,9 +347,9 @@ impl Node {
                 store.batch_store.clone(),
                 metrics.clone(),
             );
-            // TODO: propagate worker task name if needed.
-            for h in worker_handles {
-                let _ = task_group.spawn(format!("worker_{}", id), h);
+            // TODO: propagate worker task names if needed.
+            for (i, h) in worker_handles.into_iter().enumerate() {
+                let _ = task_group.spawn(format!("worker_{}_{}", id, i), h);
             }
         }
 

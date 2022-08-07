@@ -295,7 +295,7 @@ impl PrimaryNodeDetails {
             committee,
             parameters,
             handlers: Rc::new(RefCell::new(Vec::new())),
-            primary: Rc::new(RefCell::new(Option::None)),
+            primary: Rc::new(RefCell::new(None)),
             internal_consensus_enabled,
         }
     }
@@ -376,12 +376,10 @@ impl PrimaryNodeDetails {
         info!("Aborted primary node for id {}", self.id);
     }
 
-    /// This method returns whether the node is still running or not. We
-    /// iterate over all the handlers and check whether there is still any
-    /// that is not finished. If we find at least one, then we report the
-    /// node as still running.
+    /// Returns whether the primary is still running, by checking if the TaskManager
+    /// and task handles exist and at least one of them is not finished.
     pub fn is_running(&self) -> bool {
-        if self.handlers.borrow().is_empty() || self.primary.borrow().is_none() {
+        if self.primary.borrow().is_none() || self.handlers.borrow().is_empty() {
             return false;
         }
         self.handlers.borrow().iter().any(|h| !h.is_finished())
@@ -457,10 +455,8 @@ impl WorkerNodeDetails {
         info!("Aborted worker node for id {}", self.id);
     }
 
-    /// This method returns whether the node is still running or not. We
-    /// iterate over all the handlers and check whether there is still any
-    /// that is not finished. If we find at least one, then we report the
-    /// node as still running.
+    /// Returns whether the worker is still running, by checking if the
+    /// TaskManager for worker tasks exists.
     pub fn is_running(&self) -> bool {
         self.worker.load().is_some()
     }

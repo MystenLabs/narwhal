@@ -324,7 +324,7 @@ async fn test_restart_with_new_committee_change() {
             /* tx_committed_certificates */ tx_feedback,
             &registry,
         );
-        handles.extend(&mut primary_handles.into_iter().map(|(_n, j)| j));
+        handles.extend(primary_handles.into_iter().map(|(_n, j)| j));
     }
 
     // Run for a while in epoch 0.
@@ -397,7 +397,7 @@ async fn test_restart_with_new_committee_change() {
                 /* tx_committed_certificates */ tx_feedback,
                 &registry,
             );
-            handles.extend(&mut primary_handles.into_iter().map(|(_n, j)| j));
+            handles.extend(primary_handles.into_iter().map(|(_n, j)| j));
         }
 
         // Run for a while.
