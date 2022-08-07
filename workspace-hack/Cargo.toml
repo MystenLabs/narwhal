@@ -60,7 +60,8 @@ byteorder = { version = "1", features = ["i128", "std"] }
 bytes = { version = "1", features = ["std"] }
 bzip2-sys = { version = "0.1", default-features = false, features = ["static"] }
 cast = { version = "0.3", default-features = false }
-cfg-if = { version = "1", default-features = false }
+cfg-if-c65f7effa3be6d31 = { package = "cfg-if", version = "0.1", default-features = false }
+cfg-if-dff4ba8e3ae991db = { package = "cfg-if", version = "1", default-features = false }
 clap-f595c2ba2a3f28df = { package = "clap", version = "2", features = ["ansi_term", "atty", "color", "strsim", "suggestions", "vec_map"] }
 clap-7b89eefb6aaa9bf3 = { package = "clap", version = "3", features = ["atty", "color", "std", "strsim", "suggestions", "termcolor"] }
 clap_lex = { version = "0.2", default-features = false }
@@ -170,8 +171,8 @@ mio = { version = "0.8", features = ["net", "os-ext", "os-poll"] }
 mockall = { version = "0.11", default-features = false }
 multiaddr = { version = "0.14", features = ["url"] }
 multihash = { version = "0.16", default-features = false, features = ["alloc", "derive", "identity", "multihash-derive", "multihash-impl", "std"] }
-mysten-network-c01aa52156ee3946 = { package = "mysten-network", git = "https://github.com/mystenlabs/mysten-infra.git", rev = "123c9e40b529315e1c1d91a54fb717111c3e349c", default-features = false }
 mysten-network-4bfefd54e41eb1ee = { package = "mysten-network", git = "https://github.com/mystenlabs/mysten-infra.git", rev = "20ef52a00135114eb361e28673cfaa9bf4560f6f", default-features = false }
+mysten-network-2187a2855c8ab378 = { package = "mysten-network", git = "https://github.com/mystenlabs/mysten-infra.git", rev = "d965a5a795dcdb4d1c7964acf556bc249fdc58aa", default-features = false }
 normalize-line-endings = { version = "0.3", default-features = false }
 num-bigint = { version = "0.4", default-features = false }
 num-integer = { version = "0.1", default-features = false, features = ["i128"] }
@@ -199,6 +200,7 @@ plotters = { version = "0.3", default-features = false, features = ["area_series
 plotters-backend = { version = "0.3", default-features = false }
 plotters-svg = { version = "0.3", default-features = false }
 ppv-lite86 = { version = "0.2", default-features = false, features = ["simd", "std"] }
+pre = { version = "0.2", features = ["alloc", "core", "std"] }
 predicates = { version = "2", features = ["diff", "difflib", "float-cmp", "normalize-line-endings", "regex"] }
 predicates-core = { version = "1", default-features = false }
 predicates-tree = { version = "1", default-features = false }
@@ -262,7 +264,7 @@ strsim-c38e5c1d305a1b54 = { package = "strsim", version = "0.8", default-feature
 structopt = { version = "0.3" }
 subtle = { version = "2", default-features = false, features = ["i128", "std"] }
 sync_wrapper = { version = "0.1", default-features = false }
-telemetry-subscribers = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "123c9e40b529315e1c1d91a54fb717111c3e349c", features = ["chrome", "jaeger", "opentelemetry", "opentelemetry-jaeger", "tracing-chrome", "tracing-opentelemetry"] }
+telemetry-subscribers = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "d965a5a795dcdb4d1c7964acf556bc249fdc58aa", features = ["chrome", "jaeger", "opentelemetry", "opentelemetry-jaeger", "tracing-chrome", "tracing-opentelemetry"] }
 tempfile = { version = "3", default-features = false }
 termcolor = { version = "1", default-features = false }
 terminal_size = { version = "0.1", default-features = false }
@@ -301,7 +303,7 @@ tracing-subscriber-6f8ce4dd05d13bba = { package = "tracing-subscriber", version 
 tracing-subscriber-468e82937335b1c9 = { package = "tracing-subscriber", version = "0.3", features = ["alloc", "ansi", "ansi_term", "env-filter", "fmt", "matchers", "once_cell", "regex", "registry", "sharded-slab", "smallvec", "std", "thread_local", "time", "tracing", "tracing-log"] }
 tracing-test = { version = "0.2", default-features = false }
 try-lock = { version = "0.2", default-features = false }
-typed-store = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "123c9e40b529315e1c1d91a54fb717111c3e349c", default-features = false }
+typed-store = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "d965a5a795dcdb4d1c7964acf556bc249fdc58aa", default-features = false }
 typenum = { version = "1", default-features = false }
 unicode-bidi = { version = "0.3", features = ["hardcoded-data", "std"] }
 unicode-normalization = { version = "0.1", features = ["std"] }
@@ -332,7 +334,8 @@ bitflags = { version = "1" }
 bytes = { version = "1", features = ["std"] }
 cc = { version = "1", default-features = false, features = ["jobserver", "parallel"] }
 cexpr = { version = "0.6", default-features = false }
-cfg-if = { version = "1", default-features = false }
+cfg-if-c65f7effa3be6d31 = { package = "cfg-if", version = "0.1", default-features = false }
+cfg-if-dff4ba8e3ae991db = { package = "cfg-if", version = "1", default-features = false }
 clang-sys = { version = "1", default-features = false, features = ["clang_3_5", "clang_3_6", "clang_3_7", "clang_3_8", "clang_3_9", "clang_4_0", "clang_5_0", "clang_6_0", "libloading", "runtime"] }
 cmake = { version = "0.1", default-features = false }
 darling = { version = "0.14", features = ["suggestions"] }
@@ -375,8 +378,10 @@ pest = { version = "2", features = ["std", "thiserror"] }
 petgraph = { version = "0.6", default-features = false }
 pin-project-internal = { version = "1", default-features = false }
 pkg-config = { version = "0.3", default-features = false }
+pre-proc-macro = { version = "0.2", default-features = false }
 prettyplease = { version = "0.1", default-features = false }
-proc-macro-crate = { version = "1", default-features = false }
+proc-macro-crate-c65f7effa3be6d31 = { package = "proc-macro-crate", version = "0.1", default-features = false }
+proc-macro-crate-dff4ba8e3ae991db = { package = "proc-macro-crate", version = "1", default-features = false }
 proc-macro-error = { version = "1", features = ["syn", "syn-error"] }
 proc-macro-error-attr = { version = "1", default-features = false }
 proc-macro2-9fbad63c4bcf4a8f = { package = "proc-macro2", version = "0.4", features = ["proc-macro"] }
@@ -393,10 +398,13 @@ regex = { version = "1", features = ["aho-corasick", "memchr", "perf", "perf-cac
 regex-syntax = { version = "0.6", features = ["unicode", "unicode-age", "unicode-bool", "unicode-case", "unicode-gencat", "unicode-perl", "unicode-script", "unicode-segment"] }
 remove_dir_all = { version = "0.5", default-features = false }
 rustc-hash = { version = "1", features = ["std"] }
-rustc_version = { version = "0.3", default-features = false }
+rustc_version-6f8ce4dd05d13bba = { package = "rustc_version", version = "0.2", default-features = false }
+rustc_version-468e82937335b1c9 = { package = "rustc_version", version = "0.3", default-features = false }
 rustversion = { version = "1", default-features = false }
-semver = { version = "0.11" }
-semver-parser = { version = "0.10", default-features = false }
+semver-a6292c17cd707f01 = { package = "semver", version = "0.11" }
+semver-274715c4dabd11b0 = { package = "semver", version = "0.9" }
+semver-parser-93f6ce9d446188ac = { package = "semver-parser", version = "0.10", default-features = false }
+semver-parser-ca01ad9e24f5d932 = { package = "semver-parser", version = "0.7", default-features = false }
 serde = { version = "1", features = ["alloc", "derive", "rc", "serde_derive", "std"] }
 serde_derive = { version = "1" }
 serde_with_macros = { version = "2", default-features = false }

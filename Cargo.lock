@@ -740,12 +740,11 @@ dependencies = [
  "rand 0.7.3",
  "rocksdb",
  "serde",
- "serde_bytes",
  "test_utils",
  "thiserror",
  "tokio",
  "tracing",
- "typed-store 0.1.0 (git+https://github.com/mystenlabs/mysten-infra.git?rev=d965a5a795dcdb4d1c7964acf556bc249fdc58aa)",
+ "typed-store",
  "types",
  "workspace-hack",
 ]
@@ -962,7 +961,6 @@ dependencies = [
  "readonly",
  "secp256k1",
  "serde",
- "serde_bytes",
  "serde_json",
  "serde_with",
  "sha3",
@@ -1357,7 +1355,7 @@ dependencies = [
  "tokio-util",
  "tonic",
  "tracing",
- "typed-store 0.1.0 (git+https://github.com/mystenlabs/mysten-infra.git?rev=d965a5a795dcdb4d1c7964acf556bc249fdc58aa)",
+ "typed-store",
  "types",
  "worker",
  "workspace-hack",
@@ -2192,27 +2190,6 @@ checksum = "e5ce46fe64a9d73be07dcbe690a38ce1b293be448fd8ce1e6c1b8062c9f72c6a"
 [[package]]
 name = "mysten-network"
 version = "0.1.0"
-source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=123c9e40b529315e1c1d91a54fb717111c3e349c#123c9e40b529315e1c1d91a54fb717111c3e349c"
-dependencies = [
- "anyhow",
- "bincode",
- "bytes",
- "futures",
- "http",
- "multiaddr",
- "serde",
- "tokio",
- "tokio-stream",
- "tonic",
- "tonic-health",
- "tower",
- "tower-http",
- "tracing",
-]
-
-[[package]]
-name = "mysten-network"
-version = "0.1.0"
 source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=20ef52a00135114eb361e28673cfaa9bf4560f6f#20ef52a00135114eb361e28673cfaa9bf4560f6f"
 dependencies = [
  "anyhow",
@@ -2319,7 +2296,7 @@ dependencies = [
  "serde-reflection",
  "serde_yaml",
  "structopt",
- "telemetry-subscribers 0.1.0 (git+https://github.com/mystenlabs/mysten-infra.git?rev=d965a5a795dcdb4d1c7964acf556bc249fdc58aa)",
+ "telemetry-subscribers",
  "test_utils",
  "thiserror",
  "tokio",
@@ -2328,7 +2305,7 @@ dependencies = [
  "tracing",
  "tracing-log",
  "tracing-subscriber 0.3.15",
- "typed-store 0.1.0 (git+https://github.com/mystenlabs/mysten-infra.git?rev=d965a5a795dcdb4d1c7964acf556bc249fdc58aa)",
+ "typed-store",
  "types",
  "url",
  "worker",
@@ -2798,7 +2775,6 @@ dependencies = [
  "dashmap",
  "derive_builder",
  "dhat",
- "ed25519-dalek",
  "executor",
  "futures",
  "indexmap",
@@ -2813,7 +2789,7 @@ dependencies = [
  "prost",
  "rand 0.7.3",
  "serde",
- "telemetry-subscribers 0.1.0 (git+https://github.com/mystenlabs/mysten-infra.git?rev=d965a5a795dcdb4d1c7964acf556bc249fdc58aa)",
+ "telemetry-subscribers",
  "tempfile",
  "test_utils",
  "thiserror",
@@ -2823,7 +2799,7 @@ dependencies = [
  "tower",
  "tracing",
  "tracing-test",
- "typed-store 0.1.0 (git+https://github.com/mystenlabs/mysten-infra.git?rev=d965a5a795dcdb4d1c7964acf556bc249fdc58aa)",
+ "typed-store",
  "types",
  "worker",
  "workspace-hack",
@@ -3801,24 +3777,6 @@ dependencies = [
 [[package]]
 name = "telemetry-subscribers"
 version = "0.1.0"
-source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=123c9e40b529315e1c1d91a54fb717111c3e349c#123c9e40b529315e1c1d91a54fb717111c3e349c"
-dependencies = [
- "crossterm",
- "once_cell",
- "opentelemetry",
- "opentelemetry-jaeger",
- "tokio",
- "tracing",
- "tracing-appender",
- "tracing-bunyan-formatter",
- "tracing-chrome",
- "tracing-opentelemetry",
- "tracing-subscriber 0.3.15",
-]
-
-[[package]]
-name = "telemetry-subscribers"
-version = "0.1.0"
 source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=d965a5a795dcdb4d1c7964acf556bc249fdc58aa#d965a5a795dcdb4d1c7964acf556bc249fdc58aa"
 dependencies = [
  "crossterm",
@@ -3885,7 +3843,6 @@ dependencies = [
  "config",
  "crypto",
  "derive_builder",
- "ed25519-dalek",
  "executor",
  "futures",
  "indexmap",
@@ -3903,7 +3860,7 @@ dependencies = [
  "tokio-util",
  "tonic",
  "tracing",
- "typed-store 0.1.0 (git+https://github.com/mystenlabs/mysten-infra.git?rev=d965a5a795dcdb4d1c7964acf556bc249fdc58aa)",
+ "typed-store",
  "types",
  "worker",
  "workspace-hack",
@@ -4390,22 +4347,6 @@ checksum = "59547bce71d9c38b83d9c0e92b6066c4253371f15005def0c30d9657f50c7642"
 [[package]]
 name = "typed-store"
 version = "0.1.0"
-source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=123c9e40b529315e1c1d91a54fb717111c3e349c#123c9e40b529315e1c1d91a54fb717111c3e349c"
-dependencies = [
- "bincode",
- "collectable",
- "eyre",
- "fdlimit",
- "rocksdb",
- "serde",
- "thiserror",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "typed-store"
-version = "0.1.0"
 source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=d965a5a795dcdb4d1c7964acf556bc249fdc58aa#d965a5a795dcdb4d1c7964acf556bc249fdc58aa"
 dependencies = [
  "anyhow",
@@ -4459,7 +4400,7 @@ dependencies = [
  "tokio-util",
  "tonic",
  "tonic-build",
- "typed-store 0.1.0 (git+https://github.com/mystenlabs/mysten-infra.git?rev=d965a5a795dcdb4d1c7964acf556bc249fdc58aa)",
+ "typed-store",
  "workspace-hack",
 ]
 
@@ -4781,7 +4722,6 @@ dependencies = [
  "bytes",
  "config",
  "crypto",
- "ed25519-dalek",
  "futures",
  "multiaddr",
  "mysten-network 0.1.0 (git+https://github.com/mystenlabs/mysten-infra.git?rev=d965a5a795dcdb4d1c7964acf556bc249fdc58aa)",
@@ -4798,7 +4738,7 @@ dependencies = [
  "tonic",
  "tower",
  "tracing",
- "typed-store 0.1.0 (git+https://github.com/mystenlabs/mysten-infra.git?rev=d965a5a795dcdb4d1c7964acf556bc249fdc58aa)",
+ "typed-store",
  "types",
  "workspace-hack",
 ]
@@ -4862,6 +4802,7 @@ dependencies = [
  "cast",
  "cc",
  "cexpr",
+ "cfg-if 0.1.10",
  "cfg-if 1.0.0",
  "clang-sys",
  "clap 2.34.0",
@@ -4994,8 +4935,8 @@ dependencies = [
  "multihash",
  "multihash-derive",
  "multimap",
- "mysten-network 0.1.0 (git+https://github.com/mystenlabs/mysten-infra.git?rev=123c9e40b529315e1c1d91a54fb717111c3e349c)",
  "mysten-network 0.1.0 (git+https://github.com/mystenlabs/mysten-infra.git?rev=20ef52a00135114eb361e28673cfaa9bf4560f6f)",
+ "mysten-network 0.1.0 (git+https://github.com/mystenlabs/mysten-infra.git?rev=d965a5a795dcdb4d1c7964acf556bc249fdc58aa)",
  "nom",
  "normalize-line-endings",
  "num-bigint",
@@ -5030,11 +4971,14 @@ dependencies = [
  "plotters-backend",
  "plotters-svg",
  "ppv-lite86",
+ "pre",
+ "pre-proc-macro",
  "predicates",
  "predicates-core",
  "predicates-tree",
  "pretty_assertions",
  "prettyplease",
+ "proc-macro-crate 0.1.5",
  "proc-macro-crate 1.1.3",
  "proc-macro-error",
  "proc-macro-error-attr",
@@ -5071,6 +5015,7 @@ dependencies = [
  "rocksdb",
  "rustc-demangle",
  "rustc-hash",
+ "rustc_version 0.2.3",
  "rustc_version 0.3.3",
  "rustls",
  "rustls-pemfile",
@@ -5084,7 +5029,9 @@ dependencies = [
  "secp256k1",
  "secp256k1-sys",
  "semver 0.11.0",
+ "semver 0.9.0",
  "semver-parser 0.10.2",
+ "semver-parser 0.7.0",
  "serde",
  "serde-reflection",
  "serde_bytes",
@@ -5117,7 +5064,7 @@ dependencies = [
  "syn 1.0.98",
  "sync_wrapper",
  "synstructure",
- "telemetry-subscribers 0.1.0 (git+https://github.com/mystenlabs/mysten-infra.git?rev=123c9e40b529315e1c1d91a54fb717111c3e349c)",
+ "telemetry-subscribers",
  "tempfile",
  "termcolor",
  "terminal_size",
@@ -5162,7 +5109,7 @@ dependencies = [
  "tracing-test",
  "tracing-test-macro",
  "try-lock",
- "typed-store 0.1.0 (git+https://github.com/mystenlabs/mysten-infra.git?rev=123c9e40b529315e1c1d91a54fb717111c3e349c)",
+ "typed-store",
  "typenum",
  "ucd-trie",
  "unicode-bidi",
