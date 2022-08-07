@@ -102,7 +102,7 @@ impl Executor {
         rx_consensus: Receiver<ConsensusOutput>,
         tx_consensus: Sender<ConsensusSyncRequest>,
         tx_output: Sender<ExecutorOutput<State>>,
-    ) -> SubscriberResult<Vec<JoinHandle<()>>>
+    ) -> SubscriberResult<Vec<(&'static str, JoinHandle<()>)>>
     where
         State: ExecutionState + Send + Sync + 'static,
         State::Outcome: Send + 'static,
@@ -163,9 +163,9 @@ impl Executor {
         // Return the handle.
         info!("Consensus subscriber successfully started");
         Ok(vec![
-            subscriber_handle,
-            executor_handle,
-            batch_loader_handle,
+            ("executor_subscriber", subscriber_handle),
+            ("executor", executor_handle),
+            ("executor_batch_loader", batch_loader_handle),
         ])
     }
 }

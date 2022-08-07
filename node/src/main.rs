@@ -8,13 +8,12 @@
     rust_2021_compatibility
 )]
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use arc_swap::ArcSwap;
 use clap::{crate_name, crate_version, App, AppSettings, ArgMatches, SubCommand};
 use config::{Committee, Import, Parameters, WorkerId};
 use crypto::{generate_production_keypair, traits::KeyPair as _, KeyPair};
 use executor::{SerializedTransaction, SubscriberResult};
-use futures::future::join_all;
 use node::{
     execution_state::SimpleExecutionState,
     metrics::{primary_metrics_registry, start_prometheus_server, worker_metrics_registry},
@@ -156,7 +155,7 @@ async fn run(matches: &ArgMatches<'_>) -> Result<()> {
     let registry;
 
     // Check whether to run a primary, a worker, or an entire authority.
-    let node_handles = match matches.subcommand() {
+    let task_manager = match matches.subcommand() {
         // Spawn the primary and consensus core.
         ("primary", Some(sub_matches)) => {
             registry = primary_metrics_registry(keypair.public().clone());
@@ -209,10 +208,12 @@ async fn run(matches: &ArgMatches<'_>) -> Result<()> {
     analyze(rx_transaction_confirmation).await;
 
     // Await on the completion handles of all the nodes we have launched
-    join_all(node_handles).await;
-
-    // If this expression is reached, the program ends and all other tasks terminate.
-    Ok(())
+    return task_manager.await.map_err(|err| match err {
+        task_group::RuntimeError::Panic { name: n, panic: p } => anyhow!("{} paniced: {:?}", n, p),
+        task_group::RuntimeError::Application { name: n, error: e } => {
+            anyhow!("{} error: {:?}", n, e)
+        }
+    });
 }
 
 /// Receives an ordered list of certificates and apply any application-specific logic.

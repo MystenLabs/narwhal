@@ -27,6 +27,7 @@ multiaddr = "0.14.0"
 tracing = "0.1.36"
 indexmap = { version = "1.9.1", features = ["serde"] }
 itertools = "0.10.3"
+task-group = "0.2.2"
 
 config = { path = "../config" }
 crypto = { path = "../crypto", features = ["copy_key"] }
