@@ -1371,6 +1371,7 @@ dependencies = [
  "crypto",
  "futures",
  "indexmap",
+ "match_opt",
  "multiaddr",
  "mysten-network 0.1.0 (git+https://github.com/mystenlabs/mysten-infra.git?rev=d965a5a795dcdb4d1c7964acf556bc249fdc58aa)",
  "primary",
