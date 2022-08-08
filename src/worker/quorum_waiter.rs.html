@@ -153,10 +153,6 @@
 <span id="153">153</span>
 <span id="154">154</span>
 <span id="155">155</span>
-<span id="156">156</span>
-<span id="157">157</span>
-<span id="158">158</span>
-<span id="159">159</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -164,15 +160,11 @@
 <span class="kw">use</span> <span class="ident">crypto::PublicKey</span>;
 <span class="kw">use</span> <span class="ident">futures::stream</span>::{<span class="ident">futures_unordered::FuturesUnordered</span>, <span class="ident">StreamExt</span> <span class="kw">as</span> <span class="kw">_</span>};
 <span class="kw">use</span> <span class="ident">network</span>::{<span class="ident">CancelOnDropHandler</span>, <span class="ident">MessageResult</span>, <span class="ident">ReliableNetwork</span>, <span class="ident">WorkerNetwork</span>};
-<span class="kw">use</span> <span class="ident">tokio</span>::{
-    <span class="ident">sync</span>::{
-        <span class="ident">mpsc</span>::{<span class="ident">Receiver</span>, <span class="ident">Sender</span>},
-        <span class="ident">watch</span>,
-    },
-    <span class="ident">task::JoinHandle</span>,
-};
+<span class="kw">use</span> <span class="ident">tokio</span>::{<span class="ident">sync::watch</span>, <span class="ident">task::JoinHandle</span>};
 <span class="kw">use</span> <span class="ident">types</span>::{
-    <span class="ident">error::DagError</span>, <span class="ident">Batch</span>, <span class="ident">ReconfigureNotification</span>, <span class="ident">SerializedBatchMessage</span>, <span class="ident">WorkerMessage</span>,
+    <span class="ident">error::DagError</span>,
+    <span class="ident">metered_channel</span>::{<span class="ident">Receiver</span>, <span class="ident">Sender</span>},
+    <span class="ident">Batch</span>, <span class="ident">ReconfigureNotification</span>, <span class="ident">SerializedBatchMessage</span>, <span class="ident">WorkerMessage</span>,
 };
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>

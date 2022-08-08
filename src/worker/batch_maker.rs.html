@@ -159,6 +159,7 @@
 <span id="159">159</span>
 <span id="160">160</span>
 <span id="161">161</span>
+<span id="162">162</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -166,14 +167,15 @@
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;benchmark&quot;</span>)]</span>
 <span class="kw">use</span> <span class="ident">std::convert::TryInto</span>;
 <span class="kw">use</span> <span class="ident">tokio</span>::{
-    <span class="ident">sync</span>::{
-        <span class="ident">mpsc</span>::{<span class="ident">Receiver</span>, <span class="ident">Sender</span>},
-        <span class="ident">watch</span>,
-    },
+    <span class="ident">sync::watch</span>,
     <span class="ident">task::JoinHandle</span>,
     <span class="ident">time</span>::{<span class="ident">sleep</span>, <span class="ident">Duration</span>, <span class="ident">Instant</span>},
 };
-<span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">error::DagError</span>, <span class="ident">Batch</span>, <span class="ident">ReconfigureNotification</span>, <span class="ident">Transaction</span>};
+<span class="kw">use</span> <span class="ident">types</span>::{
+    <span class="ident">error::DagError</span>,
+    <span class="ident">metered_channel</span>::{<span class="ident">Receiver</span>, <span class="ident">Sender</span>},
+    <span class="ident">Batch</span>, <span class="ident">ReconfigureNotification</span>, <span class="ident">Transaction</span>,
+};
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="attribute">#[<span class="ident">path</span> <span class="op">=</span> <span class="string">&quot;tests/batch_maker_tests.rs&quot;</span>]</span>

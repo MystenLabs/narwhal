@@ -332,8 +332,6 @@
 <span id="332">332</span>
 <span id="333">333</span>
 <span id="334">334</span>
-<span id="335">335</span>
-<span id="336">336</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
@@ -350,15 +348,13 @@
 };
 <span class="kw">use</span> <span class="ident">store</span>::{<span class="ident">Store</span>, <span class="ident">StoreError</span>};
 <span class="kw">use</span> <span class="ident">tokio</span>::{
-    <span class="ident">sync</span>::{
-        <span class="ident">mpsc</span>::{<span class="ident">channel</span>, <span class="ident">Receiver</span>, <span class="ident">Sender</span>},
-        <span class="ident">watch</span>,
-    },
+    <span class="ident">sync</span>::{<span class="ident">mpsc</span>, <span class="ident">watch</span>},
     <span class="ident">task::JoinHandle</span>,
     <span class="ident">time</span>::{<span class="ident">sleep</span>, <span class="ident">Duration</span>, <span class="ident">Instant</span>},
 };
 <span class="kw">use</span> <span class="ident">tracing</span>::{<span class="ident">debug</span>, <span class="ident">error</span>};
 <span class="kw">use</span> <span class="ident">types</span>::{
+    <span class="ident">metered_channel</span>::{<span class="ident">Receiver</span>, <span class="ident">Sender</span>},
     <span class="ident">BatchDigest</span>, <span class="ident">ReconfigureNotification</span>, <span class="ident">Round</span>, <span class="ident">SerializedBatchMessage</span>, <span class="ident">WorkerMessage</span>,
     <span class="ident">WorkerPrimaryError</span>, <span class="ident">WorkerPrimaryMessage</span>,
 };
@@ -396,7 +392,7 @@
     <span class="doccomment">/// Keeps the digests (of batches) that are waiting to be processed by the primary. Their</span>
     <span class="doccomment">/// processing will resume when we get the missing batches in the store or we no longer need them.</span>
     <span class="doccomment">/// It also keeps the round number and a time stamp (`u128`) of each request we sent.</span>
-    <span class="ident">pending</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">BatchDigest</span>, (<span class="ident">Round</span>, <span class="ident">Sender</span><span class="op">&lt;</span>()<span class="op">&gt;</span>, <span class="ident">u128</span>)<span class="op">&gt;</span>,
+    <span class="ident">pending</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">BatchDigest</span>, (<span class="ident">Round</span>, <span class="ident">mpsc::Sender</span><span class="op">&lt;</span>()<span class="op">&gt;</span>, <span class="ident">u128</span>)<span class="op">&gt;</span>,
     <span class="doccomment">/// Send reconfiguration update to other tasks.</span>
     <span class="ident">tx_reconfigure</span>: <span class="ident">watch::Sender</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
     <span class="doccomment">/// Output channel to send out the batch requests.</span>
@@ -449,7 +445,7 @@
         <span class="ident">missing</span>: <span class="ident">BatchDigest</span>,
         <span class="ident">store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">BatchDigest</span>, <span class="ident">SerializedBatchMessage</span><span class="op">&gt;</span>,
         <span class="ident">deliver</span>: <span class="ident">BatchDigest</span>,
-        <span class="kw-2">mut</span> <span class="ident">handler</span>: <span class="ident">Receiver</span><span class="op">&lt;</span>()<span class="op">&gt;</span>,
+        <span class="kw-2">mut</span> <span class="ident">handler</span>: <span class="ident">mpsc::Receiver</span><span class="op">&lt;</span>()<span class="op">&gt;</span>,
     ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">BatchDigest</span><span class="op">&gt;</span>, <span class="ident">StoreError</span><span class="op">&gt;</span> {
         <span class="macro">tokio::select!</span> {
             <span class="ident">result</span> <span class="op">=</span> <span class="ident">store</span>.<span class="ident">notify_read</span>(<span class="ident">missing</span>) =&gt; {
@@ -500,7 +496,7 @@
 
                             <span class="comment">// Add the digest to the waiter.</span>
                             <span class="kw">let</span> <span class="ident">deliver</span> <span class="op">=</span> <span class="ident">digest</span>;
-                            <span class="kw">let</span> (<span class="ident">tx_cancel</span>, <span class="ident">rx_cancel</span>) <span class="op">=</span> <span class="ident">channel</span>(<span class="number">1</span>);
+                            <span class="kw">let</span> (<span class="ident">tx_cancel</span>, <span class="ident">rx_cancel</span>) <span class="op">=</span> <span class="ident">mpsc::channel</span>(<span class="number">1</span>);
                             <span class="kw">let</span> <span class="ident">fut</span> <span class="op">=</span> <span class="ident"><span class="self">Self</span>::waiter</span>(<span class="ident">digest</span>, <span class="self">self</span>.<span class="ident">store</span>.<span class="ident">clone</span>(), <span class="ident">deliver</span>, <span class="ident">rx_cancel</span>);
                             <span class="ident">waiting</span>.<span class="ident">push</span>(<span class="ident">fut</span>);
                             <span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">insert</span>(<span class="ident">digest</span>, (<span class="self">self</span>.<span class="ident">round</span>, <span class="ident">tx_cancel</span>, <span class="ident">now</span>));

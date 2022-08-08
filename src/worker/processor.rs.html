@@ -79,27 +79,19 @@
 <span id="79">79</span>
 <span id="80">80</span>
 <span id="81">81</span>
-<span id="82">82</span>
-<span id="83">83</span>
-<span id="84">84</span>
-<span id="85">85</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
 <span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 
 <span class="kw">use</span> <span class="ident">config::WorkerId</span>;
 <span class="kw">use</span> <span class="ident">store::Store</span>;
-<span class="kw">use</span> <span class="ident">tokio</span>::{
-    <span class="ident">sync</span>::{
-        <span class="ident">mpsc</span>::{<span class="ident">Receiver</span>, <span class="ident">Sender</span>},
-        <span class="ident">watch</span>,
-    },
-    <span class="ident">task::JoinHandle</span>,
-};
+<span class="kw">use</span> <span class="ident">tokio</span>::{<span class="ident">sync::watch</span>, <span class="ident">task::JoinHandle</span>};
 <span class="kw">use</span> <span class="ident">tracing::error</span>;
 <span class="kw">use</span> <span class="ident">types</span>::{
-    <span class="ident">error::DagError</span>, <span class="ident">serialized_batch_digest</span>, <span class="ident">BatchDigest</span>, <span class="ident">ReconfigureNotification</span>,
-    <span class="ident">SerializedBatchMessage</span>, <span class="ident">WorkerPrimaryMessage</span>,
+    <span class="ident">error::DagError</span>,
+    <span class="ident">metered_channel</span>::{<span class="ident">Receiver</span>, <span class="ident">Sender</span>},
+    <span class="ident">serialized_batch_digest</span>, <span class="ident">BatchDigest</span>, <span class="ident">ReconfigureNotification</span>, <span class="ident">SerializedBatchMessage</span>,
+    <span class="ident">WorkerPrimaryMessage</span>,
 };
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
