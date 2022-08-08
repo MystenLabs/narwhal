@@ -336,7 +336,7 @@ impl Node {
                 store.batch_store.clone(),
                 metrics.clone(),
             );
-            // TODO(https://github.com/MystenLabs/narwhal/issues/727): propagate worker task names.
+            // TODO(narwhal/727): propagate worker task names.
             for (i, h) in worker_handles.into_iter().enumerate() {
                 let _ = task_group.spawn(format!("worker_{}_{}", id, i), h);
             }
