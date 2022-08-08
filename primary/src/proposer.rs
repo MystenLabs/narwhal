@@ -16,7 +16,7 @@ use tokio::{
     task::JoinHandle,
     time::{sleep, Duration, Instant},
 };
-use tracing::{debug, info};
+use tracing::{debug, info, trace};
 use types::{
     error::{DagError, DagResult},
     BatchDigest, Certificate, Header, ReconfigureNotification, Round,
@@ -48,7 +48,7 @@ pub struct Proposer {
     header_size: usize,
     /// The maximum message delay after Global Stabilization Time (GST). This is only meaningful in
     /// partial-synchrony.
-    delta: Duration,
+    header_delay: Duration,
     /// The network model in which the node operates.
     network_model: NetworkModel,
 
@@ -74,9 +74,9 @@ pub struct Proposer {
     /// Whether we are on the happy path: i.e., we are after GST and the leader is not Byzantine.
     /// Note that `common_case` is only used in partial synchrony (it is alway set to `true` when
     /// running the DAG in asynchrony).
-    common_case: bool,
+    stabilized: bool,
     /// The highest round for which we received a non-empty certificate from other peers.
-    highest_peers_round: Option<Round>,
+    highest_nonempty_peers_round: Option<Round>,
 
     /// Metrics handler
     metrics: Arc<PrimaryMetrics>,
@@ -105,7 +105,7 @@ impl Proposer {
                 committee,
                 signature_service,
                 header_size,
-                delta: max_header_delay,
+                header_delay: max_header_delay,
                 network_model,
                 rx_reconfigure,
                 rx_core,
@@ -116,8 +116,8 @@ impl Proposer {
                 last_leader: None,
                 digests: Vec::with_capacity(2 * header_size),
                 payload_size: 0,
-                common_case: true,
-                highest_peers_round: None,
+                stabilized: true,
+                highest_nonempty_peers_round: None,
                 metrics,
             }
             .run()
@@ -246,14 +246,14 @@ impl Proposer {
 
         // Check whether we are on the happy path (we can vote for the leader or the leader has enough
         // votes to enable a commit).
-        self.common_case = self.is_common_case();
+        self.stabilized = self.is_common_case();
     }
 
     /// Main loop listening to incoming messages.
     pub async fn run(&mut self) {
         debug!("Dag starting at round {}", self.round);
 
-        let timer = sleep(self.delta);
+        let timer = sleep(self.header_delay);
         tokio::pin!(timer);
 
         info!("Proposer on node {} has started successfully.", self.name);
@@ -265,7 +265,7 @@ impl Proposer {
             let enough_parents = !self.last_parents.is_empty();
             let we_have_enough_batches = self.payload_size >= self.header_size;
             let others_have_batches = self
-                .highest_peers_round
+                .highest_nonempty_peers_round
                 .is_some_and(|r| self.round == r - 1);
 
             // Check whether advancing round allows the system to make meaningful progress. The system
@@ -273,14 +273,14 @@ impl Proposer {
             let meaningful_progress = we_have_enough_batches || others_have_batches;
 
             // Print a few debug logs.
-            debug!("Do we have enough parents: {enough_parents}");
-            debug!("Do we have enough digests: {we_have_enough_batches}");
-            debug!("Have we learned about a non-empty certificate for this round: {others_have_batches}");
-            debug!("Are we in the common case: {}", self.common_case);
-            debug!("Did the timer expire: {timer_expired}");
+            trace!("Do we have enough parents: {enough_parents}");
+            trace!("Do we have enough digests: {we_have_enough_batches}");
+            trace!("Have we learned about a non-empty certificate for this round: {others_have_batches}");
+            trace!("Are we in the common case: {}", self.stabilized);
+            trace!("Did the timer expire: {timer_expired}");
 
             // Check whether we can move to the next round and proposer a new header.
-            if (self.common_case || timer_expired) && enough_parents && meaningful_progress {
+            if (self.stabilized || timer_expired) && enough_parents && meaningful_progress {
                 if timer_expired && matches!(self.network_model, NetworkModel::PartiallySynchronous)
                 {
                     // It is expected that this timer expires from time to time. If it expires too often, it
@@ -288,6 +288,9 @@ impl Proposer {
                     // of asynchrony. In practice, the latter scenario means we misconfigured the parameter
                     // called `max_header_delay`.
                     debug!("Timer expired for round {}", self.round);
+                }
+                if !we_have_enough_batches {
+                    debug!("Proposing empty header for liveness");
                 }
 
                 // Advance to the next round.
@@ -307,7 +310,7 @@ impl Proposer {
                 self.payload_size = 0;
 
                 // Reschedule the timer.
-                let deadline = Instant::now() + self.delta;
+                let deadline = Instant::now() + self.header_delay;
                 timer.as_mut().reset(deadline);
             }
 
@@ -345,7 +348,7 @@ impl Proposer {
 
                     },
                     ProposerMessage::MeaningfulRound(round) => {
-                        self.highest_peers_round = self.highest_peers_round
+                        self.highest_nonempty_peers_round = self.highest_nonempty_peers_round
                             .map_or_else(|| Some(round), |r| Some(max(r, round)));
                     },
                 },

@@ -27,7 +27,7 @@ async fn propose_payload() {
         committee(None),
         signature_service,
         /* header_size */ 32,
-        /* delta */
+        /* header_delay */
         Duration::from_secs(1_000), // Ensure it is not triggered.
         NetworkModel::PartiallySynchronous,
         rx_reconfigure,
@@ -56,7 +56,7 @@ async fn propose_empty() {
     let name = kp.public().clone();
     let signature_service = SignatureService::new(kp);
 
-    let delta = Duration::from_millis(5);
+    let header_delay = Duration::from_millis(5);
 
     let (_tx_reconfigure, rx_reconfigure) =
         watch::channel(ReconfigureNotification::NewEpoch(committee(None)));
@@ -72,7 +72,7 @@ async fn propose_empty() {
         committee(None),
         signature_service,
         /* header_size */ 32,
-        delta,
+        header_delay,
         NetworkModel::PartiallySynchronous,
         rx_reconfigure,
         /* rx_core */ rx_parents,
@@ -84,7 +84,7 @@ async fn propose_empty() {
     // Ensure the proposer does not make an empty proposal
     tokio::select! {
         _result = rx_headers.recv() => panic!("Unexpected header proposal"),
-        () = sleep(delta * 10) => ()
+        () = sleep(header_delay * 10) => ()
     }
 
     // Now send enough digests for the header payload.
@@ -120,7 +120,7 @@ async fn advance_to_help() {
         committee(None),
         signature_service,
         /* header_size */ 1_000,
-        /* delta */
+        /* header_delay */
         Duration::from_secs(1_000), // Ensure it is not triggered.
         NetworkModel::PartiallySynchronous,
         rx_reconfigure,
