@@ -97,7 +97,7 @@ impl StateHandler {
                     let shutdown = match &message {
                         ReconfigureNotification::NewEpoch(committee) => {
                             // Cleanup the network.
-                            self.worker_network.cleanup(self.committee.load().network_diff(&committee));
+                            self.worker_network.cleanup(self.committee.load().network_diff(committee));
 
                             // Update the committee.
                             self.committee.swap(Arc::new(committee.clone()));
@@ -110,7 +110,7 @@ impl StateHandler {
                         },
                         ReconfigureNotification::UpdateCommittee(committee) => {
                             // Cleanup the network.
-                            self.worker_network.cleanup(self.committee.load().network_diff(&committee));
+                            self.worker_network.cleanup(self.committee.load().network_diff(committee));
 
                             // Update the committee.
                             self.committee.swap(Arc::new(committee.clone()));
