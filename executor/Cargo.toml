@@ -23,6 +23,7 @@ crypto = { path = "../crypto" }
 primary = { path = "../primary" }
 tonic = "0.7.2"
 multiaddr = "0.14.0"
+prometheus = "0.13.1"
 
 types = { path = "../types" }
 worker = { path = "../worker" }
