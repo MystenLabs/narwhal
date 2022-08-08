@@ -9,12 +9,15 @@ use types::{Certificate, SequenceNumber};
 /// Spawn a mock consensus core and a test subscriber.
 async fn spawn_subscriber(
     rx_sequence: Receiver<ConsensusOutput>,
-    tx_batch_loader: Sender<ConsensusOutput>,
-    tx_executor: Sender<ConsensusOutput>,
+    tx_batch_loader: metered_channel::Sender<ConsensusOutput>,
+    tx_executor: metered_channel::Sender<ConsensusOutput>,
 ) -> (
     Store<BatchDigest, SerializedBatchMessage>,
     watch::Sender<ReconfigureNotification>,
 ) {
+    let (tx_consensus_to_client, rx_consensus_to_client) = test_channel!(10);
+    let (tx_client_to_consensus, rx_client_to_consensus) = test_channel!(10);
+
     let committee = committee(None);
     let message = ReconfigureNotification::NewEpoch(committee);
     let (tx_reconfigure, rx_reconfigure) = watch::channel(message);
@@ -35,8 +38,8 @@ async fn spawn_subscriber(
 #[tokio::test]
 async fn handle_certificate_with_downloaded_batch() {
     let (tx_sequence, rx_sequence) = channel(10);
-    let (tx_batch_loader, mut rx_batch_loader) = channel(10);
-    let (tx_executor, mut rx_executor) = channel(10);
+    let (tx_batch_loader, mut rx_batch_loader) = test_channel!(10);
+    let (tx_executor, mut rx_executor) = test_channel!(10);
 
     // Spawn a subscriber.
     let (store, _tx_reconfigure) =
@@ -73,8 +76,8 @@ async fn handle_certificate_with_downloaded_batch() {
 #[tokio::test]
 async fn handle_empty_certificate() {
     let (tx_sequence, rx_sequence) = channel(10);
-    let (tx_batch_loader, mut rx_batch_loader) = channel(10);
-    let (tx_executor, mut rx_executor) = channel(10);
+    let (tx_batch_loader, mut rx_batch_loader) = test_channel!(10);
+    let (tx_executor, mut rx_executor) = test_channel!(10);
 
     // Spawn a subscriber.
     let _do_not_drop = spawn_subscriber(rx_sequence, tx_batch_loader, tx_executor).await;

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use prometheus::{
     default_registry, register_int_counter_with_registry, register_int_gauge_vec_with_registry,
-    IntCounter, IntGaugeVec, Registry,
+    register_int_gauge_with_registry, IntCounter, IntGauge, IntGaugeVec, Registry,
 };
 
 #[derive(Clone, Debug)]
@@ -57,6 +57,31 @@ impl ConsensusMetrics {
 }
 
 impl Default for ConsensusMetrics {
+    fn default() -> Self {
+        Self::new(default_registry())
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct ChannelMetrics {
+    /// occupancy of the channel from the `Consensus` to `SubscriberHandler`
+    pub tx_sequence: IntGauge,
+}
+
+impl ChannelMetrics {
+    pub fn new(registry: &Registry) -> Self {
+        Self {
+            tx_sequence: register_int_gauge_with_registry!(
+                "tx_sequence",
+                "occupancy of the channel from the `Consensus` to `SubscriberHandler`",
+                registry
+            )
+            .unwrap(),
+        }
+    }
+}
+
+impl Default for ChannelMetrics {
     fn default() -> Self {
         Self::new(default_registry())
     }
