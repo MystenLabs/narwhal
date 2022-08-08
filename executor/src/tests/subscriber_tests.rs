@@ -2,22 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 use super::*;
 use crate::fixtures::{test_store, test_u64_certificates};
-use test_utils::committee;
-use tokio::sync::mpsc::{channel, Sender};
+use test_utils::{committee, test_channel};
 use types::{Certificate, SequenceNumber};
 
 /// Spawn a mock consensus core and a test subscriber.
 async fn spawn_subscriber(
-    rx_sequence: Receiver<ConsensusOutput>,
+    rx_sequence: metered_channel::Receiver<ConsensusOutput>,
     tx_batch_loader: metered_channel::Sender<ConsensusOutput>,
     tx_executor: metered_channel::Sender<ConsensusOutput>,
 ) -> (
     Store<BatchDigest, SerializedBatchMessage>,
     watch::Sender<ReconfigureNotification>,
 ) {
-    let (tx_consensus_to_client, rx_consensus_to_client) = test_channel!(10);
-    let (tx_client_to_consensus, rx_client_to_consensus) = test_channel!(10);
-
     let committee = committee(None);
     let message = ReconfigureNotification::NewEpoch(committee);
     let (tx_reconfigure, rx_reconfigure) = watch::channel(message);
@@ -37,7 +33,7 @@ async fn spawn_subscriber(
 
 #[tokio::test]
 async fn handle_certificate_with_downloaded_batch() {
-    let (tx_sequence, rx_sequence) = channel(10);
+    let (tx_sequence, rx_sequence) = test_channel!(10);
     let (tx_batch_loader, mut rx_batch_loader) = test_channel!(10);
     let (tx_executor, mut rx_executor) = test_channel!(10);
 
@@ -75,7 +71,7 @@ async fn handle_certificate_with_downloaded_batch() {
 
 #[tokio::test]
 async fn handle_empty_certificate() {
-    let (tx_sequence, rx_sequence) = channel(10);
+    let (tx_sequence, rx_sequence) = test_channel!(10);
     let (tx_batch_loader, mut rx_batch_loader) = test_channel!(10);
     let (tx_executor, mut rx_executor) = test_channel!(10);
 

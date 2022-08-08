@@ -9,9 +9,7 @@ use futures::{
 use store::Store;
 use tokio::{sync::watch, task::JoinHandle};
 use tracing::debug;
-use types::{
-    metered_channel, BatchDigest, ReconfigureNotification, SerializedBatchMessage,
-};
+use types::{metered_channel, BatchDigest, ReconfigureNotification, SerializedBatchMessage};
 
 #[cfg(test)]
 #[path = "tests/subscriber_tests.rs"]

@@ -1,16 +1,12 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use config::{Parameters, SharedCommittee, WorkerId};
-<<<<<<< HEAD
-use consensus::{bullshark::Bullshark, dag::Dag, metrics::ConsensusMetrics, Consensus};
-=======
 use consensus::{
     bullshark::Bullshark,
     dag::Dag,
     metrics::{ChannelMetrics, ConsensusMetrics},
-    Consensus, SubscriberHandler,
+    Consensus,
 };
->>>>>>> 11281c2b (add metrics in consensus and executor)
 use crypto::{
     traits::{KeyPair as _, VerifyingKey},
     KeyPair, PublicKey,

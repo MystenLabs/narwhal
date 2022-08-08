@@ -15,9 +15,6 @@ mod fixtures;
 mod execution_state;
 
 mod metrics;
-#[cfg(test)]
-#[path = "tests/sequencer.rs"]
-mod sequencer;
 
 pub use errors::{ExecutionStateError, SubscriberError, SubscriberResult};
 use multiaddr::{Multiaddr, Protocol};
