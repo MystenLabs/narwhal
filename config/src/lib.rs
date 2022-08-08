@@ -455,7 +455,7 @@ impl Committee {
     fn get_all_network_addresses(&self) -> HashSet<&Multiaddr> {
         self.authorities
             .values()
-            .map(|authority| {
+            .flat_map(|authority| {
                 std::iter::once(&authority.primary.primary_to_primary)
                     .chain(std::iter::once(&authority.primary.worker_to_primary))
                     .chain(
@@ -477,7 +477,6 @@ impl Committee {
                             .map(|address| &address.primary_to_worker),
                     )
             })
-            .flatten()
             .collect()
     }
 
