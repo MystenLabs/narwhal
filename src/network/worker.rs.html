@@ -248,6 +248,15 @@
 <span id="248">248</span>
 <span id="249">249</span>
 <span id="250">250</span>
+<span id="251">251</span>
+<span id="252">252</span>
+<span id="253">253</span>
+<span id="254">254</span>
+<span id="255">255</span>
+<span id="256">256</span>
+<span id="257">257</span>
+<span id="258">258</span>
+<span id="259">259</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="kw">crate</span>::{
@@ -322,6 +331,15 @@
                     <span class="macro">warn!</span>(<span class="string">&quot;Executor in network:{} and module:{} available tasks is 0 for client address: {}&quot;</span>, <span class="ident">m</span>.<span class="ident">network_type</span>(), <span class="ident">m</span>.<span class="ident">module_tag</span>(), <span class="ident">addr</span>);
                 }
             }
+        }
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">cleanup</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">I</span><span class="op">&gt;</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">to_remove</span>: <span class="ident">I</span>)
+    <span class="kw">where</span>
+        <span class="ident">I</span>: <span class="ident">IntoIterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">Multiaddr</span><span class="op">&gt;</span>,
+    {
+        <span class="kw">for</span> <span class="ident">address</span> <span class="kw">in</span> <span class="ident">to_remove</span> {
+            <span class="self">self</span>.<span class="ident">clients</span>.<span class="ident">remove</span>(<span class="ident">address</span>);
         }
     }
 }
