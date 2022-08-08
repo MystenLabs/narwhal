@@ -7,14 +7,13 @@ use crypto::PublicKey;
 use network::{UnreliableNetwork, WorkerNetwork};
 use store::Store;
 use tokio::{
-    sync::{
-        mpsc::{Receiver, Sender},
-        watch,
-    },
+    sync::{mpsc, watch},
     task::JoinHandle,
 };
 use tracing::{error, trace, warn};
-use types::{BatchDigest, ReconfigureNotification, SerializedBatchMessage};
+use types::{
+    metered_channel::Receiver, BatchDigest, ReconfigureNotification, SerializedBatchMessage,
+};
 
 #[cfg(test)]
 #[path = "tests/helper_tests.rs"]
@@ -33,7 +32,7 @@ pub struct Helper {
     /// Input channel to receive batch requests from workers.
     rx_worker_request: Receiver<(Vec<BatchDigest>, PublicKey)>,
     /// Input channel to receive batch requests from workers.
-    rx_client_request: Receiver<(Vec<BatchDigest>, Sender<SerializedBatchMessage>)>,
+    rx_client_request: Receiver<(Vec<BatchDigest>, mpsc::Sender<SerializedBatchMessage>)>,
     /// A network sender to send the batches to the other workers.
     network: WorkerNetwork,
 }
@@ -46,7 +45,7 @@ impl Helper {
         store: Store<BatchDigest, SerializedBatchMessage>,
         rx_reconfigure: watch::Receiver<ReconfigureNotification>,
         rx_worker_request: Receiver<(Vec<BatchDigest>, PublicKey)>,
-        rx_client_request: Receiver<(Vec<BatchDigest>, Sender<SerializedBatchMessage>)>,
+        rx_client_request: Receiver<(Vec<BatchDigest>, mpsc::Sender<SerializedBatchMessage>)>,
         network: WorkerNetwork,
     ) -> JoinHandle<()> {
         tokio::spawn(async move {
@@ -114,9 +113,11 @@ impl Helper {
                     let message = self.rx_reconfigure.borrow().clone();
                     match message {
                         ReconfigureNotification::NewEpoch(new_committee) => {
+                            self.network.cleanup(self.committee.network_diff(&new_committee));
                             self.committee = new_committee;
                         },
                         ReconfigureNotification::UpdateCommittee(new_committee) => {
+                            self.network.cleanup(self.committee.network_diff(&new_committee));
                             self.committee = new_committee;
 
                         },

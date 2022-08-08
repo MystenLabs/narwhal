@@ -5,15 +5,11 @@ use config::{Committee, Stake, WorkerId};
 use crypto::PublicKey;
 use futures::stream::{futures_unordered::FuturesUnordered, StreamExt as _};
 use network::{CancelOnDropHandler, MessageResult, ReliableNetwork, WorkerNetwork};
-use tokio::{
-    sync::{
-        mpsc::{Receiver, Sender},
-        watch,
-    },
-    task::JoinHandle,
-};
+use tokio::{sync::watch, task::JoinHandle};
 use types::{
-    error::DagError, Batch, ReconfigureNotification, SerializedBatchMessage, WorkerMessage,
+    error::DagError,
+    metered_channel::{Receiver, Sender},
+    Batch, ReconfigureNotification, SerializedBatchMessage, WorkerMessage,
 };
 
 #[cfg(test)]
@@ -120,15 +116,12 @@ impl QuorumWaiter {
                                 result.expect("Committee channel dropped");
                                 let message = self.rx_reconfigure.borrow().clone();
                                 match message {
-                                    ReconfigureNotification::NewEpoch(new_committee) => {
-                                        self.committee = new_committee;
-                                        tracing::debug!("Dropping batch: committee updated to {}", self.committee);
-                                        break; // Don't wait for acknowledgements.
-                                    },
-                                    ReconfigureNotification::UpdateCommittee(new_committee) => {
-                                        self.committee = new_committee;
-                                        tracing::debug!("Dropping batch: committee updated to {}", self.committee);
-                                        break; // Don't wait for acknowledgements.
+                                    ReconfigureNotification::NewEpoch(new_committee)
+                                        | ReconfigureNotification::UpdateCommittee(new_committee) => {
+                                            self.network.cleanup(self.committee.network_diff(&new_committee));
+                                            self.committee = new_committee;
+                                            tracing::debug!("Dropping batch: committee updated to {}", self.committee);
+                                            break; // Don't wait for acknowledgements.
                                     },
                                     ReconfigureNotification::Shutdown => return
                                 }

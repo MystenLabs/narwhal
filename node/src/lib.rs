@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 use config::{Parameters, SharedCommittee, WorkerId};
 use consensus::{
-    bullshark::Bullshark, dag::Dag, metrics::ConsensusMetrics, Consensus, SubscriberHandler,
+    bullshark::Bullshark,
+    dag::Dag,
+    metrics::{ChannelMetrics, ConsensusMetrics},
+    Consensus,
 };
 use crypto::{
     traits::{KeyPair as _, VerifyingKey},
@@ -19,10 +22,7 @@ use store::{
 };
 use task_group::{TaskGroup, TaskManager};
 use tokio::{
-    sync::{
-        mpsc::{channel, Sender},
-        watch,
-    },
+    sync::{mpsc::Sender, watch},
     task::{JoinError, JoinHandle},
 };
 use tracing::debug;
@@ -263,10 +263,11 @@ impl Node {
         State::Outcome: Send + 'static,
         State::Error: Debug,
     {
-        let (tx_sequence, rx_sequence) = channel(Self::CHANNEL_CAPACITY);
-        let (tx_consensus_to_client, rx_consensus_to_client) = channel(Self::CHANNEL_CAPACITY);
-        let (tx_client_to_consensus, rx_client_to_consensus) = channel(Self::CHANNEL_CAPACITY);
         let consensus_metrics = Arc::new(ConsensusMetrics::new(registry));
+        let channel_metrics = ChannelMetrics::new(registry);
+
+        let (tx_sequence, rx_sequence) =
+            metered_channel::channel(Self::CHANNEL_CAPACITY, &channel_metrics.tx_sequence);
 
         let mut handles = Vec::new();
 
@@ -290,19 +291,6 @@ impl Node {
         );
         handles.push(("consensus", consensus_handle));
 
-        // The subscriber handler receives the ordered sequence from consensus and feed them
-        // to the executor. The executor has its own state and data store who may crash
-        // independently of the narwhal node.
-        let subscriber_handle = SubscriberHandler::spawn(
-            store.consensus_store.clone(),
-            store.certificate_store.clone(),
-            tx_reconfigure.subscribe(),
-            rx_sequence,
-            /* rx_client */ rx_client_to_consensus,
-            /* tx_client */ tx_consensus_to_client,
-        );
-        handles.push(("consensus_subscriber", subscriber_handle));
-
         // Spawn the client executing the transactions. It can also synchronize with the
         // subscriber handler if it missed some transactions.
         let executor_handles = Executor::spawn(
@@ -311,9 +299,9 @@ impl Node {
             store.batch_store.clone(),
             execution_state,
             tx_reconfigure,
-            /* rx_consensus */ rx_consensus_to_client,
-            /* tx_consensus */ tx_client_to_consensus,
+            /* rx_consensus */ rx_sequence,
             /* tx_output */ tx_confirmation,
+            registry,
         )
         .await?;
         handles.extend(executor_handles);

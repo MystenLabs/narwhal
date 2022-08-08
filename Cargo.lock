@@ -48,9 +48,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.59"
+version = "1.0.60"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c91f1f46651137be86f3a2b9a8359f9ab421d04d941c62b5982e1ca21113adf9"
+checksum = "c794e162a5eff65c72ef524dfe393eb923c354e350bb78b9c7383df13f3bc142"
 dependencies = [
  "backtrace",
 ]
@@ -741,7 +741,6 @@ dependencies = [
  "rand 0.8.5",
  "rocksdb",
  "serde",
- "serde_bytes",
  "test_utils",
  "thiserror",
  "tokio",
@@ -963,7 +962,6 @@ dependencies = [
  "readonly",
  "secp256k1",
  "serde",
- "serde_bytes",
  "serde_json",
  "serde_with",
  "sha3",
@@ -1373,9 +1371,11 @@ dependencies = [
  "crypto",
  "futures",
  "indexmap",
+ "match_opt",
  "multiaddr",
  "mysten-network 0.1.0 (git+https://github.com/mystenlabs/mysten-infra.git?rev=d965a5a795dcdb4d1c7964acf556bc249fdc58aa)",
  "primary",
+ "prometheus",
  "rand 0.8.5",
  "rocksdb",
  "serde",
@@ -1570,9 +1570,9 @@ dependencies = [
 
 [[package]]
 name = "generic-array"
-version = "0.14.5"
+version = "0.14.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd48d33ec7f05fbfa152300fdad764757cbded343c1aa1cff2fbaf4134851803"
+checksum = "bff49e947297f3312447abdca79f45f4738097cc82b06e72054d2223f601f1b9"
 dependencies = [
  "typenum",
  "version_check",
@@ -2807,7 +2807,6 @@ dependencies = [
  "dashmap",
  "derive_builder",
  "dhat",
- "ed25519-dalek",
  "executor",
  "futures",
  "indexmap",
@@ -3881,7 +3880,6 @@ dependencies = [
  "config",
  "crypto",
  "derive_builder",
- "ed25519-dalek",
  "executor",
  "futures",
  "indexmap",
@@ -4762,7 +4760,6 @@ dependencies = [
  "bytes",
  "config",
  "crypto",
- "ed25519-dalek",
  "futures",
  "multiaddr",
  "mysten-network 0.1.0 (git+https://github.com/mystenlabs/mysten-infra.git?rev=d965a5a795dcdb4d1c7964acf556bc249fdc58aa)",
