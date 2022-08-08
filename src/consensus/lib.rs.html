@@ -30,15 +30,6 @@
 <span id="30">30</span>
 <span id="31">31</span>
 <span id="32">32</span>
-<span id="33">33</span>
-<span id="34">34</span>
-<span id="35">35</span>
-<span id="36">36</span>
-<span id="37">37</span>
-<span id="38">38</span>
-<span id="39">39</span>
-<span id="40">40</span>
-<span id="41">41</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="attribute">#![<span class="ident">warn</span>(
@@ -52,14 +43,12 @@
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">consensus</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">dag</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">metrics</span>;
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">subscriber</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">tusk</span>;
 <span class="kw">mod</span> <span class="ident">utils</span>;
 
-<span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">consensus::Consensus</span>, <span class="ident">subscriber::SubscriberHandler</span>};
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::consensus::Consensus</span>;
 
 <span class="kw">use</span> <span class="ident">serde</span>::{<span class="ident">Deserialize</span>, <span class="ident">Serialize</span>};
-<span class="kw">use</span> <span class="ident">std::ops::RangeInclusive</span>;
 <span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">Certificate</span>, <span class="ident">SequenceNumber</span>};
 
 <span class="doccomment">/// The default channel size used in the consensus and subscriber logic.</span>
@@ -73,12 +62,5 @@
     <span class="doccomment">/// The (global) index associated with this certificate.</span>
     <span class="kw">pub</span> <span class="ident">consensus_index</span>: <span class="ident">SequenceNumber</span>,
 }
-
-<span class="doccomment">/// The message sent by the client to sync missing chunks of the output sequence.</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Serialize</span>, <span class="ident">Deserialize</span>, <span class="ident">Debug</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ConsensusSyncRequest</span> {
-    <span class="doccomment">/// The sequence numbers of the missing consensus outputs.</span>
-    <span class="kw">pub</span> <span class="ident">missing</span>: <span class="ident">RangeInclusive</span><span class="op">&lt;</span><span class="ident">SequenceNumber</span><span class="op">&gt;</span>,
-}
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="consensus" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (2befdefdd 2022-08-06)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="consensus" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (d394408fb 2022-08-07)" ></div></body></html>

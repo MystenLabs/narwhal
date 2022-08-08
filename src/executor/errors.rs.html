@@ -71,20 +71,12 @@
 <span id="71">71</span>
 <span id="72">72</span>
 <span id="73">73</span>
-<span id="74">74</span>
-<span id="75">75</span>
-<span id="76">76</span>
-<span id="77">77</span>
-<span id="78">78</span>
-<span id="79">79</span>
-<span id="80">80</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="ident">config::WorkerId</span>;
 <span class="kw">use</span> <span class="ident">std::fmt::Debug</span>;
 <span class="kw">use</span> <span class="ident">store::StoreError</span>;
 <span class="kw">use</span> <span class="ident">thiserror::Error</span>;
-<span class="kw">use</span> <span class="ident">types::SequenceNumber</span>;
 
 <span class="attribute">#[<span class="ident">macro_export</span>]</span>
 <span class="macro">macro_rules!</span> <span class="ident">bail</span> {
@@ -111,12 +103,6 @@
 
     <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Consensus referenced unexpected worker id {0}&quot;</span>)]</span>
     <span class="ident">UnexpectedWorkerId</span>(<span class="ident">WorkerId</span>),
-
-    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Unexpected consensus index number {0}&quot;</span>)]</span>
-    <span class="ident">UnexpectedConsensusIndex</span>(<span class="ident">SequenceNumber</span>),
-
-    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;The client-consensus connection dropped&quot;</span>)]</span>
-    <span class="ident">ConsensusConnectionDropped</span>,
 
     <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Connection with the transaction executor dropped&quot;</span>)]</span>
     <span class="ident">ExecutorConnectionDropped</span>,
@@ -159,4 +145,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="executor" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (2befdefdd 2022-08-06)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="executor" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (d394408fb 2022-08-07)" ></div></body></html>

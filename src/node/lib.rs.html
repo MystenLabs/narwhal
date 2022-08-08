@@ -328,30 +328,10 @@
 <span id="328">328</span>
 <span id="329">329</span>
 <span id="330">330</span>
-<span id="331">331</span>
-<span id="332">332</span>
-<span id="333">333</span>
-<span id="334">334</span>
-<span id="335">335</span>
-<span id="336">336</span>
-<span id="337">337</span>
-<span id="338">338</span>
-<span id="339">339</span>
-<span id="340">340</span>
-<span id="341">341</span>
-<span id="342">342</span>
-<span id="343">343</span>
-<span id="344">344</span>
-<span id="345">345</span>
-<span id="346">346</span>
-<span id="347">347</span>
-<span id="348">348</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">Parameters</span>, <span class="ident">SharedCommittee</span>, <span class="ident">WorkerId</span>};
-<span class="kw">use</span> <span class="ident">consensus</span>::{
-    <span class="ident">bullshark::Bullshark</span>, <span class="ident">dag::Dag</span>, <span class="ident">metrics::ConsensusMetrics</span>, <span class="ident">Consensus</span>, <span class="ident">SubscriberHandler</span>,
-};
+<span class="kw">use</span> <span class="ident">consensus</span>::{<span class="ident">bullshark::Bullshark</span>, <span class="ident">dag::Dag</span>, <span class="ident">metrics::ConsensusMetrics</span>, <span class="ident">Consensus</span>};
 <span class="kw">use</span> <span class="ident">crypto</span>::{
     <span class="ident">traits</span>::{<span class="ident">KeyPair</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">VerifyingKey</span>},
     <span class="ident">KeyPair</span>, <span class="ident">PublicKey</span>,
@@ -605,8 +585,6 @@
         <span class="ident">State::Error</span>: <span class="ident">Debug</span>,
     {
         <span class="kw">let</span> (<span class="ident">tx_sequence</span>, <span class="ident">rx_sequence</span>) <span class="op">=</span> <span class="ident">channel</span>(<span class="ident"><span class="self">Self</span>::CHANNEL_CAPACITY</span>);
-        <span class="kw">let</span> (<span class="ident">tx_consensus_to_client</span>, <span class="ident">rx_consensus_to_client</span>) <span class="op">=</span> <span class="ident">channel</span>(<span class="ident"><span class="self">Self</span>::CHANNEL_CAPACITY</span>);
-        <span class="kw">let</span> (<span class="ident">tx_client_to_consensus</span>, <span class="ident">rx_client_to_consensus</span>) <span class="op">=</span> <span class="ident">channel</span>(<span class="ident"><span class="self">Self</span>::CHANNEL_CAPACITY</span>);
         <span class="kw">let</span> <span class="ident">consensus_metrics</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">ConsensusMetrics::new</span>(<span class="ident">registry</span>));
 
         <span class="comment">// Spawn the consensus core who only sequences transactions.</span>
@@ -628,18 +606,6 @@
             <span class="ident">parameters</span>.<span class="ident">gc_depth</span>,
         );
 
-        <span class="comment">// The subscriber handler receives the ordered sequence from consensus and feed them</span>
-        <span class="comment">// to the executor. The executor has its own state and data store who may crash</span>
-        <span class="comment">// independently of the narwhal node.</span>
-        <span class="kw">let</span> <span class="ident">subscriber_handles</span> <span class="op">=</span> <span class="ident">SubscriberHandler::spawn</span>(
-            <span class="ident">store</span>.<span class="ident">consensus_store</span>.<span class="ident">clone</span>(),
-            <span class="ident">store</span>.<span class="ident">certificate_store</span>.<span class="ident">clone</span>(),
-            <span class="ident">tx_reconfigure</span>.<span class="ident">subscribe</span>(),
-            <span class="ident">rx_sequence</span>,
-            <span class="comment">/* rx_client */</span> <span class="ident">rx_client_to_consensus</span>,
-            <span class="comment">/* tx_client */</span> <span class="ident">tx_consensus_to_client</span>,
-        );
-
         <span class="comment">// Spawn the client executing the transactions. It can also synchronize with the</span>
         <span class="comment">// subscriber handler if it missed some transactions.</span>
         <span class="kw">let</span> <span class="ident">executor_handles</span> <span class="op">=</span> <span class="ident">Executor::spawn</span>(
@@ -648,8 +614,7 @@
             <span class="ident">store</span>.<span class="ident">batch_store</span>.<span class="ident">clone</span>(),
             <span class="ident">execution_state</span>,
             <span class="ident">tx_reconfigure</span>,
-            <span class="comment">/* rx_consensus */</span> <span class="ident">rx_consensus_to_client</span>,
-            <span class="comment">/* tx_consensus */</span> <span class="ident">tx_client_to_consensus</span>,
+            <span class="comment">/* rx_consensus */</span> <span class="ident">rx_sequence</span>,
             <span class="comment">/* tx_output */</span> <span class="ident">tx_confirmation</span>,
         )
         .<span class="kw">await</span><span class="question-mark">?</span>;
@@ -657,7 +622,6 @@
         <span class="prelude-val">Ok</span>(<span class="ident">executor_handles</span>
             .<span class="ident">into_iter</span>()
             .<span class="ident">chain</span>(<span class="ident">std::iter::once</span>(<span class="ident">consensus_handles</span>))
-            .<span class="ident">chain</span>(<span class="ident">std::iter::once</span>(<span class="ident">subscriber_handles</span>))
             .<span class="ident">collect</span>())
     }
 
@@ -695,4 +659,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="node" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (2befdefdd 2022-08-06)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="node" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (d394408fb 2022-08-07)" ></div></body></html>
