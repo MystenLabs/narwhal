@@ -268,7 +268,7 @@ sync_wrapper = { version = "0.1", default-features = false }
 telemetry-subscribers = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "d965a5a795dcdb4d1c7964acf556bc249fdc58aa", features = ["chrome", "jaeger", "opentelemetry", "opentelemetry-jaeger", "tracing-chrome", "tracing-opentelemetry"] }
 tempfile = { version = "3", default-features = false }
 termcolor = { version = "1", default-features = false }
-terminal_size = { version = "0.2", default-features = false }
+terminal_size = { version = "0.1", default-features = false }
 termtree = { version = "0.2", default-features = false }
 textwrap-a6292c17cd707f01 = { package = "textwrap", version = "0.11", default-features = false }
 textwrap-3575ec1268b04181 = { package = "textwrap", version = "0.15", default-features = false }
