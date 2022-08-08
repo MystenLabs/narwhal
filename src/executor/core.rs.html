@@ -256,14 +256,14 @@
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">fmt::Debug</span>, <span class="ident">sync::Arc</span>};
 <span class="kw">use</span> <span class="ident">store::Store</span>;
 <span class="kw">use</span> <span class="ident">tokio</span>::{
-    <span class="ident">sync</span>::{
-        <span class="ident">mpsc</span>::{<span class="ident">Receiver</span>, <span class="ident">Sender</span>},
-        <span class="ident">watch</span>,
-    },
+    <span class="ident">sync</span>::{<span class="ident">mpsc::Sender</span>, <span class="ident">watch</span>},
     <span class="ident">task::JoinHandle</span>,
 };
 <span class="kw">use</span> <span class="ident">tracing::debug</span>;
-<span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">Batch</span>, <span class="ident">BatchDigest</span>, <span class="ident">ReconfigureNotification</span>, <span class="ident">SequenceNumber</span>, <span class="ident">SerializedBatchMessage</span>};
+<span class="kw">use</span> <span class="ident">types</span>::{
+    <span class="ident">metered_channel</span>, <span class="ident">Batch</span>, <span class="ident">BatchDigest</span>, <span class="ident">ReconfigureNotification</span>, <span class="ident">SequenceNumber</span>,
+    <span class="ident">SerializedBatchMessage</span>,
+};
 <span class="kw">use</span> <span class="ident">worker::WorkerMessage</span>;
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
@@ -282,7 +282,7 @@
     <span class="doccomment">/// Receive reconfiguration updates.</span>
     <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
     <span class="doccomment">/// Receive ordered consensus output to execute.</span>
-    <span class="ident">rx_subscriber</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&gt;</span>,
+    <span class="ident">rx_subscriber</span>: <span class="ident">metered_channel::Receiver</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&gt;</span>,
     <span class="doccomment">/// Outputs executed transactions.</span>
     <span class="ident">tx_output</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">ExecutorOutput</span><span class="op">&lt;</span><span class="ident">State</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="doccomment">/// The indices ensuring we do not execute twice the same transaction.</span>
@@ -307,7 +307,7 @@
         <span class="ident">store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">BatchDigest</span>, <span class="ident">SerializedBatchMessage</span><span class="op">&gt;</span>,
         <span class="ident">execution_state</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">State</span><span class="op">&gt;</span>,
         <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
-        <span class="ident">rx_subscriber</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&gt;</span>,
+        <span class="ident">rx_subscriber</span>: <span class="ident">metered_channel::Receiver</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&gt;</span>,
         <span class="ident">tx_output</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">ExecutorOutput</span><span class="op">&lt;</span><span class="ident">State</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {

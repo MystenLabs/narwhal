@@ -113,12 +113,6 @@
 <span id="113">113</span>
 <span id="114">114</span>
 <span id="115">115</span>
-<span id="116">116</span>
-<span id="117">117</span>
-<span id="118">118</span>
-<span id="119">119</span>
-<span id="120">120</span>
-<span id="121">121</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::errors</span>::{<span class="ident">SubscriberError</span>, <span class="ident">SubscriberResult</span>};
@@ -128,15 +122,9 @@
     <span class="ident">stream</span>::{<span class="ident">FuturesOrdered</span>, <span class="ident">StreamExt</span>},
 };
 <span class="kw">use</span> <span class="ident">store::Store</span>;
-<span class="kw">use</span> <span class="ident">tokio</span>::{
-    <span class="ident">sync</span>::{
-        <span class="ident">mpsc</span>::{<span class="ident">Receiver</span>, <span class="ident">Sender</span>},
-        <span class="ident">watch</span>,
-    },
-    <span class="ident">task::JoinHandle</span>,
-};
+<span class="kw">use</span> <span class="ident">tokio</span>::{<span class="ident">sync::watch</span>, <span class="ident">task::JoinHandle</span>};
 <span class="kw">use</span> <span class="ident">tracing::debug</span>;
-<span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">BatchDigest</span>, <span class="ident">ReconfigureNotification</span>, <span class="ident">SerializedBatchMessage</span>};
+<span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">metered_channel</span>, <span class="ident">BatchDigest</span>, <span class="ident">ReconfigureNotification</span>, <span class="ident">SerializedBatchMessage</span>};
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="attribute">#[<span class="ident">path</span> <span class="op">=</span> <span class="string">&quot;tests/subscriber_tests.rs&quot;</span>]</span>
@@ -151,12 +139,12 @@
     <span class="doccomment">/// Receive reconfiguration updates.</span>
     <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
     <span class="doccomment">/// A channel to receive consensus messages.</span>
-    <span class="ident">rx_consensus</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&gt;</span>,
+    <span class="ident">rx_consensus</span>: <span class="ident">metered_channel::Receiver</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&gt;</span>,
     <span class="doccomment">/// A channel to the batch loader to download transaction&#39;s data.</span>
-    <span class="ident">tx_batch_loader</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&gt;</span>,
+    <span class="ident">tx_batch_loader</span>: <span class="ident">metered_channel::Sender</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&gt;</span>,
     <span class="doccomment">/// A channel to send the complete and ordered list of consensus outputs to the executor. This</span>
     <span class="doccomment">/// channel is used once all transactions data are downloaded.</span>
-    <span class="ident">tx_executor</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&gt;</span>,
+    <span class="ident">tx_executor</span>: <span class="ident">metered_channel::Sender</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">Subscriber</span> {
@@ -165,9 +153,9 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(
         <span class="ident">store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">BatchDigest</span>, <span class="ident">SerializedBatchMessage</span><span class="op">&gt;</span>,
         <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
-        <span class="ident">rx_consensus</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&gt;</span>,
-        <span class="ident">tx_batch_loader</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&gt;</span>,
-        <span class="ident">tx_executor</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&gt;</span>,
+        <span class="ident">rx_consensus</span>: <span class="ident">metered_channel::Receiver</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&gt;</span>,
+        <span class="ident">tx_batch_loader</span>: <span class="ident">metered_channel::Sender</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&gt;</span>,
+        <span class="ident">tx_executor</span>: <span class="ident">metered_channel::Sender</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&gt;</span>,
     ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
             <span class="self">Self</span> {

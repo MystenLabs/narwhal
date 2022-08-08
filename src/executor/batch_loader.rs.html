@@ -227,8 +227,8 @@
 };
 <span class="kw">use</span> <span class="ident">tracing</span>::{<span class="ident">error</span>, <span class="ident">warn</span>};
 <span class="kw">use</span> <span class="ident">types</span>::{
-    <span class="ident">serialized_batch_digest</span>, <span class="ident">BatchDigest</span>, <span class="ident">BincodeEncodedPayload</span>, <span class="ident">ClientBatchRequest</span>,
-    <span class="ident">ReconfigureNotification</span>, <span class="ident">SerializedBatchMessage</span>, <span class="ident">WorkerToWorkerClient</span>,
+    <span class="ident">metered_channel</span>, <span class="ident">serialized_batch_digest</span>, <span class="ident">BatchDigest</span>, <span class="ident">BincodeEncodedPayload</span>,
+    <span class="ident">ClientBatchRequest</span>, <span class="ident">ReconfigureNotification</span>, <span class="ident">SerializedBatchMessage</span>, <span class="ident">WorkerToWorkerClient</span>,
 };
 
 <span class="doccomment">/// Download transactions data from the consensus workers and notifies the called when the job is done.</span>
@@ -238,7 +238,7 @@
     <span class="doccomment">/// Receive reconfiguration updates.</span>
     <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
     <span class="doccomment">/// Receive consensus outputs for which to download the associated transaction data.</span>
-    <span class="ident">rx_input</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&gt;</span>,
+    <span class="ident">rx_input</span>: <span class="ident">metered_channel::Receiver</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&gt;</span>,
     <span class="doccomment">/// The network addresses of the consensus workers.</span>
     <span class="ident">addresses</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">WorkerId</span>, <span class="ident">Multiaddr</span><span class="op">&gt;</span>,
     <span class="doccomment">/// A map of connections with the consensus workers.</span>
@@ -251,7 +251,7 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(
         <span class="ident">store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">BatchDigest</span>, <span class="ident">SerializedBatchMessage</span><span class="op">&gt;</span>,
         <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
-        <span class="ident">rx_input</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&gt;</span>,
+        <span class="ident">rx_input</span>: <span class="ident">metered_channel::Receiver</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&gt;</span>,
         <span class="ident">addresses</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">WorkerId</span>, <span class="ident">Multiaddr</span><span class="op">&gt;</span>,
     ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
