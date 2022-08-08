@@ -234,6 +234,7 @@ impl Node {
 
         let (task_group, task_manager) = TaskGroup::new();
         for (name, handle) in handles {
+            // The tasks will be awaited with the `task_manager`, so the task handles / futures can be dropped.
             let _ = task_group.spawn(name, handle);
         }
 
@@ -347,7 +348,7 @@ impl Node {
                 store.batch_store.clone(),
                 metrics.clone(),
             );
-            // TODO: propagate worker task names if needed.
+            // TODO(https://github.com/MystenLabs/narwhal/issues/727): propagate worker task names.
             for (i, h) in worker_handles.into_iter().enumerate() {
                 let _ = task_group.spawn(format!("worker_{}_{}", id, i), h);
             }
