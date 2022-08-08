@@ -90,8 +90,10 @@ impl Subscriber {
                         .await
                         .expect("Failed to send message ot batch loader");
 
-                    // Wait for the transaction data to be available in the store. We will then forward these
-                    // transactions to the Executor Core for execution.
+                    // Wait for the transaction data to be available in the store. This will happen for sure because
+                    // the primary already successfully processed the certificate. This implies that the primary notified
+                    // its worker to download any missing batch. We may however have to wait for these batch be available
+                    // on our workers. Once all batches are available, we forward the certificate o the Executor Core.
                     let digests = message.certificate.header.payload.keys().cloned().collect();
                     let future = Self::waiter(digests, self.store.clone(), message);
                     waiting.push(future);
