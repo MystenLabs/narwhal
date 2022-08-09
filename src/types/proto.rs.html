@@ -106,8 +106,8 @@
 <span id="106">106</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-
 <span class="kw">mod</span> <span class="ident">narwhal</span> {
+    <span class="attribute">#![<span class="ident">cfg_attr</span>(<span class="ident">beta</span>, <span class="ident">allow</span>(<span class="ident">clippy::derive_partial_eq_without_eq</span>))]</span>
     <span class="macro">tonic::include_proto!</span>(<span class="string">&quot;narwhal&quot;</span>);
 }
 
@@ -211,4 +211,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (d394408fb 2022-08-07)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f03ce3096 2022-08-08)" ></div></body></html>
