@@ -48,9 +48,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.60"
+version = "1.0.61"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c794e162a5eff65c72ef524dfe393eb923c354e350bb78b9c7383df13f3bc142"
+checksum = "508b352bb5c066aac251f6daf6b36eccd03e8a88e8081cd44959ea277a3af9a8"
 dependencies = [
  "backtrace",
 ]
@@ -935,7 +935,6 @@ dependencies = [
 name = "crypto"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "ark-bls12-377",
  "ark-ec",
  "ark-ff",
@@ -2235,12 +2234,12 @@ dependencies = [
 name = "network"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "async-trait",
  "backoff",
  "bincode",
  "bytes",
  "crypto",
+ "eyre",
  "futures",
  "multiaddr",
  "mysten-network 0.1.0 (git+https://github.com/mystenlabs/mysten-infra.git?rev=d965a5a795dcdb4d1c7964acf556bc249fdc58aa)",
@@ -2272,7 +2271,6 @@ dependencies = [
 name = "node"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "arc-swap",
  "async-trait",
  "axum",
@@ -2286,6 +2284,7 @@ dependencies = [
  "dhat",
  "ed25519-dalek",
  "executor",
+ "eyre",
  "futures",
  "hex",
  "multiaddr",
@@ -4715,7 +4714,6 @@ checksum = "c811ca4a8c853ef420abd8592ba53ddbbac90410fab6903b3e79972a631f7680"
 name = "worker"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "arc-swap",
  "async-trait",
  "bincode",
@@ -4753,7 +4751,6 @@ dependencies = [
  "ahash",
  "aho-corasick",
  "ansi_term",
- "anyhow",
  "arc-swap",
  "ark-bls12-377",
  "ark-crypto-primitives",

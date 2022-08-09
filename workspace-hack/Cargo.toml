@@ -20,7 +20,6 @@ adler = { version = "1", default-features = false }
 ahash = { version = "0.7", default-features = false }
 aho-corasick = { version = "0.7", features = ["std"] }
 ansi_term = { version = "0.12", default-features = false }
-anyhow = { version = "1", features = ["backtrace", "std"] }
 arc-swap = { version = "1", default-features = false, features = ["serde"] }
 ark-bls12-377 = { version = "0.3", features = ["base_field", "curve", "scalar_field", "std"] }
 ark-crypto-primitives = { version = "0.3", features = ["parallel", "rayon", "std"] }
@@ -321,7 +320,6 @@ zeroize = { version = "1", features = ["alloc", "zeroize_derive"] }
 zstd-sys = { version = "1", default-features = false }
 
 [build-dependencies]
-anyhow = { version = "1", features = ["backtrace", "std"] }
 ark-ff-asm = { version = "0.3", default-features = false }
 ark-ff-macros = { version = "0.3", default-features = false }
 ark-serialize-derive = { version = "0.3", default-features = false }
