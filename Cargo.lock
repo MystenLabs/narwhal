@@ -4408,7 +4408,6 @@ dependencies = [
  "crypto",
  "dag",
  "derive_builder",
- "ed25519-dalek",
  "futures",
  "hex",
  "indexmap",
