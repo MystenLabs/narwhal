@@ -185,6 +185,15 @@
 <span id="185">185</span>
 <span id="186">186</span>
 <span id="187">187</span>
+<span id="188">188</span>
+<span id="189">189</span>
+<span id="190">190</span>
+<span id="191">191</span>
+<span id="192">192</span>
+<span id="193">193</span>
+<span id="194">194</span>
+<span id="195">195</span>
+<span id="196">196</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="ident">mysten_network::metrics::MetricsCallbackProvider</span>;
@@ -231,6 +240,8 @@
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">WorkerMetrics</span> {
     <span class="doccomment">/// Number of elements pending elements in the worker synchronizer</span>
     <span class="kw">pub</span> <span class="ident">pending_elements_worker_synchronizer</span>: <span class="ident">IntGaugeVec</span>,
+    <span class="doccomment">/// Number of created batches from the batch_maker</span>
+    <span class="kw">pub</span> <span class="ident">created_batch_size</span>: <span class="ident">HistogramVec</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">WorkerMetrics</span> {
@@ -240,6 +251,13 @@
                 <span class="string">&quot;pending_elements_worker_synchronizer&quot;</span>,
                 <span class="string">&quot;Number of pending elements in worker block synchronizer&quot;</span>,
                 <span class="kw-2">&amp;</span>[<span class="string">&quot;epoch&quot;</span>],
+                <span class="ident">registry</span>
+            )
+            .<span class="ident">unwrap</span>(),
+            <span class="ident">created_batch_size</span>: <span class="macro">register_histogram_vec_with_registry!</span>(
+                <span class="string">&quot;created_batch_size&quot;</span>,
+                <span class="string">&quot;Size in bytes of the created batches&quot;</span>,
+                <span class="kw-2">&amp;</span>[<span class="string">&quot;epoch&quot;</span>, <span class="string">&quot;reason&quot;</span>],
                 <span class="ident">registry</span>
             )
             .<span class="ident">unwrap</span>(),
