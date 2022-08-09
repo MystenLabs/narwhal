@@ -85,7 +85,7 @@
 };
 
 <span class="comment">// the result of our network messages</span>
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">MessageResult</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">tonic::Response</span><span class="op">&lt;</span><span class="ident">types::Empty</span><span class="op">&gt;</span>, <span class="ident">anyhow::Error</span><span class="op">&gt;</span>;
+<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">MessageResult</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">tonic::Response</span><span class="op">&lt;</span><span class="ident">types::Empty</span><span class="op">&gt;</span>, <span class="ident">eyre::Report</span><span class="op">&gt;</span>;
 
 <span class="doccomment">/// This adapter will make a [`tokio::task::JoinHandle`] abort its handled task when the handle is dropped.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
