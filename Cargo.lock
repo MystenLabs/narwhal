@@ -936,7 +936,6 @@ dependencies = [
 name = "crypto"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "ark-bls12-377",
  "ark-ec",
  "ark-ff",
@@ -2264,12 +2263,12 @@ dependencies = [
 name = "network"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "async-trait",
  "backoff",
  "bincode",
  "bytes",
  "crypto",
+ "eyre",
  "futures",
  "multiaddr",
  "mysten-network 0.1.0 (git+https://github.com/mystenlabs/mysten-infra.git?rev=d965a5a795dcdb4d1c7964acf556bc249fdc58aa)",
@@ -2301,7 +2300,6 @@ dependencies = [
 name = "node"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "arc-swap",
  "async-trait",
  "axum",
@@ -2315,6 +2313,7 @@ dependencies = [
  "dhat",
  "ed25519-dalek",
  "executor",
+ "eyre",
  "futures",
  "hex",
  "multiaddr",
