@@ -324,7 +324,7 @@ where
                     }
 
                     self.metrics
-                        .consensus_dag_size
+                        .consensus_dag_rounds
                         .with_label_values(&[])
                         .set(state.dag.len() as i64);
                 },
