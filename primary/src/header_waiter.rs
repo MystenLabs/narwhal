@@ -261,8 +261,7 @@ impl HeaderWaiter {
                                     .primary(&author)
                                     .expect("Author of valid header not in the committee")
                                     .expect("Primary addresses of the author of valid header are not in the committee")
-                                    .primary_to_primary
-                                    .expect("Primary to primary address of the author of valid header is not in the committee");
+                                    .primary_to_primary;
                                 let message = PrimaryMessage::CertificatesRequest(requires_sync, self.name.clone());
                                 self.primary_network.unreliable_send(address, &message).await;
                             }
@@ -305,8 +304,7 @@ impl HeaderWaiter {
                         let addresses = self.committee
                             .others_primaries(&self.name)
                             .into_iter()
-                            .filter(|(_, x)| x.is_some())
-                            .filter_map(|(_, x)| x.unwrap().primary_to_primary)
+                            .filter_map(|(_, opt)| opt.map(|x| x.primary_to_primary))
                             .collect();
                         let message = PrimaryMessage::CertificatesRequest(retry, self.name.clone());
                         self.primary_network.lucky_broadcast(addresses, &message, self.sync_retry_nodes).await;

@@ -125,17 +125,23 @@ fn parse_primary_addresses(
 ) -> Result<Option<PrimaryAddresses>, Status> {
     match primary_addresses {
         Some(primary_addresses) => {
+            // Both worker & primary interfaces must be set or none should be
+            // set at all. Return error if one interface is missing.
             let primary_to_primary = match &primary_addresses.primary_to_primary {
-                Some(addr) => Some(addr.address.parse().map_err(|err| {
+                Some(addr) => addr.address.parse().map_err(|err| {
                     Status::invalid_argument(format!("Could not serialize: {:?}", err))
-                })?),
-                None => None,
+                })?,
+                None => Err(Status::invalid_argument(
+                    "Primary to primary address missing!",
+                ))?,
             };
             let worker_to_primary = match &primary_addresses.worker_to_primary {
-                Some(addr) => Some(addr.address.parse().map_err(|err| {
+                Some(addr) => addr.address.parse().map_err(|err| {
                     Status::invalid_argument(format!("Could not serialize: {:?}", err))
-                })?),
-                None => None,
+                })?,
+                None => Err(Status::invalid_argument(
+                    "Worker to primary address missing!",
+                ))?,
             };
             Ok(Some(PrimaryAddresses {
                 primary_to_primary,

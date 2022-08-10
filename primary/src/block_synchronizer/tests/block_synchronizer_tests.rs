@@ -97,9 +97,9 @@ async fn test_successful_headers_synchronization() {
         .map(|primary| {
             println!(
                 "New primary added: {:?}",
-                primary.1.clone().unwrap().primary_to_primary.unwrap()
+                primary.1.clone().unwrap().primary_to_primary
             );
-            primary_listener::<PrimaryMessage>(1, primary.1.unwrap().primary_to_primary.unwrap())
+            primary_listener::<PrimaryMessage>(1, primary.1.unwrap().primary_to_primary)
         })
         .collect();
 
@@ -258,9 +258,9 @@ async fn test_successful_payload_synchronization() {
         .map(|primary| {
             println!(
                 "New primary added: {:?}",
-                primary.1.clone().unwrap().primary_to_primary.unwrap()
+                primary.1.clone().unwrap().primary_to_primary
             );
-            primary_listener::<PrimaryMessage>(1, primary.1.unwrap().primary_to_primary.unwrap())
+            primary_listener::<PrimaryMessage>(1, primary.1.unwrap().primary_to_primary)
         })
         .collect();
 

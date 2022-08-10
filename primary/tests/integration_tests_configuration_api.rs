@@ -183,7 +183,6 @@ async fn test_get_primary_address() {
             .unwrap()
             .unwrap()
             .primary_to_primary
-            .unwrap()
             .to_string()
     )
 }

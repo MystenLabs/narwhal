@@ -61,8 +61,7 @@ impl PrimaryConnector {
                         .primary(&self.name)
                         .expect("Our public key is not in the committee")
                         .expect("Primary addresses have not been initialized.")
-                        .worker_to_primary
-                        .expect("Worker to primary address has not been initialized.");
+                        .worker_to_primary;
                     let handle = self.primary_client.send(address, &digest).await;
                     futures.push(handle);
                 },

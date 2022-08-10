@@ -154,8 +154,7 @@ impl Helper {
             .primary(&origin)
             .map_err(|_| HelperError::UnknownAuthority(origin.encode_base64()))?
             .ok_or_else(|| HelperError::UnknownAuthorityAddress(origin.encode_base64()))?
-            .primary_to_primary
-            .ok_or_else(|| HelperError::UnknownAuthorityAddress(origin.encode_base64()))?;
+            .primary_to_primary;
 
         let mut result: Vec<(CertificateDigest, bool)> = Vec::new();
 
@@ -235,8 +234,7 @@ impl Helper {
             .primary(&origin)
             .map_err(|_| HelperError::UnknownAuthority(origin.encode_base64()))?
             .ok_or_else(|| HelperError::UnknownAuthorityAddress(origin.encode_base64()))?
-            .primary_to_primary
-            .ok_or_else(|| HelperError::UnknownAuthorityAddress(origin.encode_base64()))?;
+            .primary_to_primary;
 
         // TODO [issue #195]: Do some accounting to prevent bad nodes from monopolizing our resources.
         let certificates = match self.certificate_store.read_all(digests.to_owned()).await {

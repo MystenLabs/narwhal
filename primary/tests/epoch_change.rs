@@ -94,14 +94,7 @@ async fn test_simple_epoch_change() {
         let addresses: Vec<_> = old_committee
             .authorities
             .values()
-            .map(|authority| {
-                authority
-                    .primary
-                    .clone()
-                    .unwrap()
-                    .worker_to_primary
-                    .unwrap()
-            })
+            .map(|authority| authority.primary.clone().unwrap().worker_to_primary)
             .collect();
         let message = WorkerPrimaryMessage::Reconfigure(ReconfigureNotification::NewEpoch(
             new_committee.clone(),
@@ -282,14 +275,7 @@ async fn test_partial_committee_change() {
     let addresses: Vec<_> = committee_0
         .authorities
         .values()
-        .map(|authority| {
-            authority
-                .primary
-                .clone()
-                .unwrap()
-                .worker_to_primary
-                .unwrap()
-        })
+        .map(|authority| authority.primary.clone().unwrap().worker_to_primary)
         .collect();
     let message =
         WorkerPrimaryMessage::Reconfigure(ReconfigureNotification::NewEpoch(committee_1.clone()));
@@ -385,14 +371,7 @@ async fn test_restart_with_new_committee_change() {
     let addresses: Vec<_> = committee_0
         .authorities
         .values()
-        .map(|authority| {
-            authority
-                .primary
-                .clone()
-                .unwrap()
-                .worker_to_primary
-                .unwrap()
-        })
+        .map(|authority| authority.primary.clone().unwrap().worker_to_primary)
         .collect();
     let message = WorkerPrimaryMessage::Reconfigure(ReconfigureNotification::Shutdown);
     let mut _do_not_drop: Vec<CancelOnDropHandler<_>> = Vec::new();
@@ -472,14 +451,7 @@ async fn test_restart_with_new_committee_change() {
         let addresses: Vec<_> = committee_0
             .authorities
             .values()
-            .map(|authority| {
-                authority
-                    .primary
-                    .clone()
-                    .unwrap()
-                    .worker_to_primary
-                    .unwrap()
-            })
+            .map(|authority| authority.primary.clone().unwrap().worker_to_primary)
             .collect();
         let message = WorkerPrimaryMessage::Reconfigure(ReconfigureNotification::Shutdown);
         let mut _do_not_drop: Vec<CancelOnDropHandler<_>> = Vec::new();
@@ -572,7 +544,7 @@ async fn test_simple_committee_update() {
         let threshold = new_committee.validity_threshold();
         for (_, authority) in new_committee.authorities.iter_mut() {
             if total_stake < threshold {
-                authority.primary.primary_to_primary = format!(
+                authority.clone().primary.unwrap().primary_to_primary = format!(
                     "/ip4/127.0.0.1/tcp/{}/http",
                     config::utils::get_available_port()
                 )
@@ -587,7 +559,7 @@ async fn test_simple_committee_update() {
         let addresses: Vec<_> = old_committee
             .authorities
             .values()
-            .map(|authority| authority.primary.worker_to_primary.clone())
+            .map(|authority| authority.clone().primary.unwrap().worker_to_primary)
             .collect();
         let message = WorkerPrimaryMessage::Reconfigure(ReconfigureNotification::UpdateCommittee(
             new_committee.clone(),
@@ -596,7 +568,7 @@ async fn test_simple_committee_update() {
         for address in addresses {
             _do_not_drop.push(
                 WorkerToPrimaryNetwork::default()
-                    .send(address, &message)
+                    .send(address.clone(), &message)
                     .await,
             );
         }

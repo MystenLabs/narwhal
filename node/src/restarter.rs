@@ -87,8 +87,7 @@ impl NodeRestarter {
                 .primary(&name)
                 .expect("Our key is not in the committee")
                 .expect("Primary addresses have not been initialized.")
-                .worker_to_primary
-                .expect("Worker to primary address has not been initialized.");
+                .worker_to_primary;
             let message = WorkerPrimaryMessage::Reconfigure(ReconfigureNotification::Shutdown);
             let primary_cancel_handle = primary_network.send(address, &message).await;
 

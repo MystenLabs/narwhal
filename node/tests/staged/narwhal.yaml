@@ -67,10 +67,8 @@ HeaderDigest:
       SIZE: 32
 PrimaryAddresses:
   STRUCT:
-    - primary_to_primary:
-        OPTION: BYTES
-    - worker_to_primary:
-        OPTION: BYTES
+    - primary_to_primary: BYTES
+    - worker_to_primary: BYTES
 PrimaryWorkerMessage:
   ENUM:
     0:
