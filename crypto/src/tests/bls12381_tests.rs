@@ -14,7 +14,6 @@ use crate::{
 use rand::{rngs::StdRng, SeedableRng as _};
 use sha3::Sha3_256;
 use signature::{Signer, Verifier};
-use zeroize::Zeroize;
 
 pub fn keys() -> Vec<BLS12381KeyPair> {
     let mut rng = StdRng::from_seed([0; 32]);
@@ -421,9 +420,10 @@ fn test_sk_zeroization_on_drop() {
         ptr = std::ptr::addr_of!(sk.privkey) as *const u8;
         bytes_ptr = &sk.as_ref()[0] as *const u8;
 
-        let sk_memory: &[u8] = unsafe { ::std::slice::from_raw_parts(bytes_ptr, BLS12381PrivateKey::LENGTH) };
+        let sk_memory: &[u8] =
+            unsafe { ::std::slice::from_raw_parts(bytes_ptr, BLS12381PrivateKey::LENGTH) };
         // Assert that this is equal to sk_bytes before deletion
-        assert_eq!(&sk_memory[..], &sk_bytes[..]);
+        assert_eq!(sk_memory, &sk_bytes[..]);
     }
 
     // Check that self.privkey is zeroized
@@ -434,6 +434,7 @@ fn test_sk_zeroization_on_drop() {
     }
 
     // Check that self.bytes is zeroized
-    let sk_memory: &[u8] = unsafe { ::std::slice::from_raw_parts(bytes_ptr, BLS12381PrivateKey::LENGTH) };
-    assert_ne!(&sk_memory[..], &sk_bytes[..]);
+    let sk_memory: &[u8] =
+        unsafe { ::std::slice::from_raw_parts(bytes_ptr, BLS12381PrivateKey::LENGTH) };
+    assert_ne!(sk_memory, &sk_bytes[..]);
 }
