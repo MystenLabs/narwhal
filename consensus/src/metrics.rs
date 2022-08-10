@@ -7,7 +7,7 @@ use prometheus::{
 
 #[derive(Clone, Debug)]
 pub struct ConsensusMetrics {
-    /// The number of elements in the Dag (for Tusk or Bullshark)
+    /// The number of rounds for which the Dag holds certificates (for Tusk or Bullshark)
     pub consensus_dag_size: IntGaugeVec,
     /// The last committed round from consensus
     pub last_committed_round: IntGaugeVec,
@@ -25,7 +25,7 @@ impl ConsensusMetrics {
         Self {
             consensus_dag_size: register_int_gauge_vec_with_registry!(
                 "consensus_dag_size",
-                "The number of elements (certificates) in consensus dag",
+                "The number of rounds for which the consensus Dag holds certificates",
                 &[],
                 registry
             ).unwrap(),
