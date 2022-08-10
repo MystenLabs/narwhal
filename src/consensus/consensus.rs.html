@@ -503,11 +503,6 @@
                 <span class="op">!</span><span class="ident">authorities</span>.<span class="ident">is_empty</span>()
             });
         }
-
-        <span class="self">self</span>.<span class="ident">metrics</span>
-            .<span class="ident">consensus_dag_size</span>
-            .<span class="ident">with_label_values</span>(<span class="kw-2">&amp;</span>[])
-            .<span class="ident">set</span>(<span class="self">self</span>.<span class="ident">dag</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">i64</span>);
     }
 }
 
@@ -677,6 +672,11 @@
                             <span class="macro">tracing::warn!</span>(<span class="string">&quot;Failed to output certificate: {e}&quot;</span>);
                         }
                     }
+
+                    <span class="self">self</span>.<span class="ident">metrics</span>
+                        .<span class="ident">consensus_dag_rounds</span>
+                        .<span class="ident">with_label_values</span>(<span class="kw-2">&amp;</span>[])
+                        .<span class="ident">set</span>(<span class="ident">state</span>.<span class="ident">dag</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">i64</span>);
                 },
 
                 <span class="comment">// Check whether the committee changed.</span>
