@@ -93,13 +93,8 @@ class Demo:
             self.node_parameters.print(PathMaker.parameters_file())
 
             # Run the clients (they will wait for the nodes to be ready).
-<< << << < HEAD
-            workers_addresses = committee.workers_addresses(self.faults)
-            rate_share = ceil(rate / committee.workers())
-== == == =
             workers_addresses = worker_cache.workers_addresses(self.faults)
             rate_share = ceil(rate / worker_cache.workers())
->>>>>> > cd36ad6d(Fix local benchmark, client demo & tests)
             for i, addresses in enumerate(workers_addresses):
                 for (id, address) in addresses:
                     cmd = CommandMaker.run_client(
