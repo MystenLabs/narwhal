@@ -406,57 +406,24 @@ async fn signature_service() {
 
 // Checks if the private keys zeroed out
 #[test]
-fn test_zeroization_priv_key() {
-    let kp = keys().pop().unwrap();
-    let mut sk = kp.private();
-    let mut sk_bytes = Vec::new();
-    sk_bytes.extend_from_slice(sk.as_ref());
-
-    let ptr = std::ptr::addr_of!(sk.privkey) as *const u8;
-    let bytes_ptr = &sk.as_ref()[0] as *const u8;
-
-    unsafe {
-        let mut vec = Vec::new();
-        for i in 0..BLS12381PrivateKey::LENGTH {
-            vec.push(*bytes_ptr.add(i));
-        }
-        assert_eq!(&vec[..], &sk_bytes[..]);
-    }
-
-    sk.zeroize();
-
-    // Check that self.privkey is zeroized
-    unsafe {
-        for i in 0..BLS12381PrivateKey::LENGTH {
-            assert!(*ptr.add(i) == 0);
-        }
-    }
-
-    // Check that self.bytes is zeroized
-    unsafe {
-        let mut vec = Vec::new();
-        for i in 0..BLS12381PrivateKey::LENGTH {
-            vec.push(*bytes_ptr.add(i));
-        }
-        assert_ne!(&vec[..], &sk_bytes[..]);
-    }
-}
-
-// Checks if the private keys zeroed out
-#[test]
-fn test_zeroization_on_drop() {
+fn test_sk_zeroization_on_drop() {
     let ptr: *const u8;
     let bytes_ptr: *const u8;
 
     let mut sk_bytes = Vec::new();
 
     {
-        let kp = keys().pop().unwrap();
+        let mut rng = StdRng::from_seed([9; 32]);
+        let kp = BLS12381KeyPair::generate(&mut rng);
         let sk = kp.private();
         sk_bytes.extend_from_slice(sk.as_ref());
 
         ptr = std::ptr::addr_of!(sk.privkey) as *const u8;
         bytes_ptr = &sk.as_ref()[0] as *const u8;
+
+        let sk_memory: &[u8] = unsafe { ::std::slice::from_raw_parts(bytes_ptr, BLS12381PrivateKey::LENGTH) };
+        // Assert that this is equal to sk_bytes before deletion
+        assert_eq!(&sk_memory[..], &sk_bytes[..]);
     }
 
     // Check that self.privkey is zeroized
@@ -467,11 +434,6 @@ fn test_zeroization_on_drop() {
     }
 
     // Check that self.bytes is zeroized
-    unsafe {
-        let mut vec = Vec::new();
-        for i in 0..BLS12381PrivateKey::LENGTH {
-            vec.push(*bytes_ptr.add(i));
-        }
-        assert_ne!(&vec[..], &sk_bytes[..]);
-    }
+    let sk_memory: &[u8] = unsafe { ::std::slice::from_raw_parts(bytes_ptr, BLS12381PrivateKey::LENGTH) };
+    assert_ne!(&sk_memory[..], &sk_bytes[..]);
 }
