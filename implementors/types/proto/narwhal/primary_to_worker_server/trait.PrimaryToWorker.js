@@ -1,3 +1,3 @@
-(function() {var implementors = {};
-implementors["test_utils"] = [{"text":"impl <a class=\"trait\" href=\"types/proto/narwhal/primary_to_worker_server/trait.PrimaryToWorker.html\" title=\"trait types::proto::narwhal::primary_to_worker_server::PrimaryToWorker\">PrimaryToWorker</a> for <a class=\"struct\" href=\"test_utils/struct.PrimaryToWorkerMockServer.html\" title=\"struct test_utils::PrimaryToWorkerMockServer\">PrimaryToWorkerMockServer</a>","synthetic":false,"types":["test_utils::PrimaryToWorkerMockServer"]}];
-if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
+(function() {var implementors = {
+"test_utils":[["impl <a class=\"trait\" href=\"types/proto/narwhal/primary_to_worker_server/trait.PrimaryToWorker.html\" title=\"trait types::proto::narwhal::primary_to_worker_server::PrimaryToWorker\">PrimaryToWorker</a> for <a class=\"struct\" href=\"test_utils/struct.PrimaryToWorkerMockServer.html\" title=\"struct test_utils::PrimaryToWorkerMockServer\">PrimaryToWorkerMockServer</a>"]]
+};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

@@ -1,3 +1,3 @@
-(function() {var implementors = {};
-implementors["crypto"] = [{"text":"impl&lt;'de&gt; <a class=\"trait\" href=\"https://docs.rs/serde_with/2.0.0/serde_with/de/trait.DeserializeAs.html\" title=\"trait serde_with::de::DeserializeAs\">DeserializeAs</a>&lt;'de, Signature&gt; for <a class=\"struct\" href=\"crypto/serde_helpers/struct.BlsSignature.html\" title=\"struct crypto::serde_helpers::BlsSignature\">BlsSignature</a>","synthetic":false,"types":["crypto::serde_helpers::BlsSignature"]}];
-if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
+(function() {var implementors = {
+"crypto":[["impl&lt;'de&gt; <a class=\"trait\" href=\"https://docs.rs/serde_with/2.0.0/serde_with/de/trait.DeserializeAs.html\" title=\"trait serde_with::de::DeserializeAs\">DeserializeAs</a>&lt;'de, Signature&gt; for <a class=\"struct\" href=\"crypto/serde_helpers/struct.BlsSignature.html\" title=\"struct crypto::serde_helpers::BlsSignature\">BlsSignature</a>"]]
+};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

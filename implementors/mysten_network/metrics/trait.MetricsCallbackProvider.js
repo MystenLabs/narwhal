@@ -1,4 +1,4 @@
-(function() {var implementors = {};
-implementors["primary"] = [{"text":"impl MetricsCallbackProvider for <a class=\"struct\" href=\"primary/struct.EndpointMetrics.html\" title=\"struct primary::EndpointMetrics\">EndpointMetrics</a>","synthetic":false,"types":["primary::grpc_server::metrics::EndpointMetrics"]}];
-implementors["worker"] = [{"text":"impl MetricsCallbackProvider for <a class=\"struct\" href=\"worker/metrics/struct.WorkerEndpointMetrics.html\" title=\"struct worker::metrics::WorkerEndpointMetrics\">WorkerEndpointMetrics</a>","synthetic":false,"types":["worker::metrics::WorkerEndpointMetrics"]}];
-if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
+(function() {var implementors = {
+"primary":[["impl MetricsCallbackProvider for <a class=\"struct\" href=\"primary/struct.EndpointMetrics.html\" title=\"struct primary::EndpointMetrics\">EndpointMetrics</a>"]],
+"worker":[["impl MetricsCallbackProvider for <a class=\"struct\" href=\"worker/metrics/struct.WorkerEndpointMetrics.html\" title=\"struct worker::metrics::WorkerEndpointMetrics\">WorkerEndpointMetrics</a>"]]
+};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
