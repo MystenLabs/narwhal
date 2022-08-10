@@ -7,11 +7,14 @@ use crate::{
         BLS12381PublicKeyBytes, BLS12381Signature,
     },
     hkdf::hkdf_generate_from_ikm,
-    traits::{AggregateAuthenticator, EncodeDecodeBase64, KeyPair, ToFromBytes, VerifyingKey},
+    traits::{
+        AggregateAuthenticator, EncodeDecodeBase64, KeyPair, SigningKey, ToFromBytes, VerifyingKey,
+    },
 };
 use rand::{rngs::StdRng, SeedableRng as _};
 use sha3::Sha3_256;
 use signature::{Signer, Verifier};
+use zeroize::Zeroize;
 
 pub fn keys() -> Vec<BLS12381KeyPair> {
     let mut rng = StdRng::from_seed([0; 32]);
@@ -399,4 +402,76 @@ async fn signature_service() {
 
     // Verify the signature we received.
     assert!(pk.verify(digest.as_ref(), &signature).is_ok());
+}
+
+// Checks if the private keys zeroed out
+#[test]
+fn test_zeroization_priv_key() {
+    let kp = keys().pop().unwrap();
+    let mut sk = kp.private();
+    let mut sk_bytes = Vec::new();
+    sk_bytes.extend_from_slice(sk.as_ref());
+
+    let ptr = std::ptr::addr_of!(sk.privkey) as *const u8;
+    let bytes_ptr = &sk.as_ref()[0] as *const u8;
+
+    unsafe {
+        let mut vec = Vec::new();
+        for i in 0..BLS12381PrivateKey::LENGTH {
+            vec.push(*bytes_ptr.add(i));
+        }
+        assert_eq!(&vec[..], &sk_bytes[..]);
+    }
+
+    sk.zeroize();
+
+    // Check that self.privkey is zeroized
+    unsafe {
+        for i in 0..BLS12381PrivateKey::LENGTH {
+            assert!(*ptr.add(i) == 0);
+        }
+    }
+
+    // Check that self.bytes is zeroized
+    unsafe {
+        let mut vec = Vec::new();
+        for i in 0..BLS12381PrivateKey::LENGTH {
+            vec.push(*bytes_ptr.add(i));
+        }
+        assert_ne!(&vec[..], &sk_bytes[..]);
+    }
+}
+
+// Checks if the private keys zeroed out
+#[test]
+fn test_zeroization_on_drop() {
+    let ptr: *const u8;
+    let bytes_ptr: *const u8;
+
+    let mut sk_bytes = Vec::new();
+
+    {
+        let kp = keys().pop().unwrap();
+        let sk = kp.private();
+        sk_bytes.extend_from_slice(sk.as_ref());
+
+        ptr = std::ptr::addr_of!(sk.privkey) as *const u8;
+        bytes_ptr = &sk.as_ref()[0] as *const u8;
+    }
+
+    // Check that self.privkey is zeroized
+    unsafe {
+        for i in 0..BLS12381PrivateKey::LENGTH {
+            assert!(*ptr.add(i) == 0);
+        }
+    }
+
+    // Check that self.bytes is zeroized
+    unsafe {
+        let mut vec = Vec::new();
+        for i in 0..BLS12381PrivateKey::LENGTH {
+            vec.push(*bytes_ptr.add(i));
+        }
+        assert_ne!(&vec[..], &sk_bytes[..]);
+    }
 }
