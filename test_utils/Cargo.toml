@@ -21,7 +21,7 @@ prometheus = "0.13.1"
 rand = "0.8.5"
 serde = { version = "1.0.142", features = ["derive"] }
 tempfile = "3.3.0"
-thiserror = "1.0.32"
+thiserror = "1.0.31"
 tokio = { version = "1.20.1", features = ["sync", "rt", "macros"] }
 tokio-util = { version = "0.7.3", features = ["codec"] }
 tonic = "0.7.2"
