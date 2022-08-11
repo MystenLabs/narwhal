@@ -1,28 +1,29 @@
-use bulletproofs::{PedersenGens, BulletproofGens, RangeProof, range_proof_mpc};
-use curve25519_dalek_ng::scalar::Scalar;
-use merlin::Transcript;
-use crate::{bulletproofs::{PedersenCommitment, BulletproofsRangeProof}, traits::ToFromBytes};
+// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+use crate::{
+    bulletproofs::{BulletproofsRangeProof, PedersenCommitment},
+    traits::ToFromBytes,
+};
 
 ///
 /// Test Pedersen Commitments
-/// 
+///
 
 #[test]
-fn pedersen_commitment() {
+fn test_commit_and_open() {
     // Should we create a wrapper scalar type or is using this fine?
     let value = [0; 32];
     let blinding = [0; 32];
 
     // Commit
     let commitment = PedersenCommitment::new(value, blinding);
-
     // Open
     let commitment_2 = PedersenCommitment::new(value, blinding);
     assert_eq!(commitment, commitment_2);
 }
 
 #[test]
-fn pedersen_commitment_binding() {
+fn test_binding_commitment() {
     let value = [0; 32];
     let other_value = [1; 32];
     let blinding = [2; 32];
@@ -34,7 +35,7 @@ fn pedersen_commitment_binding() {
 }
 
 #[test]
-fn pedersen_commitment_to_from_bytes() {
+fn test_pedersen_to_from_bytes() {
     let value = [0; 32];
     let blinding = [1; 32];
 
@@ -45,7 +46,7 @@ fn pedersen_commitment_to_from_bytes() {
 }
 
 #[test]
-fn pedersen_commitment_serde() {
+fn test_pedersen_serde() {
     let value = [0; 32];
     let blinding = [1; 32];
 
@@ -56,92 +57,99 @@ fn pedersen_commitment_serde() {
     assert_eq!(commitment, commitment_dup);
 }
 
+///
+/// Test Range Proofs
+///
+const TEST_DOMAIN: &[u8; 7] = b"NARWHAL";
+
 #[test]
-fn bulletproof_range_proof_lower_valid() {
-    let secret = 1000u64;
+fn test_range_proof_valid() {
+    let upper_bound: usize = 64;
+    let blinding = [
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+        0, 1,
+    ];
 
-    let blinding = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
-        0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
-        0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
-        0, 1];
+    let (commitment, range_proof) =
+        BulletproofsRangeProof::prove_bit_length(1u64, blinding, upper_bound, TEST_DOMAIN).unwrap();
 
-    let (commitment, range_proof) = BulletproofsRangeProof::prove_single_lower(
-        secret,
-        blinding,
-        1000 
-    ).unwrap();
-
-    assert!(range_proof.verify_single_lower(&commitment, 1000).is_ok());
+    assert!(range_proof
+        .verify_bit_length(&commitment, upper_bound, TEST_DOMAIN)
+        .is_ok());
 }
 
 #[test]
-fn bulletproof_range_proof_lower_invalid() {
-    let secret = 999u64;
+fn test_range_proof_invalid() {
+    let upper_bound: usize = 64;
+    let blinding = [
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+        0, 1,
+    ];
 
-    let blinding = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
-        0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
-        0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
-        0, 1];
+    let (commitment, range_proof) =
+        BulletproofsRangeProof::prove_bit_length(1u64, blinding, upper_bound, TEST_DOMAIN).unwrap();
 
-    assert!(BulletproofsRangeProof::prove_single_lower(
-        secret,
-        blinding,
-        1000 
-    ).is_err());
+    let mut range_proof_bytes = range_proof.as_bytes().to_vec();
+    // Change it a little
+    range_proof_bytes[0] += 1;
+    let invalid_range_proof = BulletproofsRangeProof::from_bytes(&range_proof_bytes[..]).unwrap();
+
+    assert!(invalid_range_proof
+        .verify_bit_length(&commitment, upper_bound, TEST_DOMAIN)
+        .is_err());
 }
 
 #[test]
-fn bulletproof_range_proof_upper_valid() {
-    let secret = 1000u64;
+fn test_handle_prove_invalid_upper_bound() {
+    let invalid_upper_bound = 22;
+    let blinding = [
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+        0, 1,
+    ];
 
-    let blinding = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
-        0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
-        0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
-        0, 1];
-
-    let (commitment, range_proof) = BulletproofsRangeProof::prove_single_upper(
-        secret,
+    assert!(BulletproofsRangeProof::prove_bit_length(
+        1u64,
         blinding,
-        1000 
-    ).unwrap();
-
-    assert!(range_proof.verify_single_upper(&commitment, 1000).is_ok());
+        invalid_upper_bound,
+        TEST_DOMAIN
+    )
+    .is_err());
 }
 
 #[test]
-fn bulletproof_range_proof_upper_invalid() {
-    let secret = 1001u64;
+fn test_handle_verify_invalid_upper_bound() {
+    let valid_upper_bound = 64;
+    let invalid_upper_bound = 22;
+    let blinding = [
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+        0, 1,
+    ];
 
-    let blinding = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
-        0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
-        0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
-        0, 1];
+    let (commitment, range_proof) =
+        BulletproofsRangeProof::prove_bit_length(1u64, blinding, valid_upper_bound, TEST_DOMAIN)
+            .unwrap();
 
-    assert!(BulletproofsRangeProof::prove_single_upper(
-        secret,
-        blinding,
-        1000 
-    ).is_err());
+    assert!(range_proof
+        .verify_bit_length(&commitment, invalid_upper_bound, TEST_DOMAIN)
+        .is_err());
 }
 
-// fn bulletproof_range_proof_large_committed_value() {
-//     let secret = 1999u64;
+use proptest::arbitrary::Arbitrary;
 
-//     let blinding = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
-//         0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
-//         0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
-//         0, 1];
+proptest::proptest! {
+    #[test]
+    fn proptest_0_to_2_pow_64(
+        secret in <u64>::arbitrary(),
+    ) {
+        let upper_bound = 64;
+        let blinding = [
+            0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+            0, 1,
+        ];
 
-//     let (_, range_proof) = BulletproofsRangeProof::prove_single(
-//         secret,
-//         blinding,
-//         None,
-//         Some(2000)
-//     ).unwrap();
+        let (commitment, range_proof) =
+            BulletproofsRangeProof::prove_bit_length(secret, blinding, upper_bound, TEST_DOMAIN).unwrap();
 
-//     // Ensure that there is no panic when trying to verify the range of a committed value greater than u64.
-//     let large_commitment = PedersenCommitment::new(Scalar::from(u64::max_value()).to_bytes(), blinding);
-
-//     // Ensure that the code does not panic
-//     assert!(range_proof.verify_single(&large_commitment, None, Some(2000)).is_err());
-// }
+        assert!(range_proof.verify_bit_length(&commitment, upper_bound, TEST_DOMAIN).is_ok());
+    }
+}

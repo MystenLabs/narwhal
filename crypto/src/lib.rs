@@ -43,9 +43,9 @@ pub mod bls12377;
 #[path = "tests/bls12381_tests.rs"]
 pub mod bls12381_tests;
 
+#[cfg(test)]
 #[path = "tests/bulletproofs_tests.rs"]
 pub mod bulletproofs_tests;
-
 
 // Signing traits
 pub mod traits;

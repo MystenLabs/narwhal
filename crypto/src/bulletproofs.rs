@@ -1,28 +1,38 @@
+// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
 use std::ops;
 
-use bulletproofs::{PedersenGens, BulletproofGens, RangeProof};
-use curve25519_dalek_ng::{scalar::Scalar, ristretto::{RistrettoPoint, CompressedRistretto}};
+use bulletproofs::{BulletproofGens, PedersenGens, RangeProof};
+use curve25519_dalek_ng::{
+    ristretto::{CompressedRistretto, RistrettoPoint},
+    scalar::Scalar,
+};
 use merlin::Transcript;
 use once_cell::sync::OnceCell;
-use serde::{Serialize, Deserialize, de};
+use serde::{de, Deserialize, Serialize};
 
 use crate::traits::ToFromBytes;
 
-// 
+//
 // Pedersen commitments
-// 
+//
+
+const PEDERSEN_COMMITMENT_LENGTH: usize = 32;
 
 #[derive(Debug, Clone)]
 pub struct PedersenCommitment {
     point: RistrettoPoint,
-    bytes: OnceCell<[u8; 32]>,
+    bytes: OnceCell<[u8; PEDERSEN_COMMITMENT_LENGTH]>,
 }
 
 impl PedersenCommitment {
     ///
     /// Creates a new Pedersen commitment from a value, and a blinding factor
     ///
-    pub fn new(value: [u8; 32], blinding_factor: [u8; 32]) -> Self {
+    pub fn new(
+        value: [u8; PEDERSEN_COMMITMENT_LENGTH],
+        blinding_factor: [u8; PEDERSEN_COMMITMENT_LENGTH],
+    ) -> Self {
         let generators = PedersenGens::default();
         let value = Scalar::from_bits(value);
         let blinding = Scalar::from_bits(blinding_factor);
@@ -59,20 +69,17 @@ impl ops::Sub<PedersenCommitment> for PedersenCommitment {
 
 impl AsRef<[u8]> for PedersenCommitment {
     fn as_ref(&self) -> &[u8] {
-        self.bytes.get_or_init(|| {
-            self.point.compress().to_bytes()
-        })
+        self.bytes.get_or_init(|| self.point.compress().to_bytes())
     }
 }
 
 impl ToFromBytes for PedersenCommitment {
     fn from_bytes(bytes: &[u8]) -> Result<Self, signature::Error> {
-        if bytes.len() != 32 {
+        if bytes.len() != PEDERSEN_COMMITMENT_LENGTH {
             return Err(signature::Error::new());
         }
         let point = CompressedRistretto::from_slice(bytes);
-        let decompressed_point = point.decompress()
-            .ok_or(signature::Error::new())?;
+        let decompressed_point = point.decompress().ok_or_else(signature::Error::new)?;
 
         Ok(PedersenCommitment {
             point: decompressed_point,
@@ -85,7 +92,7 @@ impl Serialize for PedersenCommitment {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
-    { 
+    {
         let bytes = self.as_ref();
         serializer.serialize_bytes(bytes)
     }
@@ -97,8 +104,7 @@ impl<'de> Deserialize<'de> for PedersenCommitment {
         D: de::Deserializer<'de>,
     {
         let bytes = Vec::deserialize(deserializer)?;
-        PedersenCommitment::from_bytes(&bytes[..])
-            .map_err(|e| de::Error::custom(e.to_string()))
+        PedersenCommitment::from_bytes(&bytes[..]).map_err(|e| de::Error::custom(e.to_string()))
     }
 }
 
@@ -124,155 +130,103 @@ impl Ord for PedersenCommitment {
 
 ///
 /// Bulletproof Range Proofs
-/// 
+///
 
 #[derive(Debug)]
 pub struct BulletproofsRangeProof {
     proof: RangeProof,
-    bytes: OnceCell<Vec<u8>>
+    bytes: OnceCell<Vec<u8>>,
 }
 
 impl BulletproofsRangeProof {
-    /// Prove that value <= upper_bound
-    pub fn prove_single_upper(
+    /// Prove that the value is an unsigned integer with bit length bits, this is equivalent
+    /// to proving that the value is an integer within the range [0, 2^bits)
+    /// Function only works for bits = 8, 16, 32, 64.
+    pub fn prove_bit_length(
         value: u64,
         blinding: [u8; 32],
-        upper_bound: u64,
+        bits: usize,
+        domain: &'static [u8],
     ) -> Result<(PedersenCommitment, Self), signature::Error> {
-        if value > upper_bound {
+        // Although this is also checked in the bulletproofs library, we check again
+        // to avoid unexpected behaviour in the case of library updates
+        if !(bits == 8 || bits == 16 || bits == 32 || bits == 64) {
+            // TODO: Add a better error
             return Err(signature::Error::new());
         }
 
         let pc_gens = PedersenGens::default();
-        let bp_gens = BulletproofGens::new(64, 1);
-        let mut prover_transcript = Transcript::new(b"doctest example");
-
+        let bp_gens = BulletproofGens::new(bits, 1);
+        let mut prover_transcript = Transcript::new(domain);
         let blinding = Scalar::from_bits(blinding);
-        let bounding: u64 = u64::max_value();
-        let new_value = value + (bounding - upper_bound);
 
-        // Create a 64-bit rangeproof.
-        let (proof, _) = RangeProof::prove_single(
+        let (proof, commitment) = RangeProof::prove_single(
             &bp_gens,
             &pc_gens,
             &mut prover_transcript,
-            new_value,
+            value,
             &blinding,
-            64,
-        ).expect("A real program could handle errors");
-
-        let commitment = PedersenCommitment::new(Scalar::from(value).to_bytes(), blinding.to_bytes());
+            bits,
+        )
+        .map_err(|_| signature::Error::new())?;
 
         Ok((
-            commitment,
+            PedersenCommitment {
+                point: commitment.decompress().ok_or_else(signature::Error::new)?,
+                bytes: OnceCell::new(),
+            },
             BulletproofsRangeProof {
                 proof,
                 bytes: OnceCell::new(),
-            }
+            },
         ))
     }
 
-    /// Prove that value >= lower_bound 
-    pub fn prove_single_lower(
-        value: u64,
-        blinding: [u8; 32],
-        lower_bound: u64,
-    ) -> Result<(PedersenCommitment, Self), signature::Error> {
-        if value < lower_bound {
+    /// Verifies that commitment is a Pedersen commitment of some value
+    /// with an unsigned bit length `bits`. This is equivalent to
+    /// proving that the value is an integer within the range [0, 2^bits)
+    /// Function only works for bits = 8, 16, 32, 64.
+    pub fn verify_bit_length(
+        &self,
+        commitment: &PedersenCommitment,
+        bits: usize,
+        domain: &'static [u8],
+    ) -> Result<(), signature::Error> {
+        // Although this is also checked in the bulletproofs library, we check again
+        // to avoid unexpected behaviour in the case of library updates
+        if !(bits == 8 || bits == 16 || bits == 32 || bits == 64) {
+            // TODO: Add a better error
             return Err(signature::Error::new());
         }
+
         let pc_gens = PedersenGens::default();
-        let bp_gens = BulletproofGens::new(64, 1);
+        let bp_gens = BulletproofGens::new(bits, 1);
+        let mut verifier_transcript = Transcript::new(domain);
 
-        let mut prover_transcript = Transcript::new(b"doctest example");
-
-        let blinding = Scalar::from_bits(blinding);
-
-        let new_value: u64 = value - lower_bound;
-
-        // Create a 64-bit rangeproof.
-        let (proof, _) = RangeProof::prove_single(
-            &bp_gens,
-            &pc_gens,
-            &mut prover_transcript,
-            new_value,
-            &blinding,
-            64,
-        ).expect("A real program could handle errors");
-
-        let commitment = PedersenCommitment::new(Scalar::from(value).to_bytes(), blinding.to_bytes());
-
-        Ok((
-            commitment,
-            BulletproofsRangeProof {
-                proof,
-                bytes: OnceCell::new(),
-            }
-        ))
-    }
-
-    pub fn verify_single_upper(
-        &self,
-        commitment: &PedersenCommitment,
-        upper_bound: u64,
-    ) -> Result<(), signature::Error> {
-            let bounding = u64::max_value();
-            let diff = bounding - upper_bound;
-
-            let diff_scalar = Scalar::from(diff);
-
-            let diff_commitment = PedersenCommitment::new(diff_scalar.to_bytes(), [0; 32]);
-            let ped: PedersenCommitment = commitment.clone();
-            let new_commit = ped + diff_commitment;
-    
-            let pc_gens = PedersenGens::default();
-            let bp_gens = BulletproofGens::new(64, 1);
-            
-            let mut verifier_transcript = Transcript::new(b"doctest example");
-
-            self
-                .proof.verify_single(&bp_gens, &pc_gens, &mut verifier_transcript, &CompressedRistretto::from_slice(new_commit.as_bytes()), 64)
-                .map_err(|_| signature::Error::new())
-    }
-
-    pub fn verify_single_lower(
-        &self,
-        commitment: &PedersenCommitment,
-        upper_bound: u64,
-    ) -> Result<(), signature::Error> {
-            let diff_scalar = Scalar::from(upper_bound);
-
-            let diff_commitment = PedersenCommitment::new(diff_scalar.to_bytes(), [0; 32]);
-            let ped: PedersenCommitment = commitment.clone();
-
-            let new_commit = ped - diff_commitment;
-    
-            let pc_gens = PedersenGens::default();
-            let bp_gens = BulletproofGens::new(64, 1);
-            
-            let mut verifier_transcript = Transcript::new(b"doctest example");
-
-            self
-                .proof.verify_single(&bp_gens, &pc_gens, &mut verifier_transcript, &CompressedRistretto::from_slice(new_commit.as_bytes()), 64)
-                .map_err(|_| signature::Error::new())
+        self.proof
+            .verify_single(
+                &bp_gens,
+                &pc_gens,
+                &mut verifier_transcript,
+                &CompressedRistretto::from_slice(commitment.as_bytes()),
+                bits,
+            )
+            .map_err(|_| signature::Error::new())
     }
 }
 
 impl AsRef<[u8]> for BulletproofsRangeProof {
     fn as_ref(&self) -> &[u8] {
-        self.bytes.get_or_init(|| {
-            self.proof.to_bytes()
-        })
+        self.bytes.get_or_init(|| self.proof.to_bytes())
     }
 }
 
 impl ToFromBytes for BulletproofsRangeProof {
     fn from_bytes(bytes: &[u8]) -> Result<Self, signature::Error> {
-        let proof = RangeProof::from_bytes(bytes)
-            .map_err(|_| signature::Error::new())?;
+        let proof = RangeProof::from_bytes(bytes).map_err(|_| signature::Error::new())?;
         Ok(BulletproofsRangeProof {
             proof,
             bytes: OnceCell::new(),
-        }) 
+        })
     }
 }
