@@ -14,7 +14,7 @@ use std::{
     fmt,
     fmt::Formatter,
     sync::Arc,
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::Duration,
 };
 use tokio::{
     sync::{oneshot, watch},
@@ -595,7 +595,7 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> BlockWaiter<Synchroni
         debug!("No pending get block for {}", id);
 
         // Add on a vector the receivers
-        let batch_receivers = self.send_batch_requests(certificate.header.clone()).await;
+        let batch_receivers = self.send_batch_requests(id, certificate.header.clone()).await;
 
         let fut = Self::wait_for_all_batches(id, batch_receivers);
 
@@ -675,9 +675,18 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> BlockWaiter<Synchroni
         match self.pending_get_block.remove(&block_id) {
             Some(certificate) => {
                 for (digest, _) in certificate.header.payload {
-                    // unlock the pending request - mostly about the
-                    // timed out requests.
-                    self.tx_pending_batch.remove(&digest);
+                    // Although we expect the entries to have been cleaned up by the moment
+                    // they have been delivered (or error) still adding this here to ensure
+                    // we don't miss any edge case and introduce memory leaks.
+                    if let Some(senders) = self.tx_pending_batch.get_mut(&digest) {
+                        senders.remove(&block_id);
+
+                        // if no more senders in the map then remove entirely
+                        // the map for the digest
+                        if senders.is_empty() {
+                            self.tx_pending_batch.remove(&digest);
+                        }
+                    }
                 }
             }
             None => {
@@ -703,32 +712,41 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> BlockWaiter<Synchroni
 
         // otherwise we send requests to all workers to send us their batches
         for (digest, worker_id) in header.payload {
-            debug!(
-                "Sending batch {} request to worker id {}",
-                digest.clone(),
-                worker_id
-            );
-
-            let worker_address = self
-                .committee
-                .worker(&self.name, &worker_id)
-                .expect("Worker id not found")
-                .primary_to_worker;
-
-            let message = PrimaryWorkerMessage::RequestBatch(digest);
-
-            self.worker_network
-                .unreliable_send(worker_address, &message)
-                .await;
-
-            // mark it as pending batch. Since we assume that batches are unique
-            // per block, a clean up on a block request will also clean
-            // up all the pending batch requests.
+            // Although we expect our headers to reference to unique batch ids it is
+            // possible for a batch with the same id to be produced if the exact same
+            // transactions are posted and included to a batch. Although unlikely it's
+            // still a possibility and this component should be prepared for it.
             let (tx, rx) = oneshot::channel();
-            self.tx_pending_batch
-                .entry(digest)
-                .or_default()
-                .insert(block_id, tx);
+
+            if let Some(map) = self.tx_pending_batch.get_mut(&digest) {
+                debug!(
+                    "Skip sending request for batch {} to worker id {}, already pending",
+                    digest.clone(),
+                    worker_id
+                );
+
+                map.insert(block_id, tx);
+            } else {
+                self.tx_pending_batch.entry(digest).or_default().insert(block_id, tx);
+
+                debug!(
+                    "Sending batch {} request to worker id {}",
+                    digest.clone(),
+                    worker_id
+                );
+
+                let worker_address = self
+                    .committee
+                    .worker(&self.name, &worker_id)
+                    .expect("Worker id not found")
+                    .primary_to_worker;
+
+                let message = PrimaryWorkerMessage::RequestBatch(digest);
+
+                self.worker_network
+                    .unreliable_send(worker_address, &message)
+                    .await;
+            }
 
             // add the receiver to a vector to poll later
             batch_receivers.push((digest, rx));
@@ -741,11 +759,12 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> BlockWaiter<Synchroni
         let batch_id: BatchDigest = result.clone().map_or_else(|e| e.id, |r| r.id);
 
         match self.tx_pending_batch.remove(&batch_id) {
-            Some((sender, _)) => {
-                debug!("Sending BatchResult with id {}", &batch_id);
-                sender
-                    .send(result)
-                    .expect("Couldn't send BatchResult for pending batch");
+            Some(respond_to) => {
+                for (id, s) in respond_to {
+                    if let Err(err) = s.send(result.clone()) {
+                        error!("Couldn't send batch result {} message to channel [{:?}] for block_id {}", batch_id, err, id);
+                    }
+                }
             }
             None => {
                 warn!("Couldn't find pending batch with id {}", &batch_id);
