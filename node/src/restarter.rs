@@ -57,7 +57,7 @@ impl NodeRestarter {
                 /* consensus */ true,
                 execution_state.clone(),
                 tx_output.clone(),
-                &registry,
+                registry,
             )
             .await
             .unwrap();
@@ -68,7 +68,7 @@ impl NodeRestarter {
                 Arc::new(ArcSwap::new(Arc::new(committee.clone()))),
                 &store,
                 parameters.clone(),
-                &registry,
+                registry,
             );
 
             handles.extend(primary_handles);
