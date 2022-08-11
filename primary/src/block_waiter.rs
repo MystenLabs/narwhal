@@ -230,7 +230,7 @@ pub struct BlockWaiter<SynchronizerHandler: Handler + Send + Sync + 'static> {
     /// On the key we hold the batch id (we assume it's globally unique).
     /// On the value we hold a tuple of the channel to communicate the result
     /// to and also a timestamp of when the request was sent.
-    tx_pending_batch: HashMap<BatchDigest, (oneshot::Sender<BatchResult>, u128)>,
+    tx_pending_batch: HashMap<BatchDigest, HashMap<CertificateDigest, oneshot::Sender<BatchResult>>>,
 
     /// A map that holds the channels we should notify with the
     /// GetBlock responses.
@@ -695,14 +695,9 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> BlockWaiter<Synchroni
     // channel of the fetched batch.
     async fn send_batch_requests(
         &mut self,
+        block_id: CertificateDigest,
         header: Header,
     ) -> Vec<(BatchDigest, oneshot::Receiver<BatchResult>)> {
-        // Get the "now" time
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("Failed to measure time")
-            .as_millis();
-
         // Add the receivers to a vector
         let mut batch_receivers = Vec::new();
 
@@ -730,7 +725,10 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> BlockWaiter<Synchroni
             // per block, a clean up on a block request will also clean
             // up all the pending batch requests.
             let (tx, rx) = oneshot::channel();
-            self.tx_pending_batch.insert(digest, (tx, now));
+            self.tx_pending_batch
+                .entry(digest)
+                .or_default()
+                .insert(block_id, tx);
 
             // add the receiver to a vector to poll later
             batch_receivers.push((digest, rx));
