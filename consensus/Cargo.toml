@@ -13,9 +13,9 @@ bytes = "1.2.1"
 match_opt = "0.1.2"
 rand = { version = "0.8.5", optional = true }
 # deactivation of bzip2 due to https://github.com/rust-rocksdb/rust-rocksdb/issues/609
-rocksdb = { version = "0.18.0", features = ["snappy", "lz4", "zstd", "zlib"], default-features = false }
+rocksdb = { version = "0.19.0", features = ["snappy", "lz4", "zstd", "zlib"], default-features = false }
 serde = { version = "1.0.142", features = ["derive"] }
-store = { git = "https://github.com/mystenlabs/mysten-infra.git", package = "typed-store", rev = "d965a5a795dcdb4d1c7964acf556bc249fdc58aa" }
+store = { git = "https://github.com/mystenlabs/mysten-infra.git", package = "typed-store", rev = "f3f5a90f853f43f800e7dc0b10571d9c9b1162a2" }
 thiserror = "1.0.32"
 tokio = { version = "1.20.1", features = ["sync"] }
 tracing = "0.1.36"
