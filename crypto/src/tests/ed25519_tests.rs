@@ -12,6 +12,7 @@ use crate::{
     traits::{AggregateAuthenticator, EncodeDecodeBase64, KeyPair, ToFromBytes, VerifyingKey},
 };
 use blake2::digest::Update;
+use ed25519_consensus::VerificationKey;
 use rand::{rngs::StdRng, SeedableRng as _};
 use serde_reflection::{Samples, Tracer, TracerConfig};
 use sha3::Sha3_256;
@@ -52,7 +53,7 @@ fn serialize_deserialize() {
 }
 
 #[test]
-fn serde_reflection() {
+fn custom_serde_reflection() {
     let config = TracerConfig::default()
         .record_samples_for_newtype_structs(true)
         .record_samples_for_structs(true)
@@ -66,6 +67,9 @@ fn serde_reflection() {
         .trace_value(&mut samples, &sig)
         .expect("trace value Ed25519Signature");
     assert!(samples.value("Ed25519Signature").is_some());
+    tracer
+        .trace_type::<Ed25519Signature>(&samples)
+        .expect("trace type Ed25519PublicKey");
 
     let kpref = keys().pop().unwrap();
     let public_key = kpref.public();
@@ -73,14 +77,11 @@ fn serde_reflection() {
         .trace_value(&mut samples, public_key)
         .expect("trace value Ed25519PublicKey");
     assert!(samples.value("Ed25519PublicKey").is_some());
-
-    // TODO: make the logic below work. Related to node/src/generate_format.rs#L137
-    // tracer
-    //     .trace_type::<Ed25519Signature>(&samples)
-    //     .expect("trace type Ed25519PublicKey");
-    // tracer
-    //     .trace_type::<Ed25519PublicKey>(&samples)
-    //     .expect("trace type Ed25519PublicKey");
+    // The Ed25519PublicKey struct and its ser/de implementation treats itself as a "newtype struct".
+    // But `trace_type()` only supports the base type.
+    tracer
+        .trace_type::<VerificationKey>(&samples)
+        .expect("trace type VerificationKey");
 }
 
 #[test]
@@ -100,10 +101,9 @@ fn test_serde_signatures_human_readable() {
     let signature = kp.sign(message);
 
     let serialized = serde_json::to_string(&signature).unwrap();
-    println!("{:?}", serialized);
     assert_eq!(
         format!(
-            "\"{}\"",
+            r#"{{"base64":"{}"}}"#,
             base64ct::Base64::encode_string(&signature.sig.to_bytes())
         ),
         serialized

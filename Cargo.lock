@@ -958,6 +958,7 @@ dependencies = [
  "secp256k1",
  "serde",
  "serde-reflection",
+ "serde_bytes",
  "serde_json",
  "serde_with",
  "sha3",
