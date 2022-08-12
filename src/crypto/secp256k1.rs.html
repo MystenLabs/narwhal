@@ -437,6 +437,8 @@
 <span id="437">437</span>
 <span id="438">438</span>
 <span id="439">439</span>
+<span id="440">440</span>
+<span id="441">441</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="kw">crate</span>::{
@@ -449,6 +451,7 @@
 <span class="kw">use</span> <span class="ident">rust_secp256k1</span>::{
     <span class="ident">constants</span>,
     <span class="ident">ecdsa</span>::{<span class="ident">RecoverableSignature</span>, <span class="ident">RecoveryId</span>},
+    <span class="ident">rand::rngs::OsRng</span>,
     <span class="ident">Message</span>, <span class="ident">PublicKey</span>, <span class="ident">Secp256k1</span>, <span class="ident">SecretKey</span>,
 };
 <span class="kw">use</span> <span class="ident">serde</span>::{<span class="ident">de</span>, <span class="ident">Deserialize</span>, <span class="ident">Serialize</span>};
@@ -789,9 +792,10 @@
         <span class="self">self</span>.<span class="ident">secret</span>
     }
 
-    <span class="kw">fn</span> <span class="ident">generate</span><span class="op">&lt;</span><span class="ident">R</span>: <span class="ident">rand::CryptoRng</span> <span class="op">+</span> <span class="ident">rand::RngCore</span><span class="op">&gt;</span>(<span class="ident">rng</span>: <span class="kw-2">&amp;mut</span> <span class="ident">R</span>) -&gt; <span class="self">Self</span> {
+    <span class="kw">fn</span> <span class="ident">generate</span><span class="op">&lt;</span><span class="ident">R</span>: <span class="ident">rand::CryptoRng</span> <span class="op">+</span> <span class="ident">rand::RngCore</span><span class="op">&gt;</span>(<span class="ident">_rng</span>: <span class="kw-2">&amp;mut</span> <span class="ident">R</span>) -&gt; <span class="self">Self</span> {
         <span class="kw">let</span> <span class="ident">secp</span> <span class="op">=</span> <span class="ident">Secp256k1::new</span>();
-        <span class="kw">let</span> (<span class="ident">privkey</span>, <span class="ident">pubkey</span>) <span class="op">=</span> <span class="ident">secp</span>.<span class="ident">generate_keypair</span>(<span class="ident">rng</span>);
+        <span class="comment">// TODO: use param rng instead of generate a fresh OsRng when rand is upgraded to match. https://github.com/MystenLabs/narwhal/issues/544</span>
+        <span class="kw">let</span> (<span class="ident">privkey</span>, <span class="ident">pubkey</span>) <span class="op">=</span> <span class="ident">secp</span>.<span class="ident">generate_keypair</span>(<span class="kw-2">&amp;mut</span> <span class="ident">OsRng</span>);
 
         <span class="ident">Secp256k1KeyPair</span> {
             <span class="ident">name</span>: <span class="ident">Secp256k1PublicKey</span> {
