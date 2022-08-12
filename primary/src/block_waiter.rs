@@ -227,9 +227,11 @@ pub struct BlockWaiter<SynchronizerHandler: Handler + Send + Sync + 'static> {
     rx_batch_receiver: Receiver<BatchResult>,
 
     /// Maps batch ids to channels that "listen" for arrived batch messages.
-    /// On the key we hold the batch id (we assume it's globally unique).
-    /// On the value we hold a tuple of the channel to communicate the result
-    /// to and also a timestamp of when the request was sent.
+    /// On the key we hold the batch id.
+    /// On the value we hold a map of CertificateDigest --> oneshot::Sender
+    /// as we might need to deliver the batch result for requests from multiple
+    /// certificates (although not really probable its still possible for batches of
+    /// same id to be included in multiple headers).
     tx_pending_batch:
         HashMap<BatchDigest, HashMap<CertificateDigest, oneshot::Sender<BatchResult>>>,
 
