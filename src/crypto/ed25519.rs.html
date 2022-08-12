@@ -451,6 +451,9 @@
 <span id="451">451</span>
 <span id="452">452</span>
 <span id="453">453</span>
+<span id="454">454</span>
+<span id="455">455</span>
+<span id="456">456</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="ident">base64ct</span>::{<span class="ident">Base64</span>, <span class="ident">Encoding</span>};
@@ -794,6 +797,9 @@
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">batch</span> <span class="op">=</span> <span class="ident">batch::Verifier::new</span>();
 
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">pks</span>.<span class="ident">len</span>() {
+            <span class="kw">if</span> <span class="ident">pks</span>[<span class="ident">i</span>].<span class="ident">len</span>() <span class="op">!</span><span class="op">=</span> <span class="ident">sigs</span>[<span class="ident">i</span>].<span class="number">0</span>.<span class="ident">len</span>() {
+                <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">signature::Error::new</span>());
+            }
             <span class="kw">for</span> <span class="ident">j</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">pks</span>[<span class="ident">i</span>].<span class="ident">len</span>() {
                 <span class="kw">let</span> <span class="ident">vk_bytes</span> <span class="op">=</span> <span class="ident">VerificationKeyBytes::from</span>(<span class="ident">pks</span>[<span class="ident">i</span>][<span class="ident">j</span>].<span class="number">0</span>);
                 <span class="ident">batch</span>.<span class="ident">queue</span>((<span class="ident">vk_bytes</span>, <span class="ident">sigs</span>[<span class="ident">i</span>].<span class="number">0</span>[<span class="ident">j</span>], <span class="ident">messages</span>[<span class="ident">i</span>]));
@@ -905,4 +911,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="crypto" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (29e4a9ee0 2022-08-10)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="crypto" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (20ffea693 2022-08-11)" ></div></body></html>
