@@ -53,9 +53,8 @@ jobs:
     strategy:
       matrix:
         os:
-          - ubuntu-latest
-          # TODO: reactivate when we have self-hosted runners
-          # - windows-latest
+          - ubuntu-ghcloud
+          - windows-ghcloud
       fail-fast: false
     env:
       RUSTFLAGS: -D warnings
