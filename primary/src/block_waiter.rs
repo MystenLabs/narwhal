@@ -230,7 +230,8 @@ pub struct BlockWaiter<SynchronizerHandler: Handler + Send + Sync + 'static> {
     /// On the key we hold the batch id (we assume it's globally unique).
     /// On the value we hold a tuple of the channel to communicate the result
     /// to and also a timestamp of when the request was sent.
-    tx_pending_batch: HashMap<BatchDigest, HashMap<CertificateDigest, oneshot::Sender<BatchResult>>>,
+    tx_pending_batch:
+        HashMap<BatchDigest, HashMap<CertificateDigest, oneshot::Sender<BatchResult>>>,
 
     /// A map that holds the channels we should notify with the
     /// GetBlock responses.
@@ -595,7 +596,9 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> BlockWaiter<Synchroni
         debug!("No pending get block for {}", id);
 
         // Add on a vector the receivers
-        let batch_receivers = self.send_batch_requests(id, certificate.header.clone()).await;
+        let batch_receivers = self
+            .send_batch_requests(id, certificate.header.clone())
+            .await;
 
         let fut = Self::wait_for_all_batches(id, batch_receivers);
 
@@ -727,7 +730,10 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> BlockWaiter<Synchroni
 
                 map.insert(block_id, tx);
             } else {
-                self.tx_pending_batch.entry(digest).or_default().insert(block_id, tx);
+                self.tx_pending_batch
+                    .entry(digest)
+                    .or_default()
+                    .insert(block_id, tx);
 
                 debug!(
                     "Sending batch {} request to worker id {}",

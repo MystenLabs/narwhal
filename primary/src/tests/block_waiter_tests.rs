@@ -223,9 +223,7 @@ async fn test_successfully_retrieve_multiple_blocks() {
         // sort the batches to make sure that the response is the expected one.
         batches.sort_by(|a, b| a.id.cmp(&b.id));
 
-        let header = builder
-            .build(&key)
-            .unwrap();
+        let header = builder.build(&key).unwrap();
 
         let certificate = certificate(&header);
         certificates.push(certificate.clone());
