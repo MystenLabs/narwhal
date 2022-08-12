@@ -11,9 +11,9 @@ use crate::{
     hkdf::hkdf_generate_from_ikm,
     traits::{AggregateAuthenticator, EncodeDecodeBase64, KeyPair, ToFromBytes, VerifyingKey},
 };
-
 use blake2::digest::Update;
 use rand::{rngs::StdRng, SeedableRng as _};
+use serde_reflection::{Samples, Tracer, TracerConfig};
 use sha3::Sha3_256;
 use signature::{Signer, Verifier};
 
@@ -49,6 +49,38 @@ fn serialize_deserialize() {
 
     // serialize with Ed25519PublicKey fails
     assert!(bincode::deserialize::<Ed25519PublicKey>(&bytes).is_err());
+}
+
+#[test]
+fn serde_reflection() {
+    let config = TracerConfig::default()
+        .record_samples_for_newtype_structs(true)
+        .record_samples_for_structs(true)
+        .record_samples_for_tuple_structs(true);
+    let mut tracer = Tracer::new(config);
+    let mut samples = Samples::new();
+
+    let message = b"hello, narwhal";
+    let sig = keys().pop().unwrap().sign(message);
+    tracer
+        .trace_value(&mut samples, &sig)
+        .expect("trace value Ed25519Signature");
+    assert!(samples.value("Ed25519Signature").is_some());
+
+    let kpref = keys().pop().unwrap();
+    let public_key = kpref.public();
+    tracer
+        .trace_value(&mut samples, public_key)
+        .expect("trace value Ed25519PublicKey");
+    assert!(samples.value("Ed25519PublicKey").is_some());
+
+    // TODO: make the logic below work. Related to node/src/generate_format.rs#L137
+    // tracer
+    //     .trace_type::<Ed25519Signature>(&samples)
+    //     .expect("trace type Ed25519PublicKey");
+    // tracer
+    //     .trace_type::<Ed25519PublicKey>(&samples)
+    //     .expect("trace type Ed25519PublicKey");
 }
 
 #[test]

@@ -251,11 +251,8 @@ impl Serialize for Ed25519Signature {
     where
         S: serde::Serializer,
     {
-        if serializer.is_human_readable() {
-            base64ct::Base64::encode_string(self.as_ref()).serialize(serializer)
-        } else {
-            self.as_ref().serialize(serializer)
-        }
+        let str = base64ct::Base64::encode_string(self.as_ref());
+        serializer.serialize_newtype_struct("Ed25519Signature", &str)
     }
 }
 
@@ -264,14 +261,9 @@ impl<'de> Deserialize<'de> for Ed25519Signature {
     where
         D: serde::Deserializer<'de>,
     {
-        let bytes = if deserializer.is_human_readable() {
-            let s = String::deserialize(deserializer)?;
-            base64ct::Base64::decode_vec(&s).map_err(|e| de::Error::custom(e.to_string()))?
-        } else {
-            Vec::deserialize(deserializer)?
-        };
-        <Ed25519Signature as signature::Signature>::from_bytes(&bytes)
-            .map_err(|e| de::Error::custom(e.to_string()))
+        let s = String::deserialize(deserializer)?;
+        let value = Self::decode_base64(&s).map_err(|e| de::Error::custom(e.to_string()))?;
+        Ok(value)
     }
 }
 
