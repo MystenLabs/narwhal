@@ -341,6 +341,9 @@ impl AggregateAuthenticator for Ed25519AggregateSignature {
         let mut batch = batch::Verifier::new();
 
         for i in 0..pks.len() {
+            if pks[i].len() != sigs[i].0.len() {
+                return Err(signature::Error::new());
+            }
             for j in 0..pks[i].len() {
                 let vk_bytes = VerificationKeyBytes::from(pks[i][j].0);
                 batch.queue((vk_bytes, sigs[i].0[j], messages[i]));
@@ -405,10 +408,10 @@ impl KeyPair for Ed25519KeyPair {
 }
 
 impl FromStr for Ed25519KeyPair {
-    type Err = anyhow::Error;
+    type Err = eyre::Report;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let kp = Self::decode_base64(s).map_err(|e| anyhow::anyhow!("{}", e.to_string()))?;
+        let kp = Self::decode_base64(s).map_err(|e| eyre::eyre!("{}", e.to_string()))?;
         Ok(kp)
     }
 }

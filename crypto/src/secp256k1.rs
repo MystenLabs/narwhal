@@ -98,6 +98,24 @@ impl Verifier<Secp256k1Signature> for Secp256k1PublicKey {
     }
 }
 
+impl Secp256k1PublicKey {
+    pub fn verify_hashed(
+        &self,
+        hased_msg: &[u8],
+        signature: &Secp256k1Signature,
+    ) -> Result<(), signature::Error> {
+        match Message::from_slice(hased_msg) {
+            Ok(message) => match signature.sig.recover(&message) {
+                Ok(recovered_key) if self.as_bytes() == recovered_key.serialize().as_slice() => {
+                    Ok(())
+                }
+                _ => Err(signature::Error::new()),
+            },
+            _ => Err(signature::Error::new()),
+        }
+    }
+}
+
 impl AsRef<[u8]> for Secp256k1PublicKey {
     fn as_ref(&self) -> &[u8] {
         self.bytes
@@ -358,10 +376,10 @@ impl KeyPair for Secp256k1KeyPair {
 }
 
 impl FromStr for Secp256k1KeyPair {
-    type Err = anyhow::Error;
+    type Err = eyre::Report;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let kp = Self::decode_base64(s).map_err(|e| anyhow::anyhow!("{}", e.to_string()))?;
+        let kp = Self::decode_base64(s).map_err(|e| eyre::eyre!("{}", e.to_string()))?;
         Ok(kp)
     }
 }
