@@ -177,7 +177,7 @@
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::metrics::WorkerMetrics</span>;
 <span class="kw">use</span> <span class="ident">config::Committee</span>;
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;benchmark&quot;</span>)]</span>
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> = <span class="string">&quot;benchmark&quot;</span>)]</span>
 <span class="kw">use</span> <span class="ident">std::convert::TryInto</span>;
 <span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 <span class="kw">use</span> <span class="ident">tokio</span>::{
@@ -192,7 +192,7 @@
 };
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="attribute">#[<span class="ident">path</span> <span class="op">=</span> <span class="string">&quot;tests/batch_maker_tests.rs&quot;</span>]</span>
+<span class="attribute">#[<span class="ident">path</span> = <span class="string">&quot;tests/batch_maker_tests.rs&quot;</span>]</span>
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">batch_maker_tests</span>;
 
 <span class="doccomment">/// Assemble clients transactions into batches.</span>
@@ -204,17 +204,17 @@
     <span class="doccomment">/// The maximum delay after which to seal the batch.</span>
     <span class="ident">max_batch_delay</span>: <span class="ident">Duration</span>,
     <span class="doccomment">/// Receive reconfiguration updates.</span>
-    <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
+    <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span>&lt;<span class="ident">ReconfigureNotification</span>&gt;,
     <span class="doccomment">/// Channel to receive transactions from the network.</span>
-    <span class="ident">rx_transaction</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Transaction</span><span class="op">&gt;</span>,
+    <span class="ident">rx_transaction</span>: <span class="ident">Receiver</span>&lt;<span class="ident">Transaction</span>&gt;,
     <span class="doccomment">/// Output channel to deliver sealed batches to the `QuorumWaiter`.</span>
-    <span class="ident">tx_message</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">Batch</span><span class="op">&gt;</span>,
+    <span class="ident">tx_message</span>: <span class="ident">Sender</span>&lt;<span class="ident">Batch</span>&gt;,
     <span class="doccomment">/// Holds the current batch.</span>
     <span class="ident">current_batch</span>: <span class="ident">Batch</span>,
     <span class="doccomment">/// Holds the size of the current batch (in bytes).</span>
     <span class="ident">current_batch_size</span>: <span class="ident">usize</span>,
     <span class="doccomment">/// Metrics handler</span>
-    <span class="ident">node_metrics</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">WorkerMetrics</span><span class="op">&gt;</span>,
+    <span class="ident">node_metrics</span>: <span class="ident">Arc</span>&lt;<span class="ident">WorkerMetrics</span>&gt;,
 }
 
 <span class="kw">impl</span> <span class="ident">BatchMaker</span> {
@@ -223,11 +223,11 @@
         <span class="ident">committee</span>: <span class="ident">Committee</span>,
         <span class="ident">batch_size</span>: <span class="ident">usize</span>,
         <span class="ident">max_batch_delay</span>: <span class="ident">Duration</span>,
-        <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
-        <span class="ident">rx_transaction</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Transaction</span><span class="op">&gt;</span>,
-        <span class="ident">tx_message</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">Batch</span><span class="op">&gt;</span>,
-        <span class="ident">node_metrics</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">WorkerMetrics</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+        <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span>&lt;<span class="ident">ReconfigureNotification</span>&gt;,
+        <span class="ident">rx_transaction</span>: <span class="ident">Receiver</span>&lt;<span class="ident">Transaction</span>&gt;,
+        <span class="ident">tx_message</span>: <span class="ident">Sender</span>&lt;<span class="ident">Batch</span>&gt;,
+        <span class="ident">node_metrics</span>: <span class="ident">Arc</span>&lt;<span class="ident">WorkerMetrics</span>&gt;,
+    ) -&gt; <span class="ident">JoinHandle</span>&lt;()&gt; {
         <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
             <span class="self">Self</span> {
                 <span class="ident">committee</span>,
@@ -236,7 +236,7 @@
                 <span class="ident">rx_reconfigure</span>,
                 <span class="ident">rx_transaction</span>,
                 <span class="ident">tx_message</span>,
-                <span class="ident">current_batch</span>: <span class="ident">Batch</span>(<span class="ident">Vec::with_capacity</span>(<span class="ident">batch_size</span> <span class="op">*</span> <span class="number">2</span>)),
+                <span class="ident">current_batch</span>: <span class="ident">Batch</span>(<span class="ident">Vec::with_capacity</span>(<span class="ident">batch_size</span> * <span class="number">2</span>)),
                 <span class="ident">current_batch_size</span>: <span class="number">0</span>,
                 <span class="ident">node_metrics</span>,
             }
@@ -247,39 +247,39 @@
 
     <span class="doccomment">/// Main loop receiving incoming transactions and creating batches.</span>
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">run</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
-        <span class="kw">let</span> <span class="ident">timer</span> <span class="op">=</span> <span class="ident">sleep</span>(<span class="self">self</span>.<span class="ident">max_batch_delay</span>);
+        <span class="kw">let</span> <span class="ident">timer</span> = <span class="ident">sleep</span>(<span class="self">self</span>.<span class="ident">max_batch_delay</span>);
         <span class="macro">tokio::pin!</span>(<span class="ident">timer</span>);
 
         <span class="kw">loop</span> {
             <span class="macro">tokio::select!</span> {
                 <span class="comment">// Assemble client transactions into batches of preset size.</span>
-                <span class="prelude-val">Some</span>(<span class="ident">transaction</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">rx_transaction</span>.<span class="ident">recv</span>() =&gt; {
-                    <span class="self">self</span>.<span class="ident">current_batch_size</span> <span class="op">+</span><span class="op">=</span> <span class="ident">transaction</span>.<span class="ident">len</span>();
+                <span class="prelude-val">Some</span>(<span class="ident">transaction</span>) = <span class="self">self</span>.<span class="ident">rx_transaction</span>.<span class="ident">recv</span>() =&gt; {
+                    <span class="self">self</span>.<span class="ident">current_batch_size</span> += <span class="ident">transaction</span>.<span class="ident">len</span>();
                     <span class="self">self</span>.<span class="ident">current_batch</span>.<span class="number">0</span>.<span class="ident">push</span>(<span class="ident">transaction</span>);
-                    <span class="kw">if</span> <span class="self">self</span>.<span class="ident">current_batch_size</span> <span class="op">&gt;</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">batch_size</span> {
+                    <span class="kw">if</span> <span class="self">self</span>.<span class="ident">current_batch_size</span> &gt;= <span class="self">self</span>.<span class="ident">batch_size</span> {
                         <span class="self">self</span>.<span class="ident">seal</span>(<span class="bool-val">false</span>).<span class="kw">await</span>;
-                        <span class="ident">timer</span>.<span class="ident">as_mut</span>().<span class="ident">reset</span>(<span class="ident">Instant::now</span>() <span class="op">+</span> <span class="self">self</span>.<span class="ident">max_batch_delay</span>);
+                        <span class="ident">timer</span>.<span class="ident">as_mut</span>().<span class="ident">reset</span>(<span class="ident">Instant::now</span>() + <span class="self">self</span>.<span class="ident">max_batch_delay</span>);
                     }
                 },
 
                 <span class="comment">// If the timer triggers, seal the batch even if it contains few transactions.</span>
-                () <span class="op">=</span> <span class="kw-2">&amp;mut</span> <span class="ident">timer</span> =&gt; {
-                    <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">current_batch</span>.<span class="number">0</span>.<span class="ident">is_empty</span>() {
+                () = <span class="kw-2">&amp;mut</span> <span class="ident">timer</span> =&gt; {
+                    <span class="kw">if</span> !<span class="self">self</span>.<span class="ident">current_batch</span>.<span class="number">0</span>.<span class="ident">is_empty</span>() {
                         <span class="self">self</span>.<span class="ident">seal</span>(<span class="bool-val">true</span>).<span class="kw">await</span>;
                     }
-                    <span class="ident">timer</span>.<span class="ident">as_mut</span>().<span class="ident">reset</span>(<span class="ident">Instant::now</span>() <span class="op">+</span> <span class="self">self</span>.<span class="ident">max_batch_delay</span>);
+                    <span class="ident">timer</span>.<span class="ident">as_mut</span>().<span class="ident">reset</span>(<span class="ident">Instant::now</span>() + <span class="self">self</span>.<span class="ident">max_batch_delay</span>);
                 }
 
                 <span class="comment">// Trigger reconfigure.</span>
-                <span class="ident">result</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">rx_reconfigure</span>.<span class="ident">changed</span>() =&gt; {
+                <span class="ident">result</span> = <span class="self">self</span>.<span class="ident">rx_reconfigure</span>.<span class="ident">changed</span>() =&gt; {
                     <span class="ident">result</span>.<span class="ident">expect</span>(<span class="string">&quot;Committee channel dropped&quot;</span>);
-                    <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">rx_reconfigure</span>.<span class="ident">borrow</span>().<span class="ident">clone</span>();
+                    <span class="kw">let</span> <span class="ident">message</span> = <span class="self">self</span>.<span class="ident">rx_reconfigure</span>.<span class="ident">borrow</span>().<span class="ident">clone</span>();
                     <span class="kw">match</span> <span class="ident">message</span> {
                         <span class="ident">ReconfigureNotification::NewEpoch</span>(<span class="ident">new_committee</span>) =&gt; {
-                            <span class="self">self</span>.<span class="ident">committee</span> <span class="op">=</span> <span class="ident">new_committee</span>;
+                            <span class="self">self</span>.<span class="ident">committee</span> = <span class="ident">new_committee</span>;
                         },
                         <span class="ident">ReconfigureNotification::UpdateCommittee</span>(<span class="ident">new_committee</span>) =&gt; {
-                            <span class="self">self</span>.<span class="ident">committee</span> <span class="op">=</span> <span class="ident">new_committee</span>;
+                            <span class="self">self</span>.<span class="ident">committee</span> = <span class="ident">new_committee</span>;
 
                         },
                         <span class="ident">ReconfigureNotification::Shutdown</span> =&gt; <span class="kw">return</span>
@@ -295,30 +295,30 @@
 
     <span class="doccomment">/// Seal and broadcast the current batch.</span>
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">seal</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">timeout</span>: <span class="ident">bool</span>) {
-        <span class="kw">let</span> <span class="ident">size</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">current_batch_size</span>;
+        <span class="kw">let</span> <span class="ident">size</span> = <span class="self">self</span>.<span class="ident">current_batch_size</span>;
 
         <span class="comment">// Look for sample txs (they all start with 0) and gather their txs id (the next 8 bytes).</span>
-        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;benchmark&quot;</span>)]</span>
-        <span class="kw">let</span> <span class="ident">tx_ids</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span> <span class="op">=</span> <span class="self">self</span>
+        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> = <span class="string">&quot;benchmark&quot;</span>)]</span>
+        <span class="kw">let</span> <span class="ident">tx_ids</span>: <span class="ident">Vec</span>&lt;<span class="kw">_</span>&gt; = <span class="self">self</span>
             .<span class="ident">current_batch</span>
             .<span class="number">0</span>
             .<span class="ident">iter</span>()
-            .<span class="ident">filter</span>(<span class="op">|</span><span class="ident">tx</span><span class="op">|</span> <span class="ident">tx</span>[<span class="number">0</span>] <span class="op">==</span> <span class="number">0u8</span> <span class="op">&amp;&amp;</span> <span class="ident">tx</span>.<span class="ident">len</span>() <span class="op">&gt;</span> <span class="number">8</span>)
-            .<span class="ident">filter_map</span>(<span class="op">|</span><span class="ident">tx</span><span class="op">|</span> <span class="ident">tx</span>[<span class="number">1</span>..<span class="number">9</span>].<span class="ident">try_into</span>().<span class="ident">ok</span>())
+            .<span class="ident">filter</span>(|<span class="ident">tx</span>| <span class="ident">tx</span>[<span class="number">0</span>] == <span class="number">0u8</span> &amp;&amp; <span class="ident">tx</span>.<span class="ident">len</span>() &gt; <span class="number">8</span>)
+            .<span class="ident">filter_map</span>(|<span class="ident">tx</span>| <span class="ident">tx</span>[<span class="number">1</span>..<span class="number">9</span>].<span class="ident">try_into</span>().<span class="ident">ok</span>())
             .<span class="ident">collect</span>();
 
         <span class="comment">// Serialize the batch.</span>
-        <span class="self">self</span>.<span class="ident">current_batch_size</span> <span class="op">=</span> <span class="number">0</span>;
-        <span class="kw">let</span> <span class="ident">batch</span>: <span class="ident">Batch</span> <span class="op">=</span> <span class="ident">Batch</span>(<span class="self">self</span>.<span class="ident">current_batch</span>.<span class="number">0</span>.<span class="ident">drain</span>(..).<span class="ident">collect</span>());
+        <span class="self">self</span>.<span class="ident">current_batch_size</span> = <span class="number">0</span>;
+        <span class="kw">let</span> <span class="ident">batch</span>: <span class="ident">Batch</span> = <span class="ident">Batch</span>(<span class="self">self</span>.<span class="ident">current_batch</span>.<span class="number">0</span>.<span class="ident">drain</span>(..).<span class="ident">collect</span>());
 
-        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;benchmark&quot;</span>)]</span>
+        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> = <span class="string">&quot;benchmark&quot;</span>)]</span>
         {
-            <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">types::WorkerMessage::Batch</span>(<span class="ident">batch</span>.<span class="ident">clone</span>());
-            <span class="kw">let</span> <span class="ident">serialized</span> <span class="op">=</span>
+            <span class="kw">let</span> <span class="ident">message</span> = <span class="ident">types::WorkerMessage::Batch</span>(<span class="ident">batch</span>.<span class="ident">clone</span>());
+            <span class="kw">let</span> <span class="ident">serialized</span> =
                 <span class="ident">bincode::serialize</span>(<span class="kw-2">&amp;</span><span class="ident">message</span>).<span class="ident">expect</span>(<span class="string">&quot;Failed to serialize our own batch&quot;</span>);
 
             <span class="comment">// NOTE: This is one extra hash that is only needed to print the following log entries.</span>
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">digest</span>) <span class="op">=</span> <span class="ident">types::serialized_batch_digest</span>(<span class="kw-2">&amp;</span><span class="ident">serialized</span>) {
+            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">digest</span>) = <span class="ident">types::serialized_batch_digest</span>(<span class="kw-2">&amp;</span><span class="ident">serialized</span>) {
                 <span class="kw">for</span> <span class="ident">id</span> <span class="kw">in</span> <span class="ident">tx_ids</span> {
                     <span class="comment">// NOTE: This log entry is used to compute performance.</span>
                     <span class="macro">tracing::info!</span>(
@@ -333,7 +333,7 @@
             }
         }
 
-        <span class="kw">let</span> <span class="ident">reason</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">timeout</span> { <span class="string">&quot;timeout&quot;</span> } <span class="kw">else</span> { <span class="string">&quot;size_reached&quot;</span> };
+        <span class="kw">let</span> <span class="ident">reason</span> = <span class="kw">if</span> <span class="ident">timeout</span> { <span class="string">&quot;timeout&quot;</span> } <span class="kw">else</span> { <span class="string">&quot;size_reached&quot;</span> };
 
         <span class="self">self</span>.<span class="ident">node_metrics</span>
             .<span class="ident">created_batch_size</span>
@@ -347,4 +347,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (20ffea693 2022-08-11)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>

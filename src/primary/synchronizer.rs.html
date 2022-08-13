@@ -188,7 +188,7 @@
 };
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="attribute">#[<span class="ident">path</span> <span class="op">=</span> <span class="string">&quot;tests/synchronizer_tests.rs&quot;</span>]</span>
+<span class="attribute">#[<span class="ident">path</span> = <span class="string">&quot;tests/synchronizer_tests.rs&quot;</span>]</span>
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">synchronizer_tests</span>;
 
 <span class="doccomment">/// The `Synchronizer` checks if we have all batches and parents referenced by a header. If we don&#39;t, it sends</span>
@@ -197,29 +197,29 @@
     <span class="doccomment">/// The public key of this primary.</span>
     <span class="ident">name</span>: <span class="ident">PublicKey</span>,
     <span class="doccomment">/// The persistent storage.</span>
-    <span class="ident">certificate_store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span><span class="op">&gt;</span>,
-    <span class="ident">payload_store</span>: <span class="ident">Store</span><span class="op">&lt;</span>(<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>), <span class="ident">PayloadToken</span><span class="op">&gt;</span>,
+    <span class="ident">certificate_store</span>: <span class="ident">Store</span>&lt;<span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span>&gt;,
+    <span class="ident">payload_store</span>: <span class="ident">Store</span>&lt;(<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>), <span class="ident">PayloadToken</span>&gt;,
     <span class="doccomment">/// Send commands to the `HeaderWaiter`.</span>
-    <span class="ident">tx_header_waiter</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">WaiterMessage</span><span class="op">&gt;</span>,
+    <span class="ident">tx_header_waiter</span>: <span class="ident">Sender</span>&lt;<span class="ident">WaiterMessage</span>&gt;,
     <span class="doccomment">/// Send commands to the `CertificateWaiter`.</span>
-    <span class="ident">tx_certificate_waiter</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span>,
+    <span class="ident">tx_certificate_waiter</span>: <span class="ident">Sender</span>&lt;<span class="ident">Certificate</span>&gt;,
     <span class="doccomment">/// The genesis and its digests.</span>
-    <span class="ident">genesis</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span>)<span class="op">&gt;</span>,
+    <span class="ident">genesis</span>: <span class="ident">Vec</span>&lt;(<span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span>)&gt;,
     <span class="doccomment">/// The dag used for the external consensus</span>
-    <span class="ident">dag</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Dag</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">dag</span>: <span class="prelude-ty">Option</span>&lt;<span class="ident">Arc</span>&lt;<span class="ident">Dag</span>&gt;&gt;,
 }
 
 <span class="kw">impl</span> <span class="ident">Synchronizer</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(
         <span class="ident">name</span>: <span class="ident">PublicKey</span>,
         <span class="ident">committee</span>: <span class="kw-2">&amp;</span><span class="ident">Committee</span>,
-        <span class="ident">certificate_store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span><span class="op">&gt;</span>,
-        <span class="ident">payload_store</span>: <span class="ident">Store</span><span class="op">&lt;</span>(<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>), <span class="ident">PayloadToken</span><span class="op">&gt;</span>,
-        <span class="ident">tx_header_waiter</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">WaiterMessage</span><span class="op">&gt;</span>,
-        <span class="ident">tx_certificate_waiter</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span>,
-        <span class="ident">dag</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Dag</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">certificate_store</span>: <span class="ident">Store</span>&lt;<span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span>&gt;,
+        <span class="ident">payload_store</span>: <span class="ident">Store</span>&lt;(<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>), <span class="ident">PayloadToken</span>&gt;,
+        <span class="ident">tx_header_waiter</span>: <span class="ident">Sender</span>&lt;<span class="ident">WaiterMessage</span>&gt;,
+        <span class="ident">tx_certificate_waiter</span>: <span class="ident">Sender</span>&lt;<span class="ident">Certificate</span>&gt;,
+        <span class="ident">dag</span>: <span class="prelude-ty">Option</span>&lt;<span class="ident">Arc</span>&lt;<span class="ident">Dag</span>&gt;&gt;,
     ) -&gt; <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">synchronizer</span> <span class="op">=</span> <span class="self">Self</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">synchronizer</span> = <span class="self">Self</span> {
             <span class="ident">name</span>,
             <span class="ident">certificate_store</span>,
             <span class="ident">payload_store</span>,
@@ -234,22 +234,22 @@
 
     <span class="doccomment">/// Update the genesis (called upon reconfiguration).</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">update_genesis</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">committee</span>: <span class="kw-2">&amp;</span><span class="ident">Committee</span>) {
-        <span class="self">self</span>.<span class="ident">genesis</span> <span class="op">=</span> <span class="ident">Certificate::genesis</span>(<span class="ident">committee</span>)
+        <span class="self">self</span>.<span class="ident">genesis</span> = <span class="ident">Certificate::genesis</span>(<span class="ident">committee</span>)
             .<span class="ident">into_iter</span>()
-            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> (<span class="ident">x</span>.<span class="ident">digest</span>(), <span class="ident">x</span>))
+            .<span class="ident">map</span>(|<span class="ident">x</span>| (<span class="ident">x</span>.<span class="ident">digest</span>(), <span class="ident">x</span>))
             .<span class="ident">collect</span>();
     }
 
     <span class="doccomment">/// Returns `true` if we have all transactions of the payload. If we don&#39;t, we return false,</span>
     <span class="doccomment">/// synchronize with other nodes (through our workers), and re-schedule processing of the</span>
     <span class="doccomment">/// header for when we will have its complete payload.</span>
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">missing_payload</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">header</span>: <span class="kw-2">&amp;</span><span class="ident">Header</span>) -&gt; <span class="ident">DagResult</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">missing_payload</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">header</span>: <span class="kw-2">&amp;</span><span class="ident">Header</span>) -&gt; <span class="ident">DagResult</span>&lt;<span class="ident">bool</span>&gt; {
         <span class="comment">// We don&#39;t store the payload of our own workers.</span>
-        <span class="kw">if</span> <span class="ident">header</span>.<span class="ident">author</span> <span class="op">==</span> <span class="self">self</span>.<span class="ident">name</span> {
+        <span class="kw">if</span> <span class="ident">header</span>.<span class="ident">author</span> == <span class="self">self</span>.<span class="ident">name</span> {
             <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="bool-val">false</span>);
         }
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">missing</span> <span class="op">=</span> <span class="ident">HashMap::new</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">missing</span> = <span class="ident">HashMap::new</span>();
         <span class="kw">for</span> (<span class="ident">digest</span>, <span class="ident">worker_id</span>) <span class="kw">in</span> <span class="ident">header</span>.<span class="ident">payload</span>.<span class="ident">iter</span>() {
             <span class="comment">// Check whether we have the batch. If one of our worker has the batch, the primary stores the pair</span>
             <span class="comment">// (digest, worker_id) in its own storage. It is important to verify that we received the batch</span>
@@ -286,15 +286,15 @@
     <span class="doccomment">/// Returns the parents of a header if we have them all. If at least one parent is missing,</span>
     <span class="doccomment">/// we return an empty vector, synchronize with other nodes, and re-schedule processing</span>
     <span class="doccomment">/// of the header for when we will have all the parents.</span>
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get_parents</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">header</span>: <span class="kw-2">&amp;</span><span class="ident">Header</span>) -&gt; <span class="ident">DagResult</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">missing</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">parents</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
+    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get_parents</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">header</span>: <span class="kw-2">&amp;</span><span class="ident">Header</span>) -&gt; <span class="ident">DagResult</span>&lt;<span class="ident">Vec</span>&lt;<span class="ident">Certificate</span>&gt;&gt; {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">missing</span> = <span class="ident">Vec::new</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">parents</span> = <span class="ident">Vec::new</span>();
         <span class="kw">for</span> <span class="ident">digest</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">header</span>.<span class="ident">parents</span> {
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">genesis</span>) <span class="op">=</span> <span class="self">self</span>
+            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">genesis</span>) = <span class="self">self</span>
                 .<span class="ident">genesis</span>
                 .<span class="ident">iter</span>()
-                .<span class="ident">find</span>(<span class="op">|</span>(<span class="ident">x</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="ident">x</span> <span class="op">==</span> <span class="ident">digest</span>)
-                .<span class="ident">map</span>(<span class="op">|</span>(<span class="kw">_</span>, <span class="ident">x</span>)<span class="op">|</span> <span class="ident">x</span>)
+                .<span class="ident">find</span>(|(<span class="ident">x</span>, <span class="kw">_</span>)| <span class="ident">x</span> == <span class="ident">digest</span>)
+                .<span class="ident">map</span>(|(<span class="kw">_</span>, <span class="ident">x</span>)| <span class="ident">x</span>)
             {
                 <span class="ident">parents</span>.<span class="ident">push</span>(<span class="ident">genesis</span>.<span class="ident">clone</span>());
                 <span class="kw">continue</span>;
@@ -320,13 +320,13 @@
     <span class="doccomment">/// Check whether we have seen all the ancestors of the certificate. If we don&#39;t, send the</span>
     <span class="doccomment">/// certificate to the `CertificateWaiter` which will trigger re-processing once we have</span>
     <span class="doccomment">/// all the missing data.</span>
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">deliver_certificate</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">certificate</span>: <span class="kw-2">&amp;</span><span class="ident">Certificate</span>) -&gt; <span class="ident">DagResult</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">deliver_certificate</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">certificate</span>: <span class="kw-2">&amp;</span><span class="ident">Certificate</span>) -&gt; <span class="ident">DagResult</span>&lt;<span class="ident">bool</span>&gt; {
         <span class="kw">for</span> <span class="ident">digest</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">certificate</span>.<span class="ident">header</span>.<span class="ident">parents</span> {
-            <span class="kw">if</span> <span class="self">self</span>.<span class="ident">genesis</span>.<span class="ident">iter</span>().<span class="ident">any</span>(<span class="op">|</span>(<span class="ident">x</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="ident">x</span> <span class="op">==</span> <span class="ident">digest</span>) {
+            <span class="kw">if</span> <span class="self">self</span>.<span class="ident">genesis</span>.<span class="ident">iter</span>().<span class="ident">any</span>(|(<span class="ident">x</span>, <span class="kw">_</span>)| <span class="ident">x</span> == <span class="ident">digest</span>) {
                 <span class="kw">continue</span>;
             }
 
-            <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">has_processed_certificate</span>(<span class="kw-2">*</span><span class="ident">digest</span>).<span class="kw">await</span><span class="question-mark">?</span> {
+            <span class="kw">if</span> !<span class="self">self</span>.<span class="ident">has_processed_certificate</span>(<span class="kw-2">*</span><span class="ident">digest</span>).<span class="kw">await</span><span class="question-mark">?</span> {
                 <span class="self">self</span>.<span class="ident">tx_certificate_waiter</span>
                     .<span class="ident">send</span>(<span class="ident">certificate</span>.<span class="ident">clone</span>())
                     .<span class="kw">await</span>
@@ -343,12 +343,12 @@
     <span class="doccomment">/// node. Depending on the mode of running the node (internal Vs external</span>
     <span class="doccomment">/// consensus) either the dag will be used to confirm that or the</span>
     <span class="doccomment">/// certificate_store.</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">has_processed_certificate</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">digest</span>: <span class="ident">CertificateDigest</span>) -&gt; <span class="ident">DagResult</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span> {
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dag</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">dag</span> {
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">has_processed_certificate</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">digest</span>: <span class="ident">CertificateDigest</span>) -&gt; <span class="ident">DagResult</span>&lt;<span class="ident">bool</span>&gt; {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dag</span>) = <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">dag</span> {
             <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">dag</span>.<span class="ident">has_ever_contained</span>(<span class="ident">digest</span>).<span class="kw">await</span>);
         }
         <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">certificate_store</span>.<span class="ident">read</span>(<span class="ident">digest</span>).<span class="kw">await</span><span class="question-mark">?</span>.<span class="ident">is_some</span>())
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (20ffea693 2022-08-11)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>

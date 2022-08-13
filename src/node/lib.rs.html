@@ -334,6 +334,17 @@
 <span id="334">334</span>
 <span id="335">335</span>
 <span id="336">336</span>
+<span id="337">337</span>
+<span id="338">338</span>
+<span id="339">339</span>
+<span id="340">340</span>
+<span id="341">341</span>
+<span id="342">342</span>
+<span id="343">343</span>
+<span id="344">344</span>
+<span id="345">345</span>
+<span id="346">346</span>
+<span id="347">347</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
 <span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
 <span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">Parameters</span>, <span class="ident">SharedCommittee</span>, <span class="ident">WorkerId</span>};
@@ -356,9 +367,10 @@
     <span class="ident">rocks</span>::{<span class="ident">open_cf</span>, <span class="ident">DBMap</span>},
     <span class="ident">Store</span>,
 };
+<span class="kw">use</span> <span class="ident">task_group</span>::{<span class="ident">TaskGroup</span>, <span class="ident">TaskManager</span>};
 <span class="kw">use</span> <span class="ident">tokio</span>::{
     <span class="ident">sync</span>::{<span class="ident">mpsc::Sender</span>, <span class="ident">watch</span>},
-    <span class="ident">task::JoinHandle</span>,
+    <span class="ident">task</span>::{<span class="ident">JoinError</span>, <span class="ident">JoinHandle</span>},
 };
 <span class="kw">use</span> <span class="ident">tracing::debug</span>;
 <span class="kw">use</span> <span class="ident">types</span>::{
@@ -373,25 +385,25 @@
 
 <span class="doccomment">/// All the data stores of the node.</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">NodeStorage</span> {
-    <span class="kw">pub</span> <span class="ident">header_store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">HeaderDigest</span>, <span class="ident">Header</span><span class="op">&gt;</span>,
-    <span class="kw">pub</span> <span class="ident">certificate_store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span><span class="op">&gt;</span>,
-    <span class="kw">pub</span> <span class="ident">payload_store</span>: <span class="ident">Store</span><span class="op">&lt;</span>(<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>), <span class="ident">PayloadToken</span><span class="op">&gt;</span>,
-    <span class="kw">pub</span> <span class="ident">batch_store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">BatchDigest</span>, <span class="ident">SerializedBatchMessage</span><span class="op">&gt;</span>,
-    <span class="kw">pub</span> <span class="ident">consensus_store</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">ConsensusStore</span><span class="op">&gt;</span>,
+    <span class="kw">pub</span> <span class="ident">header_store</span>: <span class="ident">Store</span>&lt;<span class="ident">HeaderDigest</span>, <span class="ident">Header</span>&gt;,
+    <span class="kw">pub</span> <span class="ident">certificate_store</span>: <span class="ident">Store</span>&lt;<span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span>&gt;,
+    <span class="kw">pub</span> <span class="ident">payload_store</span>: <span class="ident">Store</span>&lt;(<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>), <span class="ident">PayloadToken</span>&gt;,
+    <span class="kw">pub</span> <span class="ident">batch_store</span>: <span class="ident">Store</span>&lt;<span class="ident">BatchDigest</span>, <span class="ident">SerializedBatchMessage</span>&gt;,
+    <span class="kw">pub</span> <span class="ident">consensus_store</span>: <span class="ident">Arc</span>&lt;<span class="ident">ConsensusStore</span>&gt;,
 }
 
 <span class="kw">impl</span> <span class="ident">NodeStorage</span> {
     <span class="doccomment">/// The datastore column family names.</span>
-    <span class="kw">const</span> <span class="ident">HEADERS_CF</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span> <span class="op">=</span> <span class="string">&quot;headers&quot;</span>;
-    <span class="kw">const</span> <span class="ident">CERTIFICATES_CF</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span> <span class="op">=</span> <span class="string">&quot;certificates&quot;</span>;
-    <span class="kw">const</span> <span class="ident">PAYLOAD_CF</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span> <span class="op">=</span> <span class="string">&quot;payload&quot;</span>;
-    <span class="kw">const</span> <span class="ident">BATCHES_CF</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span> <span class="op">=</span> <span class="string">&quot;batches&quot;</span>;
-    <span class="kw">const</span> <span class="ident">LAST_COMMITTED_CF</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span> <span class="op">=</span> <span class="string">&quot;last_committed&quot;</span>;
-    <span class="kw">const</span> <span class="ident">SEQUENCE_CF</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span> <span class="op">=</span> <span class="string">&quot;sequence&quot;</span>;
+    <span class="kw">const</span> <span class="ident">HEADERS_CF</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span> = <span class="string">&quot;headers&quot;</span>;
+    <span class="kw">const</span> <span class="ident">CERTIFICATES_CF</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span> = <span class="string">&quot;certificates&quot;</span>;
+    <span class="kw">const</span> <span class="ident">PAYLOAD_CF</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span> = <span class="string">&quot;payload&quot;</span>;
+    <span class="kw">const</span> <span class="ident">BATCHES_CF</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span> = <span class="string">&quot;batches&quot;</span>;
+    <span class="kw">const</span> <span class="ident">LAST_COMMITTED_CF</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span> = <span class="string">&quot;last_committed&quot;</span>;
+    <span class="kw">const</span> <span class="ident">SEQUENCE_CF</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span> = <span class="string">&quot;sequence&quot;</span>;
 
     <span class="doccomment">/// Open or reopen all the storage of the node.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">reopen</span><span class="op">&lt;</span><span class="ident">Path</span>: <span class="ident">AsRef</span><span class="op">&lt;</span><span class="ident">std::path::Path</span><span class="op">&gt;</span><span class="op">&gt;</span>(<span class="ident">store_path</span>: <span class="ident">Path</span>) -&gt; <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="ident">rocksdb</span> <span class="op">=</span> <span class="ident">open_cf</span>(
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">reopen</span>&lt;<span class="ident">Path</span>: <span class="ident">AsRef</span>&lt;<span class="ident">std::path::Path</span>&gt;&gt;(<span class="ident">store_path</span>: <span class="ident">Path</span>) -&gt; <span class="self">Self</span> {
+        <span class="kw">let</span> <span class="ident">rocksdb</span> = <span class="ident">open_cf</span>(
             <span class="ident">store_path</span>,
             <span class="prelude-val">None</span>,
             <span class="kw-2">&amp;</span>[
@@ -405,20 +417,20 @@
         )
         .<span class="ident">expect</span>(<span class="string">&quot;Cannot open database&quot;</span>);
 
-        <span class="kw">let</span> (<span class="ident">header_map</span>, <span class="ident">certificate_map</span>, <span class="ident">payload_map</span>, <span class="ident">batch_map</span>, <span class="ident">last_committed_map</span>, <span class="ident">sequence_map</span>) <span class="op">=</span> <span class="macro">reopen!</span>(<span class="kw-2">&amp;</span><span class="ident">rocksdb</span>,
-            <span class="ident"><span class="self">Self</span>::HEADERS_CF</span>;<span class="op">&lt;</span><span class="ident">HeaderDigest</span>, <span class="ident">Header</span><span class="op">&gt;</span>,
-            <span class="ident"><span class="self">Self</span>::CERTIFICATES_CF</span>;<span class="op">&lt;</span><span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span><span class="op">&gt;</span>,
-            <span class="ident"><span class="self">Self</span>::PAYLOAD_CF</span>;<span class="op">&lt;</span>(<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>), <span class="ident">PayloadToken</span><span class="op">&gt;</span>,
-            <span class="ident"><span class="self">Self</span>::BATCHES_CF</span>;<span class="op">&lt;</span><span class="ident">BatchDigest</span>, <span class="ident">SerializedBatchMessage</span><span class="op">&gt;</span>,
-            <span class="ident"><span class="self">Self</span>::LAST_COMMITTED_CF</span>;<span class="op">&lt;</span><span class="ident">PublicKey</span>, <span class="ident">Round</span><span class="op">&gt;</span>,
-            <span class="ident"><span class="self">Self</span>::SEQUENCE_CF</span>;<span class="op">&lt;</span><span class="ident">SequenceNumber</span>, <span class="ident">CertificateDigest</span><span class="op">&gt;</span>
+        <span class="kw">let</span> (<span class="ident">header_map</span>, <span class="ident">certificate_map</span>, <span class="ident">payload_map</span>, <span class="ident">batch_map</span>, <span class="ident">last_committed_map</span>, <span class="ident">sequence_map</span>) = <span class="macro">reopen!</span>(<span class="kw-2">&amp;</span><span class="ident">rocksdb</span>,
+            <span class="ident"><span class="self">Self</span>::HEADERS_CF</span>;&lt;<span class="ident">HeaderDigest</span>, <span class="ident">Header</span>&gt;,
+            <span class="ident"><span class="self">Self</span>::CERTIFICATES_CF</span>;&lt;<span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span>&gt;,
+            <span class="ident"><span class="self">Self</span>::PAYLOAD_CF</span>;&lt;(<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>), <span class="ident">PayloadToken</span>&gt;,
+            <span class="ident"><span class="self">Self</span>::BATCHES_CF</span>;&lt;<span class="ident">BatchDigest</span>, <span class="ident">SerializedBatchMessage</span>&gt;,
+            <span class="ident"><span class="self">Self</span>::LAST_COMMITTED_CF</span>;&lt;<span class="ident">PublicKey</span>, <span class="ident">Round</span>&gt;,
+            <span class="ident"><span class="self">Self</span>::SEQUENCE_CF</span>;&lt;<span class="ident">SequenceNumber</span>, <span class="ident">CertificateDigest</span>&gt;
         );
 
-        <span class="kw">let</span> <span class="ident">header_store</span> <span class="op">=</span> <span class="ident">Store::new</span>(<span class="ident">header_map</span>);
-        <span class="kw">let</span> <span class="ident">certificate_store</span> <span class="op">=</span> <span class="ident">Store::new</span>(<span class="ident">certificate_map</span>);
-        <span class="kw">let</span> <span class="ident">payload_store</span> <span class="op">=</span> <span class="ident">Store::new</span>(<span class="ident">payload_map</span>);
-        <span class="kw">let</span> <span class="ident">batch_store</span> <span class="op">=</span> <span class="ident">Store::new</span>(<span class="ident">batch_map</span>);
-        <span class="kw">let</span> <span class="ident">consensus_store</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">ConsensusStore::new</span>(<span class="ident">last_committed_map</span>, <span class="ident">sequence_map</span>));
+        <span class="kw">let</span> <span class="ident">header_store</span> = <span class="ident">Store::new</span>(<span class="ident">header_map</span>);
+        <span class="kw">let</span> <span class="ident">certificate_store</span> = <span class="ident">Store::new</span>(<span class="ident">certificate_map</span>);
+        <span class="kw">let</span> <span class="ident">payload_store</span> = <span class="ident">Store::new</span>(<span class="ident">payload_map</span>);
+        <span class="kw">let</span> <span class="ident">batch_store</span> = <span class="ident">Store::new</span>(<span class="ident">batch_map</span>);
+        <span class="kw">let</span> <span class="ident">consensus_store</span> = <span class="ident">Arc::new</span>(<span class="ident">ConsensusStore::new</span>(<span class="ident">last_committed_map</span>, <span class="ident">sequence_map</span>));
 
         <span class="self">Self</span> {
             <span class="ident">header_store</span>,
@@ -435,10 +447,10 @@
 
 <span class="kw">impl</span> <span class="ident">Node</span> {
     <span class="doccomment">/// The default channel capacity.</span>
-    <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">CHANNEL_CAPACITY</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">1_000</span>;
+    <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">CHANNEL_CAPACITY</span>: <span class="ident">usize</span> = <span class="number">1_000</span>;
 
     <span class="doccomment">/// Spawn a new primary. Optionally also spawn the consensus and a client executing transactions.</span>
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">spawn_primary</span><span class="op">&lt;</span><span class="ident">State</span><span class="op">&gt;</span>(
+    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">spawn_primary</span>&lt;<span class="ident">State</span>&gt;(
         <span class="comment">// The private-public key pair of this authority.</span>
         <span class="ident">keypair</span>: <span class="ident">KeyPair</span>,
         <span class="comment">// The committee information.</span>
@@ -454,52 +466,52 @@
         <span class="comment">// external consensus is also spawned.</span>
         <span class="ident">internal_consensus</span>: <span class="ident">bool</span>,
         <span class="comment">// The state used by the client to execute transactions.</span>
-        <span class="ident">execution_state</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">State</span><span class="op">&gt;</span>,
+        <span class="ident">execution_state</span>: <span class="ident">Arc</span>&lt;<span class="ident">State</span>&gt;,
         <span class="comment">// A channel to output transactions execution confirmations.</span>
-        <span class="ident">tx_confirmation</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">ExecutorOutput</span><span class="op">&lt;</span><span class="ident">State</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">tx_confirmation</span>: <span class="ident">Sender</span>&lt;<span class="ident">ExecutorOutput</span>&lt;<span class="ident">State</span>&gt;&gt;,
         <span class="comment">// A prometheus exporter Registry to use for the metrics</span>
         <span class="ident">registry</span>: <span class="kw-2">&amp;</span><span class="ident">Registry</span>,
-    ) -&gt; <span class="ident">SubscriberResult</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>
+    ) -&gt; <span class="ident">SubscriberResult</span>&lt;<span class="ident">TaskManager</span>&lt;<span class="ident">JoinError</span>&gt;&gt;
     <span class="kw">where</span>
-        <span class="ident">State</span>: <span class="ident">ExecutionState</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-        <span class="ident">State::Outcome</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+        <span class="ident">State</span>: <span class="ident">ExecutionState</span> + <span class="ident">Send</span> + <span class="ident">Sync</span> + <span class="lifetime">&#39;static</span>,
+        <span class="ident">State::Outcome</span>: <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
         <span class="ident">State::Error</span>: <span class="ident">Debug</span>,
     {
-        <span class="kw">let</span> <span class="ident">initial_committee</span> <span class="op">=</span> <span class="ident">ReconfigureNotification::NewEpoch</span>((<span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">committee</span>.<span class="ident">load</span>()).<span class="ident">clone</span>());
-        <span class="kw">let</span> (<span class="ident">tx_reconfigure</span>, <span class="ident">_rx_reconfigure</span>) <span class="op">=</span> <span class="ident">watch::channel</span>(<span class="ident">initial_committee</span>);
+        <span class="kw">let</span> <span class="ident">initial_committee</span> = <span class="ident">ReconfigureNotification::NewEpoch</span>((<span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">committee</span>.<span class="ident">load</span>()).<span class="ident">clone</span>());
+        <span class="kw">let</span> (<span class="ident">tx_reconfigure</span>, <span class="ident">_rx_reconfigure</span>) = <span class="ident">watch::channel</span>(<span class="ident">initial_committee</span>);
 
         <span class="comment">// These gauge is porcelain: do not modify it without also modifying `primary::metrics::PrimaryChannelMetrics::replace_registered_new_certificates_metric`</span>
         <span class="comment">// This hack avoids a cyclic dependency in the initialization of consensus and primary</span>
-        <span class="kw">let</span> <span class="ident">new_certificates_counter</span> <span class="op">=</span> <span class="ident">IntGauge::new</span>(
+        <span class="kw">let</span> <span class="ident">new_certificates_counter</span> = <span class="ident">IntGauge::new</span>(
             <span class="ident">PrimaryChannelMetrics::NAME_NEW_CERTS</span>,
             <span class="ident">PrimaryChannelMetrics::DESC_NEW_CERTS</span>,
         )
         .<span class="ident">unwrap</span>();
-        <span class="kw">let</span> (<span class="ident">tx_new_certificates</span>, <span class="ident">rx_new_certificates</span>) <span class="op">=</span>
+        <span class="kw">let</span> (<span class="ident">tx_new_certificates</span>, <span class="ident">rx_new_certificates</span>) =
             <span class="ident">metered_channel::channel</span>(<span class="ident"><span class="self">Self</span>::CHANNEL_CAPACITY</span>, <span class="kw-2">&amp;</span><span class="ident">new_certificates_counter</span>);
 
-        <span class="kw">let</span> <span class="ident">committed_certificates_counter</span> <span class="op">=</span> <span class="ident">IntGauge::new</span>(
+        <span class="kw">let</span> <span class="ident">committed_certificates_counter</span> = <span class="ident">IntGauge::new</span>(
             <span class="ident">PrimaryChannelMetrics::NAME_COMMITTED_CERTS</span>,
             <span class="ident">PrimaryChannelMetrics::DESC_COMMITTED_CERTS</span>,
         )
         .<span class="ident">unwrap</span>();
-        <span class="kw">let</span> (<span class="ident">tx_consensus</span>, <span class="ident">rx_consensus</span>) <span class="op">=</span>
+        <span class="kw">let</span> (<span class="ident">tx_consensus</span>, <span class="ident">rx_consensus</span>) =
             <span class="ident">metered_channel::channel</span>(<span class="ident"><span class="self">Self</span>::CHANNEL_CAPACITY</span>, <span class="kw-2">&amp;</span><span class="ident">committed_certificates_counter</span>);
 
         <span class="comment">// Compute the public key of this authority.</span>
-        <span class="kw">let</span> <span class="ident">name</span> <span class="op">=</span> <span class="ident">keypair</span>.<span class="ident">public</span>().<span class="ident">clone</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">handles</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
+        <span class="kw">let</span> <span class="ident">name</span> = <span class="ident">keypair</span>.<span class="ident">public</span>().<span class="ident">clone</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">handles</span> = <span class="ident">Vec::new</span>();
 
-        <span class="kw">let</span> (<span class="ident">dag</span>, <span class="ident">network_model</span>) <span class="op">=</span> <span class="kw">if</span> <span class="op">!</span><span class="ident">internal_consensus</span> {
+        <span class="kw">let</span> (<span class="ident">dag</span>, <span class="ident">network_model</span>) = <span class="kw">if</span> !<span class="ident">internal_consensus</span> {
             <span class="macro">debug!</span>(<span class="string">&quot;Consensus is disabled: the primary will run w/o Tusk&quot;</span>);
-            <span class="kw">let</span> <span class="ident">consensus_metrics</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">ConsensusMetrics::new</span>(<span class="ident">registry</span>));
-            <span class="kw">let</span> (<span class="ident">handle</span>, <span class="ident">dag</span>) <span class="op">=</span> <span class="ident">Dag::new</span>(<span class="kw-2">&amp;</span><span class="ident">committee</span>.<span class="ident">load</span>(), <span class="ident">rx_new_certificates</span>, <span class="ident">consensus_metrics</span>);
+            <span class="kw">let</span> <span class="ident">consensus_metrics</span> = <span class="ident">Arc::new</span>(<span class="ident">ConsensusMetrics::new</span>(<span class="ident">registry</span>));
+            <span class="kw">let</span> (<span class="ident">handle</span>, <span class="ident">dag</span>) = <span class="ident">Dag::new</span>(<span class="kw-2">&amp;</span><span class="ident">committee</span>.<span class="ident">load</span>(), <span class="ident">rx_new_certificates</span>, <span class="ident">consensus_metrics</span>);
 
-            <span class="ident">handles</span>.<span class="ident">push</span>(<span class="ident">handle</span>);
+            <span class="ident">handles</span>.<span class="ident">push</span>((<span class="string">&quot;dag&quot;</span>, <span class="ident">handle</span>));
 
             (<span class="prelude-val">Some</span>(<span class="ident">Arc::new</span>(<span class="ident">dag</span>)), <span class="ident">NetworkModel::Asynchronous</span>)
         } <span class="kw">else</span> {
-            <span class="kw">let</span> <span class="ident">consensus_handles</span> <span class="op">=</span> <span class="ident"><span class="self">Self</span>::spawn_consensus</span>(
+            <span class="kw">let</span> <span class="ident">consensus_handles</span> = <span class="ident"><span class="self">Self</span>::spawn_consensus</span>(
                 <span class="ident">name</span>.<span class="ident">clone</span>(),
                 <span class="ident">committee</span>.<span class="ident">clone</span>(),
                 <span class="ident">store</span>,
@@ -518,12 +530,12 @@
 
         <span class="comment">// Inject memory profiling here if we build with dhat-heap feature flag</span>
         <span class="comment">// Put name of primary in heap profile to distinguish diff primaries</span>
-        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;dhat-heap&quot;</span>)]</span>
-        <span class="kw">let</span> <span class="ident">profiler</span> <span class="op">=</span> {
+        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> = <span class="string">&quot;dhat-heap&quot;</span>)]</span>
+        <span class="kw">let</span> <span class="ident">profiler</span> = {
             <span class="kw">use</span> <span class="ident">crypto::traits::EncodeDecodeBase64</span>;
             <span class="kw">use</span> <span class="ident">std::path::Path</span>;
 
-            <span class="kw">let</span> <span class="ident">heap_file</span> <span class="op">=</span> <span class="macro">format!</span>(<span class="string">&quot;dhat-heap-{}.json&quot;</span>, <span class="ident">name</span>.<span class="ident">encode_base64</span>());
+            <span class="kw">let</span> <span class="ident">heap_file</span> = <span class="macro">format!</span>(<span class="string">&quot;dhat-heap-{}.json&quot;</span>, <span class="ident">name</span>.<span class="ident">encode_base64</span>());
             <span class="ident">Arc::new</span>(
                 <span class="ident">dhat::Profiler::builder</span>()
                     .<span class="ident">file_name</span>(<span class="ident">Path::new</span>(<span class="kw-2">&amp;</span><span class="ident">heap_file</span>))
@@ -532,7 +544,7 @@
         };
 
         <span class="comment">// Spawn the primary.</span>
-        <span class="kw">let</span> <span class="ident">primary_handles</span> <span class="op">=</span> <span class="ident">Primary::spawn</span>(
+        <span class="kw">let</span> <span class="ident">primary_handles</span> = <span class="ident">Primary::spawn</span>(
             <span class="ident">name</span>.<span class="ident">clone</span>(),
             <span class="ident">keypair</span>,
             <span class="ident">committee</span>.<span class="ident">clone</span>(),
@@ -554,57 +566,65 @@
         <span class="comment">// otherwise this function exits immediately and the profile is dumped way too soon.</span>
         <span class="comment">// See https://github.com/nnethercote/dhat-rs/issues/19 for a panic that happens,</span>
         <span class="comment">// but at least 2 primaries should complete and dump their profiles.</span>
-        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;dhat-heap&quot;</span>)]</span>
+        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> = <span class="string">&quot;dhat-heap&quot;</span>)]</span>
         {
             <span class="kw">use</span> <span class="ident">std::time::Duration</span>;
 
             <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy::redundant_clone</span>)]</span>
-            <span class="kw">let</span> <span class="ident">profiler2</span> <span class="op">=</span> <span class="ident">profiler</span>.<span class="ident">clone</span>();
-            <span class="ident">std::thread::spawn</span>(<span class="op">|</span><span class="op">|</span> {
+            <span class="kw">let</span> <span class="ident">profiler2</span> = <span class="ident">profiler</span>.<span class="ident">clone</span>();
+            <span class="ident">std::thread::spawn</span>(|| {
                 <span class="ident">std::thread::sleep</span>(<span class="ident">Duration::from_secs</span>(<span class="number">240</span>));
                 <span class="macro">println!</span>(<span class="string">&quot;Dropping DHAT profiler...&quot;</span>);
                 <span class="ident">drop</span>(<span class="ident">profiler2</span>);
             });
         }
 
-        <span class="prelude-val">Ok</span>(<span class="ident">handles</span>)
+        <span class="kw">let</span> (<span class="ident">task_group</span>, <span class="ident">task_manager</span>) = <span class="ident">TaskGroup::new</span>();
+        <span class="kw">for</span> (<span class="ident">name</span>, <span class="ident">handle</span>) <span class="kw">in</span> <span class="ident">handles</span> {
+            <span class="comment">// The tasks will be awaited with the `task_manager`, so the task handles / futures can be dropped.</span>
+            <span class="kw">let</span> <span class="kw">_</span> = <span class="ident">task_group</span>.<span class="ident">spawn</span>(<span class="ident">name</span>, <span class="ident">handle</span>);
+        }
+
+        <span class="prelude-val">Ok</span>(<span class="ident">task_manager</span>)
     }
 
     <span class="doccomment">/// Spawn the consensus core and the client executing transactions.</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">spawn_consensus</span><span class="op">&lt;</span><span class="ident">State</span><span class="op">&gt;</span>(
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">spawn_consensus</span>&lt;<span class="ident">State</span>&gt;(
         <span class="ident">name</span>: <span class="ident">PublicKey</span>,
         <span class="ident">committee</span>: <span class="ident">SharedCommittee</span>,
         <span class="ident">store</span>: <span class="kw-2">&amp;</span><span class="ident">NodeStorage</span>,
         <span class="ident">parameters</span>: <span class="ident">Parameters</span>,
-        <span class="ident">execution_state</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">State</span><span class="op">&gt;</span>,
-        <span class="ident">tx_reconfigure</span>: <span class="kw-2">&amp;</span><span class="ident">watch::Sender</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
-        <span class="ident">rx_new_certificates</span>: <span class="ident">metered_channel::Receiver</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span>,
-        <span class="ident">tx_feedback</span>: <span class="ident">metered_channel::Sender</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span>,
-        <span class="ident">tx_confirmation</span>: <span class="ident">Sender</span><span class="op">&lt;</span>(
-            <span class="ident">SubscriberResult</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">State</span> <span class="kw">as</span> <span class="ident">ExecutionState</span><span class="op">&gt;</span><span class="ident">::Outcome</span><span class="op">&gt;</span>,
+        <span class="ident">execution_state</span>: <span class="ident">Arc</span>&lt;<span class="ident">State</span>&gt;,
+        <span class="ident">tx_reconfigure</span>: <span class="kw-2">&amp;</span><span class="ident">watch::Sender</span>&lt;<span class="ident">ReconfigureNotification</span>&gt;,
+        <span class="ident">rx_new_certificates</span>: <span class="ident">metered_channel::Receiver</span>&lt;<span class="ident">Certificate</span>&gt;,
+        <span class="ident">tx_feedback</span>: <span class="ident">metered_channel::Sender</span>&lt;<span class="ident">Certificate</span>&gt;,
+        <span class="ident">tx_confirmation</span>: <span class="ident">Sender</span>&lt;(
+            <span class="ident">SubscriberResult</span>&lt;&lt;<span class="ident">State</span> <span class="kw">as</span> <span class="ident">ExecutionState</span>&gt;<span class="ident">::Outcome</span>&gt;,
             <span class="ident">SerializedTransaction</span>,
-        )<span class="op">&gt;</span>,
+        )&gt;,
         <span class="ident">registry</span>: <span class="kw-2">&amp;</span><span class="ident">Registry</span>,
-    ) -&gt; <span class="ident">SubscriberResult</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>
+    ) -&gt; <span class="ident">SubscriberResult</span>&lt;<span class="ident">Vec</span>&lt;(<span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>, <span class="ident">JoinHandle</span>&lt;()&gt;)&gt;&gt;
     <span class="kw">where</span>
         <span class="ident">PublicKey</span>: <span class="ident">VerifyingKey</span>,
-        <span class="ident">State</span>: <span class="ident">ExecutionState</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-        <span class="ident">State::Outcome</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+        <span class="ident">State</span>: <span class="ident">ExecutionState</span> + <span class="ident">Send</span> + <span class="ident">Sync</span> + <span class="lifetime">&#39;static</span>,
+        <span class="ident">State::Outcome</span>: <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
         <span class="ident">State::Error</span>: <span class="ident">Debug</span>,
     {
-        <span class="kw">let</span> <span class="ident">consensus_metrics</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">ConsensusMetrics::new</span>(<span class="ident">registry</span>));
-        <span class="kw">let</span> <span class="ident">channel_metrics</span> <span class="op">=</span> <span class="ident">ChannelMetrics::new</span>(<span class="ident">registry</span>);
+        <span class="kw">let</span> <span class="ident">consensus_metrics</span> = <span class="ident">Arc::new</span>(<span class="ident">ConsensusMetrics::new</span>(<span class="ident">registry</span>));
+        <span class="kw">let</span> <span class="ident">channel_metrics</span> = <span class="ident">ChannelMetrics::new</span>(<span class="ident">registry</span>);
 
-        <span class="kw">let</span> (<span class="ident">tx_sequence</span>, <span class="ident">rx_sequence</span>) <span class="op">=</span>
+        <span class="kw">let</span> (<span class="ident">tx_sequence</span>, <span class="ident">rx_sequence</span>) =
             <span class="ident">metered_channel::channel</span>(<span class="ident"><span class="self">Self</span>::CHANNEL_CAPACITY</span>, <span class="kw-2">&amp;</span><span class="ident">channel_metrics</span>.<span class="ident">tx_sequence</span>);
 
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">handles</span> = <span class="ident">Vec::new</span>();
+
         <span class="comment">// Spawn the consensus core who only sequences transactions.</span>
-        <span class="kw">let</span> <span class="ident">ordering_engine</span> <span class="op">=</span> <span class="ident">Bullshark::new</span>(
+        <span class="kw">let</span> <span class="ident">ordering_engine</span> = <span class="ident">Bullshark::new</span>(
             (<span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">committee</span>.<span class="ident">load</span>()).<span class="ident">clone</span>(),
             <span class="ident">store</span>.<span class="ident">consensus_store</span>.<span class="ident">clone</span>(),
             <span class="ident">parameters</span>.<span class="ident">gc_depth</span>,
         );
-        <span class="kw">let</span> <span class="ident">consensus_handles</span> <span class="op">=</span> <span class="ident">Consensus::spawn</span>(
+        <span class="kw">let</span> <span class="ident">consensus_handle</span> = <span class="ident">Consensus::spawn</span>(
             (<span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">committee</span>.<span class="ident">load</span>()).<span class="ident">clone</span>(),
             <span class="ident">store</span>.<span class="ident">consensus_store</span>.<span class="ident">clone</span>(),
             <span class="ident">store</span>.<span class="ident">certificate_store</span>.<span class="ident">clone</span>(),
@@ -616,10 +636,11 @@
             <span class="ident">consensus_metrics</span>.<span class="ident">clone</span>(),
             <span class="ident">parameters</span>.<span class="ident">gc_depth</span>,
         );
+        <span class="ident">handles</span>.<span class="ident">push</span>((<span class="string">&quot;consensus&quot;</span>, <span class="ident">consensus_handle</span>));
 
         <span class="comment">// Spawn the client executing the transactions. It can also synchronize with the</span>
         <span class="comment">// subscriber handler if it missed some transactions.</span>
-        <span class="kw">let</span> <span class="ident">executor_handles</span> <span class="op">=</span> <span class="ident">Executor::spawn</span>(
+        <span class="kw">let</span> <span class="ident">executor_handles</span> = <span class="ident">Executor::spawn</span>(
             <span class="ident">name</span>,
             <span class="ident">committee</span>,
             <span class="ident">store</span>.<span class="ident">batch_store</span>.<span class="ident">clone</span>(),
@@ -630,11 +651,9 @@
             <span class="ident">registry</span>,
         )
         .<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="ident">handles</span>.<span class="ident">extend</span>(<span class="ident">executor_handles</span>);
 
-        <span class="prelude-val">Ok</span>(<span class="ident">executor_handles</span>
-            .<span class="ident">into_iter</span>()
-            .<span class="ident">chain</span>(<span class="ident">std::iter::once</span>(<span class="ident">consensus_handles</span>))
-            .<span class="ident">collect</span>())
+        <span class="prelude-val">Ok</span>(<span class="ident">handles</span>)
     }
 
     <span class="doccomment">/// Spawn a specified number of workers.</span>
@@ -642,7 +661,7 @@
         <span class="comment">// The public key of this authority.</span>
         <span class="ident">name</span>: <span class="ident">PublicKey</span>,
         <span class="comment">// The ids of the validators to spawn.</span>
-        <span class="ident">ids</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">WorkerId</span><span class="op">&gt;</span>,
+        <span class="ident">ids</span>: <span class="ident">Vec</span>&lt;<span class="ident">WorkerId</span>&gt;,
         <span class="comment">// The committee information.</span>
         <span class="ident">committee</span>: <span class="ident">SharedCommittee</span>,
         <span class="comment">// The node&#39;s storage,</span>
@@ -651,13 +670,12 @@
         <span class="ident">parameters</span>: <span class="ident">Parameters</span>,
         <span class="comment">// The prometheus metrics Registry</span>
         <span class="ident">registry</span>: <span class="kw-2">&amp;</span><span class="ident">Registry</span>,
-    ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">handles</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
+    ) -&gt; <span class="ident">TaskManager</span>&lt;<span class="ident">JoinError</span>&gt; {
+        <span class="kw">let</span> <span class="ident">metrics</span> = <span class="ident">initialise_metrics</span>(<span class="ident">registry</span>);
 
-        <span class="kw">let</span> <span class="ident">metrics</span> <span class="op">=</span> <span class="ident">initialise_metrics</span>(<span class="ident">registry</span>);
-
+        <span class="kw">let</span> (<span class="ident">task_group</span>, <span class="ident">task_manager</span>) = <span class="ident">TaskGroup::new</span>();
         <span class="kw">for</span> <span class="ident">id</span> <span class="kw">in</span> <span class="ident">ids</span> {
-            <span class="kw">let</span> <span class="ident">worker_handles</span> <span class="op">=</span> <span class="ident">Worker::spawn</span>(
+            <span class="kw">let</span> <span class="ident">worker_handles</span> = <span class="ident">Worker::spawn</span>(
                 <span class="ident">name</span>.<span class="ident">clone</span>(),
                 <span class="ident">id</span>,
                 <span class="ident">committee</span>.<span class="ident">clone</span>(),
@@ -665,10 +683,14 @@
                 <span class="ident">store</span>.<span class="ident">batch_store</span>.<span class="ident">clone</span>(),
                 <span class="ident">metrics</span>.<span class="ident">clone</span>(),
             );
-            <span class="ident">handles</span>.<span class="ident">extend</span>(<span class="ident">worker_handles</span>);
+            <span class="comment">// TODO(narwhal/727): propagate worker task names.</span>
+            <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">h</span>) <span class="kw">in</span> <span class="ident">worker_handles</span>.<span class="ident">into_iter</span>().<span class="ident">enumerate</span>() {
+                <span class="kw">let</span> <span class="kw">_</span> = <span class="ident">task_group</span>.<span class="ident">spawn</span>(<span class="macro">format!</span>(<span class="string">&quot;worker_{}_{}&quot;</span>, <span class="ident">id</span>, <span class="ident">i</span>), <span class="ident">h</span>);
+            }
         }
-        <span class="ident">handles</span>
+
+        <span class="ident">task_manager</span>
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="node" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (20ffea693 2022-08-11)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="node" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>

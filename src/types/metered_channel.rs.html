@@ -258,12 +258,12 @@
 <span class="doccomment">/// An [`mpsc::Sender`](tokio::sync::mpsc::Sender) with an [`IntGauge`]</span>
 <span class="doccomment">/// counting the number of currently queued items.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-    <span class="ident">inner</span>: <span class="ident">mpsc::Sender</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>,
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Sender</span>&lt;<span class="ident">T</span>&gt; {
+    <span class="ident">inner</span>: <span class="ident">mpsc::Sender</span>&lt;<span class="ident">T</span>&gt;,
     <span class="ident">gauge</span>: <span class="ident">IntGauge</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="ident">Clone</span> <span class="kw">for</span> <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+<span class="kw">impl</span>&lt;<span class="ident">T</span>&gt; <span class="ident">Clone</span> <span class="kw">for</span> <span class="ident">Sender</span>&lt;<span class="ident">T</span>&gt; {
     <span class="kw">fn</span> <span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="self">Self</span> {
         <span class="self">Self</span> {
             <span class="ident">inner</span>: <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">clone</span>(),
@@ -275,18 +275,18 @@
 <span class="doccomment">/// An [`mpsc::Receiver`](tokio::sync::mpsc::Receiver) with an [`IntGauge`]</span>
 <span class="doccomment">/// counting the number of currently queued items.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-    <span class="ident">inner</span>: <span class="ident">mpsc::Receiver</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>,
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Receiver</span>&lt;<span class="ident">T</span>&gt; {
+    <span class="ident">inner</span>: <span class="ident">mpsc::Receiver</span>&lt;<span class="ident">T</span>&gt;,
     <span class="ident">gauge</span>: <span class="ident">IntGauge</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+<span class="kw">impl</span>&lt;<span class="ident">T</span>&gt; <span class="ident">Receiver</span>&lt;<span class="ident">T</span>&gt; {
     <span class="doccomment">/// Receives the next value for this receiver.</span>
     <span class="doccomment">/// Decrements the gauge in case of a successful `recv`.</span>
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">recv</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">recv</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="ident">T</span>&gt; {
         <span class="self">self</span>.<span class="ident">inner</span>
             .<span class="ident">recv</span>()
-            .<span class="ident">inspect</span>(<span class="op">|</span><span class="ident">opt</span><span class="op">|</span> {
+            .<span class="ident">inspect</span>(|<span class="ident">opt</span>| {
                 <span class="kw">if</span> <span class="ident">opt</span>.<span class="ident">is_some</span>() {
                     <span class="self">self</span>.<span class="ident">gauge</span>.<span class="ident">dec</span>();
                 }
@@ -296,8 +296,8 @@
 
     <span class="doccomment">/// Attempts to receive the next value for this receiver.</span>
     <span class="doccomment">/// Decrements the gauge in case of a successful `try_recv`.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">try_recv</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">TryRecvError</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">try_recv</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">val</span><span class="op">|</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">try_recv</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">T</span>, <span class="ident">TryRecvError</span>&gt; {
+        <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">try_recv</span>().<span class="ident">map</span>(|<span class="ident">val</span>| {
             <span class="self">self</span>.<span class="ident">gauge</span>.<span class="ident">dec</span>();
             <span class="ident">val</span>
         })
@@ -312,7 +312,7 @@
 
     <span class="doccomment">/// Polls to receive the next message on this channel.</span>
     <span class="doccomment">///  Decrements the gauge in case of a successful `poll_recv`.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">poll_recv</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Context</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="ident">Poll</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">poll_recv</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Context</span>&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="ident">Poll</span>&lt;<span class="prelude-ty">Option</span>&lt;<span class="ident">T</span>&gt;&gt; {
         <span class="kw">match</span> <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">poll_recv</span>(<span class="ident">cx</span>) {
             <span class="ident">res</span> @ <span class="ident">Poll::Ready</span>(<span class="prelude-val">Some</span>(<span class="kw">_</span>)) =&gt; {
                 <span class="self">self</span>.<span class="ident">gauge</span>.<span class="ident">dec</span>();
@@ -323,16 +323,16 @@
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="ident">Unpin</span> <span class="kw">for</span> <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {}
+<span class="kw">impl</span>&lt;<span class="ident">T</span>&gt; <span class="ident">Unpin</span> <span class="kw">for</span> <span class="ident">Receiver</span>&lt;<span class="ident">T</span>&gt; {}
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+<span class="kw">impl</span>&lt;<span class="ident">T</span>&gt; <span class="ident">Sender</span>&lt;<span class="ident">T</span>&gt; {
     <span class="doccomment">/// Sends a value, waiting until there is capacity.</span>
     <span class="doccomment">/// Increments the gauge in case of a successful `send`.</span>
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">send</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">value</span>: <span class="ident">T</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">SendError</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">send</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">value</span>: <span class="ident">T</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">SendError</span>&lt;<span class="ident">T</span>&gt;&gt; {
         (<span class="kw-2">*</span><span class="self">self</span>)
             .<span class="ident">inner</span>
             .<span class="ident">send</span>(<span class="ident">value</span>)
-            .<span class="ident">inspect</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">gauge</span>.<span class="ident">inc</span>())
+            .<span class="ident">inspect</span>(|<span class="kw">_</span>| <span class="self">self</span>.<span class="ident">gauge</span>.<span class="ident">inc</span>())
             .<span class="kw">await</span>
     }
 
@@ -343,12 +343,12 @@
 
     <span class="doccomment">/// Attempts to immediately send a message on this `Sender`</span>
     <span class="doccomment">/// Increments the gauge in case of a successful `try_send`.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">try_send</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">message</span>: <span class="ident">T</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">TrySendError</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">try_send</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">message</span>: <span class="ident">T</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">TrySendError</span>&lt;<span class="ident">T</span>&gt;&gt; {
         (<span class="kw-2">*</span><span class="self">self</span>)
             .<span class="ident">inner</span>
             .<span class="ident">try_send</span>(<span class="ident">message</span>)
             <span class="comment">// remove this unsightly hack once https://github.com/rust-lang/rust/issues/91345 is resolved</span>
-            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">val</span><span class="op">|</span> {
+            .<span class="ident">map</span>(|<span class="ident">val</span>| {
                 <span class="self">self</span>.<span class="ident">gauge</span>.<span class="ident">inc</span>();
                 <span class="ident">val</span>
             })
@@ -367,11 +367,11 @@
     <span class="doccomment">/// Waits for channel capacity. Once capacity to send one message is</span>
     <span class="doccomment">/// available, it is reserved for the caller.</span>
     <span class="doccomment">/// Increments the gauge in case of a successful `reserve`.</span>
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">reserve</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Permit</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span>, <span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">SendError</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">reserve</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">Permit</span>&lt;<span class="lifetime">&#39;_</span>, <span class="ident">T</span>&gt;, <span class="ident">SendError</span>&lt;()&gt;&gt; {
         <span class="self">self</span>.<span class="ident">inner</span>
             .<span class="ident">reserve</span>()
             <span class="comment">// remove this unsightly hack once https://github.com/rust-lang/rust/issues/91345 is resolved</span>
-            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">val</span><span class="op">|</span> {
+            .<span class="ident">map</span>(|<span class="ident">val</span>| {
                 <span class="kw">if</span> <span class="ident">val</span>.<span class="ident">is_ok</span>() {
                     <span class="self">self</span>.<span class="ident">gauge</span>.<span class="ident">inc</span>();
                 }
@@ -383,8 +383,8 @@
     <span class="doccomment">/// Tries to acquire a slot in the channel without waiting for the slot to become</span>
     <span class="doccomment">/// available.</span>
     <span class="doccomment">/// Increments the gauge in case of a successful `try_reserve`.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">try_reserve</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Permit</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span>, <span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">TrySendError</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">try_reserve</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">val</span><span class="op">|</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">try_reserve</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">Permit</span>&lt;<span class="lifetime">&#39;_</span>, <span class="ident">T</span>&gt;, <span class="ident">TrySendError</span>&lt;()&gt;&gt; {
+        <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">try_reserve</span>().<span class="ident">map</span>(|<span class="ident">val</span>| {
             <span class="comment">// remove this unsightly hack once https://github.com/rust-lang/rust/issues/91345 is resolved</span>
             <span class="self">self</span>.<span class="ident">gauge</span>.<span class="ident">inc</span>();
             <span class="ident">val</span>
@@ -416,18 +416,18 @@
 <span class="doccomment">/// A wrapper around [`crate::metered_channel::Receiver`] that implements [`Stream`].</span>
 <span class="doccomment">///</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ReceiverStream</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-    <span class="ident">inner</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>,
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ReceiverStream</span>&lt;<span class="ident">T</span>&gt; {
+    <span class="ident">inner</span>: <span class="ident">Receiver</span>&lt;<span class="ident">T</span>&gt;,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="ident">ReceiverStream</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+<span class="kw">impl</span>&lt;<span class="ident">T</span>&gt; <span class="ident">ReceiverStream</span>&lt;<span class="ident">T</span>&gt; {
     <span class="doccomment">/// Create a new `ReceiverStream`.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">recv</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) -&gt; <span class="self">Self</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">recv</span>: <span class="ident">Receiver</span>&lt;<span class="ident">T</span>&gt;) -&gt; <span class="self">Self</span> {
         <span class="self">Self</span> { <span class="ident">inner</span>: <span class="ident">recv</span> }
     }
 
     <span class="doccomment">/// Get back the inner `Receiver`.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">into_inner</span>(<span class="self">self</span>) -&gt; <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">into_inner</span>(<span class="self">self</span>) -&gt; <span class="ident">Receiver</span>&lt;<span class="ident">T</span>&gt; {
         <span class="self">self</span>.<span class="ident">inner</span>
     }
 
@@ -437,31 +437,31 @@
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="ident">Stream</span> <span class="kw">for</span> <span class="ident">ReceiverStream</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-    <span class="kw">type</span> <span class="ident">Item</span> <span class="op">=</span> <span class="ident">T</span>;
+<span class="kw">impl</span>&lt;<span class="ident">T</span>&gt; <span class="ident">Stream</span> <span class="kw">for</span> <span class="ident">ReceiverStream</span>&lt;<span class="ident">T</span>&gt; {
+    <span class="kw">type</span> <span class="ident">Item</span> = <span class="ident">T</span>;
 
     <span class="kw">fn</span> <span class="ident">poll_next</span>(
-        <span class="kw-2">mut</span> <span class="self">self</span>: <span class="ident">std::pin::Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;mut</span> <span class="self">Self</span><span class="op">&gt;</span>,
-        <span class="ident">cx</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Context</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="ident">Poll</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Item</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="kw-2">mut</span> <span class="self">self</span>: <span class="ident">std::pin::Pin</span>&lt;<span class="kw-2">&amp;mut</span> <span class="self">Self</span>&gt;,
+        <span class="ident">cx</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Context</span>&lt;<span class="lifetime">&#39;_</span>&gt;,
+    ) -&gt; <span class="ident">Poll</span>&lt;<span class="prelude-ty">Option</span>&lt;<span class="ident"><span class="self">Self</span>::Item</span>&gt;&gt; {
         <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">poll_recv</span>(<span class="ident">cx</span>)
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="ident">AsRef</span><span class="op">&lt;</span><span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">ReceiverStream</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">as_ref</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+<span class="kw">impl</span>&lt;<span class="ident">T</span>&gt; <span class="ident">AsRef</span>&lt;<span class="ident">Receiver</span>&lt;<span class="ident">T</span>&gt;&gt; <span class="kw">for</span> <span class="ident">ReceiverStream</span>&lt;<span class="ident">T</span>&gt; {
+    <span class="kw">fn</span> <span class="ident">as_ref</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">Receiver</span>&lt;<span class="ident">T</span>&gt; {
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">inner</span>
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="ident">AsMut</span><span class="op">&lt;</span><span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">ReceiverStream</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">as_mut</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut</span> <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+<span class="kw">impl</span>&lt;<span class="ident">T</span>&gt; <span class="ident">AsMut</span>&lt;<span class="ident">Receiver</span>&lt;<span class="ident">T</span>&gt;&gt; <span class="kw">for</span> <span class="ident">ReceiverStream</span>&lt;<span class="ident">T</span>&gt; {
+    <span class="kw">fn</span> <span class="ident">as_mut</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut</span> <span class="ident">Receiver</span>&lt;<span class="ident">T</span>&gt; {
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">inner</span>
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">ReceiverStream</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">recv</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) -&gt; <span class="self">Self</span> {
+<span class="kw">impl</span>&lt;<span class="ident">T</span>&gt; <span class="ident">From</span>&lt;<span class="ident">Receiver</span>&lt;<span class="ident">T</span>&gt;&gt; <span class="kw">for</span> <span class="ident">ReceiverStream</span>&lt;<span class="ident">T</span>&gt; {
+    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">recv</span>: <span class="ident">Receiver</span>&lt;<span class="ident">T</span>&gt;) -&gt; <span class="self">Self</span> {
         <span class="ident"><span class="self">Self</span>::new</span>(<span class="ident">recv</span>)
     }
 }
@@ -474,9 +474,9 @@
 
 <span class="doccomment">/// Similar to `mpsc::channel`, `channel` creates a pair of `Sender` and `Receiver`</span>
 <span class="attribute">#[<span class="ident">track_caller</span>]</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">channel</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(<span class="ident">size</span>: <span class="ident">usize</span>, <span class="ident">gauge</span>: <span class="kw-2">&amp;</span><span class="ident">IntGauge</span>) -&gt; (<span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) {
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">channel</span>&lt;<span class="ident">T</span>&gt;(<span class="ident">size</span>: <span class="ident">usize</span>, <span class="ident">gauge</span>: <span class="kw-2">&amp;</span><span class="ident">IntGauge</span>) -&gt; (<span class="ident">Sender</span>&lt;<span class="ident">T</span>&gt;, <span class="ident">Receiver</span>&lt;<span class="ident">T</span>&gt;) {
     <span class="ident">gauge</span>.<span class="ident">set</span>(<span class="number">0</span>);
-    <span class="kw">let</span> (<span class="ident">sender</span>, <span class="ident">receiver</span>) <span class="op">=</span> <span class="ident">mpsc::channel</span>(<span class="ident">size</span>);
+    <span class="kw">let</span> (<span class="ident">sender</span>, <span class="ident">receiver</span>) = <span class="ident">mpsc::channel</span>(<span class="ident">size</span>);
     (
         <span class="ident">Sender</span> {
             <span class="ident">inner</span>: <span class="ident">sender</span>,
@@ -489,4 +489,4 @@
     )
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (20ffea693 2022-08-11)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>

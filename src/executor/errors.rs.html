@@ -88,13 +88,13 @@
 <span class="attribute">#[<span class="ident">macro_export</span>(<span class="ident">local_inner_macros</span>)]</span>
 <span class="macro">macro_rules!</span> <span class="ident">ensure</span> {
     (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">cond</span>:<span class="ident">expr</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">e</span>:<span class="ident">expr</span>) =&gt; {
-        <span class="kw">if</span> <span class="op">!</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">cond</span>) {
+        <span class="kw">if</span> !(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">cond</span>) {
             <span class="macro">bail!</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">e</span>);
         }
     };
 }
 
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">SubscriberResult</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">SubscriberError</span><span class="op">&gt;</span>;
+<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">SubscriberResult</span>&lt;<span class="ident">T</span>&gt; = <span class="prelude-ty">Result</span>&lt;<span class="ident">T</span>, <span class="ident">SubscriberError</span>&gt;;
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Error</span>, <span class="ident">Clone</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">SubscriberError</span> {
@@ -123,8 +123,8 @@
     <span class="ident">ClientExecutionError</span>(<span class="ident">String</span>),
 }
 
-<span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="ident">bincode::ErrorKind</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">SubscriberError</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">e</span>: <span class="ident">Box</span><span class="op">&lt;</span><span class="ident">bincode::ErrorKind</span><span class="op">&gt;</span>) -&gt; <span class="self">Self</span> {
+<span class="kw">impl</span> <span class="ident">From</span>&lt;<span class="ident">Box</span>&lt;<span class="ident">bincode::ErrorKind</span>&gt;&gt; <span class="kw">for</span> <span class="ident">SubscriberError</span> {
+    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">e</span>: <span class="ident">Box</span>&lt;<span class="ident">bincode::ErrorKind</span>&gt;) -&gt; <span class="self">Self</span> {
         <span class="ident"><span class="self">Self</span>::SerializationError</span>(<span class="ident">e</span>.<span class="ident">to_string</span>())
     }
 }
@@ -136,7 +136,7 @@
     <span class="kw">fn</span> <span class="ident">node_error</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">bool</span>;
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">ExecutionStateError</span><span class="op">&gt;</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">SubscriberError</span> {
+<span class="kw">impl</span>&lt;<span class="ident">T</span>: <span class="ident">ExecutionStateError</span>&gt; <span class="ident">From</span>&lt;<span class="ident">T</span>&gt; <span class="kw">for</span> <span class="ident">SubscriberError</span> {
     <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">e</span>: <span class="ident">T</span>) -&gt; <span class="self">Self</span> {
         <span class="kw">match</span> <span class="ident">e</span>.<span class="ident">node_error</span>() {
             <span class="bool-val">true</span> =&gt; <span class="ident"><span class="self">Self</span>::NodeExecutionError</span>(<span class="ident">e</span>.<span class="ident">to_string</span>()),
@@ -145,4 +145,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="executor" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (20ffea693 2022-08-11)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="executor" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>

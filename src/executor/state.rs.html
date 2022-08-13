@@ -89,7 +89,7 @@
 <span class="kw">use</span> <span class="ident">types::SequenceNumber</span>;
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="attribute">#[<span class="ident">path</span> <span class="op">=</span> <span class="string">&quot;tests/state_tests.rs&quot;</span>]</span>
+<span class="attribute">#[<span class="ident">path</span> = <span class="string">&quot;tests/state_tests.rs&quot;</span>]</span>
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">state_tests</span>;
 
 <span class="doccomment">/// The state of the subscriber keeping track of the transactions that have already been</span>
@@ -107,44 +107,44 @@
 <span class="kw">impl</span> <span class="ident">ExecutionIndices</span> {
     <span class="doccomment">/// Compute the next expected indices.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">next</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">total_batches</span>: <span class="ident">usize</span>, <span class="ident">total_transactions</span>: <span class="ident">usize</span>) {
-        <span class="kw">let</span> <span class="ident">total_batches</span> <span class="op">=</span> <span class="ident">total_batches</span> <span class="kw">as</span> <span class="ident">SequenceNumber</span>;
-        <span class="kw">let</span> <span class="ident">total_transactions</span> <span class="op">=</span> <span class="ident">total_transactions</span> <span class="kw">as</span> <span class="ident">SequenceNumber</span>;
+        <span class="kw">let</span> <span class="ident">total_batches</span> = <span class="ident">total_batches</span> <span class="kw">as</span> <span class="ident">SequenceNumber</span>;
+        <span class="kw">let</span> <span class="ident">total_transactions</span> = <span class="ident">total_transactions</span> <span class="kw">as</span> <span class="ident">SequenceNumber</span>;
 
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">next_transaction_index</span> <span class="op">+</span> <span class="number">1</span> <span class="op">==</span> <span class="ident">total_transactions</span> {
-            <span class="kw">if</span> <span class="self">self</span>.<span class="ident">next_batch_index</span> <span class="op">+</span> <span class="number">1</span> <span class="op">==</span> <span class="ident">total_batches</span> {
-                <span class="self">self</span>.<span class="ident">next_certificate_index</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
+        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">next_transaction_index</span> + <span class="number">1</span> == <span class="ident">total_transactions</span> {
+            <span class="kw">if</span> <span class="self">self</span>.<span class="ident">next_batch_index</span> + <span class="number">1</span> == <span class="ident">total_batches</span> {
+                <span class="self">self</span>.<span class="ident">next_certificate_index</span> += <span class="number">1</span>;
             }
-            <span class="self">self</span>.<span class="ident">next_batch_index</span> <span class="op">=</span> (<span class="self">self</span>.<span class="ident">next_batch_index</span> <span class="op">+</span> <span class="number">1</span>) <span class="op">%</span> <span class="ident">total_batches</span>;
+            <span class="self">self</span>.<span class="ident">next_batch_index</span> = (<span class="self">self</span>.<span class="ident">next_batch_index</span> + <span class="number">1</span>) % <span class="ident">total_batches</span>;
         }
-        <span class="self">self</span>.<span class="ident">next_transaction_index</span> <span class="op">=</span> (<span class="self">self</span>.<span class="ident">next_transaction_index</span> <span class="op">+</span> <span class="number">1</span>) <span class="op">%</span> <span class="ident">total_transactions</span>;
+        <span class="self">self</span>.<span class="ident">next_transaction_index</span> = (<span class="self">self</span>.<span class="ident">next_transaction_index</span> + <span class="number">1</span>) % <span class="ident">total_transactions</span>;
     }
 
     <span class="doccomment">/// Update the state to skip a batch.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">skip_batch</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">total_batches</span>: <span class="ident">usize</span>) {
-        <span class="kw">let</span> <span class="ident">total_batches</span> <span class="op">=</span> <span class="ident">total_batches</span> <span class="kw">as</span> <span class="ident">SequenceNumber</span>;
+        <span class="kw">let</span> <span class="ident">total_batches</span> = <span class="ident">total_batches</span> <span class="kw">as</span> <span class="ident">SequenceNumber</span>;
 
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">next_batch_index</span> <span class="op">+</span> <span class="number">1</span> <span class="op">==</span> <span class="ident">total_batches</span> {
-            <span class="self">self</span>.<span class="ident">next_certificate_index</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
+        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">next_batch_index</span> + <span class="number">1</span> == <span class="ident">total_batches</span> {
+            <span class="self">self</span>.<span class="ident">next_certificate_index</span> += <span class="number">1</span>;
         }
-        <span class="self">self</span>.<span class="ident">next_batch_index</span> <span class="op">=</span> (<span class="self">self</span>.<span class="ident">next_batch_index</span> <span class="op">+</span> <span class="number">1</span>) <span class="op">%</span> <span class="ident">total_batches</span>;
-        <span class="self">self</span>.<span class="ident">next_transaction_index</span> <span class="op">=</span> <span class="number">0</span>;
+        <span class="self">self</span>.<span class="ident">next_batch_index</span> = (<span class="self">self</span>.<span class="ident">next_batch_index</span> + <span class="number">1</span>) % <span class="ident">total_batches</span>;
+        <span class="self">self</span>.<span class="ident">next_transaction_index</span> = <span class="number">0</span>;
     }
 
     <span class="doccomment">/// Update the state to skip a certificate.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">skip_certificate</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
-        <span class="self">self</span>.<span class="ident">next_transaction_index</span> <span class="op">=</span> <span class="number">0</span>;
-        <span class="self">self</span>.<span class="ident">next_batch_index</span> <span class="op">=</span> <span class="number">0</span>;
-        <span class="self">self</span>.<span class="ident">next_certificate_index</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
+        <span class="self">self</span>.<span class="ident">next_transaction_index</span> = <span class="number">0</span>;
+        <span class="self">self</span>.<span class="ident">next_batch_index</span> = <span class="number">0</span>;
+        <span class="self">self</span>.<span class="ident">next_certificate_index</span> += <span class="number">1</span>;
     }
 
     <span class="doccomment">/// Check whether the input index is the next expected batch index.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">check_next_batch_index</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">batch_index</span>: <span class="ident">SequenceNumber</span>) -&gt; <span class="ident">bool</span> {
-        <span class="ident">batch_index</span> <span class="op">==</span> <span class="self">self</span>.<span class="ident">next_batch_index</span>
+        <span class="ident">batch_index</span> == <span class="self">self</span>.<span class="ident">next_batch_index</span>
     }
 
     <span class="doccomment">/// Check whether the input index is the next expected transaction index.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">check_next_transaction_index</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">transaction_index</span>: <span class="ident">SequenceNumber</span>) -&gt; <span class="ident">bool</span> {
-        <span class="ident">transaction_index</span> <span class="op">==</span> <span class="self">self</span>.<span class="ident">next_transaction_index</span>
+        <span class="ident">transaction_index</span> == <span class="self">self</span>.<span class="ident">next_transaction_index</span>
     }
 }
 
@@ -164,9 +164,9 @@
 }
 
 <span class="kw">impl</span> <span class="ident">PartialOrd</span> <span class="kw">for</span> <span class="ident">ExecutionIndices</span> {
-    <span class="kw">fn</span> <span class="ident">partial_cmp</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">std::cmp::Ordering</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">partial_cmp</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="ident">std::cmp::Ordering</span>&gt; {
         <span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">cmp</span>(<span class="ident">other</span>))
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="executor" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (20ffea693 2022-08-11)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="executor" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>

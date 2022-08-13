@@ -659,10 +659,10 @@
     <span class="ident">VerifyingKey</span>,
 };
 
-<span class="kw">pub</span> <span class="kw">const</span> <span class="ident">BLS_PRIVATE_KEY_LENGTH</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">32</span>;
-<span class="kw">pub</span> <span class="kw">const</span> <span class="ident">BLS_PUBLIC_KEY_LENGTH</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">96</span>;
-<span class="kw">pub</span> <span class="kw">const</span> <span class="ident">BLS_SIGNATURE_LENGTH</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">48</span>;
-<span class="kw">pub</span> <span class="kw">const</span> <span class="ident">DST</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="string">b&quot;BLS_SIG_BLS12381G1_XMD:SHA-256_SSWU_RO_NUL_&quot;</span>;
+<span class="kw">pub</span> <span class="kw">const</span> <span class="ident">BLS_PRIVATE_KEY_LENGTH</span>: <span class="ident">usize</span> = <span class="number">32</span>;
+<span class="kw">pub</span> <span class="kw">const</span> <span class="ident">BLS_PUBLIC_KEY_LENGTH</span>: <span class="ident">usize</span> = <span class="number">96</span>;
+<span class="kw">pub</span> <span class="kw">const</span> <span class="ident">BLS_SIGNATURE_LENGTH</span>: <span class="ident">usize</span> = <span class="number">48</span>;
+<span class="kw">pub</span> <span class="kw">const</span> <span class="ident">DST</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] = <span class="string">b&quot;BLS_SIG_BLS12381G1_XMD:SHA-256_SSWU_RO_NUL_&quot;</span>;
 
 <span class="doccomment">///</span>
 <span class="doccomment">/// Define Structs</span>
@@ -672,21 +672,21 @@
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Default</span>, <span class="ident">Debug</span>, <span class="ident">Clone</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BLS12381PublicKey</span> {
     <span class="kw">pub</span> <span class="ident">pubkey</span>: <span class="ident">blst::PublicKey</span>,
-    <span class="kw">pub</span> <span class="ident">bytes</span>: <span class="ident">OnceCell</span><span class="op">&lt;</span>[<span class="ident">u8</span>; <span class="ident">BLS_PUBLIC_KEY_LENGTH</span>]<span class="op">&gt;</span>,
+    <span class="kw">pub</span> <span class="ident">bytes</span>: <span class="ident">OnceCell</span>&lt;[<span class="ident">u8</span>; <span class="ident">BLS_PUBLIC_KEY_LENGTH</span>]&gt;,
 }
 
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">BLS12381PublicKeyBytes</span> <span class="op">=</span> <span class="ident">PublicKeyBytes</span><span class="op">&lt;</span><span class="ident">BLS12381PublicKey</span>, { <span class="ident">BLS12381PublicKey::LENGTH</span> }<span class="op">&gt;</span>;
+<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">BLS12381PublicKeyBytes</span> = <span class="ident">PublicKeyBytes</span>&lt;<span class="ident">BLS12381PublicKey</span>, { <span class="ident">BLS12381PublicKey::LENGTH</span> }&gt;;
 
 <span class="attribute">#[<span class="ident">readonly::make</span>]</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Default</span>, <span class="ident">Debug</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BLS12381PrivateKey</span> {
     <span class="kw">pub</span> <span class="ident">privkey</span>: <span class="ident">blst::SecretKey</span>,
-    <span class="kw">pub</span> <span class="ident">bytes</span>: <span class="ident">OnceCell</span><span class="op">&lt;</span>[<span class="ident">u8</span>; <span class="ident">BLS_PRIVATE_KEY_LENGTH</span>]<span class="op">&gt;</span>,
+    <span class="kw">pub</span> <span class="ident">bytes</span>: <span class="ident">OnceCell</span>&lt;[<span class="ident">u8</span>; <span class="ident">BLS_PRIVATE_KEY_LENGTH</span>]&gt;,
 }
 
 <span class="comment">// There is a strong requirement for this specific impl. in Fab benchmarks</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>)]</span>
-<span class="attribute">#[<span class="ident">serde</span>(<span class="ident">tag</span> <span class="op">=</span> <span class="string">&quot;type&quot;</span>)]</span> <span class="comment">// necessary so as not to deser under a != type</span>
+<span class="attribute">#[<span class="ident">serde</span>(<span class="ident">tag</span> = <span class="string">&quot;type&quot;</span>)]</span> <span class="comment">// necessary so as not to deser under a != type</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BLS12381KeyPair</span> {
     <span class="ident">name</span>: <span class="ident">BLS12381PublicKey</span>,
     <span class="ident">secret</span>: <span class="ident">BLS12381PrivateKey</span>,
@@ -696,37 +696,37 @@
 <span class="attribute">#[<span class="ident">serde_as</span>]</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BLS12381Signature</span> {
-    <span class="attribute">#[<span class="ident">serde_as</span>(<span class="kw">as</span> <span class="op">=</span> <span class="string">&quot;BlsSignature&quot;</span>)]</span>
+    <span class="attribute">#[<span class="ident">serde_as</span>(<span class="kw">as</span> = <span class="string">&quot;BlsSignature&quot;</span>)]</span>
     <span class="kw">pub</span> <span class="ident">sig</span>: <span class="ident">blst::Signature</span>,
     <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">skip</span>)]</span>
-    <span class="kw">pub</span> <span class="ident">bytes</span>: <span class="ident">OnceCell</span><span class="op">&lt;</span>[<span class="ident">u8</span>; <span class="ident">BLS_SIGNATURE_LENGTH</span>]<span class="op">&gt;</span>,
+    <span class="kw">pub</span> <span class="ident">bytes</span>: <span class="ident">OnceCell</span>&lt;[<span class="ident">u8</span>; <span class="ident">BLS_SIGNATURE_LENGTH</span>]&gt;,
 }
 
 <span class="attribute">#[<span class="ident">readonly::make</span>]</span>
 <span class="attribute">#[<span class="ident">serde_as</span>]</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BLS12381AggregateSignature</span> {
-    <span class="attribute">#[<span class="ident">serde_as</span>(<span class="kw">as</span> <span class="op">=</span> <span class="string">&quot;Option&lt;BlsSignature&gt;&quot;</span>)]</span>
-    <span class="kw">pub</span> <span class="ident">sig</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">blst::Signature</span><span class="op">&gt;</span>,
+    <span class="attribute">#[<span class="ident">serde_as</span>(<span class="kw">as</span> = <span class="string">&quot;Option&lt;BlsSignature&gt;&quot;</span>)]</span>
+    <span class="kw">pub</span> <span class="ident">sig</span>: <span class="prelude-ty">Option</span>&lt;<span class="ident">blst::Signature</span>&gt;,
     <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">skip</span>)]</span>
-    <span class="kw">pub</span> <span class="ident">bytes</span>: <span class="ident">OnceCell</span><span class="op">&lt;</span>[<span class="ident">u8</span>; <span class="ident">BLS_SIGNATURE_LENGTH</span>]<span class="op">&gt;</span>,
+    <span class="kw">pub</span> <span class="ident">bytes</span>: <span class="ident">OnceCell</span>&lt;[<span class="ident">u8</span>; <span class="ident">BLS_SIGNATURE_LENGTH</span>]&gt;,
 }
 
 <span class="doccomment">///</span>
 <span class="doccomment">/// Implement SigningKey</span>
 <span class="doccomment">///</span>
 
-<span class="kw">impl</span> <span class="ident">AsRef</span><span class="op">&lt;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">BLS12381PublicKey</span> {
+<span class="kw">impl</span> <span class="ident">AsRef</span>&lt;[<span class="ident">u8</span>]&gt; <span class="kw">for</span> <span class="ident">BLS12381PublicKey</span> {
     <span class="kw">fn</span> <span class="ident">as_ref</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] {
         <span class="self">self</span>.<span class="ident">bytes</span>
-            .<span class="ident">get_or_try_init</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">eyre::Report</span><span class="op">&gt;</span>(<span class="op">|</span><span class="op">|</span> <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">pubkey</span>.<span class="ident">to_bytes</span>()))
+            .<span class="ident">get_or_try_init</span>::&lt;<span class="kw">_</span>, <span class="ident">eyre::Report</span>&gt;(|| <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">pubkey</span>.<span class="ident">to_bytes</span>()))
             .<span class="ident">expect</span>(<span class="string">&quot;OnceCell invariant violated&quot;</span>)
     }
 }
 
 <span class="kw">impl</span> <span class="ident">ToFromBytes</span> <span class="kw">for</span> <span class="ident">BLS12381PublicKey</span> {
-    <span class="kw">fn</span> <span class="ident">from_bytes</span>(<span class="ident">bytes</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">signature::Error</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">pubkey</span> <span class="op">=</span> <span class="ident">blst::PublicKey::from_bytes</span>(<span class="ident">bytes</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">signature::Error::new</span>())<span class="question-mark">?</span>;
+    <span class="kw">fn</span> <span class="ident">from_bytes</span>(<span class="ident">bytes</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="ident">signature::Error</span>&gt; {
+        <span class="kw">let</span> <span class="ident">pubkey</span> = <span class="ident">blst::PublicKey::from_bytes</span>(<span class="ident">bytes</span>).<span class="ident">map_err</span>(|<span class="kw">_</span>| <span class="ident">signature::Error::new</span>())<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(<span class="ident">BLS12381PublicKey</span> {
             <span class="ident">pubkey</span>,
             <span class="ident">bytes</span>: <span class="ident">OnceCell::new</span>(),
@@ -735,21 +735,21 @@
 }
 
 <span class="kw">impl</span> <span class="ident">std::hash::Hash</span> <span class="kw">for</span> <span class="ident">BLS12381PublicKey</span> {
-    <span class="kw">fn</span> <span class="ident">hash</span><span class="op">&lt;</span><span class="ident">H</span>: <span class="ident">std::hash::Hasher</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">state</span>: <span class="kw-2">&amp;mut</span> <span class="ident">H</span>) {
+    <span class="kw">fn</span> <span class="ident">hash</span>&lt;<span class="ident">H</span>: <span class="ident">std::hash::Hasher</span>&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">state</span>: <span class="kw-2">&amp;mut</span> <span class="ident">H</span>) {
         <span class="self">self</span>.<span class="ident">as_ref</span>().<span class="ident">hash</span>(<span class="ident">state</span>);
     }
 }
 
 <span class="kw">impl</span> <span class="ident">PartialEq</span> <span class="kw">for</span> <span class="ident">BLS12381PublicKey</span> {
     <span class="kw">fn</span> <span class="ident">eq</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="ident">bool</span> {
-        <span class="self">self</span>.<span class="ident">pubkey</span> <span class="op">==</span> <span class="ident">other</span>.<span class="ident">pubkey</span>
+        <span class="self">self</span>.<span class="ident">pubkey</span> == <span class="ident">other</span>.<span class="ident">pubkey</span>
     }
 }
 
 <span class="kw">impl</span> <span class="ident">Eq</span> <span class="kw">for</span> <span class="ident">BLS12381PublicKey</span> {}
 
 <span class="kw">impl</span> <span class="ident">PartialOrd</span> <span class="kw">for</span> <span class="ident">BLS12381PublicKey</span> {
-    <span class="kw">fn</span> <span class="ident">partial_cmp</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">std::cmp::Ordering</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">partial_cmp</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="ident">std::cmp::Ordering</span>&gt; {
         <span class="self">self</span>.<span class="ident">as_ref</span>().<span class="ident">partial_cmp</span>(<span class="ident">other</span>.<span class="ident">as_ref</span>())
     }
 }
@@ -760,14 +760,14 @@
 }
 
 <span class="kw">impl</span> <span class="ident">Display</span> <span class="kw">for</span> <span class="ident">BLS12381PublicKey</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">fmt::Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">fmt::Error</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">fmt::Formatter</span>&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">fmt::Error</span>&gt; {
         <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">Base64::encode_string</span>(<span class="self">self</span>.<span class="ident">as_ref</span>()))
     }
 }
 
 <span class="comment">// There is a strong requirement for this specific impl. in Fab benchmarks</span>
 <span class="kw">impl</span> <span class="ident">Serialize</span> <span class="kw">for</span> <span class="ident">BLS12381PublicKey</span> {
-    <span class="kw">fn</span> <span class="ident">serialize</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">serializer</span>: <span class="ident">S</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">S::Ok</span>, <span class="ident">S::Error</span><span class="op">&gt;</span>
+    <span class="kw">fn</span> <span class="ident">serialize</span>&lt;<span class="ident">S</span>&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">serializer</span>: <span class="ident">S</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">S::Ok</span>, <span class="ident">S::Error</span>&gt;
     <span class="kw">where</span>
         <span class="ident">S</span>: <span class="ident">serde::Serializer</span>,
     {
@@ -776,23 +776,23 @@
 }
 
 <span class="comment">// There is a strong requirement for this specific impl. in Fab benchmarks</span>
-<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span><span class="op">&gt;</span> <span class="ident">Deserialize</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">BLS12381PublicKey</span> {
-    <span class="kw">fn</span> <span class="ident">deserialize</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span>(<span class="ident">deserializer</span>: <span class="ident">D</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">D::Error</span><span class="op">&gt;</span>
+<span class="kw">impl</span>&lt;<span class="lifetime">&#39;de</span>&gt; <span class="ident">Deserialize</span>&lt;<span class="lifetime">&#39;de</span>&gt; <span class="kw">for</span> <span class="ident">BLS12381PublicKey</span> {
+    <span class="kw">fn</span> <span class="ident">deserialize</span>&lt;<span class="ident">D</span>&gt;(<span class="ident">deserializer</span>: <span class="ident">D</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="ident">D::Error</span>&gt;
     <span class="kw">where</span>
-        <span class="ident">D</span>: <span class="ident">de::Deserializer</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span><span class="op">&gt;</span>,
+        <span class="ident">D</span>: <span class="ident">de::Deserializer</span>&lt;<span class="lifetime">&#39;de</span>&gt;,
     {
-        <span class="kw">let</span> <span class="ident">s</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">String</span> <span class="kw">as</span> <span class="ident">serde::Deserialize</span><span class="op">&gt;</span><span class="ident">::deserialize</span>(<span class="ident">deserializer</span>)<span class="question-mark">?</span>;
-        <span class="kw">let</span> <span class="ident">value</span> <span class="op">=</span> <span class="ident"><span class="self">Self</span>::decode_base64</span>(<span class="kw-2">&amp;</span><span class="ident">s</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">de::Error::custom</span>(<span class="ident">e</span>.<span class="ident">to_string</span>()))<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">s</span> = &lt;<span class="ident">String</span> <span class="kw">as</span> <span class="ident">serde::Deserialize</span>&gt;<span class="ident">::deserialize</span>(<span class="ident">deserializer</span>)<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">value</span> = <span class="ident"><span class="self">Self</span>::decode_base64</span>(<span class="kw-2">&amp;</span><span class="ident">s</span>).<span class="ident">map_err</span>(|<span class="ident">e</span>| <span class="ident">de::Error::custom</span>(<span class="ident">e</span>.<span class="ident">to_string</span>()))<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(<span class="ident">value</span>)
     }
 }
 
-<span class="kw">impl</span> <span class="ident">Verifier</span><span class="op">&lt;</span><span class="ident">BLS12381Signature</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">BLS12381PublicKey</span> {
-    <span class="kw">fn</span> <span class="ident">verify</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">msg</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">signature</span>: <span class="kw-2">&amp;</span><span class="ident">BLS12381Signature</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">signature::Error</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">err</span> <span class="op">=</span> <span class="ident">signature</span>
+<span class="kw">impl</span> <span class="ident">Verifier</span>&lt;<span class="ident">BLS12381Signature</span>&gt; <span class="kw">for</span> <span class="ident">BLS12381PublicKey</span> {
+    <span class="kw">fn</span> <span class="ident">verify</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">msg</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">signature</span>: <span class="kw-2">&amp;</span><span class="ident">BLS12381Signature</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">signature::Error</span>&gt; {
+        <span class="kw">let</span> <span class="ident">err</span> = <span class="ident">signature</span>
             .<span class="ident">sig</span>
             .<span class="ident">verify</span>(<span class="bool-val">true</span>, <span class="ident">msg</span>, <span class="ident">DST</span>, <span class="kw-2">&amp;</span>[], <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">pubkey</span>, <span class="bool-val">true</span>);
-        <span class="kw">if</span> <span class="ident">err</span> <span class="op">==</span> <span class="ident">BLST_ERROR::BLST_SUCCESS</span> {
+        <span class="kw">if</span> <span class="ident">err</span> == <span class="ident">BLST_ERROR::BLST_SUCCESS</span> {
             <span class="prelude-val">Ok</span>(())
         } <span class="kw">else</span> {
             <span class="prelude-val">Err</span>(<span class="ident">signature::Error::new</span>())
@@ -800,10 +800,10 @@
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="ident">From</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">BLS12381PrivateKey</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">BLS12381PublicKey</span> {
+<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; <span class="ident">From</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">BLS12381PrivateKey</span>&gt; <span class="kw">for</span> <span class="ident">BLS12381PublicKey</span> {
     <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">secret</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">BLS12381PrivateKey</span>) -&gt; <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="ident">inner</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">secret</span>.<span class="ident">privkey</span>;
-        <span class="kw">let</span> <span class="ident">pubkey</span> <span class="op">=</span> <span class="ident">inner</span>.<span class="ident">sk_to_pk</span>();
+        <span class="kw">let</span> <span class="ident">inner</span> = <span class="kw-2">&amp;</span><span class="ident">secret</span>.<span class="ident">privkey</span>;
+        <span class="kw">let</span> <span class="ident">pubkey</span> = <span class="ident">inner</span>.<span class="ident">sk_to_pk</span>();
         <span class="ident">BLS12381PublicKey</span> {
             <span class="ident">pubkey</span>,
             <span class="ident">bytes</span>: <span class="ident">OnceCell::new</span>(),
@@ -812,27 +812,27 @@
 }
 
 <span class="kw">impl</span> <span class="ident">VerifyingKey</span> <span class="kw">for</span> <span class="ident">BLS12381PublicKey</span> {
-    <span class="kw">type</span> <span class="ident">PrivKey</span> <span class="op">=</span> <span class="ident">BLS12381PrivateKey</span>;
-    <span class="kw">type</span> <span class="ident">Sig</span> <span class="op">=</span> <span class="ident">BLS12381Signature</span>;
+    <span class="kw">type</span> <span class="ident">PrivKey</span> = <span class="ident">BLS12381PrivateKey</span>;
+    <span class="kw">type</span> <span class="ident">Sig</span> = <span class="ident">BLS12381Signature</span>;
 
-    <span class="kw">const</span> <span class="ident">LENGTH</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="ident">BLS_PUBLIC_KEY_LENGTH</span>;
+    <span class="kw">const</span> <span class="ident">LENGTH</span>: <span class="ident">usize</span> = <span class="ident">BLS_PUBLIC_KEY_LENGTH</span>;
 
-    <span class="kw">fn</span> <span class="ident">verify_batch</span>(<span class="ident">msg</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">pks</span>: <span class="kw-2">&amp;</span>[<span class="self">Self</span>], <span class="ident">sigs</span>: <span class="kw-2">&amp;</span>[<span class="ident"><span class="self">Self</span>::Sig</span>]) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">signature::Error</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">num_sigs</span> <span class="op">=</span> <span class="ident">sigs</span>.<span class="ident">len</span>();
-        <span class="kw">if</span> <span class="ident">pks</span>.<span class="ident">len</span>() <span class="op">!</span><span class="op">=</span> <span class="ident">num_sigs</span> {
+    <span class="kw">fn</span> <span class="ident">verify_batch</span>(<span class="ident">msg</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">pks</span>: <span class="kw-2">&amp;</span>[<span class="self">Self</span>], <span class="ident">sigs</span>: <span class="kw-2">&amp;</span>[<span class="ident"><span class="self">Self</span>::Sig</span>]) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">signature::Error</span>&gt; {
+        <span class="kw">let</span> <span class="ident">num_sigs</span> = <span class="ident">sigs</span>.<span class="ident">len</span>();
+        <span class="kw">if</span> <span class="ident">pks</span>.<span class="ident">len</span>() != <span class="ident">num_sigs</span> {
             <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">signature::Error::new</span>());
         }
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">rands</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">blst_scalar</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="ident">num_sigs</span>);
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">rng</span> <span class="op">=</span> <span class="ident">OsRng</span>;
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">rands</span>: <span class="ident">Vec</span>&lt;<span class="ident">blst_scalar</span>&gt; = <span class="ident">Vec::with_capacity</span>(<span class="ident">num_sigs</span>);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">rng</span> = <span class="ident">OsRng</span>;
 
         <span class="kw">for</span> <span class="ident">_i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">num_sigs</span> {
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">vals</span> <span class="op">=</span> [<span class="number">0u64</span>; <span class="number">4</span>];
-            <span class="ident">vals</span>[<span class="number">0</span>] <span class="op">=</span> <span class="ident">rng</span>.<span class="ident">next_u64</span>();
-            <span class="kw">while</span> <span class="ident">vals</span>[<span class="number">0</span>] <span class="op">==</span> <span class="number">0</span> {
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">vals</span> = [<span class="number">0u64</span>; <span class="number">4</span>];
+            <span class="ident">vals</span>[<span class="number">0</span>] = <span class="ident">rng</span>.<span class="ident">next_u64</span>();
+            <span class="kw">while</span> <span class="ident">vals</span>[<span class="number">0</span>] == <span class="number">0</span> {
                 <span class="comment">// Reject zero as it is used for multiplication.</span>
-                <span class="ident">vals</span>[<span class="number">0</span>] <span class="op">=</span> <span class="ident">rng</span>.<span class="ident">next_u64</span>();
+                <span class="ident">vals</span>[<span class="number">0</span>] = <span class="ident">rng</span>.<span class="ident">next_u64</span>();
             }
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">rand_i</span> <span class="op">=</span> <span class="ident">MaybeUninit</span>::<span class="op">&lt;</span><span class="ident">blst_scalar</span><span class="op">&gt;</span><span class="ident">::uninit</span>();
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">rand_i</span> = <span class="ident">MaybeUninit</span>::&lt;<span class="ident">blst_scalar</span>&gt;<span class="ident">::uninit</span>();
             <span class="kw">unsafe</span> {
                 <span class="ident">blst_scalar_from_uint64</span>(<span class="ident">rand_i</span>.<span class="ident">as_mut_ptr</span>(), <span class="ident">vals</span>.<span class="ident">as_ptr</span>());
                 <span class="ident">rands</span>.<span class="ident">push</span>(<span class="ident">rand_i</span>.<span class="ident">assume_init</span>());
@@ -840,19 +840,19 @@
         }
 
         <span class="comment">// TODO: fix this, the identical message opens up a rogue key attack</span>
-        <span class="kw">let</span> <span class="ident">msgs_refs</span> <span class="op">=</span> (<span class="number">0</span>..<span class="ident">num_sigs</span>).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">msg</span>).<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>();
+        <span class="kw">let</span> <span class="ident">msgs_refs</span> = (<span class="number">0</span>..<span class="ident">num_sigs</span>).<span class="ident">map</span>(|<span class="kw">_</span>| <span class="ident">msg</span>).<span class="ident">collect</span>::&lt;<span class="ident">Vec</span>&lt;<span class="kw">_</span>&gt;&gt;();
 
-        <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">blst::Signature::verify_multiple_aggregate_signatures</span>(
+        <span class="kw">let</span> <span class="ident">result</span> = <span class="ident">blst::Signature::verify_multiple_aggregate_signatures</span>(
             <span class="kw-2">&amp;</span><span class="ident">msgs_refs</span>[..],
             <span class="ident">DST</span>,
-            <span class="kw-2">&amp;</span><span class="ident">pks</span>.<span class="ident">iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">pk</span><span class="op">|</span> <span class="kw-2">&amp;</span><span class="ident">pk</span>.<span class="ident">pubkey</span>).<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>()[..],
+            <span class="kw-2">&amp;</span><span class="ident">pks</span>.<span class="ident">iter</span>().<span class="ident">map</span>(|<span class="ident">pk</span>| <span class="kw-2">&amp;</span><span class="ident">pk</span>.<span class="ident">pubkey</span>).<span class="ident">collect</span>::&lt;<span class="ident">Vec</span>&lt;<span class="kw">_</span>&gt;&gt;()[..],
             <span class="bool-val">false</span>,
-            <span class="kw-2">&amp;</span><span class="ident">sigs</span>.<span class="ident">iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">sig</span><span class="op">|</span> <span class="kw-2">&amp;</span><span class="ident">sig</span>.<span class="ident">sig</span>).<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>()[..],
+            <span class="kw-2">&amp;</span><span class="ident">sigs</span>.<span class="ident">iter</span>().<span class="ident">map</span>(|<span class="ident">sig</span>| <span class="kw-2">&amp;</span><span class="ident">sig</span>.<span class="ident">sig</span>).<span class="ident">collect</span>::&lt;<span class="ident">Vec</span>&lt;<span class="kw">_</span>&gt;&gt;()[..],
             <span class="bool-val">true</span>,
             <span class="kw-2">&amp;</span><span class="ident">rands</span>,
             <span class="number">64</span>,
         );
-        <span class="kw">if</span> <span class="ident">result</span> <span class="op">==</span> <span class="ident">BLST_ERROR::BLST_SUCCESS</span> {
+        <span class="kw">if</span> <span class="ident">result</span> == <span class="ident">BLST_ERROR::BLST_SUCCESS</span> {
             <span class="prelude-val">Ok</span>(())
         } <span class="kw">else</span> {
             <span class="prelude-val">Err</span>(<span class="ident">signature::Error::new</span>())
@@ -864,31 +864,31 @@
 <span class="doccomment">/// Implement Authenticator</span>
 <span class="doccomment">///</span>
 
-<span class="kw">impl</span> <span class="ident">AsRef</span><span class="op">&lt;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">BLS12381Signature</span> {
+<span class="kw">impl</span> <span class="ident">AsRef</span>&lt;[<span class="ident">u8</span>]&gt; <span class="kw">for</span> <span class="ident">BLS12381Signature</span> {
     <span class="kw">fn</span> <span class="ident">as_ref</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] {
         <span class="self">self</span>.<span class="ident">bytes</span>
-            .<span class="ident">get_or_try_init</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">eyre::Report</span><span class="op">&gt;</span>(<span class="op">|</span><span class="op">|</span> <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">sig</span>.<span class="ident">to_bytes</span>()))
+            .<span class="ident">get_or_try_init</span>::&lt;<span class="kw">_</span>, <span class="ident">eyre::Report</span>&gt;(|| <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">sig</span>.<span class="ident">to_bytes</span>()))
             .<span class="ident">expect</span>(<span class="string">&quot;OnceCell invariant violated&quot;</span>)
     }
 }
 
 <span class="kw">impl</span> <span class="ident">std::hash::Hash</span> <span class="kw">for</span> <span class="ident">BLS12381Signature</span> {
-    <span class="kw">fn</span> <span class="ident">hash</span><span class="op">&lt;</span><span class="ident">H</span>: <span class="ident">std::hash::Hasher</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">state</span>: <span class="kw-2">&amp;mut</span> <span class="ident">H</span>) {
+    <span class="kw">fn</span> <span class="ident">hash</span>&lt;<span class="ident">H</span>: <span class="ident">std::hash::Hasher</span>&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">state</span>: <span class="kw-2">&amp;mut</span> <span class="ident">H</span>) {
         <span class="self">self</span>.<span class="ident">as_ref</span>().<span class="ident">hash</span>(<span class="ident">state</span>);
     }
 }
 
 <span class="kw">impl</span> <span class="ident">PartialEq</span> <span class="kw">for</span> <span class="ident">BLS12381Signature</span> {
     <span class="kw">fn</span> <span class="ident">eq</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="ident">bool</span> {
-        <span class="self">self</span>.<span class="ident">sig</span> <span class="op">==</span> <span class="ident">other</span>.<span class="ident">sig</span>
+        <span class="self">self</span>.<span class="ident">sig</span> == <span class="ident">other</span>.<span class="ident">sig</span>
     }
 }
 
 <span class="kw">impl</span> <span class="ident">Eq</span> <span class="kw">for</span> <span class="ident">BLS12381Signature</span> {}
 
 <span class="kw">impl</span> <span class="ident">Signature</span> <span class="kw">for</span> <span class="ident">BLS12381Signature</span> {
-    <span class="kw">fn</span> <span class="ident">from_bytes</span>(<span class="ident">bytes</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">signature::Error</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">sig</span> <span class="op">=</span> <span class="ident">blst::Signature::from_bytes</span>(<span class="ident">bytes</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">_e</span><span class="op">|</span> <span class="ident">signature::Error::new</span>())<span class="question-mark">?</span>;
+    <span class="kw">fn</span> <span class="ident">from_bytes</span>(<span class="ident">bytes</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="ident">signature::Error</span>&gt; {
+        <span class="kw">let</span> <span class="ident">sig</span> = <span class="ident">blst::Signature::from_bytes</span>(<span class="ident">bytes</span>).<span class="ident">map_err</span>(|<span class="ident">_e</span>| <span class="ident">signature::Error::new</span>())<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(<span class="ident">BLS12381Signature</span> {
             <span class="ident">sig</span>,
             <span class="ident">bytes</span>: <span class="ident">OnceCell::new</span>(),
@@ -899,16 +899,16 @@
 <span class="kw">impl</span> <span class="ident">Default</span> <span class="kw">for</span> <span class="ident">BLS12381Signature</span> {
     <span class="kw">fn</span> <span class="ident">default</span>() -&gt; <span class="self">Self</span> {
         <span class="comment">// TODO: improve this!</span>
-        <span class="kw">let</span> <span class="ident">ikm</span>: [<span class="ident">u8</span>; <span class="number">32</span>] <span class="op">=</span> [
+        <span class="kw">let</span> <span class="ident">ikm</span>: [<span class="ident">u8</span>; <span class="number">32</span>] = [
             <span class="number">0x93</span>, <span class="number">0xad</span>, <span class="number">0x7e</span>, <span class="number">0x65</span>, <span class="number">0xde</span>, <span class="number">0xad</span>, <span class="number">0x05</span>, <span class="number">0x2a</span>, <span class="number">0x08</span>, <span class="number">0x3a</span>, <span class="number">0x91</span>, <span class="number">0x0c</span>, <span class="number">0x8b</span>, <span class="number">0x72</span>,
             <span class="number">0x85</span>, <span class="number">0x91</span>, <span class="number">0x46</span>, <span class="number">0x4c</span>, <span class="number">0xca</span>, <span class="number">0x56</span>, <span class="number">0x60</span>, <span class="number">0x5b</span>, <span class="number">0xb0</span>, <span class="number">0x56</span>, <span class="number">0xed</span>, <span class="number">0xfe</span>, <span class="number">0x2b</span>, <span class="number">0x60</span>,
             <span class="number">0xa6</span>, <span class="number">0x3c</span>, <span class="number">0x48</span>, <span class="number">0x99</span>,
         ];
 
-        <span class="kw">let</span> <span class="ident">sk</span> <span class="op">=</span> <span class="ident">blst::SecretKey::key_gen</span>(<span class="kw-2">&amp;</span><span class="ident">ikm</span>, <span class="kw-2">&amp;</span>[]).<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">sk</span> = <span class="ident">blst::SecretKey::key_gen</span>(<span class="kw-2">&amp;</span><span class="ident">ikm</span>, <span class="kw-2">&amp;</span>[]).<span class="ident">unwrap</span>();
 
-        <span class="kw">let</span> <span class="ident">msg</span> <span class="op">=</span> <span class="string">b&quot;hello foo&quot;</span>;
-        <span class="kw">let</span> <span class="ident">sig</span> <span class="op">=</span> <span class="ident">sk</span>.<span class="ident">sign</span>(<span class="ident">msg</span>, <span class="ident">DST</span>, <span class="kw-2">&amp;</span>[]);
+        <span class="kw">let</span> <span class="ident">msg</span> = <span class="string">b&quot;hello foo&quot;</span>;
+        <span class="kw">let</span> <span class="ident">sig</span> = <span class="ident">sk</span>.<span class="ident">sign</span>(<span class="ident">msg</span>, <span class="ident">DST</span>, <span class="kw-2">&amp;</span>[]);
         <span class="ident">BLS12381Signature</span> {
             <span class="ident">sig</span>,
             <span class="ident">bytes</span>: <span class="ident">OnceCell::new</span>(),
@@ -917,32 +917,32 @@
 }
 
 <span class="kw">impl</span> <span class="ident">Display</span> <span class="kw">for</span> <span class="ident">BLS12381Signature</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">fmt::Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">fmt::Error</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">fmt::Formatter</span>&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">fmt::Error</span>&gt; {
         <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">Base64::encode_string</span>(<span class="self">self</span>.<span class="ident">as_ref</span>()))
     }
 }
 
 <span class="kw">impl</span> <span class="ident">Authenticator</span> <span class="kw">for</span> <span class="ident">BLS12381Signature</span> {
-    <span class="kw">type</span> <span class="ident">PubKey</span> <span class="op">=</span> <span class="ident">BLS12381PublicKey</span>;
-    <span class="kw">type</span> <span class="ident">PrivKey</span> <span class="op">=</span> <span class="ident">BLS12381PrivateKey</span>;
-    <span class="kw">const</span> <span class="ident">LENGTH</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="ident">BLS_SIGNATURE_LENGTH</span>;
+    <span class="kw">type</span> <span class="ident">PubKey</span> = <span class="ident">BLS12381PublicKey</span>;
+    <span class="kw">type</span> <span class="ident">PrivKey</span> = <span class="ident">BLS12381PrivateKey</span>;
+    <span class="kw">const</span> <span class="ident">LENGTH</span>: <span class="ident">usize</span> = <span class="ident">BLS_SIGNATURE_LENGTH</span>;
 }
 
 <span class="doccomment">///</span>
 <span class="doccomment">/// Implement SigningKey</span>
 <span class="doccomment">///</span>
 
-<span class="kw">impl</span> <span class="ident">AsRef</span><span class="op">&lt;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">BLS12381PrivateKey</span> {
+<span class="kw">impl</span> <span class="ident">AsRef</span>&lt;[<span class="ident">u8</span>]&gt; <span class="kw">for</span> <span class="ident">BLS12381PrivateKey</span> {
     <span class="kw">fn</span> <span class="ident">as_ref</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] {
         <span class="self">self</span>.<span class="ident">bytes</span>
-            .<span class="ident">get_or_try_init</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">eyre::Report</span><span class="op">&gt;</span>(<span class="op">|</span><span class="op">|</span> <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">privkey</span>.<span class="ident">to_bytes</span>()))
+            .<span class="ident">get_or_try_init</span>::&lt;<span class="kw">_</span>, <span class="ident">eyre::Report</span>&gt;(|| <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">privkey</span>.<span class="ident">to_bytes</span>()))
             .<span class="ident">expect</span>(<span class="string">&quot;OnceCell invariant violated&quot;</span>)
     }
 }
 
 <span class="kw">impl</span> <span class="ident">ToFromBytes</span> <span class="kw">for</span> <span class="ident">BLS12381PrivateKey</span> {
-    <span class="kw">fn</span> <span class="ident">from_bytes</span>(<span class="ident">bytes</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">signature::Error</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">privkey</span> <span class="op">=</span> <span class="ident">blst::SecretKey::from_bytes</span>(<span class="ident">bytes</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">_e</span><span class="op">|</span> <span class="ident">signature::Error::new</span>())<span class="question-mark">?</span>;
+    <span class="kw">fn</span> <span class="ident">from_bytes</span>(<span class="ident">bytes</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="ident">signature::Error</span>&gt; {
+        <span class="kw">let</span> <span class="ident">privkey</span> = <span class="ident">blst::SecretKey::from_bytes</span>(<span class="ident">bytes</span>).<span class="ident">map_err</span>(|<span class="ident">_e</span>| <span class="ident">signature::Error::new</span>())<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(<span class="ident">BLS12381PrivateKey</span> {
             <span class="ident">privkey</span>,
             <span class="ident">bytes</span>: <span class="ident">OnceCell::new</span>(),
@@ -952,7 +952,7 @@
 
 <span class="comment">// There is a strong requirement for this specific impl. in Fab benchmarks</span>
 <span class="kw">impl</span> <span class="ident">Serialize</span> <span class="kw">for</span> <span class="ident">BLS12381PrivateKey</span> {
-    <span class="kw">fn</span> <span class="ident">serialize</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">serializer</span>: <span class="ident">S</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">S::Ok</span>, <span class="ident">S::Error</span><span class="op">&gt;</span>
+    <span class="kw">fn</span> <span class="ident">serialize</span>&lt;<span class="ident">S</span>&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">serializer</span>: <span class="ident">S</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">S::Ok</span>, <span class="ident">S::Error</span>&gt;
     <span class="kw">where</span>
         <span class="ident">S</span>: <span class="ident">serde::Serializer</span>,
     {
@@ -961,26 +961,26 @@
 }
 
 <span class="comment">// There is a strong requirement for this specific impl. in Fab benchmarks</span>
-<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span><span class="op">&gt;</span> <span class="ident">Deserialize</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">BLS12381PrivateKey</span> {
-    <span class="kw">fn</span> <span class="ident">deserialize</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span>(<span class="ident">deserializer</span>: <span class="ident">D</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">D::Error</span><span class="op">&gt;</span>
+<span class="kw">impl</span>&lt;<span class="lifetime">&#39;de</span>&gt; <span class="ident">Deserialize</span>&lt;<span class="lifetime">&#39;de</span>&gt; <span class="kw">for</span> <span class="ident">BLS12381PrivateKey</span> {
+    <span class="kw">fn</span> <span class="ident">deserialize</span>&lt;<span class="ident">D</span>&gt;(<span class="ident">deserializer</span>: <span class="ident">D</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="ident">D::Error</span>&gt;
     <span class="kw">where</span>
-        <span class="ident">D</span>: <span class="ident">de::Deserializer</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span><span class="op">&gt;</span>,
+        <span class="ident">D</span>: <span class="ident">de::Deserializer</span>&lt;<span class="lifetime">&#39;de</span>&gt;,
     {
-        <span class="kw">let</span> <span class="ident">s</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">String</span> <span class="kw">as</span> <span class="ident">serde::Deserialize</span><span class="op">&gt;</span><span class="ident">::deserialize</span>(<span class="ident">deserializer</span>)<span class="question-mark">?</span>;
-        <span class="kw">let</span> <span class="ident">value</span> <span class="op">=</span> <span class="ident"><span class="self">Self</span>::decode_base64</span>(<span class="kw-2">&amp;</span><span class="ident">s</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">de::Error::custom</span>(<span class="ident">e</span>.<span class="ident">to_string</span>()))<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">s</span> = &lt;<span class="ident">String</span> <span class="kw">as</span> <span class="ident">serde::Deserialize</span>&gt;<span class="ident">::deserialize</span>(<span class="ident">deserializer</span>)<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">value</span> = <span class="ident"><span class="self">Self</span>::decode_base64</span>(<span class="kw-2">&amp;</span><span class="ident">s</span>).<span class="ident">map_err</span>(|<span class="ident">e</span>| <span class="ident">de::Error::custom</span>(<span class="ident">e</span>.<span class="ident">to_string</span>()))<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(<span class="ident">value</span>)
     }
 }
 
 <span class="kw">impl</span> <span class="ident">SigningKey</span> <span class="kw">for</span> <span class="ident">BLS12381PrivateKey</span> {
-    <span class="kw">type</span> <span class="ident">PubKey</span> <span class="op">=</span> <span class="ident">BLS12381PublicKey</span>;
-    <span class="kw">type</span> <span class="ident">Sig</span> <span class="op">=</span> <span class="ident">BLS12381Signature</span>;
-    <span class="kw">const</span> <span class="ident">LENGTH</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="ident">BLS_PRIVATE_KEY_LENGTH</span>;
+    <span class="kw">type</span> <span class="ident">PubKey</span> = <span class="ident">BLS12381PublicKey</span>;
+    <span class="kw">type</span> <span class="ident">Sig</span> = <span class="ident">BLS12381Signature</span>;
+    <span class="kw">const</span> <span class="ident">LENGTH</span>: <span class="ident">usize</span> = <span class="ident">BLS_PRIVATE_KEY_LENGTH</span>;
 }
 
-<span class="kw">impl</span> <span class="ident">Signer</span><span class="op">&lt;</span><span class="ident">BLS12381Signature</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">BLS12381PrivateKey</span> {
-    <span class="kw">fn</span> <span class="ident">try_sign</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">msg</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">BLS12381Signature</span>, <span class="ident">signature::Error</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">sig</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">privkey</span>.<span class="ident">sign</span>(<span class="ident">msg</span>, <span class="ident">DST</span>, <span class="kw-2">&amp;</span>[]);
+<span class="kw">impl</span> <span class="ident">Signer</span>&lt;<span class="ident">BLS12381Signature</span>&gt; <span class="kw">for</span> <span class="ident">BLS12381PrivateKey</span> {
+    <span class="kw">fn</span> <span class="ident">try_sign</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">msg</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">BLS12381Signature</span>, <span class="ident">signature::Error</span>&gt; {
+        <span class="kw">let</span> <span class="ident">sig</span> = <span class="self">self</span>.<span class="ident">privkey</span>.<span class="ident">sign</span>(<span class="ident">msg</span>, <span class="ident">DST</span>, <span class="kw-2">&amp;</span>[]);
 
         <span class="prelude-val">Ok</span>(<span class="ident">BLS12381Signature</span> {
             <span class="ident">sig</span>,
@@ -993,20 +993,20 @@
 <span class="doccomment">/// Implement KeyPair</span>
 <span class="doccomment">///</span>
 
-<span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">BLS12381PrivateKey</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">BLS12381KeyPair</span> {
+<span class="kw">impl</span> <span class="ident">From</span>&lt;<span class="ident">BLS12381PrivateKey</span>&gt; <span class="kw">for</span> <span class="ident">BLS12381KeyPair</span> {
     <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">secret</span>: <span class="ident">BLS12381PrivateKey</span>) -&gt; <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="ident">name</span> <span class="op">=</span> <span class="ident">BLS12381PublicKey::from</span>(<span class="kw-2">&amp;</span><span class="ident">secret</span>);
+        <span class="kw">let</span> <span class="ident">name</span> = <span class="ident">BLS12381PublicKey::from</span>(<span class="kw-2">&amp;</span><span class="ident">secret</span>);
         <span class="ident">BLS12381KeyPair</span> { <span class="ident">name</span>, <span class="ident">secret</span> }
     }
 }
 
 <span class="kw">impl</span> <span class="ident">EncodeDecodeBase64</span> <span class="kw">for</span> <span class="ident">BLS12381KeyPair</span> {
-    <span class="kw">fn</span> <span class="ident">decode_base64</span>(<span class="ident">value</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">eyre::Report</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">decode_base64</span>(<span class="ident">value</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="ident">eyre::Report</span>&gt; {
         <span class="ident">keypair_decode_base64</span>(<span class="ident">value</span>)
     }
 
     <span class="kw">fn</span> <span class="ident">encode_base64</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">String</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">bytes</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">bytes</span>: <span class="ident">Vec</span>&lt;<span class="ident">u8</span>&gt; = <span class="ident">Vec::new</span>();
         <span class="ident">bytes</span>.<span class="ident">extend_from_slice</span>(<span class="self">self</span>.<span class="ident">secret</span>.<span class="ident">as_ref</span>());
         <span class="ident">bytes</span>.<span class="ident">extend_from_slice</span>(<span class="self">self</span>.<span class="ident">name</span>.<span class="ident">as_ref</span>());
         <span class="ident">base64ct::Base64::encode_string</span>(<span class="kw-2">&amp;</span><span class="ident">bytes</span>[..])
@@ -1014,11 +1014,11 @@
 }
 
 <span class="kw">impl</span> <span class="ident">KeyPair</span> <span class="kw">for</span> <span class="ident">BLS12381KeyPair</span> {
-    <span class="kw">type</span> <span class="ident">PubKey</span> <span class="op">=</span> <span class="ident">BLS12381PublicKey</span>;
-    <span class="kw">type</span> <span class="ident">PrivKey</span> <span class="op">=</span> <span class="ident">BLS12381PrivateKey</span>;
-    <span class="kw">type</span> <span class="ident">Sig</span> <span class="op">=</span> <span class="ident">BLS12381Signature</span>;
+    <span class="kw">type</span> <span class="ident">PubKey</span> = <span class="ident">BLS12381PublicKey</span>;
+    <span class="kw">type</span> <span class="ident">PrivKey</span> = <span class="ident">BLS12381PrivateKey</span>;
+    <span class="kw">type</span> <span class="ident">Sig</span> = <span class="ident">BLS12381Signature</span>;
 
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;copy_key&quot;</span>)]</span>
+    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> = <span class="string">&quot;copy_key&quot;</span>)]</span>
     <span class="kw">fn</span> <span class="ident">copy</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="self">Self</span> {
         <span class="ident">BLS12381KeyPair</span> {
             <span class="ident">name</span>: <span class="self">self</span>.<span class="ident">name</span>.<span class="ident">clone</span>(),
@@ -1034,11 +1034,11 @@
         <span class="ident">BLS12381PrivateKey::from_bytes</span>(<span class="self">self</span>.<span class="ident">secret</span>.<span class="ident">as_ref</span>()).<span class="ident">unwrap</span>()
     }
 
-    <span class="kw">fn</span> <span class="ident">generate</span><span class="op">&lt;</span><span class="ident">R</span>: <span class="ident">rand::CryptoRng</span> <span class="op">+</span> <span class="ident">rand::RngCore</span><span class="op">&gt;</span>(<span class="ident">rng</span>: <span class="kw-2">&amp;mut</span> <span class="ident">R</span>) -&gt; <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ikm</span> <span class="op">=</span> [<span class="number">0u8</span>; <span class="number">32</span>];
+    <span class="kw">fn</span> <span class="ident">generate</span>&lt;<span class="ident">R</span>: <span class="ident">rand::CryptoRng</span> + <span class="ident">rand::RngCore</span>&gt;(<span class="ident">rng</span>: <span class="kw-2">&amp;mut</span> <span class="ident">R</span>) -&gt; <span class="self">Self</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ikm</span> = [<span class="number">0u8</span>; <span class="number">32</span>];
         <span class="ident">rng</span>.<span class="ident">fill_bytes</span>(<span class="kw-2">&amp;mut</span> <span class="ident">ikm</span>);
-        <span class="kw">let</span> <span class="ident">privkey</span> <span class="op">=</span> <span class="ident">blst::SecretKey::key_gen</span>(<span class="kw-2">&amp;</span><span class="ident">ikm</span>, <span class="kw-2">&amp;</span>[]).<span class="ident">expect</span>(<span class="string">&quot;ikm length should be higher&quot;</span>);
-        <span class="kw">let</span> <span class="ident">pubkey</span> <span class="op">=</span> <span class="ident">privkey</span>.<span class="ident">sk_to_pk</span>();
+        <span class="kw">let</span> <span class="ident">privkey</span> = <span class="ident">blst::SecretKey::key_gen</span>(<span class="kw-2">&amp;</span><span class="ident">ikm</span>, <span class="kw-2">&amp;</span>[]).<span class="ident">expect</span>(<span class="string">&quot;ikm length should be higher&quot;</span>);
+        <span class="kw">let</span> <span class="ident">pubkey</span> = <span class="ident">privkey</span>.<span class="ident">sk_to_pk</span>();
         <span class="ident">BLS12381KeyPair</span> {
             <span class="ident">name</span>: <span class="ident">BLS12381PublicKey</span> {
                 <span class="ident">pubkey</span>,
@@ -1052,10 +1052,10 @@
     }
 }
 
-<span class="kw">impl</span> <span class="ident">Signer</span><span class="op">&lt;</span><span class="ident">BLS12381Signature</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">BLS12381KeyPair</span> {
-    <span class="kw">fn</span> <span class="ident">try_sign</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">msg</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">BLS12381Signature</span>, <span class="ident">signature::Error</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">blst_priv</span>: <span class="kw-2">&amp;</span><span class="ident">blst::SecretKey</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">secret</span>.<span class="ident">privkey</span>;
-        <span class="kw">let</span> <span class="ident">sig</span> <span class="op">=</span> <span class="ident">blst_priv</span>.<span class="ident">sign</span>(<span class="ident">msg</span>, <span class="ident">DST</span>, <span class="kw-2">&amp;</span>[]);
+<span class="kw">impl</span> <span class="ident">Signer</span>&lt;<span class="ident">BLS12381Signature</span>&gt; <span class="kw">for</span> <span class="ident">BLS12381KeyPair</span> {
+    <span class="kw">fn</span> <span class="ident">try_sign</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">msg</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">BLS12381Signature</span>, <span class="ident">signature::Error</span>&gt; {
+        <span class="kw">let</span> <span class="ident">blst_priv</span>: <span class="kw-2">&amp;</span><span class="ident">blst::SecretKey</span> = <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">secret</span>.<span class="ident">privkey</span>;
+        <span class="kw">let</span> <span class="ident">sig</span> = <span class="ident">blst_priv</span>.<span class="ident">sign</span>(<span class="ident">msg</span>, <span class="ident">DST</span>, <span class="kw-2">&amp;</span>[]);
 
         <span class="prelude-val">Ok</span>(<span class="ident">BLS12381Signature</span> {
             <span class="ident">sig</span>,
@@ -1065,10 +1065,10 @@
 }
 
 <span class="kw">impl</span> <span class="ident">FromStr</span> <span class="kw">for</span> <span class="ident">BLS12381KeyPair</span> {
-    <span class="kw">type</span> <span class="prelude-val">Err</span> <span class="op">=</span> <span class="ident">eyre::Report</span>;
+    <span class="kw">type</span> <span class="prelude-val">Err</span> = <span class="ident">eyre::Report</span>;
 
-    <span class="kw">fn</span> <span class="ident">from_str</span>(<span class="ident">s</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident"><span class="self">Self</span>::Err</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">kp</span> <span class="op">=</span> <span class="ident"><span class="self">Self</span>::decode_base64</span>(<span class="ident">s</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="macro">eyre::eyre!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">e</span>.<span class="ident">to_string</span>()))<span class="question-mark">?</span>;
+    <span class="kw">fn</span> <span class="ident">from_str</span>(<span class="ident">s</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="ident"><span class="self">Self</span>::Err</span>&gt; {
+        <span class="kw">let</span> <span class="ident">kp</span> = <span class="ident"><span class="self">Self</span>::decode_base64</span>(<span class="ident">s</span>).<span class="ident">map_err</span>(|<span class="ident">e</span>| <span class="macro">eyre::eyre!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">e</span>.<span class="ident">to_string</span>()))<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(<span class="ident">kp</span>)
     }
 }
@@ -1078,12 +1078,12 @@
 <span class="doccomment">///</span>
 
 <span class="comment">// Don&#39;t try to use this externally</span>
-<span class="kw">impl</span> <span class="ident">AsRef</span><span class="op">&lt;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">BLS12381AggregateSignature</span> {
+<span class="kw">impl</span> <span class="ident">AsRef</span>&lt;[<span class="ident">u8</span>]&gt; <span class="kw">for</span> <span class="ident">BLS12381AggregateSignature</span> {
     <span class="kw">fn</span> <span class="ident">as_ref</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] {
         <span class="kw">match</span> <span class="self">self</span>.<span class="ident">sig</span> {
             <span class="prelude-val">Some</span>(<span class="ident">sig</span>) =&gt; <span class="self">self</span>
                 .<span class="ident">bytes</span>
-                .<span class="ident">get_or_try_init</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">eyre::Report</span><span class="op">&gt;</span>(<span class="op">|</span><span class="op">|</span> <span class="prelude-val">Ok</span>(<span class="ident">sig</span>.<span class="ident">to_bytes</span>()))
+                .<span class="ident">get_or_try_init</span>::&lt;<span class="kw">_</span>, <span class="ident">eyre::Report</span>&gt;(|| <span class="prelude-val">Ok</span>(<span class="ident">sig</span>.<span class="ident">to_bytes</span>()))
                 .<span class="ident">expect</span>(<span class="string">&quot;OnceCell invariant violated&quot;</span>),
             <span class="prelude-val">None</span> =&gt; <span class="kw-2">&amp;</span>[],
         }
@@ -1091,7 +1091,7 @@
 }
 
 <span class="kw">impl</span> <span class="ident">Display</span> <span class="kw">for</span> <span class="ident">BLS12381AggregateSignature</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">fmt::Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">fmt::Error</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">fmt::Formatter</span>&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">fmt::Error</span>&gt; {
         <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">Base64::encode_string</span>(<span class="self">self</span>.<span class="ident">as_ref</span>()))
     }
 }
@@ -1107,54 +1107,54 @@
 }
 
 <span class="kw">impl</span> <span class="ident">AggregateAuthenticator</span> <span class="kw">for</span> <span class="ident">BLS12381AggregateSignature</span> {
-    <span class="kw">type</span> <span class="ident">PrivKey</span> <span class="op">=</span> <span class="ident">BLS12381PrivateKey</span>;
-    <span class="kw">type</span> <span class="ident">PubKey</span> <span class="op">=</span> <span class="ident">BLS12381PublicKey</span>;
-    <span class="kw">type</span> <span class="ident">Sig</span> <span class="op">=</span> <span class="ident">BLS12381Signature</span>;
+    <span class="kw">type</span> <span class="ident">PrivKey</span> = <span class="ident">BLS12381PrivateKey</span>;
+    <span class="kw">type</span> <span class="ident">PubKey</span> = <span class="ident">BLS12381PublicKey</span>;
+    <span class="kw">type</span> <span class="ident">Sig</span> = <span class="ident">BLS12381Signature</span>;
 
     <span class="doccomment">/// Parse a key from its byte representation</span>
-    <span class="kw">fn</span> <span class="ident">aggregate</span>(<span class="ident">signatures</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Sig</span><span class="op">&gt;</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">signature::Error</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">aggregate</span>(<span class="ident">signatures</span>: <span class="ident">Vec</span>&lt;<span class="ident"><span class="self">Self</span>::Sig</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="ident">signature::Error</span>&gt; {
         <span class="ident">blst::AggregateSignature::aggregate</span>(
-            <span class="kw-2">&amp;</span><span class="ident">signatures</span>.<span class="ident">iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="kw-2">&amp;</span><span class="ident">x</span>.<span class="ident">sig</span>).<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>()[..],
+            <span class="kw-2">&amp;</span><span class="ident">signatures</span>.<span class="ident">iter</span>().<span class="ident">map</span>(|<span class="ident">x</span>| <span class="kw-2">&amp;</span><span class="ident">x</span>.<span class="ident">sig</span>).<span class="ident">collect</span>::&lt;<span class="ident">Vec</span>&lt;<span class="kw">_</span>&gt;&gt;()[..],
             <span class="bool-val">true</span>,
         )
-        .<span class="ident">map</span>(<span class="op">|</span><span class="ident">sig</span><span class="op">|</span> <span class="ident">BLS12381AggregateSignature</span> {
+        .<span class="ident">map</span>(|<span class="ident">sig</span>| <span class="ident">BLS12381AggregateSignature</span> {
             <span class="ident">sig</span>: <span class="prelude-val">Some</span>(<span class="ident">sig</span>.<span class="ident">to_signature</span>()),
             <span class="ident">bytes</span>: <span class="ident">OnceCell::new</span>(),
         })
-        .<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">signature::Error::new</span>())
+        .<span class="ident">map_err</span>(|<span class="kw">_</span>| <span class="ident">signature::Error::new</span>())
     }
 
-    <span class="kw">fn</span> <span class="ident">add_signature</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">signature</span>: <span class="ident"><span class="self">Self</span>::Sig</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">signature::Error</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">add_signature</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">signature</span>: <span class="ident"><span class="self">Self</span>::Sig</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">signature::Error</span>&gt; {
         <span class="kw">match</span> <span class="self">self</span>.<span class="ident">sig</span> {
             <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">sig</span>) =&gt; {
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">aggr_sig</span> <span class="op">=</span> <span class="ident">blst::AggregateSignature::from_signature</span>(<span class="ident">sig</span>);
+                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">aggr_sig</span> = <span class="ident">blst::AggregateSignature::from_signature</span>(<span class="ident">sig</span>);
                 <span class="ident">aggr_sig</span>
                     .<span class="ident">add_signature</span>(<span class="kw-2">&amp;</span><span class="ident">signature</span>.<span class="ident">sig</span>, <span class="bool-val">true</span>)
-                    .<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">signature::Error::new</span>())<span class="question-mark">?</span>;
-                <span class="self">self</span>.<span class="ident">sig</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">aggr_sig</span>.<span class="ident">to_signature</span>());
+                    .<span class="ident">map_err</span>(|<span class="kw">_</span>| <span class="ident">signature::Error::new</span>())<span class="question-mark">?</span>;
+                <span class="self">self</span>.<span class="ident">sig</span> = <span class="prelude-val">Some</span>(<span class="ident">aggr_sig</span>.<span class="ident">to_signature</span>());
                 <span class="prelude-val">Ok</span>(())
             }
             <span class="prelude-val">None</span> =&gt; {
-                <span class="self">self</span>.<span class="ident">sig</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">signature</span>.<span class="ident">sig</span>);
+                <span class="self">self</span>.<span class="ident">sig</span> = <span class="prelude-val">Some</span>(<span class="ident">signature</span>.<span class="ident">sig</span>);
                 <span class="prelude-val">Ok</span>(())
             }
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">add_aggregate</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">signature</span>: <span class="self">Self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">signature::Error</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">add_aggregate</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">signature</span>: <span class="self">Self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">signature::Error</span>&gt; {
         <span class="kw">match</span> <span class="self">self</span>.<span class="ident">sig</span> {
             <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">sig</span>) =&gt; <span class="kw">match</span> <span class="ident">signature</span>.<span class="ident">sig</span> {
                 <span class="prelude-val">Some</span>(<span class="ident">to_add</span>) =&gt; {
-                    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">blst::AggregateSignature::aggregate</span>(<span class="kw-2">&amp;</span>[<span class="ident">sig</span>, <span class="kw-2">&amp;</span><span class="ident">to_add</span>], <span class="bool-val">true</span>)
-                        .<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">signature::Error::new</span>())<span class="question-mark">?</span>
+                    <span class="kw">let</span> <span class="ident">result</span> = <span class="ident">blst::AggregateSignature::aggregate</span>(<span class="kw-2">&amp;</span>[<span class="ident">sig</span>, <span class="kw-2">&amp;</span><span class="ident">to_add</span>], <span class="bool-val">true</span>)
+                        .<span class="ident">map_err</span>(|<span class="kw">_</span>| <span class="ident">signature::Error::new</span>())<span class="question-mark">?</span>
                         .<span class="ident">to_signature</span>();
-                    <span class="self">self</span>.<span class="ident">sig</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">result</span>);
+                    <span class="self">self</span>.<span class="ident">sig</span> = <span class="prelude-val">Some</span>(<span class="ident">result</span>);
                     <span class="prelude-val">Ok</span>(())
                 }
                 <span class="prelude-val">None</span> =&gt; <span class="prelude-val">Ok</span>(()),
             },
             <span class="prelude-val">None</span> =&gt; {
-                <span class="self">self</span>.<span class="ident">sig</span> <span class="op">=</span> <span class="ident">signature</span>.<span class="ident">sig</span>;
+                <span class="self">self</span>.<span class="ident">sig</span> = <span class="ident">signature</span>.<span class="ident">sig</span>;
                 <span class="prelude-val">Ok</span>(())
             }
         }
@@ -1162,19 +1162,19 @@
 
     <span class="kw">fn</span> <span class="ident">verify</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">pks</span>: <span class="kw-2">&amp;</span>[<span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Sig</span> <span class="kw">as</span> <span class="ident">Authenticator</span><span class="op">&gt;</span><span class="ident">::PubKey</span>],
+        <span class="ident">pks</span>: <span class="kw-2">&amp;</span>[&lt;<span class="ident"><span class="self">Self</span>::Sig</span> <span class="kw">as</span> <span class="ident">Authenticator</span>&gt;<span class="ident">::PubKey</span>],
         <span class="ident">message</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
-    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">signature::Error</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="self">self</span>
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">signature::Error</span>&gt; {
+        <span class="kw">let</span> <span class="ident">result</span> = <span class="self">self</span>
             .<span class="ident">sig</span>
             .<span class="ident">ok_or_else</span>(<span class="ident">signature::Error::new</span>)<span class="question-mark">?</span>
             .<span class="ident">fast_aggregate_verify</span>(
                 <span class="bool-val">true</span>,
                 <span class="ident">message</span>,
                 <span class="ident">DST</span>,
-                <span class="kw-2">&amp;</span><span class="ident">pks</span>.<span class="ident">iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="kw-2">&amp;</span><span class="ident">x</span>.<span class="ident">pubkey</span>).<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>()[..],
+                <span class="kw-2">&amp;</span><span class="ident">pks</span>.<span class="ident">iter</span>().<span class="ident">map</span>(|<span class="ident">x</span>| <span class="kw-2">&amp;</span><span class="ident">x</span>.<span class="ident">pubkey</span>).<span class="ident">collect</span>::&lt;<span class="ident">Vec</span>&lt;<span class="kw">_</span>&gt;&gt;()[..],
             );
-        <span class="kw">if</span> <span class="ident">result</span> <span class="op">!</span><span class="op">=</span> <span class="ident">BLST_ERROR::BLST_SUCCESS</span> {
+        <span class="kw">if</span> <span class="ident">result</span> != <span class="ident">BLST_ERROR::BLST_SUCCESS</span> {
             <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">signature::Error::new</span>());
         }
         <span class="prelude-val">Ok</span>(())
@@ -1184,21 +1184,21 @@
         <span class="ident">signatures</span>: <span class="kw-2">&amp;</span>[<span class="self">Self</span>],
         <span class="ident">pks</span>: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>[<span class="ident"><span class="self">Self</span>::PubKey</span>]],
         <span class="ident">messages</span>: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>[<span class="ident">u8</span>]],
-    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">signature::Error</span><span class="op">&gt;</span> {
-        <span class="kw">if</span> <span class="ident">signatures</span>.<span class="ident">len</span>() <span class="op">!</span><span class="op">=</span> <span class="ident">pks</span>.<span class="ident">len</span>() <span class="op">|</span><span class="op">|</span> <span class="ident">signatures</span>.<span class="ident">len</span>() <span class="op">!</span><span class="op">=</span> <span class="ident">messages</span>.<span class="ident">len</span>() {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">signature::Error</span>&gt; {
+        <span class="kw">if</span> <span class="ident">signatures</span>.<span class="ident">len</span>() != <span class="ident">pks</span>.<span class="ident">len</span>() || <span class="ident">signatures</span>.<span class="ident">len</span>() != <span class="ident">messages</span>.<span class="ident">len</span>() {
             <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">signature::Error::new</span>());
         }
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">signatures</span>.<span class="ident">len</span>() {
-            <span class="kw">let</span> <span class="ident">sig</span> <span class="op">=</span> <span class="ident">signatures</span>[<span class="ident">i</span>].<span class="ident">sig</span>;
-            <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">sig</span>
+            <span class="kw">let</span> <span class="ident">sig</span> = <span class="ident">signatures</span>[<span class="ident">i</span>].<span class="ident">sig</span>;
+            <span class="kw">let</span> <span class="ident">result</span> = <span class="ident">sig</span>
                 .<span class="ident">ok_or_else</span>(<span class="ident">signature::Error::new</span>)<span class="question-mark">?</span>
                 .<span class="ident">fast_aggregate_verify</span>(
                     <span class="bool-val">true</span>,
                     <span class="ident">messages</span>[<span class="ident">i</span>],
                     <span class="ident">DST</span>,
-                    <span class="kw-2">&amp;</span><span class="ident">pks</span>[<span class="ident">i</span>].<span class="ident">iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="kw-2">&amp;</span><span class="ident">x</span>.<span class="ident">pubkey</span>).<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>()[..],
+                    <span class="kw-2">&amp;</span><span class="ident">pks</span>[<span class="ident">i</span>].<span class="ident">iter</span>().<span class="ident">map</span>(|<span class="ident">x</span>| <span class="kw-2">&amp;</span><span class="ident">x</span>.<span class="ident">pubkey</span>).<span class="ident">collect</span>::&lt;<span class="ident">Vec</span>&lt;<span class="kw">_</span>&gt;&gt;()[..],
                 );
-            <span class="kw">if</span> <span class="ident">result</span> <span class="op">!</span><span class="op">=</span> <span class="ident">BLST_ERROR::BLST_SUCCESS</span> {
+            <span class="kw">if</span> <span class="ident">result</span> != <span class="ident">BLST_ERROR::BLST_SUCCESS</span> {
                 <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">signature::Error::new</span>());
             }
         }
@@ -1210,15 +1210,15 @@
 <span class="doccomment">/// Implement VerifyingKeyBytes</span>
 <span class="doccomment">///</span>
 
-<span class="kw">impl</span> <span class="ident">TryFrom</span><span class="op">&lt;</span><span class="ident">BLS12381PublicKeyBytes</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">BLS12381PublicKey</span> {
-    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">signature::Error</span>;
+<span class="kw">impl</span> <span class="ident">TryFrom</span>&lt;<span class="ident">BLS12381PublicKeyBytes</span>&gt; <span class="kw">for</span> <span class="ident">BLS12381PublicKey</span> {
+    <span class="kw">type</span> <span class="ident">Error</span> = <span class="ident">signature::Error</span>;
 
-    <span class="kw">fn</span> <span class="ident">try_from</span>(<span class="ident">bytes</span>: <span class="ident">BLS12381PublicKeyBytes</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">BLS12381PublicKey</span>, <span class="ident"><span class="self">Self</span>::Error</span><span class="op">&gt;</span> {
-        <span class="ident">BLS12381PublicKey::from_bytes</span>(<span class="ident">bytes</span>.<span class="ident">as_ref</span>()).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident"><span class="self">Self</span>::Error::new</span>())
+    <span class="kw">fn</span> <span class="ident">try_from</span>(<span class="ident">bytes</span>: <span class="ident">BLS12381PublicKeyBytes</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">BLS12381PublicKey</span>, <span class="ident"><span class="self">Self</span>::Error</span>&gt; {
+        <span class="ident">BLS12381PublicKey::from_bytes</span>(<span class="ident">bytes</span>.<span class="ident">as_ref</span>()).<span class="ident">map_err</span>(|<span class="kw">_</span>| <span class="ident"><span class="self">Self</span>::Error::new</span>())
     }
 }
 
-<span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">BLS12381PublicKey</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">BLS12381PublicKeyBytes</span> {
+<span class="kw">impl</span> <span class="ident">From</span>&lt;<span class="kw-2">&amp;</span><span class="ident">BLS12381PublicKey</span>&gt; <span class="kw">for</span> <span class="ident">BLS12381PublicKeyBytes</span> {
     <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">pk</span>: <span class="kw-2">&amp;</span><span class="ident">BLS12381PublicKey</span>) -&gt; <span class="ident">BLS12381PublicKeyBytes</span> {
         <span class="ident">BLS12381PublicKeyBytes::from_bytes</span>(<span class="ident">pk</span>.<span class="ident">as_ref</span>()).<span class="ident">unwrap</span>()
     }
@@ -1253,4 +1253,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="crypto" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (20ffea693 2022-08-11)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="crypto" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>

@@ -455,29 +455,29 @@
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct</span> <span class="ident">Metrics</span> {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">endpoint_metrics</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">EndpointMetrics</span><span class="op">&gt;</span>,
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">primary_endpoint_metrics</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PrimaryEndpointMetrics</span><span class="op">&gt;</span>,
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">primary_channel_metrics</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PrimaryChannelMetrics</span><span class="op">&gt;</span>,
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">node_metrics</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PrimaryMetrics</span><span class="op">&gt;</span>,
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">network_metrics</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PrimaryNetworkMetrics</span><span class="op">&gt;</span>,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">endpoint_metrics</span>: <span class="prelude-ty">Option</span>&lt;<span class="ident">EndpointMetrics</span>&gt;,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">primary_endpoint_metrics</span>: <span class="prelude-ty">Option</span>&lt;<span class="ident">PrimaryEndpointMetrics</span>&gt;,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">primary_channel_metrics</span>: <span class="prelude-ty">Option</span>&lt;<span class="ident">PrimaryChannelMetrics</span>&gt;,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">node_metrics</span>: <span class="prelude-ty">Option</span>&lt;<span class="ident">PrimaryMetrics</span>&gt;,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">network_metrics</span>: <span class="prelude-ty">Option</span>&lt;<span class="ident">PrimaryNetworkMetrics</span>&gt;,
 }
 
 <span class="doccomment">/// Initialises the metrics</span>
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">initialise_metrics</span>(<span class="ident">metrics_registry</span>: <span class="kw-2">&amp;</span><span class="ident">Registry</span>) -&gt; <span class="ident">Metrics</span> {
     <span class="comment">// The metrics used for the gRPC primary node endpoints we expose to the external consensus</span>
-    <span class="kw">let</span> <span class="ident">endpoint_metrics</span> <span class="op">=</span> <span class="ident">EndpointMetrics::new</span>(<span class="ident">metrics_registry</span>);
+    <span class="kw">let</span> <span class="ident">endpoint_metrics</span> = <span class="ident">EndpointMetrics::new</span>(<span class="ident">metrics_registry</span>);
 
     <span class="comment">// The metrics used for the primary-to-primary communication node endpoints</span>
-    <span class="kw">let</span> <span class="ident">primary_endpoint_metrics</span> <span class="op">=</span> <span class="ident">PrimaryEndpointMetrics::new</span>(<span class="ident">metrics_registry</span>);
+    <span class="kw">let</span> <span class="ident">primary_endpoint_metrics</span> = <span class="ident">PrimaryEndpointMetrics::new</span>(<span class="ident">metrics_registry</span>);
 
     <span class="comment">// The metrics used for measuring the occupancy of the channels in the primary</span>
-    <span class="kw">let</span> <span class="ident">primary_channel_metrics</span> <span class="op">=</span> <span class="ident">PrimaryChannelMetrics::new</span>(<span class="ident">metrics_registry</span>);
+    <span class="kw">let</span> <span class="ident">primary_channel_metrics</span> = <span class="ident">PrimaryChannelMetrics::new</span>(<span class="ident">metrics_registry</span>);
 
     <span class="comment">// Essential/core metrics across the primary node</span>
-    <span class="kw">let</span> <span class="ident">node_metrics</span> <span class="op">=</span> <span class="ident">PrimaryMetrics::new</span>(<span class="ident">metrics_registry</span>);
+    <span class="kw">let</span> <span class="ident">node_metrics</span> = <span class="ident">PrimaryMetrics::new</span>(<span class="ident">metrics_registry</span>);
 
     <span class="comment">// Network metrics for the primary to primary comms</span>
-    <span class="kw">let</span> <span class="ident">network_metrics</span> <span class="op">=</span> <span class="ident">metrics::PrimaryNetworkMetrics::new</span>(<span class="ident">metrics_registry</span>);
+    <span class="kw">let</span> <span class="ident">network_metrics</span> = <span class="ident">metrics::PrimaryNetworkMetrics::new</span>(<span class="ident">metrics_registry</span>);
 
     <span class="ident">Metrics</span> {
         <span class="ident">node_metrics</span>: <span class="prelude-val">Some</span>(<span class="ident">node_metrics</span>),
@@ -536,12 +536,12 @@
 
 <span class="kw">impl</span> <span class="ident">PrimaryChannelMetrics</span> {
     <span class="comment">// The consistent use of this constant in the below, as well as in `node::spawn_primary` is load-bearing, see `replace_registered_committed_certificates_metric`.</span>
-    <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">NAME_COMMITTED_CERTS</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span> <span class="op">=</span> <span class="string">&quot;tx_committed_certificates&quot;</span>;
-    <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">DESC_COMMITTED_CERTS</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span> <span class="op">=</span>
+    <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">NAME_COMMITTED_CERTS</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span> = <span class="string">&quot;tx_committed_certificates&quot;</span>;
+    <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">DESC_COMMITTED_CERTS</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span> =
         <span class="string">&quot;occupancy of the channel from the `Consensus` to the `primary::Core`&quot;</span>;
     <span class="comment">// The consistent use of this constant in the below, as well as in `node::spawn_primary` is load-bearing, see `replace_registered_new_certificates_metric`.</span>
-    <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">NAME_NEW_CERTS</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span> <span class="op">=</span> <span class="string">&quot;tx_new_certificates&quot;</span>;
-    <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">DESC_NEW_CERTS</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span> <span class="op">=</span>
+    <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">NAME_NEW_CERTS</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span> = <span class="string">&quot;tx_new_certificates&quot;</span>;
+    <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">DESC_NEW_CERTS</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span> =
         <span class="string">&quot;occupancy of the channel from the `primary::Core` to the `Consensus`&quot;</span>;
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">registry</span>: <span class="kw-2">&amp;</span><span class="ident">Registry</span>) -&gt; <span class="self">Self</span> {
@@ -657,31 +657,31 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">replace_registered_new_certificates_metric</span>(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">registry</span>: <span class="kw-2">&amp;</span><span class="ident">Registry</span>,
-        <span class="ident">collector</span>: <span class="ident">Box</span><span class="op">&lt;</span><span class="ident">GenericGauge</span><span class="op">&lt;</span><span class="ident">AtomicI64</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">collector</span>: <span class="ident">Box</span>&lt;<span class="ident">GenericGauge</span>&lt;<span class="ident">AtomicI64</span>&gt;&gt;,
     ) {
-        <span class="kw">let</span> <span class="ident">new_certificates_counter</span> <span class="op">=</span>
+        <span class="kw">let</span> <span class="ident">new_certificates_counter</span> =
             <span class="ident">IntGauge::new</span>(<span class="ident"><span class="self">Self</span>::NAME_NEW_CERTS</span>, <span class="ident"><span class="self">Self</span>::DESC_NEW_CERTS</span>).<span class="ident">unwrap</span>();
         <span class="comment">// TODO: Sanity-check by hashing the descs against one another</span>
         <span class="ident">registry</span>
             .<span class="ident">unregister</span>(<span class="ident">Box::new</span>(<span class="ident">new_certificates_counter</span>.<span class="ident">clone</span>()))
             .<span class="ident">unwrap</span>();
         <span class="ident">registry</span>.<span class="ident">register</span>(<span class="ident">collector</span>).<span class="ident">unwrap</span>();
-        <span class="self">self</span>.<span class="ident">tx_new_certificates</span> <span class="op">=</span> <span class="ident">new_certificates_counter</span>;
+        <span class="self">self</span>.<span class="ident">tx_new_certificates</span> = <span class="ident">new_certificates_counter</span>;
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">replace_registered_committed_certificates_metric</span>(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">registry</span>: <span class="kw-2">&amp;</span><span class="ident">Registry</span>,
-        <span class="ident">collector</span>: <span class="ident">Box</span><span class="op">&lt;</span><span class="ident">GenericGauge</span><span class="op">&lt;</span><span class="ident">AtomicI64</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">collector</span>: <span class="ident">Box</span>&lt;<span class="ident">GenericGauge</span>&lt;<span class="ident">AtomicI64</span>&gt;&gt;,
     ) {
-        <span class="kw">let</span> <span class="ident">committed_certificates_counter</span> <span class="op">=</span>
+        <span class="kw">let</span> <span class="ident">committed_certificates_counter</span> =
             <span class="ident">IntGauge::new</span>(<span class="ident"><span class="self">Self</span>::NAME_COMMITTED_CERTS</span>, <span class="ident"><span class="self">Self</span>::DESC_COMMITTED_CERTS</span>).<span class="ident">unwrap</span>();
         <span class="comment">// TODO: Sanity-check by hashing the descs against one another</span>
         <span class="ident">registry</span>
             .<span class="ident">unregister</span>(<span class="ident">Box::new</span>(<span class="ident">committed_certificates_counter</span>.<span class="ident">clone</span>()))
             .<span class="ident">unwrap</span>();
         <span class="ident">registry</span>.<span class="ident">register</span>(<span class="ident">collector</span>).<span class="ident">unwrap</span>();
-        <span class="self">self</span>.<span class="ident">tx_committed_certificates</span> <span class="op">=</span> <span class="ident">committed_certificates_counter</span>;
+        <span class="self">self</span>.<span class="ident">tx_committed_certificates</span> = <span class="ident">committed_certificates_counter</span>;
     }
 }
 
@@ -863,12 +863,12 @@
     }
 
     <span class="kw">fn</span> <span class="ident">on_response</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">path</span>: <span class="ident">String</span>, <span class="ident">latency</span>: <span class="ident">Duration</span>, <span class="ident">status</span>: <span class="ident">u16</span>, <span class="ident">grpc_status_code</span>: <span class="ident">Code</span>) {
-        <span class="kw">let</span> <span class="ident">code</span>: <span class="ident">i32</span> <span class="op">=</span> <span class="ident">grpc_status_code</span>.<span class="ident">into</span>();
-        <span class="kw">let</span> <span class="ident">labels</span> <span class="op">=</span> [<span class="ident">path</span>.<span class="ident">as_str</span>(), <span class="kw-2">&amp;</span><span class="ident">status</span>.<span class="ident">to_string</span>(), <span class="kw-2">&amp;</span><span class="ident">code</span>.<span class="ident">to_string</span>()];
+        <span class="kw">let</span> <span class="ident">code</span>: <span class="ident">i32</span> = <span class="ident">grpc_status_code</span>.<span class="ident">into</span>();
+        <span class="kw">let</span> <span class="ident">labels</span> = [<span class="ident">path</span>.<span class="ident">as_str</span>(), <span class="kw-2">&amp;</span><span class="ident">status</span>.<span class="ident">to_string</span>(), <span class="kw-2">&amp;</span><span class="ident">code</span>.<span class="ident">to_string</span>()];
 
         <span class="self">self</span>.<span class="ident">requests_by_route</span>.<span class="ident">with_label_values</span>(<span class="kw-2">&amp;</span><span class="ident">labels</span>).<span class="ident">inc</span>();
 
-        <span class="kw">let</span> <span class="ident">req_latency_secs</span> <span class="op">=</span> <span class="ident">latency</span>.<span class="ident">as_secs_f64</span>();
+        <span class="kw">let</span> <span class="ident">req_latency_secs</span> = <span class="ident">latency</span>.<span class="ident">as_secs_f64</span>();
         <span class="self">self</span>.<span class="ident">req_latency_by_route</span>
             .<span class="ident">with_label_values</span>(<span class="kw-2">&amp;</span><span class="ident">labels</span>)
             .<span class="ident">observe</span>(<span class="ident">req_latency_secs</span>);
@@ -881,4 +881,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (20ffea693 2022-08-11)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>

@@ -619,11 +619,11 @@
 };
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="attribute">#[<span class="ident">path</span> <span class="op">=</span> <span class="string">&quot;tests/worker_tests.rs&quot;</span>]</span>
+<span class="attribute">#[<span class="ident">path</span> = <span class="string">&quot;tests/worker_tests.rs&quot;</span>]</span>
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">worker_tests</span>;
 
 <span class="doccomment">/// The default channel capacity for each channel of the worker.</span>
-<span class="kw">pub</span> <span class="kw">const</span> <span class="ident">CHANNEL_CAPACITY</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">1_000</span>;
+<span class="kw">pub</span> <span class="kw">const</span> <span class="ident">CHANNEL_CAPACITY</span>: <span class="ident">usize</span> = <span class="number">1_000</span>;
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::metrics</span>::{<span class="ident">Metrics</span>, <span class="ident">WorkerEndpointMetrics</span>, <span class="ident">WorkerMetrics</span>};
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">types::WorkerMessage</span>;
@@ -638,10 +638,10 @@
     <span class="doccomment">/// The configuration parameters</span>
     <span class="ident">parameters</span>: <span class="ident">Parameters</span>,
     <span class="doccomment">/// The persistent storage.</span>
-    <span class="ident">store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">BatchDigest</span>, <span class="ident">SerializedBatchMessage</span><span class="op">&gt;</span>,
+    <span class="ident">store</span>: <span class="ident">Store</span>&lt;<span class="ident">BatchDigest</span>, <span class="ident">SerializedBatchMessage</span>&gt;,
 }
 
-<span class="kw">const</span> <span class="ident">INADDR_ANY</span>: <span class="ident">Ipv4Addr</span> <span class="op">=</span> <span class="ident">Ipv4Addr::new</span>(<span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>);
+<span class="kw">const</span> <span class="ident">INADDR_ANY</span>: <span class="ident">Ipv4Addr</span> = <span class="ident">Ipv4Addr::new</span>(<span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>);
 
 <span class="kw">impl</span> <span class="ident">Worker</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(
@@ -649,11 +649,11 @@
         <span class="ident">id</span>: <span class="ident">WorkerId</span>,
         <span class="ident">committee</span>: <span class="ident">SharedCommittee</span>,
         <span class="ident">parameters</span>: <span class="ident">Parameters</span>,
-        <span class="ident">store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">BatchDigest</span>, <span class="ident">SerializedBatchMessage</span><span class="op">&gt;</span>,
+        <span class="ident">store</span>: <span class="ident">Store</span>&lt;<span class="ident">BatchDigest</span>, <span class="ident">SerializedBatchMessage</span>&gt;,
         <span class="ident">metrics</span>: <span class="ident">Metrics</span>,
-    ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="ident">Vec</span>&lt;<span class="ident">JoinHandle</span>&lt;()&gt;&gt; {
         <span class="comment">// Define a worker instance.</span>
-        <span class="kw">let</span> <span class="ident">worker</span> <span class="op">=</span> <span class="self">Self</span> {
+        <span class="kw">let</span> <span class="ident">worker</span> = <span class="self">Self</span> {
             <span class="ident">name</span>: <span class="ident">name</span>.<span class="ident">clone</span>(),
             <span class="ident">id</span>,
             <span class="ident">committee</span>: <span class="ident">committee</span>.<span class="ident">clone</span>(),
@@ -661,19 +661,19 @@
             <span class="ident">store</span>,
         };
 
-        <span class="kw">let</span> <span class="ident">node_metrics</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">metrics</span>.<span class="ident">worker_metrics</span>.<span class="ident">unwrap</span>());
-        <span class="kw">let</span> <span class="ident">endpoint_metrics</span> <span class="op">=</span> <span class="ident">metrics</span>.<span class="ident">endpoint_metrics</span>.<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="ident">network_metrics</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">metrics</span>.<span class="ident">network_metrics</span>.<span class="ident">unwrap</span>());
-        <span class="kw">let</span> <span class="ident">channel_metrics</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">WorkerChannelMetrics</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">metrics</span>.<span class="ident">channel_metrics</span>.<span class="ident">unwrap</span>());
+        <span class="kw">let</span> <span class="ident">node_metrics</span> = <span class="ident">Arc::new</span>(<span class="ident">metrics</span>.<span class="ident">worker_metrics</span>.<span class="ident">unwrap</span>());
+        <span class="kw">let</span> <span class="ident">endpoint_metrics</span> = <span class="ident">metrics</span>.<span class="ident">endpoint_metrics</span>.<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">network_metrics</span> = <span class="ident">Arc::new</span>(<span class="ident">metrics</span>.<span class="ident">network_metrics</span>.<span class="ident">unwrap</span>());
+        <span class="kw">let</span> <span class="ident">channel_metrics</span>: <span class="ident">Arc</span>&lt;<span class="ident">WorkerChannelMetrics</span>&gt; = <span class="ident">Arc::new</span>(<span class="ident">metrics</span>.<span class="ident">channel_metrics</span>.<span class="ident">unwrap</span>());
 
         <span class="comment">// Spawn all worker tasks.</span>
-        <span class="kw">let</span> (<span class="ident">tx_primary</span>, <span class="ident">rx_primary</span>) <span class="op">=</span> <span class="ident">channel</span>(<span class="ident">CHANNEL_CAPACITY</span>, <span class="kw-2">&amp;</span><span class="ident">channel_metrics</span>.<span class="ident">tx_primary</span>);
+        <span class="kw">let</span> (<span class="ident">tx_primary</span>, <span class="ident">rx_primary</span>) = <span class="ident">channel</span>(<span class="ident">CHANNEL_CAPACITY</span>, <span class="kw-2">&amp;</span><span class="ident">channel_metrics</span>.<span class="ident">tx_primary</span>);
 
-        <span class="kw">let</span> <span class="ident">initial_committee</span> <span class="op">=</span> (<span class="kw-2">*</span>(<span class="kw-2">*</span>(<span class="kw-2">*</span><span class="ident">committee</span>).<span class="ident">load</span>()).<span class="ident">clone</span>()).<span class="ident">clone</span>();
-        <span class="kw">let</span> (<span class="ident">tx_reconfigure</span>, <span class="ident">rx_reconfigure</span>) <span class="op">=</span>
+        <span class="kw">let</span> <span class="ident">initial_committee</span> = (<span class="kw-2">*</span>(<span class="kw-2">*</span>(<span class="kw-2">*</span><span class="ident">committee</span>).<span class="ident">load</span>()).<span class="ident">clone</span>()).<span class="ident">clone</span>();
+        <span class="kw">let</span> (<span class="ident">tx_reconfigure</span>, <span class="ident">rx_reconfigure</span>) =
             <span class="ident">watch::channel</span>(<span class="ident">ReconfigureNotification::NewEpoch</span>(<span class="ident">initial_committee</span>.<span class="ident">clone</span>()));
 
-        <span class="kw">let</span> <span class="ident">client_flow_handles</span> <span class="op">=</span> <span class="ident">worker</span>.<span class="ident">handle_clients_transactions</span>(
+        <span class="kw">let</span> <span class="ident">client_flow_handles</span> = <span class="ident">worker</span>.<span class="ident">handle_clients_transactions</span>(
             <span class="kw-2">&amp;</span><span class="ident">tx_reconfigure</span>,
             <span class="ident">tx_primary</span>.<span class="ident">clone</span>(),
             <span class="ident">node_metrics</span>.<span class="ident">clone</span>(),
@@ -681,13 +681,13 @@
             <span class="ident">endpoint_metrics</span>,
             <span class="ident">network_metrics</span>.<span class="ident">clone</span>(),
         );
-        <span class="kw">let</span> <span class="ident">worker_flow_handles</span> <span class="op">=</span> <span class="ident">worker</span>.<span class="ident">handle_workers_messages</span>(
+        <span class="kw">let</span> <span class="ident">worker_flow_handles</span> = <span class="ident">worker</span>.<span class="ident">handle_workers_messages</span>(
             <span class="kw-2">&amp;</span><span class="ident">tx_reconfigure</span>,
             <span class="ident">tx_primary</span>.<span class="ident">clone</span>(),
             <span class="ident">channel_metrics</span>.<span class="ident">clone</span>(),
             <span class="ident">network_metrics</span>.<span class="ident">clone</span>(),
         );
-        <span class="kw">let</span> <span class="ident">primary_flow_handles</span> <span class="op">=</span> <span class="ident">worker</span>.<span class="ident">handle_primary_messages</span>(
+        <span class="kw">let</span> <span class="ident">primary_flow_handles</span> = <span class="ident">worker</span>.<span class="ident">handle_primary_messages</span>(
             <span class="ident">tx_reconfigure</span>,
             <span class="ident">tx_primary</span>,
             <span class="ident">node_metrics</span>,
@@ -696,7 +696,7 @@
         );
 
         <span class="comment">// The `PrimaryConnector` allows the worker to send messages to its primary.</span>
-        <span class="kw">let</span> <span class="ident">handle</span> <span class="op">=</span> <span class="ident">PrimaryConnector::spawn</span>(<span class="ident">name</span>, <span class="ident">initial_committee</span>, <span class="ident">rx_reconfigure</span>, <span class="ident">rx_primary</span>);
+        <span class="kw">let</span> <span class="ident">handle</span> = <span class="ident">PrimaryConnector::spawn</span>(<span class="ident">name</span>, <span class="ident">initial_committee</span>, <span class="ident">rx_reconfigure</span>, <span class="ident">rx_primary</span>);
 
         <span class="comment">// NOTE: This log entry is used to compute performance.</span>
         <span class="macro">info!</span>(
@@ -710,7 +710,7 @@
                 .<span class="ident">transactions</span>
         );
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">handles</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="ident">handle</span>];
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">handles</span> = <span class="macro">vec!</span>[<span class="ident">handle</span>];
         <span class="ident">handles</span>.<span class="ident">extend</span>(<span class="ident">primary_flow_handles</span>);
         <span class="ident">handles</span>.<span class="ident">extend</span>(<span class="ident">client_flow_handles</span>);
         <span class="ident">handles</span>.<span class="ident">extend</span>(<span class="ident">worker_flow_handles</span>);
@@ -720,35 +720,35 @@
     <span class="doccomment">/// Spawn all tasks responsible to handle messages from our primary.</span>
     <span class="kw">fn</span> <span class="ident">handle_primary_messages</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">tx_reconfigure</span>: <span class="ident">watch::Sender</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
-        <span class="ident">tx_primary</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">WorkerPrimaryMessage</span><span class="op">&gt;</span>,
-        <span class="ident">node_metrics</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">WorkerMetrics</span><span class="op">&gt;</span>,
-        <span class="ident">channel_metrics</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">WorkerChannelMetrics</span><span class="op">&gt;</span>,
-        <span class="ident">network_metrics</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">WorkerNetworkMetrics</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> (<span class="ident">tx_synchronizer</span>, <span class="ident">rx_synchronizer</span>) <span class="op">=</span>
+        <span class="ident">tx_reconfigure</span>: <span class="ident">watch::Sender</span>&lt;<span class="ident">ReconfigureNotification</span>&gt;,
+        <span class="ident">tx_primary</span>: <span class="ident">Sender</span>&lt;<span class="ident">WorkerPrimaryMessage</span>&gt;,
+        <span class="ident">node_metrics</span>: <span class="ident">Arc</span>&lt;<span class="ident">WorkerMetrics</span>&gt;,
+        <span class="ident">channel_metrics</span>: <span class="ident">Arc</span>&lt;<span class="ident">WorkerChannelMetrics</span>&gt;,
+        <span class="ident">network_metrics</span>: <span class="ident">Arc</span>&lt;<span class="ident">WorkerNetworkMetrics</span>&gt;,
+    ) -&gt; <span class="ident">Vec</span>&lt;<span class="ident">JoinHandle</span>&lt;()&gt;&gt; {
+        <span class="kw">let</span> (<span class="ident">tx_synchronizer</span>, <span class="ident">rx_synchronizer</span>) =
             <span class="ident">channel</span>(<span class="ident">CHANNEL_CAPACITY</span>, <span class="kw-2">&amp;</span><span class="ident">channel_metrics</span>.<span class="ident">tx_synchronizer</span>);
 
         <span class="comment">// Receive incoming messages from our primary.</span>
-        <span class="kw">let</span> <span class="ident">address</span> <span class="op">=</span> <span class="self">self</span>
+        <span class="kw">let</span> <span class="ident">address</span> = <span class="self">self</span>
             .<span class="ident">committee</span>
             .<span class="ident">load</span>()
             .<span class="ident">worker</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">name</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">id</span>)
             .<span class="ident">expect</span>(<span class="string">&quot;Our public key or worker id is not in the committee&quot;</span>)
             .<span class="ident">primary_to_worker</span>;
-        <span class="kw">let</span> <span class="ident">address</span> <span class="op">=</span> <span class="ident">address</span>
-            .<span class="ident">replace</span>(<span class="number">0</span>, <span class="op">|</span><span class="ident">_protocol</span><span class="op">|</span> <span class="prelude-val">Some</span>(<span class="ident">Protocol::Ip4</span>(<span class="ident">INADDR_ANY</span>)))
+        <span class="kw">let</span> <span class="ident">address</span> = <span class="ident">address</span>
+            .<span class="ident">replace</span>(<span class="number">0</span>, |<span class="ident">_protocol</span>| <span class="prelude-val">Some</span>(<span class="ident">Protocol::Ip4</span>(<span class="ident">INADDR_ANY</span>)))
             .<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="ident">primary_handle</span> <span class="op">=</span> <span class="ident">PrimaryReceiverHandler</span> { <span class="ident">tx_synchronizer</span> }
+        <span class="kw">let</span> <span class="ident">primary_handle</span> = <span class="ident">PrimaryReceiverHandler</span> { <span class="ident">tx_synchronizer</span> }
             .<span class="ident">spawn</span>(<span class="ident">address</span>.<span class="ident">clone</span>(), <span class="ident">tx_reconfigure</span>.<span class="ident">subscribe</span>());
 
         <span class="comment">// The `Synchronizer` is responsible to keep the worker in sync with the others. It handles the commands</span>
         <span class="comment">// it receives from the primary (which are mainly notifications that we are out of sync).</span>
-        <span class="kw">let</span> <span class="ident">worker_network</span> <span class="op">=</span> <span class="ident">WorkerNetwork::new</span>(<span class="ident">network::metrics::Metrics::new</span>(
+        <span class="kw">let</span> <span class="ident">worker_network</span> = <span class="ident">WorkerNetwork::new</span>(<span class="ident">network::metrics::Metrics::new</span>(
             <span class="ident">network_metrics</span>,
             <span class="string">&quot;synchronizer&quot;</span>.<span class="ident">to_string</span>(),
         ));
-        <span class="kw">let</span> <span class="ident">handle</span> <span class="op">=</span> <span class="ident">Synchronizer::spawn</span>(
+        <span class="kw">let</span> <span class="ident">handle</span> = <span class="ident">Synchronizer::spawn</span>(
             <span class="self">self</span>.<span class="ident">name</span>.<span class="ident">clone</span>(),
             <span class="self">self</span>.<span class="ident">id</span>,
             <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">clone</span>(),
@@ -774,31 +774,31 @@
     <span class="doccomment">/// Spawn all tasks responsible to handle clients transactions.</span>
     <span class="kw">fn</span> <span class="ident">handle_clients_transactions</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">tx_reconfigure</span>: <span class="kw-2">&amp;</span><span class="ident">watch::Sender</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
-        <span class="ident">tx_primary</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">WorkerPrimaryMessage</span><span class="op">&gt;</span>,
-        <span class="ident">node_metrics</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">WorkerMetrics</span><span class="op">&gt;</span>,
-        <span class="ident">channel_metrics</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">WorkerChannelMetrics</span><span class="op">&gt;</span>,
+        <span class="ident">tx_reconfigure</span>: <span class="kw-2">&amp;</span><span class="ident">watch::Sender</span>&lt;<span class="ident">ReconfigureNotification</span>&gt;,
+        <span class="ident">tx_primary</span>: <span class="ident">Sender</span>&lt;<span class="ident">WorkerPrimaryMessage</span>&gt;,
+        <span class="ident">node_metrics</span>: <span class="ident">Arc</span>&lt;<span class="ident">WorkerMetrics</span>&gt;,
+        <span class="ident">channel_metrics</span>: <span class="ident">Arc</span>&lt;<span class="ident">WorkerChannelMetrics</span>&gt;,
         <span class="ident">endpoint_metrics</span>: <span class="ident">WorkerEndpointMetrics</span>,
-        <span class="ident">network_metrics</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">WorkerNetworkMetrics</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> (<span class="ident">tx_batch_maker</span>, <span class="ident">rx_batch_maker</span>) <span class="op">=</span>
+        <span class="ident">network_metrics</span>: <span class="ident">Arc</span>&lt;<span class="ident">WorkerNetworkMetrics</span>&gt;,
+    ) -&gt; <span class="ident">Vec</span>&lt;<span class="ident">JoinHandle</span>&lt;()&gt;&gt; {
+        <span class="kw">let</span> (<span class="ident">tx_batch_maker</span>, <span class="ident">rx_batch_maker</span>) =
             <span class="ident">channel</span>(<span class="ident">CHANNEL_CAPACITY</span>, <span class="kw-2">&amp;</span><span class="ident">channel_metrics</span>.<span class="ident">tx_batch_maker</span>);
-        <span class="kw">let</span> (<span class="ident">tx_quorum_waiter</span>, <span class="ident">rx_quorum_waiter</span>) <span class="op">=</span>
+        <span class="kw">let</span> (<span class="ident">tx_quorum_waiter</span>, <span class="ident">rx_quorum_waiter</span>) =
             <span class="ident">channel</span>(<span class="ident">CHANNEL_CAPACITY</span>, <span class="kw-2">&amp;</span><span class="ident">channel_metrics</span>.<span class="ident">tx_quorum_waiter</span>);
-        <span class="kw">let</span> (<span class="ident">tx_client_processor</span>, <span class="ident">rx_client_processor</span>) <span class="op">=</span>
+        <span class="kw">let</span> (<span class="ident">tx_client_processor</span>, <span class="ident">rx_client_processor</span>) =
             <span class="ident">channel</span>(<span class="ident">CHANNEL_CAPACITY</span>, <span class="kw-2">&amp;</span><span class="ident">channel_metrics</span>.<span class="ident">tx_client_processor</span>);
 
         <span class="comment">// We first receive clients&#39; transactions from the network.</span>
-        <span class="kw">let</span> <span class="ident">address</span> <span class="op">=</span> <span class="self">self</span>
+        <span class="kw">let</span> <span class="ident">address</span> = <span class="self">self</span>
             .<span class="ident">committee</span>
             .<span class="ident">load</span>()
             .<span class="ident">worker</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">name</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">id</span>)
             .<span class="ident">expect</span>(<span class="string">&quot;Our public key or worker id is not in the committee&quot;</span>)
             .<span class="ident">transactions</span>;
-        <span class="kw">let</span> <span class="ident">address</span> <span class="op">=</span> <span class="ident">address</span>
-            .<span class="ident">replace</span>(<span class="number">0</span>, <span class="op">|</span><span class="ident">_protocol</span><span class="op">|</span> <span class="prelude-val">Some</span>(<span class="ident">Protocol::Ip4</span>(<span class="ident">INADDR_ANY</span>)))
+        <span class="kw">let</span> <span class="ident">address</span> = <span class="ident">address</span>
+            .<span class="ident">replace</span>(<span class="number">0</span>, |<span class="ident">_protocol</span>| <span class="prelude-val">Some</span>(<span class="ident">Protocol::Ip4</span>(<span class="ident">INADDR_ANY</span>)))
             .<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="ident">tx_receiver_handle</span> <span class="op">=</span> <span class="ident">TxReceiverHandler</span> { <span class="ident">tx_batch_maker</span> }.<span class="ident">spawn</span>(
+        <span class="kw">let</span> <span class="ident">tx_receiver_handle</span> = <span class="ident">TxReceiverHandler</span> { <span class="ident">tx_batch_maker</span> }.<span class="ident">spawn</span>(
             <span class="ident">address</span>.<span class="ident">clone</span>(),
             <span class="ident">tx_reconfigure</span>.<span class="ident">subscribe</span>(),
             <span class="ident">endpoint_metrics</span>,
@@ -807,7 +807,7 @@
         <span class="comment">// The transactions are sent to the `BatchMaker` that assembles them into batches. It then broadcasts</span>
         <span class="comment">// (in a reliable manner) the batches to all other workers that share the same `id` as us. Finally, it</span>
         <span class="comment">// gathers the &#39;cancel handlers&#39; of the messages and send them to the `QuorumWaiter`.</span>
-        <span class="kw">let</span> <span class="ident">batch_maker_handle</span> <span class="op">=</span> <span class="ident">BatchMaker::spawn</span>(
+        <span class="kw">let</span> <span class="ident">batch_maker_handle</span> = <span class="ident">BatchMaker::spawn</span>(
             (<span class="kw-2">*</span>(<span class="kw-2">*</span>(<span class="kw-2">*</span><span class="self">self</span>.<span class="ident">committee</span>).<span class="ident">load</span>()).<span class="ident">clone</span>()).<span class="ident">clone</span>(),
             <span class="self">self</span>.<span class="ident">parameters</span>.<span class="ident">batch_size</span>,
             <span class="self">self</span>.<span class="ident">parameters</span>.<span class="ident">max_batch_delay</span>,
@@ -819,11 +819,11 @@
 
         <span class="comment">// The `QuorumWaiter` waits for 2f authorities to acknowledge reception of the batch. It then forwards</span>
         <span class="comment">// the batch to the `Processor`.</span>
-        <span class="kw">let</span> <span class="ident">worker_network</span> <span class="op">=</span> <span class="ident">WorkerNetwork::new</span>(<span class="ident">network::metrics::Metrics::new</span>(
+        <span class="kw">let</span> <span class="ident">worker_network</span> = <span class="ident">WorkerNetwork::new</span>(<span class="ident">network::metrics::Metrics::new</span>(
             <span class="ident">network_metrics</span>,
             <span class="string">&quot;quorum_waiter&quot;</span>.<span class="ident">to_string</span>(),
         ));
-        <span class="kw">let</span> <span class="ident">quorum_waiter_handle</span> <span class="op">=</span> <span class="ident">QuorumWaiter::spawn</span>(
+        <span class="kw">let</span> <span class="ident">quorum_waiter_handle</span> = <span class="ident">QuorumWaiter::spawn</span>(
             <span class="self">self</span>.<span class="ident">name</span>.<span class="ident">clone</span>(),
             <span class="self">self</span>.<span class="ident">id</span>,
             (<span class="kw-2">*</span>(<span class="kw-2">*</span>(<span class="kw-2">*</span><span class="self">self</span>.<span class="ident">committee</span>).<span class="ident">load</span>()).<span class="ident">clone</span>()).<span class="ident">clone</span>(),
@@ -835,7 +835,7 @@
 
         <span class="comment">// The `Processor` hashes and stores the batch. It then forwards the batch&#39;s digest to the `PrimaryConnector`</span>
         <span class="comment">// that will send it to our primary machine.</span>
-        <span class="kw">let</span> <span class="ident">processor_handle</span> <span class="op">=</span> <span class="ident">Processor::spawn</span>(
+        <span class="kw">let</span> <span class="ident">processor_handle</span> = <span class="ident">Processor::spawn</span>(
             <span class="self">self</span>.<span class="ident">id</span>,
             <span class="self">self</span>.<span class="ident">store</span>.<span class="ident">clone</span>(),
             <span class="ident">tx_reconfigure</span>.<span class="ident">subscribe</span>(),
@@ -860,29 +860,29 @@
     <span class="doccomment">/// Spawn all tasks responsible to handle messages from other workers.</span>
     <span class="kw">fn</span> <span class="ident">handle_workers_messages</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">tx_reconfigure</span>: <span class="kw-2">&amp;</span><span class="ident">watch::Sender</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
-        <span class="ident">tx_primary</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">WorkerPrimaryMessage</span><span class="op">&gt;</span>,
-        <span class="ident">channel_metrics</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">WorkerChannelMetrics</span><span class="op">&gt;</span>,
-        <span class="ident">network_metrics</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">WorkerNetworkMetrics</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> (<span class="ident">tx_worker_helper</span>, <span class="ident">rx_worker_helper</span>) <span class="op">=</span>
+        <span class="ident">tx_reconfigure</span>: <span class="kw-2">&amp;</span><span class="ident">watch::Sender</span>&lt;<span class="ident">ReconfigureNotification</span>&gt;,
+        <span class="ident">tx_primary</span>: <span class="ident">Sender</span>&lt;<span class="ident">WorkerPrimaryMessage</span>&gt;,
+        <span class="ident">channel_metrics</span>: <span class="ident">Arc</span>&lt;<span class="ident">WorkerChannelMetrics</span>&gt;,
+        <span class="ident">network_metrics</span>: <span class="ident">Arc</span>&lt;<span class="ident">WorkerNetworkMetrics</span>&gt;,
+    ) -&gt; <span class="ident">Vec</span>&lt;<span class="ident">JoinHandle</span>&lt;()&gt;&gt; {
+        <span class="kw">let</span> (<span class="ident">tx_worker_helper</span>, <span class="ident">rx_worker_helper</span>) =
             <span class="ident">channel</span>(<span class="ident">CHANNEL_CAPACITY</span>, <span class="kw-2">&amp;</span><span class="ident">channel_metrics</span>.<span class="ident">tx_worker_helper</span>);
-        <span class="kw">let</span> (<span class="ident">tx_client_helper</span>, <span class="ident">rx_client_helper</span>) <span class="op">=</span>
+        <span class="kw">let</span> (<span class="ident">tx_client_helper</span>, <span class="ident">rx_client_helper</span>) =
             <span class="ident">channel</span>(<span class="ident">CHANNEL_CAPACITY</span>, <span class="kw-2">&amp;</span><span class="ident">channel_metrics</span>.<span class="ident">tx_client_helper</span>);
-        <span class="kw">let</span> (<span class="ident">tx_worker_processor</span>, <span class="ident">rx_worker_processor</span>) <span class="op">=</span>
+        <span class="kw">let</span> (<span class="ident">tx_worker_processor</span>, <span class="ident">rx_worker_processor</span>) =
             <span class="ident">channel</span>(<span class="ident">CHANNEL_CAPACITY</span>, <span class="kw-2">&amp;</span><span class="ident">channel_metrics</span>.<span class="ident">tx_worker_processor</span>);
 
         <span class="comment">// Receive incoming messages from other workers.</span>
-        <span class="kw">let</span> <span class="ident">address</span> <span class="op">=</span> <span class="self">self</span>
+        <span class="kw">let</span> <span class="ident">address</span> = <span class="self">self</span>
             .<span class="ident">committee</span>
             .<span class="ident">load</span>()
             .<span class="ident">worker</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">name</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">id</span>)
             .<span class="ident">expect</span>(<span class="string">&quot;Our public key or worker id is not in the committee&quot;</span>)
             .<span class="ident">worker_to_worker</span>;
-        <span class="kw">let</span> <span class="ident">address</span> <span class="op">=</span> <span class="ident">address</span>
-            .<span class="ident">replace</span>(<span class="number">0</span>, <span class="op">|</span><span class="ident">_protocol</span><span class="op">|</span> <span class="prelude-val">Some</span>(<span class="ident">Protocol::Ip4</span>(<span class="ident">INADDR_ANY</span>)))
+        <span class="kw">let</span> <span class="ident">address</span> = <span class="ident">address</span>
+            .<span class="ident">replace</span>(<span class="number">0</span>, |<span class="ident">_protocol</span>| <span class="prelude-val">Some</span>(<span class="ident">Protocol::Ip4</span>(<span class="ident">INADDR_ANY</span>)))
             .<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="ident">worker_handle</span> <span class="op">=</span> <span class="ident">WorkerReceiverHandler</span> {
+        <span class="kw">let</span> <span class="ident">worker_handle</span> = <span class="ident">WorkerReceiverHandler</span> {
             <span class="ident">tx_worker_helper</span>,
             <span class="ident">tx_client_helper</span>,
             <span class="ident">tx_processor</span>: <span class="ident">tx_worker_processor</span>,
@@ -894,11 +894,11 @@
         );
 
         <span class="comment">// The `Helper` is dedicated to reply to batch requests from other workers.</span>
-        <span class="kw">let</span> <span class="ident">worker_network</span> <span class="op">=</span> <span class="ident">WorkerNetwork::new</span>(<span class="ident">network::metrics::Metrics::new</span>(
+        <span class="kw">let</span> <span class="ident">worker_network</span> = <span class="ident">WorkerNetwork::new</span>(<span class="ident">network::metrics::Metrics::new</span>(
             <span class="ident">network_metrics</span>,
             <span class="string">&quot;worker_helper&quot;</span>.<span class="ident">to_string</span>(),
         ));
-        <span class="kw">let</span> <span class="ident">helper_handle</span> <span class="op">=</span> <span class="ident">Helper::spawn</span>(
+        <span class="kw">let</span> <span class="ident">helper_handle</span> = <span class="ident">Helper::spawn</span>(
             <span class="self">self</span>.<span class="ident">id</span>,
             (<span class="kw-2">*</span>(<span class="kw-2">*</span>(<span class="kw-2">*</span><span class="self">self</span>.<span class="ident">committee</span>).<span class="ident">load</span>()).<span class="ident">clone</span>()).<span class="ident">clone</span>(),
             <span class="self">self</span>.<span class="ident">store</span>.<span class="ident">clone</span>(),
@@ -910,7 +910,7 @@
 
         <span class="comment">// This `Processor` hashes and stores the batches we receive from the other workers. It then forwards the</span>
         <span class="comment">// batch&#39;s digest to the `PrimaryConnector` that will send it to our primary.</span>
-        <span class="kw">let</span> <span class="ident">processor_handle</span> <span class="op">=</span> <span class="ident">Processor::spawn</span>(
+        <span class="kw">let</span> <span class="ident">processor_handle</span> = <span class="ident">Processor::spawn</span>(
             <span class="self">self</span>.<span class="ident">id</span>,
             <span class="self">self</span>.<span class="ident">store</span>.<span class="ident">clone</span>(),
             <span class="ident">tx_reconfigure</span>.<span class="ident">subscribe</span>(),
@@ -931,16 +931,16 @@
 <span class="doccomment">/// Defines how the network receiver handles incoming transactions.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
 <span class="kw">struct</span> <span class="ident">TxReceiverHandler</span> {
-    <span class="ident">tx_batch_maker</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">Transaction</span><span class="op">&gt;</span>,
+    <span class="ident">tx_batch_maker</span>: <span class="ident">Sender</span>&lt;<span class="ident">Transaction</span>&gt;,
 }
 
 <span class="kw">impl</span> <span class="ident">TxReceiverHandler</span> {
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">wait_for_shutdown</span>(<span class="kw-2">mut</span> <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>) {
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">wait_for_shutdown</span>(<span class="kw-2">mut</span> <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span>&lt;<span class="ident">ReconfigureNotification</span>&gt;) {
         <span class="kw">loop</span> {
-            <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">rx_reconfigure</span>.<span class="ident">changed</span>().<span class="kw">await</span>;
+            <span class="kw">let</span> <span class="ident">result</span> = <span class="ident">rx_reconfigure</span>.<span class="ident">changed</span>().<span class="kw">await</span>;
             <span class="ident">result</span>.<span class="ident">expect</span>(<span class="string">&quot;Committee channel dropped&quot;</span>);
-            <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">rx_reconfigure</span>.<span class="ident">borrow</span>().<span class="ident">clone</span>();
-            <span class="kw">if</span> <span class="kw">let</span> <span class="ident">ReconfigureNotification::Shutdown</span> <span class="op">=</span> <span class="ident">message</span> {
+            <span class="kw">let</span> <span class="ident">message</span> = <span class="ident">rx_reconfigure</span>.<span class="ident">borrow</span>().<span class="ident">clone</span>();
+            <span class="kw">if</span> <span class="kw">let</span> <span class="ident">ReconfigureNotification::Shutdown</span> = <span class="ident">message</span> {
                 <span class="kw">break</span>;
             }
         }
@@ -950,12 +950,12 @@
     <span class="kw">fn</span> <span class="ident">spawn</span>(
         <span class="self">self</span>,
         <span class="ident">address</span>: <span class="ident">Multiaddr</span>,
-        <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
+        <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span>&lt;<span class="ident">ReconfigureNotification</span>&gt;,
         <span class="ident">endpoint_metrics</span>: <span class="ident">WorkerEndpointMetrics</span>,
-    ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    ) -&gt; <span class="ident">JoinHandle</span>&lt;()&gt; {
         <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
             <span class="macro">tokio::select!</span> {
-                <span class="ident">_result</span> <span class="op">=</span>  <span class="ident">mysten_network::config::Config::new</span>()
+                <span class="ident">_result</span> =  <span class="ident">mysten_network::config::Config::new</span>()
                     .<span class="ident">server_builder_with_metrics</span>(<span class="ident">endpoint_metrics</span>)
                     .<span class="ident">add_service</span>(<span class="ident">TransactionsServer::new</span>(<span class="self">self</span>))
                     .<span class="ident">bind</span>(<span class="kw-2">&amp;</span><span class="ident">address</span>)
@@ -963,7 +963,7 @@
                     .<span class="ident">unwrap</span>()
                     .<span class="ident">serve</span>() =&gt; (),
 
-                () <span class="op">=</span> <span class="ident"><span class="self">Self</span>::wait_for_shutdown</span>(<span class="ident">rx_reconfigure</span>) =&gt; ()
+                () = <span class="ident"><span class="self">Self</span>::wait_for_shutdown</span>(<span class="ident">rx_reconfigure</span>) =&gt; ()
             }
         })
     }
@@ -973,26 +973,26 @@
 <span class="kw">impl</span> <span class="ident">Transactions</span> <span class="kw">for</span> <span class="ident">TxReceiverHandler</span> {
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">submit_transaction</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">request</span>: <span class="ident">Request</span><span class="op">&lt;</span><span class="ident">TransactionProto</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Response</span><span class="op">&lt;</span><span class="ident">Empty</span><span class="op">&gt;</span>, <span class="ident">Status</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">request</span>.<span class="ident">into_inner</span>().<span class="ident">transaction</span>;
+        <span class="ident">request</span>: <span class="ident">Request</span>&lt;<span class="ident">TransactionProto</span>&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">Response</span>&lt;<span class="ident">Empty</span>&gt;, <span class="ident">Status</span>&gt; {
+        <span class="kw">let</span> <span class="ident">message</span> = <span class="ident">request</span>.<span class="ident">into_inner</span>().<span class="ident">transaction</span>;
         <span class="comment">// Send the transaction to the batch maker.</span>
         <span class="self">self</span>.<span class="ident">tx_batch_maker</span>
             .<span class="ident">send</span>(<span class="ident">message</span>.<span class="ident">to_vec</span>())
             .<span class="kw">await</span>
-            .<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">DagError::ShuttingDown</span>)
-            .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">Status::not_found</span>(<span class="ident">e</span>.<span class="ident">to_string</span>()))<span class="question-mark">?</span>;
+            .<span class="ident">map_err</span>(|<span class="kw">_</span>| <span class="ident">DagError::ShuttingDown</span>)
+            .<span class="ident">map_err</span>(|<span class="ident">e</span>| <span class="ident">Status::not_found</span>(<span class="ident">e</span>.<span class="ident">to_string</span>()))<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(<span class="ident">Response::new</span>(<span class="ident">Empty</span> {}))
     }
 
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">submit_transaction_stream</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">request</span>: <span class="ident">tonic::Request</span><span class="op">&lt;</span><span class="ident">tonic::Streaming</span><span class="op">&lt;</span><span class="ident">types::TransactionProto</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">tonic::Response</span><span class="op">&lt;</span><span class="ident">types::Empty</span><span class="op">&gt;</span>, <span class="ident">tonic::Status</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">transactions</span> <span class="op">=</span> <span class="ident">request</span>.<span class="ident">into_inner</span>();
+        <span class="ident">request</span>: <span class="ident">tonic::Request</span>&lt;<span class="ident">tonic::Streaming</span>&lt;<span class="ident">types::TransactionProto</span>&gt;&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">tonic::Response</span>&lt;<span class="ident">types::Empty</span>&gt;, <span class="ident">tonic::Status</span>&gt; {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">transactions</span> = <span class="ident">request</span>.<span class="ident">into_inner</span>();
 
-        <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(<span class="ident">txn</span>)) <span class="op">=</span> <span class="ident">transactions</span>.<span class="ident">next</span>().<span class="kw">await</span> {
+        <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(<span class="ident">txn</span>)) = <span class="ident">transactions</span>.<span class="ident">next</span>().<span class="kw">await</span> {
             <span class="comment">// Send the transaction to the batch maker.</span>
             <span class="self">self</span>.<span class="ident">tx_batch_maker</span>
                 .<span class="ident">send</span>(<span class="ident">txn</span>.<span class="ident">transaction</span>.<span class="ident">to_vec</span>())
@@ -1006,18 +1006,18 @@
 <span class="doccomment">/// Defines how the network receiver handles incoming workers messages.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
 <span class="kw">struct</span> <span class="ident">WorkerReceiverHandler</span> {
-    <span class="ident">tx_worker_helper</span>: <span class="ident">Sender</span><span class="op">&lt;</span>(<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">BatchDigest</span><span class="op">&gt;</span>, <span class="ident">PublicKey</span>)<span class="op">&gt;</span>,
-    <span class="ident">tx_client_helper</span>: <span class="ident">Sender</span><span class="op">&lt;</span>(<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">BatchDigest</span><span class="op">&gt;</span>, <span class="ident">mpsc::Sender</span><span class="op">&lt;</span><span class="ident">SerializedBatchMessage</span><span class="op">&gt;</span>)<span class="op">&gt;</span>,
-    <span class="ident">tx_processor</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">SerializedBatchMessage</span><span class="op">&gt;</span>,
+    <span class="ident">tx_worker_helper</span>: <span class="ident">Sender</span>&lt;(<span class="ident">Vec</span>&lt;<span class="ident">BatchDigest</span>&gt;, <span class="ident">PublicKey</span>)&gt;,
+    <span class="ident">tx_client_helper</span>: <span class="ident">Sender</span>&lt;(<span class="ident">Vec</span>&lt;<span class="ident">BatchDigest</span>&gt;, <span class="ident">mpsc::Sender</span>&lt;<span class="ident">SerializedBatchMessage</span>&gt;)&gt;,
+    <span class="ident">tx_processor</span>: <span class="ident">Sender</span>&lt;<span class="ident">SerializedBatchMessage</span>&gt;,
 }
 
 <span class="kw">impl</span> <span class="ident">WorkerReceiverHandler</span> {
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">wait_for_shutdown</span>(<span class="kw-2">mut</span> <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>) {
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">wait_for_shutdown</span>(<span class="kw-2">mut</span> <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span>&lt;<span class="ident">ReconfigureNotification</span>&gt;) {
         <span class="kw">loop</span> {
-            <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">rx_reconfigure</span>.<span class="ident">changed</span>().<span class="kw">await</span>;
+            <span class="kw">let</span> <span class="ident">result</span> = <span class="ident">rx_reconfigure</span>.<span class="ident">changed</span>().<span class="kw">await</span>;
             <span class="ident">result</span>.<span class="ident">expect</span>(<span class="string">&quot;Committee channel dropped&quot;</span>);
-            <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">rx_reconfigure</span>.<span class="ident">borrow</span>().<span class="ident">clone</span>();
-            <span class="kw">if</span> <span class="kw">let</span> <span class="ident">ReconfigureNotification::Shutdown</span> <span class="op">=</span> <span class="ident">message</span> {
+            <span class="kw">let</span> <span class="ident">message</span> = <span class="ident">rx_reconfigure</span>.<span class="ident">borrow</span>().<span class="ident">clone</span>();
+            <span class="kw">if</span> <span class="kw">let</span> <span class="ident">ReconfigureNotification::Shutdown</span> = <span class="ident">message</span> {
                 <span class="kw">break</span>;
             }
         }
@@ -1028,13 +1028,13 @@
         <span class="self">self</span>,
         <span class="ident">address</span>: <span class="ident">Multiaddr</span>,
         <span class="ident">max_concurrent_requests</span>: <span class="ident">usize</span>,
-        <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+        <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span>&lt;<span class="ident">ReconfigureNotification</span>&gt;,
+    ) -&gt; <span class="ident">JoinHandle</span>&lt;()&gt; {
         <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">config</span> <span class="op">=</span> <span class="ident">mysten_network::config::Config::new</span>();
-            <span class="ident">config</span>.<span class="ident">concurrency_limit_per_connection</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">max_concurrent_requests</span>);
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">config</span> = <span class="ident">mysten_network::config::Config::new</span>();
+            <span class="ident">config</span>.<span class="ident">concurrency_limit_per_connection</span> = <span class="prelude-val">Some</span>(<span class="ident">max_concurrent_requests</span>);
             <span class="macro">tokio::select!</span> {
-                <span class="ident">_result</span> <span class="op">=</span> <span class="ident">config</span>
+                <span class="ident">_result</span> = <span class="ident">config</span>
                 .<span class="ident">server_builder</span>()
                 .<span class="ident">add_service</span>(<span class="ident">WorkerToWorkerServer::new</span>(<span class="self">self</span>))
                 .<span class="ident">bind</span>(<span class="kw-2">&amp;</span><span class="ident">address</span>)
@@ -1042,7 +1042,7 @@
                 .<span class="ident">unwrap</span>()
                 .<span class="ident">serve</span>() =&gt; (),
 
-                () <span class="op">=</span> <span class="ident"><span class="self">Self</span>::wait_for_shutdown</span>(<span class="ident">rx_reconfigure</span>) =&gt; ()
+                () = <span class="ident"><span class="self">Self</span>::wait_for_shutdown</span>(<span class="ident">rx_reconfigure</span>) =&gt; ()
             }
         })
     }
@@ -1052,55 +1052,55 @@
 <span class="kw">impl</span> <span class="ident">WorkerToWorker</span> <span class="kw">for</span> <span class="ident">WorkerReceiverHandler</span> {
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">send_message</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">request</span>: <span class="ident">Request</span><span class="op">&lt;</span><span class="ident">BincodeEncodedPayload</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Response</span><span class="op">&lt;</span><span class="ident">Empty</span><span class="op">&gt;</span>, <span class="ident">Status</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">message</span>: <span class="ident">WorkerMessage</span> <span class="op">=</span> <span class="ident">request</span>
+        <span class="ident">request</span>: <span class="ident">Request</span>&lt;<span class="ident">BincodeEncodedPayload</span>&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">Response</span>&lt;<span class="ident">Empty</span>&gt;, <span class="ident">Status</span>&gt; {
+        <span class="kw">let</span> <span class="ident">message</span>: <span class="ident">WorkerMessage</span> = <span class="ident">request</span>
             .<span class="ident">get_ref</span>()
             .<span class="ident">deserialize</span>()
-            .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">Status::invalid_argument</span>(<span class="ident">e</span>.<span class="ident">to_string</span>()))<span class="question-mark">?</span>;
+            .<span class="ident">map_err</span>(|<span class="ident">e</span>| <span class="ident">Status::invalid_argument</span>(<span class="ident">e</span>.<span class="ident">to_string</span>()))<span class="question-mark">?</span>;
         <span class="kw">match</span> <span class="ident">message</span> {
             <span class="ident">WorkerMessage::Batch</span>(..) =&gt; <span class="self">self</span>
                 .<span class="ident">tx_processor</span>
                 .<span class="ident">send</span>(<span class="ident">request</span>.<span class="ident">get_ref</span>().<span class="ident">payload</span>.<span class="ident">to_vec</span>())
                 .<span class="kw">await</span>
-                .<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">DagError::ShuttingDown</span>),
+                .<span class="ident">map_err</span>(|<span class="kw">_</span>| <span class="ident">DagError::ShuttingDown</span>),
 
             <span class="ident">WorkerMessage::BatchRequest</span>(<span class="ident">missing</span>, <span class="ident">requestor</span>) =&gt; <span class="self">self</span>
                 .<span class="ident">tx_worker_helper</span>
                 .<span class="ident">send</span>((<span class="ident">missing</span>, <span class="ident">requestor</span>))
                 .<span class="kw">await</span>
-                .<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">DagError::ShuttingDown</span>),
+                .<span class="ident">map_err</span>(|<span class="kw">_</span>| <span class="ident">DagError::ShuttingDown</span>),
         }
-        .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">Status::not_found</span>(<span class="ident">e</span>.<span class="ident">to_string</span>()))<span class="question-mark">?</span>;
+        .<span class="ident">map_err</span>(|<span class="ident">e</span>| <span class="ident">Status::not_found</span>(<span class="ident">e</span>.<span class="ident">to_string</span>()))<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(<span class="ident">Response::new</span>(<span class="ident">Empty</span> {}))
     }
 
-    <span class="kw">type</span> <span class="ident">ClientBatchRequestStream</span> <span class="op">=</span>
-        <span class="ident">Pin</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Stream</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">BincodeEncodedPayload</span>, <span class="ident">Status</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;</span><span class="op">&gt;</span>;
+    <span class="kw">type</span> <span class="ident">ClientBatchRequestStream</span> =
+        <span class="ident">Pin</span>&lt;<span class="ident">Box</span>&lt;<span class="kw">dyn</span> <span class="ident">Stream</span>&lt;<span class="ident">Item</span> = <span class="prelude-ty">Result</span>&lt;<span class="ident">BincodeEncodedPayload</span>, <span class="ident">Status</span>&gt;&gt; + <span class="ident">Send</span>&gt;&gt;;
 
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">client_batch_request</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">request</span>: <span class="ident">Request</span><span class="op">&lt;</span><span class="ident">BincodeEncodedPayload</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Response</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::ClientBatchRequestStream</span><span class="op">&gt;</span>, <span class="ident">Status</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">missing</span> <span class="op">=</span> <span class="ident">request</span>
+        <span class="ident">request</span>: <span class="ident">Request</span>&lt;<span class="ident">BincodeEncodedPayload</span>&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">Response</span>&lt;<span class="ident"><span class="self">Self</span>::ClientBatchRequestStream</span>&gt;, <span class="ident">Status</span>&gt; {
+        <span class="kw">let</span> <span class="ident">missing</span> = <span class="ident">request</span>
             .<span class="ident">into_inner</span>()
-            .<span class="ident">deserialize</span>::<span class="op">&lt;</span><span class="ident">ClientBatchRequest</span><span class="op">&gt;</span>()
-            .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">Status::invalid_argument</span>(<span class="ident">e</span>.<span class="ident">to_string</span>()))<span class="question-mark">?</span>
+            .<span class="ident">deserialize</span>::&lt;<span class="ident">ClientBatchRequest</span>&gt;()
+            .<span class="ident">map_err</span>(|<span class="ident">e</span>| <span class="ident">Status::invalid_argument</span>(<span class="ident">e</span>.<span class="ident">to_string</span>()))<span class="question-mark">?</span>
             .<span class="number">0</span>;
 
         <span class="comment">// TODO [issue #7]: Do some accounting to prevent bad actors from use all our</span>
         <span class="comment">// resources (in this case allocate a gigantic channel).</span>
-        <span class="kw">let</span> (<span class="ident">sender</span>, <span class="ident">receiver</span>) <span class="op">=</span> <span class="ident">mpsc::channel</span>(<span class="ident">missing</span>.<span class="ident">len</span>());
+        <span class="kw">let</span> (<span class="ident">sender</span>, <span class="ident">receiver</span>) = <span class="ident">mpsc::channel</span>(<span class="ident">missing</span>.<span class="ident">len</span>());
 
         <span class="self">self</span>.<span class="ident">tx_client_helper</span>
             .<span class="ident">send</span>((<span class="ident">missing</span>, <span class="ident">sender</span>))
             .<span class="kw">await</span>
-            .<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">DagError::ShuttingDown</span>)
-            .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">Status::not_found</span>(<span class="ident">e</span>.<span class="ident">to_string</span>()))<span class="question-mark">?</span>;
+            .<span class="ident">map_err</span>(|<span class="kw">_</span>| <span class="ident">DagError::ShuttingDown</span>)
+            .<span class="ident">map_err</span>(|<span class="ident">e</span>| <span class="ident">Status::not_found</span>(<span class="ident">e</span>.<span class="ident">to_string</span>()))<span class="question-mark">?</span>;
 
-        <span class="kw">let</span> <span class="ident">stream</span> <span class="op">=</span> <span class="ident">tokio_stream::wrappers::ReceiverStream::new</span>(<span class="ident">receiver</span>).<span class="ident">map</span>(<span class="op">|</span><span class="ident">batch</span><span class="op">|</span> {
-            <span class="kw">let</span> <span class="ident">payload</span> <span class="op">=</span> <span class="ident">BincodeEncodedPayload</span> {
+        <span class="kw">let</span> <span class="ident">stream</span> = <span class="ident">tokio_stream::wrappers::ReceiverStream::new</span>(<span class="ident">receiver</span>).<span class="ident">map</span>(|<span class="ident">batch</span>| {
+            <span class="kw">let</span> <span class="ident">payload</span> = <span class="ident">BincodeEncodedPayload</span> {
                 <span class="ident">payload</span>: <span class="ident">Bytes::from</span>(<span class="ident">batch</span>),
             };
             <span class="prelude-val">Ok</span>(<span class="ident">payload</span>)
@@ -1115,16 +1115,16 @@
 <span class="doccomment">/// Defines how the network receiver handles incoming primary messages.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
 <span class="kw">struct</span> <span class="ident">PrimaryReceiverHandler</span> {
-    <span class="ident">tx_synchronizer</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">PrimaryWorkerMessage</span><span class="op">&gt;</span>,
+    <span class="ident">tx_synchronizer</span>: <span class="ident">Sender</span>&lt;<span class="ident">PrimaryWorkerMessage</span>&gt;,
 }
 
 <span class="kw">impl</span> <span class="ident">PrimaryReceiverHandler</span> {
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">wait_for_shutdown</span>(<span class="kw-2">mut</span> <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>) {
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">wait_for_shutdown</span>(<span class="kw-2">mut</span> <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span>&lt;<span class="ident">ReconfigureNotification</span>&gt;) {
         <span class="kw">loop</span> {
-            <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">rx_reconfigure</span>.<span class="ident">changed</span>().<span class="kw">await</span>;
+            <span class="kw">let</span> <span class="ident">result</span> = <span class="ident">rx_reconfigure</span>.<span class="ident">changed</span>().<span class="kw">await</span>;
             <span class="ident">result</span>.<span class="ident">expect</span>(<span class="string">&quot;Committee channel dropped&quot;</span>);
-            <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">rx_reconfigure</span>.<span class="ident">borrow</span>().<span class="ident">clone</span>();
-            <span class="kw">if</span> <span class="kw">let</span> <span class="ident">ReconfigureNotification::Shutdown</span> <span class="op">=</span> <span class="ident">message</span> {
+            <span class="kw">let</span> <span class="ident">message</span> = <span class="ident">rx_reconfigure</span>.<span class="ident">borrow</span>().<span class="ident">clone</span>();
+            <span class="kw">if</span> <span class="kw">let</span> <span class="ident">ReconfigureNotification::Shutdown</span> = <span class="ident">message</span> {
                 <span class="kw">break</span>;
             }
         }
@@ -1134,11 +1134,11 @@
     <span class="kw">fn</span> <span class="ident">spawn</span>(
         <span class="self">self</span>,
         <span class="ident">address</span>: <span class="ident">Multiaddr</span>,
-        <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+        <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span>&lt;<span class="ident">ReconfigureNotification</span>&gt;,
+    ) -&gt; <span class="ident">JoinHandle</span>&lt;()&gt; {
         <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
             <span class="macro">tokio::select!</span> {
-                <span class="ident">_result</span> <span class="op">=</span> <span class="ident">mysten_network::config::Config::new</span>()
+                <span class="ident">_result</span> = <span class="ident">mysten_network::config::Config::new</span>()
                     .<span class="ident">server_builder</span>()
                     .<span class="ident">add_service</span>(<span class="ident">PrimaryToWorkerServer::new</span>(<span class="self">self</span>))
                     .<span class="ident">bind</span>(<span class="kw-2">&amp;</span><span class="ident">address</span>)
@@ -1146,7 +1146,7 @@
                     .<span class="ident">unwrap</span>()
                     .<span class="ident">serve</span>() =&gt; (),
 
-                () <span class="op">=</span> <span class="ident"><span class="self">Self</span>::wait_for_shutdown</span>(<span class="ident">rx_reconfigure</span>) =&gt; ()
+                () = <span class="ident"><span class="self">Self</span>::wait_for_shutdown</span>(<span class="ident">rx_reconfigure</span>) =&gt; ()
             }
         })
     }
@@ -1156,21 +1156,21 @@
 <span class="kw">impl</span> <span class="ident">PrimaryToWorker</span> <span class="kw">for</span> <span class="ident">PrimaryReceiverHandler</span> {
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">send_message</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">request</span>: <span class="ident">Request</span><span class="op">&lt;</span><span class="ident">BincodeEncodedPayload</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Response</span><span class="op">&lt;</span><span class="ident">Empty</span><span class="op">&gt;</span>, <span class="ident">Status</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">message</span>: <span class="ident">PrimaryWorkerMessage</span> <span class="op">=</span> <span class="ident">request</span>
+        <span class="ident">request</span>: <span class="ident">Request</span>&lt;<span class="ident">BincodeEncodedPayload</span>&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">Response</span>&lt;<span class="ident">Empty</span>&gt;, <span class="ident">Status</span>&gt; {
+        <span class="kw">let</span> <span class="ident">message</span>: <span class="ident">PrimaryWorkerMessage</span> = <span class="ident">request</span>
             .<span class="ident">into_inner</span>()
             .<span class="ident">deserialize</span>()
-            .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">Status::invalid_argument</span>(<span class="ident">e</span>.<span class="ident">to_string</span>()))<span class="question-mark">?</span>;
+            .<span class="ident">map_err</span>(|<span class="ident">e</span>| <span class="ident">Status::invalid_argument</span>(<span class="ident">e</span>.<span class="ident">to_string</span>()))<span class="question-mark">?</span>;
 
         <span class="self">self</span>.<span class="ident">tx_synchronizer</span>
             .<span class="ident">send</span>(<span class="ident">message</span>)
             .<span class="kw">await</span>
-            .<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">DagError::ShuttingDown</span>)
-            .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">Status::not_found</span>(<span class="ident">e</span>.<span class="ident">to_string</span>()))<span class="question-mark">?</span>;
+            .<span class="ident">map_err</span>(|<span class="kw">_</span>| <span class="ident">DagError::ShuttingDown</span>)
+            .<span class="ident">map_err</span>(|<span class="ident">e</span>| <span class="ident">Status::not_found</span>(<span class="ident">e</span>.<span class="ident">to_string</span>()))<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(<span class="ident">Response::new</span>(<span class="ident">Empty</span> {}))
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (20ffea693 2022-08-11)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>

@@ -117,7 +117,7 @@
 
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">BaseNetwork</span> {
     <span class="kw">type</span> <span class="ident">Client</span>;
-    <span class="kw">type</span> <span class="ident">Message</span>: <span class="ident">Serialize</span> <span class="op">+</span> <span class="ident">Sync</span>;
+    <span class="kw">type</span> <span class="ident">Message</span>: <span class="ident">Serialize</span> + <span class="ident">Sync</span>;
 
     <span class="kw">fn</span> <span class="ident">client</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">address</span>: <span class="ident">Multiaddr</span>) -&gt; <span class="ident"><span class="self">Self</span>::Client</span>;
     <span class="kw">fn</span> <span class="ident">create_client</span>(<span class="ident">config</span>: <span class="kw-2">&amp;</span><span class="ident">mysten_network::config::Config</span>, <span class="ident">address</span>: <span class="ident">Multiaddr</span>) -&gt; <span class="ident"><span class="self">Self</span>::Client</span>;
@@ -129,14 +129,14 @@
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">address</span>: <span class="ident">Multiaddr</span>,
         <span class="ident">message</span>: <span class="ident">BincodeEncodedPayload</span>,
-    ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span>;
+    ) -&gt; <span class="ident">JoinHandle</span>&lt;()&gt;;
 
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">unreliable_send</span>(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">address</span>: <span class="ident">Multiaddr</span>,
         <span class="ident">message</span>: <span class="kw-2">&amp;</span><span class="ident"><span class="self">Self</span>::Message</span>,
-    ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span>
+    ) -&gt; <span class="ident">JoinHandle</span>&lt;()&gt; {
+        <span class="kw">let</span> <span class="ident">message</span> =
             <span class="ident">BincodeEncodedPayload::try_from</span>(<span class="ident">message</span>).<span class="ident">expect</span>(<span class="string">&quot;Failed to serialize payload&quot;</span>);
         <span class="self">self</span>.<span class="ident">unreliable_send_message</span>(<span class="ident">address</span>, <span class="ident">message</span>).<span class="kw">await</span>
     }
@@ -145,14 +145,14 @@
     <span class="doccomment">/// The attempts to send individual messages are best effort and will not be retried.</span>
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">unreliable_broadcast</span>(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
-        <span class="ident">addresses</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Multiaddr</span><span class="op">&gt;</span>,
+        <span class="ident">addresses</span>: <span class="ident">Vec</span>&lt;<span class="ident">Multiaddr</span>&gt;,
         <span class="ident">message</span>: <span class="kw-2">&amp;</span><span class="ident"><span class="self">Self</span>::Message</span>,
-    ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span>
+    ) -&gt; <span class="ident">Vec</span>&lt;<span class="ident">JoinHandle</span>&lt;()&gt;&gt; {
+        <span class="kw">let</span> <span class="ident">message</span> =
             <span class="ident">BincodeEncodedPayload::try_from</span>(<span class="ident">message</span>).<span class="ident">expect</span>(<span class="string">&quot;Failed to serialize payload&quot;</span>);
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">handlers</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">handlers</span> = <span class="ident">Vec::new</span>();
         <span class="kw">for</span> <span class="ident">address</span> <span class="kw">in</span> <span class="ident">addresses</span> {
-            <span class="kw">let</span> <span class="ident">handle</span> <span class="op">=</span> { <span class="self">self</span>.<span class="ident">unreliable_send_message</span>(<span class="ident">address</span>, <span class="ident">message</span>.<span class="ident">clone</span>()).<span class="kw">await</span> };
+            <span class="kw">let</span> <span class="ident">handle</span> = { <span class="self">self</span>.<span class="ident">unreliable_send_message</span>(<span class="ident">address</span>, <span class="ident">message</span>.<span class="ident">clone</span>()).<span class="kw">await</span> };
             <span class="ident">handlers</span>.<span class="ident">push</span>(<span class="ident">handle</span>);
         }
         <span class="ident">handlers</span>
@@ -167,10 +167,10 @@
     <span class="doccomment">/// message only to them. This is useful to pick nodes with whom to sync.</span>
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">lucky_broadcast</span>(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
-        <span class="kw-2">mut</span> <span class="ident">addresses</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Multiaddr</span><span class="op">&gt;</span>,
+        <span class="kw-2">mut</span> <span class="ident">addresses</span>: <span class="ident">Vec</span>&lt;<span class="ident">Multiaddr</span>&gt;,
         <span class="ident">message</span>: <span class="kw-2">&amp;</span><span class="ident"><span class="self">Self</span>::Message</span>,
         <span class="ident">nodes</span>: <span class="ident">usize</span>,
-    ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="ident">Vec</span>&lt;<span class="ident">JoinHandle</span>&lt;()&gt;&gt; {
         <span class="ident">addresses</span>.<span class="ident">shuffle</span>(<span class="self">self</span>.<span class="ident">rng</span>());
         <span class="ident">addresses</span>.<span class="ident">truncate</span>(<span class="ident">nodes</span>);
         <span class="self">self</span>.<span class="ident">unreliable_broadcast</span>(<span class="ident">addresses</span>, <span class="ident">message</span>).<span class="kw">await</span>
@@ -183,8 +183,8 @@
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">address</span>: <span class="ident">Multiaddr</span>,
         <span class="ident">message</span>: <span class="kw-2">&amp;</span><span class="ident"><span class="self">Self</span>::Message</span>,
-    ) -&gt; <span class="ident">CancelOnDropHandler</span><span class="op">&lt;</span><span class="ident">MessageResult</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span>
+    ) -&gt; <span class="ident">CancelOnDropHandler</span>&lt;<span class="ident">MessageResult</span>&gt; {
+        <span class="kw">let</span> <span class="ident">message</span> =
             <span class="ident">BincodeEncodedPayload::try_from</span>(<span class="ident">message</span>).<span class="ident">expect</span>(<span class="string">&quot;Failed to serialize payload&quot;</span>);
         <span class="self">self</span>.<span class="ident">send_message</span>(<span class="ident">address</span>, <span class="ident">message</span>).<span class="kw">await</span>
     }
@@ -193,22 +193,22 @@
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">address</span>: <span class="ident">Multiaddr</span>,
         <span class="ident">message</span>: <span class="ident">BincodeEncodedPayload</span>,
-    ) -&gt; <span class="ident">CancelOnDropHandler</span><span class="op">&lt;</span><span class="ident">MessageResult</span><span class="op">&gt;</span>;
+    ) -&gt; <span class="ident">CancelOnDropHandler</span>&lt;<span class="ident">MessageResult</span>&gt;;
 
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">broadcast</span>(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
-        <span class="ident">addresses</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Multiaddr</span><span class="op">&gt;</span>,
+        <span class="ident">addresses</span>: <span class="ident">Vec</span>&lt;<span class="ident">Multiaddr</span>&gt;,
         <span class="ident">message</span>: <span class="kw-2">&amp;</span><span class="ident"><span class="self">Self</span>::Message</span>,
-    ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">CancelOnDropHandler</span><span class="op">&lt;</span><span class="ident">MessageResult</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span>
+    ) -&gt; <span class="ident">Vec</span>&lt;<span class="ident">CancelOnDropHandler</span>&lt;<span class="ident">MessageResult</span>&gt;&gt; {
+        <span class="kw">let</span> <span class="ident">message</span> =
             <span class="ident">BincodeEncodedPayload::try_from</span>(<span class="ident">message</span>).<span class="ident">expect</span>(<span class="string">&quot;Failed to serialize payload&quot;</span>);
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">handlers</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">handlers</span> = <span class="ident">Vec::new</span>();
         <span class="kw">for</span> <span class="ident">address</span> <span class="kw">in</span> <span class="ident">addresses</span> {
-            <span class="kw">let</span> <span class="ident">handle</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">send_message</span>(<span class="ident">address</span>, <span class="ident">message</span>.<span class="ident">clone</span>()).<span class="kw">await</span>;
+            <span class="kw">let</span> <span class="ident">handle</span> = <span class="self">self</span>.<span class="ident">send_message</span>(<span class="ident">address</span>, <span class="ident">message</span>.<span class="ident">clone</span>()).<span class="kw">await</span>;
             <span class="ident">handlers</span>.<span class="ident">push</span>(<span class="ident">handle</span>);
         }
         <span class="ident">handlers</span>
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="network" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (20ffea693 2022-08-11)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="network" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>

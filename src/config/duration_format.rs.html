@@ -136,24 +136,24 @@
 <span class="kw">use</span> <span class="ident">serde</span>::{<span class="ident">Deserialize</span>, <span class="ident">Deserializer</span>, <span class="ident">Serialize</span>, <span class="ident">Serializer</span>};
 <span class="kw">use</span> <span class="ident">std::time::Duration</span>;
 
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">deserialize</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span>, <span class="ident">D</span><span class="op">&gt;</span>(<span class="ident">deserializer</span>: <span class="ident">D</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Duration</span>, <span class="ident">D::Error</span><span class="op">&gt;</span>
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">deserialize</span>&lt;<span class="lifetime">&#39;de</span>, <span class="ident">D</span>&gt;(<span class="ident">deserializer</span>: <span class="ident">D</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">Duration</span>, <span class="ident">D::Error</span>&gt;
 <span class="kw">where</span>
-    <span class="ident">D</span>: <span class="ident">Deserializer</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span><span class="op">&gt;</span>,
+    <span class="ident">D</span>: <span class="ident">Deserializer</span>&lt;<span class="lifetime">&#39;de</span>&gt;,
 {
-    <span class="kw">let</span> <span class="ident">s</span> <span class="op">=</span> <span class="ident">String::deserialize</span>(<span class="ident">deserializer</span>)<span class="question-mark">?</span>;
+    <span class="kw">let</span> <span class="ident">s</span> = <span class="ident">String::deserialize</span>(<span class="ident">deserializer</span>)<span class="question-mark">?</span>;
 
-    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">milis</span>) <span class="op">=</span> <span class="ident">s</span>.<span class="ident">strip_suffix</span>(<span class="string">&quot;ms&quot;</span>) {
+    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">milis</span>) = <span class="ident">s</span>.<span class="ident">strip_suffix</span>(<span class="string">&quot;ms&quot;</span>) {
         <span class="kw">return</span> <span class="ident">milis</span>
             .<span class="ident">replace</span>(<span class="string">&#39;_&#39;</span>, <span class="string">&quot;&quot;</span>)
-            .<span class="ident">parse</span>::<span class="op">&lt;</span><span class="ident">u64</span><span class="op">&gt;</span>()
+            .<span class="ident">parse</span>::&lt;<span class="ident">u64</span>&gt;()
             .<span class="ident">map</span>(<span class="ident">Duration::from_millis</span>)
-            .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">serde::de::Error::custom</span>(<span class="ident">e</span>.<span class="ident">to_string</span>()));
-    } <span class="kw">else</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">seconds</span>) <span class="op">=</span> <span class="ident">s</span>.<span class="ident">strip_suffix</span>(<span class="string">&#39;s&#39;</span>) {
+            .<span class="ident">map_err</span>(|<span class="ident">e</span>| <span class="ident">serde::de::Error::custom</span>(<span class="ident">e</span>.<span class="ident">to_string</span>()));
+    } <span class="kw">else</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">seconds</span>) = <span class="ident">s</span>.<span class="ident">strip_suffix</span>(<span class="string">&#39;s&#39;</span>) {
         <span class="kw">return</span> <span class="ident">seconds</span>
             .<span class="ident">replace</span>(<span class="string">&#39;_&#39;</span>, <span class="string">&quot;&quot;</span>)
-            .<span class="ident">parse</span>::<span class="op">&lt;</span><span class="ident">u64</span><span class="op">&gt;</span>()
+            .<span class="ident">parse</span>::&lt;<span class="ident">u64</span>&gt;()
             .<span class="ident">map</span>(<span class="ident">Duration::from_secs</span>)
-            .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">serde::de::Error::custom</span>(<span class="ident">e</span>.<span class="ident">to_string</span>()));
+            .<span class="ident">map_err</span>(|<span class="ident">e</span>| <span class="ident">serde::de::Error::custom</span>(<span class="ident">e</span>.<span class="ident">to_string</span>()));
     }
 
     <span class="prelude-val">Err</span>(<span class="ident">serde::de::Error::custom</span>(<span class="macro">format!</span>(
@@ -161,7 +161,7 @@
     )))
 }
 
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">serialize</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>(<span class="ident">duration</span>: <span class="kw-2">&amp;</span><span class="ident">Duration</span>, <span class="ident">serializer</span>: <span class="ident">S</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">S::Ok</span>, <span class="ident">S::Error</span><span class="op">&gt;</span>
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">serialize</span>&lt;<span class="ident">S</span>&gt;(<span class="ident">duration</span>: <span class="kw-2">&amp;</span><span class="ident">Duration</span>, <span class="ident">serializer</span>: <span class="ident">S</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">S::Ok</span>, <span class="ident">S::Error</span>&gt;
 <span class="kw">where</span>
     <span class="ident">S</span>: <span class="ident">Serializer</span>,
 {
@@ -176,20 +176,20 @@
 
     <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Deserialize</span>, <span class="ident">Serialize</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>)]</span>
     <span class="kw">struct</span> <span class="ident">MockProperties</span> {
-        <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">with</span> <span class="op">=</span> <span class="string">&quot;duration_format&quot;</span>)]</span>
+        <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">with</span> = <span class="string">&quot;duration_format&quot;</span>)]</span>
         <span class="ident">property_1</span>: <span class="ident">Duration</span>,
-        <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">with</span> <span class="op">=</span> <span class="string">&quot;duration_format&quot;</span>)]</span>
+        <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">with</span> = <span class="string">&quot;duration_format&quot;</span>)]</span>
         <span class="ident">property_2</span>: <span class="ident">Duration</span>,
-        <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">with</span> <span class="op">=</span> <span class="string">&quot;duration_format&quot;</span>)]</span>
+        <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">with</span> = <span class="string">&quot;duration_format&quot;</span>)]</span>
         <span class="ident">property_3</span>: <span class="ident">Duration</span>,
-        <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">with</span> <span class="op">=</span> <span class="string">&quot;duration_format&quot;</span>)]</span>
+        <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">with</span> = <span class="string">&quot;duration_format&quot;</span>)]</span>
         <span class="ident">property_4</span>: <span class="ident">Duration</span>,
     }
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">parse_miliseconds_and_seconds</span>() {
         <span class="comment">// GIVEN</span>
-        <span class="kw">let</span> <span class="ident">input</span> <span class="op">=</span> <span class="string">r#&quot;{
+        <span class="kw">let</span> <span class="ident">input</span> = <span class="string">r#&quot;{
              &quot;property_1&quot;: &quot;1_000ms&quot;,
              &quot;property_2&quot;: &quot;2ms&quot;,
              &quot;property_3&quot;: &quot;8s&quot;,
@@ -197,7 +197,7 @@
           }&quot;#</span>;
 
         <span class="comment">// WHEN</span>
-        <span class="kw">let</span> <span class="ident">result</span>: <span class="ident">MockProperties</span> <span class="op">=</span>
+        <span class="kw">let</span> <span class="ident">result</span>: <span class="ident">MockProperties</span> =
             <span class="ident">serde_json::from_str</span>(<span class="ident">input</span>).<span class="ident">expect</span>(<span class="string">&quot;Couldn&#39;t deserialize string&quot;</span>);
 
         <span class="comment">// THEN</span>
@@ -210,7 +210,7 @@
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">roundtrip</span>() {
         <span class="comment">// GIVEN</span>
-        <span class="kw">let</span> <span class="ident">input</span> <span class="op">=</span> <span class="string">r#&quot;{
+        <span class="kw">let</span> <span class="ident">input</span> = <span class="string">r#&quot;{
              &quot;property_1&quot;: &quot;1_000ms&quot;,
              &quot;property_2&quot;: &quot;2ms&quot;,
              &quot;property_3&quot;: &quot;8s&quot;,
@@ -218,29 +218,29 @@
           }&quot;#</span>;
 
         <span class="comment">// WHEN</span>
-        <span class="kw">let</span> <span class="ident">result</span>: <span class="ident">MockProperties</span> <span class="op">=</span>
+        <span class="kw">let</span> <span class="ident">result</span>: <span class="ident">MockProperties</span> =
             <span class="ident">serde_json::from_str</span>(<span class="ident">input</span>).<span class="ident">expect</span>(<span class="string">&quot;Couldn&#39;t deserialize string&quot;</span>);
 
         <span class="comment">// THEN</span>
-        <span class="kw">let</span> <span class="ident">serialized</span> <span class="op">=</span> <span class="ident">serde_json::to_string</span>(<span class="kw-2">&amp;</span><span class="ident">result</span>).<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="ident">deserialized</span> <span class="op">=</span> <span class="ident">serde_json::from_str</span>(<span class="kw-2">&amp;</span><span class="ident">serialized</span>).<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">serialized</span> = <span class="ident">serde_json::to_string</span>(<span class="kw-2">&amp;</span><span class="ident">result</span>).<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">deserialized</span> = <span class="ident">serde_json::from_str</span>(<span class="kw-2">&amp;</span><span class="ident">serialized</span>).<span class="ident">unwrap</span>();
         <span class="macro">assert_eq!</span>(<span class="ident">result</span>, <span class="ident">deserialized</span>);
     }
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">parse_error</span>() {
         <span class="comment">// GIVEN</span>
-        <span class="kw">let</span> <span class="ident">input</span> <span class="op">=</span> <span class="string">r#&quot;{
+        <span class="kw">let</span> <span class="ident">input</span> = <span class="string">r#&quot;{
              &quot;property_1&quot;: &quot;1000 ms&quot;,
              &quot;property_2&quot;: &quot;8seconds&quot;
           }&quot;#</span>;
 
         <span class="comment">// WHEN</span>
-        <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">serde_json::from_str</span>::<span class="op">&lt;</span><span class="ident">MockProperties</span><span class="op">&gt;</span>(<span class="ident">input</span>);
+        <span class="kw">let</span> <span class="ident">result</span> = <span class="ident">serde_json::from_str</span>::&lt;<span class="ident">MockProperties</span>&gt;(<span class="ident">input</span>);
 
         <span class="comment">// THEN</span>
         <span class="macro">assert!</span>(<span class="ident">result</span>.<span class="ident">is_err</span>());
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="config" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (20ffea693 2022-08-11)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="config" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>

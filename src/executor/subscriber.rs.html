@@ -127,7 +127,7 @@
 <span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">metered_channel</span>, <span class="ident">BatchDigest</span>, <span class="ident">ReconfigureNotification</span>, <span class="ident">SerializedBatchMessage</span>};
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="attribute">#[<span class="ident">path</span> <span class="op">=</span> <span class="string">&quot;tests/subscriber_tests.rs&quot;</span>]</span>
+<span class="attribute">#[<span class="ident">path</span> = <span class="string">&quot;tests/subscriber_tests.rs&quot;</span>]</span>
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">subscriber_tests</span>;
 
 <span class="doccomment">/// The `Subscriber` receives certificates sequenced by the consensus and waits until the</span>
@@ -135,28 +135,28 @@
 <span class="doccomment">/// forward the certificates to the Executor Core.</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Subscriber</span> {
     <span class="doccomment">/// The temporary storage holding all transactions&#39; data (that may be too big to hold in memory).</span>
-    <span class="ident">store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">BatchDigest</span>, <span class="ident">SerializedBatchMessage</span><span class="op">&gt;</span>,
+    <span class="ident">store</span>: <span class="ident">Store</span>&lt;<span class="ident">BatchDigest</span>, <span class="ident">SerializedBatchMessage</span>&gt;,
     <span class="doccomment">/// Receive reconfiguration updates.</span>
-    <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
+    <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span>&lt;<span class="ident">ReconfigureNotification</span>&gt;,
     <span class="doccomment">/// A channel to receive consensus messages.</span>
-    <span class="ident">rx_consensus</span>: <span class="ident">metered_channel::Receiver</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&gt;</span>,
+    <span class="ident">rx_consensus</span>: <span class="ident">metered_channel::Receiver</span>&lt;<span class="ident">ConsensusOutput</span>&gt;,
     <span class="doccomment">/// A channel to the batch loader to download transaction&#39;s data.</span>
-    <span class="ident">tx_batch_loader</span>: <span class="ident">metered_channel::Sender</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&gt;</span>,
+    <span class="ident">tx_batch_loader</span>: <span class="ident">metered_channel::Sender</span>&lt;<span class="ident">ConsensusOutput</span>&gt;,
     <span class="doccomment">/// A channel to send the complete and ordered list of consensus outputs to the executor. This</span>
     <span class="doccomment">/// channel is used once all transactions data are downloaded.</span>
-    <span class="ident">tx_executor</span>: <span class="ident">metered_channel::Sender</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&gt;</span>,
+    <span class="ident">tx_executor</span>: <span class="ident">metered_channel::Sender</span>&lt;<span class="ident">ConsensusOutput</span>&gt;,
 }
 
 <span class="kw">impl</span> <span class="ident">Subscriber</span> {
     <span class="doccomment">/// Spawn a new subscriber in a new tokio task.</span>
     <span class="attribute">#[<span class="ident">must_use</span>]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(
-        <span class="ident">store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">BatchDigest</span>, <span class="ident">SerializedBatchMessage</span><span class="op">&gt;</span>,
-        <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
-        <span class="ident">rx_consensus</span>: <span class="ident">metered_channel::Receiver</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&gt;</span>,
-        <span class="ident">tx_batch_loader</span>: <span class="ident">metered_channel::Sender</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&gt;</span>,
-        <span class="ident">tx_executor</span>: <span class="ident">metered_channel::Sender</span><span class="op">&lt;</span><span class="ident">ConsensusOutput</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+        <span class="ident">store</span>: <span class="ident">Store</span>&lt;<span class="ident">BatchDigest</span>, <span class="ident">SerializedBatchMessage</span>&gt;,
+        <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span>&lt;<span class="ident">ReconfigureNotification</span>&gt;,
+        <span class="ident">rx_consensus</span>: <span class="ident">metered_channel::Receiver</span>&lt;<span class="ident">ConsensusOutput</span>&gt;,
+        <span class="ident">tx_batch_loader</span>: <span class="ident">metered_channel::Sender</span>&lt;<span class="ident">ConsensusOutput</span>&gt;,
+        <span class="ident">tx_executor</span>: <span class="ident">metered_channel::Sender</span>&lt;<span class="ident">ConsensusOutput</span>&gt;,
+    ) -&gt; <span class="ident">JoinHandle</span>&lt;()&gt; {
         <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
             <span class="self">Self</span> {
                 <span class="ident">store</span>,
@@ -172,27 +172,27 @@
     }
 
     <span class="doccomment">/// Wait for particular data to become available in the storage and then returns.</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">waiter</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(
-        <span class="ident">missing</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">BatchDigest</span><span class="op">&gt;</span>,
-        <span class="ident">store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">BatchDigest</span>, <span class="ident">SerializedBatchMessage</span><span class="op">&gt;</span>,
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">waiter</span>&lt;<span class="ident">T</span>&gt;(
+        <span class="ident">missing</span>: <span class="ident">Vec</span>&lt;<span class="ident">BatchDigest</span>&gt;,
+        <span class="ident">store</span>: <span class="ident">Store</span>&lt;<span class="ident">BatchDigest</span>, <span class="ident">SerializedBatchMessage</span>&gt;,
         <span class="ident">deliver</span>: <span class="ident">T</span>,
-    ) -&gt; <span class="ident">SubscriberResult</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">waiting</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">missing</span>.<span class="ident">into_iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">store</span>.<span class="ident">notify_read</span>(<span class="ident">x</span>)).<span class="ident">collect</span>();
+    ) -&gt; <span class="ident">SubscriberResult</span>&lt;<span class="ident">T</span>&gt; {
+        <span class="kw">let</span> <span class="ident">waiting</span>: <span class="ident">Vec</span>&lt;<span class="kw">_</span>&gt; = <span class="ident">missing</span>.<span class="ident">into_iter</span>().<span class="ident">map</span>(|<span class="ident">x</span>| <span class="ident">store</span>.<span class="ident">notify_read</span>(<span class="ident">x</span>)).<span class="ident">collect</span>();
         <span class="ident">try_join_all</span>(<span class="ident">waiting</span>)
             .<span class="kw">await</span>
-            .<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">deliver</span>)
+            .<span class="ident">map</span>(|<span class="kw">_</span>| <span class="ident">deliver</span>)
             .<span class="ident">map_err</span>(<span class="ident">SubscriberError::from</span>)
     }
 
     <span class="doccomment">/// Main loop connecting to the consensus to listen to sequence messages.</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">run</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) -&gt; <span class="ident">SubscriberResult</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">waiting</span> <span class="op">=</span> <span class="ident">FuturesOrdered::new</span>();
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">run</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) -&gt; <span class="ident">SubscriberResult</span>&lt;()&gt; {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">waiting</span> = <span class="ident">FuturesOrdered::new</span>();
 
         <span class="comment">// Listen to sequenced consensus message and process them.</span>
         <span class="kw">loop</span> {
             <span class="macro">tokio::select!</span> {
                 <span class="comment">// Receive the ordered sequence of consensus messages from a consensus node.</span>
-                <span class="prelude-val">Some</span>(<span class="ident">message</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">rx_consensus</span>.<span class="ident">recv</span>() =&gt; {
+                <span class="prelude-val">Some</span>(<span class="ident">message</span>) = <span class="self">self</span>.<span class="ident">rx_consensus</span>.<span class="ident">recv</span>() =&gt; {
                     <span class="comment">// Send the certificate to the batch loader to download all transactions&#39; data.</span>
                     <span class="self">self</span>.<span class="ident">tx_batch_loader</span>
                         .<span class="ident">send</span>(<span class="ident">message</span>.<span class="ident">clone</span>())
@@ -203,13 +203,13 @@
                     <span class="comment">// the primary already successfully processed the certificate. This implies that the primary notified</span>
                     <span class="comment">// its worker to download any missing batch. We may however have to wait for these batch be available</span>
                     <span class="comment">// on our workers. Once all batches are available, we forward the certificate o the Executor Core.</span>
-                    <span class="kw">let</span> <span class="ident">digests</span> <span class="op">=</span> <span class="ident">message</span>.<span class="ident">certificate</span>.<span class="ident">header</span>.<span class="ident">payload</span>.<span class="ident">keys</span>().<span class="ident">cloned</span>().<span class="ident">collect</span>();
-                    <span class="kw">let</span> <span class="ident">future</span> <span class="op">=</span> <span class="ident"><span class="self">Self</span>::waiter</span>(<span class="ident">digests</span>, <span class="self">self</span>.<span class="ident">store</span>.<span class="ident">clone</span>(), <span class="ident">message</span>);
+                    <span class="kw">let</span> <span class="ident">digests</span> = <span class="ident">message</span>.<span class="ident">certificate</span>.<span class="ident">header</span>.<span class="ident">payload</span>.<span class="ident">keys</span>().<span class="ident">cloned</span>().<span class="ident">collect</span>();
+                    <span class="kw">let</span> <span class="ident">future</span> = <span class="ident"><span class="self">Self</span>::waiter</span>(<span class="ident">digests</span>, <span class="self">self</span>.<span class="ident">store</span>.<span class="ident">clone</span>(), <span class="ident">message</span>);
                     <span class="ident">waiting</span>.<span class="ident">push</span>(<span class="ident">future</span>);
                 },
 
                 <span class="comment">// Receive here consensus messages for which we have downloaded all transactions data.</span>
-                <span class="prelude-val">Some</span>(<span class="ident">message</span>) <span class="op">=</span> <span class="ident">waiting</span>.<span class="ident">next</span>() =&gt; {
+                <span class="prelude-val">Some</span>(<span class="ident">message</span>) = <span class="ident">waiting</span>.<span class="ident">next</span>() =&gt; {
                     <span class="kw">if</span> <span class="self">self</span>.<span class="ident">tx_executor</span>.<span class="ident">send</span>(<span class="ident">message</span><span class="question-mark">?</span>).<span class="kw">await</span>.<span class="ident">is_err</span>() {
                         <span class="macro">debug!</span>(<span class="string">&quot;Executor core is shutting down&quot;</span>);
                         <span class="kw">return</span> <span class="prelude-val">Ok</span>(());
@@ -217,10 +217,10 @@
                 },
 
                 <span class="comment">// Check whether the committee changed.</span>
-                <span class="ident">result</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">rx_reconfigure</span>.<span class="ident">changed</span>() =&gt; {
+                <span class="ident">result</span> = <span class="self">self</span>.<span class="ident">rx_reconfigure</span>.<span class="ident">changed</span>() =&gt; {
                     <span class="ident">result</span>.<span class="ident">expect</span>(<span class="string">&quot;Committee channel dropped&quot;</span>);
-                    <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">rx_reconfigure</span>.<span class="ident">borrow</span>().<span class="ident">clone</span>();
-                    <span class="kw">if</span> <span class="kw">let</span> <span class="ident">ReconfigureNotification::Shutdown</span> <span class="op">=</span> <span class="ident">message</span> {
+                    <span class="kw">let</span> <span class="ident">message</span> = <span class="self">self</span>.<span class="ident">rx_reconfigure</span>.<span class="ident">borrow</span>().<span class="ident">clone</span>();
+                    <span class="kw">if</span> <span class="kw">let</span> <span class="ident">ReconfigureNotification::Shutdown</span> = <span class="ident">message</span> {
                         <span class="kw">return</span> <span class="prelude-val">Ok</span>(());
                     }
                 }
@@ -229,4 +229,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="executor" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (20ffea693 2022-08-11)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="executor" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>

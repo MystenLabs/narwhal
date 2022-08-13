@@ -40,10 +40,10 @@
 <span class="doccomment">/// TIME_WAIT state ensuring that the OS won&#39;t hand out this port for some grace period.</span>
 <span class="doccomment">/// Callers should be able to bind to this port given they use SO_REUSEADDR.</span>
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_available_port</span>() -&gt; <span class="ident">u16</span> {
-    <span class="kw">const</span> <span class="ident">MAX_PORT_RETRIES</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="number">1000</span>;
+    <span class="kw">const</span> <span class="ident">MAX_PORT_RETRIES</span>: <span class="ident">u32</span> = <span class="number">1000</span>;
 
     <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">MAX_PORT_RETRIES</span> {
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">port</span>) <span class="op">=</span> <span class="ident">get_ephemeral_port</span>() {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">port</span>) = <span class="ident">get_ephemeral_port</span>() {
             <span class="kw">return</span> <span class="ident">port</span>;
         }
     }
@@ -51,18 +51,18 @@
     <span class="macro">panic!</span>(<span class="string">&quot;Error: could not find an available port&quot;</span>);
 }
 
-<span class="kw">fn</span> <span class="ident">get_ephemeral_port</span>() -&gt; <span class="ident">::std::io::Result</span><span class="op">&lt;</span><span class="ident">u16</span><span class="op">&gt;</span> {
+<span class="kw">fn</span> <span class="ident">get_ephemeral_port</span>() -&gt; <span class="ident">::std::io::Result</span>&lt;<span class="ident">u16</span>&gt; {
     <span class="comment">// Request a random available port from the OS</span>
-    <span class="kw">let</span> <span class="ident">listener</span> <span class="op">=</span> <span class="ident">TcpListener::bind</span>((<span class="string">&quot;localhost&quot;</span>, <span class="number">0</span>))<span class="question-mark">?</span>;
-    <span class="kw">let</span> <span class="ident">addr</span> <span class="op">=</span> <span class="ident">listener</span>.<span class="ident">local_addr</span>()<span class="question-mark">?</span>;
+    <span class="kw">let</span> <span class="ident">listener</span> = <span class="ident">TcpListener::bind</span>((<span class="string">&quot;localhost&quot;</span>, <span class="number">0</span>))<span class="question-mark">?</span>;
+    <span class="kw">let</span> <span class="ident">addr</span> = <span class="ident">listener</span>.<span class="ident">local_addr</span>()<span class="question-mark">?</span>;
 
     <span class="comment">// Create and accept a connection (which we&#39;ll promptly drop) in order to force the port</span>
     <span class="comment">// into the TIME_WAIT state, ensuring that the port will be reserved from some limited</span>
     <span class="comment">// amount of time (roughly 60s on some Linux systems)</span>
-    <span class="kw">let</span> <span class="ident">_sender</span> <span class="op">=</span> <span class="ident">TcpStream::connect</span>(<span class="ident">addr</span>)<span class="question-mark">?</span>;
-    <span class="kw">let</span> <span class="ident">_incoming</span> <span class="op">=</span> <span class="ident">listener</span>.<span class="ident">accept</span>()<span class="question-mark">?</span>;
+    <span class="kw">let</span> <span class="ident">_sender</span> = <span class="ident">TcpStream::connect</span>(<span class="ident">addr</span>)<span class="question-mark">?</span>;
+    <span class="kw">let</span> <span class="ident">_incoming</span> = <span class="ident">listener</span>.<span class="ident">accept</span>()<span class="question-mark">?</span>;
 
     <span class="prelude-val">Ok</span>(<span class="ident">addr</span>.<span class="ident">port</span>())
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="config" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (20ffea693 2022-08-11)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="config" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>

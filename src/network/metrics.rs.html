@@ -226,9 +226,9 @@
     }
 }
 
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Metrics</span><span class="op">&lt;</span><span class="ident">N</span>: <span class="ident">NetworkMetrics</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Metrics</span>&lt;<span class="ident">N</span>: <span class="ident">NetworkMetrics</span>&gt; {
     <span class="doccomment">/// The handler to report the metrics.</span>
-    <span class="ident">metrics_handler</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">N</span><span class="op">&gt;</span>,
+    <span class="ident">metrics_handler</span>: <span class="ident">Arc</span>&lt;<span class="ident">N</span>&gt;,
     <span class="doccomment">/// A tag used for every reported metric to trace the module where this has been used from</span>
     <span class="ident">module_tag</span>: <span class="ident">String</span>,
     <span class="doccomment">/// The network type - this shouldn&#39;t be set outside of this crate but is meant to</span>
@@ -236,8 +236,8 @@
     <span class="ident">network_type</span>: <span class="ident">String</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">N</span>: <span class="ident">NetworkMetrics</span><span class="op">&gt;</span> <span class="ident">Metrics</span><span class="op">&lt;</span><span class="ident">N</span><span class="op">&gt;</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">metrics_handler</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">N</span><span class="op">&gt;</span>, <span class="ident">module_tag</span>: <span class="ident">String</span>) -&gt; <span class="self">Self</span> {
+<span class="kw">impl</span>&lt;<span class="ident">N</span>: <span class="ident">NetworkMetrics</span>&gt; <span class="ident">Metrics</span>&lt;<span class="ident">N</span>&gt; {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">metrics_handler</span>: <span class="ident">Arc</span>&lt;<span class="ident">N</span>&gt;, <span class="ident">module_tag</span>: <span class="ident">String</span>) -&gt; <span class="self">Self</span> {
         <span class="self">Self</span> {
             <span class="ident">metrics_handler</span>,
             <span class="ident">module_tag</span>,
@@ -245,7 +245,7 @@
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">metrics</span>: <span class="ident">Metrics</span><span class="op">&lt;</span><span class="ident">N</span><span class="op">&gt;</span>, <span class="ident">network_type</span>: <span class="ident">String</span>) -&gt; <span class="ident">Metrics</span><span class="op">&lt;</span><span class="ident">N</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">metrics</span>: <span class="ident">Metrics</span>&lt;<span class="ident">N</span>&gt;, <span class="ident">network_type</span>: <span class="ident">String</span>) -&gt; <span class="ident">Metrics</span>&lt;<span class="ident">N</span>&gt; {
         <span class="ident">Metrics</span> {
             <span class="ident">metrics_handler</span>: <span class="ident">metrics</span>.<span class="ident">metrics_handler</span>,
             <span class="ident">module_tag</span>: <span class="ident">metrics</span>.<span class="ident">module_tag</span>,
@@ -261,13 +261,13 @@
         <span class="self">self</span>.<span class="ident">network_type</span>.<span class="ident">clone</span>()
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">set_network_available_tasks</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">value</span>: <span class="ident">i64</span>, <span class="ident">addr</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span>) {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">set_network_available_tasks</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">value</span>: <span class="ident">i64</span>, <span class="ident">addr</span>: <span class="prelude-ty">Option</span>&lt;<span class="ident">String</span>&gt;) {
         <span class="self">self</span>.<span class="ident">metrics_handler</span>
             .<span class="ident">network_available_tasks</span>()
             .<span class="ident">with_label_values</span>(<span class="kw-2">&amp;</span>[
                 <span class="self">self</span>.<span class="ident">module_tag</span>.<span class="ident">as_str</span>(),
                 <span class="self">self</span>.<span class="ident">network_type</span>.<span class="ident">as_str</span>(),
-                <span class="ident">addr</span>.<span class="ident">map_or</span>(<span class="string">&quot;&quot;</span>.<span class="ident">to_string</span>(), <span class="op">|</span><span class="ident">a</span><span class="op">|</span> <span class="ident">a</span>).<span class="ident">as_str</span>(),
+                <span class="ident">addr</span>.<span class="ident">map_or</span>(<span class="string">&quot;&quot;</span>.<span class="ident">to_string</span>(), |<span class="ident">a</span>| <span class="ident">a</span>).<span class="ident">as_str</span>(),
             ])
             .<span class="ident">set</span>(<span class="ident">value</span>);
     }
@@ -282,8 +282,8 @@
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_called_metrics</span>() {
         <span class="comment">// GIVEN</span>
-        <span class="kw">let</span> <span class="ident">registry</span> <span class="op">=</span> <span class="ident">Registry::new</span>();
-        <span class="kw">let</span> <span class="ident">metrics</span> <span class="op">=</span> <span class="ident">Metrics</span> {
+        <span class="kw">let</span> <span class="ident">registry</span> = <span class="ident">Registry::new</span>();
+        <span class="kw">let</span> <span class="ident">metrics</span> = <span class="ident">Metrics</span> {
             <span class="ident">metrics_handler</span>: <span class="ident">Arc::new</span>(<span class="ident">PrimaryNetworkMetrics::new</span>(<span class="kw-2">&amp;</span><span class="ident">registry</span>)),
             <span class="ident">module_tag</span>: <span class="string">&quot;demo_handler&quot;</span>.<span class="ident">to_string</span>(),
             <span class="ident">network_type</span>: <span class="string">&quot;primary&quot;</span>.<span class="ident">to_string</span>(),
@@ -293,7 +293,7 @@
         <span class="ident">metrics</span>.<span class="ident">set_network_available_tasks</span>(<span class="number">14</span>, <span class="prelude-val">Some</span>(<span class="string">&quot;127.0.0.1&quot;</span>.<span class="ident">to_string</span>()));
 
         <span class="comment">// THEN registry should be updated with expected tag</span>
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">HashMap::new</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">m</span> = <span class="ident">HashMap::new</span>();
         <span class="ident">m</span>.<span class="ident">insert</span>(<span class="string">&quot;module&quot;</span>, <span class="string">&quot;demo_handler&quot;</span>);
         <span class="ident">m</span>.<span class="ident">insert</span>(<span class="string">&quot;network&quot;</span>, <span class="string">&quot;primary&quot;</span>);
         <span class="ident">m</span>.<span class="ident">insert</span>(<span class="string">&quot;address&quot;</span>, <span class="string">&quot;127.0.0.1&quot;</span>);
@@ -309,4 +309,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="network" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (20ffea693 2022-08-11)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="network" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>

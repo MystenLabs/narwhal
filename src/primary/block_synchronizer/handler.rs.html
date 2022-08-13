@@ -341,7 +341,7 @@
 <span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">metered_channel</span>, <span class="ident">Certificate</span>, <span class="ident">CertificateDigest</span>, <span class="ident">PrimaryMessage</span>};
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="attribute">#[<span class="ident">path</span> <span class="op">=</span> <span class="string">&quot;tests/handler_tests.rs&quot;</span>]</span>
+<span class="attribute">#[<span class="ident">path</span> = <span class="string">&quot;tests/handler_tests.rs&quot;</span>]</span>
 <span class="kw">mod</span> <span class="ident">handler_tests</span>;
 
 <span class="doccomment">/// The errors returned by the Handler. It translates</span>
@@ -368,9 +368,9 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">block_id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">CertificateDigest</span> {
         <span class="kw">match</span> <span class="kw-2">*</span><span class="self">self</span> {
             <span class="ident">BlockNotFound</span> { <span class="ident">block_id</span> }
-            <span class="op">|</span> <span class="ident">Internal</span> { <span class="ident">block_id</span> }
-            <span class="op">|</span> <span class="ident">BlockDeliveryTimeout</span> { <span class="ident">block_id</span> }
-            <span class="op">|</span> <span class="ident">PayloadSyncError</span> { <span class="ident">block_id</span>, .. } =&gt; <span class="ident">block_id</span>,
+            | <span class="ident">Internal</span> { <span class="ident">block_id</span> }
+            | <span class="ident">BlockDeliveryTimeout</span> { <span class="ident">block_id</span> }
+            | <span class="ident">PayloadSyncError</span> { <span class="ident">block_id</span>, .. } =&gt; <span class="ident">block_id</span>,
         }
     }
 }
@@ -393,23 +393,23 @@
     <span class="doccomment">/// and made sure all the requirements have been fulfilled.</span>
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get_and_synchronize_block_headers</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">block_ids</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Certificate</span>, <span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span>;
+        <span class="ident">block_ids</span>: <span class="ident">Vec</span>&lt;<span class="ident">CertificateDigest</span>&gt;,
+    ) -&gt; <span class="ident">Vec</span>&lt;<span class="prelude-ty">Result</span>&lt;<span class="ident">Certificate</span>, <span class="ident">Error</span>&gt;&gt;;
 
     <span class="doccomment">/// It retrieves the requested blocks via the block_synchronizer, but it</span>
     <span class="doccomment">/// doesn&#39;t synchronize the fetched headers, meaning that no processing</span>
     <span class="doccomment">/// will take place (causal completion etc).</span>
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get_block_headers</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">block_ids</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">BlockSynchronizeResult</span><span class="op">&lt;</span><span class="ident">BlockHeader</span><span class="op">&gt;</span><span class="op">&gt;</span>;
+        <span class="ident">block_ids</span>: <span class="ident">Vec</span>&lt;<span class="ident">CertificateDigest</span>&gt;,
+    ) -&gt; <span class="ident">Vec</span>&lt;<span class="ident">BlockSynchronizeResult</span>&lt;<span class="ident">BlockHeader</span>&gt;&gt;;
 
     <span class="doccomment">/// Synchronizes the block payload for the provided certificates via the</span>
     <span class="doccomment">/// block synchronizer and returns the result back.</span>
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">synchronize_block_payloads</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">certificates</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Certificate</span>, <span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span>;
+        <span class="ident">certificates</span>: <span class="ident">Vec</span>&lt;<span class="ident">Certificate</span>&gt;,
+    ) -&gt; <span class="ident">Vec</span>&lt;<span class="prelude-ty">Result</span>&lt;<span class="ident">Certificate</span>, <span class="ident">Error</span>&gt;&gt;;
 }
 
 <span class="doccomment">/// A helper struct to allow us access the block_synchronizer in a synchronous</span>
@@ -417,15 +417,15 @@
 <span class="doccomment">/// process them and causally complete their history.</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BlockSynchronizerHandler</span> {
     <span class="doccomment">/// Channel to send commands to the block_synchronizer.</span>
-    <span class="ident">tx_block_synchronizer</span>: <span class="ident">metered_channel::Sender</span><span class="op">&lt;</span><span class="ident">Command</span><span class="op">&gt;</span>,
+    <span class="ident">tx_block_synchronizer</span>: <span class="ident">metered_channel::Sender</span>&lt;<span class="ident">Command</span>&gt;,
 
     <span class="doccomment">/// Channel to send the fetched certificates to Core for</span>
     <span class="doccomment">/// further processing, validation and possibly causal</span>
     <span class="doccomment">/// completion.</span>
-    <span class="ident">tx_core</span>: <span class="ident">metered_channel::Sender</span><span class="op">&lt;</span><span class="ident">PrimaryMessage</span><span class="op">&gt;</span>,
+    <span class="ident">tx_core</span>: <span class="ident">metered_channel::Sender</span>&lt;<span class="ident">PrimaryMessage</span>&gt;,
 
     <span class="doccomment">/// The store that holds the certificates.</span>
-    <span class="ident">certificate_store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span><span class="op">&gt;</span>,
+    <span class="ident">certificate_store</span>: <span class="ident">Store</span>&lt;<span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span>&gt;,
 
     <span class="doccomment">/// The timeout while waiting for a certificate to become available</span>
     <span class="doccomment">/// after submitting for processing to core.</span>
@@ -434,9 +434,9 @@
 
 <span class="kw">impl</span> <span class="ident">BlockSynchronizerHandler</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(
-        <span class="ident">tx_block_synchronizer</span>: <span class="ident">metered_channel::Sender</span><span class="op">&lt;</span><span class="ident">Command</span><span class="op">&gt;</span>,
-        <span class="ident">tx_core</span>: <span class="ident">metered_channel::Sender</span><span class="op">&lt;</span><span class="ident">PrimaryMessage</span><span class="op">&gt;</span>,
-        <span class="ident">certificate_store</span>: <span class="ident">Store</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span><span class="op">&gt;</span>,
+        <span class="ident">tx_block_synchronizer</span>: <span class="ident">metered_channel::Sender</span>&lt;<span class="ident">Command</span>&gt;,
+        <span class="ident">tx_core</span>: <span class="ident">metered_channel::Sender</span>&lt;<span class="ident">PrimaryMessage</span>&gt;,
+        <span class="ident">certificate_store</span>: <span class="ident">Store</span>&lt;<span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span>&gt;,
         <span class="ident">certificate_deliver_timeout</span>: <span class="ident">Duration</span>,
     ) -&gt; <span class="self">Self</span> {
         <span class="self">Self</span> {
@@ -447,26 +447,26 @@
         }
     }
 
-    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span> <span class="op">=</span> <span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>)]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">wait_all</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">certificates</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Certificate</span>, <span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">futures</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">certificates</span>
+    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span> = <span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>)]</span>
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">wait_all</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">certificates</span>: <span class="ident">Vec</span>&lt;<span class="ident">Certificate</span>&gt;) -&gt; <span class="ident">Vec</span>&lt;<span class="prelude-ty">Result</span>&lt;<span class="ident">Certificate</span>, <span class="ident">Error</span>&gt;&gt; {
+        <span class="kw">let</span> <span class="ident">futures</span>: <span class="ident">Vec</span>&lt;<span class="kw">_</span>&gt; = <span class="ident">certificates</span>
             .<span class="ident">into_iter</span>()
-            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">c</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">wait</span>(<span class="ident">c</span>.<span class="ident">digest</span>()))
+            .<span class="ident">map</span>(|<span class="ident">c</span>| <span class="self">self</span>.<span class="ident">wait</span>(<span class="ident">c</span>.<span class="ident">digest</span>()))
             .<span class="ident">collect</span>();
 
         <span class="ident">join_all</span>(<span class="ident">futures</span>).<span class="kw">await</span>
     }
 
-    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span> <span class="op">=</span> <span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>, <span class="ident">err</span>)]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">wait</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">block_id</span>: <span class="ident">CertificateDigest</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Certificate</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span> <span class="ident">timeout</span>(
+    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span> = <span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>, <span class="ident">err</span>)]</span>
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">wait</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">block_id</span>: <span class="ident">CertificateDigest</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">Certificate</span>, <span class="ident">Error</span>&gt; {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">result</span>) = <span class="ident">timeout</span>(
             <span class="self">self</span>.<span class="ident">certificate_deliver_timeout</span>,
             <span class="self">self</span>.<span class="ident">certificate_store</span>.<span class="ident">notify_read</span>(<span class="ident">block_id</span>),
         )
         .<span class="kw">await</span>
         {
             <span class="ident">result</span>
-                .<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">Error::Internal</span> { <span class="ident">block_id</span> })<span class="question-mark">?</span>
+                .<span class="ident">map_err</span>(|<span class="kw">_</span>| <span class="ident">Error::Internal</span> { <span class="ident">block_id</span> })<span class="question-mark">?</span>
                 .<span class="ident">ok_or</span>(<span class="ident">Error::BlockNotFound</span> { <span class="ident">block_id</span> })
         } <span class="kw">else</span> {
             <span class="prelude-val">Err</span>(<span class="ident">Error::BlockDeliveryTimeout</span> { <span class="ident">block_id</span> })
@@ -485,27 +485,27 @@
     <span class="doccomment">/// * Internal: An internal error caused</span>
     <span class="doccomment">/// * BlockDeliveryTimeout: Timed out while waiting for the certificate to become available</span>
     <span class="doccomment">/// after submitting it for processing to core</span>
-    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span><span class="op">=</span><span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>, <span class="ident">fields</span>(<span class="ident">num_block_ids</span> <span class="op">=</span> <span class="ident">block_ids</span>.<span class="ident">len</span>()))]</span>
+    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span>=<span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>, <span class="ident">fields</span>(<span class="ident">num_block_ids</span> = <span class="ident">block_ids</span>.<span class="ident">len</span>()))]</span>
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get_and_synchronize_block_headers</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">block_ids</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Certificate</span>, <span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="ident">block_ids</span>: <span class="ident">Vec</span>&lt;<span class="ident">CertificateDigest</span>&gt;,
+    ) -&gt; <span class="ident">Vec</span>&lt;<span class="prelude-ty">Result</span>&lt;<span class="ident">Certificate</span>, <span class="ident">Error</span>&gt;&gt; {
         <span class="kw">if</span> <span class="ident">block_ids</span>.<span class="ident">is_empty</span>() {
             <span class="macro">trace!</span>(<span class="string">&quot;No blocks were provided, will now return an empty list&quot;</span>);
             <span class="kw">return</span> <span class="macro">vec!</span>[];
         }
 
-        <span class="kw">let</span> <span class="ident">sync_results</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_block_headers</span>(<span class="ident">block_ids</span>).<span class="kw">await</span>;
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">results</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Certificate</span>, <span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
+        <span class="kw">let</span> <span class="ident">sync_results</span> = <span class="self">self</span>.<span class="ident">get_block_headers</span>(<span class="ident">block_ids</span>).<span class="kw">await</span>;
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">results</span>: <span class="ident">Vec</span>&lt;<span class="prelude-ty">Result</span>&lt;<span class="ident">Certificate</span>, <span class="ident">Error</span>&gt;&gt; = <span class="ident">Vec::new</span>();
 
         <span class="comment">// send certificates to core for processing and potential</span>
         <span class="comment">// causal completion</span>
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">wait_for</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">wait_for</span> = <span class="ident">Vec::new</span>();
 
         <span class="kw">for</span> <span class="ident">result</span> <span class="kw">in</span> <span class="ident">sync_results</span> {
             <span class="kw">match</span> <span class="ident">result</span> {
                 <span class="prelude-val">Ok</span>(<span class="ident">block_header</span>) =&gt; {
-                    <span class="kw">if</span> <span class="op">!</span><span class="ident">block_header</span>.<span class="ident">fetched_from_storage</span> {
+                    <span class="kw">if</span> !<span class="ident">block_header</span>.<span class="ident">fetched_from_storage</span> {
                         <span class="comment">// we need to perform causal completion since this</span>
                         <span class="comment">// entity has not been fetched from storage.</span>
                         <span class="self">self</span>.<span class="ident">tx_core</span>
@@ -542,7 +542,7 @@
 
         <span class="comment">// now wait for the certificates to become available - timeout so we can</span>
         <span class="comment">// serve requests.</span>
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">wait_results</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">wait_all</span>(<span class="ident">wait_for</span>).<span class="kw">await</span>;
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">wait_results</span> = <span class="self">self</span>.<span class="ident">wait_all</span>(<span class="ident">wait_for</span>).<span class="kw">await</span>;
 
         <span class="comment">// append the results we were waiting for</span>
         <span class="ident">results</span>.<span class="ident">append</span>(<span class="kw-2">&amp;mut</span> <span class="ident">wait_results</span>);
@@ -550,17 +550,17 @@
         <span class="ident">results</span>
     }
 
-    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span><span class="op">=</span><span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>, <span class="ident">fields</span>(<span class="ident">num_block_ids</span> <span class="op">=</span> <span class="ident">block_ids</span>.<span class="ident">len</span>()))]</span>
+    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span>=<span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>, <span class="ident">fields</span>(<span class="ident">num_block_ids</span> = <span class="ident">block_ids</span>.<span class="ident">len</span>()))]</span>
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get_block_headers</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">block_ids</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">BlockSynchronizeResult</span><span class="op">&lt;</span><span class="ident">BlockHeader</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="ident">block_ids</span>: <span class="ident">Vec</span>&lt;<span class="ident">CertificateDigest</span>&gt;,
+    ) -&gt; <span class="ident">Vec</span>&lt;<span class="ident">BlockSynchronizeResult</span>&lt;<span class="ident">BlockHeader</span>&gt;&gt; {
         <span class="kw">if</span> <span class="ident">block_ids</span>.<span class="ident">is_empty</span>() {
             <span class="macro">trace!</span>(<span class="string">&quot;No blocks were provided, will now return an empty list&quot;</span>);
             <span class="kw">return</span> <span class="macro">vec!</span>[];
         }
 
-        <span class="kw">let</span> (<span class="ident">tx</span>, <span class="kw-2">mut</span> <span class="ident">rx</span>) <span class="op">=</span> <span class="ident">channel</span>(<span class="ident">block_ids</span>.<span class="ident">len</span>());
+        <span class="kw">let</span> (<span class="ident">tx</span>, <span class="kw-2">mut</span> <span class="ident">rx</span>) = <span class="ident">channel</span>(<span class="ident">block_ids</span>.<span class="ident">len</span>());
 
         <span class="self">self</span>.<span class="ident">tx_block_synchronizer</span>
             .<span class="ident">send</span>(<span class="ident">Command::SynchronizeBlockHeaders</span> {
@@ -571,7 +571,7 @@
             .<span class="ident">expect</span>(<span class="string">&quot;Couldn&#39;t send message to block synchronizer&quot;</span>);
 
         <span class="comment">// now wait to retrieve all the results</span>
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">results</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">results</span> = <span class="ident">Vec::new</span>();
 
         <span class="comment">// We want to block and wait until we get all the results back.</span>
         <span class="kw">loop</span> {
@@ -587,17 +587,17 @@
         <span class="ident">results</span>
     }
 
-    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span> <span class="op">=</span> <span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>)]</span>
+    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span> = <span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>)]</span>
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">synchronize_block_payloads</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">certificates</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Certificate</span>, <span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="ident">certificates</span>: <span class="ident">Vec</span>&lt;<span class="ident">Certificate</span>&gt;,
+    ) -&gt; <span class="ident">Vec</span>&lt;<span class="prelude-ty">Result</span>&lt;<span class="ident">Certificate</span>, <span class="ident">Error</span>&gt;&gt; {
         <span class="kw">if</span> <span class="ident">certificates</span>.<span class="ident">is_empty</span>() {
             <span class="macro">trace!</span>(<span class="string">&quot;No certificates were provided, will now return an empty list&quot;</span>);
             <span class="kw">return</span> <span class="macro">vec!</span>[];
         }
 
-        <span class="kw">let</span> (<span class="ident">tx</span>, <span class="kw-2">mut</span> <span class="ident">rx</span>) <span class="op">=</span> <span class="ident">channel</span>(<span class="ident">certificates</span>.<span class="ident">len</span>());
+        <span class="kw">let</span> (<span class="ident">tx</span>, <span class="kw-2">mut</span> <span class="ident">rx</span>) = <span class="ident">channel</span>(<span class="ident">certificates</span>.<span class="ident">len</span>());
 
         <span class="self">self</span>.<span class="ident">tx_block_synchronizer</span>
             .<span class="ident">send</span>(<span class="ident">Command::SynchronizeBlockPayload</span> {
@@ -608,7 +608,7 @@
             .<span class="ident">expect</span>(<span class="string">&quot;Couldn&#39;t send message to block synchronizer&quot;</span>);
 
         <span class="comment">// now wait to retrieve all the results</span>
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">results</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">results</span> = <span class="ident">Vec::new</span>();
 
         <span class="comment">// We want to block and wait until we get all the results back.</span>
         <span class="kw">loop</span> {
@@ -618,14 +618,14 @@
                     <span class="kw">break</span>;
                 }
                 <span class="prelude-val">Some</span>(<span class="ident">result</span>) =&gt; {
-                    <span class="kw">let</span> <span class="ident">r</span> <span class="op">=</span> <span class="ident">result</span>
-                        .<span class="ident">map</span>(<span class="op">|</span><span class="ident">h</span><span class="op">|</span> <span class="ident">h</span>.<span class="ident">certificate</span>)
-                        .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">Error::PayloadSyncError</span> {
+                    <span class="kw">let</span> <span class="ident">r</span> = <span class="ident">result</span>
+                        .<span class="ident">map</span>(|<span class="ident">h</span>| <span class="ident">h</span>.<span class="ident">certificate</span>)
+                        .<span class="ident">map_err</span>(|<span class="ident">e</span>| <span class="ident">Error::PayloadSyncError</span> {
                             <span class="ident">block_id</span>: <span class="ident">e</span>.<span class="ident">block_id</span>(),
                             <span class="ident">error</span>: <span class="ident">e</span>,
                         });
 
-                    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=</span> <span class="ident">r</span> {
+                    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">err</span>) = <span class="ident">r</span> {
                         <span class="macro">error!</span>(
                             <span class="string">&quot;Error for payload synchronization with block id {}, error: {err}&quot;</span>,
                             <span class="ident">err</span>.<span class="ident">block_id</span>()
@@ -641,4 +641,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (20ffea693 2022-08-11)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>

@@ -238,23 +238,23 @@
     <span class="ident">TransactionProto</span>, <span class="ident">Validator</span>,
 };
 
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">NarwhalValidator</span><span class="op">&lt;</span><span class="ident">SynchronizerHandler</span>: <span class="ident">Handler</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> {
-    <span class="ident">tx_get_block_commands</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">BlockCommand</span><span class="op">&gt;</span>,
-    <span class="ident">tx_block_removal_commands</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">BlockRemoverCommand</span><span class="op">&gt;</span>,
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">NarwhalValidator</span>&lt;<span class="ident">SynchronizerHandler</span>: <span class="ident">Handler</span> + <span class="ident">Send</span> + <span class="ident">Sync</span> + <span class="lifetime">&#39;static</span>&gt; {
+    <span class="ident">tx_get_block_commands</span>: <span class="ident">Sender</span>&lt;<span class="ident">BlockCommand</span>&gt;,
+    <span class="ident">tx_block_removal_commands</span>: <span class="ident">Sender</span>&lt;<span class="ident">BlockRemoverCommand</span>&gt;,
     <span class="ident">get_collections_timeout</span>: <span class="ident">Duration</span>,
     <span class="ident">remove_collections_timeout</span>: <span class="ident">Duration</span>,
-    <span class="ident">block_synchronizer_handler</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SynchronizerHandler</span><span class="op">&gt;</span>,
-    <span class="ident">dag</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Dag</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">block_synchronizer_handler</span>: <span class="ident">Arc</span>&lt;<span class="ident">SynchronizerHandler</span>&gt;,
+    <span class="ident">dag</span>: <span class="prelude-ty">Option</span>&lt;<span class="ident">Arc</span>&lt;<span class="ident">Dag</span>&gt;&gt;,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">SynchronizerHandler</span>: <span class="ident">Handler</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">NarwhalValidator</span><span class="op">&lt;</span><span class="ident">SynchronizerHandler</span><span class="op">&gt;</span> {
+<span class="kw">impl</span>&lt;<span class="ident">SynchronizerHandler</span>: <span class="ident">Handler</span> + <span class="ident">Send</span> + <span class="ident">Sync</span> + <span class="lifetime">&#39;static</span>&gt; <span class="ident">NarwhalValidator</span>&lt;<span class="ident">SynchronizerHandler</span>&gt; {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(
-        <span class="ident">tx_get_block_commands</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">BlockCommand</span><span class="op">&gt;</span>,
-        <span class="ident">tx_block_removal_commands</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">BlockRemoverCommand</span><span class="op">&gt;</span>,
+        <span class="ident">tx_get_block_commands</span>: <span class="ident">Sender</span>&lt;<span class="ident">BlockCommand</span>&gt;,
+        <span class="ident">tx_block_removal_commands</span>: <span class="ident">Sender</span>&lt;<span class="ident">BlockRemoverCommand</span>&gt;,
         <span class="ident">get_collections_timeout</span>: <span class="ident">Duration</span>,
         <span class="ident">remove_collections_timeout</span>: <span class="ident">Duration</span>,
-        <span class="ident">block_synchronizer_handler</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SynchronizerHandler</span><span class="op">&gt;</span>,
-        <span class="ident">dag</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Dag</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">block_synchronizer_handler</span>: <span class="ident">Arc</span>&lt;<span class="ident">SynchronizerHandler</span>&gt;,
+        <span class="ident">dag</span>: <span class="prelude-ty">Option</span>&lt;<span class="ident">Arc</span>&lt;<span class="ident">Dag</span>&gt;&gt;,
     ) -&gt; <span class="self">Self</span> {
         <span class="self">Self</span> {
             <span class="ident">tx_get_block_commands</span>,
@@ -268,26 +268,26 @@
 }
 
 <span class="attribute">#[<span class="ident">tonic::async_trait</span>]</span>
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">SynchronizerHandler</span>: <span class="ident">Handler</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">Validator</span>
-    <span class="kw">for</span> <span class="ident">NarwhalValidator</span><span class="op">&lt;</span><span class="ident">SynchronizerHandler</span><span class="op">&gt;</span>
+<span class="kw">impl</span>&lt;<span class="ident">SynchronizerHandler</span>: <span class="ident">Handler</span> + <span class="ident">Send</span> + <span class="ident">Sync</span> + <span class="lifetime">&#39;static</span>&gt; <span class="ident">Validator</span>
+    <span class="kw">for</span> <span class="ident">NarwhalValidator</span>&lt;<span class="ident">SynchronizerHandler</span>&gt;
 {
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">read_causal</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">request</span>: <span class="ident">Request</span><span class="op">&lt;</span><span class="ident">ReadCausalRequest</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Response</span><span class="op">&lt;</span><span class="ident">ReadCausalResponse</span><span class="op">&gt;</span>, <span class="ident">Status</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">collection_id</span> <span class="op">=</span> <span class="ident">request</span>
+        <span class="ident">request</span>: <span class="ident">Request</span>&lt;<span class="ident">ReadCausalRequest</span>&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">Response</span>&lt;<span class="ident">ReadCausalResponse</span>&gt;, <span class="ident">Status</span>&gt; {
+        <span class="kw">let</span> <span class="ident">collection_id</span> = <span class="ident">request</span>
             .<span class="ident">into_inner</span>()
             .<span class="ident">collection_id</span>
-            .<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">Status::invalid_argument</span>(<span class="string">&quot;No collection id has been provided&quot;</span>))<span class="question-mark">?</span>;
-        <span class="kw">let</span> <span class="ident">ids</span> <span class="op">=</span> <span class="ident">parse_certificate_digests</span>(<span class="macro">vec!</span>[<span class="ident">collection_id</span>])<span class="question-mark">?</span>;
+            .<span class="ident">ok_or_else</span>(|| <span class="ident">Status::invalid_argument</span>(<span class="string">&quot;No collection id has been provided&quot;</span>))<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">ids</span> = <span class="ident">parse_certificate_digests</span>(<span class="macro">vec!</span>[<span class="ident">collection_id</span>])<span class="question-mark">?</span>;
 
-        <span class="kw">let</span> <span class="ident">block_header_results</span> <span class="op">=</span> <span class="self">self</span>
+        <span class="kw">let</span> <span class="ident">block_header_results</span> = <span class="self">self</span>
             .<span class="ident">block_synchronizer_handler</span>
             .<span class="ident">get_and_synchronize_block_headers</span>(<span class="ident">ids</span>.<span class="ident">clone</span>())
             .<span class="kw">await</span>;
 
         <span class="kw">for</span> <span class="ident">result</span> <span class="kw">in</span> <span class="ident">block_header_results</span> {
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=</span> <span class="ident">result</span> {
+            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">err</span>) = <span class="ident">result</span> {
                 <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Status::internal</span>(<span class="macro">format!</span>(
                     <span class="string">&quot;Error when trying to synchronize block headers: {:?}&quot;</span>,
                     <span class="ident">err</span>
@@ -295,8 +295,8 @@
             }
         }
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dag</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">dag</span> {
-            <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">dag</span>.<span class="ident">read_causal</span>(<span class="ident">ids</span>[<span class="number">0</span>]).<span class="kw">await</span> {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dag</span>) = <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">dag</span> {
+            <span class="kw">let</span> <span class="ident">result</span> = <span class="kw">match</span> <span class="ident">dag</span>.<span class="ident">read_causal</span>(<span class="ident">ids</span>[<span class="number">0</span>]).<span class="kw">await</span> {
                 <span class="prelude-val">Ok</span>(<span class="ident">digests</span>) =&gt; <span class="prelude-val">Ok</span>(<span class="ident">ReadCausalResponse</span> {
                     <span class="ident">collection_ids</span>: <span class="ident">digests</span>.<span class="ident">into_iter</span>().<span class="ident">map</span>(<span class="ident">Into::into</span>).<span class="ident">collect</span>(),
                 }),
@@ -309,27 +309,27 @@
 
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">remove_collections</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">request</span>: <span class="ident">Request</span><span class="op">&lt;</span><span class="ident">RemoveCollectionsRequest</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Response</span><span class="op">&lt;</span><span class="ident">Empty</span><span class="op">&gt;</span>, <span class="ident">Status</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">collection_ids</span> <span class="op">=</span> <span class="ident">request</span>.<span class="ident">into_inner</span>().<span class="ident">collection_ids</span>;
-        <span class="kw">let</span> <span class="ident">remove_collections_response</span> <span class="op">=</span> <span class="kw">if</span> <span class="op">!</span><span class="ident">collection_ids</span>.<span class="ident">is_empty</span>() {
-            <span class="kw">let</span> (<span class="ident">tx_remove_block</span>, <span class="kw-2">mut</span> <span class="ident">rx_remove_block</span>) <span class="op">=</span> <span class="ident">channel</span>(<span class="number">1</span>);
-            <span class="kw">let</span> <span class="ident">ids</span> <span class="op">=</span> <span class="ident">parse_certificate_digests</span>(<span class="ident">collection_ids</span>)<span class="question-mark">?</span>;
+        <span class="ident">request</span>: <span class="ident">Request</span>&lt;<span class="ident">RemoveCollectionsRequest</span>&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">Response</span>&lt;<span class="ident">Empty</span>&gt;, <span class="ident">Status</span>&gt; {
+        <span class="kw">let</span> <span class="ident">collection_ids</span> = <span class="ident">request</span>.<span class="ident">into_inner</span>().<span class="ident">collection_ids</span>;
+        <span class="kw">let</span> <span class="ident">remove_collections_response</span> = <span class="kw">if</span> !<span class="ident">collection_ids</span>.<span class="ident">is_empty</span>() {
+            <span class="kw">let</span> (<span class="ident">tx_remove_block</span>, <span class="kw-2">mut</span> <span class="ident">rx_remove_block</span>) = <span class="ident">channel</span>(<span class="number">1</span>);
+            <span class="kw">let</span> <span class="ident">ids</span> = <span class="ident">parse_certificate_digests</span>(<span class="ident">collection_ids</span>)<span class="question-mark">?</span>;
             <span class="self">self</span>.<span class="ident">tx_block_removal_commands</span>
                 .<span class="ident">send</span>(<span class="ident">BlockRemoverCommand::RemoveBlocks</span> {
                     <span class="ident">ids</span>,
                     <span class="ident">sender</span>: <span class="ident">tx_remove_block</span>,
                 })
                 .<span class="kw">await</span>
-                .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">err</span><span class="op">|</span> <span class="ident">Status::internal</span>(<span class="macro">format!</span>(<span class="string">&quot;Send Error: {err:?}&quot;</span>)))<span class="question-mark">?</span>;
+                .<span class="ident">map_err</span>(|<span class="ident">err</span>| <span class="ident">Status::internal</span>(<span class="macro">format!</span>(<span class="string">&quot;Send Error: {err:?}&quot;</span>)))<span class="question-mark">?</span>;
             <span class="kw">match</span> <span class="ident">timeout</span>(<span class="self">self</span>.<span class="ident">remove_collections_timeout</span>, <span class="ident">rx_remove_block</span>.<span class="ident">recv</span>())
                 .<span class="kw">await</span>
-                .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">_err</span><span class="op">|</span> <span class="ident">Status::internal</span>(<span class="string">&quot;Timeout, no result has been received in time&quot;</span>))<span class="question-mark">?</span>
+                .<span class="ident">map_err</span>(|<span class="ident">_err</span>| <span class="ident">Status::internal</span>(<span class="string">&quot;Timeout, no result has been received in time&quot;</span>))<span class="question-mark">?</span>
             {
                 <span class="prelude-val">Some</span>(<span class="ident">result</span>) =&gt; <span class="kw">match</span> <span class="ident">result</span> {
                     <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(<span class="ident">Empty</span> {}),
                     <span class="prelude-val">Err</span>(<span class="ident">remove_block_error</span>)
-                        <span class="kw">if</span> <span class="ident">remove_block_error</span>.<span class="ident">error</span> <span class="op">==</span> <span class="ident">BlockRemoverErrorKind::Timeout</span> =&gt;
+                        <span class="kw">if</span> <span class="ident">remove_block_error</span>.<span class="ident">error</span> == <span class="ident">BlockRemoverErrorKind::Timeout</span> =&gt;
                     {
                         <span class="prelude-val">Err</span>(<span class="ident">Status::internal</span>(
                             <span class="string">&quot;Timeout, no result has been received in time&quot;</span>,
@@ -354,26 +354,26 @@
 
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get_collections</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">request</span>: <span class="ident">Request</span><span class="op">&lt;</span><span class="ident">GetCollectionsRequest</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Response</span><span class="op">&lt;</span><span class="ident">GetCollectionsResponse</span><span class="op">&gt;</span>, <span class="ident">Status</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">collection_ids</span> <span class="op">=</span> <span class="ident">request</span>.<span class="ident">into_inner</span>().<span class="ident">collection_ids</span>;
-        <span class="kw">let</span> <span class="ident">get_collections_response</span> <span class="op">=</span> <span class="kw">if</span> <span class="op">!</span><span class="ident">collection_ids</span>.<span class="ident">is_empty</span>() {
-            <span class="kw">let</span> (<span class="ident">tx_get_blocks</span>, <span class="ident">rx_get_blocks</span>) <span class="op">=</span> <span class="ident">oneshot::channel</span>();
-            <span class="kw">let</span> <span class="ident">ids</span> <span class="op">=</span> <span class="ident">parse_certificate_digests</span>(<span class="ident">collection_ids</span>)<span class="question-mark">?</span>;
+        <span class="ident">request</span>: <span class="ident">Request</span>&lt;<span class="ident">GetCollectionsRequest</span>&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">Response</span>&lt;<span class="ident">GetCollectionsResponse</span>&gt;, <span class="ident">Status</span>&gt; {
+        <span class="kw">let</span> <span class="ident">collection_ids</span> = <span class="ident">request</span>.<span class="ident">into_inner</span>().<span class="ident">collection_ids</span>;
+        <span class="kw">let</span> <span class="ident">get_collections_response</span> = <span class="kw">if</span> !<span class="ident">collection_ids</span>.<span class="ident">is_empty</span>() {
+            <span class="kw">let</span> (<span class="ident">tx_get_blocks</span>, <span class="ident">rx_get_blocks</span>) = <span class="ident">oneshot::channel</span>();
+            <span class="kw">let</span> <span class="ident">ids</span> = <span class="ident">parse_certificate_digests</span>(<span class="ident">collection_ids</span>)<span class="question-mark">?</span>;
             <span class="self">self</span>.<span class="ident">tx_get_block_commands</span>
                 .<span class="ident">send</span>(<span class="ident">BlockCommand::GetBlocks</span> {
                     <span class="ident">ids</span>,
                     <span class="ident">sender</span>: <span class="ident">tx_get_blocks</span>,
                 })
                 .<span class="kw">await</span>
-                .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">err</span><span class="op">|</span> <span class="ident">Status::internal</span>(<span class="macro">format!</span>(<span class="string">&quot;Send Error: {err:?}&quot;</span>)))<span class="question-mark">?</span>;
+                .<span class="ident">map_err</span>(|<span class="ident">err</span>| <span class="ident">Status::internal</span>(<span class="macro">format!</span>(<span class="string">&quot;Send Error: {err:?}&quot;</span>)))<span class="question-mark">?</span>;
             <span class="kw">match</span> <span class="ident">timeout</span>(<span class="self">self</span>.<span class="ident">get_collections_timeout</span>, <span class="ident">rx_get_blocks</span>)
                 .<span class="kw">await</span>
-                .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">_err</span><span class="op">|</span> <span class="ident">Status::internal</span>(<span class="string">&quot;Timeout, no result has been received in time&quot;</span>))<span class="question-mark">?</span>
-                .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">_err</span><span class="op">|</span> <span class="ident">Status::internal</span>(<span class="string">&quot;Fetch Error, no result has been received&quot;</span>))<span class="question-mark">?</span>
+                .<span class="ident">map_err</span>(|<span class="ident">_err</span>| <span class="ident">Status::internal</span>(<span class="string">&quot;Timeout, no result has been received in time&quot;</span>))<span class="question-mark">?</span>
+                .<span class="ident">map_err</span>(|<span class="ident">_err</span>| <span class="ident">Status::internal</span>(<span class="string">&quot;Fetch Error, no result has been received&quot;</span>))<span class="question-mark">?</span>
             {
                 <span class="prelude-val">Ok</span>(<span class="ident">blocks_response</span>) =&gt; {
-                    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">retrieval_results</span> <span class="op">=</span> <span class="macro">vec!</span>[];
+                    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">retrieval_results</span> = <span class="macro">vec!</span>[];
                     <span class="kw">for</span> <span class="ident">block_result</span> <span class="kw">in</span> <span class="ident">blocks_response</span>.<span class="ident">blocks</span> {
                         <span class="ident">retrieval_results</span>.<span class="ident">push</span>(<span class="ident">get_collection_retrieval_results</span>(<span class="ident">block_result</span>));
                     }
@@ -395,11 +395,11 @@
 }
 
 <span class="kw">fn</span> <span class="ident">get_collection_retrieval_results</span>(
-    <span class="ident">block_result</span>: <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">GetBlockResponse</span>, <span class="ident">BlockError</span><span class="op">&gt;</span>,
+    <span class="ident">block_result</span>: <span class="prelude-ty">Result</span>&lt;<span class="ident">GetBlockResponse</span>, <span class="ident">BlockError</span>&gt;,
 ) -&gt; <span class="ident">CollectionRetrievalResult</span> {
     <span class="kw">match</span> <span class="ident">block_result</span> {
         <span class="prelude-val">Ok</span>(<span class="ident">block_response</span>) =&gt; {
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">transactions</span> <span class="op">=</span> <span class="macro">vec!</span>[];
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">transactions</span> = <span class="macro">vec!</span>[];
             <span class="kw">for</span> <span class="ident">batch</span> <span class="kw">in</span> <span class="ident">block_response</span>.<span class="ident">batches</span> {
                 <span class="ident">transactions</span>.<span class="ident">extend</span>(
                     <span class="ident">batch</span>
@@ -407,7 +407,7 @@
                         .<span class="number">0</span>
                         .<span class="ident">into_iter</span>()
                         .<span class="ident">map</span>(<span class="ident">Into::into</span>)
-                        .<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">TransactionProto</span><span class="op">&gt;</span><span class="op">&gt;</span>(),
+                        .<span class="ident">collect</span>::&lt;<span class="ident">Vec</span>&lt;<span class="ident">TransactionProto</span>&gt;&gt;(),
                 )
             }
             <span class="ident">CollectionRetrievalResult</span> {
@@ -424,12 +424,12 @@
 }
 
 <span class="kw">fn</span> <span class="ident">parse_certificate_digests</span>(
-    <span class="ident">collection_ids</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">CertificateDigestProto</span><span class="op">&gt;</span>,
-) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span><span class="op">&gt;</span>, <span class="ident">Status</span><span class="op">&gt;</span> {
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ids</span> <span class="op">=</span> <span class="macro">vec!</span>[];
+    <span class="ident">collection_ids</span>: <span class="ident">Vec</span>&lt;<span class="ident">CertificateDigestProto</span>&gt;,
+) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">Vec</span>&lt;<span class="ident">CertificateDigest</span>&gt;, <span class="ident">Status</span>&gt; {
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ids</span> = <span class="macro">vec!</span>[];
     <span class="kw">for</span> <span class="ident">collection_id</span> <span class="kw">in</span> <span class="ident">collection_ids</span> {
         <span class="ident">ids</span>.<span class="ident">push</span>(
-            <span class="ident">collection_id</span>.<span class="ident">try_into</span>().<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">err</span><span class="op">|</span> {
+            <span class="ident">collection_id</span>.<span class="ident">try_into</span>().<span class="ident">map_err</span>(|<span class="ident">err</span>| {
                 <span class="ident">Status::invalid_argument</span>(<span class="macro">format!</span>(<span class="string">&quot;Could not serialize: {:?}&quot;</span>, <span class="ident">err</span>))
             })<span class="question-mark">?</span>,
         );
@@ -437,4 +437,4 @@
     <span class="prelude-val">Ok</span>(<span class="ident">ids</span>)
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (20ffea693 2022-08-11)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>

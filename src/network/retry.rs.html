@@ -129,7 +129,7 @@
     <span class="doccomment">///</span>
     <span class="doccomment">/// Retrying continues until this time has elapsed.</span>
     <span class="doccomment">/// The number of retries before that happens, will be decided by the other retry config options.</span>
-    <span class="kw">pub</span> <span class="ident">retrying_max_elapsed_time</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Duration</span><span class="op">&gt;</span>,
+    <span class="kw">pub</span> <span class="ident">retrying_max_elapsed_time</span>: <span class="prelude-ty">Option</span>&lt;<span class="ident">Duration</span>&gt;,
 }
 
 <span class="kw">impl</span> <span class="ident">RetryConfig</span> {
@@ -137,31 +137,31 @@
     <span class="comment">// default gives 5-6 retries in ~30 s total retry time.</span>
 
     <span class="doccomment">/// Default for [`RetryConfig::max_retry_interval`] (500 ms).</span>
-    <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">DEFAULT_INITIAL_RETRY_INTERVAL</span>: <span class="ident">Duration</span> <span class="op">=</span> <span class="ident">Duration::from_millis</span>(<span class="number">500</span>);
+    <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">DEFAULT_INITIAL_RETRY_INTERVAL</span>: <span class="ident">Duration</span> = <span class="ident">Duration::from_millis</span>(<span class="number">500</span>);
 
     <span class="doccomment">/// Default for [`RetryConfig::max_retry_interval`] (15 s).</span>
-    <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">DEFAULT_MAX_RETRY_INTERVAL</span>: <span class="ident">Duration</span> <span class="op">=</span> <span class="ident">Duration::from_secs</span>(<span class="number">15</span>);
+    <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">DEFAULT_MAX_RETRY_INTERVAL</span>: <span class="ident">Duration</span> = <span class="ident">Duration::from_secs</span>(<span class="number">15</span>);
 
     <span class="doccomment">/// Default for [`RetryConfig::retry_delay_multiplier`] (x1.5).</span>
-    <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">DEFAULT_RETRY_INTERVAL_MULTIPLIER</span>: <span class="ident">f64</span> <span class="op">=</span> <span class="number">1.5</span>;
+    <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">DEFAULT_RETRY_INTERVAL_MULTIPLIER</span>: <span class="ident">f64</span> = <span class="number">1.5</span>;
 
     <span class="doccomment">/// Default for [`RetryConfig::retry_delay_rand_factor`] (0.3).</span>
-    <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">DEFAULT_RETRY_DELAY_RAND_FACTOR</span>: <span class="ident">f64</span> <span class="op">=</span> <span class="number">0.3</span>;
+    <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">DEFAULT_RETRY_DELAY_RAND_FACTOR</span>: <span class="ident">f64</span> = <span class="number">0.3</span>;
 
     <span class="doccomment">/// Default for [`RetryConfig::retrying_max_elapsed_time`] (30 s).</span>
-    <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">DEFAULT_RETRYING_MAX_ELAPSED_TIME</span>: <span class="ident">Duration</span> <span class="op">=</span> <span class="ident">Duration::from_secs</span>(<span class="number">30</span>);
+    <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">DEFAULT_RETRYING_MAX_ELAPSED_TIME</span>: <span class="ident">Duration</span> = <span class="ident">Duration::from_secs</span>(<span class="number">30</span>);
 
     <span class="comment">// Perform `op` and retry on errors as specified by this configuration.</span>
     <span class="comment">//</span>
     <span class="comment">// Note that `backoff::Error&lt;E&gt;` implements `From&lt;E&gt;` for any `E` by creating a</span>
     <span class="comment">// `backoff::Error::Transient`, meaning that errors will be retried unless explicitly returning</span>
     <span class="comment">// `backoff::Error::Permanent`.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">retry</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">E</span>, <span class="ident">Fn</span>, <span class="ident">Fut</span><span class="op">&gt;</span>(<span class="self">self</span>, <span class="ident">op</span>: <span class="ident">Fn</span>) -&gt; <span class="kw">impl</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">E</span><span class="op">&gt;</span><span class="op">&gt;</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">retry</span>&lt;<span class="ident">R</span>, <span class="ident">E</span>, <span class="ident">Fn</span>, <span class="ident">Fut</span>&gt;(<span class="self">self</span>, <span class="ident">op</span>: <span class="ident">Fn</span>) -&gt; <span class="kw">impl</span> <span class="ident">Future</span>&lt;<span class="ident">Output</span> = <span class="prelude-ty">Result</span>&lt;<span class="ident">R</span>, <span class="ident">E</span>&gt;&gt;
     <span class="kw">where</span>
         <span class="ident">Fn</span>: <span class="ident">FnMut</span>() -&gt; <span class="ident">Fut</span>,
-        <span class="ident">Fut</span>: <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">R</span>, <span class="ident">backoff::Error</span><span class="op">&lt;</span><span class="ident">E</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">Fut</span>: <span class="ident">Future</span>&lt;<span class="ident">Output</span> = <span class="prelude-ty">Result</span>&lt;<span class="ident">R</span>, <span class="ident">backoff::Error</span>&lt;<span class="ident">E</span>&gt;&gt;&gt;,
     {
-        <span class="kw">let</span> <span class="ident">backoff</span> <span class="op">=</span> <span class="ident">backoff::ExponentialBackoff</span> {
+        <span class="kw">let</span> <span class="ident">backoff</span> = <span class="ident">backoff::ExponentialBackoff</span> {
             <span class="ident">initial_interval</span>: <span class="self">self</span>.<span class="ident">initial_retry_interval</span>,
             <span class="ident">randomization_factor</span>: <span class="self">self</span>.<span class="ident">retry_delay_rand_factor</span>,
             <span class="ident">multiplier</span>: <span class="self">self</span>.<span class="ident">retry_delay_multiplier</span>,
@@ -185,4 +185,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="network" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (20ffea693 2022-08-11)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="network" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>

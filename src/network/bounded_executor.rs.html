@@ -391,22 +391,22 @@
 <span class="kw">use</span> <span class="ident">thiserror::Error</span>;
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Error</span>)]</span>
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">BoundedExecutionError</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>
+<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">BoundedExecutionError</span>&lt;<span class="ident">F</span>&gt;
 <span class="kw">where</span>
-    <span class="ident">F</span>: <span class="ident">Future</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-    <span class="ident">F::Output</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+    <span class="ident">F</span>: <span class="ident">Future</span> + <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
+    <span class="ident">F::Output</span>: <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
 {
     <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Concurrent execution limit reached&quot;</span>)]</span>
     <span class="ident">Full</span>(<span class="ident">F</span>),
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span> <span class="ident">std::fmt::Debug</span> <span class="kw">for</span> <span class="ident">BoundedExecutionError</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>
+<span class="kw">impl</span>&lt;<span class="ident">F</span>&gt; <span class="ident">std::fmt::Debug</span> <span class="kw">for</span> <span class="ident">BoundedExecutionError</span>&lt;<span class="ident">F</span>&gt;
 <span class="kw">where</span>
-    <span class="ident">F</span>: <span class="ident">Future</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-    <span class="ident">F::Output</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+    <span class="ident">F</span>: <span class="ident">Future</span> + <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
+    <span class="ident">F::Output</span>: <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
 {
     <span class="comment">// Elide the future to let this be unwrapped</span>
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">std::fmt::Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="ident">std::fmt::Result</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">std::fmt::Formatter</span>&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="ident">std::fmt::Result</span> {
         <span class="kw">match</span> <span class="self">self</span> {
             <span class="ident"><span class="self">Self</span>::Full</span>(<span class="ident">_f</span>) =&gt; <span class="ident">f</span>.<span class="ident">debug_tuple</span>(<span class="string">&quot;Full&quot;</span>).<span class="ident">finish</span>(),
         }
@@ -415,7 +415,7 @@
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BoundedExecutor</span> {
-    <span class="ident">semaphore</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Semaphore</span><span class="op">&gt;</span>,
+    <span class="ident">semaphore</span>: <span class="ident">Arc</span>&lt;<span class="ident">Semaphore</span>&gt;,
     <span class="ident">executor</span>: <span class="ident">Handle</span>,
 }
 
@@ -423,7 +423,7 @@
     <span class="doccomment">/// Create a new `BoundedExecutor` from an existing tokio [`Handle`]</span>
     <span class="doccomment">/// with a maximum concurrent task capacity of `capacity`.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">capacity</span>: <span class="ident">usize</span>, <span class="ident">executor</span>: <span class="ident">Handle</span>) -&gt; <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="ident">semaphore</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">Semaphore::new</span>(<span class="ident">capacity</span>));
+        <span class="kw">let</span> <span class="ident">semaphore</span> = <span class="ident">Arc::new</span>(<span class="ident">Semaphore::new</span>(<span class="ident">capacity</span>));
         <span class="self">Self</span> {
             <span class="ident">semaphore</span>,
             <span class="ident">executor</span>,
@@ -432,7 +432,7 @@
 
     <span class="comment">// Acquires a permit with the semaphore, first gracefully,</span>
     <span class="comment">// then queuing after logging that we&#39;re out of capacity.</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">acquire_permit</span>(<span class="ident">semaphore</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Semaphore</span><span class="op">&gt;</span>) -&gt; <span class="ident">OwnedSemaphorePermit</span> {
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">acquire_permit</span>(<span class="ident">semaphore</span>: <span class="ident">Arc</span>&lt;<span class="ident">Semaphore</span>&gt;) -&gt; <span class="ident">OwnedSemaphorePermit</span> {
         <span class="kw">match</span> <span class="ident">semaphore</span>.<span class="ident">clone</span>().<span class="ident">try_acquire_owned</span>() {
             <span class="prelude-val">Ok</span>(<span class="ident">p</span>) =&gt; <span class="ident">p</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; {
@@ -451,12 +451,12 @@
     <span class="doccomment">/// will block if the executor is at capacity until one of the other spawned</span>
     <span class="doccomment">/// futures completes. This function returns a [`JoinHandle`] that the caller</span>
     <span class="doccomment">/// can `.await` on for the results of the [`Future`].</span>
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">spawn</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="ident">F</span>) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span><span class="ident">F::Output</span><span class="op">&gt;</span>
+    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">spawn</span>&lt;<span class="ident">F</span>&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="ident">F</span>) -&gt; <span class="ident">JoinHandle</span>&lt;<span class="ident">F::Output</span>&gt;
     <span class="kw">where</span>
-        <span class="ident">F</span>: <span class="ident">Future</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-        <span class="ident">F::Output</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+        <span class="ident">F</span>: <span class="ident">Future</span> + <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
+        <span class="ident">F::Output</span>: <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
     {
-        <span class="kw">let</span> <span class="ident">permit</span> <span class="op">=</span> <span class="ident"><span class="self">Self</span>::acquire_permit</span>(<span class="self">self</span>.<span class="ident">semaphore</span>.<span class="ident">clone</span>()).<span class="kw">await</span>;
+        <span class="kw">let</span> <span class="ident">permit</span> = <span class="ident"><span class="self">Self</span>::acquire_permit</span>(<span class="self">self</span>.<span class="ident">semaphore</span>.<span class="ident">clone</span>()).<span class="kw">await</span>;
 
         <span class="self">self</span>.<span class="ident">spawn_with_permit</span>(<span class="ident">f</span>, <span class="ident">permit</span>)
     }
@@ -466,10 +466,10 @@
     <span class="doccomment">/// caller attempted to spawn. Otherwise, this will spawn the future on the</span>
     <span class="doccomment">/// executor and send back a [`JoinHandle`] that the caller can `.await` on</span>
     <span class="doccomment">/// for the results of the [`Future`].</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">try_spawn</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="ident">F</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">JoinHandle</span><span class="op">&lt;</span><span class="ident">F::Output</span><span class="op">&gt;</span>, <span class="ident">BoundedExecutionError</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span><span class="op">&gt;</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">try_spawn</span>&lt;<span class="ident">F</span>&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="ident">F</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">JoinHandle</span>&lt;<span class="ident">F::Output</span>&gt;, <span class="ident">BoundedExecutionError</span>&lt;<span class="ident">F</span>&gt;&gt;
     <span class="kw">where</span>
-        <span class="ident">F</span>: <span class="ident">Future</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-        <span class="ident">F::Output</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+        <span class="ident">F</span>: <span class="ident">Future</span> + <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
+        <span class="ident">F::Output</span>: <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
     {
         <span class="kw">match</span> <span class="self">self</span>.<span class="ident">semaphore</span>.<span class="ident">clone</span>().<span class="ident">try_acquire_owned</span>() {
             <span class="prelude-val">Ok</span>(<span class="ident">permit</span>) =&gt; <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">spawn_with_permit</span>(<span class="ident">f</span>, <span class="ident">permit</span>)),
@@ -478,29 +478,29 @@
     }
 
     <span class="attribute">#[<span class="ident">must_use</span>]</span>
-    <span class="kw">fn</span> <span class="ident">spawn_with_permit</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>(
+    <span class="kw">fn</span> <span class="ident">spawn_with_permit</span>&lt;<span class="ident">F</span>&gt;(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">f</span>: <span class="ident">F</span>,
         <span class="ident">spawn_permit</span>: <span class="ident">OwnedSemaphorePermit</span>,
-    ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span><span class="ident">F::Output</span><span class="op">&gt;</span>
+    ) -&gt; <span class="ident">JoinHandle</span>&lt;<span class="ident">F::Output</span>&gt;
     <span class="kw">where</span>
-        <span class="ident">F</span>: <span class="ident">Future</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-        <span class="ident">F::Output</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+        <span class="ident">F</span>: <span class="ident">Future</span> + <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
+        <span class="ident">F::Output</span>: <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
     {
         <span class="comment">// Release the permit back to the semaphore when this task completes.</span>
-        <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident"><span class="self">Self</span>::with_permit</span>(<span class="ident">f</span>, <span class="ident">spawn_permit</span>);
+        <span class="kw">let</span> <span class="ident">f</span> = <span class="ident"><span class="self">Self</span>::with_permit</span>(<span class="ident">f</span>, <span class="ident">spawn_permit</span>);
         <span class="self">self</span>.<span class="ident">executor</span>.<span class="ident">spawn</span>(<span class="ident">f</span>)
     }
 
     <span class="comment">// Returns a [`Future`] that complies with the `BoundedExecutor`. Once launched,</span>
     <span class="comment">// will block if the executor is at capacity, until one of the other spawned</span>
     <span class="comment">// futures completes.</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">run_on_semaphore</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>(<span class="ident">semaphore</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Semaphore</span><span class="op">&gt;</span>, <span class="ident">f</span>: <span class="ident">F</span>) -&gt; <span class="ident">F::Output</span>
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">run_on_semaphore</span>&lt;<span class="ident">F</span>&gt;(<span class="ident">semaphore</span>: <span class="ident">Arc</span>&lt;<span class="ident">Semaphore</span>&gt;, <span class="ident">f</span>: <span class="ident">F</span>) -&gt; <span class="ident">F::Output</span>
     <span class="kw">where</span>
-        <span class="ident">F</span>: <span class="ident">Future</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-        <span class="ident">F::Output</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+        <span class="ident">F</span>: <span class="ident">Future</span> + <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
+        <span class="ident">F::Output</span>: <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
     {
-        <span class="kw">let</span> <span class="ident">permit</span> <span class="op">=</span> <span class="ident"><span class="self">Self</span>::acquire_permit</span>(<span class="ident">semaphore</span>.<span class="ident">clone</span>()).<span class="kw">await</span>;
+        <span class="kw">let</span> <span class="ident">permit</span> = <span class="ident"><span class="self">Self</span>::acquire_permit</span>(<span class="ident">semaphore</span>.<span class="ident">clone</span>()).<span class="kw">await</span>;
         <span class="ident"><span class="self">Self</span>::with_permit</span>(<span class="ident">f</span>, <span class="ident">permit</span>).<span class="kw">await</span>
     }
 
@@ -520,22 +520,22 @@
     <span class="doccomment">/// We would instead like to have one central task that drives all retries</span>
     <span class="doccomment">/// for the whole executor.</span>
     <span class="attribute">#[<span class="ident">must_use</span>]</span>
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">spawn_with_retries</span><span class="op">&lt;</span><span class="ident">F</span>, <span class="ident">Fut</span>, <span class="ident">T</span>, <span class="ident">E</span><span class="op">&gt;</span>(
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">spawn_with_retries</span>&lt;<span class="ident">F</span>, <span class="ident">Fut</span>, <span class="ident">T</span>, <span class="ident">E</span>&gt;(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">retry_config</span>: <span class="ident"><span class="kw">crate</span>::RetryConfig</span>,
         <span class="kw-2">mut</span> <span class="ident">f</span>: <span class="ident">F</span>,
-    ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">E</span><span class="op">&gt;</span><span class="op">&gt;</span>
+    ) -&gt; <span class="ident">JoinHandle</span>&lt;<span class="prelude-ty">Result</span>&lt;<span class="ident">T</span>, <span class="ident">E</span>&gt;&gt;
     <span class="kw">where</span>
-        <span class="ident">F</span>: <span class="ident">FnMut</span>() -&gt; <span class="ident">Fut</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-        <span class="ident">Fut</span>: <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">backoff::Error</span><span class="op">&lt;</span><span class="ident">E</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-        <span class="ident">T</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-        <span class="ident">E</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+        <span class="ident">F</span>: <span class="ident">FnMut</span>() -&gt; <span class="ident">Fut</span> + <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
+        <span class="ident">Fut</span>: <span class="ident">Future</span>&lt;<span class="ident">Output</span> = <span class="prelude-ty">Result</span>&lt;<span class="ident">T</span>, <span class="ident">backoff::Error</span>&lt;<span class="ident">E</span>&gt;&gt;&gt; + <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
+        <span class="ident">T</span>: <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
+        <span class="ident">E</span>: <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
     {
-        <span class="kw">let</span> <span class="ident">retrier</span> <span class="op">=</span> {
-            <span class="kw">let</span> <span class="ident">semaphore</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">semaphore</span>.<span class="ident">clone</span>();
+        <span class="kw">let</span> <span class="ident">retrier</span> = {
+            <span class="kw">let</span> <span class="ident">semaphore</span> = <span class="self">self</span>.<span class="ident">semaphore</span>.<span class="ident">clone</span>();
 
-            <span class="kw">let</span> <span class="ident">executor</span> <span class="op">=</span> <span class="kw">move</span> <span class="op">|</span><span class="op">|</span> {
-                <span class="kw">let</span> <span class="ident">semaphore</span> <span class="op">=</span> <span class="ident">semaphore</span>.<span class="ident">clone</span>();
+            <span class="kw">let</span> <span class="ident">executor</span> = <span class="kw">move</span> || {
+                <span class="kw">let</span> <span class="ident">semaphore</span> = <span class="ident">semaphore</span>.<span class="ident">clone</span>();
                 <span class="ident">BoundedExecutor::run_on_semaphore</span>(<span class="ident">semaphore</span>, <span class="ident">f</span>())
             };
 
@@ -545,12 +545,12 @@
     }
 
     <span class="comment">// Equips a future with a final step that drops the held semaphore permit</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">with_permit</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>(<span class="ident">f</span>: <span class="ident">F</span>, <span class="ident">spawn_permit</span>: <span class="ident">OwnedSemaphorePermit</span>) -&gt; <span class="ident">F::Output</span>
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">with_permit</span>&lt;<span class="ident">F</span>&gt;(<span class="ident">f</span>: <span class="ident">F</span>, <span class="ident">spawn_permit</span>: <span class="ident">OwnedSemaphorePermit</span>) -&gt; <span class="ident">F::Output</span>
     <span class="kw">where</span>
-        <span class="ident">F</span>: <span class="ident">Future</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-        <span class="ident">F::Output</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+        <span class="ident">F</span>: <span class="ident">Future</span> + <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
+        <span class="ident">F::Output</span>: <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
     {
-        <span class="ident">f</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">ret</span><span class="op">|</span> {
+        <span class="ident">f</span>.<span class="ident">map</span>(|<span class="ident">ret</span>| {
             <span class="ident">drop</span>(<span class="ident">spawn_permit</span>);
             <span class="ident">ret</span>
         })
@@ -576,18 +576,18 @@
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">try_spawn_panicking</span>() {
-        <span class="kw">let</span> <span class="ident">rt</span> <span class="op">=</span> <span class="ident">Runtime::new</span>().<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="ident">executor</span> <span class="op">=</span> <span class="ident">rt</span>.<span class="ident">handle</span>().<span class="ident">clone</span>();
-        <span class="kw">let</span> <span class="ident">executor</span> <span class="op">=</span> <span class="ident">BoundedExecutor::new</span>(<span class="number">1</span>, <span class="ident">executor</span>);
+        <span class="kw">let</span> <span class="ident">rt</span> = <span class="ident">Runtime::new</span>().<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">executor</span> = <span class="ident">rt</span>.<span class="ident">handle</span>().<span class="ident">clone</span>();
+        <span class="kw">let</span> <span class="ident">executor</span> = <span class="ident">BoundedExecutor::new</span>(<span class="number">1</span>, <span class="ident">executor</span>);
 
         <span class="comment">// executor has a free slot, spawn should succeed</span>
-        <span class="kw">let</span> <span class="ident">fpanic</span> <span class="op">=</span> <span class="ident">executor</span>.<span class="ident">try_spawn</span>(<span class="ident">panicking</span>()).<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">fpanic</span> = <span class="ident">executor</span>.<span class="ident">try_spawn</span>(<span class="ident">panicking</span>()).<span class="ident">unwrap</span>();
         <span class="comment">// this would return a JoinError::panic</span>
         <span class="ident">block_on</span>(<span class="ident">fpanic</span>).<span class="ident">unwrap_err</span>();
 
-        <span class="kw">let</span> (<span class="ident">tx1</span>, <span class="ident">rx1</span>) <span class="op">=</span> <span class="ident">oneshot::channel</span>();
+        <span class="kw">let</span> (<span class="ident">tx1</span>, <span class="ident">rx1</span>) = <span class="ident">oneshot::channel</span>();
         <span class="comment">// the executor should not be full, because the permit for the panicking task should drop at unwinding</span>
-        <span class="kw">let</span> <span class="ident">f1</span> <span class="op">=</span> <span class="ident">executor</span>.<span class="ident">try_spawn</span>(<span class="ident">rx1</span>).<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">f1</span> = <span class="ident">executor</span>.<span class="ident">try_spawn</span>(<span class="ident">rx1</span>).<span class="ident">unwrap</span>();
 
         <span class="comment">// cleanup</span>
         <span class="ident">tx1</span>.<span class="ident">send</span>(()).<span class="ident">unwrap</span>();
@@ -600,21 +600,21 @@
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">try_spawn</span>() {
-        <span class="kw">let</span> <span class="ident">rt</span> <span class="op">=</span> <span class="ident">Runtime::new</span>().<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="ident">executor</span> <span class="op">=</span> <span class="ident">rt</span>.<span class="ident">handle</span>().<span class="ident">clone</span>();
-        <span class="kw">let</span> <span class="ident">executor</span> <span class="op">=</span> <span class="ident">BoundedExecutor::new</span>(<span class="number">1</span>, <span class="ident">executor</span>);
+        <span class="kw">let</span> <span class="ident">rt</span> = <span class="ident">Runtime::new</span>().<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">executor</span> = <span class="ident">rt</span>.<span class="ident">handle</span>().<span class="ident">clone</span>();
+        <span class="kw">let</span> <span class="ident">executor</span> = <span class="ident">BoundedExecutor::new</span>(<span class="number">1</span>, <span class="ident">executor</span>);
 
-        <span class="kw">let</span> (<span class="ident">tx1</span>, <span class="ident">rx1</span>) <span class="op">=</span> <span class="ident">oneshot::channel</span>();
-        <span class="kw">let</span> (<span class="ident">tx2</span>, <span class="ident">rx2</span>) <span class="op">=</span> <span class="ident">oneshot::channel</span>();
+        <span class="kw">let</span> (<span class="ident">tx1</span>, <span class="ident">rx1</span>) = <span class="ident">oneshot::channel</span>();
+        <span class="kw">let</span> (<span class="ident">tx2</span>, <span class="ident">rx2</span>) = <span class="ident">oneshot::channel</span>();
 
         <span class="comment">// executor has a free slot, spawn should succeed</span>
         <span class="macro">assert_eq!</span>(<span class="ident">executor</span>.<span class="ident">available_capacity</span>(), <span class="number">1</span>);
 
-        <span class="kw">let</span> <span class="ident">f1</span> <span class="op">=</span> <span class="ident">executor</span>.<span class="ident">try_spawn</span>(<span class="ident">rx1</span>).<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">f1</span> = <span class="ident">executor</span>.<span class="ident">try_spawn</span>(<span class="ident">rx1</span>).<span class="ident">unwrap</span>();
 
         <span class="comment">// executor is full, try_spawn should return err and give back the task</span>
         <span class="comment">// we attempted to spawn</span>
-        <span class="kw">let</span> <span class="ident">BoundedExecutionError::Full</span>(<span class="ident">rx2</span>) <span class="op">=</span> <span class="ident">executor</span>.<span class="ident">try_spawn</span>(<span class="ident">rx2</span>).<span class="ident">unwrap_err</span>();
+        <span class="kw">let</span> <span class="ident">BoundedExecutionError::Full</span>(<span class="ident">rx2</span>) = <span class="ident">executor</span>.<span class="ident">try_spawn</span>(<span class="ident">rx2</span>).<span class="ident">unwrap_err</span>();
 
         <span class="comment">// currently running tasks is updated</span>
         <span class="macro">assert_eq!</span>(<span class="ident">executor</span>.<span class="ident">available_capacity</span>(), <span class="number">0</span>);
@@ -625,7 +625,7 @@
         <span class="ident">block_on</span>(<span class="ident">f1</span>).<span class="ident">unwrap</span>().<span class="ident">unwrap</span>();
 
         <span class="comment">// should successfully spawn a new task now that the first is complete</span>
-        <span class="kw">let</span> <span class="ident">f2</span> <span class="op">=</span> <span class="ident">executor</span>.<span class="ident">try_spawn</span>(<span class="ident">rx2</span>).<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">f2</span> = <span class="ident">executor</span>.<span class="ident">try_spawn</span>(<span class="ident">rx2</span>).<span class="ident">unwrap</span>();
 
         <span class="comment">// cleanup</span>
 
@@ -641,24 +641,24 @@
     <span class="kw">fn</span> <span class="ident">test_spawn_with_semaphore</span>() {
         <span class="comment">// beware: the timeout is here to witness a failure rather than a hung test in case the</span>
         <span class="comment">// executor does not work correctly.</span>
-        <span class="ident">panic_after</span>(<span class="ident">Duration::from_secs</span>(<span class="number">10</span>), <span class="op">|</span><span class="op">|</span> {
-            <span class="kw">let</span> <span class="ident">rt</span> <span class="op">=</span> <span class="ident">Runtime::new</span>().<span class="ident">unwrap</span>();
-            <span class="kw">let</span> <span class="ident">executor</span> <span class="op">=</span> <span class="ident">rt</span>.<span class="ident">handle</span>().<span class="ident">clone</span>();
-            <span class="kw">let</span> <span class="ident">executor</span> <span class="op">=</span> <span class="ident">BoundedExecutor::new</span>(<span class="number">1</span>, <span class="ident">executor</span>);
+        <span class="ident">panic_after</span>(<span class="ident">Duration::from_secs</span>(<span class="number">10</span>), || {
+            <span class="kw">let</span> <span class="ident">rt</span> = <span class="ident">Runtime::new</span>().<span class="ident">unwrap</span>();
+            <span class="kw">let</span> <span class="ident">executor</span> = <span class="ident">rt</span>.<span class="ident">handle</span>().<span class="ident">clone</span>();
+            <span class="kw">let</span> <span class="ident">executor</span> = <span class="ident">BoundedExecutor::new</span>(<span class="number">1</span>, <span class="ident">executor</span>);
 
-            <span class="kw">let</span> <span class="ident">infinite_retry_config</span> <span class="op">=</span> <span class="ident">RetryConfig</span> {
+            <span class="kw">let</span> <span class="ident">infinite_retry_config</span> = <span class="ident">RetryConfig</span> {
                 <span class="comment">// Retry for forever</span>
                 <span class="ident">retrying_max_elapsed_time</span>: <span class="prelude-val">None</span>,
                 ..<span class="ident">Default::default</span>()
             };
 
             <span class="comment">// we can queue this future with infinite retries</span>
-            <span class="kw">let</span> <span class="ident">handle_infinite_fails</span> <span class="op">=</span>
+            <span class="kw">let</span> <span class="ident">handle_infinite_fails</span> =
                 <span class="ident">executor</span>.<span class="ident">spawn_with_retries</span>(<span class="ident">infinite_retry_config</span>, <span class="ident">always_failing</span>);
 
             <span class="comment">// check we can still enqueue another successful task</span>
-            <span class="kw">let</span> (<span class="ident">tx1</span>, <span class="ident">rx1</span>) <span class="op">=</span> <span class="ident">oneshot::channel</span>();
-            <span class="kw">let</span> <span class="ident">f1</span> <span class="op">=</span> <span class="ident">block_on</span>(<span class="ident">executor</span>.<span class="ident">spawn</span>(<span class="ident">rx1</span>));
+            <span class="kw">let</span> (<span class="ident">tx1</span>, <span class="ident">rx1</span>) = <span class="ident">oneshot::channel</span>();
+            <span class="kw">let</span> <span class="ident">f1</span> = <span class="ident">block_on</span>(<span class="ident">executor</span>.<span class="ident">spawn</span>(<span class="ident">rx1</span>));
 
             <span class="comment">// complete f1 future, should open a free slot in executor</span>
             <span class="ident">tx1</span>.<span class="ident">send</span>(()).<span class="ident">unwrap</span>();
@@ -669,19 +669,19 @@
         })
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">always_failing</span>() -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">backoff::Error</span><span class="op">&lt;</span><span class="ident">eyre::Report</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">always_failing</span>() -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">backoff::Error</span>&lt;<span class="ident">eyre::Report</span>&gt;&gt; {
         <span class="prelude-val">Err</span>(<span class="ident">Into::into</span>(<span class="macro">eyre::eyre!</span>(<span class="string">&quot;oops&quot;</span>)))
     }
 
-    <span class="kw">fn</span> <span class="ident">panic_after</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">F</span><span class="op">&gt;</span>(<span class="ident">d</span>: <span class="ident">Duration</span>, <span class="ident">f</span>: <span class="ident">F</span>) -&gt; <span class="ident">T</span>
+    <span class="kw">fn</span> <span class="ident">panic_after</span>&lt;<span class="ident">T</span>, <span class="ident">F</span>&gt;(<span class="ident">d</span>: <span class="ident">Duration</span>, <span class="ident">f</span>: <span class="ident">F</span>) -&gt; <span class="ident">T</span>
     <span class="kw">where</span>
-        <span class="ident">T</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+        <span class="ident">T</span>: <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
         <span class="ident">F</span>: <span class="ident">FnOnce</span>() -&gt; <span class="ident">T</span>,
-        <span class="ident">F</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+        <span class="ident">F</span>: <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
     {
-        <span class="kw">let</span> (<span class="ident">done_tx</span>, <span class="ident">done_rx</span>) <span class="op">=</span> <span class="ident">mpsc::channel</span>();
-        <span class="kw">let</span> <span class="ident">handle</span> <span class="op">=</span> <span class="ident">thread::spawn</span>(<span class="kw">move</span> <span class="op">|</span><span class="op">|</span> {
-            <span class="kw">let</span> <span class="ident">val</span> <span class="op">=</span> <span class="ident">f</span>();
+        <span class="kw">let</span> (<span class="ident">done_tx</span>, <span class="ident">done_rx</span>) = <span class="ident">mpsc::channel</span>();
+        <span class="kw">let</span> <span class="ident">handle</span> = <span class="ident">thread::spawn</span>(<span class="kw">move</span> || {
+            <span class="kw">let</span> <span class="ident">val</span> = <span class="ident">f</span>();
             <span class="ident">done_tx</span>.<span class="ident">send</span>(()).<span class="ident">expect</span>(<span class="string">&quot;Unable to send completion signal&quot;</span>);
             <span class="ident">val</span>
         });
@@ -696,28 +696,28 @@
     <span class="comment">// MAX_WORKERS ever enter the critical section.</span>
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">concurrent_bounded_executor</span>() {
-        <span class="kw">const</span> <span class="ident">MAX_WORKERS</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="number">20</span>;
-        <span class="kw">const</span> <span class="ident">NUM_TASKS</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="number">1000</span>;
-        <span class="kw">static</span> <span class="ident">WORKERS</span>: <span class="ident">AtomicU32</span> <span class="op">=</span> <span class="ident">AtomicU32::new</span>(<span class="number">0</span>);
-        <span class="kw">static</span> <span class="ident">COMPLETED_TASKS</span>: <span class="ident">AtomicU32</span> <span class="op">=</span> <span class="ident">AtomicU32::new</span>(<span class="number">0</span>);
+        <span class="kw">const</span> <span class="ident">MAX_WORKERS</span>: <span class="ident">u32</span> = <span class="number">20</span>;
+        <span class="kw">const</span> <span class="ident">NUM_TASKS</span>: <span class="ident">u32</span> = <span class="number">1000</span>;
+        <span class="kw">static</span> <span class="ident">WORKERS</span>: <span class="ident">AtomicU32</span> = <span class="ident">AtomicU32::new</span>(<span class="number">0</span>);
+        <span class="kw">static</span> <span class="ident">COMPLETED_TASKS</span>: <span class="ident">AtomicU32</span> = <span class="ident">AtomicU32::new</span>(<span class="number">0</span>);
 
-        <span class="kw">let</span> <span class="ident">rt</span> <span class="op">=</span> <span class="ident">Runtime::new</span>().<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="ident">executor</span> <span class="op">=</span> <span class="ident">rt</span>.<span class="ident">handle</span>().<span class="ident">clone</span>();
-        <span class="kw">let</span> <span class="ident">executor</span> <span class="op">=</span> <span class="ident">BoundedExecutor::new</span>(<span class="ident">MAX_WORKERS</span> <span class="kw">as</span> <span class="ident">usize</span>, <span class="ident">executor</span>);
+        <span class="kw">let</span> <span class="ident">rt</span> = <span class="ident">Runtime::new</span>().<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">executor</span> = <span class="ident">rt</span>.<span class="ident">handle</span>().<span class="ident">clone</span>();
+        <span class="kw">let</span> <span class="ident">executor</span> = <span class="ident">BoundedExecutor::new</span>(<span class="ident">MAX_WORKERS</span> <span class="kw">as</span> <span class="ident">usize</span>, <span class="ident">executor</span>);
 
         <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">NUM_TASKS</span> {
             <span class="ident">block_on</span>(<span class="ident">executor</span>.<span class="ident">spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
                 <span class="comment">// acquired permit, there should only ever be MAX_WORKERS in this</span>
                 <span class="comment">// critical section</span>
 
-                <span class="kw">let</span> <span class="ident">prev_workers</span> <span class="op">=</span> <span class="ident">WORKERS</span>.<span class="ident">fetch_add</span>(<span class="number">1</span>, <span class="ident">Ordering::SeqCst</span>);
-                <span class="macro">assert!</span>(<span class="ident">prev_workers</span> <span class="op">&lt;</span> <span class="ident">MAX_WORKERS</span>);
+                <span class="kw">let</span> <span class="ident">prev_workers</span> = <span class="ident">WORKERS</span>.<span class="ident">fetch_add</span>(<span class="number">1</span>, <span class="ident">Ordering::SeqCst</span>);
+                <span class="macro">assert!</span>(<span class="ident">prev_workers</span> &lt; <span class="ident">MAX_WORKERS</span>);
 
                 <span class="comment">// yield back to the tokio scheduler</span>
                 <span class="ident">yield_task</span>().<span class="kw">await</span>;
 
-                <span class="kw">let</span> <span class="ident">prev_workers</span> <span class="op">=</span> <span class="ident">WORKERS</span>.<span class="ident">fetch_sub</span>(<span class="number">1</span>, <span class="ident">Ordering::SeqCst</span>);
-                <span class="macro">assert!</span>(<span class="ident">prev_workers</span> <span class="op">&gt;</span> <span class="number">0</span> <span class="op">&amp;&amp;</span> <span class="ident">prev_workers</span> <span class="op">&lt;</span><span class="op">=</span> <span class="ident">MAX_WORKERS</span>);
+                <span class="kw">let</span> <span class="ident">prev_workers</span> = <span class="ident">WORKERS</span>.<span class="ident">fetch_sub</span>(<span class="number">1</span>, <span class="ident">Ordering::SeqCst</span>);
+                <span class="macro">assert!</span>(<span class="ident">prev_workers</span> &gt; <span class="number">0</span> &amp;&amp; <span class="ident">prev_workers</span> &lt;= <span class="ident">MAX_WORKERS</span>);
 
                 <span class="ident">COMPLETED_TASKS</span>.<span class="ident">fetch_add</span>(<span class="number">1</span>, <span class="ident">Ordering::Relaxed</span>);
             }));
@@ -725,8 +725,8 @@
 
         <span class="comment">// spin until completed</span>
         <span class="kw">loop</span> {
-            <span class="kw">let</span> <span class="ident">completed</span> <span class="op">=</span> <span class="ident">COMPLETED_TASKS</span>.<span class="ident">load</span>(<span class="ident">Ordering::Relaxed</span>);
-            <span class="kw">if</span> <span class="ident">completed</span> <span class="op">==</span> <span class="ident">NUM_TASKS</span> {
+            <span class="kw">let</span> <span class="ident">completed</span> = <span class="ident">COMPLETED_TASKS</span>.<span class="ident">load</span>(<span class="ident">Ordering::Relaxed</span>);
+            <span class="kw">if</span> <span class="ident">completed</span> == <span class="ident">NUM_TASKS</span> {
                 <span class="kw">break</span>;
             } <span class="kw">else</span> {
                 <span class="ident">std::hint::spin_loop</span>()
@@ -734,9 +734,9 @@
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">yield_task</span>() -&gt; <span class="kw">impl</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span> <span class="op">=</span> ()<span class="op">&gt;</span> {
-        <span class="ident">sleep</span>(<span class="ident">Duration::from_millis</span>(<span class="number">1</span>)).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())
+    <span class="kw">fn</span> <span class="ident">yield_task</span>() -&gt; <span class="kw">impl</span> <span class="ident">Future</span>&lt;<span class="ident">Output</span> = ()&gt; {
+        <span class="ident">sleep</span>(<span class="ident">Duration::from_millis</span>(<span class="number">1</span>)).<span class="ident">map</span>(|<span class="kw">_</span>| ())
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="network" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (20ffea693 2022-08-11)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="network" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>

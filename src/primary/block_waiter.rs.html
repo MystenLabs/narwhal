@@ -840,10 +840,10 @@
 };
 <span class="kw">use</span> <span class="prelude-ty">Result</span>::<span class="kw-2">*</span>;
 
-<span class="kw">const</span> <span class="ident">BATCH_RETRIEVE_TIMEOUT</span>: <span class="ident">Duration</span> <span class="op">=</span> <span class="ident">Duration::from_secs</span>(<span class="number">1</span>);
+<span class="kw">const</span> <span class="ident">BATCH_RETRIEVE_TIMEOUT</span>: <span class="ident">Duration</span> = <span class="ident">Duration::from_secs</span>(<span class="number">1</span>);
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="attribute">#[<span class="ident">path</span> <span class="op">=</span> <span class="string">&quot;tests/block_waiter_tests.rs&quot;</span>]</span>
+<span class="attribute">#[<span class="ident">path</span> = <span class="string">&quot;tests/block_waiter_tests.rs&quot;</span>]</span>
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">block_waiter_tests</span>;
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
@@ -855,7 +855,7 @@
     <span class="ident">GetBlock</span> {
         <span class="ident">id</span>: <span class="ident">CertificateDigest</span>,
         <span class="comment">// The channel to send the results to.</span>
-        <span class="ident">sender</span>: <span class="ident">oneshot::Sender</span><span class="op">&lt;</span><span class="ident">BlockResult</span><span class="op">&lt;</span><span class="ident">GetBlockResponse</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">sender</span>: <span class="ident">oneshot::Sender</span>&lt;<span class="ident">BlockResult</span>&lt;<span class="ident">GetBlockResponse</span>&gt;&gt;,
     },
 
     <span class="doccomment">/// GetBlocks will initiate the process of retrieving the</span>
@@ -863,8 +863,8 @@
     <span class="doccomment">/// will be returned in the same order that the ids were</span>
     <span class="doccomment">/// provided.</span>
     <span class="ident">GetBlocks</span> {
-        <span class="ident">ids</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span><span class="op">&gt;</span>,
-        <span class="ident">sender</span>: <span class="ident">oneshot::Sender</span><span class="op">&lt;</span><span class="ident">BlocksResult</span><span class="op">&gt;</span>,
+        <span class="ident">ids</span>: <span class="ident">Vec</span>&lt;<span class="ident">CertificateDigest</span>&gt;,
+        <span class="ident">sender</span>: <span class="ident">oneshot::Sender</span>&lt;<span class="ident">BlocksResult</span>&gt;,
     },
 }
 
@@ -872,15 +872,15 @@
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">GetBlockResponse</span> {
     <span class="kw">pub</span> <span class="ident">id</span>: <span class="ident">CertificateDigest</span>,
     <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">dead_code</span>)]</span>
-    <span class="kw">pub</span> <span class="ident">batches</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">BatchMessage</span><span class="op">&gt;</span>,
+    <span class="kw">pub</span> <span class="ident">batches</span>: <span class="ident">Vec</span>&lt;<span class="ident">BatchMessage</span>&gt;,
 }
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">GetBlocksResponse</span> {
-    <span class="kw">pub</span> <span class="ident">blocks</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">BlockResult</span><span class="op">&lt;</span><span class="ident">GetBlockResponse</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="kw">pub</span> <span class="ident">blocks</span>: <span class="ident">Vec</span>&lt;<span class="ident">BlockResult</span>&lt;<span class="ident">GetBlockResponse</span>&gt;&gt;,
 }
 
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">BatchResult</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">BatchMessage</span>, <span class="ident">BatchMessageError</span><span class="op">&gt;</span>;
+<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">BatchResult</span> = <span class="prelude-ty">Result</span>&lt;<span class="ident">BatchMessage</span>, <span class="ident">BatchMessageError</span>&gt;;
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Default</span>, <span class="ident">Debug</span>)]</span>
 <span class="comment">// If worker couldn&#39;t send us a batch, this error message</span>
@@ -889,11 +889,11 @@
     <span class="kw">pub</span> <span class="ident">id</span>: <span class="ident">BatchDigest</span>,
 }
 
-<span class="kw">type</span> <span class="ident">BlocksResult</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">GetBlocksResponse</span>, <span class="ident">BlocksError</span><span class="op">&gt;</span>;
+<span class="kw">type</span> <span class="ident">BlocksResult</span> = <span class="prelude-ty">Result</span>&lt;<span class="ident">GetBlocksResponse</span>, <span class="ident">BlocksError</span>&gt;;
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BlocksError</span> {
-    <span class="ident">ids</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span><span class="op">&gt;</span>,
+    <span class="ident">ids</span>: <span class="ident">Vec</span>&lt;<span class="ident">CertificateDigest</span>&gt;,
     <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">dead_code</span>)]</span>
     <span class="ident">error</span>: <span class="ident">BlocksErrorType</span>,
 }
@@ -904,12 +904,12 @@
 }
 
 <span class="kw">impl</span> <span class="ident">fmt::Display</span> <span class="kw">for</span> <span class="ident">BlocksErrorType</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="ident">fmt::Result</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Formatter</span>&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="ident">fmt::Result</span> {
         <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{:?}&quot;</span>, <span class="self">self</span>)
     }
 }
 
-<span class="kw">type</span> <span class="ident">RequestKey</span> <span class="op">=</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>;
+<span class="kw">type</span> <span class="ident">RequestKey</span> = <span class="ident">Vec</span>&lt;<span class="ident">u8</span>&gt;;
 
 <span class="doccomment">/// BlockWaiter is responsible for fetching the block data from the</span>
 <span class="doccomment">/// downstream worker nodes. A block is basically the aggregate</span>
@@ -1011,7 +1011,7 @@
 <span class="doccomment">///     }</span>
 <span class="doccomment">/// # }</span>
 <span class="doccomment">/// ```</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BlockWaiter</span><span class="op">&lt;</span><span class="ident">SynchronizerHandler</span>: <span class="ident">Handler</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BlockWaiter</span>&lt;<span class="ident">SynchronizerHandler</span>: <span class="ident">Handler</span> + <span class="ident">Send</span> + <span class="ident">Sync</span> + <span class="lifetime">&#39;static</span>&gt; {
     <span class="doccomment">/// The public key of this primary.</span>
     <span class="ident">name</span>: <span class="ident">PublicKey</span>,
 
@@ -1019,59 +1019,59 @@
     <span class="ident">committee</span>: <span class="ident">Committee</span>,
 
     <span class="doccomment">/// Receive all the requests to get a block</span>
-    <span class="ident">rx_commands</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">BlockCommand</span><span class="op">&gt;</span>,
+    <span class="ident">rx_commands</span>: <span class="ident">Receiver</span>&lt;<span class="ident">BlockCommand</span>&gt;,
 
     <span class="doccomment">/// Whenever we have a get_block request, we mark the</span>
     <span class="doccomment">/// processing as pending by adding it on the hashmap. Once</span>
     <span class="doccomment">/// we have a result back - or timeout - we expect to remove</span>
     <span class="doccomment">/// the digest from the map. The key is the block id, and</span>
     <span class="doccomment">/// the value is the corresponding certificate.</span>
-    <span class="ident">pending_get_block</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span><span class="op">&gt;</span>,
+    <span class="ident">pending_get_block</span>: <span class="ident">HashMap</span>&lt;<span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span>&gt;,
 
     <span class="doccomment">/// Network driver allowing to send messages.</span>
     <span class="ident">worker_network</span>: <span class="ident">PrimaryToWorkerNetwork</span>,
 
     <span class="doccomment">/// Watch channel to reconfigure the committee.</span>
-    <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
+    <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span>&lt;<span class="ident">ReconfigureNotification</span>&gt;,
 
     <span class="doccomment">/// The batch receive channel is listening for received</span>
     <span class="doccomment">/// messages for batches that have been requested</span>
-    <span class="ident">rx_batch_receiver</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">BatchResult</span><span class="op">&gt;</span>,
+    <span class="ident">rx_batch_receiver</span>: <span class="ident">Receiver</span>&lt;<span class="ident">BatchResult</span>&gt;,
 
     <span class="doccomment">/// Maps batch ids to channels that &quot;listen&quot; for arrived batch messages.</span>
     <span class="doccomment">/// On the key we hold the batch id (we assume it&#39;s globally unique).</span>
     <span class="doccomment">/// On the value we hold a tuple of the channel to communicate the result</span>
     <span class="doccomment">/// to and also a timestamp of when the request was sent.</span>
-    <span class="ident">tx_pending_batch</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">BatchDigest</span>, (<span class="ident">oneshot::Sender</span><span class="op">&lt;</span><span class="ident">BatchResult</span><span class="op">&gt;</span>, <span class="ident">u128</span>)<span class="op">&gt;</span>,
+    <span class="ident">tx_pending_batch</span>: <span class="ident">HashMap</span>&lt;<span class="ident">BatchDigest</span>, (<span class="ident">oneshot::Sender</span>&lt;<span class="ident">BatchResult</span>&gt;, <span class="ident">u128</span>)&gt;,
 
     <span class="doccomment">/// A map that holds the channels we should notify with the</span>
     <span class="doccomment">/// GetBlock responses.</span>
     <span class="ident">tx_get_block_map</span>:
-        <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">oneshot::Sender</span><span class="op">&lt;</span><span class="ident">BlockResult</span><span class="op">&lt;</span><span class="ident">GetBlockResponse</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">HashMap</span>&lt;<span class="ident">CertificateDigest</span>, <span class="ident">Vec</span>&lt;<span class="ident">oneshot::Sender</span>&lt;<span class="ident">BlockResult</span>&lt;<span class="ident">GetBlockResponse</span>&gt;&gt;&gt;&gt;,
 
     <span class="doccomment">/// A map that holds the channels we should notify with the</span>
     <span class="doccomment">/// GetBlocks responses.</span>
-    <span class="ident">tx_get_blocks_map</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">RequestKey</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">oneshot::Sender</span><span class="op">&lt;</span><span class="ident">BlocksResult</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">tx_get_blocks_map</span>: <span class="ident">HashMap</span>&lt;<span class="ident">RequestKey</span>, <span class="ident">Vec</span>&lt;<span class="ident">oneshot::Sender</span>&lt;<span class="ident">BlocksResult</span>&gt;&gt;&gt;,
 
     <span class="doccomment">/// We use the handler of the block synchronizer to interact with the</span>
     <span class="doccomment">/// block synchronizer in a synchronous way. Share a reference of this</span>
     <span class="doccomment">/// between components.</span>
-    <span class="ident">block_synchronizer_handler</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SynchronizerHandler</span><span class="op">&gt;</span>,
+    <span class="ident">block_synchronizer_handler</span>: <span class="ident">Arc</span>&lt;<span class="ident">SynchronizerHandler</span>&gt;,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">SynchronizerHandler</span>: <span class="ident">Handler</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">BlockWaiter</span><span class="op">&lt;</span><span class="ident">SynchronizerHandler</span><span class="op">&gt;</span> {
+<span class="kw">impl</span>&lt;<span class="ident">SynchronizerHandler</span>: <span class="ident">Handler</span> + <span class="ident">Send</span> + <span class="ident">Sync</span> + <span class="lifetime">&#39;static</span>&gt; <span class="ident">BlockWaiter</span>&lt;<span class="ident">SynchronizerHandler</span>&gt; {
     <span class="comment">// Create a new waiter and start listening on incoming</span>
     <span class="comment">// commands to fetch a block</span>
     <span class="attribute">#[<span class="ident">must_use</span>]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(
         <span class="ident">name</span>: <span class="ident">PublicKey</span>,
         <span class="ident">committee</span>: <span class="ident">Committee</span>,
-        <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span><span class="op">&lt;</span><span class="ident">ReconfigureNotification</span><span class="op">&gt;</span>,
-        <span class="ident">rx_commands</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">BlockCommand</span><span class="op">&gt;</span>,
-        <span class="ident">batch_receiver</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">BatchResult</span><span class="op">&gt;</span>,
-        <span class="ident">block_synchronizer_handler</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SynchronizerHandler</span><span class="op">&gt;</span>,
+        <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span>&lt;<span class="ident">ReconfigureNotification</span>&gt;,
+        <span class="ident">rx_commands</span>: <span class="ident">Receiver</span>&lt;<span class="ident">BlockCommand</span>&gt;,
+        <span class="ident">batch_receiver</span>: <span class="ident">Receiver</span>&lt;<span class="ident">BatchResult</span>&gt;,
+        <span class="ident">block_synchronizer_handler</span>: <span class="ident">Arc</span>&lt;<span class="ident">SynchronizerHandler</span>&gt;,
         <span class="ident">worker_network</span>: <span class="ident">PrimaryToWorkerNetwork</span>,
-    ) -&gt; <span class="ident">JoinHandle</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    ) -&gt; <span class="ident">JoinHandle</span>&lt;()&gt; {
         <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
             <span class="self">Self</span> {
                 <span class="ident">name</span>,
@@ -1092,8 +1092,8 @@
     }
 
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">run</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">waiting_get_block</span> <span class="op">=</span> <span class="ident">FuturesUnordered::new</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">waiting_get_blocks</span> <span class="op">=</span> <span class="ident">FuturesUnordered::new</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">waiting_get_block</span> = <span class="ident">FuturesUnordered::new</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">waiting_get_blocks</span> = <span class="ident">FuturesUnordered::new</span>();
 
         <span class="macro">info!</span>(
             <span class="string">&quot;BlockWaiter on node {} has started successfully.&quot;</span>,
@@ -1101,7 +1101,7 @@
         );
         <span class="kw">loop</span> {
             <span class="macro">tokio::select!</span> {
-                <span class="prelude-val">Some</span>(<span class="ident">command</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">rx_commands</span>.<span class="ident">recv</span>() =&gt; {
+                <span class="prelude-val">Some</span>(<span class="ident">command</span>) = <span class="self">self</span>.<span class="ident">rx_commands</span>.<span class="ident">recv</span>() =&gt; {
                     <span class="kw">match</span> <span class="ident">command</span> {
                         <span class="ident">BlockCommand::GetBlocks</span> { <span class="ident">ids</span>, <span class="ident">sender</span> } =&gt; {
                             <span class="kw">match</span> <span class="self">self</span>.<span class="ident">handle_get_blocks_command</span>(<span class="ident">ids</span>, <span class="ident">sender</span>).<span class="kw">await</span> {
@@ -1125,33 +1125,33 @@
                 <span class="comment">// When we receive a BatchMessage (from a worker), this is</span>
                 <span class="comment">// this is captured by the rx_batch_receiver channel and</span>
                 <span class="comment">// handled appropriately.</span>
-                <span class="prelude-val">Some</span>(<span class="ident">batch_message</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">rx_batch_receiver</span>.<span class="ident">recv</span>() =&gt; {
+                <span class="prelude-val">Some</span>(<span class="ident">batch_message</span>) = <span class="self">self</span>.<span class="ident">rx_batch_receiver</span>.<span class="ident">recv</span>() =&gt; {
                     <span class="self">self</span>.<span class="ident">handle_batch_message</span>(<span class="ident">batch_message</span>).<span class="kw">await</span>;
                 },
                 <span class="comment">// When we send a request to fetch a block&#39;s batches</span>
                 <span class="comment">// we wait on the results to come back before we proceed.</span>
                 <span class="comment">// By iterating the waiting vector it allow us to proceed</span>
                 <span class="comment">// whenever waiting has been finished for a request.</span>
-                <span class="prelude-val">Some</span>(<span class="ident">result</span>) <span class="op">=</span> <span class="ident">waiting_get_block</span>.<span class="ident">next</span>() =&gt; {
+                <span class="prelude-val">Some</span>(<span class="ident">result</span>) = <span class="ident">waiting_get_block</span>.<span class="ident">next</span>() =&gt; {
                     <span class="self">self</span>.<span class="ident">handle_batch_waiting_result</span>(<span class="ident">result</span>).<span class="kw">await</span>;
                 },
-                <span class="prelude-val">Some</span>(<span class="ident">result</span>) <span class="op">=</span> <span class="ident">waiting_get_blocks</span>.<span class="ident">next</span>() =&gt; {
+                <span class="prelude-val">Some</span>(<span class="ident">result</span>) = <span class="ident">waiting_get_blocks</span>.<span class="ident">next</span>() =&gt; {
                     <span class="self">self</span>.<span class="ident">handle_get_blocks_waiting_result</span>(<span class="ident">result</span>).<span class="kw">await</span>;
                 }
 
                 <span class="comment">// Check whether the committee changed. If the network address of our workers changed upon trying</span>
                 <span class="comment">// to send them a request, we will timeout and the caller will have to retry.</span>
-                <span class="ident">result</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">rx_reconfigure</span>.<span class="ident">changed</span>() =&gt; {
+                <span class="ident">result</span> = <span class="self">self</span>.<span class="ident">rx_reconfigure</span>.<span class="ident">changed</span>() =&gt; {
                     <span class="ident">result</span>.<span class="ident">expect</span>(<span class="string">&quot;Committee channel dropped&quot;</span>);
-                    <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">rx_reconfigure</span>.<span class="ident">borrow</span>().<span class="ident">clone</span>();
+                    <span class="kw">let</span> <span class="ident">message</span> = <span class="self">self</span>.<span class="ident">rx_reconfigure</span>.<span class="ident">borrow</span>().<span class="ident">clone</span>();
                     <span class="kw">match</span> <span class="ident">message</span> {
                         <span class="ident">ReconfigureNotification::NewEpoch</span>(<span class="ident">new_committee</span>)=&gt; {
                             <span class="self">self</span>.<span class="ident">worker_network</span>.<span class="ident">cleanup</span>(<span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">network_diff</span>(<span class="kw-2">&amp;</span><span class="ident">new_committee</span>));
-                            <span class="self">self</span>.<span class="ident">committee</span> <span class="op">=</span> <span class="ident">new_committee</span>;
+                            <span class="self">self</span>.<span class="ident">committee</span> = <span class="ident">new_committee</span>;
                         }
                         <span class="ident">ReconfigureNotification::UpdateCommittee</span>(<span class="ident">new_committee</span>)=&gt; {
                             <span class="self">self</span>.<span class="ident">worker_network</span>.<span class="ident">cleanup</span>(<span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">network_diff</span>(<span class="kw-2">&amp;</span><span class="ident">new_committee</span>));
-                            <span class="self">self</span>.<span class="ident">committee</span> <span class="op">=</span> <span class="ident">new_committee</span>;
+                            <span class="self">self</span>.<span class="ident">committee</span> = <span class="ident">new_committee</span>;
                         }
                         <span class="ident">ReconfigureNotification::Shutdown</span> =&gt; <span class="kw">return</span>
                     }
@@ -1162,17 +1162,17 @@
     }
 
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">handle_get_blocks_waiting_result</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">result</span>: <span class="ident">BlocksResult</span>) {
-        <span class="kw">let</span> <span class="ident">ids</span> <span class="op">=</span> <span class="ident">result</span>.<span class="ident">clone</span>().<span class="ident">map_or_else</span>(
-            <span class="op">|</span><span class="ident">err</span><span class="op">|</span> <span class="ident">err</span>.<span class="ident">ids</span>,
-            <span class="op">|</span><span class="ident">ok</span><span class="op">|</span> {
+        <span class="kw">let</span> <span class="ident">ids</span> = <span class="ident">result</span>.<span class="ident">clone</span>().<span class="ident">map_or_else</span>(
+            |<span class="ident">err</span>| <span class="ident">err</span>.<span class="ident">ids</span>,
+            |<span class="ident">ok</span>| {
                 <span class="ident">ok</span>.<span class="ident">blocks</span>
                     .<span class="ident">into_iter</span>()
-                    .<span class="ident">map</span>(<span class="op">|</span><span class="ident">res</span><span class="op">|</span> <span class="ident">res</span>.<span class="ident">map_or_else</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">e</span>.<span class="ident">id</span>, <span class="op">|</span><span class="ident">r</span><span class="op">|</span> <span class="ident">r</span>.<span class="ident">id</span>))
+                    .<span class="ident">map</span>(|<span class="ident">res</span>| <span class="ident">res</span>.<span class="ident">map_or_else</span>(|<span class="ident">e</span>| <span class="ident">e</span>.<span class="ident">id</span>, |<span class="ident">r</span>| <span class="ident">r</span>.<span class="ident">id</span>))
                     .<span class="ident">collect</span>()
             },
         );
 
-        <span class="kw">let</span> <span class="ident">key</span> <span class="op">=</span> <span class="ident"><span class="self">Self</span>::construct_get_blocks_request_key</span>(<span class="kw-2">&amp;</span><span class="ident">ids</span>);
+        <span class="kw">let</span> <span class="ident">key</span> = <span class="ident"><span class="self">Self</span>::construct_get_blocks_request_key</span>(<span class="kw-2">&amp;</span><span class="ident">ids</span>);
 
         <span class="kw">match</span> <span class="self">self</span>.<span class="ident">tx_get_blocks_map</span>.<span class="ident">remove</span>(<span class="kw-2">&amp;</span><span class="ident">key</span>) {
             <span class="prelude-val">Some</span>(<span class="ident">senders</span>) =&gt; {
@@ -1188,19 +1188,19 @@
         }
     }
 
-    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span><span class="op">=</span><span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>, <span class="ident">fields</span>(<span class="ident">num_block_ids</span> <span class="op">=</span> <span class="ident">ids</span>.<span class="ident">len</span>()))]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">handle_get_blocks_command</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>(
+    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span>=<span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>, <span class="ident">fields</span>(<span class="ident">num_block_ids</span> = <span class="ident">ids</span>.<span class="ident">len</span>()))]</span>
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">handle_get_blocks_command</span>&lt;<span class="lifetime">&#39;a</span>&gt;(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
-        <span class="ident">ids</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span><span class="op">&gt;</span>,
-        <span class="ident">sender</span>: <span class="ident">oneshot::Sender</span><span class="op">&lt;</span><span class="ident">BlocksResult</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span>(
-        <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">BoxFuture</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">BlockResult</span><span class="op">&lt;</span><span class="ident">GetBlockResponse</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-        <span class="ident">BoxFuture</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">BlocksResult</span><span class="op">&gt;</span>,
-    )<span class="op">&gt;</span> {
+        <span class="ident">ids</span>: <span class="ident">Vec</span>&lt;<span class="ident">CertificateDigest</span>&gt;,
+        <span class="ident">sender</span>: <span class="ident">oneshot::Sender</span>&lt;<span class="ident">BlocksResult</span>&gt;,
+    ) -&gt; <span class="prelude-ty">Option</span>&lt;(
+        <span class="ident">Vec</span>&lt;<span class="ident">BoxFuture</span>&lt;<span class="lifetime">&#39;a</span>, <span class="ident">BlockResult</span>&lt;<span class="ident">GetBlockResponse</span>&gt;&gt;&gt;,
+        <span class="ident">BoxFuture</span>&lt;<span class="lifetime">&#39;a</span>, <span class="ident">BlocksResult</span>&gt;,
+    )&gt; {
         <span class="comment">// check whether we have a similar request pending</span>
         <span class="comment">// to make the check easy we sort the digests in asc order,</span>
         <span class="comment">// and then we merge all the bytes to form a key</span>
-        <span class="kw">let</span> <span class="ident">key</span> <span class="op">=</span> <span class="ident"><span class="self">Self</span>::construct_get_blocks_request_key</span>(<span class="kw-2">&amp;</span><span class="ident">ids</span>);
+        <span class="kw">let</span> <span class="ident">key</span> = <span class="ident"><span class="self">Self</span>::construct_get_blocks_request_key</span>(<span class="kw-2">&amp;</span><span class="ident">ids</span>);
 
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">tx_get_blocks_map</span>.<span class="ident">contains_key</span>(<span class="kw-2">&amp;</span><span class="ident">key</span>) {
             <span class="comment">// request already pending, nothing to do, just add the sender to the list</span>
@@ -1215,9 +1215,9 @@
         }
 
         <span class="comment">// fetch the certificates</span>
-        <span class="kw">let</span> <span class="ident">certificates</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_certificates</span>(<span class="ident">ids</span>.<span class="ident">clone</span>()).<span class="kw">await</span>;
+        <span class="kw">let</span> <span class="ident">certificates</span> = <span class="self">self</span>.<span class="ident">get_certificates</span>(<span class="ident">ids</span>.<span class="ident">clone</span>()).<span class="kw">await</span>;
 
-        <span class="kw">let</span> (<span class="ident">get_block_futures</span>, <span class="ident">get_blocks_future</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_blocks</span>(<span class="ident">certificates</span>).<span class="kw">await</span>;
+        <span class="kw">let</span> (<span class="ident">get_block_futures</span>, <span class="ident">get_blocks_future</span>) = <span class="self">self</span>.<span class="ident">get_blocks</span>(<span class="ident">certificates</span>).<span class="kw">await</span>;
 
         <span class="comment">// mark the request as pending</span>
         <span class="self">self</span>.<span class="ident">tx_get_blocks_map</span>
@@ -1229,9 +1229,9 @@
     }
 
     <span class="doccomment">/// Helper method to retrieve a single certificate.</span>
-    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span> <span class="op">=</span> <span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>, <span class="ident">fields</span>(<span class="ident">certificate_id</span> <span class="op">=</span> <span class="question-mark">?</span><span class="ident">id</span>))]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get_certificate</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">id</span>: <span class="ident">CertificateDigest</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span> {
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="kw">_</span>, <span class="ident">c</span>)) <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_certificates</span>(<span class="macro">vec!</span>[<span class="ident">id</span>]).<span class="kw">await</span>.<span class="ident">first</span>() {
+    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span> = <span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>, <span class="ident">fields</span>(<span class="ident">certificate_id</span> = <span class="question-mark">?</span><span class="ident">id</span>))]</span>
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get_certificate</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">id</span>: <span class="ident">CertificateDigest</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="ident">Certificate</span>&gt; {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="kw">_</span>, <span class="ident">c</span>)) = <span class="self">self</span>.<span class="ident">get_certificates</span>(<span class="macro">vec!</span>[<span class="ident">id</span>]).<span class="kw">await</span>.<span class="ident">first</span>() {
             <span class="kw">return</span> <span class="ident">c</span>.<span class="ident">to_owned</span>();
         }
         <span class="prelude-val">None</span>
@@ -1242,20 +1242,20 @@
     <span class="doccomment">/// fetch it via the peers. Otherwise if available on the storage</span>
     <span class="doccomment">/// should return the result immediately. The method is blocking to</span>
     <span class="doccomment">/// retrieve all the results.</span>
-    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span> <span class="op">=</span> <span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>, <span class="ident">fields</span>(<span class="ident">num_certificate_ids</span> <span class="op">=</span> <span class="ident">ids</span>.<span class="ident">len</span>()))]</span>
+    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span> = <span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>, <span class="ident">fields</span>(<span class="ident">num_certificate_ids</span> = <span class="ident">ids</span>.<span class="ident">len</span>()))]</span>
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get_certificates</span>(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
-        <span class="ident">ids</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">CertificateDigest</span>, <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span>)<span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">results</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
+        <span class="ident">ids</span>: <span class="ident">Vec</span>&lt;<span class="ident">CertificateDigest</span>&gt;,
+    ) -&gt; <span class="ident">Vec</span>&lt;(<span class="ident">CertificateDigest</span>, <span class="prelude-ty">Option</span>&lt;<span class="ident">Certificate</span>&gt;)&gt; {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">results</span> = <span class="ident">Vec::new</span>();
 
-        <span class="kw">let</span> <span class="ident">block_header_results</span> <span class="op">=</span> <span class="self">self</span>
+        <span class="kw">let</span> <span class="ident">block_header_results</span> = <span class="self">self</span>
             .<span class="ident">block_synchronizer_handler</span>
             .<span class="ident">get_and_synchronize_block_headers</span>(<span class="ident">ids</span>)
             .<span class="kw">await</span>;
 
         <span class="kw">for</span> <span class="ident">result</span> <span class="kw">in</span> <span class="ident">block_header_results</span> {
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">certificate</span>) <span class="op">=</span> <span class="ident">result</span> {
+            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">certificate</span>) = <span class="ident">result</span> {
                 <span class="ident">results</span>.<span class="ident">push</span>((<span class="ident">certificate</span>.<span class="ident">digest</span>(), <span class="prelude-val">Some</span>(<span class="ident">certificate</span>)));
             } <span class="kw">else</span> {
                 <span class="ident">results</span>.<span class="ident">push</span>((<span class="ident">result</span>.<span class="ident">err</span>().<span class="ident">unwrap</span>().<span class="ident">block_id</span>(), <span class="prelude-val">None</span>));
@@ -1271,48 +1271,48 @@
     <span class="doccomment">/// doesn&#39;t exist then the Optional will be empty (None) which means that</span>
     <span class="doccomment">/// we haven&#39;t managed to retrieve/find the certificate an error result</span>
     <span class="doccomment">/// will immediately be sent to the consumer.</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get_blocks</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>(
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get_blocks</span>&lt;<span class="lifetime">&#39;a</span>&gt;(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
-        <span class="ident">certificates</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">CertificateDigest</span>, <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span>)<span class="op">&gt;</span>,
+        <span class="ident">certificates</span>: <span class="ident">Vec</span>&lt;(<span class="ident">CertificateDigest</span>, <span class="prelude-ty">Option</span>&lt;<span class="ident">Certificate</span>&gt;)&gt;,
     ) -&gt; (
-        <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">BoxFuture</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">BlockResult</span><span class="op">&lt;</span><span class="ident">GetBlockResponse</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-        <span class="ident">BoxFuture</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">BlocksResult</span><span class="op">&gt;</span>,
+        <span class="ident">Vec</span>&lt;<span class="ident">BoxFuture</span>&lt;<span class="lifetime">&#39;a</span>, <span class="ident">BlockResult</span>&lt;<span class="ident">GetBlockResponse</span>&gt;&gt;&gt;,
+        <span class="ident">BoxFuture</span>&lt;<span class="lifetime">&#39;a</span>, <span class="ident">BlocksResult</span>&gt;,
     ) {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">get_block_receivers</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">futures</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ids</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">get_block_receivers</span> = <span class="ident">Vec::new</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">futures</span> = <span class="ident">Vec::new</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ids</span> = <span class="ident">Vec::new</span>();
 
         <span class="comment">// ensure payloads are synchronized for the found certificates</span>
-        <span class="kw">let</span> <span class="ident">found_certificates</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Certificate</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">certificates</span>
+        <span class="kw">let</span> <span class="ident">found_certificates</span>: <span class="ident">Vec</span>&lt;<span class="ident">Certificate</span>&gt; = <span class="ident">certificates</span>
             .<span class="ident">clone</span>()
             .<span class="ident">into_iter</span>()
-            .<span class="ident">filter</span>(<span class="op">|</span>(<span class="kw">_</span>, <span class="ident">c</span>)<span class="op">|</span> <span class="ident">c</span>.<span class="ident">is_some</span>())
-            .<span class="ident">map</span>(<span class="op">|</span>(<span class="kw">_</span>, <span class="ident">c</span>)<span class="op">|</span> <span class="ident">c</span>.<span class="ident">unwrap</span>())
+            .<span class="ident">filter</span>(|(<span class="kw">_</span>, <span class="ident">c</span>)| <span class="ident">c</span>.<span class="ident">is_some</span>())
+            .<span class="ident">map</span>(|(<span class="kw">_</span>, <span class="ident">c</span>)| <span class="ident">c</span>.<span class="ident">unwrap</span>())
             .<span class="ident">collect</span>();
 
-        <span class="kw">let</span> <span class="ident">sync_result</span> <span class="op">=</span> <span class="self">self</span>
+        <span class="kw">let</span> <span class="ident">sync_result</span> = <span class="self">self</span>
             .<span class="ident">block_synchronizer_handler</span>
             .<span class="ident">synchronize_block_payloads</span>(<span class="ident">found_certificates</span>)
             .<span class="kw">await</span>;
-        <span class="kw">let</span> <span class="ident">successful_payload_sync_set</span> <span class="op">=</span> <span class="ident">sync_result</span>
+        <span class="kw">let</span> <span class="ident">successful_payload_sync_set</span> = <span class="ident">sync_result</span>
             .<span class="ident">clone</span>()
             .<span class="ident">into_iter</span>()
             .<span class="ident">flatten</span>()
-            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">c</span><span class="op">|</span> <span class="ident">c</span>.<span class="ident">digest</span>())
-            .<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">HashSet</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span><span class="op">&gt;</span><span class="op">&gt;</span>();
+            .<span class="ident">map</span>(|<span class="ident">c</span>| <span class="ident">c</span>.<span class="ident">digest</span>())
+            .<span class="ident">collect</span>::&lt;<span class="ident">HashSet</span>&lt;<span class="ident">CertificateDigest</span>&gt;&gt;();
 
         <span class="kw">for</span> (<span class="ident">id</span>, <span class="ident">c</span>) <span class="kw">in</span> <span class="ident">certificates</span> {
-            <span class="kw">let</span> (<span class="ident">get_block_sender</span>, <span class="ident">get_block_receiver</span>) <span class="op">=</span> <span class="ident">oneshot::channel</span>();
+            <span class="kw">let</span> (<span class="ident">get_block_sender</span>, <span class="ident">get_block_receiver</span>) = <span class="ident">oneshot::channel</span>();
             <span class="ident">ids</span>.<span class="ident">push</span>(<span class="ident">id</span>);
 
             <span class="comment">// certificate has been found</span>
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">certificate</span>) <span class="op">=</span> <span class="ident">c</span> {
+            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">certificate</span>) = <span class="ident">c</span> {
                 <span class="comment">// Proceed on getting the block only if the payload has</span>
                 <span class="comment">// been successfully synced.</span>
                 <span class="kw">if</span> <span class="ident">successful_payload_sync_set</span>.<span class="ident">contains</span>(<span class="kw-2">&amp;</span><span class="ident">id</span>) {
-                    <span class="kw">let</span> <span class="ident">fut</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_block</span>(<span class="ident">id</span>, <span class="ident">certificate</span>, <span class="ident">get_block_sender</span>).<span class="kw">await</span>;
+                    <span class="kw">let</span> <span class="ident">fut</span> = <span class="self">self</span>.<span class="ident">get_block</span>(<span class="ident">id</span>, <span class="ident">certificate</span>, <span class="ident">get_block_sender</span>).<span class="kw">await</span>;
 
-                    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">f</span>) <span class="op">=</span> <span class="ident">fut</span> {
+                    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">f</span>) = <span class="ident">fut</span> {
                         <span class="ident">futures</span>.<span class="ident">push</span>(<span class="ident">f</span>.<span class="ident">boxed</span>());
                     }
                 } <span class="kw">else</span> {
@@ -1338,7 +1338,7 @@
         }
 
         <span class="comment">// create a waiter to fetch them all and send the response</span>
-        <span class="kw">let</span> <span class="ident">fut</span> <span class="op">=</span> <span class="ident"><span class="self">Self</span>::wait_for_all_blocks</span>(<span class="ident">ids</span>.<span class="ident">clone</span>(), <span class="ident">get_block_receivers</span>);
+        <span class="kw">let</span> <span class="ident">fut</span> = <span class="ident"><span class="self">Self</span>::wait_for_all_blocks</span>(<span class="ident">ids</span>.<span class="ident">clone</span>(), <span class="ident">get_block_receivers</span>);
 
         <span class="kw">return</span> (<span class="ident">futures</span>, <span class="ident">fut</span>.<span class="ident">boxed</span>());
     }
@@ -1346,17 +1346,17 @@
     <span class="comment">// handles received commands and returns back a future if needs to</span>
     <span class="comment">// wait for further results. Otherwise, an empty option is returned</span>
     <span class="comment">// if no further waiting on processing is needed.</span>
-    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span><span class="op">=</span><span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>, <span class="ident">fields</span>(<span class="ident">block_id</span> <span class="op">=</span> <span class="question-mark">?</span><span class="ident">id</span>))]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">handle_get_block_command</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>(
+    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span>=<span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>, <span class="ident">fields</span>(<span class="ident">block_id</span> = <span class="question-mark">?</span><span class="ident">id</span>))]</span>
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">handle_get_block_command</span>&lt;<span class="lifetime">&#39;a</span>&gt;(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">id</span>: <span class="ident">CertificateDigest</span>,
-        <span class="ident">sender</span>: <span class="ident">oneshot::Sender</span><span class="op">&lt;</span><span class="ident">BlockResult</span><span class="op">&lt;</span><span class="ident">GetBlockResponse</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">BoxFuture</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">BlockResult</span><span class="op">&lt;</span><span class="ident">GetBlockResponse</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="ident">sender</span>: <span class="ident">oneshot::Sender</span>&lt;<span class="ident">BlockResult</span>&lt;<span class="ident">GetBlockResponse</span>&gt;&gt;,
+    ) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="ident">BoxFuture</span>&lt;<span class="lifetime">&#39;a</span>, <span class="ident">BlockResult</span>&lt;<span class="ident">GetBlockResponse</span>&gt;&gt;&gt; {
         <span class="kw">match</span> <span class="self">self</span>.<span class="ident">get_certificate</span>(<span class="ident">id</span>).<span class="kw">await</span> {
             <span class="prelude-val">Some</span>(<span class="ident">certificate</span>) =&gt; {
                 <span class="comment">// Before sending a request to fetch the block&#39;s batches, ensure that</span>
                 <span class="comment">// those are synchronized and available.</span>
-                <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>
+                <span class="kw">if</span> !<span class="self">self</span>
                     .<span class="ident">ensure_payload_is_synchronized</span>(<span class="ident">certificate</span>.<span class="ident">clone</span>())
                     .<span class="kw">await</span>
                 {
@@ -1387,12 +1387,12 @@
         }
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get_block</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>(
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get_block</span>&lt;<span class="lifetime">&#39;a</span>&gt;(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">id</span>: <span class="ident">CertificateDigest</span>,
         <span class="ident">certificate</span>: <span class="ident">Certificate</span>,
-        <span class="ident">sender</span>: <span class="ident">oneshot::Sender</span><span class="op">&lt;</span><span class="ident">BlockResult</span><span class="op">&lt;</span><span class="ident">GetBlockResponse</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">BoxFuture</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">BlockResult</span><span class="op">&lt;</span><span class="ident">GetBlockResponse</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="ident">sender</span>: <span class="ident">oneshot::Sender</span>&lt;<span class="ident">BlockResult</span>&lt;<span class="ident">GetBlockResponse</span>&gt;&gt;,
+    ) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="ident">BoxFuture</span>&lt;<span class="lifetime">&#39;a</span>, <span class="ident">BlockResult</span>&lt;<span class="ident">GetBlockResponse</span>&gt;&gt;&gt; {
         <span class="comment">// If similar request is already under processing, don&#39;t start a new one</span>
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">pending_get_block</span>.<span class="ident">contains_key</span>(<span class="kw-2">&amp;</span><span class="ident">id</span>.<span class="ident">clone</span>()) {
             <span class="self">self</span>.<span class="ident">tx_get_block_map</span>
@@ -1407,9 +1407,9 @@
         <span class="macro">debug!</span>(<span class="string">&quot;No pending get block for {}&quot;</span>, <span class="ident">id</span>);
 
         <span class="comment">// Add on a vector the receivers</span>
-        <span class="kw">let</span> <span class="ident">batch_receivers</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">send_batch_requests</span>(<span class="ident">certificate</span>.<span class="ident">header</span>.<span class="ident">clone</span>()).<span class="kw">await</span>;
+        <span class="kw">let</span> <span class="ident">batch_receivers</span> = <span class="self">self</span>.<span class="ident">send_batch_requests</span>(<span class="ident">certificate</span>.<span class="ident">header</span>.<span class="ident">clone</span>()).<span class="kw">await</span>;
 
-        <span class="kw">let</span> <span class="ident">fut</span> <span class="op">=</span> <span class="ident"><span class="self">Self</span>::wait_for_all_batches</span>(<span class="ident">id</span>, <span class="ident">batch_receivers</span>);
+        <span class="kw">let</span> <span class="ident">fut</span> = <span class="ident"><span class="self">Self</span>::wait_for_all_batches</span>(<span class="ident">id</span>, <span class="ident">batch_receivers</span>);
 
         <span class="comment">// Ensure that we mark this block retrieval</span>
         <span class="comment">// as pending so no other can initiate the process</span>
@@ -1434,7 +1434,7 @@
     <span class="doccomment">/// was successful</span>
     <span class="doccomment">/// `false`: When synchronization failed</span>
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">ensure_payload_is_synchronized</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">certificate</span>: <span class="ident">Certificate</span>) -&gt; <span class="ident">bool</span> {
-        <span class="kw">let</span> <span class="ident">sync_result</span> <span class="op">=</span> <span class="self">self</span>
+        <span class="kw">let</span> <span class="ident">sync_result</span> = <span class="self">self</span>
             .<span class="ident">block_synchronizer_handler</span>
             .<span class="ident">synchronize_block_payloads</span>(<span class="macro">vec!</span>[<span class="ident">certificate</span>.<span class="ident">clone</span>()])
             .<span class="kw">await</span>;
@@ -1446,12 +1446,12 @@
     }
 
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">wait_for_all_blocks</span>(
-        <span class="ident">ids</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">CertificateDigest</span><span class="op">&gt;</span>,
-        <span class="ident">get_block_receivers</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">oneshot::Receiver</span><span class="op">&lt;</span><span class="ident">BlockResult</span><span class="op">&lt;</span><span class="ident">GetBlockResponse</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">ids</span>: <span class="ident">Vec</span>&lt;<span class="ident">CertificateDigest</span>&gt;,
+        <span class="ident">get_block_receivers</span>: <span class="ident">Vec</span>&lt;<span class="ident">oneshot::Receiver</span>&lt;<span class="ident">BlockResult</span>&lt;<span class="ident">GetBlockResponse</span>&gt;&gt;&gt;,
     ) -&gt; <span class="ident">BlocksResult</span> {
-        <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">try_join_all</span>(<span class="ident">get_block_receivers</span>).<span class="kw">await</span>;
+        <span class="kw">let</span> <span class="ident">result</span> = <span class="ident">try_join_all</span>(<span class="ident">get_block_receivers</span>).<span class="kw">await</span>;
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">res</span>) <span class="op">=</span> <span class="ident">result</span> {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">res</span>) = <span class="ident">result</span> {
             <span class="prelude-val">Ok</span>(<span class="ident">GetBlocksResponse</span> { <span class="ident">blocks</span>: <span class="ident">res</span> })
         } <span class="kw">else</span> {
             <span class="prelude-val">Err</span>(<span class="ident">BlocksError</span> {
@@ -1461,8 +1461,8 @@
         }
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">handle_batch_waiting_result</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">result</span>: <span class="ident">BlockResult</span><span class="op">&lt;</span><span class="ident">GetBlockResponse</span><span class="op">&gt;</span>) {
-        <span class="kw">let</span> <span class="ident">block_id</span> <span class="op">=</span> <span class="ident">result</span>.<span class="ident">clone</span>().<span class="ident">map_or_else</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">e</span>.<span class="ident">id</span>, <span class="op">|</span><span class="ident">r</span><span class="op">|</span> <span class="ident">r</span>.<span class="ident">id</span>);
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">handle_batch_waiting_result</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">result</span>: <span class="ident">BlockResult</span>&lt;<span class="ident">GetBlockResponse</span>&gt;) {
+        <span class="kw">let</span> <span class="ident">block_id</span> = <span class="ident">result</span>.<span class="ident">clone</span>().<span class="ident">map_or_else</span>(|<span class="ident">e</span>| <span class="ident">e</span>.<span class="ident">id</span>, |<span class="ident">r</span>| <span class="ident">r</span>.<span class="ident">id</span>);
 
         <span class="kw">match</span> <span class="self">self</span>.<span class="ident">tx_get_block_map</span>.<span class="ident">remove</span>(<span class="kw-2">&amp;</span><span class="ident">block_id</span>) {
             <span class="prelude-val">Some</span>(<span class="ident">senders</span>) =&gt; {
@@ -1508,15 +1508,15 @@
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">send_batch_requests</span>(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">header</span>: <span class="ident">Header</span>,
-    ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">BatchDigest</span>, <span class="ident">oneshot::Receiver</span><span class="op">&lt;</span><span class="ident">BatchResult</span><span class="op">&gt;</span>)<span class="op">&gt;</span> {
+    ) -&gt; <span class="ident">Vec</span>&lt;(<span class="ident">BatchDigest</span>, <span class="ident">oneshot::Receiver</span>&lt;<span class="ident">BatchResult</span>&gt;)&gt; {
         <span class="comment">// Get the &quot;now&quot; time</span>
-        <span class="kw">let</span> <span class="ident">now</span> <span class="op">=</span> <span class="ident">SystemTime::now</span>()
+        <span class="kw">let</span> <span class="ident">now</span> = <span class="ident">SystemTime::now</span>()
             .<span class="ident">duration_since</span>(<span class="ident">UNIX_EPOCH</span>)
             .<span class="ident">expect</span>(<span class="string">&quot;Failed to measure time&quot;</span>)
             .<span class="ident">as_millis</span>();
 
         <span class="comment">// Add the receivers to a vector</span>
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">batch_receivers</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">batch_receivers</span> = <span class="ident">Vec::new</span>();
 
         <span class="comment">// otherwise we send requests to all workers to send us their batches</span>
         <span class="kw">for</span> (<span class="ident">digest</span>, <span class="ident">worker_id</span>) <span class="kw">in</span> <span class="ident">header</span>.<span class="ident">payload</span> {
@@ -1526,13 +1526,13 @@
                 <span class="ident">worker_id</span>
             );
 
-            <span class="kw">let</span> <span class="ident">worker_address</span> <span class="op">=</span> <span class="self">self</span>
+            <span class="kw">let</span> <span class="ident">worker_address</span> = <span class="self">self</span>
                 .<span class="ident">committee</span>
                 .<span class="ident">worker</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">name</span>, <span class="kw-2">&amp;</span><span class="ident">worker_id</span>)
                 .<span class="ident">expect</span>(<span class="string">&quot;Worker id not found&quot;</span>)
                 .<span class="ident">primary_to_worker</span>;
 
-            <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">PrimaryWorkerMessage::RequestBatch</span>(<span class="ident">digest</span>);
+            <span class="kw">let</span> <span class="ident">message</span> = <span class="ident">PrimaryWorkerMessage::RequestBatch</span>(<span class="ident">digest</span>);
 
             <span class="self">self</span>.<span class="ident">worker_network</span>
                 .<span class="ident">unreliable_send</span>(<span class="ident">worker_address</span>, <span class="kw-2">&amp;</span><span class="ident">message</span>)
@@ -1541,7 +1541,7 @@
             <span class="comment">// mark it as pending batch. Since we assume that batches are unique</span>
             <span class="comment">// per block, a clean up on a block request will also clean</span>
             <span class="comment">// up all the pending batch requests.</span>
-            <span class="kw">let</span> (<span class="ident">tx</span>, <span class="ident">rx</span>) <span class="op">=</span> <span class="ident">oneshot::channel</span>();
+            <span class="kw">let</span> (<span class="ident">tx</span>, <span class="ident">rx</span>) = <span class="ident">oneshot::channel</span>();
             <span class="self">self</span>.<span class="ident">tx_pending_batch</span>.<span class="ident">insert</span>(<span class="ident">digest</span>, (<span class="ident">tx</span>, <span class="ident">now</span>));
 
             <span class="comment">// add the receiver to a vector to poll later</span>
@@ -1552,7 +1552,7 @@
     }
 
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">handle_batch_message</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">result</span>: <span class="ident">BatchResult</span>) {
-        <span class="kw">let</span> <span class="ident">batch_id</span>: <span class="ident">BatchDigest</span> <span class="op">=</span> <span class="ident">result</span>.<span class="ident">clone</span>().<span class="ident">map_or_else</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">e</span>.<span class="ident">id</span>, <span class="op">|</span><span class="ident">r</span><span class="op">|</span> <span class="ident">r</span>.<span class="ident">id</span>);
+        <span class="kw">let</span> <span class="ident">batch_id</span>: <span class="ident">BatchDigest</span> = <span class="ident">result</span>.<span class="ident">clone</span>().<span class="ident">map_or_else</span>(|<span class="ident">e</span>| <span class="ident">e</span>.<span class="ident">id</span>, |<span class="ident">r</span>| <span class="ident">r</span>.<span class="ident">id</span>);
 
         <span class="kw">match</span> <span class="self">self</span>.<span class="ident">tx_pending_batch</span>.<span class="ident">remove</span>(<span class="kw-2">&amp;</span><span class="ident">batch_id</span>) {
             <span class="prelude-val">Some</span>((<span class="ident">sender</span>, <span class="kw">_</span>)) =&gt; {
@@ -1572,18 +1572,18 @@
     <span class="doccomment">/// to be sent back to the request.</span>
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">wait_for_all_batches</span>(
         <span class="ident">block_id</span>: <span class="ident">CertificateDigest</span>,
-        <span class="ident">batches_receivers</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">BatchDigest</span>, <span class="ident">oneshot::Receiver</span><span class="op">&lt;</span><span class="ident">BatchResult</span><span class="op">&gt;</span>)<span class="op">&gt;</span>,
-    ) -&gt; <span class="ident">BlockResult</span><span class="op">&lt;</span><span class="ident">GetBlockResponse</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">waiting</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">batches_receivers</span>
+        <span class="ident">batches_receivers</span>: <span class="ident">Vec</span>&lt;(<span class="ident">BatchDigest</span>, <span class="ident">oneshot::Receiver</span>&lt;<span class="ident">BatchResult</span>&gt;)&gt;,
+    ) -&gt; <span class="ident">BlockResult</span>&lt;<span class="ident">GetBlockResponse</span>&gt; {
+        <span class="kw">let</span> <span class="ident">waiting</span>: <span class="ident">Vec</span>&lt;<span class="kw">_</span>&gt; = <span class="ident">batches_receivers</span>
             .<span class="ident">into_iter</span>()
-            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">p</span><span class="op">|</span> <span class="ident"><span class="self">Self</span>::wait_for_batch</span>(<span class="ident">block_id</span>, <span class="ident">p</span>.<span class="number">1</span>))
+            .<span class="ident">map</span>(|<span class="ident">p</span>| <span class="ident"><span class="self">Self</span>::wait_for_batch</span>(<span class="ident">block_id</span>, <span class="ident">p</span>.<span class="number">1</span>))
             .<span class="ident">collect</span>();
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">try_join_all</span>(<span class="ident">waiting</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> = <span class="ident">try_join_all</span>(<span class="ident">waiting</span>).<span class="kw">await</span><span class="question-mark">?</span>;
 
         <span class="comment">// to make deterministic the response, let&#39;s make sure that we&#39;ll serve the</span>
         <span class="comment">// batch results in the same order. Sort by batch_id ascending order.</span>
-        <span class="ident">result</span>.<span class="ident">sort_by</span>(<span class="op">|</span><span class="ident">a</span>, <span class="ident">b</span><span class="op">|</span> <span class="ident">a</span>.<span class="ident">id</span>.<span class="ident">cmp</span>(<span class="kw-2">&amp;</span><span class="ident">b</span>.<span class="ident">id</span>));
+        <span class="ident">result</span>.<span class="ident">sort_by</span>(|<span class="ident">a</span>, <span class="ident">b</span>| <span class="ident">a</span>.<span class="ident">id</span>.<span class="ident">cmp</span>(<span class="kw-2">&amp;</span><span class="ident">b</span>.<span class="ident">id</span>));
 
         <span class="prelude-val">Ok</span>(<span class="ident">GetBlockResponse</span> {
             <span class="ident">id</span>: <span class="ident">block_id</span>,
@@ -1595,32 +1595,32 @@
     <span class="doccomment">/// then a timeout is yielded and an error is returned.</span>
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">wait_for_batch</span>(
         <span class="ident">block_id</span>: <span class="ident">CertificateDigest</span>,
-        <span class="ident">batch_receiver</span>: <span class="ident">oneshot::Receiver</span><span class="op">&lt;</span><span class="ident">BatchResult</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="ident">BlockResult</span><span class="op">&lt;</span><span class="ident">BatchMessage</span><span class="op">&gt;</span> {
+        <span class="ident">batch_receiver</span>: <span class="ident">oneshot::Receiver</span>&lt;<span class="ident">BatchResult</span>&gt;,
+    ) -&gt; <span class="ident">BlockResult</span>&lt;<span class="ident">BatchMessage</span>&gt; {
         <span class="comment">// ensure that we won&#39;t wait forever for a batch result to come</span>
-        <span class="kw">let</span> <span class="ident">r</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">timeout</span>(<span class="ident">BATCH_RETRIEVE_TIMEOUT</span>, <span class="ident">batch_receiver</span>).<span class="kw">await</span> {
+        <span class="kw">let</span> <span class="ident">r</span> = <span class="kw">match</span> <span class="ident">timeout</span>(<span class="ident">BATCH_RETRIEVE_TIMEOUT</span>, <span class="ident">batch_receiver</span>).<span class="kw">await</span> {
             <span class="prelude-val">Ok</span>(<span class="prelude-val">Ok</span>(<span class="ident">result</span>)) =&gt; <span class="ident">result</span>.<span class="ident">or</span>(<span class="prelude-val">Err</span>(<span class="ident">BlockErrorKind::BatchError</span>)),
             <span class="prelude-val">Ok</span>(<span class="prelude-val">Err</span>(<span class="kw">_</span>)) =&gt; <span class="prelude-val">Err</span>(<span class="ident">BlockErrorKind::BatchError</span>),
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="prelude-val">Err</span>(<span class="ident">BlockErrorKind::BatchTimeout</span>),
         };
 
-        <span class="ident">r</span>.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">BlockError</span> {
+        <span class="ident">r</span>.<span class="ident">map_err</span>(|<span class="ident">e</span>| <span class="ident">BlockError</span> {
             <span class="ident">id</span>: <span class="ident">block_id</span>,
             <span class="ident">error</span>: <span class="ident">e</span>,
         })
     }
 
     <span class="kw">fn</span> <span class="ident">construct_get_blocks_request_key</span>(<span class="ident">ids</span>: <span class="kw-2">&amp;</span>[<span class="ident">CertificateDigest</span>]) -&gt; <span class="ident">RequestKey</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ids_cloned</span> <span class="op">=</span> <span class="ident">ids</span>.<span class="ident">to_vec</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ids_cloned</span> = <span class="ident">ids</span>.<span class="ident">to_vec</span>();
         <span class="ident">ids_cloned</span>.<span class="ident">sort</span>();
 
-        <span class="kw">let</span> <span class="ident">result</span>: <span class="ident">RequestKey</span> <span class="op">=</span> <span class="ident">ids_cloned</span>
+        <span class="kw">let</span> <span class="ident">result</span>: <span class="ident">RequestKey</span> = <span class="ident">ids_cloned</span>
             .<span class="ident">into_iter</span>()
-            .<span class="ident">flat_map</span>(<span class="op">|</span><span class="ident">d</span><span class="op">|</span> <span class="ident">Digest::from</span>(<span class="ident">d</span>).<span class="ident">to_vec</span>())
+            .<span class="ident">flat_map</span>(|<span class="ident">d</span>| <span class="ident">Digest::from</span>(<span class="ident">d</span>).<span class="ident">to_vec</span>())
             .<span class="ident">collect</span>();
 
         <span class="ident">result</span>
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (20ffea693 2022-08-11)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>

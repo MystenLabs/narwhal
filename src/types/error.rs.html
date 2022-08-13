@@ -88,13 +88,13 @@
 <span class="attribute">#[<span class="ident">macro_export</span>(<span class="ident">local_inner_macros</span>)]</span>
 <span class="macro">macro_rules!</span> <span class="ident">ensure</span> {
     (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">cond</span>:<span class="ident">expr</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">e</span>:<span class="ident">expr</span>) =&gt; {
-        <span class="kw">if</span> <span class="op">!</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">cond</span>) {
+        <span class="kw">if</span> !(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">cond</span>) {
             <span class="macro">bail!</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">e</span>);
         }
     };
 }
 
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">DagResult</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">DagError</span><span class="op">&gt;</span>;
+<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">DagResult</span>&lt;<span class="ident">T</span>&gt; = <span class="prelude-ty">Result</span>&lt;<span class="ident">T</span>, <span class="ident">DagError</span>&gt;;
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Error</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">DagError</span> {
@@ -105,7 +105,7 @@
     <span class="ident">StoreError</span>(<span class="attribute">#[<span class="ident">from</span>]</span> <span class="ident">StoreError</span>),
 
     <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Serialization error: {0}&quot;</span>)]</span>
-    <span class="ident">SerializationError</span>(<span class="attribute">#[<span class="ident">from</span>]</span> <span class="ident">Box</span><span class="op">&lt;</span><span class="ident">bincode::ErrorKind</span><span class="op">&gt;</span>),
+    <span class="ident">SerializationError</span>(<span class="attribute">#[<span class="ident">from</span>]</span> <span class="ident">Box</span>&lt;<span class="ident">bincode::ErrorKind</span>&gt;),
 
     <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Invalid header id&quot;</span>)]</span>
     <span class="ident">InvalidHeaderId</span>,
@@ -141,4 +141,4 @@
     <span class="ident">ShuttingDown</span>,
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (20ffea693 2022-08-11)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>
