@@ -1,7 +1,7 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use crate::{committee, keys, temp_dir};
-use arc_swap::ArcSwap;
+use arc_swap::{ArcSwap, ArcSwapOption};
 use config::{Committee, Parameters, SharedCommittee, WorkerId};
 use crypto::{traits::KeyPair as _, KeyPair, PublicKey};
 use executor::{SerializedTransaction, SubscriberResult, DEFAULT_CHANNEL_SIZE};
@@ -14,9 +14,10 @@ use node::{
 };
 use prometheus::{proto::Metric, Registry};
 use std::{cell::RefCell, collections::HashMap, path::PathBuf, rc::Rc, sync::Arc, time::Duration};
+use task_group::TaskManager;
 use tokio::{
     sync::{broadcast::Sender, mpsc::channel, RwLock},
-    task::JoinHandle,
+    task::{JoinError, JoinHandle},
 };
 use tonic::transport::Channel;
 use tracing::info;
@@ -270,6 +271,7 @@ pub struct PrimaryNodeDetails {
     committee: SharedCommittee,
     parameters: Parameters,
     handlers: Rc<RefCell<Vec<JoinHandle<()>>>>,
+    primary: Rc<RefCell<Option<TaskManager<JoinError>>>>,
     internal_consensus_enabled: bool,
 }
 
@@ -293,6 +295,7 @@ impl PrimaryNodeDetails {
             committee,
             parameters,
             handlers: Rc::new(RefCell::new(Vec::new())),
+            primary: Rc::new(RefCell::new(None)),
             internal_consensus_enabled,
         }
     }
@@ -332,18 +335,20 @@ impl PrimaryNodeDetails {
 
         // Primary node
         let primary_store: NodeStorage = NodeStorage::reopen(store_path.clone());
-        let mut primary_handlers = Node::spawn_primary(
-            self.key_pair.copy(),
-            self.committee.clone(),
-            &primary_store,
-            self.parameters.clone(),
-            /* consensus */ self.internal_consensus_enabled,
-            /* execution_state */ Arc::new(SimpleExecutionState::default()),
-            tx_transaction_confirmation,
-            &registry,
-        )
-        .await
-        .unwrap();
+        self.primary.replace(Some(
+            Node::spawn_primary(
+                self.key_pair.copy(),
+                self.committee.clone(),
+                &primary_store,
+                self.parameters.clone(),
+                /* consensus */ self.internal_consensus_enabled,
+                /* execution_state */ Arc::new(SimpleExecutionState::default()),
+                tx_transaction_confirmation,
+                &registry,
+            )
+            .await
+            .unwrap(),
+        ));
 
         let (tx, _) = tokio::sync::broadcast::channel(DEFAULT_CHANNEL_SIZE);
         let transactions_sender = tx.clone();
@@ -358,12 +363,8 @@ impl PrimaryNodeDetails {
                 let _ = transactions_sender.send(t);
             }
         });
+        self.handlers.replace(vec![h]);
 
-        // add the tasks's handle to the primary's handle so can be shutdown
-        // with the others.
-        primary_handlers.push(h);
-
-        self.handlers.replace(primary_handlers);
         self.store_path = store_path;
         self.registry = registry;
         self.tx_transaction_confirmation = tx;
@@ -371,18 +372,16 @@ impl PrimaryNodeDetails {
 
     fn stop(&self) {
         self.handlers.borrow().iter().for_each(|h| h.abort());
+        self.primary.replace(None);
         info!("Aborted primary node for id {}", self.id);
     }
 
-    /// This method returns whether the node is still running or not. We
-    /// iterate over all the handlers and check whether there is still any
-    /// that is not finished. If we find at least one, then we report the
-    /// node as still running.
+    /// Returns whether the primary is still running, by checking if the TaskManager
+    /// and task handles exist and at least one of them is not finished.
     pub fn is_running(&self) -> bool {
-        if self.handlers.borrow().is_empty() {
+        if self.primary.borrow().is_none() || self.handlers.borrow().is_empty() {
             return false;
         }
-
         self.handlers.borrow().iter().any(|h| !h.is_finished())
     }
 }
@@ -396,7 +395,7 @@ pub struct WorkerNodeDetails {
     committee: SharedCommittee,
     parameters: Parameters,
     store_path: PathBuf,
-    handlers: Arc<ArcSwap<Vec<JoinHandle<()>>>>,
+    worker: Arc<ArcSwapOption<TaskManager<JoinError>>>,
 }
 
 impl WorkerNodeDetails {
@@ -415,7 +414,7 @@ impl WorkerNodeDetails {
             transactions_address,
             committee,
             parameters,
-            handlers: Arc::new(ArcSwap::from_pointee(Vec::new())),
+            worker: Arc::new(ArcSwapOption::from(None)),
         }
     }
 
@@ -438,31 +437,28 @@ impl WorkerNodeDetails {
         };
 
         let worker_store = NodeStorage::reopen(store_path.clone());
-        let worker_handlers = Node::spawn_workers(
+        self.worker.store(Some(Arc::new(Node::spawn_workers(
             self.name.clone(),
             vec![self.id],
             self.committee.clone(),
             &worker_store,
             self.parameters.clone(),
             &registry,
-        );
+        ))));
 
-        self.handlers.swap(Arc::new(worker_handlers));
         self.store_path = store_path;
         self.registry = registry;
     }
 
     fn stop(&self) {
-        self.handlers.load().iter().for_each(|h| h.abort());
+        self.worker.store(None);
         info!("Aborted worker node for id {}", self.id);
     }
 
-    /// This method returns whether the node is still running or not. We
-    /// iterate over all the handlers and check whether there is still any
-    /// that is not finished. If we find at least one, then we report the
-    /// node as still running.
+    /// Returns whether the worker is still running, by checking if the
+    /// TaskManager for worker tasks exists.
     pub fn is_running(&self) -> bool {
-        self.handlers.load().iter().any(|h| !h.is_finished())
+        self.worker.load().is_some()
     }
 }
 
