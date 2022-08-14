@@ -147,12 +147,14 @@ impl Bullshark {
         round: Round,
         dag: &'a Dag,
     ) -> Option<&'a (CertificateDigest, Certificate)> {
-        #[cfg(test)]
-        let seed = 0;
+        // Note: this function is often called with even rounds only. While we do not aim at random selection
+        // yet (see issue #10), repeated calls to this function should still pick from the whole roster of leaders.
         #[cfg(not(test))]
         let seed = round;
+        #[cfg(test)]
+        let seed = 0;
 
-        // Elect the leader in a round-robin fashion.
+        // Elect the leader in a stake-weighted choice seeded by the round
         let leader = committee.leader(seed as usize);
 
         // Return its certificate and the certificate's digest.
