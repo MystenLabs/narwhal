@@ -50,11 +50,13 @@ bitflags = { version = "1" }
 blake2 = { version = "0.9", features = ["std"] }
 blake2s_simd = { version = "1", features = ["std"] }
 block-buffer-93f6ce9d446188ac = { package = "block-buffer", version = "0.10", default-features = false }
-block-buffer-274715c4dabd11b0 = { package = "block-buffer", version = "0.9", default-features = false }
+block-buffer-274715c4dabd11b0 = { package = "block-buffer", version = "0.9", default-features = false, features = ["block-padding"] }
+block-padding = { version = "0.2", default-features = false }
 bls-crypto = { git = "https://github.com/huitseeker/celo-bls-snark-rs", branch = "updates-2", features = ["compat"] }
 blst = { version = "0.3" }
 bs58 = { version = "0.4", features = ["alloc", "std"] }
 bstr = { version = "0.2", features = ["lazy_static", "regex-automata", "serde", "serde1", "serde1-nostd", "std", "unicode"] }
+bulletproofs = { version = "4", features = ["rand", "std", "thiserror"] }
 byteorder = { version = "1", features = ["i128", "std"] }
 bytes = { version = "1", features = ["std"] }
 cast = { version = "0.3", default-features = false }
@@ -63,6 +65,7 @@ cfg-if-dff4ba8e3ae991db = { package = "cfg-if", version = "1", default-features 
 clap-f595c2ba2a3f28df = { package = "clap", version = "2", features = ["ansi_term", "atty", "color", "strsim", "suggestions", "vec_map"] }
 clap-7b89eefb6aaa9bf3 = { package = "clap", version = "3", features = ["atty", "color", "std", "strsim", "suggestions", "termcolor"] }
 clap_lex = { version = "0.2", default-features = false }
+clear_on_drop = { version = "0.2", default-features = false }
 collectable = { version = "0.0.2", default-features = false }
 console = { version = "0.15", default-features = false }
 const-oid = { version = "0.9", default-features = false }
@@ -83,7 +86,7 @@ crypto-mac = { version = "0.8", default-features = false, features = ["std"] }
 csv = { version = "1", default-features = false }
 csv-core = { version = "0.1" }
 curve25519-dalek = { version = "3", default-features = false, features = ["alloc", "std", "u64_backend"] }
-curve25519-dalek-ng = { version = "4", default-features = false, features = ["alloc", "u64_backend"] }
+curve25519-dalek-ng = { version = "4", features = ["alloc", "serde", "std", "u64_backend"] }
 dashmap = { version = "5", default-features = false }
 data-encoding = { version = "2", features = ["alloc", "std"] }
 der = { version = "0.6", default-features = false, features = ["alloc", "const-oid", "oid", "zeroize"] }
@@ -164,7 +167,8 @@ matches = { version = "0.1", default-features = false }
 matchit = { version = "0.5" }
 memchr = { version = "2", features = ["std"] }
 memoffset = { version = "0.6" }
-merlin = { version = "2", default-features = false }
+merlin-f595c2ba2a3f28df = { package = "merlin", version = "2", default-features = false }
+merlin-7b89eefb6aaa9bf3 = { package = "merlin", version = "3", features = ["std"] }
 mime = { version = "0.3", default-features = false }
 miniz_oxide = { version = "0.5", default-features = false }
 mio = { version = "0.8", features = ["net", "os-ext", "os-poll"] }
@@ -248,7 +252,8 @@ serde_with = { version = "2", features = ["alloc", "macros", "std"] }
 serde_yaml = { version = "0.8", default-features = false }
 sha2-93f6ce9d446188ac = { package = "sha2", version = "0.10", default-features = false }
 sha2-274715c4dabd11b0 = { package = "sha2", version = "0.9", default-features = false, features = ["std"] }
-sha3 = { version = "0.10", features = ["std"] }
+sha3-93f6ce9d446188ac = { package = "sha3", version = "0.10", features = ["std"] }
+sha3-274715c4dabd11b0 = { package = "sha3", version = "0.9", default-features = false }
 sharded-slab = { version = "0.1", default-features = false }
 signature = { version = "1", features = ["digest", "digest-preview", "rand-preview", "rand_core", "std"] }
 similar = { version = "2", features = ["inline", "text"] }
@@ -261,7 +266,7 @@ strsim-93f6ce9d446188ac = { package = "strsim", version = "0.10", default-featur
 strsim-c38e5c1d305a1b54 = { package = "strsim", version = "0.8", default-features = false }
 structopt = { version = "0.3" }
 subtle = { version = "2", default-features = false, features = ["i128", "std"] }
-subtle-ng = { version = "2", default-features = false }
+subtle-ng = { version = "2", default-features = false, features = ["std"] }
 sync_wrapper = { version = "0.1", default-features = false }
 tap = { version = "1", default-features = false }
 task-group = { version = "0.2", default-features = false }

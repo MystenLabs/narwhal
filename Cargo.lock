@@ -479,6 +479,7 @@ version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4152116fd6e9dadb291ae18fc1ec3575ed6d84c29642d97890f4b4a3417297e4"
 dependencies = [
+ "block-padding",
  "generic-array",
 ]
 
@@ -490,6 +491,12 @@ checksum = "0bf7fe51849ea569fd452f37822f606a5cabb684dc918707a0193fd4664ff324"
 dependencies = [
  "generic-array",
 ]
+
+[[package]]
+name = "block-padding"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8d696c370c750c948ada61c69a0ee2cbbb9c50b1019ddb86d9317157a99c2cae"
 
 [[package]]
 name = "bls-crypto"
@@ -546,6 +553,26 @@ dependencies = [
  "memchr",
  "regex-automata",
  "serde",
+]
+
+[[package]]
+name = "bulletproofs"
+version = "4.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "40e698f1df446cc6246afd823afbe2d121134d089c9102c1dd26d1264991ba32"
+dependencies = [
+ "byteorder",
+ "clear_on_drop",
+ "curve25519-dalek-ng",
+ "digest 0.9.0",
+ "merlin 3.0.0",
+ "rand 0.8.5",
+ "rand_core 0.6.3",
+ "serde",
+ "serde_derive",
+ "sha3 0.9.1",
+ "subtle-ng",
+ "thiserror",
 ]
 
 [[package]]
@@ -681,6 +708,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2850f2f5a82cbf437dd5af4d49848fbdfc27c157c3d010345776f952765261c5"
 dependencies = [
  "os_str_bytes",
+]
+
+[[package]]
+name = "clear_on_drop"
+version = "0.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "38508a63f4979f0048febc9966fadbd48e5dab31fd0ec6a3f151bbf4a74f7423"
+dependencies = [
+ "cc",
 ]
 
 [[package]]
@@ -942,7 +978,9 @@ dependencies = [
  "blake2",
  "bls-crypto",
  "blst",
+ "bulletproofs",
  "criterion",
+ "curve25519-dalek-ng",
  "digest 0.10.3",
  "ed25519-consensus",
  "eyre",
@@ -950,6 +988,7 @@ dependencies = [
  "hex-literal",
  "hkdf",
  "k256",
+ "merlin 3.0.0",
  "once_cell",
  "proptest",
  "proptest-derive",
@@ -961,7 +1000,7 @@ dependencies = [
  "serde_bytes",
  "serde_json",
  "serde_with",
- "sha3",
+ "sha3 0.10.2",
  "signature",
  "tokio",
  "workspace-hack",
@@ -1054,6 +1093,7 @@ dependencies = [
  "byteorder",
  "digest 0.9.0",
  "rand_core 0.6.3",
+ "serde",
  "subtle-ng",
  "zeroize",
 ]
@@ -1302,7 +1342,7 @@ checksum = "c762bae6dcaf24c4c84667b8579785430908723d5c889f469d76a41d59cc7a9d"
 dependencies = [
  "curve25519-dalek",
  "ed25519",
- "merlin",
+ "merlin 2.0.1",
  "rand 0.7.3",
  "serde",
  "serde_bytes",
@@ -1947,7 +1987,7 @@ dependencies = [
  "ecdsa",
  "elliptic-curve",
  "sha2 0.10.2",
- "sha3",
+ "sha3 0.10.2",
 ]
 
 [[package]]
@@ -2104,6 +2144,18 @@ dependencies = [
  "byteorder",
  "keccak",
  "rand_core 0.5.1",
+ "zeroize",
+]
+
+[[package]]
+name = "merlin"
+version = "3.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "58c38e2799fc0978b65dfff8023ec7843e2330bb462f19198840b34b6582397d"
+dependencies = [
+ "byteorder",
+ "keccak",
+ "rand_core 0.6.3",
  "zeroize",
 ]
 
@@ -3541,6 +3593,18 @@ dependencies = [
 
 [[package]]
 name = "sha3"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f81199417d4e5de3f04b1e871023acea7389672c4135918f05aa9cbf2f2fa809"
+dependencies = [
+ "block-buffer 0.9.0",
+ "digest 0.9.0",
+ "keccak",
+ "opaque-debug",
+]
+
+[[package]]
+name = "sha3"
 version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0a31480366ec990f395a61b7c08122d99bd40544fdb5abcfc1b06bb29994312c"
@@ -4831,10 +4895,12 @@ dependencies = [
  "blake2s_simd",
  "block-buffer 0.10.2",
  "block-buffer 0.9.0",
+ "block-padding",
  "bls-crypto",
  "blst",
  "bs58",
  "bstr",
+ "bulletproofs",
  "byteorder",
  "bytes",
  "cast",
@@ -4846,6 +4912,7 @@ dependencies = [
  "clap 2.34.0",
  "clap 3.2.13",
  "clap_lex",
+ "clear_on_drop",
  "cmake",
  "collectable",
  "console",
@@ -4964,7 +5031,8 @@ dependencies = [
  "matchit",
  "memchr",
  "memoffset",
- "merlin",
+ "merlin 2.0.1",
+ "merlin 3.0.0",
  "mime",
  "minimal-lexical",
  "miniz_oxide",
@@ -5083,7 +5151,8 @@ dependencies = [
  "serde_yaml",
  "sha2 0.10.2",
  "sha2 0.9.9",
- "sha3",
+ "sha3 0.10.2",
+ "sha3 0.9.1",
  "sharded-slab",
  "shlex",
  "signature",
