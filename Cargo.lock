@@ -1329,6 +1329,7 @@ name = "executor"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "backoff",
  "bincode",
  "blake2",
  "bytes",
@@ -1344,6 +1345,7 @@ dependencies = [
  "prometheus",
  "rand 0.7.3",
  "serde",
+ "telemetry-subscribers 0.1.0 (git+https://github.com/mystenlabs/mysten-infra.git?rev=d965a5a795dcdb4d1c7964acf556bc249fdc58aa)",
  "tempfile",
  "test_utils",
  "thiserror",
@@ -2272,7 +2274,7 @@ dependencies = [
  "serde_yaml",
  "structopt",
  "task-group",
- "telemetry-subscribers",
+ "telemetry-subscribers 0.1.0 (git+https://github.com/mystenlabs/mysten-infra.git?rev=f4aa523d3029bd6a23bead5f04c182f2cfa04c5e)",
  "test_utils",
  "thiserror",
  "tokio",
@@ -2766,7 +2768,7 @@ dependencies = [
  "rand 0.7.3",
  "serde",
  "tap",
- "telemetry-subscribers",
+ "telemetry-subscribers 0.1.0 (git+https://github.com/mystenlabs/mysten-infra.git?rev=f4aa523d3029bd6a23bead5f04c182f2cfa04c5e)",
  "tempfile",
  "test_utils",
  "thiserror",
@@ -3764,6 +3766,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "03dd7a047b726e1f087d542b9ca71380cb77e97372a850d9d5eec620dd5ee9cf"
 dependencies = [
  "tokio",
+]
+
+[[package]]
+name = "telemetry-subscribers"
+version = "0.1.0"
+source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=d965a5a795dcdb4d1c7964acf556bc249fdc58aa#d965a5a795dcdb4d1c7964acf556bc249fdc58aa"
+dependencies = [
+ "crossterm",
+ "once_cell",
+ "opentelemetry",
+ "opentelemetry-jaeger",
+ "tokio",
+ "tracing",
+ "tracing-appender",
+ "tracing-bunyan-formatter",
+ "tracing-chrome",
+ "tracing-opentelemetry",
+ "tracing-subscriber 0.3.15",
 ]
 
 [[package]]
@@ -5055,7 +5075,8 @@ dependencies = [
  "synstructure",
  "tap",
  "task-group",
- "telemetry-subscribers",
+ "telemetry-subscribers 0.1.0 (git+https://github.com/mystenlabs/mysten-infra.git?rev=d965a5a795dcdb4d1c7964acf556bc249fdc58aa)",
+ "telemetry-subscribers 0.1.0 (git+https://github.com/mystenlabs/mysten-infra.git?rev=f4aa523d3029bd6a23bead5f04c182f2cfa04c5e)",
  "tempfile",
  "termcolor",
  "terminal_size",

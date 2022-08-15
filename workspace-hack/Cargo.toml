@@ -264,7 +264,8 @@ subtle = { version = "2", default-features = false, features = ["i128", "std"] }
 sync_wrapper = { version = "0.1", default-features = false }
 tap = { version = "1", default-features = false }
 task-group = { version = "0.2", default-features = false }
-telemetry-subscribers = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "f4aa523d3029bd6a23bead5f04c182f2cfa04c5e", features = ["chrome", "jaeger", "opentelemetry", "opentelemetry-jaeger", "tracing-chrome", "tracing-opentelemetry"] }
+telemetry-subscribers-2187a2855c8ab378 = { package = "telemetry-subscribers", git = "https://github.com/mystenlabs/mysten-infra.git", rev = "d965a5a795dcdb4d1c7964acf556bc249fdc58aa", features = ["chrome", "jaeger", "opentelemetry", "opentelemetry-jaeger", "tracing-chrome", "tracing-opentelemetry"] }
+telemetry-subscribers-a710c70c615361f9 = { package = "telemetry-subscribers", git = "https://github.com/mystenlabs/mysten-infra.git", rev = "f4aa523d3029bd6a23bead5f04c182f2cfa04c5e", features = ["chrome", "jaeger", "opentelemetry", "opentelemetry-jaeger", "tracing-chrome", "tracing-opentelemetry"] }
 tempfile = { version = "3", default-features = false }
 termcolor = { version = "1", default-features = false }
 terminal_size = { version = "0.1", default-features = false }
