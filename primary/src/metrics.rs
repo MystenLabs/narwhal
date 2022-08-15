@@ -69,7 +69,9 @@ pub struct PrimaryChannelMetrics {
     pub tx_primary_messages: IntGauge,
     /// occupancy of the channel from the `primary::PrimaryReceiverHandler` to the `primary::Helper`
     pub tx_helper_requests: IntGauge,
-    /// occupancy of the channel from the `primary::ConsensusAPIGrpc` & `executor::Subscriber` to the `primary::BlockWaiter`
+    /// occupancy of the channel from the `primary::ConsensusAPIGrpc` (when external consensus is being
+    /// used) & `executor::Subscriber` (when internal consensus, ex Bullshark, is being used)  to
+    /// the `primary::BlockWaiter`.
     pub tx_get_block_commands: IntGauge,
     /// occupancy of the channel from the `primary::WorkerReceiverHandler` to the `primary::BlockWaiter`
     pub tx_batches: IntGauge,
