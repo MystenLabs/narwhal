@@ -941,9 +941,9 @@ dependencies = [
 
 [[package]]
 name = "crossterm"
-version = "0.24.0"
+version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ab9f7409c70a38a56216480fba371ee460207dd8926ccf5b4160591759559170"
+checksum = "e64e6c0fbe2c17357405f7c758c1ef960fce08bdfb2c03d88d2a18d7e09c4b67"
 dependencies = [
  "bitflags",
  "crossterm_winapi",
@@ -1416,7 +1416,7 @@ dependencies = [
  "prometheus",
  "rand 0.8.5",
  "serde",
- "telemetry-subscribers 0.1.0 (git+https://github.com/mystenlabs/mysten-infra.git?rev=d965a5a795dcdb4d1c7964acf556bc249fdc58aa)",
+ "telemetry-subscribers",
  "tempfile",
  "test_utils",
  "thiserror",
@@ -1567,9 +1567,9 @@ checksum = "93a66fc6d035a26a3ae255a6d2bca35eda63ae4c5512bef54449113f7a1228e5"
 
 [[package]]
 name = "futures-macro"
-version = "0.3.21"
+version = "0.3.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "33c1e13800337f4d4d7a316bf45a567dbcb6ffe087f16424852d97e97a91f512"
+checksum = "0db9cce532b0eae2ccf2766ab246f114b56b9cf6d445e00c2549fbc100ca045d"
 dependencies = [
  "proc-macro2 1.0.40",
  "quote 1.0.20",
@@ -1590,9 +1590,9 @@ checksum = "842fc63b931f4056a24d59de13fb1272134ce261816e063e634ad0c15cdc5306"
 
 [[package]]
 name = "futures-util"
-version = "0.3.21"
+version = "0.3.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d8b7abd5d659d9b90c8cba917f6ec750a74e2dc23902ef9cd4cc8c8b22e6036a"
+checksum = "f0828a5471e340229c11c77ca80017937ce3c58cb788a17e5f1c2d5c485a9577"
 dependencies = [
  "futures-channel",
  "futures-core",
@@ -2271,11 +2271,11 @@ checksum = "e5ce46fe64a9d73be07dcbe690a38ce1b293be448fd8ce1e6c1b8062c9f72c6a"
 [[package]]
 name = "mysten-network"
 version = "0.1.0"
-source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=f4aa523d3029bd6a23bead5f04c182f2cfa04c5e#f4aa523d3029bd6a23bead5f04c182f2cfa04c5e"
+source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=8d090689be14078f2ca41c356e7bbc0af21f73ab#8d090689be14078f2ca41c356e7bbc0af21f73ab"
 dependencies = [
- "anyhow",
  "bincode",
  "bytes",
+ "eyre",
  "futures",
  "http",
  "multiaddr",
@@ -2357,7 +2357,7 @@ dependencies = [
  "serde_yaml",
  "structopt",
  "task-group",
- "telemetry-subscribers 0.1.0 (git+https://github.com/mystenlabs/mysten-infra.git?rev=f4aa523d3029bd6a23bead5f04c182f2cfa04c5e)",
+ "telemetry-subscribers",
  "test_utils",
  "thiserror",
  "tokio",
@@ -2851,7 +2851,7 @@ dependencies = [
  "rand 0.8.5",
  "serde",
  "tap",
- "telemetry-subscribers 0.1.0 (git+https://github.com/mystenlabs/mysten-infra.git?rev=f4aa523d3029bd6a23bead5f04c182f2cfa04c5e)",
+ "telemetry-subscribers",
  "tempfile",
  "test_utils",
  "thiserror",
@@ -3862,25 +3862,7 @@ dependencies = [
 [[package]]
 name = "telemetry-subscribers"
 version = "0.1.0"
-source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=d965a5a795dcdb4d1c7964acf556bc249fdc58aa#d965a5a795dcdb4d1c7964acf556bc249fdc58aa"
-dependencies = [
- "crossterm",
- "once_cell",
- "opentelemetry",
- "opentelemetry-jaeger",
- "tokio",
- "tracing",
- "tracing-appender",
- "tracing-bunyan-formatter",
- "tracing-chrome",
- "tracing-opentelemetry",
- "tracing-subscriber 0.3.15",
-]
-
-[[package]]
-name = "telemetry-subscribers"
-version = "0.1.0"
-source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=f4aa523d3029bd6a23bead5f04c182f2cfa04c5e#f4aa523d3029bd6a23bead5f04c182f2cfa04c5e"
+source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=8d090689be14078f2ca41c356e7bbc0af21f73ab#8d090689be14078f2ca41c356e7bbc0af21f73ab"
 dependencies = [
  "crossterm",
  "once_cell",
@@ -4044,12 +4026,11 @@ dependencies = [
 
 [[package]]
 name = "time"
-version = "0.3.12"
+version = "0.3.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "74b7cc93fc23ba97fde84f7eea56c55d1ba183f495c6715defdfc7b9cb8c870f"
+checksum = "db76ff9fa4b1458b3c7f077f3ff9887394058460d21e634355b273aaf11eea45"
 dependencies = [
  "itoa 1.0.2",
- "js-sys",
  "libc",
  "num_threads",
  "serde",
@@ -4451,9 +4432,8 @@ checksum = "59547bce71d9c38b83d9c0e92b6066c4253371f15005def0c30d9657f50c7642"
 [[package]]
 name = "typed-store"
 version = "0.1.0"
-source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=f4aa523d3029bd6a23bead5f04c182f2cfa04c5e#f4aa523d3029bd6a23bead5f04c182f2cfa04c5e"
+source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=8d090689be14078f2ca41c356e7bbc0af21f73ab#8d090689be14078f2ca41c356e7bbc0af21f73ab"
 dependencies = [
- "anyhow",
  "bincode",
  "collectable",
  "eyre",
@@ -4461,6 +4441,7 @@ dependencies = [
  "pre",
  "rocksdb",
  "serde",
+ "tap",
  "thiserror",
  "tokio",
  "tracing",
@@ -4817,7 +4798,6 @@ checksum = "c811ca4a8c853ef420abd8592ba53ddbbac90410fab6903b3e79972a631f7680"
 name = "worker"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "arc-swap",
  "async-trait",
  "bincode",
@@ -5174,8 +5154,7 @@ dependencies = [
  "synstructure",
  "tap",
  "task-group",
- "telemetry-subscribers 0.1.0 (git+https://github.com/mystenlabs/mysten-infra.git?rev=d965a5a795dcdb4d1c7964acf556bc249fdc58aa)",
- "telemetry-subscribers 0.1.0 (git+https://github.com/mystenlabs/mysten-infra.git?rev=f4aa523d3029bd6a23bead5f04c182f2cfa04c5e)",
+ "telemetry-subscribers",
  "tempfile",
  "termcolor",
  "terminal_size",
