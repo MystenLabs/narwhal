@@ -1002,6 +1002,9 @@
 <span id="1002">1002</span>
 <span id="1003">1003</span>
 <span id="1004">1004</span>
+<span id="1005">1005</span>
+<span id="1006">1006</span>
+<span id="1007">1007</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use crate</span>::{
@@ -1377,7 +1380,7 @@
     /// logic of waiting and gathering the replies from the primary nodes
     /// for the payload availability. This future is returning the next State
     /// to be executed.
-    </span><span class="attribute">#[instrument(level=<span class="string">&quot;debug&quot;</span>, skip_all, fields(num_certificates = certificates.len()))]</span>
+    </span><span class="attribute">#[instrument(level=<span class="string">&quot;trace&quot;</span>, skip_all, fields(num_certificates = certificates.len()))]</span>
     <span class="kw">async fn </span>handle_synchronize_block_payload_command&lt;<span class="lifetime">&#39;a</span>&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         certificates: Vec&lt;Certificate&gt;,
@@ -1409,7 +1412,10 @@
             <span class="macro">trace!</span>(<span class="string">&quot;Certificate payloads need sync&quot;</span>);
         }
 
-        <span class="kw">let </span>key = RequestID::from_iter(certificates_to_sync.iter());
+        <span class="comment">// TODO: add metric here to track the number of certificates
+        // requested that are missing a payload
+
+        </span><span class="kw">let </span>key = RequestID::from_iter(certificates_to_sync.iter());
 
         <span class="kw">let </span>message = PrimaryMessage::PayloadAvailabilityRequest {
             certificate_ids: block_ids_to_sync,
@@ -1559,7 +1565,7 @@
     /// a reply is immediately sent to the consumer via the provided respond_to
     /// channel. For the ones that haven&#39;t been found, are returned back on the
     /// returned vector.
-    </span><span class="attribute">#[instrument(level = <span class="string">&quot;debug&quot;</span>, skip_all)]</span>
+    </span><span class="attribute">#[instrument(level = <span class="string">&quot;trace&quot;</span>, skip_all)]</span>
     <span class="kw">async fn </span>reply_with_payload_already_in_storage(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         certificates: Vec&lt;Certificate&gt;,
@@ -1620,7 +1626,7 @@
 
     <span class="comment">// Broadcasts a message to all the other primary nodes.
     // It returns back the primary names to which we have sent the requests.
-    </span><span class="attribute">#[instrument(level = <span class="string">&quot;debug&quot;</span>, skip_all)]</span>
+    </span><span class="attribute">#[instrument(level = <span class="string">&quot;trace&quot;</span>, skip_all)]</span>
     <span class="kw">async fn </span>broadcast_batch_request(<span class="kw-2">&amp;mut </span><span class="self">self</span>, message: PrimaryMessage) -&gt; Vec&lt;PublicKey&gt; {
         <span class="comment">// Naively now just broadcast the request to all the primaries
 
@@ -1638,7 +1644,7 @@
         primaries_names
     }
 
-    <span class="attribute">#[instrument(level=<span class="string">&quot;debug&quot;</span>, skip_all, fields(request_id = <span class="question-mark">?</span>request_id))]</span>
+    <span class="attribute">#[instrument(level=<span class="string">&quot;trace&quot;</span>, skip_all, fields(request_id = <span class="question-mark">?</span>request_id))]</span>
     <span class="kw">async fn </span>handle_synchronize_block_payloads&lt;<span class="lifetime">&#39;a</span>&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         request_id: RequestID,
@@ -1681,7 +1687,7 @@
     ///
     /// * `primary_peer_name` - The primary from which we are looking to sync the batches.
     /// * `certificates` - The certificates for which we want to sync their batches.
-    </span><span class="attribute">#[instrument(level = <span class="string">&quot;debug&quot;</span>, skip_all)]</span>
+    </span><span class="attribute">#[instrument(level = <span class="string">&quot;trace&quot;</span>, skip_all)]</span>
     <span class="kw">async fn </span>send_synchronize_payload_requests(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         primary_peer_name: PublicKey,
@@ -1747,7 +1753,7 @@
         }
     }
 
-    <span class="attribute">#[instrument(level = <span class="string">&quot;debug&quot;</span>, skip_all)]</span>
+    <span class="attribute">#[instrument(level = <span class="string">&quot;trace&quot;</span>, skip_all)]</span>
     <span class="kw">async fn </span>handle_payload_availability_response(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         response: PayloadAvailabilityResponse,
@@ -1770,7 +1776,7 @@
         }
     }
 
-    <span class="attribute">#[instrument(level = <span class="string">&quot;debug&quot;</span>, skip_all)]</span>
+    <span class="attribute">#[instrument(level = <span class="string">&quot;trace&quot;</span>, skip_all)]</span>
     <span class="kw">async fn </span>handle_certificates_response(<span class="kw-2">&amp;mut </span><span class="self">self</span>, response: CertificatesResponse) {
         <span class="kw">let </span>sender = <span class="self">self
             </span>.map_certificate_responses_senders

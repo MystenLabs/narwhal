@@ -317,8 +317,6 @@
 <span id="317">317</span>
 <span id="318">318</span>
 <span id="319">319</span>
-<span id="320">320</span>
-<span id="321">321</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use crate</span>::{
@@ -447,7 +445,6 @@
         }
     }
 
-    <span class="attribute">#[instrument(level = <span class="string">&quot;debug&quot;</span>, skip_all)]</span>
     <span class="kw">async fn </span>wait_all(<span class="kw-2">&amp;</span><span class="self">self</span>, certificates: Vec&lt;Certificate&gt;) -&gt; Vec&lt;<span class="prelude-ty">Result</span>&lt;Certificate, Error&gt;&gt; {
         <span class="kw">let </span>futures: Vec&lt;<span class="kw">_</span>&gt; = certificates
             .into_iter()
@@ -457,7 +454,6 @@
         join_all(futures).<span class="kw">await
     </span>}
 
-    <span class="attribute">#[instrument(level = <span class="string">&quot;debug&quot;</span>, skip_all, err)]</span>
     <span class="kw">async fn </span>wait(<span class="kw-2">&amp;</span><span class="self">self</span>, block_id: CertificateDigest) -&gt; <span class="prelude-ty">Result</span>&lt;Certificate, Error&gt; {
         <span class="kw">if let </span><span class="prelude-val">Ok</span>(result) = timeout(
             <span class="self">self</span>.certificate_deliver_timeout,
@@ -485,7 +481,7 @@
     /// * Internal: An internal error caused
     /// * BlockDeliveryTimeout: Timed out while waiting for the certificate to become available
     /// after submitting it for processing to core
-    </span><span class="attribute">#[instrument(level=<span class="string">&quot;debug&quot;</span>, skip_all, fields(num_block_ids = block_ids.len()))]</span>
+    </span><span class="attribute">#[instrument(level=<span class="string">&quot;trace&quot;</span>, skip_all, fields(num_block_ids = block_ids.len()))]</span>
     <span class="kw">async fn </span>get_and_synchronize_block_headers(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         block_ids: Vec&lt;CertificateDigest&gt;,
@@ -550,7 +546,7 @@
         results
     }
 
-    <span class="attribute">#[instrument(level=<span class="string">&quot;debug&quot;</span>, skip_all, fields(num_block_ids = block_ids.len()))]</span>
+    <span class="attribute">#[instrument(level=<span class="string">&quot;trace&quot;</span>, skip_all, fields(num_block_ids = block_ids.len()))]</span>
     <span class="kw">async fn </span>get_block_headers(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         block_ids: Vec&lt;CertificateDigest&gt;,
@@ -587,7 +583,7 @@
         results
     }
 
-    <span class="attribute">#[instrument(level = <span class="string">&quot;debug&quot;</span>, skip_all)]</span>
+    <span class="attribute">#[instrument(level = <span class="string">&quot;trace&quot;</span>, skip_all)]</span>
     <span class="kw">async fn </span>synchronize_block_payloads(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         certificates: Vec&lt;Certificate&gt;,

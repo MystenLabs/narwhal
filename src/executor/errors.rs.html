@@ -71,12 +71,17 @@
 <span id="71">71</span>
 <span id="72">72</span>
 <span id="73">73</span>
+<span id="74">74</span>
+<span id="75">75</span>
+<span id="76">76</span>
+<span id="77">77</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span>config::WorkerId;
 <span class="kw">use </span>std::fmt::Debug;
 <span class="kw">use </span>store::StoreError;
 <span class="kw">use </span>thiserror::Error;
+<span class="kw">use </span>types::CertificateDigest;
 
 <span class="attribute">#[macro_export]</span>
 <span class="macro">macro_rules!</span> bail {
@@ -100,6 +105,9 @@
 <span class="kw">pub enum </span>SubscriberError {
     <span class="attribute">#[error(<span class="string">&quot;Storage failure: {0}&quot;</span>)]</span>
     StoreError(<span class="attribute">#[from]</span> StoreError),
+
+    <span class="attribute">#[error(<span class="string">&quot;Error occurred while retrieving certificate {0} payload: {1}&quot;</span>)]</span>
+    PayloadRetrieveError(CertificateDigest, String),
 
     <span class="attribute">#[error(<span class="string">&quot;Consensus referenced unexpected worker id {0}&quot;</span>)]</span>
     UnexpectedWorkerId(WorkerId),

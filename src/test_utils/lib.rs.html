@@ -848,6 +848,20 @@
 <span id="848">848</span>
 <span id="849">849</span>
 <span id="850">850</span>
+<span id="851">851</span>
+<span id="852">852</span>
+<span id="853">853</span>
+<span id="854">854</span>
+<span id="855">855</span>
+<span id="856">856</span>
+<span id="857">857</span>
+<span id="858">858</span>
+<span id="859">859</span>
+<span id="860">860</span>
+<span id="861">861</span>
+<span id="862">862</span>
+<span id="863">863</span>
+<span id="864">864</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -933,6 +947,20 @@
             <span class="kw-2">&amp;</span>prometheus::IntGauge::new(
                 primary::PrimaryChannelMetrics::NAME_NEW_CERTS,
                 primary::PrimaryChannelMetrics::DESC_NEW_CERTS,
+            )
+            .unwrap(),
+        );
+    };
+}
+
+<span class="attribute">#[macro_export]</span>
+<span class="macro">macro_rules!</span> test_get_block_commands {
+    (<span class="macro-nonterminal">$e</span>:expr) =&gt; {
+        types::metered_channel::channel(
+            <span class="macro-nonterminal">$e</span>,
+            <span class="kw-2">&amp;</span>prometheus::IntGauge::new(
+                primary::PrimaryChannelMetrics::NAME_GET_BLOCK_COMMANDS,
+                primary::PrimaryChannelMetrics::DESC_GET_BLOCK_COMMANDS,
             )
             .unwrap(),
         );

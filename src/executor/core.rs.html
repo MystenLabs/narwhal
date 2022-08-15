@@ -234,16 +234,6 @@
 <span id="234">234</span>
 <span id="235">235</span>
 <span id="236">236</span>
-<span id="237">237</span>
-<span id="238">238</span>
-<span id="239">239</span>
-<span id="240">240</span>
-<span id="241">241</span>
-<span id="242">242</span>
-<span id="243">243</span>
-<span id="244">244</span>
-<span id="245">245</span>
-<span id="246">246</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use crate</span>::{
@@ -260,11 +250,7 @@
     task::JoinHandle,
 };
 <span class="kw">use </span>tracing::debug;
-<span class="kw">use </span>types::{
-    metered_channel, Batch, BatchDigest, ReconfigureNotification, SequenceNumber,
-    SerializedBatchMessage,
-};
-<span class="kw">use </span>worker::WorkerMessage;
+<span class="kw">use </span>types::{metered_channel, Batch, BatchDigest, ReconfigureNotification, SequenceNumber};
 
 <span class="attribute">#[cfg(test)]</span>
 <span class="attribute">#[path = <span class="string">&quot;tests/executor_tests.rs&quot;</span>]</span>
@@ -276,7 +262,7 @@
 /// not processes twice the same transaction (despite crash-recovery).
 </span><span class="kw">pub struct </span>Core&lt;State: ExecutionState&gt; {
     <span class="doccomment">/// The temporary storage holding all transactions&#39; data (that may be too big to hold in memory).
-    </span>store: Store&lt;BatchDigest, SerializedBatchMessage&gt;,
+    </span>store: Store&lt;BatchDigest, Batch&gt;,
     <span class="doccomment">/// The (global) state to perform execution.
     </span>execution_state: Arc&lt;State&gt;,
     <span class="doccomment">/// Receive reconfiguration updates.
@@ -304,7 +290,7 @@
     <span class="doccomment">/// Spawn a new executor in a dedicated tokio task.
     </span><span class="attribute">#[must_use]</span>
     <span class="kw">pub fn </span>spawn(
-        store: Store&lt;BatchDigest, SerializedBatchMessage&gt;,
+        store: Store&lt;BatchDigest, Batch&gt;,
         execution_state: Arc&lt;State&gt;,
         rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;,
         rx_subscriber: metered_channel::Receiver&lt;ConsensusOutput&gt;,
@@ -384,8 +370,8 @@
         total_batches: usize,
     ) -&gt; SubscriberResult&lt;()&gt; {
         <span class="comment">// The store should now hold all transaction data referenced by the input certificate.
-        </span><span class="kw">let </span>batch = <span class="kw">match </span><span class="self">self</span>.store.read(batch_digest).<span class="kw">await</span><span class="question-mark">? </span>{
-            <span class="prelude-val">Some</span>(x) =&gt; x,
+        </span><span class="kw">let </span>transactions = <span class="kw">match </span><span class="self">self</span>.store.read(batch_digest).<span class="kw">await</span><span class="question-mark">? </span>{
+            <span class="prelude-val">Some</span>(x) =&gt; x.<span class="number">0</span>,
             <span class="prelude-val">None </span>=&gt; {
                 <span class="comment">// If two certificates contain the exact same batch (eg. by the actions of a Byzantine
                 // consensus node), some correct client may already have deleted the batch from their
@@ -396,12 +382,6 @@
                 <span class="self">self</span>.execution_indices.skip_batch(total_batches);
                 <span class="kw">return </span><span class="prelude-val">Ok</span>(());
             }
-        };
-
-        <span class="comment">// Deserialize the consensus workers&#39; batch message to retrieve a list of transactions.
-        </span><span class="kw">let </span>transactions = <span class="kw">match </span>bincode::deserialize(<span class="kw-2">&amp;</span>batch)<span class="question-mark">? </span>{
-            WorkerMessage::Batch(Batch(x)) =&gt; x,
-            <span class="kw">_ </span>=&gt; <span class="macro">bail!</span>(SubscriberError::UnexpectedProtocolMessage),
         };
 
         <span class="comment">// Execute every transaction in the batch.

@@ -734,6 +734,29 @@
 <span id="734">734</span>
 <span id="735">735</span>
 <span id="736">736</span>
+<span id="737">737</span>
+<span id="738">738</span>
+<span id="739">739</span>
+<span id="740">740</span>
+<span id="741">741</span>
+<span id="742">742</span>
+<span id="743">743</span>
+<span id="744">744</span>
+<span id="745">745</span>
+<span id="746">746</span>
+<span id="747">747</span>
+<span id="748">748</span>
+<span id="749">749</span>
+<span id="750">750</span>
+<span id="751">751</span>
+<span id="752">752</span>
+<span id="753">753</span>
+<span id="754">754</span>
+<span id="755">755</span>
+<span id="756">756</span>
+<span id="757">757</span>
+<span id="758">758</span>
+<span id="759">759</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use crate</span>::{committee, keys, temp_dir};
@@ -757,7 +780,7 @@
 };
 <span class="kw">use </span>tonic::transport::Channel;
 <span class="kw">use </span>tracing::info;
-<span class="kw">use </span>types::{ConfigurationClient, ProposerClient};
+<span class="kw">use </span>types::{ConfigurationClient, ProposerClient, TransactionsClient};
 
 <span class="attribute">#[cfg(test)]</span>
 <span class="attribute">#[path = <span class="string">&quot;tests/cluster_tests.rs&quot;</span>]</span>
@@ -1430,6 +1453,29 @@
             .unwrap();
 
         ProposerClient::new(channel)
+    }
+
+    <span class="doccomment">/// This method returns a new client to send transactions to the dictated
+    /// worker identified by the `worker_id`. If the worker_id is not found then
+    /// a panic is raised.
+    </span><span class="kw">pub async fn </span>new_transactions_client(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        worker_id: <span class="kw-2">&amp;</span>WorkerId,
+    ) -&gt; TransactionsClient&lt;Channel&gt; {
+        <span class="kw">let </span>internal = <span class="self">self</span>.internal.read().<span class="kw">await</span>;
+
+        <span class="kw">let </span>config = mysten_network::config::Config::new();
+        <span class="kw">let </span>channel = config
+            .connect_lazy(
+                <span class="kw-2">&amp;</span>internal
+                    .workers
+                    .get(worker_id)
+                    .unwrap()
+                    .transactions_address,
+            )
+            .unwrap();
+
+        TransactionsClient::new(channel)
     }
 
     <span class="doccomment">/// Creates a new configuration client that connects to the corresponding client.

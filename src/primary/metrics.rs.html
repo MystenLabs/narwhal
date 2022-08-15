@@ -439,6 +439,30 @@
 <span id="439">439</span>
 <span id="440">440</span>
 <span id="441">441</span>
+<span id="442">442</span>
+<span id="443">443</span>
+<span id="444">444</span>
+<span id="445">445</span>
+<span id="446">446</span>
+<span id="447">447</span>
+<span id="448">448</span>
+<span id="449">449</span>
+<span id="450">450</span>
+<span id="451">451</span>
+<span id="452">452</span>
+<span id="453">453</span>
+<span id="454">454</span>
+<span id="455">455</span>
+<span id="456">456</span>
+<span id="457">457</span>
+<span id="458">458</span>
+<span id="459">459</span>
+<span id="460">460</span>
+<span id="461">461</span>
+<span id="462">462</span>
+<span id="463">463</span>
+<span id="464">464</span>
+<span id="465">465</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span><span class="kw">crate</span>::EndpointMetrics;
@@ -510,7 +534,9 @@
     </span><span class="kw">pub </span>tx_primary_messages: IntGauge,
     <span class="doccomment">/// occupancy of the channel from the `primary::PrimaryReceiverHandler` to the `primary::Helper`
     </span><span class="kw">pub </span>tx_helper_requests: IntGauge,
-    <span class="doccomment">/// occupancy of the channel from the `primary::ConsensusAPIGrpc` to the `primary::BlockWaiter`
+    <span class="doccomment">/// occupancy of the channel from the `primary::ConsensusAPIGrpc` (when external consensus is being
+    /// used) &amp; `executor::Subscriber` (when internal consensus, ex Bullshark, is being used)  to
+    /// the `primary::BlockWaiter`.
     </span><span class="kw">pub </span>tx_get_block_commands: IntGauge,
     <span class="doccomment">/// occupancy of the channel from the `primary::WorkerReceiverHandler` to the `primary::BlockWaiter`
     </span><span class="kw">pub </span>tx_batches: IntGauge,
@@ -535,14 +561,21 @@
 }
 
 <span class="kw">impl </span>PrimaryChannelMetrics {
-    <span class="comment">// The consistent use of this constant in the below, as well as in `node::spawn_primary` is load-bearing, see `replace_registered_committed_certificates_metric`.
+    <span class="comment">// The consistent use of this constant in the below, as well as in `node::spawn_primary` is
+    // load-bearing, see `replace_registered_committed_certificates_metric`.
     </span><span class="kw">pub const </span>NAME_COMMITTED_CERTS: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str = <span class="string">&quot;tx_committed_certificates&quot;</span>;
     <span class="kw">pub const </span>DESC_COMMITTED_CERTS: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str =
         <span class="string">&quot;occupancy of the channel from the `Consensus` to the `primary::Core`&quot;</span>;
-    <span class="comment">// The consistent use of this constant in the below, as well as in `node::spawn_primary` is load-bearing, see `replace_registered_new_certificates_metric`.
+    <span class="comment">// The consistent use of this constant in the below, as well as in `node::spawn_primary` is
+    // load-bearing, see `replace_registered_new_certificates_metric`.
     </span><span class="kw">pub const </span>NAME_NEW_CERTS: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str = <span class="string">&quot;tx_new_certificates&quot;</span>;
     <span class="kw">pub const </span>DESC_NEW_CERTS: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str =
         <span class="string">&quot;occupancy of the channel from the `primary::Core` to the `Consensus`&quot;</span>;
+    <span class="comment">// The consistent use of this constant in the below, as well as in `node::spawn_primary` is
+    // load-bearing, see `replace_registered_tx_get_block_commands_metric`.
+    </span><span class="kw">pub const </span>NAME_GET_BLOCK_COMMANDS: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str = <span class="string">&quot;tx_get_block_commands&quot;</span>;
+    <span class="kw">pub const </span>DESC_GET_BLOCK_COMMANDS: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str =
+        <span class="string">&quot;occupancy of the channel from the `primary::ConsensusAPIGrpc` &amp; `executor::Subscriber` to the `primary::BlockWaiter`&quot;</span>;
 
     <span class="kw">pub fn </span>new(registry: <span class="kw-2">&amp;</span>Registry) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
@@ -598,7 +631,7 @@
             ).unwrap(),
             tx_get_block_commands: <span class="macro">register_int_gauge_with_registry!</span>(
                 <span class="string">&quot;tx_get_block_commands&quot;</span>,
-                <span class="string">&quot;occupancy of the channel from the `primary::ConsensusAPIGrpc` to the `primary::BlockWaiter`&quot;</span>,
+                <span class="string">&quot;occupancy of the channel from the `primary::ConsensusAPIGrpc` &amp; `executor::Subscriber` to the `primary::BlockWaiter`&quot;</span>,
                 registry
             ).unwrap(),
             tx_batches: <span class="macro">register_int_gauge_with_registry!</span>(
@@ -682,6 +715,21 @@
             .unwrap();
         registry.register(collector).unwrap();
         <span class="self">self</span>.tx_committed_certificates = committed_certificates_counter;
+    }
+
+    <span class="kw">pub fn </span>replace_registered_get_block_commands_metric(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        registry: <span class="kw-2">&amp;</span>Registry,
+        collector: Box&lt;GenericGauge&lt;AtomicI64&gt;&gt;,
+    ) {
+        <span class="kw">let </span>tx_get_block_commands_counter =
+            IntGauge::new(<span class="self">Self</span>::NAME_GET_BLOCK_COMMANDS, <span class="self">Self</span>::DESC_GET_BLOCK_COMMANDS).unwrap();
+        <span class="comment">// TODO: Sanity-check by hashing the descs against one another
+        </span>registry
+            .unregister(Box::new(tx_get_block_commands_counter.clone()))
+            .unwrap();
+        registry.register(collector).unwrap();
+        <span class="self">self</span>.tx_get_block_commands = tx_get_block_commands_counter;
     }
 }
 

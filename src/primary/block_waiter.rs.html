@@ -1258,7 +1258,7 @@
     }
 
     <span class="doccomment">/// Helper method to retrieve a single certificate.
-    </span><span class="attribute">#[instrument(level = <span class="string">&quot;debug&quot;</span>, skip_all, fields(certificate_id = <span class="question-mark">?</span>id))]</span>
+    </span><span class="attribute">#[instrument(level = <span class="string">&quot;trace&quot;</span>, skip_all, fields(certificate_id = <span class="question-mark">?</span>id))]</span>
     <span class="kw">async fn </span>get_certificate(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: CertificateDigest) -&gt; <span class="prelude-ty">Option</span>&lt;Certificate&gt; {
         <span class="kw">if let </span><span class="prelude-val">Some</span>((<span class="kw">_</span>, c)) = <span class="self">self</span>.get_certificates(<span class="macro">vec!</span>[id]).<span class="kw">await</span>.first() {
             <span class="kw">return </span>c.to_owned();
@@ -1271,7 +1271,7 @@
     /// fetch it via the peers. Otherwise if available on the storage
     /// should return the result immediately. The method is blocking to
     /// retrieve all the results.
-    </span><span class="attribute">#[instrument(level = <span class="string">&quot;debug&quot;</span>, skip_all, fields(num_certificate_ids = ids.len()))]</span>
+    </span><span class="attribute">#[instrument(level = <span class="string">&quot;trace&quot;</span>, skip_all, fields(num_certificate_ids = ids.len()))]</span>
     <span class="kw">async fn </span>get_certificates(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         ids: Vec&lt;CertificateDigest&gt;,
@@ -1429,7 +1429,7 @@
                 .or_insert_with(Vec::new)
                 .push(sender);
 
-            <span class="macro">debug!</span>(<span class="string">&quot;Block with id {} already has a pending request&quot;</span>, id.clone());
+            <span class="macro">trace!</span>(<span class="string">&quot;Block with id {} already has a pending request&quot;</span>, id.clone());
             <span class="kw">return </span><span class="prelude-val">None</span>;
         }
 

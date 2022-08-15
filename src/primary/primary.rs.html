@@ -697,6 +697,13 @@
 <span id="697">697</span>
 <span id="698">698</span>
 <span id="699">699</span>
+<span id="700">700</span>
+<span id="701">701</span>
+<span id="702">702</span>
+<span id="703">703</span>
+<span id="704">704</span>
+<span id="705">705</span>
+<span id="706">706</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -714,7 +721,8 @@
     proposer::Proposer,
     state_handler::StateHandler,
     synchronizer::Synchronizer,
-    BlockRemover, CertificatesResponse, DeleteBatchMessage, PayloadAvailabilityResponse,
+    BlockCommand, BlockRemover, CertificatesResponse, DeleteBatchMessage,
+    PayloadAvailabilityResponse,
 };
 <span class="kw">use </span>async_trait::async_trait;
 <span class="kw">use </span>config::{Parameters, SharedCommittee, WorkerId, WorkerInfo};
@@ -759,7 +767,8 @@
     <span class="kw">const </span>INADDR_ANY: Ipv4Addr = Ipv4Addr::new(<span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>);
 
     <span class="comment">// Spawns the primary and returns the JoinHandles of its tasks, as well as a metered receiver for the Consensus.
-    </span><span class="kw">pub fn </span>spawn&lt;Signatory: Signer&lt;Signature&gt; + Send + <span class="lifetime">&#39;static</span>&gt;(
+    </span><span class="attribute">#[allow(clippy::too_many_arguments)]</span>
+    <span class="kw">pub fn </span>spawn&lt;Signatory: Signer&lt;Signature&gt; + Send + <span class="lifetime">&#39;static</span>&gt;(
         name: PublicKey,
         signer: Signatory,
         committee: SharedCommittee,
@@ -769,6 +778,8 @@
         payload_store: Store&lt;(BatchDigest, WorkerId), PayloadToken&gt;,
         tx_consensus: Sender&lt;Certificate&gt;,
         rx_consensus: Receiver&lt;Certificate&gt;,
+        tx_get_block_commands: Sender&lt;BlockCommand&gt;,
+        rx_get_block_commands: Receiver&lt;BlockCommand&gt;,
         dag: <span class="prelude-ty">Option</span>&lt;Arc&lt;Dag&gt;&gt;,
         network_model: NetworkModel,
         tx_reconfigure: watch::Sender&lt;ReconfigureNotification&gt;,
@@ -816,10 +827,6 @@
             CHANNEL_CAPACITY,
             <span class="kw-2">&amp;</span>primary_channel_metrics.tx_helper_requests,
         );
-        <span class="kw">let </span>(tx_get_block_commands, rx_get_block_commands) = channel(
-            CHANNEL_CAPACITY,
-            <span class="kw-2">&amp;</span>primary_channel_metrics.tx_get_block_commands,
-        );
         <span class="kw">let </span>(tx_batches, rx_batches) =
             channel(CHANNEL_CAPACITY, <span class="kw-2">&amp;</span>primary_channel_metrics.tx_batches);
         <span class="kw">let </span>(tx_block_removal_commands, rx_block_removal_commands) = channel(
@@ -851,9 +858,16 @@
             registry,
             Box::new(committed_certificates_gauge),
         );
+
         <span class="kw">let </span>new_certificates_gauge = tx_consensus.gauge().clone();
         primary_channel_metrics
             .replace_registered_new_certificates_metric(registry, Box::new(new_certificates_gauge));
+
+        <span class="kw">let </span>tx_get_block_commands_gauge = tx_get_block_commands.gauge().clone();
+        primary_channel_metrics.replace_registered_get_block_commands_metric(
+            registry,
+            Box::new(tx_get_block_commands_gauge),
+        );
 
         <span class="kw">let </span>(tx_consensus_round_updates, rx_consensus_round_updates) = watch::channel(<span class="number">0u64</span>);
 
