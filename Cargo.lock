@@ -5081,6 +5081,7 @@ dependencies = [
  "syn 1.0.98",
  "sync_wrapper",
  "synstructure",
+ "tap",
  "task-group",
  "telemetry-subscribers",
  "tempfile",
