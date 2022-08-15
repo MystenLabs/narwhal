@@ -272,7 +272,7 @@
                         <span class="self">self</span>.store.clone(),
                         <span class="self">self</span>.tx_get_block_commands.clone(),
                         message);
-                    waiting.push(future);
+                    waiting.push_back(future);
                 },
 
                 <span class="comment">// Receive here consensus messages for which we have downloaded all transactions data.
