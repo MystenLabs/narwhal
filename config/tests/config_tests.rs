@@ -45,8 +45,8 @@ fn leader_election_rotates_through_all() {
             .entry(leader_stepping_by_2)
             .or_insert(0) += 1;
     }
-    assert!(leader_counts.values().all(|v| *v > 1));
-    assert!(leader_counts_stepping_by_2.values().all(|v| *v > 1));
+    assert!(leader_counts.values().all(|v| *v >= 20));
+    assert!(leader_counts_stepping_by_2.values().all(|v| *v >= 20));
 }
 
 #[test]
