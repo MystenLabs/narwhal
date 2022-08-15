@@ -320,7 +320,7 @@
                     .<span class="kw">await
                     </span>.map_err(|err| Error::permanent(PayloadRetrieveError(id, err.to_string())))<span class="question-mark">?</span>;
 
-                <span class="kw">return match </span>receiver
+                <span class="kw">match </span>receiver
                     .<span class="kw">await
                     </span>.map_err(|err| Error::permanent(PayloadRetrieveError(id, err.to_string())))<span class="question-mark">?
                 </span>{
@@ -339,7 +339,7 @@
                         </span><span class="macro">error!</span>(<span class="string">&quot;Error while retrieving block via block waiter: {}&quot;</span>, err);
                         <span class="prelude-val">Err</span>(Error::transient(PayloadRetrieveError(id, err.to_string())))
                     }
-                };
+                }
             }
         };
 

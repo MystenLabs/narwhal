@@ -1560,7 +1560,7 @@
     })
     .take(ancestors.len())
     .zip(ancestors)
-    .flat_map(|(parenthood, parent)| parenthood.then(|| <span class="kw-2">*</span>parent))
+    .flat_map(|(parenthood, parent)| parenthood.then_some(<span class="kw-2">*</span>parent))
     .collect::&lt;BTreeSet&lt;<span class="kw">_</span>&gt;&gt;()
 }
 

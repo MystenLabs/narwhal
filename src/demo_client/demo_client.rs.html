@@ -546,6 +546,7 @@
 <span id="546">546</span>
 <span id="547">547</span>
 <span id="548">548</span>
+<span id="549">549</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
@@ -564,6 +565,7 @@
 <span class="kw">use </span>tonic::Status;
 
 <span class="kw">pub mod </span>narwhal {
+    <span class="attribute">#![allow(clippy::derive_partial_eq_without_eq)]</span>
     <span class="macro">tonic::include_proto!</span>(<span class="string">&quot;narwhal&quot;</span>);
 }
 

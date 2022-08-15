@@ -107,7 +107,7 @@
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">mod </span>narwhal {
-    <span class="attribute">#![cfg_attr(beta, allow(clippy::derive_partial_eq_without_eq))]</span>
+    <span class="attribute">#![allow(clippy::derive_partial_eq_without_eq)]</span>
     <span class="macro">tonic::include_proto!</span>(<span class="string">&quot;narwhal&quot;</span>);
 }
 

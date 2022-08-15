@@ -238,11 +238,6 @@
 <span id="238">238</span>
 <span id="239">239</span>
 <span id="240">240</span>
-<span id="241">241</span>
-<span id="242">242</span>
-<span id="243">243</span>
-<span id="244">244</span>
-<span id="245">245</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="attribute">#![allow(dead_code)]</span> <span class="comment">// TODO: complete tests - This kinda sorta facades the whole tokio::mpsc::{Sender, Receiver}: without tests, this will be fragile to maintain.
@@ -329,11 +324,7 @@
     <span class="doccomment">/// Sends a value, waiting until there is capacity.
     /// Increments the gauge in case of a successful `send`.
     </span><span class="kw">pub async fn </span>send(<span class="kw-2">&amp;</span><span class="self">self</span>, value: T) -&gt; <span class="prelude-ty">Result</span>&lt;(), SendError&lt;T&gt;&gt; {
-        (<span class="kw-2">*</span><span class="self">self</span>)
-            .inner
-            .send(value)
-            .inspect(|<span class="kw">_</span>| <span class="self">self</span>.gauge.inc())
-            .<span class="kw">await
+        <span class="self">self</span>.inner.send(value).inspect(|<span class="kw">_</span>| <span class="self">self</span>.gauge.inc()).<span class="kw">await
     </span>}
 
     <span class="doccomment">/// Completes when the receiver has dropped.
@@ -344,8 +335,7 @@
     <span class="doccomment">/// Attempts to immediately send a message on this `Sender`
     /// Increments the gauge in case of a successful `try_send`.
     </span><span class="kw">pub fn </span>try_send(<span class="kw-2">&amp;</span><span class="self">self</span>, message: T) -&gt; <span class="prelude-ty">Result</span>&lt;(), TrySendError&lt;T&gt;&gt; {
-        (<span class="kw-2">*</span><span class="self">self</span>)
-            .inner
+        <span class="self">self</span>.inner
             .try_send(message)
             <span class="comment">// remove this unsightly hack once https://github.com/rust-lang/rust/issues/91345 is resolved
             </span>.map(|val| {
