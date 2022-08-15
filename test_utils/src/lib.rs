@@ -696,7 +696,7 @@ fn this_cert_parents(
     })
     .take(ancestors.len())
     .zip(ancestors)
-    .flat_map(|(parenthood, parent)| parenthood.then(|| *parent))
+    .flat_map(|(parenthood, parent)| parenthood.then_some(*parent))
     .collect::<BTreeSet<_>>()
 }
 
