@@ -454,12 +454,101 @@
 <span id="454">454</span>
 <span id="455">455</span>
 <span id="456">456</span>
+<span id="457">457</span>
+<span id="458">458</span>
+<span id="459">459</span>
+<span id="460">460</span>
+<span id="461">461</span>
+<span id="462">462</span>
+<span id="463">463</span>
+<span id="464">464</span>
+<span id="465">465</span>
+<span id="466">466</span>
+<span id="467">467</span>
+<span id="468">468</span>
+<span id="469">469</span>
+<span id="470">470</span>
+<span id="471">471</span>
+<span id="472">472</span>
+<span id="473">473</span>
+<span id="474">474</span>
+<span id="475">475</span>
+<span id="476">476</span>
+<span id="477">477</span>
+<span id="478">478</span>
+<span id="479">479</span>
+<span id="480">480</span>
+<span id="481">481</span>
+<span id="482">482</span>
+<span id="483">483</span>
+<span id="484">484</span>
+<span id="485">485</span>
+<span id="486">486</span>
+<span id="487">487</span>
+<span id="488">488</span>
+<span id="489">489</span>
+<span id="490">490</span>
+<span id="491">491</span>
+<span id="492">492</span>
+<span id="493">493</span>
+<span id="494">494</span>
+<span id="495">495</span>
+<span id="496">496</span>
+<span id="497">497</span>
+<span id="498">498</span>
+<span id="499">499</span>
+<span id="500">500</span>
+<span id="501">501</span>
+<span id="502">502</span>
+<span id="503">503</span>
+<span id="504">504</span>
+<span id="505">505</span>
+<span id="506">506</span>
+<span id="507">507</span>
+<span id="508">508</span>
+<span id="509">509</span>
+<span id="510">510</span>
+<span id="511">511</span>
+<span id="512">512</span>
+<span id="513">513</span>
+<span id="514">514</span>
+<span id="515">515</span>
+<span id="516">516</span>
+<span id="517">517</span>
+<span id="518">518</span>
+<span id="519">519</span>
+<span id="520">520</span>
+<span id="521">521</span>
+<span id="522">522</span>
+<span id="523">523</span>
+<span id="524">524</span>
+<span id="525">525</span>
+<span id="526">526</span>
+<span id="527">527</span>
+<span id="528">528</span>
+<span id="529">529</span>
+<span id="530">530</span>
+<span id="531">531</span>
+<span id="532">532</span>
+<span id="533">533</span>
+<span id="534">534</span>
+<span id="535">535</span>
+<span id="536">536</span>
+<span id="537">537</span>
+<span id="538">538</span>
+<span id="539">539</span>
+<span id="540">540</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span>base64ct::{Base64, Encoding};
 <span class="kw">use </span>ed25519_consensus::{batch, VerificationKeyBytes};
 <span class="kw">use </span>once_cell::sync::OnceCell;
-<span class="kw">use </span>serde::{de, Deserialize, Serialize};
+<span class="kw">use </span>serde::{
+    de::{<span class="self">self</span>, MapAccess, SeqAccess, Visitor},
+    ser::SerializeStruct,
+    Deserialize, Serialize,
+};
+<span class="kw">use </span>serde_bytes::{ByteBuf, Bytes};
 <span class="kw">use </span>signature::{rand_core::OsRng, Signature, Signer, Verifier};
 <span class="kw">use </span>std::{
     fmt::{<span class="self">self</span>, Display},
@@ -478,6 +567,9 @@
 <span class="kw">pub const </span>ED25519_PRIVATE_KEY_LENGTH: usize = <span class="number">32</span>;
 <span class="kw">pub const </span>ED25519_PUBLIC_KEY_LENGTH: usize = <span class="number">32</span>;
 <span class="kw">pub const </span>ED25519_SIGNATURE_LENGTH: usize = <span class="number">64</span>;
+
+<span class="kw">const </span>BASE64_FIELD_NAME: <span class="kw-2">&amp;</span>str = <span class="string">&quot;base64&quot;</span>;
+<span class="kw">const </span>RAW_FIELD_NAME: <span class="kw-2">&amp;</span>str = <span class="string">&quot;raw&quot;</span>;
 
 <span class="doccomment">///
 /// Define Structs
@@ -502,7 +594,8 @@
 <span class="attribute">#[derive(Debug, Clone, PartialEq, Eq)]</span>
 <span class="kw">pub struct </span>Ed25519Signature {
     <span class="kw">pub </span>sig: ed25519_consensus::Signature,
-    <span class="kw">pub </span>bytes: OnceCell&lt;[u8; ED25519_SIGNATURE_LENGTH]&gt;,
+    <span class="comment">// Helps implementing AsRef&lt;[u8]&gt;.
+    </span><span class="kw">pub </span>bytes: OnceCell&lt;[u8; ED25519_SIGNATURE_LENGTH]&gt;,
 }
 
 <span class="attribute">#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]</span>
@@ -702,16 +795,32 @@
     }
 }
 
-<span class="kw">impl </span>Serialize <span class="kw">for </span>Ed25519Signature {
+<span class="comment">// Notes for Serialize and Deserialize implementations of Ed25519Signature:
+// - Since `bytes` field contains serialized `sig` field, it can be used directly for ser/de of
+//   the Ed25519Signature struct.
+// - The `serialize_struct()` function and deserialization visitor add complexity, but they are necessary for
+//   Ed25519Signature ser/de to work with `serde_reflection`.
+//   `serde_reflection` works poorly [with aliases and nameless types](https://docs.rs/serde-reflection/latest/serde_reflection/index.html#unsupported-idioms).
+// - Serialization output and deserialization input support human readable (base64) and non-readable (binary) formats
+//   separately (supported for other schemes since #460). Different struct field names (&quot;base64&quot; vs &quot;raw&quot;) are used
+//   to disambiguate the formats.
+// These notes may help if Ed25519Signature needs to change the struct layout, or its ser/de implementation.
+</span><span class="kw">impl </span>Serialize <span class="kw">for </span>Ed25519Signature {
     <span class="kw">fn </span>serialize&lt;S&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, serializer: S) -&gt; <span class="prelude-ty">Result</span>&lt;S::Ok, S::Error&gt;
     <span class="kw">where
         </span>S: serde::Serializer,
     {
-        <span class="kw">if </span>serializer.is_human_readable() {
-            base64ct::Base64::encode_string(<span class="self">self</span>.as_ref()).serialize(serializer)
+        <span class="kw">let </span>readable = serializer.is_human_readable();
+        <span class="kw">let </span><span class="kw-2">mut </span>state = serializer.serialize_struct(<span class="string">&quot;Ed25519Signature&quot;</span>, <span class="number">1</span>)<span class="question-mark">?</span>;
+        <span class="kw">if </span>readable {
+            state.serialize_field(
+                BASE64_FIELD_NAME,
+                <span class="kw-2">&amp;</span>base64ct::Base64::encode_string(<span class="self">self</span>.as_ref()),
+            )<span class="question-mark">?</span>;
         } <span class="kw">else </span>{
-            <span class="self">self</span>.as_ref().serialize(serializer)
+            state.serialize_field(RAW_FIELD_NAME, Bytes::new(<span class="self">self</span>.as_ref()))<span class="question-mark">?</span>;
         }
+        state.end()
     }
 }
 
@@ -720,14 +829,73 @@
     <span class="kw">where
         </span>D: serde::Deserializer&lt;<span class="lifetime">&#39;de</span>&gt;,
     {
-        <span class="kw">let </span>bytes = <span class="kw">if </span>deserializer.is_human_readable() {
-            <span class="kw">let </span>s = String::deserialize(deserializer)<span class="question-mark">?</span>;
-            base64ct::Base64::decode_vec(<span class="kw-2">&amp;</span>s).map_err(|e| de::Error::custom(e.to_string()))<span class="question-mark">?
-        </span>} <span class="kw">else </span>{
-            Vec::deserialize(deserializer)<span class="question-mark">?
-        </span>};
-        &lt;Ed25519Signature <span class="kw">as </span>signature::Signature&gt;::from_bytes(<span class="kw-2">&amp;</span>bytes)
-            .map_err(|e| de::Error::custom(e.to_string()))
+        <span class="kw">struct </span>Ed25519SignatureVisitor {
+            readable: bool,
+        }
+
+        <span class="kw">impl</span>&lt;<span class="lifetime">&#39;de</span>&gt; Visitor&lt;<span class="lifetime">&#39;de</span>&gt; <span class="kw">for </span>Ed25519SignatureVisitor {
+            <span class="kw">type </span>Value = Ed25519Signature;
+
+            <span class="kw">fn </span>expecting(<span class="kw-2">&amp;</span><span class="self">self</span>, formatter: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; fmt::Result {
+                formatter.write_str(<span class="string">&quot;struct Ed25519Signature&quot;</span>)
+            }
+
+            <span class="kw">fn </span>visit_seq&lt;V&gt;(<span class="self">self</span>, <span class="kw-2">mut </span>seq: V) -&gt; <span class="prelude-ty">Result</span>&lt;Ed25519Signature, V::Error&gt;
+            <span class="kw">where
+                </span>V: SeqAccess&lt;<span class="lifetime">&#39;de</span>&gt;,
+            {
+                <span class="kw">if </span><span class="self">self</span>.readable {
+                    <span class="kw">let </span>s = seq
+                        .next_element::&lt;String&gt;()<span class="question-mark">?
+                        </span>.ok_or_else(|| de::Error::missing_field(BASE64_FIELD_NAME))<span class="question-mark">?</span>;
+                    Ed25519Signature::decode_base64(<span class="kw-2">&amp;</span>s)
+                        .map_err(|e| de::Error::custom(e.to_string()))
+                } <span class="kw">else </span>{
+                    <span class="kw">let </span>b = seq
+                        .next_element::&lt;ByteBuf&gt;()<span class="question-mark">?
+                        </span>.ok_or_else(|| de::Error::missing_field(RAW_FIELD_NAME))<span class="question-mark">?</span>;
+                    &lt;Ed25519Signature <span class="kw">as </span>Signature&gt;::from_bytes(<span class="kw-2">&amp;</span>b)
+                        .map_err(|e| de::Error::custom(e.to_string()))
+                }
+            }
+
+            <span class="kw">fn </span>visit_map&lt;V&gt;(<span class="self">self</span>, <span class="kw-2">mut </span>map: V) -&gt; <span class="prelude-ty">Result</span>&lt;Ed25519Signature, V::Error&gt;
+            <span class="kw">where
+                </span>V: MapAccess&lt;<span class="lifetime">&#39;de</span>&gt;,
+            {
+                <span class="kw">if </span><span class="self">self</span>.readable {
+                    <span class="kw">let </span>entry = map
+                        .next_entry::&lt;<span class="kw-2">&amp;</span>str, String&gt;()<span class="question-mark">?
+                        </span>.ok_or_else(|| de::Error::missing_field(BASE64_FIELD_NAME))<span class="question-mark">?</span>;
+                    <span class="kw">if </span>entry.<span class="number">0 </span>!= BASE64_FIELD_NAME {
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(de::Error::unknown_field(entry.<span class="number">0</span>, <span class="kw-2">&amp;</span>[BASE64_FIELD_NAME]));
+                    }
+                    Ed25519Signature::decode_base64(<span class="kw-2">&amp;</span>entry.<span class="number">1</span>)
+                        .map_err(|e| de::Error::custom(e.to_string()))
+                } <span class="kw">else </span>{
+                    <span class="kw">let </span>entry = map
+                        .next_entry::&lt;<span class="kw-2">&amp;</span>str, <span class="kw-2">&amp;</span>[u8]&gt;()<span class="question-mark">?
+                        </span>.ok_or_else(|| de::Error::missing_field(RAW_FIELD_NAME))<span class="question-mark">?</span>;
+                    <span class="kw">if </span>entry.<span class="number">0 </span>!= RAW_FIELD_NAME {
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(de::Error::unknown_field(entry.<span class="number">0</span>, <span class="kw-2">&amp;</span>[RAW_FIELD_NAME]));
+                    }
+                    &lt;Ed25519Signature <span class="kw">as </span>Signature&gt;::from_bytes(entry.<span class="number">1</span>)
+                        .map_err(|e| de::Error::custom(e.to_string()))
+                }
+            }
+        }
+
+        <span class="kw">let </span>readable = deserializer.is_human_readable();
+        <span class="kw">let </span>fields: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>str; <span class="number">1</span>] = <span class="kw">if </span>readable {
+            <span class="kw-2">&amp;</span>[BASE64_FIELD_NAME]
+        } <span class="kw">else </span>{
+            <span class="kw-2">&amp;</span>[RAW_FIELD_NAME]
+        };
+        deserializer.deserialize_struct(
+            <span class="string">&quot;Ed25519Signature&quot;</span>,
+            fields,
+            Ed25519SignatureVisitor { readable },
+        )
     }
 }
 
