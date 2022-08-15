@@ -306,9 +306,9 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
 name = "axum"
-version = "0.5.14"
+version = "0.5.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c943a505c17b494638a38a9af129067f760c9c06794b9f57d499266909be8e72"
+checksum = "9de18bc5f2e9df8f52da03856bf40e29b747de5a84e43aefff90e3dc4a21529b"
 dependencies = [
  "async-trait",
  "axum-core",
@@ -908,6 +908,22 @@ name = "crossterm"
 version = "0.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ab9f7409c70a38a56216480fba371ee460207dd8926ccf5b4160591759559170"
+dependencies = [
+ "bitflags",
+ "crossterm_winapi",
+ "libc",
+ "mio",
+ "parking_lot 0.12.1",
+ "signal-hook",
+ "signal-hook-mio",
+ "winapi",
+]
+
+[[package]]
+name = "crossterm"
+version = "0.25.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e64e6c0fbe2c17357405f7c758c1ef960fce08bdfb2c03d88d2a18d7e09c4b67"
 dependencies = [
  "bitflags",
  "crossterm_winapi",
@@ -2485,9 +2501,9 @@ dependencies = [
 
 [[package]]
 name = "os_str_bytes"
-version = "6.2.0"
+version = "6.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "648001efe5d5c0102d8cea768e348da85d90af8ba91f0bea908f157951493cd4"
+checksum = "9ff7415e9ae3fff1225851df9e0d9e4e5479f947619774677a63572e55e80eff"
 
 [[package]]
 name = "output_vt100"
@@ -3800,7 +3816,7 @@ name = "telemetry-subscribers"
 version = "0.1.0"
 source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=d965a5a795dcdb4d1c7964acf556bc249fdc58aa#d965a5a795dcdb4d1c7964acf556bc249fdc58aa"
 dependencies = [
- "crossterm",
+ "crossterm 0.24.0",
  "once_cell",
  "opentelemetry",
  "opentelemetry-jaeger",
@@ -3818,7 +3834,7 @@ name = "telemetry-subscribers"
 version = "0.1.0"
 source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=f4aa523d3029bd6a23bead5f04c182f2cfa04c5e#f4aa523d3029bd6a23bead5f04c182f2cfa04c5e"
 dependencies = [
- "crossterm",
+ "crossterm 0.24.0",
  "once_cell",
  "opentelemetry",
  "opentelemetry-jaeger",
@@ -4860,7 +4876,7 @@ dependencies = [
  "crossbeam-epoch",
  "crossbeam-queue",
  "crossbeam-utils",
- "crossterm",
+ "crossterm 0.25.0",
  "crypto-bigint",
  "crypto-common",
  "crypto-mac",
