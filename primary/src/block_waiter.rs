@@ -16,12 +16,13 @@ use std::{
     sync::Arc,
     time::Duration,
 };
+use tap::TapFallible;
 use tokio::{
     sync::{oneshot, watch},
     task::JoinHandle,
     time::timeout,
 };
-use tracing::{debug, error, info, instrument, warn};
+use tracing::{debug, error, info, instrument, trace, warn};
 use types::{
     metered_channel::Receiver, BatchDigest, BatchMessage, BlockError, BlockErrorKind, BlockResult,
     Certificate, CertificateDigest, Header, PrimaryWorkerMessage, ReconfigureNotification,
@@ -595,7 +596,7 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> BlockWaiter<Synchroni
             return None;
         }
 
-        debug!("No pending get block for {}", id);
+        trace!("No pending get block for {}", id);
 
         // Add on a vector the receivers
         let batch_receivers = self
@@ -769,9 +770,8 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> BlockWaiter<Synchroni
         match self.tx_pending_batch.remove(&batch_id) {
             Some(respond_to) => {
                 for (id, s) in respond_to {
-                    if let Err(err) = s.send(result.clone()) {
-                        error!("Couldn't send batch result {} message to channel [{:?}] for block_id {}", batch_id, err, id);
-                    }
+                    let _ = s.send(result.clone())
+                        .tap_err(|err| error!("Couldn't send batch result {batch_id} message to channel [{err:?}] for block_id {id}"));
                 }
             }
             None => {
