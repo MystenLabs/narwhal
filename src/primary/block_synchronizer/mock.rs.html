@@ -249,115 +249,115 @@
 <span id="249">249</span>
 <span id="250">250</span>
 <span id="251">251</span>
-</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
-<span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::block_synchronizer</span>::{<span class="ident">BlockHeader</span>, <span class="ident">BlockSynchronizeResult</span>, <span class="ident">Command</span>};
-<span class="kw">use</span> <span class="ident">crypto::Hash</span>;
-<span class="kw">use</span> <span class="ident">prometheus::IntGauge</span>;
-<span class="kw">use</span> <span class="ident">std::collections::HashMap</span>;
-<span class="kw">use</span> <span class="ident">tokio::sync::oneshot</span>;
-<span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">metered_channel</span>, <span class="ident">CertificateDigest</span>};
+</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+</span><span class="kw">use </span><span class="kw">crate</span>::block_synchronizer::{BlockHeader, BlockSynchronizeResult, Command};
+<span class="kw">use </span>crypto::Hash;
+<span class="kw">use </span>prometheus::IntGauge;
+<span class="kw">use </span>std::collections::HashMap;
+<span class="kw">use </span>tokio::sync::oneshot;
+<span class="kw">use </span>types::{metered_channel, CertificateDigest};
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
-<span class="kw">enum</span> <span class="ident">Core</span> {
-    <span class="ident">SynchronizeBlockHeaders</span> {
-        <span class="ident">block_ids</span>: <span class="ident">Vec</span>&lt;<span class="ident">CertificateDigest</span>&gt;,
-        <span class="ident">times</span>: <span class="ident">u32</span>,
-        <span class="ident">result</span>: <span class="ident">Vec</span>&lt;<span class="ident">BlockSynchronizeResult</span>&lt;<span class="ident">BlockHeader</span>&gt;&gt;,
-        <span class="ident">ready</span>: <span class="ident">oneshot::Sender</span>&lt;()&gt;,
+<span class="attribute">#[derive(Debug)]</span>
+<span class="kw">enum </span>Core {
+    SynchronizeBlockHeaders {
+        block_ids: Vec&lt;CertificateDigest&gt;,
+        times: u32,
+        result: Vec&lt;BlockSynchronizeResult&lt;BlockHeader&gt;&gt;,
+        ready: oneshot::Sender&lt;()&gt;,
     },
-    <span class="ident">SynchronizeBlockPayload</span> {
-        <span class="ident">block_ids</span>: <span class="ident">Vec</span>&lt;<span class="ident">CertificateDigest</span>&gt;,
-        <span class="ident">times</span>: <span class="ident">u32</span>,
-        <span class="ident">result</span>: <span class="ident">Vec</span>&lt;<span class="ident">BlockSynchronizeResult</span>&lt;<span class="ident">BlockHeader</span>&gt;&gt;,
-        <span class="ident">ready</span>: <span class="ident">oneshot::Sender</span>&lt;()&gt;,
+    SynchronizeBlockPayload {
+        block_ids: Vec&lt;CertificateDigest&gt;,
+        times: u32,
+        result: Vec&lt;BlockSynchronizeResult&lt;BlockHeader&gt;&gt;,
+        ready: oneshot::Sender&lt;()&gt;,
     },
-    <span class="ident">AssertExpectations</span> {
-        <span class="ident">ready</span>: <span class="ident">oneshot::Sender</span>&lt;()&gt;,
+    AssertExpectations {
+        ready: oneshot::Sender&lt;()&gt;,
     },
 }
 
-<span class="kw">struct</span> <span class="ident">MockBlockSynchronizerCore</span> {
-    <span class="doccomment">/// A map that holds the expected requests for sync block headers and their</span>
-    <span class="doccomment">/// stubbed response.</span>
-    <span class="ident">block_headers_expected_requests</span>:
-        <span class="ident">HashMap</span>&lt;<span class="ident">Vec</span>&lt;<span class="ident">CertificateDigest</span>&gt;, (<span class="ident">u32</span>, <span class="ident">Vec</span>&lt;<span class="ident">BlockSynchronizeResult</span>&lt;<span class="ident">BlockHeader</span>&gt;&gt;)&gt;,
+<span class="kw">struct </span>MockBlockSynchronizerCore {
+    <span class="doccomment">/// A map that holds the expected requests for sync block headers and their
+    /// stubbed response.
+    </span>block_headers_expected_requests:
+        HashMap&lt;Vec&lt;CertificateDigest&gt;, (u32, Vec&lt;BlockSynchronizeResult&lt;BlockHeader&gt;&gt;)&gt;,
 
-    <span class="doccomment">/// A map that holds the expected requests for sync block payload and their</span>
-    <span class="doccomment">/// stubbed response.</span>
-    <span class="ident">block_payload_expected_requests</span>:
-        <span class="ident">HashMap</span>&lt;<span class="ident">Vec</span>&lt;<span class="ident">CertificateDigest</span>&gt;, (<span class="ident">u32</span>, <span class="ident">Vec</span>&lt;<span class="ident">BlockSynchronizeResult</span>&lt;<span class="ident">BlockHeader</span>&gt;&gt;)&gt;,
+    <span class="doccomment">/// A map that holds the expected requests for sync block payload and their
+    /// stubbed response.
+    </span>block_payload_expected_requests:
+        HashMap&lt;Vec&lt;CertificateDigest&gt;, (u32, Vec&lt;BlockSynchronizeResult&lt;BlockHeader&gt;&gt;)&gt;,
 
-    <span class="doccomment">/// Channel to receive the messages that are supposed to be sent to the</span>
-    <span class="doccomment">/// block synchronizer.</span>
-    <span class="ident">rx_commands</span>: <span class="ident">metered_channel::Receiver</span>&lt;<span class="ident">Command</span>&gt;,
+    <span class="doccomment">/// Channel to receive the messages that are supposed to be sent to the
+    /// block synchronizer.
+    </span>rx_commands: metered_channel::Receiver&lt;Command&gt;,
 
-    <span class="doccomment">/// Channel to receive the commands to mock the requests.</span>
-    <span class="ident">rx_core</span>: <span class="ident">metered_channel::Receiver</span>&lt;<span class="ident">Core</span>&gt;,
+    <span class="doccomment">/// Channel to receive the commands to mock the requests.
+    </span>rx_core: metered_channel::Receiver&lt;Core&gt;,
 }
 
-<span class="kw">impl</span> <span class="ident">MockBlockSynchronizerCore</span> {
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">run</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
-        <span class="kw">loop</span> {
+<span class="kw">impl </span>MockBlockSynchronizerCore {
+    <span class="kw">async fn </span>run(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="kw">loop </span>{
             <span class="macro">tokio::select!</span> {
-                <span class="prelude-val">Some</span>(<span class="ident">command</span>) = <span class="self">self</span>.<span class="ident">rx_commands</span>.<span class="ident">recv</span>() =&gt; {
-                    <span class="kw">match</span> <span class="ident">command</span> {
-                        <span class="ident">Command::SynchronizeBlockHeaders</span> { <span class="ident">block_ids</span>, <span class="ident">respond_to</span> } =&gt; {
-                            <span class="kw">let</span> (<span class="ident">times</span>, <span class="ident">results</span>) = <span class="self">self</span>
-                                .<span class="ident">block_headers_expected_requests</span>
-                                .<span class="ident">remove</span>(<span class="kw-2">&amp;</span><span class="ident">block_ids</span>)
-                                .<span class="ident">unwrap_or_else</span>(||<span class="macro">panic!</span>(<span class="string">&quot;{}&quot;</span>, <span class="macro">format!</span>(<span class="string">&quot;Unexpected call received for SynchronizeBlockHeaders, {:?}&quot;</span>, <span class="ident">block_ids</span>).<span class="ident">as_str</span>()))
-                                .<span class="ident">to_owned</span>();
+                <span class="prelude-val">Some</span>(command) = <span class="self">self</span>.rx_commands.recv() =&gt; {
+                    <span class="kw">match </span>command {
+                        Command::SynchronizeBlockHeaders { block_ids, respond_to } =&gt; {
+                            <span class="kw">let </span>(times, results) = <span class="self">self
+                                </span>.block_headers_expected_requests
+                                .remove(<span class="kw-2">&amp;</span>block_ids)
+                                .unwrap_or_else(||<span class="macro">panic!</span>(<span class="string">&quot;{}&quot;</span>, <span class="macro">format!</span>(<span class="string">&quot;Unexpected call received for SynchronizeBlockHeaders, {:?}&quot;</span>, block_ids).as_str()))
+                                .to_owned();
 
-                            <span class="kw">if</span> <span class="ident">times</span> &gt; <span class="number">1</span> {
-                                <span class="self">self</span>.<span class="ident">block_headers_expected_requests</span>.<span class="ident">insert</span>(<span class="ident">block_ids</span>, (<span class="ident">times</span> - <span class="number">1</span>, <span class="ident">results</span>.<span class="ident">clone</span>()));
+                            <span class="kw">if </span>times &gt; <span class="number">1 </span>{
+                                <span class="self">self</span>.block_headers_expected_requests.insert(block_ids, (times - <span class="number">1</span>, results.clone()));
                             }
 
-                            <span class="kw">for</span> <span class="ident">result</span> <span class="kw">in</span> <span class="ident">results</span> {
-                                <span class="ident">respond_to</span>.<span class="ident">send</span>(<span class="ident">result</span>).<span class="kw">await</span>.<span class="ident">expect</span>(<span class="string">&quot;Couldn&#39;t send message&quot;</span>);
+                            <span class="kw">for </span>result <span class="kw">in </span>results {
+                                respond_to.send(result).<span class="kw">await</span>.expect(<span class="string">&quot;Couldn&#39;t send message&quot;</span>);
                             }
                         }
-                        <span class="ident">Command::SynchronizeBlockPayload</span> { <span class="ident">certificates</span>, <span class="ident">respond_to</span> } =&gt; {
-                            <span class="kw">let</span> <span class="ident">block_ids</span> = <span class="ident">certificates</span>.<span class="ident">into_iter</span>().<span class="ident">map</span>(|<span class="ident">c</span>|<span class="ident">c</span>.<span class="ident">digest</span>()).<span class="ident">collect</span>();
-                            <span class="kw">let</span> (<span class="ident">times</span>, <span class="ident">results</span>) = <span class="self">self</span>
-                                .<span class="ident">block_payload_expected_requests</span>
-                                .<span class="ident">remove</span>(<span class="kw-2">&amp;</span><span class="ident">block_ids</span>)
-                                .<span class="ident">unwrap_or_else</span>(||<span class="macro">panic!</span>(<span class="string">&quot;{}&quot;</span>, <span class="macro">format!</span>(<span class="string">&quot;Unexpected call received for SynchronizeBlockPayload, {:?}&quot;</span>, <span class="ident">block_ids</span>).<span class="ident">as_str</span>()))
-                                .<span class="ident">to_owned</span>();
+                        Command::SynchronizeBlockPayload { certificates, respond_to } =&gt; {
+                            <span class="kw">let </span>block_ids = certificates.into_iter().map(|c|c.digest()).collect();
+                            <span class="kw">let </span>(times, results) = <span class="self">self
+                                </span>.block_payload_expected_requests
+                                .remove(<span class="kw-2">&amp;</span>block_ids)
+                                .unwrap_or_else(||<span class="macro">panic!</span>(<span class="string">&quot;{}&quot;</span>, <span class="macro">format!</span>(<span class="string">&quot;Unexpected call received for SynchronizeBlockPayload, {:?}&quot;</span>, block_ids).as_str()))
+                                .to_owned();
 
-                            <span class="kw">if</span> <span class="ident">times</span> &gt; <span class="number">1</span> {
-                                <span class="self">self</span>.<span class="ident">block_payload_expected_requests</span>.<span class="ident">insert</span>(<span class="ident">block_ids</span>, (<span class="ident">times</span> - <span class="number">1</span>, <span class="ident">results</span>.<span class="ident">clone</span>()));
+                            <span class="kw">if </span>times &gt; <span class="number">1 </span>{
+                                <span class="self">self</span>.block_payload_expected_requests.insert(block_ids, (times - <span class="number">1</span>, results.clone()));
                             }
 
-                            <span class="kw">for</span> <span class="ident">result</span> <span class="kw">in</span> <span class="ident">results</span> {
-                                <span class="ident">respond_to</span>.<span class="ident">send</span>(<span class="ident">result</span>).<span class="kw">await</span>.<span class="ident">expect</span>(<span class="string">&quot;Couldn&#39;t send message&quot;</span>);
+                            <span class="kw">for </span>result <span class="kw">in </span>results {
+                                respond_to.send(result).<span class="kw">await</span>.expect(<span class="string">&quot;Couldn&#39;t send message&quot;</span>);
                             }
                         }
                     }
                 }
-                <span class="prelude-val">Some</span>(<span class="ident">command</span>) = <span class="self">self</span>.<span class="ident">rx_core</span>.<span class="ident">recv</span>() =&gt; {
-                    <span class="kw">match</span> <span class="ident">command</span> {
-                        <span class="ident">Core::SynchronizeBlockHeaders</span> {
-                            <span class="ident">block_ids</span>,
-                            <span class="ident">times</span>,
-                            <span class="ident">result</span>,
-                            <span class="ident">ready</span>,
+                <span class="prelude-val">Some</span>(command) = <span class="self">self</span>.rx_core.recv() =&gt; {
+                    <span class="kw">match </span>command {
+                        Core::SynchronizeBlockHeaders {
+                            block_ids,
+                            times,
+                            result,
+                            ready,
                         } =&gt; {
-                            <span class="self">self</span>.<span class="ident">block_headers_expected_requests</span>.<span class="ident">insert</span>(<span class="ident">block_ids</span>, (<span class="ident">times</span>, <span class="ident">result</span>));
-                            <span class="ident">ready</span>.<span class="ident">send</span>(()).<span class="ident">expect</span>(<span class="string">&quot;Failed to send ready message&quot;</span>);
+                            <span class="self">self</span>.block_headers_expected_requests.insert(block_ids, (times, result));
+                            ready.send(()).expect(<span class="string">&quot;Failed to send ready message&quot;</span>);
                         },
-                        <span class="ident">Core::SynchronizeBlockPayload</span> {
-                            <span class="ident">block_ids</span>,
-                            <span class="ident">times</span>,
-                            <span class="ident">result</span>,
-                            <span class="ident">ready</span>,
+                        Core::SynchronizeBlockPayload {
+                            block_ids,
+                            times,
+                            result,
+                            ready,
                         } =&gt; {
-                            <span class="self">self</span>.<span class="ident">block_payload_expected_requests</span>.<span class="ident">insert</span>(<span class="ident">block_ids</span>, (<span class="ident">times</span>, <span class="ident">result</span>));
-                            <span class="ident">ready</span>.<span class="ident">send</span>(()).<span class="ident">expect</span>(<span class="string">&quot;Failed to send ready message&quot;</span>);
+                            <span class="self">self</span>.block_payload_expected_requests.insert(block_ids, (times, result));
+                            ready.send(()).expect(<span class="string">&quot;Failed to send ready message&quot;</span>);
                         },
-                        <span class="ident">Core::AssertExpectations</span> {<span class="ident">ready</span>} =&gt; {
-                            <span class="self">self</span>.<span class="ident">assert_expectations</span>();
-                            <span class="ident">ready</span>.<span class="ident">send</span>(()).<span class="ident">expect</span>(<span class="string">&quot;Failed to send ready message&quot;</span>);
+                        Core::AssertExpectations {ready} =&gt; {
+                            <span class="self">self</span>.assert_expectations();
+                            ready.send(()).expect(<span class="string">&quot;Failed to send ready message&quot;</span>);
                         }
                     }
                 }
@@ -365,140 +365,140 @@
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">assert_expectations</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span>: <span class="ident">String</span> = <span class="string">&quot;&quot;</span>.<span class="ident">to_string</span>();
+    <span class="kw">fn </span>assert_expectations(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+        <span class="kw">let </span><span class="kw-2">mut </span>result: String = <span class="string">&quot;&quot;</span>.to_string();
 
-        <span class="kw">for</span> (<span class="ident">ids</span>, <span class="ident">results</span>) <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">block_headers_expected_requests</span> {
-            <span class="ident">result</span>.<span class="ident">push_str</span>(
+        <span class="kw">for </span>(ids, results) <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.block_headers_expected_requests {
+            result.push_str(
                 <span class="macro">format!</span>(
                     <span class="string">&quot;SynchronizeBlockHeaders, ids={:?}, results={:?}&quot;</span>,
-                    <span class="ident">ids</span>, <span class="ident">results</span>
+                    ids, results
                 )
-                .<span class="ident">as_str</span>(),
+                .as_str(),
             );
         }
 
-        <span class="kw">for</span> (<span class="ident">ids</span>, <span class="ident">results</span>) <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">block_payload_expected_requests</span> {
-            <span class="ident">result</span>.<span class="ident">push_str</span>(
+        <span class="kw">for </span>(ids, results) <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.block_payload_expected_requests {
+            result.push_str(
                 <span class="macro">format!</span>(
                     <span class="string">&quot;SynchronizeBlockPayload, ids={:?}, results={:?}&quot;</span>,
-                    <span class="ident">ids</span>, <span class="ident">results</span>
+                    ids, results
                 )
-                .<span class="ident">as_str</span>(),
+                .as_str(),
             );
         }
 
-        <span class="kw">if</span> !<span class="ident">result</span>.<span class="ident">is_empty</span>() {
+        <span class="kw">if </span>!result.is_empty() {
             <span class="macro">panic!</span>(
                 <span class="string">&quot;There are expected calls that haven&#39;t been fulfilled \n\n {}&quot;</span>,
-                <span class="ident">result</span>
+                result
             );
         }
     }
 }
 
-<span class="doccomment">/// A mock helper for the BlockSynchronizer to help us mock the responses</span>
-<span class="doccomment">/// eliminating the need to wire in the actual BlockSynchronizer when needed</span>
-<span class="doccomment">/// for other components.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">MockBlockSynchronizer</span> {
-    <span class="ident">tx_core</span>: <span class="ident">metered_channel::Sender</span>&lt;<span class="ident">Core</span>&gt;,
+<span class="doccomment">/// A mock helper for the BlockSynchronizer to help us mock the responses
+/// eliminating the need to wire in the actual BlockSynchronizer when needed
+/// for other components.
+</span><span class="kw">pub struct </span>MockBlockSynchronizer {
+    tx_core: metered_channel::Sender&lt;Core&gt;,
 }
 
-<span class="kw">impl</span> <span class="ident">MockBlockSynchronizer</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">rx_commands</span>: <span class="ident">metered_channel::Receiver</span>&lt;<span class="ident">Command</span>&gt;) -&gt; <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="ident">mock_counter</span> = <span class="ident">IntGauge::new</span>(<span class="string">&quot;MOCK_COUNTER&quot;</span>, <span class="string">&quot;mock counter&quot;</span>).<span class="ident">unwrap</span>();
-        <span class="kw">let</span> (<span class="ident">tx_core</span>, <span class="ident">rx_core</span>) = <span class="ident">metered_channel::channel</span>(<span class="number">1</span>, <span class="kw-2">&amp;</span><span class="ident">mock_counter</span>);
+<span class="kw">impl </span>MockBlockSynchronizer {
+    <span class="kw">pub fn </span>new(rx_commands: metered_channel::Receiver&lt;Command&gt;) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>mock_counter = IntGauge::new(<span class="string">&quot;MOCK_COUNTER&quot;</span>, <span class="string">&quot;mock counter&quot;</span>).unwrap();
+        <span class="kw">let </span>(tx_core, rx_core) = metered_channel::channel(<span class="number">1</span>, <span class="kw-2">&amp;</span>mock_counter);
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">core</span> = <span class="ident">MockBlockSynchronizerCore</span> {
-            <span class="ident">block_headers_expected_requests</span>: <span class="ident">HashMap::new</span>(),
-            <span class="ident">block_payload_expected_requests</span>: <span class="ident">HashMap::new</span>(),
-            <span class="ident">rx_commands</span>,
-            <span class="ident">rx_core</span>,
+        <span class="kw">let </span><span class="kw-2">mut </span>core = MockBlockSynchronizerCore {
+            block_headers_expected_requests: HashMap::new(),
+            block_payload_expected_requests: HashMap::new(),
+            rx_commands,
+            rx_core,
         };
 
-        <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
-            <span class="ident">core</span>.<span class="ident">run</span>().<span class="kw">await</span>;
+        tokio::spawn(<span class="kw">async move </span>{
+            core.run().<span class="kw">await</span>;
         });
 
-        <span class="self">Self</span> { <span class="ident">tx_core</span> }
+        <span class="self">Self </span>{ tx_core }
     }
 
-    <span class="doccomment">/// A simple method that allow us to mock responses for the</span>
-    <span class="doccomment">/// SynchronizeBlockHeaders requests.</span>
-    <span class="doccomment">/// `block_ids`: The block_ids we expect</span>
-    <span class="doccomment">/// `results`: The results we would like to respond with</span>
-    <span class="doccomment">/// `times`: How many times we should expect to be called.</span>
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">expect_synchronize_block_headers</span>(
+    <span class="doccomment">/// A simple method that allow us to mock responses for the
+    /// SynchronizeBlockHeaders requests.
+    /// `block_ids`: The block_ids we expect
+    /// `results`: The results we would like to respond with
+    /// `times`: How many times we should expect to be called.
+    </span><span class="kw">pub async fn </span>expect_synchronize_block_headers(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">block_ids</span>: <span class="ident">Vec</span>&lt;<span class="ident">CertificateDigest</span>&gt;,
-        <span class="ident">result</span>: <span class="ident">Vec</span>&lt;<span class="ident">BlockSynchronizeResult</span>&lt;<span class="ident">BlockHeader</span>&gt;&gt;,
-        <span class="ident">times</span>: <span class="ident">u32</span>,
+        block_ids: Vec&lt;CertificateDigest&gt;,
+        result: Vec&lt;BlockSynchronizeResult&lt;BlockHeader&gt;&gt;,
+        times: u32,
     ) {
-        <span class="kw">let</span> (<span class="ident">tx</span>, <span class="ident">rx</span>) = <span class="ident">oneshot::channel</span>();
-        <span class="self">self</span>.<span class="ident">tx_core</span>
-            .<span class="ident">send</span>(<span class="ident">Core::SynchronizeBlockHeaders</span> {
-                <span class="ident">block_ids</span>,
-                <span class="ident">times</span>,
-                <span class="ident">result</span>,
-                <span class="ident">ready</span>: <span class="ident">tx</span>,
+        <span class="kw">let </span>(tx, rx) = oneshot::channel();
+        <span class="self">self</span>.tx_core
+            .send(Core::SynchronizeBlockHeaders {
+                block_ids,
+                times,
+                result,
+                ready: tx,
             })
-            .<span class="kw">await</span>
-            .<span class="ident">expect</span>(<span class="string">&quot;Failed to send mock expectation&quot;</span>);
+            .<span class="kw">await
+            </span>.expect(<span class="string">&quot;Failed to send mock expectation&quot;</span>);
 
-        <span class="ident"><span class="self">Self</span>::await_channel</span>(<span class="ident">rx</span>).<span class="kw">await</span>;
+        <span class="self">Self</span>::await_channel(rx).<span class="kw">await</span>;
     }
 
-    <span class="doccomment">/// A method that allow us to mock responses for the</span>
-    <span class="doccomment">/// SynchronizeBlockPayload requests. It has to be noted that we use</span>
-    <span class="doccomment">/// the block_ids as a way to identify the expected certificates for</span>
-    <span class="doccomment">/// the request since that on its own suffice to identify them.</span>
-    <span class="doccomment">/// `block_ids`: The block_ids we expect</span>
-    <span class="doccomment">/// `results`: The results we would like to respond with</span>
-    <span class="doccomment">/// `times`: How many times we should expect to be called.</span>
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">expect_synchronize_block_payload</span>(
+    <span class="doccomment">/// A method that allow us to mock responses for the
+    /// SynchronizeBlockPayload requests. It has to be noted that we use
+    /// the block_ids as a way to identify the expected certificates for
+    /// the request since that on its own suffice to identify them.
+    /// `block_ids`: The block_ids we expect
+    /// `results`: The results we would like to respond with
+    /// `times`: How many times we should expect to be called.
+    </span><span class="kw">pub async fn </span>expect_synchronize_block_payload(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">block_ids</span>: <span class="ident">Vec</span>&lt;<span class="ident">CertificateDigest</span>&gt;,
-        <span class="ident">result</span>: <span class="ident">Vec</span>&lt;<span class="ident">BlockSynchronizeResult</span>&lt;<span class="ident">BlockHeader</span>&gt;&gt;,
-        <span class="ident">times</span>: <span class="ident">u32</span>,
+        block_ids: Vec&lt;CertificateDigest&gt;,
+        result: Vec&lt;BlockSynchronizeResult&lt;BlockHeader&gt;&gt;,
+        times: u32,
     ) {
-        <span class="kw">let</span> (<span class="ident">tx</span>, <span class="ident">rx</span>) = <span class="ident">oneshot::channel</span>();
-        <span class="self">self</span>.<span class="ident">tx_core</span>
-            .<span class="ident">send</span>(<span class="ident">Core::SynchronizeBlockPayload</span> {
-                <span class="ident">block_ids</span>,
-                <span class="ident">times</span>,
-                <span class="ident">result</span>,
-                <span class="ident">ready</span>: <span class="ident">tx</span>,
+        <span class="kw">let </span>(tx, rx) = oneshot::channel();
+        <span class="self">self</span>.tx_core
+            .send(Core::SynchronizeBlockPayload {
+                block_ids,
+                times,
+                result,
+                ready: tx,
             })
-            .<span class="kw">await</span>
-            .<span class="ident">expect</span>(<span class="string">&quot;Failed to send mock expectation&quot;</span>);
+            .<span class="kw">await
+            </span>.expect(<span class="string">&quot;Failed to send mock expectation&quot;</span>);
 
-        <span class="ident"><span class="self">Self</span>::await_channel</span>(<span class="ident">rx</span>).<span class="kw">await</span>;
+        <span class="self">Self</span>::await_channel(rx).<span class="kw">await</span>;
     }
 
-    <span class="doccomment">/// Asserts that all the expectations have been fulfilled and no</span>
-    <span class="doccomment">/// expectation has been left without having been called.</span>
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">assert_expectations</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) {
-        <span class="kw">let</span> (<span class="ident">tx</span>, <span class="ident">rx</span>) = <span class="ident">oneshot::channel</span>();
-        <span class="self">self</span>.<span class="ident">tx_core</span>
-            .<span class="ident">send</span>(<span class="ident">Core::AssertExpectations</span> { <span class="ident">ready</span>: <span class="ident">tx</span> })
-            .<span class="kw">await</span>
-            .<span class="ident">expect</span>(<span class="string">&quot;Failed to assert expectations&quot;</span>);
+    <span class="doccomment">/// Asserts that all the expectations have been fulfilled and no
+    /// expectation has been left without having been called.
+    </span><span class="kw">pub async fn </span>assert_expectations(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+        <span class="kw">let </span>(tx, rx) = oneshot::channel();
+        <span class="self">self</span>.tx_core
+            .send(Core::AssertExpectations { ready: tx })
+            .<span class="kw">await
+            </span>.expect(<span class="string">&quot;Failed to assert expectations&quot;</span>);
 
-        <span class="ident"><span class="self">Self</span>::await_channel</span>(<span class="ident">rx</span>).<span class="kw">await</span>;
+        <span class="self">Self</span>::await_channel(rx).<span class="kw">await</span>;
     }
 
-    <span class="doccomment">/// Helper method to wait on a oneshot receiver channel</span>
-    <span class="doccomment">/// and avoid printing the error. We expect when the</span>
-    <span class="doccomment">/// MockBlockSynchronizerCore panics to violently close</span>
-    <span class="doccomment">/// the provided oneshot channel. To ensure that the</span>
-    <span class="doccomment">/// current thread will panic, we are handling the error</span>
-    <span class="doccomment">/// case and we also print an empty message to avoid</span>
-    <span class="doccomment">/// printing the receive error.</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">await_channel</span>(<span class="ident">rx</span>: <span class="ident">oneshot::Receiver</span>&lt;()&gt;) {
-        <span class="kw">if</span> <span class="ident">rx</span>.<span class="kw">await</span>.<span class="ident">is_err</span>() {
+    <span class="doccomment">/// Helper method to wait on a oneshot receiver channel
+    /// and avoid printing the error. We expect when the
+    /// MockBlockSynchronizerCore panics to violently close
+    /// the provided oneshot channel. To ensure that the
+    /// current thread will panic, we are handling the error
+    /// case and we also print an empty message to avoid
+    /// printing the receive error.
+    </span><span class="kw">async fn </span>await_channel(rx: oneshot::Receiver&lt;()&gt;) {
+        <span class="kw">if </span>rx.<span class="kw">await</span>.is_err() {
             <span class="macro">panic!</span>(<span class="string">&quot;&quot;</span>);
         }
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (801821d15 2022-08-14)" ></div></body></html>

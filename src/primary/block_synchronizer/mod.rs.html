@@ -1002,1009 +1002,1009 @@
 <span id="1002">1002</span>
 <span id="1003">1003</span>
 <span id="1004">1004</span>
-</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
-<span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="kw">use</span> <span class="kw">crate</span>::{
-    <span class="ident">block_synchronizer</span>::{
-        <span class="ident">peers::Peers</span>,
-        <span class="ident">responses</span>::{<span class="ident">CertificatesResponse</span>, <span class="ident">PayloadAvailabilityResponse</span>, <span class="ident">RequestID</span>},
-        <span class="ident">PendingIdentifier</span>::{<span class="ident">Header</span>, <span class="ident">Payload</span>},
+</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+</span><span class="kw">use crate</span>::{
+    block_synchronizer::{
+        peers::Peers,
+        responses::{CertificatesResponse, PayloadAvailabilityResponse, RequestID},
+        PendingIdentifier::{Header, Payload},
     },
-    <span class="ident">primary::PrimaryMessage</span>,
-    <span class="ident">utils</span>, <span class="ident">PayloadToken</span>, <span class="ident">CHANNEL_CAPACITY</span>,
+    primary::PrimaryMessage,
+    utils, PayloadToken, CHANNEL_CAPACITY,
 };
-<span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">BlockSynchronizerParameters</span>, <span class="ident">Committee</span>, <span class="ident">WorkerId</span>};
-<span class="kw">use</span> <span class="ident">crypto</span>::{<span class="ident">Hash</span>, <span class="ident">PublicKey</span>};
-<span class="kw">use</span> <span class="ident">futures</span>::{
-    <span class="ident">future</span>::{<span class="ident">join_all</span>, <span class="ident">BoxFuture</span>},
-    <span class="ident">stream::FuturesUnordered</span>,
-    <span class="ident">FutureExt</span>, <span class="ident">StreamExt</span>,
+<span class="kw">use </span>config::{BlockSynchronizerParameters, Committee, WorkerId};
+<span class="kw">use </span>crypto::{Hash, PublicKey};
+<span class="kw">use </span>futures::{
+    future::{join_all, BoxFuture},
+    stream::FuturesUnordered,
+    FutureExt, StreamExt,
 };
-<span class="kw">use</span> <span class="ident">network</span>::{<span class="ident">PrimaryNetwork</span>, <span class="ident">PrimaryToWorkerNetwork</span>, <span class="ident">UnreliableNetwork</span>};
-<span class="kw">use</span> <span class="ident">rand</span>::{<span class="ident">rngs::SmallRng</span>, <span class="ident">SeedableRng</span>};
-<span class="kw">use</span> <span class="ident">std</span>::{
-    <span class="ident">collections</span>::{<span class="ident">HashMap</span>, <span class="ident">HashSet</span>},
-    <span class="ident">time::Duration</span>,
+<span class="kw">use </span>network::{PrimaryNetwork, PrimaryToWorkerNetwork, UnreliableNetwork};
+<span class="kw">use </span>rand::{rngs::SmallRng, SeedableRng};
+<span class="kw">use </span>std::{
+    collections::{HashMap, HashSet},
+    time::Duration,
 };
-<span class="kw">use</span> <span class="ident">store::Store</span>;
-<span class="kw">use</span> <span class="ident">thiserror::Error</span>;
-<span class="kw">use</span> <span class="ident">tokio</span>::{
-    <span class="ident">sync</span>::{
-        <span class="ident">mpsc</span>::{<span class="ident">channel</span>, <span class="ident">Receiver</span>, <span class="ident">Sender</span>},
-        <span class="ident">watch</span>,
+<span class="kw">use </span>store::Store;
+<span class="kw">use </span>thiserror::Error;
+<span class="kw">use </span>tokio::{
+    sync::{
+        mpsc::{channel, Receiver, Sender},
+        watch,
     },
-    <span class="ident">task::JoinHandle</span>,
-    <span class="ident">time</span>::{<span class="ident">sleep</span>, <span class="ident">timeout</span>},
+    task::JoinHandle,
+    time::{sleep, timeout},
 };
-<span class="kw">use</span> <span class="ident">tracing</span>::{<span class="ident">debug</span>, <span class="ident">error</span>, <span class="ident">info</span>, <span class="ident">instrument</span>, <span class="ident">trace</span>, <span class="ident">warn</span>};
-<span class="kw">use</span> <span class="ident">types</span>::{
-    <span class="ident">metered_channel</span>, <span class="ident">BatchDigest</span>, <span class="ident">Certificate</span>, <span class="ident">CertificateDigest</span>, <span class="ident">PrimaryWorkerMessage</span>,
-    <span class="ident">ReconfigureNotification</span>,
+<span class="kw">use </span>tracing::{debug, error, info, instrument, trace, warn};
+<span class="kw">use </span>types::{
+    metered_channel, BatchDigest, Certificate, CertificateDigest, PrimaryWorkerMessage,
+    ReconfigureNotification,
 };
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="attribute">#[<span class="ident">path</span> = <span class="string">&quot;tests/block_synchronizer_tests.rs&quot;</span>]</span>
-<span class="kw">mod</span> <span class="ident">block_synchronizer_tests</span>;
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">handler</span>;
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">mock</span>;
-<span class="kw">mod</span> <span class="ident">peers</span>;
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">responses</span>;
+<span class="attribute">#[cfg(test)]</span>
+<span class="attribute">#[path = <span class="string">&quot;tests/block_synchronizer_tests.rs&quot;</span>]</span>
+<span class="kw">mod </span>block_synchronizer_tests;
+<span class="kw">pub mod </span>handler;
+<span class="kw">pub mod </span>mock;
+<span class="kw">mod </span>peers;
+<span class="kw">pub mod </span>responses;
 
-<span class="doccomment">/// The minimum percentage</span>
-<span class="doccomment">/// (number of responses received from primary nodes / number of requests sent to primary nodes)</span>
-<span class="doccomment">/// that should be reached when requesting the certificates from peers in order to</span>
-<span class="doccomment">/// proceed to next state.</span>
-<span class="kw">const</span> <span class="ident">CERTIFICATE_RESPONSES_RATIO_THRESHOLD</span>: <span class="ident">f32</span> = <span class="number">0.5</span>;
+<span class="doccomment">/// The minimum percentage
+/// (number of responses received from primary nodes / number of requests sent to primary nodes)
+/// that should be reached when requesting the certificates from peers in order to
+/// proceed to next state.
+</span><span class="kw">const </span>CERTIFICATE_RESPONSES_RATIO_THRESHOLD: f32 = <span class="number">0.5</span>;
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BlockHeader</span> {
-    <span class="kw">pub</span> <span class="ident">certificate</span>: <span class="ident">Certificate</span>,
-    <span class="doccomment">/// It designates whether the requested quantity (either the certificate</span>
-    <span class="doccomment">/// or the payload) has been retrieved via the local storage. If true,</span>
-    <span class="doccomment">/// the it used the storage. If false, then it has been fetched via</span>
-    <span class="doccomment">/// the peers.</span>
-    <span class="kw">pub</span> <span class="ident">fetched_from_storage</span>: <span class="ident">bool</span>,
+<span class="attribute">#[derive(Debug, Clone)]</span>
+<span class="kw">pub struct </span>BlockHeader {
+    <span class="kw">pub </span>certificate: Certificate,
+    <span class="doccomment">/// It designates whether the requested quantity (either the certificate
+    /// or the payload) has been retrieved via the local storage. If true,
+    /// the it used the storage. If false, then it has been fetched via
+    /// the peers.
+    </span><span class="kw">pub </span>fetched_from_storage: bool,
 }
 
-<span class="kw">type</span> <span class="ident">ResultSender</span> = <span class="ident">Sender</span>&lt;<span class="ident">BlockSynchronizeResult</span>&lt;<span class="ident">BlockHeader</span>&gt;&gt;;
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">BlockSynchronizeResult</span>&lt;<span class="ident">T</span>&gt; = <span class="prelude-ty">Result</span>&lt;<span class="ident">T</span>, <span class="ident">SyncError</span>&gt;;
+<span class="kw">type </span>ResultSender = Sender&lt;BlockSynchronizeResult&lt;BlockHeader&gt;&gt;;
+<span class="kw">pub type </span>BlockSynchronizeResult&lt;T&gt; = <span class="prelude-ty">Result</span>&lt;T, SyncError&gt;;
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">Command</span> {
-    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">dead_code</span>)]</span>
-    <span class="doccomment">/// A request to synchronize and output the block headers</span>
-    <span class="doccomment">/// This will not perform any attempt to fetch the header&#39;s</span>
-    <span class="doccomment">/// batches. This component does NOT check whether the</span>
-    <span class="doccomment">/// requested block_ids are already synchronized. This is the</span>
-    <span class="doccomment">/// consumer&#39;s responsibility.</span>
-    <span class="ident">SynchronizeBlockHeaders</span> {
-        <span class="ident">block_ids</span>: <span class="ident">Vec</span>&lt;<span class="ident">CertificateDigest</span>&gt;,
-        <span class="ident">respond_to</span>: <span class="ident">ResultSender</span>,
+<span class="attribute">#[derive(Debug)]</span>
+<span class="kw">pub enum </span>Command {
+    <span class="attribute">#[allow(dead_code)]</span>
+    <span class="doccomment">/// A request to synchronize and output the block headers
+    /// This will not perform any attempt to fetch the header&#39;s
+    /// batches. This component does NOT check whether the
+    /// requested block_ids are already synchronized. This is the
+    /// consumer&#39;s responsibility.
+    </span>SynchronizeBlockHeaders {
+        block_ids: Vec&lt;CertificateDigest&gt;,
+        respond_to: ResultSender,
     },
-    <span class="doccomment">/// A request to synchronize the payload (batches) of the</span>
-    <span class="doccomment">/// provided certificates. The certificates are needed in</span>
-    <span class="doccomment">/// order to know which batches to ask from the peers</span>
-    <span class="doccomment">/// to sync and from which workers.</span>
-    <span class="doccomment">/// TODO: We expect to change how batches are stored and</span>
-    <span class="doccomment">/// represended (see https://github.com/MystenLabs/narwhal/issues/54</span>
-    <span class="doccomment">/// and https://github.com/MystenLabs/narwhal/issues/150 )</span>
-    <span class="doccomment">/// and this might relax the requirement to need certificates here.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// This component does NOT check whether the</span>
-    <span class="comment">//  requested block_ids are already synchronized. This is the</span>
-    <span class="comment">//  consumer&#39;s responsibility.</span>
-    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">dead_code</span>)]</span>
-    <span class="ident">SynchronizeBlockPayload</span> {
-        <span class="ident">certificates</span>: <span class="ident">Vec</span>&lt;<span class="ident">Certificate</span>&gt;,
-        <span class="ident">respond_to</span>: <span class="ident">ResultSender</span>,
-    },
-}
-
-<span class="comment">// Those states are used for internal purposes only for the component.</span>
-<span class="comment">// We are implementing a very very naive state machine and go get from</span>
-<span class="comment">// one state to the other those commands are being used.</span>
-<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy::large_enum_variant</span>)]</span>
-<span class="kw">enum</span> <span class="ident">State</span> {
-    <span class="ident">HeadersSynchronized</span> {
-        <span class="ident">request_id</span>: <span class="ident">RequestID</span>,
-        <span class="ident">certificates</span>: <span class="ident">HashMap</span>&lt;<span class="ident">CertificateDigest</span>, <span class="ident">BlockSynchronizeResult</span>&lt;<span class="ident">BlockHeader</span>&gt;&gt;,
-    },
-    <span class="ident">PayloadAvailabilityReceived</span> {
-        <span class="ident">request_id</span>: <span class="ident">RequestID</span>,
-        <span class="ident">certificates</span>: <span class="ident">HashMap</span>&lt;<span class="ident">CertificateDigest</span>, <span class="ident">BlockSynchronizeResult</span>&lt;<span class="ident">BlockHeader</span>&gt;&gt;,
-        <span class="ident">peers</span>: <span class="ident">Peers</span>&lt;<span class="ident">Certificate</span>&gt;,
-    },
-    <span class="ident">PayloadSynchronized</span> {
-        <span class="ident">request_id</span>: <span class="ident">RequestID</span>,
-        <span class="ident">result</span>: <span class="ident">BlockSynchronizeResult</span>&lt;<span class="ident">BlockHeader</span>&gt;,
+    <span class="doccomment">/// A request to synchronize the payload (batches) of the
+    /// provided certificates. The certificates are needed in
+    /// order to know which batches to ask from the peers
+    /// to sync and from which workers.
+    /// TODO: We expect to change how batches are stored and
+    /// represended (see https://github.com/MystenLabs/narwhal/issues/54
+    /// and https://github.com/MystenLabs/narwhal/issues/150 )
+    /// and this might relax the requirement to need certificates here.
+    ///
+    /// This component does NOT check whether the
+    </span><span class="comment">//  requested block_ids are already synchronized. This is the
+    //  consumer&#39;s responsibility.
+    </span><span class="attribute">#[allow(dead_code)]</span>
+    SynchronizeBlockPayload {
+        certificates: Vec&lt;Certificate&gt;,
+        respond_to: ResultSender,
     },
 }
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Error</span>, <span class="ident">Copy</span>, <span class="ident">Clone</span>)]</span>
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">SyncError</span> {
-    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Block with id {block_id} was not returned in any peer response&quot;</span>)]</span>
-    <span class="ident">NoResponse</span> { <span class="ident">block_id</span>: <span class="ident">CertificateDigest</span> },
-
-    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Block with id {block_id} could not be retrieved, timeout while retrieving result&quot;</span>)]</span>
-    <span class="ident">Timeout</span> { <span class="ident">block_id</span>: <span class="ident">CertificateDigest</span> },
+<span class="comment">// Those states are used for internal purposes only for the component.
+// We are implementing a very very naive state machine and go get from
+// one state to the other those commands are being used.
+</span><span class="attribute">#[allow(clippy::large_enum_variant)]</span>
+<span class="kw">enum </span>State {
+    HeadersSynchronized {
+        request_id: RequestID,
+        certificates: HashMap&lt;CertificateDigest, BlockSynchronizeResult&lt;BlockHeader&gt;&gt;,
+    },
+    PayloadAvailabilityReceived {
+        request_id: RequestID,
+        certificates: HashMap&lt;CertificateDigest, BlockSynchronizeResult&lt;BlockHeader&gt;&gt;,
+        peers: Peers&lt;Certificate&gt;,
+    },
+    PayloadSynchronized {
+        request_id: RequestID,
+        result: BlockSynchronizeResult&lt;BlockHeader&gt;,
+    },
 }
 
-<span class="kw">impl</span> <span class="ident">SyncError</span> {
-    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">dead_code</span>)]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">block_id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">CertificateDigest</span> {
-        <span class="kw">match</span> <span class="kw-2">*</span><span class="self">self</span> {
-            <span class="ident">SyncError::NoResponse</span> { <span class="ident">block_id</span> } | <span class="ident">SyncError::Timeout</span> { <span class="ident">block_id</span> } =&gt; <span class="ident">block_id</span>,
+<span class="attribute">#[derive(Debug, Error, Copy, Clone)]</span>
+<span class="kw">pub enum </span>SyncError {
+    <span class="attribute">#[error(<span class="string">&quot;Block with id {block_id} was not returned in any peer response&quot;</span>)]</span>
+    NoResponse { block_id: CertificateDigest },
+
+    <span class="attribute">#[error(<span class="string">&quot;Block with id {block_id} could not be retrieved, timeout while retrieving result&quot;</span>)]</span>
+    Timeout { block_id: CertificateDigest },
+}
+
+<span class="kw">impl </span>SyncError {
+    <span class="attribute">#[allow(dead_code)]</span>
+    <span class="kw">pub fn </span>block_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; CertificateDigest {
+        <span class="kw">match </span><span class="kw-2">*</span><span class="self">self </span>{
+            SyncError::NoResponse { block_id } | SyncError::Timeout { block_id } =&gt; block_id,
         }
     }
 }
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Hash</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>, <span class="ident">Clone</span>, <span class="ident">Copy</span>)]</span>
-<span class="kw">enum</span> <span class="ident">PendingIdentifier</span> {
-    <span class="ident">Header</span>(<span class="ident">CertificateDigest</span>),
-    <span class="ident">Payload</span>(<span class="ident">CertificateDigest</span>),
+<span class="attribute">#[derive(Hash, Eq, PartialEq, Clone, Copy)]</span>
+<span class="kw">enum </span>PendingIdentifier {
+    Header(CertificateDigest),
+    Payload(CertificateDigest),
 }
 
-<span class="kw">impl</span> <span class="ident">PendingIdentifier</span> {
-    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">dead_code</span>)]</span>
-    <span class="kw">fn</span> <span class="ident">id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">CertificateDigest</span> {
-        <span class="kw">match</span> <span class="self">self</span> {
-            <span class="ident">PendingIdentifier::Header</span>(<span class="ident">id</span>) | <span class="ident">PendingIdentifier::Payload</span>(<span class="ident">id</span>) =&gt; <span class="kw-2">*</span><span class="ident">id</span>,
+<span class="kw">impl </span>PendingIdentifier {
+    <span class="attribute">#[allow(dead_code)]</span>
+    <span class="kw">fn </span>id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; CertificateDigest {
+        <span class="kw">match </span><span class="self">self </span>{
+            PendingIdentifier::Header(id) | PendingIdentifier::Payload(id) =&gt; <span class="kw-2">*</span>id,
         }
     }
 }
 
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BlockSynchronizer</span> {
-    <span class="doccomment">/// The public key of this primary.</span>
-    <span class="ident">name</span>: <span class="ident">PublicKey</span>,
+<span class="kw">pub struct </span>BlockSynchronizer {
+    <span class="doccomment">/// The public key of this primary.
+    </span>name: PublicKey,
 
-    <span class="doccomment">/// The committee information.</span>
-    <span class="ident">committee</span>: <span class="ident">Committee</span>,
+    <span class="doccomment">/// The committee information.
+    </span>committee: Committee,
 
-    <span class="doccomment">/// Watch channel to reconfigure the committee.</span>
-    <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span>&lt;<span class="ident">ReconfigureNotification</span>&gt;,
+    <span class="doccomment">/// Watch channel to reconfigure the committee.
+    </span>rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;,
 
-    <span class="doccomment">/// Receive the commands for the synchronizer</span>
-    <span class="ident">rx_commands</span>: <span class="ident">metered_channel::Receiver</span>&lt;<span class="ident">Command</span>&gt;,
+    <span class="doccomment">/// Receive the commands for the synchronizer
+    </span>rx_commands: metered_channel::Receiver&lt;Command&gt;,
 
-    <span class="doccomment">/// Receive the requested list of certificates through this channel</span>
-    <span class="ident">rx_certificate_responses</span>: <span class="ident">metered_channel::Receiver</span>&lt;<span class="ident">CertificatesResponse</span>&gt;,
+    <span class="doccomment">/// Receive the requested list of certificates through this channel
+    </span>rx_certificate_responses: metered_channel::Receiver&lt;CertificatesResponse&gt;,
 
-    <span class="doccomment">/// Receive the availability for the requested certificates through this</span>
-    <span class="doccomment">/// channel</span>
-    <span class="ident">rx_payload_availability_responses</span>: <span class="ident">metered_channel::Receiver</span>&lt;<span class="ident">PayloadAvailabilityResponse</span>&gt;,
+    <span class="doccomment">/// Receive the availability for the requested certificates through this
+    /// channel
+    </span>rx_payload_availability_responses: metered_channel::Receiver&lt;PayloadAvailabilityResponse&gt;,
 
-    <span class="doccomment">/// Pending block requests either for header or payload type</span>
-    <span class="ident">pending_requests</span>: <span class="ident">HashMap</span>&lt;<span class="ident">PendingIdentifier</span>, <span class="ident">Vec</span>&lt;<span class="ident">ResultSender</span>&gt;&gt;,
+    <span class="doccomment">/// Pending block requests either for header or payload type
+    </span>pending_requests: HashMap&lt;PendingIdentifier, Vec&lt;ResultSender&gt;&gt;,
 
-    <span class="doccomment">/// Requests managers</span>
-    <span class="ident">map_certificate_responses_senders</span>: <span class="ident">HashMap</span>&lt;<span class="ident">RequestID</span>, <span class="ident">Sender</span>&lt;<span class="ident">CertificatesResponse</span>&gt;&gt;,
+    <span class="doccomment">/// Requests managers
+    </span>map_certificate_responses_senders: HashMap&lt;RequestID, Sender&lt;CertificatesResponse&gt;&gt;,
 
-    <span class="doccomment">/// Holds the senders to match a batch_availability responses</span>
-    <span class="ident">map_payload_availability_responses_senders</span>:
-        <span class="ident">HashMap</span>&lt;<span class="ident">RequestID</span>, <span class="ident">Sender</span>&lt;<span class="ident">PayloadAvailabilityResponse</span>&gt;&gt;,
+    <span class="doccomment">/// Holds the senders to match a batch_availability responses
+    </span>map_payload_availability_responses_senders:
+        HashMap&lt;RequestID, Sender&lt;PayloadAvailabilityResponse&gt;&gt;,
 
-    <span class="doccomment">/// Send network requests</span>
-    <span class="ident">primary_network</span>: <span class="ident">PrimaryNetwork</span>,
-    <span class="ident">worker_network</span>: <span class="ident">PrimaryToWorkerNetwork</span>,
+    <span class="doccomment">/// Send network requests
+    </span>primary_network: PrimaryNetwork,
+    worker_network: PrimaryToWorkerNetwork,
 
-    <span class="doccomment">/// The store that holds the certificates</span>
-    <span class="ident">certificate_store</span>: <span class="ident">Store</span>&lt;<span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span>&gt;,
+    <span class="doccomment">/// The store that holds the certificates
+    </span>certificate_store: Store&lt;CertificateDigest, Certificate&gt;,
 
-    <span class="doccomment">/// The persistent storage for payload markers from workers</span>
-    <span class="ident">payload_store</span>: <span class="ident">Store</span>&lt;(<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>), <span class="ident">PayloadToken</span>&gt;,
+    <span class="doccomment">/// The persistent storage for payload markers from workers
+    </span>payload_store: Store&lt;(BatchDigest, WorkerId), PayloadToken&gt;,
 
-    <span class="doccomment">/// Timeout when synchronizing the certificates</span>
-    <span class="ident">certificates_synchronize_timeout</span>: <span class="ident">Duration</span>,
+    <span class="doccomment">/// Timeout when synchronizing the certificates
+    </span>certificates_synchronize_timeout: Duration,
 
-    <span class="doccomment">/// Timeout when synchronizing the payload</span>
-    <span class="ident">payload_synchronize_timeout</span>: <span class="ident">Duration</span>,
+    <span class="doccomment">/// Timeout when synchronizing the payload
+    </span>payload_synchronize_timeout: Duration,
 
-    <span class="doccomment">/// Timeout when has requested the payload and waiting to receive</span>
-    <span class="ident">payload_availability_timeout</span>: <span class="ident">Duration</span>,
+    <span class="doccomment">/// Timeout when has requested the payload and waiting to receive
+    </span>payload_availability_timeout: Duration,
 }
 
-<span class="kw">impl</span> <span class="ident">BlockSynchronizer</span> {
-    <span class="attribute">#[<span class="ident">must_use</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(
-        <span class="ident">name</span>: <span class="ident">PublicKey</span>,
-        <span class="ident">committee</span>: <span class="ident">Committee</span>,
-        <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span>&lt;<span class="ident">ReconfigureNotification</span>&gt;,
-        <span class="ident">rx_commands</span>: <span class="ident">metered_channel::Receiver</span>&lt;<span class="ident">Command</span>&gt;,
-        <span class="ident">rx_certificate_responses</span>: <span class="ident">metered_channel::Receiver</span>&lt;<span class="ident">CertificatesResponse</span>&gt;,
-        <span class="ident">rx_payload_availability_responses</span>: <span class="ident">metered_channel::Receiver</span>&lt;<span class="ident">PayloadAvailabilityResponse</span>&gt;,
-        <span class="ident">network</span>: <span class="ident">PrimaryNetwork</span>,
-        <span class="ident">payload_store</span>: <span class="ident">Store</span>&lt;(<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>), <span class="ident">PayloadToken</span>&gt;,
-        <span class="ident">certificate_store</span>: <span class="ident">Store</span>&lt;<span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span>&gt;,
-        <span class="ident">parameters</span>: <span class="ident">BlockSynchronizerParameters</span>,
-    ) -&gt; <span class="ident">JoinHandle</span>&lt;()&gt; {
-        <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
-            <span class="self">Self</span> {
-                <span class="ident">name</span>,
-                <span class="ident">committee</span>,
-                <span class="ident">rx_reconfigure</span>,
-                <span class="ident">rx_commands</span>,
-                <span class="ident">rx_certificate_responses</span>,
-                <span class="ident">rx_payload_availability_responses</span>,
-                <span class="ident">pending_requests</span>: <span class="ident">HashMap::new</span>(),
-                <span class="ident">map_certificate_responses_senders</span>: <span class="ident">HashMap::new</span>(),
-                <span class="ident">map_payload_availability_responses_senders</span>: <span class="ident">HashMap::new</span>(),
-                <span class="ident">primary_network</span>: <span class="ident">network</span>,
-                <span class="ident">worker_network</span>: <span class="ident">PrimaryToWorkerNetwork::default</span>(),
-                <span class="ident">payload_store</span>,
-                <span class="ident">certificate_store</span>,
-                <span class="ident">certificates_synchronize_timeout</span>: <span class="ident">parameters</span>.<span class="ident">certificates_synchronize_timeout</span>,
-                <span class="ident">payload_synchronize_timeout</span>: <span class="ident">parameters</span>.<span class="ident">payload_availability_timeout</span>,
-                <span class="ident">payload_availability_timeout</span>: <span class="ident">parameters</span>.<span class="ident">payload_availability_timeout</span>,
+<span class="kw">impl </span>BlockSynchronizer {
+    <span class="attribute">#[must_use]</span>
+    <span class="kw">pub fn </span>spawn(
+        name: PublicKey,
+        committee: Committee,
+        rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;,
+        rx_commands: metered_channel::Receiver&lt;Command&gt;,
+        rx_certificate_responses: metered_channel::Receiver&lt;CertificatesResponse&gt;,
+        rx_payload_availability_responses: metered_channel::Receiver&lt;PayloadAvailabilityResponse&gt;,
+        network: PrimaryNetwork,
+        payload_store: Store&lt;(BatchDigest, WorkerId), PayloadToken&gt;,
+        certificate_store: Store&lt;CertificateDigest, Certificate&gt;,
+        parameters: BlockSynchronizerParameters,
+    ) -&gt; JoinHandle&lt;()&gt; {
+        tokio::spawn(<span class="kw">async move </span>{
+            <span class="self">Self </span>{
+                name,
+                committee,
+                rx_reconfigure,
+                rx_commands,
+                rx_certificate_responses,
+                rx_payload_availability_responses,
+                pending_requests: HashMap::new(),
+                map_certificate_responses_senders: HashMap::new(),
+                map_payload_availability_responses_senders: HashMap::new(),
+                primary_network: network,
+                worker_network: PrimaryToWorkerNetwork::default(),
+                payload_store,
+                certificate_store,
+                certificates_synchronize_timeout: parameters.certificates_synchronize_timeout,
+                payload_synchronize_timeout: parameters.payload_availability_timeout,
+                payload_availability_timeout: parameters.payload_availability_timeout,
             }
-            .<span class="ident">run</span>()
+            .run()
             .<span class="kw">await</span>;
         })
     }
 
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">run</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
-        <span class="comment">// Waiting is holding futures which are an outcome of processing</span>
-        <span class="comment">// of other methods, which we want to asynchronously handle them.</span>
-        <span class="comment">// We expect every future included in this list to produce an</span>
-        <span class="comment">// outcome of the &quot;next state&quot; to be executed - see the State enum.</span>
-        <span class="comment">// That allows us to implement a naive state machine mechanism and</span>
-        <span class="comment">// pass freely arbitrary data across those states for further</span>
-        <span class="comment">// processing.</span>
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">waiting</span> = <span class="ident">FuturesUnordered::new</span>();
+    <span class="kw">pub async fn </span>run(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="comment">// Waiting is holding futures which are an outcome of processing
+        // of other methods, which we want to asynchronously handle them.
+        // We expect every future included in this list to produce an
+        // outcome of the &quot;next state&quot; to be executed - see the State enum.
+        // That allows us to implement a naive state machine mechanism and
+        // pass freely arbitrary data across those states for further
+        // processing.
+        </span><span class="kw">let </span><span class="kw-2">mut </span>waiting = FuturesUnordered::new();
 
         <span class="macro">info!</span>(
             <span class="string">&quot;BlockSynchronizer on node {} has started successfully.&quot;</span>,
-            <span class="self">self</span>.<span class="ident">name</span>
+            <span class="self">self</span>.name
         );
-        <span class="kw">loop</span> {
+        <span class="kw">loop </span>{
             <span class="macro">tokio::select!</span> {
-                <span class="prelude-val">Some</span>(<span class="ident">command</span>) = <span class="self">self</span>.<span class="ident">rx_commands</span>.<span class="ident">recv</span>() =&gt; {
-                    <span class="kw">match</span> <span class="ident">command</span> {
-                        <span class="ident">Command::SynchronizeBlockHeaders</span> { <span class="ident">block_ids</span>, <span class="ident">respond_to</span> } =&gt; {
-                            <span class="kw">let</span> <span class="ident">fut</span> = <span class="self">self</span>.<span class="ident">handle_synchronize_block_headers_command</span>(<span class="ident">block_ids</span>, <span class="ident">respond_to</span>).<span class="kw">await</span>;
-                            <span class="kw">if</span> <span class="ident">fut</span>.<span class="ident">is_some</span>() {
-                                <span class="ident">waiting</span>.<span class="ident">push</span>(<span class="ident">fut</span>.<span class="ident">unwrap</span>());
+                <span class="prelude-val">Some</span>(command) = <span class="self">self</span>.rx_commands.recv() =&gt; {
+                    <span class="kw">match </span>command {
+                        Command::SynchronizeBlockHeaders { block_ids, respond_to } =&gt; {
+                            <span class="kw">let </span>fut = <span class="self">self</span>.handle_synchronize_block_headers_command(block_ids, respond_to).<span class="kw">await</span>;
+                            <span class="kw">if </span>fut.is_some() {
+                                waiting.push(fut.unwrap());
                             }
                         },
-                        <span class="ident">Command::SynchronizeBlockPayload</span> { <span class="ident">certificates</span>, <span class="ident">respond_to</span> } =&gt; {
-                            <span class="kw">let</span> <span class="ident">fut</span> = <span class="self">self</span>.<span class="ident">handle_synchronize_block_payload_command</span>(<span class="ident">certificates</span>, <span class="ident">respond_to</span>).<span class="kw">await</span>;
-                            <span class="kw">if</span> <span class="ident">fut</span>.<span class="ident">is_some</span>() {
-                                <span class="ident">waiting</span>.<span class="ident">push</span>(<span class="ident">fut</span>.<span class="ident">unwrap</span>());
+                        Command::SynchronizeBlockPayload { certificates, respond_to } =&gt; {
+                            <span class="kw">let </span>fut = <span class="self">self</span>.handle_synchronize_block_payload_command(certificates, respond_to).<span class="kw">await</span>;
+                            <span class="kw">if </span>fut.is_some() {
+                                waiting.push(fut.unwrap());
                             }
                         }
                     }
                 },
-                <span class="prelude-val">Some</span>(<span class="ident">response</span>) = <span class="self">self</span>.<span class="ident">rx_certificate_responses</span>.<span class="ident">recv</span>() =&gt; {
-                    <span class="self">self</span>.<span class="ident">handle_certificates_response</span>(<span class="ident">response</span>).<span class="kw">await</span>;
+                <span class="prelude-val">Some</span>(response) = <span class="self">self</span>.rx_certificate_responses.recv() =&gt; {
+                    <span class="self">self</span>.handle_certificates_response(response).<span class="kw">await</span>;
                 },
-                <span class="prelude-val">Some</span>(<span class="ident">response</span>) = <span class="self">self</span>.<span class="ident">rx_payload_availability_responses</span>.<span class="ident">recv</span>() =&gt; {
-                    <span class="self">self</span>.<span class="ident">handle_payload_availability_response</span>(<span class="ident">response</span>).<span class="kw">await</span>;
+                <span class="prelude-val">Some</span>(response) = <span class="self">self</span>.rx_payload_availability_responses.recv() =&gt; {
+                    <span class="self">self</span>.handle_payload_availability_response(response).<span class="kw">await</span>;
                 },
-                <span class="prelude-val">Some</span>(<span class="ident">state</span>) = <span class="ident">waiting</span>.<span class="ident">next</span>() =&gt; {
-                    <span class="kw">match</span> <span class="ident">state</span> {
-                        <span class="ident">State::HeadersSynchronized</span> { <span class="ident">request_id</span>, <span class="ident">certificates</span> } =&gt; {
+                <span class="prelude-val">Some</span>(state) = waiting.next() =&gt; {
+                    <span class="kw">match </span>state {
+                        State::HeadersSynchronized { request_id, certificates } =&gt; {
                             <span class="macro">debug!</span>(<span class="string">&quot;Result for the block headers synchronize request id {request_id}&quot;</span>);
 
-                            <span class="kw">for</span> (<span class="ident">id</span>, <span class="ident">result</span>) <span class="kw">in</span> <span class="ident">certificates</span> {
-                                <span class="self">self</span>.<span class="ident">notify_requestors_for_result</span>(<span class="ident">Header</span>(<span class="ident">id</span>), <span class="ident">result</span>).<span class="kw">await</span>;
+                            <span class="kw">for </span>(id, result) <span class="kw">in </span>certificates {
+                                <span class="self">self</span>.notify_requestors_for_result(Header(id), result).<span class="kw">await</span>;
                             }
                         },
-                        <span class="ident">State::PayloadAvailabilityReceived</span> { <span class="ident">request_id</span>, <span class="ident">certificates</span>, <span class="ident">peers</span> } =&gt; {
+                        State::PayloadAvailabilityReceived { request_id, certificates, peers } =&gt; {
                              <span class="macro">debug!</span>(<span class="string">&quot;Result for the block payload synchronize request id {request_id}&quot;</span>);
 
-                            <span class="comment">// now try to synchronise the payload only for the ones that have been found</span>
-                            <span class="kw">let</span> <span class="ident">futures</span> = <span class="self">self</span>.<span class="ident">handle_synchronize_block_payloads</span>(<span class="ident">request_id</span>, <span class="ident">peers</span>).<span class="kw">await</span>;
-                            <span class="kw">for</span> <span class="ident">fut</span> <span class="kw">in</span> <span class="ident">futures</span> {
-                                <span class="ident">waiting</span>.<span class="ident">push</span>(<span class="ident">fut</span>);
+                            <span class="comment">// now try to synchronise the payload only for the ones that have been found
+                            </span><span class="kw">let </span>futures = <span class="self">self</span>.handle_synchronize_block_payloads(request_id, peers).<span class="kw">await</span>;
+                            <span class="kw">for </span>fut <span class="kw">in </span>futures {
+                                waiting.push(fut);
                             }
 
-                            <span class="comment">// notify immediately for block_ids that have been errored or timedout</span>
-                            <span class="kw">for</span> (<span class="ident">id</span>, <span class="ident">result</span>) <span class="kw">in</span> <span class="ident">certificates</span> {
-                                <span class="kw">if</span> <span class="ident">result</span>.<span class="ident">is_err</span>() {
-                                    <span class="self">self</span>.<span class="ident">notify_requestors_for_result</span>(<span class="ident">Payload</span>(<span class="ident">id</span>), <span class="ident">result</span>).<span class="kw">await</span>;
+                            <span class="comment">// notify immediately for block_ids that have been errored or timedout
+                            </span><span class="kw">for </span>(id, result) <span class="kw">in </span>certificates {
+                                <span class="kw">if </span>result.is_err() {
+                                    <span class="self">self</span>.notify_requestors_for_result(Payload(id), result).<span class="kw">await</span>;
                                 }
                             }
                         },
-                        <span class="ident">State::PayloadSynchronized</span> { <span class="ident">request_id</span>, <span class="ident">result</span> } =&gt; {
-                            <span class="kw">let</span> <span class="ident">id</span> = <span class="ident">result</span>.<span class="ident">as_ref</span>().<span class="ident">map_or_else</span>(|<span class="ident">e</span>| <span class="ident">e</span>.<span class="ident">block_id</span>(), |<span class="ident">r</span>| <span class="ident">r</span>.<span class="ident">certificate</span>.<span class="ident">digest</span>());
+                        State::PayloadSynchronized { request_id, result } =&gt; {
+                            <span class="kw">let </span>id = result.as_ref().map_or_else(|e| e.block_id(), |r| r.certificate.digest());
 
                             <span class="macro">debug!</span>(<span class="string">&quot;Block payload synchronize result received for certificate id {id} for request id {request_id}&quot;</span>);
 
-                            <span class="self">self</span>.<span class="ident">notify_requestors_for_result</span>(<span class="ident">Payload</span>(<span class="ident">id</span>), <span class="ident">result</span>).<span class="kw">await</span>;
+                            <span class="self">self</span>.notify_requestors_for_result(Payload(id), result).<span class="kw">await</span>;
                         },
                     }
                 }
 
-                <span class="comment">// Check whether the committee changed.</span>
-                <span class="ident">result</span> = <span class="self">self</span>.<span class="ident">rx_reconfigure</span>.<span class="ident">changed</span>() =&gt; {
-                    <span class="ident">result</span>.<span class="ident">expect</span>(<span class="string">&quot;Committee channel dropped&quot;</span>);
-                    <span class="kw">let</span> <span class="ident">message</span> = <span class="self">self</span>.<span class="ident">rx_reconfigure</span>.<span class="ident">borrow</span>().<span class="ident">clone</span>();
-                    <span class="kw">match</span> <span class="ident">message</span> {
-                        <span class="ident">ReconfigureNotification::NewEpoch</span>(<span class="ident">new_committee</span>)=&gt; {
-                            <span class="self">self</span>.<span class="ident">primary_network</span>.<span class="ident">cleanup</span>(<span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">network_diff</span>(<span class="kw-2">&amp;</span><span class="ident">new_committee</span>));
-                            <span class="self">self</span>.<span class="ident">worker_network</span>.<span class="ident">cleanup</span>(<span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">network_diff</span>(<span class="kw-2">&amp;</span><span class="ident">new_committee</span>));
-                            <span class="self">self</span>.<span class="ident">committee</span> = <span class="ident">new_committee</span>;
+                <span class="comment">// Check whether the committee changed.
+                </span>result = <span class="self">self</span>.rx_reconfigure.changed() =&gt; {
+                    result.expect(<span class="string">&quot;Committee channel dropped&quot;</span>);
+                    <span class="kw">let </span>message = <span class="self">self</span>.rx_reconfigure.borrow().clone();
+                    <span class="kw">match </span>message {
+                        ReconfigureNotification::NewEpoch(new_committee)=&gt; {
+                            <span class="self">self</span>.primary_network.cleanup(<span class="self">self</span>.committee.network_diff(<span class="kw-2">&amp;</span>new_committee));
+                            <span class="self">self</span>.worker_network.cleanup(<span class="self">self</span>.committee.network_diff(<span class="kw-2">&amp;</span>new_committee));
+                            <span class="self">self</span>.committee = new_committee;
                         }
-                        <span class="ident">ReconfigureNotification::UpdateCommittee</span>(<span class="ident">new_committee</span>)=&gt; {
-                            <span class="self">self</span>.<span class="ident">primary_network</span>.<span class="ident">cleanup</span>(<span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">network_diff</span>(<span class="kw-2">&amp;</span><span class="ident">new_committee</span>));
-                            <span class="self">self</span>.<span class="ident">worker_network</span>.<span class="ident">cleanup</span>(<span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">network_diff</span>(<span class="kw-2">&amp;</span><span class="ident">new_committee</span>));
-                            <span class="self">self</span>.<span class="ident">committee</span> = <span class="ident">new_committee</span>;
+                        ReconfigureNotification::UpdateCommittee(new_committee)=&gt; {
+                            <span class="self">self</span>.primary_network.cleanup(<span class="self">self</span>.committee.network_diff(<span class="kw-2">&amp;</span>new_committee));
+                            <span class="self">self</span>.worker_network.cleanup(<span class="self">self</span>.committee.network_diff(<span class="kw-2">&amp;</span>new_committee));
+                            <span class="self">self</span>.committee = new_committee;
                         }
-                        <span class="ident">ReconfigureNotification::Shutdown</span> =&gt; <span class="kw">return</span>
-                    }
-                    <span class="macro">tracing::debug!</span>(<span class="string">&quot;Committee updated to {}&quot;</span>, <span class="self">self</span>.<span class="ident">committee</span>);
+                        ReconfigureNotification::Shutdown =&gt; <span class="kw">return
+                    </span>}
+                    <span class="macro">tracing::debug!</span>(<span class="string">&quot;Committee updated to {}&quot;</span>, <span class="self">self</span>.committee);
                 }
             }
         }
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">notify_requestors_for_result</span>(
-        <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
-        <span class="ident">request</span>: <span class="ident">PendingIdentifier</span>,
-        <span class="ident">result</span>: <span class="ident">BlockSynchronizeResult</span>&lt;<span class="ident">BlockHeader</span>&gt;,
+    <span class="kw">async fn </span>notify_requestors_for_result(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        request: PendingIdentifier,
+        result: BlockSynchronizeResult&lt;BlockHeader&gt;,
     ) {
-        <span class="comment">// remove the senders &amp; broadcast result</span>
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">respond_to</span>) = <span class="self">self</span>.<span class="ident">pending_requests</span>.<span class="ident">remove</span>(<span class="kw-2">&amp;</span><span class="ident">request</span>) {
-            <span class="kw">let</span> <span class="ident">futures</span>: <span class="ident">Vec</span>&lt;<span class="kw">_</span>&gt; = <span class="ident">respond_to</span>.<span class="ident">iter</span>().<span class="ident">map</span>(|<span class="ident">s</span>| <span class="ident">s</span>.<span class="ident">send</span>(<span class="ident">result</span>.<span class="ident">clone</span>())).<span class="ident">collect</span>();
+        <span class="comment">// remove the senders &amp; broadcast result
+        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(respond_to) = <span class="self">self</span>.pending_requests.remove(<span class="kw-2">&amp;</span>request) {
+            <span class="kw">let </span>futures: Vec&lt;<span class="kw">_</span>&gt; = respond_to.iter().map(|s| s.send(result.clone())).collect();
 
-            <span class="kw">for</span> <span class="ident">r</span> <span class="kw">in</span> <span class="ident">join_all</span>(<span class="ident">futures</span>).<span class="kw">await</span> {
-                <span class="kw">if</span> <span class="ident">r</span>.<span class="ident">is_err</span>() {
-                    <span class="macro">error!</span>(<span class="string">&quot;Couldn&#39;t send message to channel [{:?}]&quot;</span>, <span class="ident">r</span>.<span class="ident">err</span>().<span class="ident">unwrap</span>());
+            <span class="kw">for </span>r <span class="kw">in </span>join_all(futures).<span class="kw">await </span>{
+                <span class="kw">if </span>r.is_err() {
+                    <span class="macro">error!</span>(<span class="string">&quot;Couldn&#39;t send message to channel [{:?}]&quot;</span>, r.err().unwrap());
                 }
             }
         }
     }
 
-    <span class="comment">// Helper method to mark a request as pending. It returns true if it is the</span>
-    <span class="comment">// first request for this identifier, otherwise false is returned instead.</span>
-    <span class="kw">fn</span> <span class="ident">resolve_pending_request</span>(
-        <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
-        <span class="ident">identifier</span>: <span class="ident">PendingIdentifier</span>,
-        <span class="ident">respond_to</span>: <span class="ident">ResultSender</span>,
-    ) -&gt; <span class="ident">bool</span> {
-        <span class="comment">// add our self anyways to a pending request, as we don&#39;t expect to</span>
-        <span class="comment">// fail down the line of this method (unless crash)</span>
-        <span class="kw">let</span> <span class="ident">e</span> = <span class="self">self</span>.<span class="ident">pending_requests</span>.<span class="ident">entry</span>(<span class="ident">identifier</span>).<span class="ident">or_default</span>();
-        <span class="ident">e</span>.<span class="ident">push</span>(<span class="ident">respond_to</span>);
+    <span class="comment">// Helper method to mark a request as pending. It returns true if it is the
+    // first request for this identifier, otherwise false is returned instead.
+    </span><span class="kw">fn </span>resolve_pending_request(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        identifier: PendingIdentifier,
+        respond_to: ResultSender,
+    ) -&gt; bool {
+        <span class="comment">// add our self anyways to a pending request, as we don&#39;t expect to
+        // fail down the line of this method (unless crash)
+        </span><span class="kw">let </span>e = <span class="self">self</span>.pending_requests.entry(identifier).or_default();
+        e.push(respond_to);
 
-        <span class="ident">e</span>.<span class="ident">len</span>() == <span class="number">1</span>
-    }
+        e.len() == <span class="number">1
+    </span>}
 
-    <span class="doccomment">/// This method handles the command to synchronize the payload of the</span>
-    <span class="doccomment">/// provided certificates. It finds for which certificates we don&#39;t</span>
-    <span class="doccomment">/// have an already pending request and broadcasts a message to all</span>
-    <span class="doccomment">/// the primary peer nodes to scout which ones have and are able to send</span>
-    <span class="doccomment">/// us the payload. It returns a future which is responsible to run the</span>
-    <span class="doccomment">/// logic of waiting and gathering the replies from the primary nodes</span>
-    <span class="doccomment">/// for the payload availability. This future is returning the next State</span>
-    <span class="doccomment">/// to be executed.</span>
-    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span>=<span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>, <span class="ident">fields</span>(<span class="ident">num_certificates</span> = <span class="ident">certificates</span>.<span class="ident">len</span>()))]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">handle_synchronize_block_payload_command</span>&lt;<span class="lifetime">&#39;a</span>&gt;(
-        <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
-        <span class="ident">certificates</span>: <span class="ident">Vec</span>&lt;<span class="ident">Certificate</span>&gt;,
-        <span class="ident">respond_to</span>: <span class="ident">ResultSender</span>,
-    ) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="ident">BoxFuture</span>&lt;<span class="lifetime">&#39;a</span>, <span class="ident">State</span>&gt;&gt; {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">certificates_to_sync</span> = <span class="ident">Vec::new</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">block_ids_to_sync</span> = <span class="ident">Vec::new</span>();
+    <span class="doccomment">/// This method handles the command to synchronize the payload of the
+    /// provided certificates. It finds for which certificates we don&#39;t
+    /// have an already pending request and broadcasts a message to all
+    /// the primary peer nodes to scout which ones have and are able to send
+    /// us the payload. It returns a future which is responsible to run the
+    /// logic of waiting and gathering the replies from the primary nodes
+    /// for the payload availability. This future is returning the next State
+    /// to be executed.
+    </span><span class="attribute">#[instrument(level=<span class="string">&quot;debug&quot;</span>, skip_all, fields(num_certificates = certificates.len()))]</span>
+    <span class="kw">async fn </span>handle_synchronize_block_payload_command&lt;<span class="lifetime">&#39;a</span>&gt;(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        certificates: Vec&lt;Certificate&gt;,
+        respond_to: ResultSender,
+    ) -&gt; <span class="prelude-ty">Option</span>&lt;BoxFuture&lt;<span class="lifetime">&#39;a</span>, State&gt;&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>certificates_to_sync = Vec::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>block_ids_to_sync = Vec::new();
 
-        <span class="kw">let</span> <span class="ident">missing_certificates</span> = <span class="self">self</span>
-            .<span class="ident">reply_with_payload_already_in_storage</span>(<span class="ident">certificates</span>.<span class="ident">clone</span>(), <span class="ident">respond_to</span>.<span class="ident">clone</span>())
+        <span class="kw">let </span>missing_certificates = <span class="self">self
+            </span>.reply_with_payload_already_in_storage(certificates.clone(), respond_to.clone())
             .<span class="kw">await</span>;
 
-        <span class="kw">for</span> <span class="ident">certificate</span> <span class="kw">in</span> <span class="ident">missing_certificates</span> {
-            <span class="kw">let</span> <span class="ident">block_id</span> = <span class="ident">certificate</span>.<span class="ident">digest</span>();
+        <span class="kw">for </span>certificate <span class="kw">in </span>missing_certificates {
+            <span class="kw">let </span>block_id = certificate.digest();
 
-            <span class="kw">if</span> <span class="self">self</span>.<span class="ident">resolve_pending_request</span>(<span class="ident">Payload</span>(<span class="ident">block_id</span>), <span class="ident">respond_to</span>.<span class="ident">clone</span>()) {
-                <span class="ident">certificates_to_sync</span>.<span class="ident">push</span>(<span class="ident">certificate</span>);
-                <span class="ident">block_ids_to_sync</span>.<span class="ident">push</span>(<span class="ident">block_id</span>);
-            } <span class="kw">else</span> {
+            <span class="kw">if </span><span class="self">self</span>.resolve_pending_request(Payload(block_id), respond_to.clone()) {
+                certificates_to_sync.push(certificate);
+                block_ids_to_sync.push(block_id);
+            } <span class="kw">else </span>{
                 <span class="macro">trace!</span>(<span class="string">&quot;Nothing to request here, it&#39;s already in pending state&quot;</span>);
             }
         }
 
-        <span class="comment">// nothing new to sync! just return</span>
-        <span class="kw">if</span> <span class="ident">certificates_to_sync</span>.<span class="ident">is_empty</span>() {
+        <span class="comment">// nothing new to sync! just return
+        </span><span class="kw">if </span>certificates_to_sync.is_empty() {
             <span class="macro">trace!</span>(<span class="string">&quot;No certificates to sync, will now exit&quot;</span>);
-            <span class="kw">return</span> <span class="prelude-val">None</span>;
-        } <span class="kw">else</span> {
+            <span class="kw">return </span><span class="prelude-val">None</span>;
+        } <span class="kw">else </span>{
             <span class="macro">trace!</span>(<span class="string">&quot;Certificate payloads need sync&quot;</span>);
         }
 
-        <span class="kw">let</span> <span class="ident">key</span> = <span class="ident">RequestID::from_iter</span>(<span class="ident">certificates_to_sync</span>.<span class="ident">iter</span>());
+        <span class="kw">let </span>key = RequestID::from_iter(certificates_to_sync.iter());
 
-        <span class="kw">let</span> <span class="ident">message</span> = <span class="ident">PrimaryMessage::PayloadAvailabilityRequest</span> {
-            <span class="ident">certificate_ids</span>: <span class="ident">block_ids_to_sync</span>,
-            <span class="ident">requestor</span>: <span class="self">self</span>.<span class="ident">name</span>.<span class="ident">clone</span>(),
+        <span class="kw">let </span>message = PrimaryMessage::PayloadAvailabilityRequest {
+            certificate_ids: block_ids_to_sync,
+            requestor: <span class="self">self</span>.name.clone(),
         };
 
-        <span class="kw">let</span> (<span class="ident">sender</span>, <span class="ident">receiver</span>) = <span class="ident">channel</span>(<span class="ident">CHANNEL_CAPACITY</span>);
-        <span class="comment">// record the request key to forward the results to the dedicated sender</span>
-        <span class="self">self</span>.<span class="ident">map_payload_availability_responses_senders</span>
-            .<span class="ident">insert</span>(<span class="ident">key</span>, <span class="ident">sender</span>);
+        <span class="kw">let </span>(sender, receiver) = channel(CHANNEL_CAPACITY);
+        <span class="comment">// record the request key to forward the results to the dedicated sender
+        </span><span class="self">self</span>.map_payload_availability_responses_senders
+            .insert(key, sender);
 
-        <span class="comment">// broadcast the message to fetch  the certificates</span>
-        <span class="kw">let</span> <span class="ident">primaries</span> = <span class="self">self</span>.<span class="ident">broadcast_batch_request</span>(<span class="ident">message</span>).<span class="kw">await</span>;
+        <span class="comment">// broadcast the message to fetch  the certificates
+        </span><span class="kw">let </span>primaries = <span class="self">self</span>.broadcast_batch_request(message).<span class="kw">await</span>;
 
-        <span class="comment">// now create the future that will wait to gather the responses</span>
-        <span class="prelude-val">Some</span>(
-            <span class="ident"><span class="self">Self</span>::wait_for_payload_availability_responses</span>(
-                <span class="self">self</span>.<span class="ident">payload_availability_timeout</span>,
-                <span class="ident">key</span>,
-                <span class="ident">certificates_to_sync</span>,
-                <span class="ident">primaries</span>,
-                <span class="ident">receiver</span>,
+        <span class="comment">// now create the future that will wait to gather the responses
+        </span><span class="prelude-val">Some</span>(
+            <span class="self">Self</span>::wait_for_payload_availability_responses(
+                <span class="self">self</span>.payload_availability_timeout,
+                key,
+                certificates_to_sync,
+                primaries,
+                receiver,
             )
-            .<span class="ident">boxed</span>(),
+            .boxed(),
         )
     }
 
-    <span class="doccomment">/// This method handles the command to synchronize the headers</span>
-    <span class="doccomment">/// (certificates) for the provided ids. It is deduping the ids for which</span>
-    <span class="doccomment">/// it already has a pending request and for the rest is broadcasting a</span>
-    <span class="doccomment">/// message to the other peer nodes to fetch the request certificates, if</span>
-    <span class="doccomment">/// available. We expect each peer node to respond with the actual</span>
-    <span class="doccomment">/// certificates that has available. Also, the method is querying in the</span>
-    <span class="doccomment">/// internal storage whether there are any certificates already stored and</span>
-    <span class="doccomment">/// available. For the ones found in storage the replies are send directly</span>
-    <span class="doccomment">/// back to the consumer. The method returns a future that is running the</span>
-    <span class="doccomment">/// process of waiting to gather the node responses and emits the result as</span>
-    <span class="doccomment">/// the next State to be executed.</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">handle_synchronize_block_headers_command</span>&lt;<span class="lifetime">&#39;a</span>&gt;(
-        <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
-        <span class="ident">block_ids</span>: <span class="ident">Vec</span>&lt;<span class="ident">CertificateDigest</span>&gt;,
-        <span class="ident">respond_to</span>: <span class="ident">ResultSender</span>,
-    ) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="ident">BoxFuture</span>&lt;<span class="lifetime">&#39;a</span>, <span class="ident">State</span>&gt;&gt; {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">to_sync</span> = <span class="ident">Vec::new</span>();
+    <span class="doccomment">/// This method handles the command to synchronize the headers
+    /// (certificates) for the provided ids. It is deduping the ids for which
+    /// it already has a pending request and for the rest is broadcasting a
+    /// message to the other peer nodes to fetch the request certificates, if
+    /// available. We expect each peer node to respond with the actual
+    /// certificates that has available. Also, the method is querying in the
+    /// internal storage whether there are any certificates already stored and
+    /// available. For the ones found in storage the replies are send directly
+    /// back to the consumer. The method returns a future that is running the
+    /// process of waiting to gather the node responses and emits the result as
+    /// the next State to be executed.
+    </span><span class="kw">async fn </span>handle_synchronize_block_headers_command&lt;<span class="lifetime">&#39;a</span>&gt;(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        block_ids: Vec&lt;CertificateDigest&gt;,
+        respond_to: ResultSender,
+    ) -&gt; <span class="prelude-ty">Option</span>&lt;BoxFuture&lt;<span class="lifetime">&#39;a</span>, State&gt;&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>to_sync = Vec::new();
 
-        <span class="kw">let</span> <span class="ident">missing_block_ids</span> = <span class="self">self</span>
-            .<span class="ident">reply_with_certificates_already_in_storage</span>(<span class="ident">block_ids</span>.<span class="ident">clone</span>(), <span class="ident">respond_to</span>.<span class="ident">clone</span>())
+        <span class="kw">let </span>missing_block_ids = <span class="self">self
+            </span>.reply_with_certificates_already_in_storage(block_ids.clone(), respond_to.clone())
             .<span class="kw">await</span>;
 
-        <span class="comment">// check if there are pending requests on the block_ids.</span>
-        <span class="comment">// If yes, then ignore.</span>
-        <span class="kw">for</span> <span class="ident">block_id</span> <span class="kw">in</span> <span class="ident">missing_block_ids</span> {
-            <span class="kw">if</span> <span class="self">self</span>.<span class="ident">resolve_pending_request</span>(<span class="ident">Header</span>(<span class="ident">block_id</span>), <span class="ident">respond_to</span>.<span class="ident">clone</span>()) {
-                <span class="ident">to_sync</span>.<span class="ident">push</span>(<span class="ident">block_id</span>);
-            } <span class="kw">else</span> {
+        <span class="comment">// check if there are pending requests on the block_ids.
+        // If yes, then ignore.
+        </span><span class="kw">for </span>block_id <span class="kw">in </span>missing_block_ids {
+            <span class="kw">if </span><span class="self">self</span>.resolve_pending_request(Header(block_id), respond_to.clone()) {
+                to_sync.push(block_id);
+            } <span class="kw">else </span>{
                 <span class="macro">debug!</span>(<span class="string">&quot;Nothing to request here, it&#39;s already in pending state&quot;</span>);
             }
         }
 
-        <span class="comment">// nothing new to sync! just return</span>
-        <span class="kw">if</span> <span class="ident">to_sync</span>.<span class="ident">is_empty</span>() {
-            <span class="kw">return</span> <span class="prelude-val">None</span>;
+        <span class="comment">// nothing new to sync! just return
+        </span><span class="kw">if </span>to_sync.is_empty() {
+            <span class="kw">return </span><span class="prelude-val">None</span>;
         }
 
-        <span class="kw">let</span> <span class="ident">key</span> = <span class="ident">RequestID::from_iter</span>(<span class="ident">to_sync</span>.<span class="ident">iter</span>());
+        <span class="kw">let </span>key = RequestID::from_iter(to_sync.iter());
 
-        <span class="kw">let</span> <span class="ident">message</span> = <span class="ident">PrimaryMessage::CertificatesBatchRequest</span> {
-            <span class="ident">certificate_ids</span>: <span class="ident">to_sync</span>.<span class="ident">clone</span>(),
-            <span class="ident">requestor</span>: <span class="self">self</span>.<span class="ident">name</span>.<span class="ident">clone</span>(),
+        <span class="kw">let </span>message = PrimaryMessage::CertificatesBatchRequest {
+            certificate_ids: to_sync.clone(),
+            requestor: <span class="self">self</span>.name.clone(),
         };
 
-        <span class="comment">// broadcast the message to fetch  the certificates</span>
-        <span class="kw">let</span> <span class="ident">primaries</span> = <span class="self">self</span>.<span class="ident">broadcast_batch_request</span>(<span class="ident">message</span>).<span class="kw">await</span>;
+        <span class="comment">// broadcast the message to fetch  the certificates
+        </span><span class="kw">let </span>primaries = <span class="self">self</span>.broadcast_batch_request(message).<span class="kw">await</span>;
 
-        <span class="kw">let</span> (<span class="ident">sender</span>, <span class="ident">receiver</span>) = <span class="ident">channel</span>(<span class="ident">primaries</span>.<span class="ident">as_slice</span>().<span class="ident">len</span>());
+        <span class="kw">let </span>(sender, receiver) = channel(primaries.as_slice().len());
 
-        <span class="comment">// record the request key to forward the results to the dedicated sender</span>
-        <span class="self">self</span>.<span class="ident">map_certificate_responses_senders</span>.<span class="ident">insert</span>(<span class="ident">key</span>, <span class="ident">sender</span>);
+        <span class="comment">// record the request key to forward the results to the dedicated sender
+        </span><span class="self">self</span>.map_certificate_responses_senders.insert(key, sender);
 
-        <span class="comment">// now create the future that will wait to gather the responses</span>
-        <span class="prelude-val">Some</span>(
-            <span class="ident"><span class="self">Self</span>::wait_for_certificate_responses</span>(
-                <span class="self">self</span>.<span class="ident">certificates_synchronize_timeout</span>,
-                <span class="ident">key</span>,
-                <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">clone</span>(),
-                <span class="ident">to_sync</span>,
-                <span class="ident">primaries</span>,
-                <span class="ident">receiver</span>,
+        <span class="comment">// now create the future that will wait to gather the responses
+        </span><span class="prelude-val">Some</span>(
+            <span class="self">Self</span>::wait_for_certificate_responses(
+                <span class="self">self</span>.certificates_synchronize_timeout,
+                key,
+                <span class="self">self</span>.committee.clone(),
+                to_sync,
+                primaries,
+                receiver,
             )
-            .<span class="ident">boxed</span>(),
+            .boxed(),
         )
     }
 
-    <span class="doccomment">/// This method queries the local storage to try and find certificates</span>
-    <span class="doccomment">/// identified by the provided block ids. For the ones found it sends</span>
-    <span class="doccomment">/// back to the provided `respond_to` sender the certificates directly.</span>
-    <span class="doccomment">/// A hashset is returned with the non found block_ids.</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">reply_with_certificates_already_in_storage</span>(
+    <span class="doccomment">/// This method queries the local storage to try and find certificates
+    /// identified by the provided block ids. For the ones found it sends
+    /// back to the provided `respond_to` sender the certificates directly.
+    /// A hashset is returned with the non found block_ids.
+    </span><span class="kw">async fn </span>reply_with_certificates_already_in_storage(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">block_ids</span>: <span class="ident">Vec</span>&lt;<span class="ident">CertificateDigest</span>&gt;,
-        <span class="ident">respond_to</span>: <span class="ident">Sender</span>&lt;<span class="ident">BlockSynchronizeResult</span>&lt;<span class="ident">BlockHeader</span>&gt;&gt;,
-    ) -&gt; <span class="ident">HashSet</span>&lt;<span class="ident">CertificateDigest</span>&gt; {
-        <span class="comment">// find the certificates that already exist in storage</span>
-        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">certificate_store</span>.<span class="ident">read_all</span>(<span class="ident">block_ids</span>.<span class="ident">clone</span>()).<span class="kw">await</span> {
-            <span class="prelude-val">Ok</span>(<span class="ident">certificates</span>) =&gt; {
-                <span class="kw">let</span> (<span class="ident">found</span>, <span class="ident">missing</span>): (
-                    <span class="ident">Vec</span>&lt;(<span class="ident">CertificateDigest</span>, <span class="prelude-ty">Option</span>&lt;<span class="ident">Certificate</span>&gt;)&gt;,
-                    <span class="ident">Vec</span>&lt;(<span class="ident">CertificateDigest</span>, <span class="prelude-ty">Option</span>&lt;<span class="ident">Certificate</span>&gt;)&gt;,
-                ) = <span class="ident">block_ids</span>
-                    .<span class="ident">into_iter</span>()
-                    .<span class="ident">zip</span>(<span class="ident">certificates</span>)
-                    .<span class="ident">partition</span>(|<span class="ident">f</span>| <span class="ident">f</span>.<span class="number">1</span>.<span class="ident">is_some</span>());
+        block_ids: Vec&lt;CertificateDigest&gt;,
+        respond_to: Sender&lt;BlockSynchronizeResult&lt;BlockHeader&gt;&gt;,
+    ) -&gt; HashSet&lt;CertificateDigest&gt; {
+        <span class="comment">// find the certificates that already exist in storage
+        </span><span class="kw">match </span><span class="self">self</span>.certificate_store.read_all(block_ids.clone()).<span class="kw">await </span>{
+            <span class="prelude-val">Ok</span>(certificates) =&gt; {
+                <span class="kw">let </span>(found, missing): (
+                    Vec&lt;(CertificateDigest, <span class="prelude-ty">Option</span>&lt;Certificate&gt;)&gt;,
+                    Vec&lt;(CertificateDigest, <span class="prelude-ty">Option</span>&lt;Certificate&gt;)&gt;,
+                ) = block_ids
+                    .into_iter()
+                    .zip(certificates)
+                    .partition(|f| f.<span class="number">1</span>.is_some());
 
-                <span class="comment">// Reply back directly with the found from storage certificates</span>
-                <span class="kw">let</span> <span class="ident">futures</span>: <span class="ident">Vec</span>&lt;<span class="kw">_</span>&gt; = <span class="ident">found</span>
-                    .<span class="ident">into_iter</span>()
-                    .<span class="ident">flat_map</span>(|(<span class="kw">_</span>, <span class="ident">c</span>)| <span class="ident">c</span>)
-                    .<span class="ident">map</span>(|<span class="ident">c</span>| {
-                        <span class="ident">respond_to</span>.<span class="ident">send</span>(<span class="prelude-val">Ok</span>(<span class="ident">BlockHeader</span> {
-                            <span class="ident">certificate</span>: <span class="ident">c</span>,
-                            <span class="ident">fetched_from_storage</span>: <span class="bool-val">true</span>,
+                <span class="comment">// Reply back directly with the found from storage certificates
+                </span><span class="kw">let </span>futures: Vec&lt;<span class="kw">_</span>&gt; = found
+                    .into_iter()
+                    .flat_map(|(<span class="kw">_</span>, c)| c)
+                    .map(|c| {
+                        respond_to.send(<span class="prelude-val">Ok</span>(BlockHeader {
+                            certificate: c,
+                            fetched_from_storage: <span class="bool-val">true</span>,
                         }))
                     })
-                    .<span class="ident">collect</span>();
+                    .collect();
 
-                <span class="kw">for</span> <span class="ident">r</span> <span class="kw">in</span> <span class="ident">join_all</span>(<span class="ident">futures</span>).<span class="kw">await</span> {
-                    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">err</span>) = <span class="ident">r</span> {
-                        <span class="macro">error!</span>(<span class="string">&quot;Couldn&#39;t send message to channel [{:?}]&quot;</span>, <span class="ident">err</span>);
+                <span class="kw">for </span>r <span class="kw">in </span>join_all(futures).<span class="kw">await </span>{
+                    <span class="kw">if let </span><span class="prelude-val">Err</span>(err) = r {
+                        <span class="macro">error!</span>(<span class="string">&quot;Couldn&#39;t send message to channel [{:?}]&quot;</span>, err);
                     }
                 }
 
-                <span class="comment">// reply back with the missing certificates</span>
-                <span class="ident">missing</span>.<span class="ident">into_iter</span>().<span class="ident">map</span>(|<span class="ident">e</span>| <span class="ident">e</span>.<span class="number">0</span>).<span class="ident">collect</span>()
+                <span class="comment">// reply back with the missing certificates
+                </span>missing.into_iter().map(|e| e.<span class="number">0</span>).collect()
             }
-            <span class="prelude-val">Err</span>(<span class="ident">err</span>) =&gt; {
+            <span class="prelude-val">Err</span>(err) =&gt; {
                 <span class="macro">error!</span>(<span class="string">&quot;Couldn&#39;t fetch certificates: {err}&quot;</span>);
 
-                <span class="comment">// report all as missing so we can at least try to fetch from peers.</span>
-                <span class="ident">HashSet::from_iter</span>(<span class="ident">block_ids</span>.<span class="ident">iter</span>().<span class="ident">cloned</span>())
+                <span class="comment">// report all as missing so we can at least try to fetch from peers.
+                </span>HashSet::from_iter(block_ids.iter().cloned())
             }
         }
     }
 
-    <span class="doccomment">/// For each provided certificate, via the certificates vector, it queries</span>
-    <span class="doccomment">/// the internal storage to identify whether all the payload batches are</span>
-    <span class="doccomment">/// available. For the certificates that their full payload is found, then</span>
-    <span class="doccomment">/// a reply is immediately sent to the consumer via the provided respond_to</span>
-    <span class="doccomment">/// channel. For the ones that haven&#39;t been found, are returned back on the</span>
-    <span class="doccomment">/// returned vector.</span>
-    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span> = <span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>)]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">reply_with_payload_already_in_storage</span>(
+    <span class="doccomment">/// For each provided certificate, via the certificates vector, it queries
+    /// the internal storage to identify whether all the payload batches are
+    /// available. For the certificates that their full payload is found, then
+    /// a reply is immediately sent to the consumer via the provided respond_to
+    /// channel. For the ones that haven&#39;t been found, are returned back on the
+    /// returned vector.
+    </span><span class="attribute">#[instrument(level = <span class="string">&quot;debug&quot;</span>, skip_all)]</span>
+    <span class="kw">async fn </span>reply_with_payload_already_in_storage(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">certificates</span>: <span class="ident">Vec</span>&lt;<span class="ident">Certificate</span>&gt;,
-        <span class="ident">respond_to</span>: <span class="ident">Sender</span>&lt;<span class="ident">BlockSynchronizeResult</span>&lt;<span class="ident">BlockHeader</span>&gt;&gt;,
-    ) -&gt; <span class="ident">Vec</span>&lt;<span class="ident">Certificate</span>&gt; {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">missing_payload_certs</span> = <span class="ident">Vec::new</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">futures</span> = <span class="ident">Vec::new</span>();
+        certificates: Vec&lt;Certificate&gt;,
+        respond_to: Sender&lt;BlockSynchronizeResult&lt;BlockHeader&gt;&gt;,
+    ) -&gt; Vec&lt;Certificate&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>missing_payload_certs = Vec::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>futures = Vec::new();
 
-        <span class="kw">for</span> <span class="ident">certificate</span> <span class="kw">in</span> <span class="ident">certificates</span> {
-            <span class="kw">let</span> <span class="ident">payload</span>: <span class="ident">Vec</span>&lt;(<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>)&gt; =
-                <span class="ident">certificate</span>.<span class="ident">header</span>.<span class="ident">payload</span>.<span class="ident">clone</span>().<span class="ident">into_iter</span>().<span class="ident">collect</span>();
+        <span class="kw">for </span>certificate <span class="kw">in </span>certificates {
+            <span class="kw">let </span>payload: Vec&lt;(BatchDigest, WorkerId)&gt; =
+                certificate.header.payload.clone().into_iter().collect();
 
-            <span class="kw">let</span> <span class="ident">payload_available</span> = <span class="kw">if</span> <span class="ident">certificate</span>.<span class="ident">header</span>.<span class="ident">author</span> == <span class="self">self</span>.<span class="ident">name</span> {
+            <span class="kw">let </span>payload_available = <span class="kw">if </span>certificate.header.author == <span class="self">self</span>.name {
                 <span class="macro">trace!</span>(
                     <span class="string">&quot;Certificate with id {} is our own, no need to check in storage.&quot;</span>,
-                    <span class="ident">certificate</span>.<span class="ident">digest</span>()
+                    certificate.digest()
                 );
-                <span class="bool-val">true</span>
-            } <span class="kw">else</span> {
+                <span class="bool-val">true
+            </span>} <span class="kw">else </span>{
                 <span class="macro">trace!</span>(
                     <span class="string">&quot;Certificate with id {} not our own, checking in storage.&quot;</span>,
-                    <span class="ident">certificate</span>.<span class="ident">digest</span>()
+                    certificate.digest()
                 );
-                <span class="kw">match</span> <span class="self">self</span>.<span class="ident">payload_store</span>.<span class="ident">read_all</span>(<span class="ident">payload</span>).<span class="kw">await</span> {
-                    <span class="prelude-val">Ok</span>(<span class="ident">payload_result</span>) =&gt; {
-                        <span class="ident">payload_result</span>.<span class="ident">into_iter</span>().<span class="ident">all</span>(|<span class="ident">x</span>| <span class="ident">x</span>.<span class="ident">is_some</span>()).<span class="ident">to_owned</span>()
+                <span class="kw">match </span><span class="self">self</span>.payload_store.read_all(payload).<span class="kw">await </span>{
+                    <span class="prelude-val">Ok</span>(payload_result) =&gt; {
+                        payload_result.into_iter().all(|x| x.is_some()).to_owned()
                     }
-                    <span class="prelude-val">Err</span>(<span class="ident">err</span>) =&gt; {
+                    <span class="prelude-val">Err</span>(err) =&gt; {
                         <span class="macro">error!</span>(<span class="string">&quot;Error occurred when querying payloads: {err}&quot;</span>);
-                        <span class="bool-val">false</span>
-                    }
+                        <span class="bool-val">false
+                    </span>}
                 }
             };
 
-            <span class="kw">if</span> !<span class="ident">payload_available</span> {
+            <span class="kw">if </span>!payload_available {
                 <span class="macro">trace!</span>(
                     <span class="string">&quot;Payload not available for certificate with id {}&quot;</span>,
-                    <span class="ident">certificate</span>.<span class="ident">digest</span>()
+                    certificate.digest()
                 );
-                <span class="ident">missing_payload_certs</span>.<span class="ident">push</span>(<span class="ident">certificate</span>);
-            } <span class="kw">else</span> {
-                <span class="macro">trace!</span>(<span class="string">&quot;Payload is available on storage for certificate with id {}, now replying back immediately&quot;</span>, <span class="ident">certificate</span>.<span class="ident">digest</span>());
-                <span class="ident">futures</span>.<span class="ident">push</span>(<span class="ident">respond_to</span>.<span class="ident">send</span>(<span class="prelude-val">Ok</span>(<span class="ident">BlockHeader</span> {
-                    <span class="ident">certificate</span>,
-                    <span class="ident">fetched_from_storage</span>: <span class="bool-val">true</span>,
+                missing_payload_certs.push(certificate);
+            } <span class="kw">else </span>{
+                <span class="macro">trace!</span>(<span class="string">&quot;Payload is available on storage for certificate with id {}, now replying back immediately&quot;</span>, certificate.digest());
+                futures.push(respond_to.send(<span class="prelude-val">Ok</span>(BlockHeader {
+                    certificate,
+                    fetched_from_storage: <span class="bool-val">true</span>,
                 })));
             }
         }
 
-        <span class="kw">for</span> <span class="ident">r</span> <span class="kw">in</span> <span class="ident">join_all</span>(<span class="ident">futures</span>).<span class="kw">await</span> {
-            <span class="kw">if</span> <span class="ident">r</span>.<span class="ident">is_err</span>() {
-                <span class="macro">error!</span>(<span class="string">&quot;Couldn&#39;t send message to channel {:?}&quot;</span>, <span class="ident">r</span>.<span class="ident">err</span>());
+        <span class="kw">for </span>r <span class="kw">in </span>join_all(futures).<span class="kw">await </span>{
+            <span class="kw">if </span>r.is_err() {
+                <span class="macro">error!</span>(<span class="string">&quot;Couldn&#39;t send message to channel {:?}&quot;</span>, r.err());
             }
         }
 
-        <span class="ident">missing_payload_certs</span>
+        missing_payload_certs
     }
 
-    <span class="comment">// Broadcasts a message to all the other primary nodes.</span>
-    <span class="comment">// It returns back the primary names to which we have sent the requests.</span>
-    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span> = <span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>)]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">broadcast_batch_request</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">message</span>: <span class="ident">PrimaryMessage</span>) -&gt; <span class="ident">Vec</span>&lt;<span class="ident">PublicKey</span>&gt; {
-        <span class="comment">// Naively now just broadcast the request to all the primaries</span>
+    <span class="comment">// Broadcasts a message to all the other primary nodes.
+    // It returns back the primary names to which we have sent the requests.
+    </span><span class="attribute">#[instrument(level = <span class="string">&quot;debug&quot;</span>, skip_all)]</span>
+    <span class="kw">async fn </span>broadcast_batch_request(<span class="kw-2">&amp;mut </span><span class="self">self</span>, message: PrimaryMessage) -&gt; Vec&lt;PublicKey&gt; {
+        <span class="comment">// Naively now just broadcast the request to all the primaries
 
-        <span class="kw">let</span> (<span class="ident">primaries_names</span>, <span class="ident">primaries_addresses</span>) = <span class="self">self</span>
-            .<span class="ident">committee</span>
-            .<span class="ident">others_primaries</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">name</span>)
-            .<span class="ident">into_iter</span>()
-            .<span class="ident">map</span>(|(<span class="ident">name</span>, <span class="ident">address</span>)| (<span class="ident">name</span>, <span class="ident">address</span>.<span class="ident">primary_to_primary</span>))
-            .<span class="ident">unzip</span>();
+        </span><span class="kw">let </span>(primaries_names, primaries_addresses) = <span class="self">self
+            </span>.committee
+            .others_primaries(<span class="kw-2">&amp;</span><span class="self">self</span>.name)
+            .into_iter()
+            .map(|(name, address)| (name, address.primary_to_primary))
+            .unzip();
 
-        <span class="self">self</span>.<span class="ident">primary_network</span>
-            .<span class="ident">unreliable_broadcast</span>(<span class="ident">primaries_addresses</span>, <span class="kw-2">&amp;</span><span class="ident">message</span>)
+        <span class="self">self</span>.primary_network
+            .unreliable_broadcast(primaries_addresses, <span class="kw-2">&amp;</span>message)
             .<span class="kw">await</span>;
 
-        <span class="ident">primaries_names</span>
+        primaries_names
     }
 
-    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span>=<span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>, <span class="ident">fields</span>(<span class="ident">request_id</span> = <span class="question-mark">?</span><span class="ident">request_id</span>))]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">handle_synchronize_block_payloads</span>&lt;<span class="lifetime">&#39;a</span>&gt;(
-        <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
-        <span class="ident">request_id</span>: <span class="ident">RequestID</span>,
-        <span class="kw-2">mut</span> <span class="ident">peers</span>: <span class="ident">Peers</span>&lt;<span class="ident">Certificate</span>&gt;,
-    ) -&gt; <span class="ident">Vec</span>&lt;<span class="ident">BoxFuture</span>&lt;<span class="lifetime">&#39;a</span>, <span class="ident">State</span>&gt;&gt; {
-        <span class="comment">// Important step to do that first, so we give the opportunity</span>
-        <span class="comment">// to other future requests (with same set of ids) making a request.</span>
-        <span class="self">self</span>.<span class="ident">map_payload_availability_responses_senders</span>
-            .<span class="ident">remove</span>(<span class="kw-2">&amp;</span><span class="ident">request_id</span>);
+    <span class="attribute">#[instrument(level=<span class="string">&quot;debug&quot;</span>, skip_all, fields(request_id = <span class="question-mark">?</span>request_id))]</span>
+    <span class="kw">async fn </span>handle_synchronize_block_payloads&lt;<span class="lifetime">&#39;a</span>&gt;(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        request_id: RequestID,
+        <span class="kw-2">mut </span>peers: Peers&lt;Certificate&gt;,
+    ) -&gt; Vec&lt;BoxFuture&lt;<span class="lifetime">&#39;a</span>, State&gt;&gt; {
+        <span class="comment">// Important step to do that first, so we give the opportunity
+        // to other future requests (with same set of ids) making a request.
+        </span><span class="self">self</span>.map_payload_availability_responses_senders
+            .remove(<span class="kw-2">&amp;</span>request_id);
 
-        <span class="comment">// Rebalance the CertificateDigests to ensure that</span>
-        <span class="comment">// those are uniquely distributed across the peers.</span>
-        <span class="ident">peers</span>.<span class="ident">rebalance_values</span>();
+        <span class="comment">// Rebalance the CertificateDigests to ensure that
+        // those are uniquely distributed across the peers.
+        </span>peers.rebalance_values();
 
-        <span class="kw">for</span> <span class="ident">peer</span> <span class="kw">in</span> <span class="ident">peers</span>.<span class="ident">peers</span>().<span class="ident">values</span>() {
-            <span class="self">self</span>.<span class="ident">send_synchronize_payload_requests</span>(<span class="ident">peer</span>.<span class="ident">clone</span>().<span class="ident">name</span>, <span class="ident">peer</span>.<span class="ident">assigned_values</span>())
-                .<span class="kw">await</span>
-        }
+        <span class="kw">for </span>peer <span class="kw">in </span>peers.peers().values() {
+            <span class="self">self</span>.send_synchronize_payload_requests(peer.clone().name, peer.assigned_values())
+                .<span class="kw">await
+        </span>}
 
-        <span class="ident">peers</span>
-            .<span class="ident">unique_values</span>()
-            .<span class="ident">into_iter</span>()
-            .<span class="ident">map</span>(|<span class="ident">certificate</span>| {
-                <span class="ident"><span class="self">Self</span>::wait_for_block_payload</span>(
-                    <span class="self">self</span>.<span class="ident">payload_synchronize_timeout</span>,
-                    <span class="ident">request_id</span>,
-                    <span class="self">self</span>.<span class="ident">payload_store</span>.<span class="ident">clone</span>(),
-                    <span class="ident">certificate</span>,
+        peers
+            .unique_values()
+            .into_iter()
+            .map(|certificate| {
+                <span class="self">Self</span>::wait_for_block_payload(
+                    <span class="self">self</span>.payload_synchronize_timeout,
+                    request_id,
+                    <span class="self">self</span>.payload_store.clone(),
+                    certificate,
                 )
-                .<span class="ident">boxed</span>()
+                .boxed()
             })
-            .<span class="ident">collect</span>()
+            .collect()
     }
 
-    <span class="doccomment">/// This method sends the necessary requests to the worker nodes to</span>
-    <span class="doccomment">/// synchronize the missing batches. The batches will be synchronized</span>
-    <span class="doccomment">/// from the dictated primary_peer_name.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Arguments</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// * `primary_peer_name` - The primary from which we are looking to sync the batches.</span>
-    <span class="doccomment">/// * `certificates` - The certificates for which we want to sync their batches.</span>
-    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span> = <span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>)]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">send_synchronize_payload_requests</span>(
-        <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
-        <span class="ident">primary_peer_name</span>: <span class="ident">PublicKey</span>,
-        <span class="ident">certificates</span>: <span class="ident">Vec</span>&lt;<span class="ident">Certificate</span>&gt;,
+    <span class="doccomment">/// This method sends the necessary requests to the worker nodes to
+    /// synchronize the missing batches. The batches will be synchronized
+    /// from the dictated primary_peer_name.
+    ///
+    /// # Arguments
+    ///
+    /// * `primary_peer_name` - The primary from which we are looking to sync the batches.
+    /// * `certificates` - The certificates for which we want to sync their batches.
+    </span><span class="attribute">#[instrument(level = <span class="string">&quot;debug&quot;</span>, skip_all)]</span>
+    <span class="kw">async fn </span>send_synchronize_payload_requests(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        primary_peer_name: PublicKey,
+        certificates: Vec&lt;Certificate&gt;,
     ) {
-        <span class="kw">let</span> <span class="ident">batches_by_worker</span> = <span class="ident">utils::map_certificate_batches_by_worker</span>(<span class="ident">certificates</span>.<span class="ident">as_slice</span>());
+        <span class="kw">let </span>batches_by_worker = utils::map_certificate_batches_by_worker(certificates.as_slice());
 
-        <span class="kw">for</span> (<span class="ident">worker_id</span>, <span class="ident">batch_ids</span>) <span class="kw">in</span> <span class="ident">batches_by_worker</span> {
-            <span class="kw">let</span> <span class="ident">worker_address</span> = <span class="self">self</span>
-                .<span class="ident">committee</span>
-                .<span class="ident">worker</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">name</span>, <span class="kw-2">&amp;</span><span class="ident">worker_id</span>)
-                .<span class="ident">expect</span>(<span class="string">&quot;Worker id not found&quot;</span>)
-                .<span class="ident">primary_to_worker</span>;
+        <span class="kw">for </span>(worker_id, batch_ids) <span class="kw">in </span>batches_by_worker {
+            <span class="kw">let </span>worker_address = <span class="self">self
+                </span>.committee
+                .worker(<span class="kw-2">&amp;</span><span class="self">self</span>.name, <span class="kw-2">&amp;</span>worker_id)
+                .expect(<span class="string">&quot;Worker id not found&quot;</span>)
+                .primary_to_worker;
 
-            <span class="kw">let</span> <span class="ident">message</span> =
-                <span class="ident">PrimaryWorkerMessage::Synchronize</span>(<span class="ident">batch_ids</span>.<span class="ident">clone</span>(), <span class="ident">primary_peer_name</span>.<span class="ident">clone</span>());
-            <span class="self">self</span>.<span class="ident">worker_network</span>
-                .<span class="ident">unreliable_send</span>(<span class="ident">worker_address</span>, <span class="kw-2">&amp;</span><span class="ident">message</span>)
+            <span class="kw">let </span>message =
+                PrimaryWorkerMessage::Synchronize(batch_ids.clone(), primary_peer_name.clone());
+            <span class="self">self</span>.worker_network
+                .unreliable_send(worker_address, <span class="kw-2">&amp;</span>message)
                 .<span class="kw">await</span>;
 
             <span class="macro">debug!</span>(
                 <span class="string">&quot;Sent request for batch ids {:?} to worker id {}&quot;</span>,
-                <span class="ident">batch_ids</span>, <span class="ident">worker_id</span>
+                batch_ids, worker_id
             );
         }
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">wait_for_block_payload</span>&lt;<span class="lifetime">&#39;a</span>&gt;(
-        <span class="ident">payload_synchronize_timeout</span>: <span class="ident">Duration</span>,
-        <span class="ident">request_id</span>: <span class="ident">RequestID</span>,
-        <span class="ident">payload_store</span>: <span class="ident">Store</span>&lt;(<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>), <span class="ident">PayloadToken</span>&gt;,
-        <span class="ident">certificate</span>: <span class="ident">Certificate</span>,
-    ) -&gt; <span class="ident">State</span> {
-        <span class="kw">let</span> <span class="ident">futures</span> = <span class="ident">certificate</span>
-            .<span class="ident">header</span>
-            .<span class="ident">payload</span>
-            .<span class="ident">iter</span>()
-            .<span class="ident">map</span>(|(<span class="ident">batch_digest</span>, <span class="ident">worker_id</span>)| <span class="ident">payload_store</span>.<span class="ident">notify_read</span>((<span class="kw-2">*</span><span class="ident">batch_digest</span>, <span class="kw-2">*</span><span class="ident">worker_id</span>)))
-            .<span class="ident">collect</span>::&lt;<span class="ident">Vec</span>&lt;<span class="kw">_</span>&gt;&gt;();
+    <span class="kw">async fn </span>wait_for_block_payload&lt;<span class="lifetime">&#39;a</span>&gt;(
+        payload_synchronize_timeout: Duration,
+        request_id: RequestID,
+        payload_store: Store&lt;(BatchDigest, WorkerId), PayloadToken&gt;,
+        certificate: Certificate,
+    ) -&gt; State {
+        <span class="kw">let </span>futures = certificate
+            .header
+            .payload
+            .iter()
+            .map(|(batch_digest, worker_id)| payload_store.notify_read((<span class="kw-2">*</span>batch_digest, <span class="kw-2">*</span>worker_id)))
+            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
 
-        <span class="comment">// Wait for all the items to sync - have a timeout</span>
-        <span class="kw">let</span> <span class="ident">result</span> = <span class="ident">timeout</span>(<span class="ident">payload_synchronize_timeout</span>, <span class="ident">join_all</span>(<span class="ident">futures</span>)).<span class="kw">await</span>;
-        <span class="kw">if</span> <span class="ident">result</span>.<span class="ident">is_err</span>()
-            || <span class="ident">result</span>
-                .<span class="ident">unwrap</span>()
-                .<span class="ident">into_iter</span>()
-                .<span class="ident">any</span>(|<span class="ident">r</span>| <span class="ident">r</span>.<span class="ident">map_or_else</span>(|<span class="kw">_</span>| <span class="bool-val">true</span>, |<span class="ident">f</span>| <span class="ident">f</span>.<span class="ident">is_none</span>()))
+        <span class="comment">// Wait for all the items to sync - have a timeout
+        </span><span class="kw">let </span>result = timeout(payload_synchronize_timeout, join_all(futures)).<span class="kw">await</span>;
+        <span class="kw">if </span>result.is_err()
+            || result
+                .unwrap()
+                .into_iter()
+                .any(|r| r.map_or_else(|<span class="kw">_</span>| <span class="bool-val">true</span>, |f| f.is_none()))
         {
-            <span class="kw">return</span> <span class="ident">State::PayloadSynchronized</span> {
-                <span class="ident">request_id</span>,
-                <span class="ident">result</span>: <span class="prelude-val">Err</span>(<span class="ident">SyncError::Timeout</span> {
-                    <span class="ident">block_id</span>: <span class="ident">certificate</span>.<span class="ident">digest</span>(),
+            <span class="kw">return </span>State::PayloadSynchronized {
+                request_id,
+                result: <span class="prelude-val">Err</span>(SyncError::Timeout {
+                    block_id: certificate.digest(),
                 }),
             };
         }
 
-        <span class="ident">State::PayloadSynchronized</span> {
-            <span class="ident">request_id</span>,
-            <span class="ident">result</span>: <span class="prelude-val">Ok</span>(<span class="ident">BlockHeader</span> {
-                <span class="ident">certificate</span>,
-                <span class="ident">fetched_from_storage</span>: <span class="bool-val">false</span>,
+        State::PayloadSynchronized {
+            request_id,
+            result: <span class="prelude-val">Ok</span>(BlockHeader {
+                certificate,
+                fetched_from_storage: <span class="bool-val">false</span>,
             }),
         }
     }
 
-    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span> = <span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>)]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">handle_payload_availability_response</span>(
-        <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
-        <span class="ident">response</span>: <span class="ident">PayloadAvailabilityResponse</span>,
+    <span class="attribute">#[instrument(level = <span class="string">&quot;debug&quot;</span>, skip_all)]</span>
+    <span class="kw">async fn </span>handle_payload_availability_response(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        response: PayloadAvailabilityResponse,
     ) {
-        <span class="kw">let</span> <span class="ident">sender</span> = <span class="self">self</span>
-            .<span class="ident">map_payload_availability_responses_senders</span>
-            .<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">response</span>.<span class="ident">request_id</span>());
+        <span class="kw">let </span>sender = <span class="self">self
+            </span>.map_payload_availability_responses_senders
+            .get(<span class="kw-2">&amp;</span>response.request_id());
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">s</span>) = <span class="ident">sender</span> {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(s) = sender {
             <span class="macro">debug!</span>(
                 <span class="string">&quot;Received response for request with id {}: {:?}&quot;</span>,
-                <span class="ident">response</span>.<span class="ident">request_id</span>(),
-                <span class="ident">response</span>.<span class="ident">clone</span>()
+                response.request_id(),
+                response.clone()
             );
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">e</span>) = <span class="ident">s</span>.<span class="ident">send</span>(<span class="ident">response</span>).<span class="kw">await</span> {
-                <span class="macro">error!</span>(<span class="string">&quot;Could not send the response to the sender {:?}&quot;</span>, <span class="ident">e</span>);
+            <span class="kw">if let </span><span class="prelude-val">Err</span>(e) = s.send(response).<span class="kw">await </span>{
+                <span class="macro">error!</span>(<span class="string">&quot;Could not send the response to the sender {:?}&quot;</span>, e);
             }
-        } <span class="kw">else</span> {
+        } <span class="kw">else </span>{
             <span class="macro">warn!</span>(<span class="string">&quot;Couldn&#39;t find a sender to channel the response. Will drop the message.&quot;</span>);
         }
     }
 
-    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span> = <span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>)]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">handle_certificates_response</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">response</span>: <span class="ident">CertificatesResponse</span>) {
-        <span class="kw">let</span> <span class="ident">sender</span> = <span class="self">self</span>
-            .<span class="ident">map_certificate_responses_senders</span>
-            .<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">response</span>.<span class="ident">request_id</span>());
+    <span class="attribute">#[instrument(level = <span class="string">&quot;debug&quot;</span>, skip_all)]</span>
+    <span class="kw">async fn </span>handle_certificates_response(<span class="kw-2">&amp;mut </span><span class="self">self</span>, response: CertificatesResponse) {
+        <span class="kw">let </span>sender = <span class="self">self
+            </span>.map_certificate_responses_senders
+            .get(<span class="kw-2">&amp;</span>response.request_id());
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">s</span>) = <span class="ident">sender</span> {
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">e</span>) = <span class="ident">s</span>.<span class="ident">send</span>(<span class="ident">response</span>).<span class="kw">await</span> {
-                <span class="macro">error!</span>(<span class="string">&quot;Could not send the response to the sender {:?}&quot;</span>, <span class="ident">e</span>);
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(s) = sender {
+            <span class="kw">if let </span><span class="prelude-val">Err</span>(e) = s.send(response).<span class="kw">await </span>{
+                <span class="macro">error!</span>(<span class="string">&quot;Could not send the response to the sender {:?}&quot;</span>, e);
             }
-        } <span class="kw">else</span> {
+        } <span class="kw">else </span>{
             <span class="macro">warn!</span>(<span class="string">&quot;Couldn&#39;t find a sender to channel the response. Will drop the message.&quot;</span>);
         }
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">wait_for_certificate_responses</span>(
-        <span class="ident">fetch_certificates_timeout</span>: <span class="ident">Duration</span>,
-        <span class="ident">request_id</span>: <span class="ident">RequestID</span>,
-        <span class="ident">committee</span>: <span class="ident">Committee</span>,
-        <span class="ident">block_ids</span>: <span class="ident">Vec</span>&lt;<span class="ident">CertificateDigest</span>&gt;,
-        <span class="ident">primaries_sent_requests_to</span>: <span class="ident">Vec</span>&lt;<span class="ident">PublicKey</span>&gt;,
-        <span class="kw-2">mut</span> <span class="ident">receiver</span>: <span class="ident">Receiver</span>&lt;<span class="ident">CertificatesResponse</span>&gt;,
-    ) -&gt; <span class="ident">State</span> {
-        <span class="kw">let</span> <span class="ident">total_expected_certificates</span> = <span class="ident">block_ids</span>.<span class="ident">len</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">num_of_responses</span>: <span class="ident">u32</span> = <span class="number">0</span>;
-        <span class="kw">let</span> <span class="ident">num_of_requests_sent</span>: <span class="ident">u32</span> = <span class="ident">primaries_sent_requests_to</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u32</span>;
+    <span class="kw">async fn </span>wait_for_certificate_responses(
+        fetch_certificates_timeout: Duration,
+        request_id: RequestID,
+        committee: Committee,
+        block_ids: Vec&lt;CertificateDigest&gt;,
+        primaries_sent_requests_to: Vec&lt;PublicKey&gt;,
+        <span class="kw-2">mut </span>receiver: Receiver&lt;CertificatesResponse&gt;,
+    ) -&gt; State {
+        <span class="kw">let </span>total_expected_certificates = block_ids.len();
+        <span class="kw">let </span><span class="kw-2">mut </span>num_of_responses: u32 = <span class="number">0</span>;
+        <span class="kw">let </span>num_of_requests_sent: u32 = primaries_sent_requests_to.len() <span class="kw">as </span>u32;
 
-        <span class="kw">let</span> <span class="ident">timer</span> = <span class="ident">sleep</span>(<span class="ident">fetch_certificates_timeout</span>);
-        <span class="macro">tokio::pin!</span>(<span class="ident">timer</span>);
+        <span class="kw">let </span>timer = sleep(fetch_certificates_timeout);
+        <span class="macro">tokio::pin!</span>(timer);
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">peers</span> = <span class="ident">Peers</span>::&lt;<span class="ident">Certificate</span>&gt;<span class="ident">::new</span>(<span class="ident">SmallRng::from_entropy</span>());
+        <span class="kw">let </span><span class="kw-2">mut </span>peers = Peers::&lt;Certificate&gt;::new(SmallRng::from_entropy());
 
-        <span class="kw">loop</span> {
+        <span class="kw">loop </span>{
             <span class="macro">tokio::select!</span> {
-                <span class="prelude-val">Some</span>(<span class="ident">response</span>) = <span class="ident">receiver</span>.<span class="ident">recv</span>() =&gt; {
-                    <span class="macro">trace!</span>(<span class="string">&quot;Received response: {:?}&quot;</span>, <span class="kw-2">&amp;</span><span class="ident">response</span>);
+                <span class="prelude-val">Some</span>(response) = receiver.recv() =&gt; {
+                    <span class="macro">trace!</span>(<span class="string">&quot;Received response: {:?}&quot;</span>, <span class="kw-2">&amp;</span>response);
 
-                    <span class="kw">if</span> <span class="ident">peers</span>.<span class="ident">contains_peer</span>(<span class="kw-2">&amp;</span><span class="ident">response</span>.<span class="ident">from</span>) {
-                        <span class="comment">// skip , we already got an answer from this peer</span>
-                        <span class="kw">continue</span>;
+                    <span class="kw">if </span>peers.contains_peer(<span class="kw-2">&amp;</span>response.from) {
+                        <span class="comment">// skip , we already got an answer from this peer
+                        </span><span class="kw">continue</span>;
                     }
 
-                    <span class="comment">// check whether the peer is amongst the one we are expecting</span>
-                    <span class="comment">// response from. That shouldn&#39;t really happen, since the</span>
-                    <span class="comment">// responses we get are filtered by the request id, but still</span>
-                    <span class="comment">// worth double checking</span>
-                    <span class="kw">if</span> !<span class="ident">primaries_sent_requests_to</span>.<span class="ident">iter</span>().<span class="ident">any</span>(|<span class="ident">p</span>|<span class="ident">p</span>.<span class="ident">eq</span>(<span class="kw-2">&amp;</span><span class="ident">response</span>.<span class="ident">from</span>)) {
+                    <span class="comment">// check whether the peer is amongst the one we are expecting
+                    // response from. That shouldn&#39;t really happen, since the
+                    // responses we get are filtered by the request id, but still
+                    // worth double checking
+                    </span><span class="kw">if </span>!primaries_sent_requests_to.iter().any(|p|p.eq(<span class="kw-2">&amp;</span>response.from)) {
                         <span class="macro">warn!</span>(<span class="string">&quot;Not expected reply from this peer, will skip response&quot;</span>);
                         <span class="kw">continue</span>;
                     }
 
-                    <span class="ident">num_of_responses</span> += <span class="number">1</span>;
+                    num_of_responses += <span class="number">1</span>;
 
-                    <span class="kw">match</span> <span class="ident">response</span>.<span class="ident">validate_certificates</span>(<span class="kw-2">&amp;</span><span class="ident">committee</span>) {
-                        <span class="prelude-val">Ok</span>(<span class="ident">certificates</span>) =&gt; {
-                            <span class="comment">// Ensure we got responses for the certificates we asked for.</span>
-                            <span class="comment">// Even if we have found one certificate that doesn&#39;t match</span>
-                            <span class="comment">// we reject the payload - it shouldn&#39;t happen.</span>
-                            <span class="kw">if</span> <span class="ident">certificates</span>.<span class="ident">iter</span>().<span class="ident">any</span>(|<span class="ident">c</span>|!<span class="ident">block_ids</span>.<span class="ident">contains</span>(<span class="kw-2">&amp;</span><span class="ident">c</span>.<span class="ident">digest</span>())) {
+                    <span class="kw">match </span>response.validate_certificates(<span class="kw-2">&amp;</span>committee) {
+                        <span class="prelude-val">Ok</span>(certificates) =&gt; {
+                            <span class="comment">// Ensure we got responses for the certificates we asked for.
+                            // Even if we have found one certificate that doesn&#39;t match
+                            // we reject the payload - it shouldn&#39;t happen.
+                            </span><span class="kw">if </span>certificates.iter().any(|c|!block_ids.contains(<span class="kw-2">&amp;</span>c.digest())) {
                                 <span class="macro">warn!</span>(<span class="string">&quot;Will not process certificates, found at least one that we haven&#39;t asked for&quot;</span>);
                                 <span class="kw">continue</span>;
                             }
 
-                            <span class="comment">// add them as a new peer</span>
-                            <span class="ident">peers</span>.<span class="ident">add_peer</span>(<span class="ident">response</span>.<span class="ident">from</span>.<span class="ident">clone</span>(), <span class="ident">certificates</span>);
+                            <span class="comment">// add them as a new peer
+                            </span>peers.add_peer(response.from.clone(), certificates);
 
-                            <span class="comment">// We have received all possible responses</span>
-                            <span class="kw">if</span> (<span class="ident">peers</span>.<span class="ident">unique_values</span>().<span class="ident">len</span>() == <span class="ident">total_expected_certificates</span> &amp;&amp;
-                            <span class="ident"><span class="self">Self</span>::reached_response_ratio</span>(<span class="ident">num_of_responses</span>, <span class="ident">num_of_requests_sent</span>))
-                            || <span class="ident">num_of_responses</span> == <span class="ident">num_of_requests_sent</span>
+                            <span class="comment">// We have received all possible responses
+                            </span><span class="kw">if </span>(peers.unique_values().len() == total_expected_certificates &amp;&amp;
+                            <span class="self">Self</span>::reached_response_ratio(num_of_responses, num_of_requests_sent))
+                            || num_of_responses == num_of_requests_sent
                             {
-                                <span class="kw">let</span> <span class="ident">result</span> = <span class="ident"><span class="self">Self</span>::resolve_block_synchronize_result</span>(<span class="kw-2">&amp;</span><span class="ident">peers</span>, <span class="ident">block_ids</span>, <span class="bool-val">false</span>);
+                                <span class="kw">let </span>result = <span class="self">Self</span>::resolve_block_synchronize_result(<span class="kw-2">&amp;</span>peers, block_ids, <span class="bool-val">false</span>);
 
-                                <span class="kw">return</span> <span class="ident">State::HeadersSynchronized</span> {
-                                    <span class="ident">request_id</span>,
-                                    <span class="ident">certificates</span>: <span class="ident">result</span>,
+                                <span class="kw">return </span>State::HeadersSynchronized {
+                                    request_id,
+                                    certificates: result,
                                 };
                             }
                         },
-                        <span class="prelude-val">Err</span>(<span class="ident">err</span>) =&gt; {
-                            <span class="macro">warn!</span>(<span class="string">&quot;Got invalid certificates from peer: {:?}&quot;</span>, <span class="ident">err</span>);
+                        <span class="prelude-val">Err</span>(err) =&gt; {
+                            <span class="macro">warn!</span>(<span class="string">&quot;Got invalid certificates from peer: {:?}&quot;</span>, err);
                         }
                     }
                 },
-                () = <span class="kw-2">&amp;mut</span> <span class="ident">timer</span> =&gt; {
-                    <span class="kw">let</span> <span class="ident">result</span> = <span class="ident"><span class="self">Self</span>::resolve_block_synchronize_result</span>(<span class="kw-2">&amp;</span><span class="ident">peers</span>, <span class="ident">block_ids</span>, <span class="bool-val">true</span>);
+                () = <span class="kw-2">&amp;mut </span>timer =&gt; {
+                    <span class="kw">let </span>result = <span class="self">Self</span>::resolve_block_synchronize_result(<span class="kw-2">&amp;</span>peers, block_ids, <span class="bool-val">true</span>);
 
-                    <span class="kw">return</span> <span class="ident">State::HeadersSynchronized</span> {
-                        <span class="ident">request_id</span>,
-                        <span class="ident">certificates</span>: <span class="ident">result</span>,
+                    <span class="kw">return </span>State::HeadersSynchronized {
+                        request_id,
+                        certificates: result,
                     };
                 }
             }
         }
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">wait_for_payload_availability_responses</span>(
-        <span class="ident">fetch_certificates_timeout</span>: <span class="ident">Duration</span>,
-        <span class="ident">request_id</span>: <span class="ident">RequestID</span>,
-        <span class="ident">certificates</span>: <span class="ident">Vec</span>&lt;<span class="ident">Certificate</span>&gt;,
-        <span class="ident">primaries_sent_requests_to</span>: <span class="ident">Vec</span>&lt;<span class="ident">PublicKey</span>&gt;,
-        <span class="kw-2">mut</span> <span class="ident">receiver</span>: <span class="ident">Receiver</span>&lt;<span class="ident">PayloadAvailabilityResponse</span>&gt;,
-    ) -&gt; <span class="ident">State</span> {
-        <span class="kw">let</span> <span class="ident">total_expected_block_ids</span> = <span class="ident">certificates</span>.<span class="ident">len</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">num_of_responses</span>: <span class="ident">u32</span> = <span class="number">0</span>;
-        <span class="kw">let</span> <span class="ident">num_of_requests_sent</span>: <span class="ident">u32</span> = <span class="ident">primaries_sent_requests_to</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u32</span>;
-        <span class="kw">let</span> <span class="ident">certificates_by_id</span>: <span class="ident">HashMap</span>&lt;<span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span>&gt; = <span class="ident">certificates</span>
-            .<span class="ident">iter</span>()
-            .<span class="ident">map</span>(|<span class="ident">c</span>| (<span class="ident">c</span>.<span class="ident">digest</span>(), <span class="ident">c</span>.<span class="ident">clone</span>()))
-            .<span class="ident">collect</span>();
-        <span class="kw">let</span> <span class="ident">block_ids</span>: <span class="ident">Vec</span>&lt;<span class="ident">CertificateDigest</span>&gt; = <span class="ident">certificates_by_id</span>
-            .<span class="ident">iter</span>()
-            .<span class="ident">map</span>(|(<span class="ident">id</span>, <span class="kw">_</span>)| <span class="ident">id</span>.<span class="ident">to_owned</span>())
-            .<span class="ident">collect</span>();
+    <span class="kw">async fn </span>wait_for_payload_availability_responses(
+        fetch_certificates_timeout: Duration,
+        request_id: RequestID,
+        certificates: Vec&lt;Certificate&gt;,
+        primaries_sent_requests_to: Vec&lt;PublicKey&gt;,
+        <span class="kw-2">mut </span>receiver: Receiver&lt;PayloadAvailabilityResponse&gt;,
+    ) -&gt; State {
+        <span class="kw">let </span>total_expected_block_ids = certificates.len();
+        <span class="kw">let </span><span class="kw-2">mut </span>num_of_responses: u32 = <span class="number">0</span>;
+        <span class="kw">let </span>num_of_requests_sent: u32 = primaries_sent_requests_to.len() <span class="kw">as </span>u32;
+        <span class="kw">let </span>certificates_by_id: HashMap&lt;CertificateDigest, Certificate&gt; = certificates
+            .iter()
+            .map(|c| (c.digest(), c.clone()))
+            .collect();
+        <span class="kw">let </span>block_ids: Vec&lt;CertificateDigest&gt; = certificates_by_id
+            .iter()
+            .map(|(id, <span class="kw">_</span>)| id.to_owned())
+            .collect();
 
-        <span class="kw">let</span> <span class="ident">timer</span> = <span class="ident">sleep</span>(<span class="ident">fetch_certificates_timeout</span>);
-        <span class="macro">tokio::pin!</span>(<span class="ident">timer</span>);
+        <span class="kw">let </span>timer = sleep(fetch_certificates_timeout);
+        <span class="macro">tokio::pin!</span>(timer);
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">peers</span> = <span class="ident">Peers</span>::&lt;<span class="ident">Certificate</span>&gt;<span class="ident">::new</span>(<span class="ident">SmallRng::from_entropy</span>());
+        <span class="kw">let </span><span class="kw-2">mut </span>peers = Peers::&lt;Certificate&gt;::new(SmallRng::from_entropy());
 
-        <span class="kw">loop</span> {
+        <span class="kw">loop </span>{
             <span class="macro">tokio::select!</span> {
-                <span class="prelude-val">Some</span>(<span class="ident">response</span>) = <span class="ident">receiver</span>.<span class="ident">recv</span>() =&gt; {
-                    <span class="kw">if</span> <span class="ident">peers</span>.<span class="ident">contains_peer</span>(<span class="kw-2">&amp;</span><span class="ident">response</span>.<span class="ident">from</span>) {
-                        <span class="comment">// skip , we already got an answer from this peer</span>
+                <span class="prelude-val">Some</span>(response) = receiver.recv() =&gt; {
+                    <span class="kw">if </span>peers.contains_peer(<span class="kw-2">&amp;</span>response.from) {
+                        <span class="comment">// skip , we already got an answer from this peer
+                        </span><span class="kw">continue</span>;
+                    }
+
+                    <span class="comment">// check whether the peer is amongst the one we are expecting
+                    // response from. That shouldn&#39;t really happen, since the
+                    // responses we get are filtered by the request id, but still
+                    // worth double checking
+                    </span><span class="kw">if </span>!primaries_sent_requests_to.iter().any(|p|p.eq(<span class="kw-2">&amp;</span>response.from)) {
                         <span class="kw">continue</span>;
                     }
 
-                    <span class="comment">// check whether the peer is amongst the one we are expecting</span>
-                    <span class="comment">// response from. That shouldn&#39;t really happen, since the</span>
-                    <span class="comment">// responses we get are filtered by the request id, but still</span>
-                    <span class="comment">// worth double checking</span>
-                    <span class="kw">if</span> !<span class="ident">primaries_sent_requests_to</span>.<span class="ident">iter</span>().<span class="ident">any</span>(|<span class="ident">p</span>|<span class="ident">p</span>.<span class="ident">eq</span>(<span class="kw-2">&amp;</span><span class="ident">response</span>.<span class="ident">from</span>)) {
-                        <span class="kw">continue</span>;
-                    }
+                    num_of_responses += <span class="number">1</span>;
 
-                    <span class="ident">num_of_responses</span> += <span class="number">1</span>;
-
-                    <span class="comment">// Ensure we got responses for the certificates we asked for.</span>
-                    <span class="comment">// Even if we have found one certificate that doesn&#39;t match</span>
-                    <span class="comment">// we reject the payload - it shouldn&#39;t happen. Also, add the</span>
-                    <span class="comment">// found ones in a vector.</span>
-                    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">available_certs_for_peer</span> = <span class="ident">Vec::new</span>();
-                    <span class="kw">for</span> <span class="ident">id</span> <span class="kw">in</span> <span class="ident">response</span>.<span class="ident">available_block_ids</span>() {
-                        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">c</span>) = <span class="ident">certificates_by_id</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">id</span>) {
-                            <span class="ident">available_certs_for_peer</span>.<span class="ident">push</span>(<span class="ident">c</span>.<span class="ident">clone</span>());
-                        } <span class="kw">else</span> {
-                            <span class="comment">// We should expect to have found every</span>
-                            <span class="comment">// responded id to our list of certificates.</span>
-                            <span class="kw">continue</span>;
+                    <span class="comment">// Ensure we got responses for the certificates we asked for.
+                    // Even if we have found one certificate that doesn&#39;t match
+                    // we reject the payload - it shouldn&#39;t happen. Also, add the
+                    // found ones in a vector.
+                    </span><span class="kw">let </span><span class="kw-2">mut </span>available_certs_for_peer = Vec::new();
+                    <span class="kw">for </span>id <span class="kw">in </span>response.available_block_ids() {
+                        <span class="kw">if let </span><span class="prelude-val">Some</span>(c) = certificates_by_id.get(<span class="kw-2">&amp;</span>id) {
+                            available_certs_for_peer.push(c.clone());
+                        } <span class="kw">else </span>{
+                            <span class="comment">// We should expect to have found every
+                            // responded id to our list of certificates.
+                            </span><span class="kw">continue</span>;
                         }
                     }
 
-                    <span class="comment">// add them as a new peer</span>
-                    <span class="ident">peers</span>.<span class="ident">add_peer</span>(<span class="ident">response</span>.<span class="ident">from</span>.<span class="ident">clone</span>(), <span class="ident">available_certs_for_peer</span>);
+                    <span class="comment">// add them as a new peer
+                    </span>peers.add_peer(response.from.clone(), available_certs_for_peer);
 
-                    <span class="comment">// We have received all possible responses</span>
-                    <span class="kw">if</span> (<span class="ident">peers</span>.<span class="ident">unique_values</span>().<span class="ident">len</span>() == <span class="ident">total_expected_block_ids</span> &amp;&amp;
-                    <span class="ident"><span class="self">Self</span>::reached_response_ratio</span>(<span class="ident">num_of_responses</span>, <span class="ident">num_of_requests_sent</span>))
-                    || <span class="ident">num_of_responses</span> == <span class="ident">num_of_requests_sent</span>
+                    <span class="comment">// We have received all possible responses
+                    </span><span class="kw">if </span>(peers.unique_values().len() == total_expected_block_ids &amp;&amp;
+                    <span class="self">Self</span>::reached_response_ratio(num_of_responses, num_of_requests_sent))
+                    || num_of_responses == num_of_requests_sent
                     {
-                        <span class="kw">let</span> <span class="ident">result</span> = <span class="ident"><span class="self">Self</span>::resolve_block_synchronize_result</span>(<span class="kw-2">&amp;</span><span class="ident">peers</span>, <span class="ident">block_ids</span>, <span class="bool-val">false</span>);
+                        <span class="kw">let </span>result = <span class="self">Self</span>::resolve_block_synchronize_result(<span class="kw-2">&amp;</span>peers, block_ids, <span class="bool-val">false</span>);
 
-                        <span class="kw">return</span> <span class="ident">State::PayloadAvailabilityReceived</span> {
-                            <span class="ident">request_id</span>,
-                            <span class="ident">certificates</span>: <span class="ident">result</span>,
-                            <span class="ident">peers</span>,
+                        <span class="kw">return </span>State::PayloadAvailabilityReceived {
+                            request_id,
+                            certificates: result,
+                            peers,
                         };
                     }
                 },
-                () = <span class="kw-2">&amp;mut</span> <span class="ident">timer</span> =&gt; {
-                    <span class="kw">let</span> <span class="ident">result</span> = <span class="ident"><span class="self">Self</span>::resolve_block_synchronize_result</span>(<span class="kw-2">&amp;</span><span class="ident">peers</span>, <span class="ident">block_ids</span>, <span class="bool-val">true</span>);
+                () = <span class="kw-2">&amp;mut </span>timer =&gt; {
+                    <span class="kw">let </span>result = <span class="self">Self</span>::resolve_block_synchronize_result(<span class="kw-2">&amp;</span>peers, block_ids, <span class="bool-val">true</span>);
 
-                    <span class="kw">return</span> <span class="ident">State::PayloadAvailabilityReceived</span> {
-                        <span class="ident">request_id</span>,
-                        <span class="ident">certificates</span>: <span class="ident">result</span>,
-                        <span class="ident">peers</span>,
+                    <span class="kw">return </span>State::PayloadAvailabilityReceived {
+                        request_id,
+                        certificates: result,
+                        peers,
                     };
                 }
             }
         }
     }
 
-    <span class="comment">// It creates a map which holds for every expected block_id the corresponding</span>
-    <span class="comment">// result. The actually found certificates are hold inside the provided peers</span>
-    <span class="comment">// structure where for each peer (primary node) we keep the certificates that</span>
-    <span class="comment">// is able to serve. We reduce those to unique values (certificates) and</span>
-    <span class="comment">// produce the map. If a certificate has not been found amongst the ones</span>
-    <span class="comment">// that the peers can serve, then an error SyncError is produced for it. The</span>
-    <span class="comment">// error type changes according to the provided `timeout` value. If is true,</span>
-    <span class="comment">// the it means that the maximum time reached when waiting to get the results</span>
-    <span class="comment">// from the required peers. In this case the error result will be a Timeout.</span>
-    <span class="comment">// Otherwise it will be an Error. The outcome map can be used then to</span>
-    <span class="comment">// communicate the result for each requested certificate (if found, then</span>
-    <span class="comment">// certificate it self , or if error then the type of the error).</span>
-    <span class="kw">fn</span> <span class="ident">resolve_block_synchronize_result</span>(
-        <span class="ident">peers</span>: <span class="kw-2">&amp;</span><span class="ident">Peers</span>&lt;<span class="ident">Certificate</span>&gt;,
-        <span class="ident">block_ids</span>: <span class="ident">Vec</span>&lt;<span class="ident">CertificateDigest</span>&gt;,
-        <span class="ident">timeout</span>: <span class="ident">bool</span>,
-    ) -&gt; <span class="ident">HashMap</span>&lt;<span class="ident">CertificateDigest</span>, <span class="ident">BlockSynchronizeResult</span>&lt;<span class="ident">BlockHeader</span>&gt;&gt; {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">certificates_by_id</span>: <span class="ident">HashMap</span>&lt;<span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span>&gt; = <span class="ident">peers</span>
-            .<span class="ident">unique_values</span>()
-            .<span class="ident">into_iter</span>()
-            .<span class="ident">map</span>(|<span class="ident">c</span>| (<span class="ident">c</span>.<span class="ident">digest</span>(), <span class="ident">c</span>))
-            .<span class="ident">collect</span>();
+    <span class="comment">// It creates a map which holds for every expected block_id the corresponding
+    // result. The actually found certificates are hold inside the provided peers
+    // structure where for each peer (primary node) we keep the certificates that
+    // is able to serve. We reduce those to unique values (certificates) and
+    // produce the map. If a certificate has not been found amongst the ones
+    // that the peers can serve, then an error SyncError is produced for it. The
+    // error type changes according to the provided `timeout` value. If is true,
+    // the it means that the maximum time reached when waiting to get the results
+    // from the required peers. In this case the error result will be a Timeout.
+    // Otherwise it will be an Error. The outcome map can be used then to
+    // communicate the result for each requested certificate (if found, then
+    // certificate it self , or if error then the type of the error).
+    </span><span class="kw">fn </span>resolve_block_synchronize_result(
+        peers: <span class="kw-2">&amp;</span>Peers&lt;Certificate&gt;,
+        block_ids: Vec&lt;CertificateDigest&gt;,
+        timeout: bool,
+    ) -&gt; HashMap&lt;CertificateDigest, BlockSynchronizeResult&lt;BlockHeader&gt;&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>certificates_by_id: HashMap&lt;CertificateDigest, Certificate&gt; = peers
+            .unique_values()
+            .into_iter()
+            .map(|c| (c.digest(), c))
+            .collect();
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span>: <span class="ident">HashMap</span>&lt;<span class="ident">CertificateDigest</span>, <span class="ident">BlockSynchronizeResult</span>&lt;<span class="ident">BlockHeader</span>&gt;&gt; =
-            <span class="ident">HashMap::new</span>();
+        <span class="kw">let </span><span class="kw-2">mut </span>result: HashMap&lt;CertificateDigest, BlockSynchronizeResult&lt;BlockHeader&gt;&gt; =
+            HashMap::new();
 
-        <span class="kw">for</span> <span class="ident">block_id</span> <span class="kw">in</span> <span class="ident">block_ids</span> {
-            <span class="comment">// if not found, then this is an Error - couldn&#39;t be retrieved</span>
-            <span class="comment">// by any peer - suspicious!</span>
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">certificate</span>) = <span class="ident">certificates_by_id</span>.<span class="ident">remove</span>(<span class="kw-2">&amp;</span><span class="ident">block_id</span>) {
-                <span class="ident">result</span>.<span class="ident">insert</span>(
-                    <span class="ident">block_id</span>,
-                    <span class="prelude-val">Ok</span>(<span class="ident">BlockHeader</span> {
-                        <span class="ident">certificate</span>,
-                        <span class="ident">fetched_from_storage</span>: <span class="bool-val">false</span>,
+        <span class="kw">for </span>block_id <span class="kw">in </span>block_ids {
+            <span class="comment">// if not found, then this is an Error - couldn&#39;t be retrieved
+            // by any peer - suspicious!
+            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(certificate) = certificates_by_id.remove(<span class="kw-2">&amp;</span>block_id) {
+                result.insert(
+                    block_id,
+                    <span class="prelude-val">Ok</span>(BlockHeader {
+                        certificate,
+                        fetched_from_storage: <span class="bool-val">false</span>,
                     }),
                 );
-            } <span class="kw">else</span> <span class="kw">if</span> <span class="ident">timeout</span> {
-                <span class="ident">result</span>.<span class="ident">insert</span>(<span class="ident">block_id</span>, <span class="prelude-val">Err</span>(<span class="ident">SyncError::Timeout</span> { <span class="ident">block_id</span> }));
-            } <span class="kw">else</span> {
-                <span class="ident">result</span>.<span class="ident">insert</span>(<span class="ident">block_id</span>, <span class="prelude-val">Err</span>(<span class="ident">SyncError::NoResponse</span> { <span class="ident">block_id</span> }));
+            } <span class="kw">else if </span>timeout {
+                result.insert(block_id, <span class="prelude-val">Err</span>(SyncError::Timeout { block_id }));
+            } <span class="kw">else </span>{
+                result.insert(block_id, <span class="prelude-val">Err</span>(SyncError::NoResponse { block_id }));
             }
         }
 
-        <span class="ident">result</span>
+        result
     }
 
-    <span class="kw">fn</span> <span class="ident">reached_response_ratio</span>(<span class="ident">num_of_responses</span>: <span class="ident">u32</span>, <span class="ident">num_of_expected_responses</span>: <span class="ident">u32</span>) -&gt; <span class="ident">bool</span> {
-        <span class="kw">let</span> <span class="ident">ratio</span>: <span class="ident">f32</span> =
-            ((<span class="ident">num_of_responses</span> <span class="kw">as</span> <span class="ident">f32</span> / <span class="ident">num_of_expected_responses</span> <span class="kw">as</span> <span class="ident">f32</span>) * <span class="number">100.0</span>).<span class="ident">round</span>();
-        <span class="ident">ratio</span> &gt;= <span class="ident">CERTIFICATE_RESPONSES_RATIO_THRESHOLD</span> * <span class="number">100.0</span>
-    }
+    <span class="kw">fn </span>reached_response_ratio(num_of_responses: u32, num_of_expected_responses: u32) -&gt; bool {
+        <span class="kw">let </span>ratio: f32 =
+            ((num_of_responses <span class="kw">as </span>f32 / num_of_expected_responses <span class="kw">as </span>f32) * <span class="number">100.0</span>).round();
+        ratio &gt;= CERTIFICATE_RESPONSES_RATIO_THRESHOLD * <span class="number">100.0
+    </span>}
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (801821d15 2022-08-14)" ></div></body></html>

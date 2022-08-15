@@ -99,106 +99,106 @@
 <span id="99">99</span>
 <span id="100">100</span>
 <span id="101">101</span>
-</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
-<span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
-<span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::consensus</span>::{<span class="ident">ConsensusState</span>, <span class="ident">Dag</span>};
-<span class="kw">use</span> <span class="ident">config::Committee</span>;
-<span class="kw">use</span> <span class="ident">std::collections::HashSet</span>;
-<span class="kw">use</span> <span class="ident">tracing::debug</span>;
-<span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">Certificate</span>, <span class="ident">CertificateDigest</span>, <span class="ident">Round</span>};
+</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
+// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+</span><span class="kw">use </span><span class="kw">crate</span>::consensus::{ConsensusState, Dag};
+<span class="kw">use </span>config::Committee;
+<span class="kw">use </span>std::collections::HashSet;
+<span class="kw">use </span>tracing::debug;
+<span class="kw">use </span>types::{Certificate, CertificateDigest, Round};
 
-<span class="doccomment">/// Order the past leaders that we didn&#39;t already commit.</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">order_leaders</span>&lt;<span class="lifetime">&#39;a</span>, <span class="ident">LeaderElector</span>&gt;(
-    <span class="ident">committee</span>: <span class="kw-2">&amp;</span><span class="ident">Committee</span>,
-    <span class="ident">leader</span>: <span class="kw-2">&amp;</span><span class="ident">Certificate</span>,
-    <span class="ident">state</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">ConsensusState</span>,
-    <span class="ident">get_leader</span>: <span class="ident">LeaderElector</span>,
-) -&gt; <span class="ident">Vec</span>&lt;<span class="ident">Certificate</span>&gt;
-<span class="kw">where</span>
-    <span class="ident">LeaderElector</span>: <span class="ident">Fn</span>(<span class="kw-2">&amp;</span><span class="ident">Committee</span>, <span class="ident">Round</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">Dag</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> (<span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span>)&gt;,
+<span class="doccomment">/// Order the past leaders that we didn&#39;t already commit.
+</span><span class="kw">pub fn </span>order_leaders&lt;<span class="lifetime">&#39;a</span>, LeaderElector&gt;(
+    committee: <span class="kw-2">&amp;</span>Committee,
+    leader: <span class="kw-2">&amp;</span>Certificate,
+    state: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>ConsensusState,
+    get_leader: LeaderElector,
+) -&gt; Vec&lt;Certificate&gt;
+<span class="kw">where
+    </span>LeaderElector: Fn(<span class="kw-2">&amp;</span>Committee, Round, <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Dag) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>(CertificateDigest, Certificate)&gt;,
 {
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">to_commit</span> = <span class="macro">vec!</span>[<span class="ident">leader</span>.<span class="ident">clone</span>()];
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">leader</span> = <span class="ident">leader</span>;
-    <span class="kw">for</span> <span class="ident">r</span> <span class="kw">in</span> (<span class="ident">state</span>.<span class="ident">last_committed_round</span> + <span class="number">2</span>..<span class="ident">leader</span>.<span class="ident">round</span>())
-        .<span class="ident">rev</span>()
-        .<span class="ident">step_by</span>(<span class="number">2</span>)
+    <span class="kw">let </span><span class="kw-2">mut </span>to_commit = <span class="macro">vec!</span>[leader.clone()];
+    <span class="kw">let </span><span class="kw-2">mut </span>leader = leader;
+    <span class="kw">for </span>r <span class="kw">in </span>(state.last_committed_round + <span class="number">2</span>..leader.round())
+        .rev()
+        .step_by(<span class="number">2</span>)
     {
-        <span class="comment">// Get the certificate proposed by the previous leader.</span>
-        <span class="kw">let</span> (<span class="kw">_</span>, <span class="ident">prev_leader</span>) = <span class="kw">match</span> <span class="ident">get_leader</span>(<span class="ident">committee</span>, <span class="ident">r</span>, <span class="kw-2">&amp;</span><span class="ident">state</span>.<span class="ident">dag</span>) {
-            <span class="prelude-val">Some</span>(<span class="ident">x</span>) =&gt; <span class="ident">x</span>,
-            <span class="prelude-val">None</span> =&gt; <span class="kw">continue</span>,
+        <span class="comment">// Get the certificate proposed by the previous leader.
+        </span><span class="kw">let </span>(<span class="kw">_</span>, prev_leader) = <span class="kw">match </span>get_leader(committee, r, <span class="kw-2">&amp;</span>state.dag) {
+            <span class="prelude-val">Some</span>(x) =&gt; x,
+            <span class="prelude-val">None </span>=&gt; <span class="kw">continue</span>,
         };
 
-        <span class="comment">// Check whether there is a path between the last two leaders.</span>
-        <span class="kw">if</span> <span class="ident">linked</span>(<span class="ident">leader</span>, <span class="ident">prev_leader</span>, <span class="kw-2">&amp;</span><span class="ident">state</span>.<span class="ident">dag</span>) {
-            <span class="ident">to_commit</span>.<span class="ident">push</span>(<span class="ident">prev_leader</span>.<span class="ident">clone</span>());
-            <span class="ident">leader</span> = <span class="ident">prev_leader</span>;
+        <span class="comment">// Check whether there is a path between the last two leaders.
+        </span><span class="kw">if </span>linked(leader, prev_leader, <span class="kw-2">&amp;</span>state.dag) {
+            to_commit.push(prev_leader.clone());
+            leader = prev_leader;
         }
     }
-    <span class="ident">to_commit</span>
+    to_commit
 }
 
-<span class="doccomment">/// Checks if there is a path between two leaders.</span>
-<span class="kw">fn</span> <span class="ident">linked</span>(<span class="ident">leader</span>: <span class="kw-2">&amp;</span><span class="ident">Certificate</span>, <span class="ident">prev_leader</span>: <span class="kw-2">&amp;</span><span class="ident">Certificate</span>, <span class="ident">dag</span>: <span class="kw-2">&amp;</span><span class="ident">Dag</span>) -&gt; <span class="ident">bool</span> {
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">parents</span> = <span class="macro">vec!</span>[<span class="ident">leader</span>];
-    <span class="kw">for</span> <span class="ident">r</span> <span class="kw">in</span> (<span class="ident">prev_leader</span>.<span class="ident">round</span>()..<span class="ident">leader</span>.<span class="ident">round</span>()).<span class="ident">rev</span>() {
-        <span class="ident">parents</span> = <span class="ident">dag</span>
-            .<span class="ident">get</span>(<span class="kw-2">&amp;</span>(<span class="ident">r</span>))
-            .<span class="ident">expect</span>(<span class="string">&quot;We should have the whole history by now&quot;</span>)
-            .<span class="ident">values</span>()
-            .<span class="ident">filter</span>(|(<span class="ident">digest</span>, <span class="kw">_</span>)| <span class="ident">parents</span>.<span class="ident">iter</span>().<span class="ident">any</span>(|<span class="ident">x</span>| <span class="ident">x</span>.<span class="ident">header</span>.<span class="ident">parents</span>.<span class="ident">contains</span>(<span class="ident">digest</span>)))
-            .<span class="ident">map</span>(|(<span class="kw">_</span>, <span class="ident">certificate</span>)| <span class="ident">certificate</span>)
-            .<span class="ident">collect</span>();
+<span class="doccomment">/// Checks if there is a path between two leaders.
+</span><span class="kw">fn </span>linked(leader: <span class="kw-2">&amp;</span>Certificate, prev_leader: <span class="kw-2">&amp;</span>Certificate, dag: <span class="kw-2">&amp;</span>Dag) -&gt; bool {
+    <span class="kw">let </span><span class="kw-2">mut </span>parents = <span class="macro">vec!</span>[leader];
+    <span class="kw">for </span>r <span class="kw">in </span>(prev_leader.round()..leader.round()).rev() {
+        parents = dag
+            .get(<span class="kw-2">&amp;</span>(r))
+            .expect(<span class="string">&quot;We should have the whole history by now&quot;</span>)
+            .values()
+            .filter(|(digest, <span class="kw">_</span>)| parents.iter().any(|x| x.header.parents.contains(digest)))
+            .map(|(<span class="kw">_</span>, certificate)| certificate)
+            .collect();
     }
-    <span class="ident">parents</span>.<span class="ident">contains</span>(<span class="kw-2">&amp;</span><span class="ident">prev_leader</span>)
+    parents.contains(<span class="kw-2">&amp;</span>prev_leader)
 }
 
-<span class="doccomment">/// Flatten the dag referenced by the input certificate. This is a classic depth-first search (pre-order):</span>
-<span class="doccomment">/// https://en.wikipedia.org/wiki/Tree_traversal#Pre-order</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">order_dag</span>(
-    <span class="ident">gc_depth</span>: <span class="ident">Round</span>,
-    <span class="ident">leader</span>: <span class="kw-2">&amp;</span><span class="ident">Certificate</span>,
-    <span class="ident">state</span>: <span class="kw-2">&amp;</span><span class="ident">ConsensusState</span>,
-) -&gt; <span class="ident">Vec</span>&lt;<span class="ident">Certificate</span>&gt; {
-    <span class="macro">debug!</span>(<span class="string">&quot;Processing sub-dag of {:?}&quot;</span>, <span class="ident">leader</span>);
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ordered</span> = <span class="ident">Vec::new</span>();
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">already_ordered</span> = <span class="ident">HashSet::new</span>();
+<span class="doccomment">/// Flatten the dag referenced by the input certificate. This is a classic depth-first search (pre-order):
+/// https://en.wikipedia.org/wiki/Tree_traversal#Pre-order
+</span><span class="kw">pub fn </span>order_dag(
+    gc_depth: Round,
+    leader: <span class="kw-2">&amp;</span>Certificate,
+    state: <span class="kw-2">&amp;</span>ConsensusState,
+) -&gt; Vec&lt;Certificate&gt; {
+    <span class="macro">debug!</span>(<span class="string">&quot;Processing sub-dag of {:?}&quot;</span>, leader);
+    <span class="kw">let </span><span class="kw-2">mut </span>ordered = Vec::new();
+    <span class="kw">let </span><span class="kw-2">mut </span>already_ordered = HashSet::new();
 
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">buffer</span> = <span class="macro">vec!</span>[<span class="ident">leader</span>];
-    <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">x</span>) = <span class="ident">buffer</span>.<span class="ident">pop</span>() {
-        <span class="macro">debug!</span>(<span class="string">&quot;Sequencing {:?}&quot;</span>, <span class="ident">x</span>);
-        <span class="ident">ordered</span>.<span class="ident">push</span>(<span class="ident">x</span>.<span class="ident">clone</span>());
-        <span class="kw">for</span> <span class="ident">parent</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">x</span>.<span class="ident">header</span>.<span class="ident">parents</span> {
-            <span class="kw">let</span> (<span class="ident">digest</span>, <span class="ident">certificate</span>) = <span class="kw">match</span> <span class="ident">state</span>
-                .<span class="ident">dag</span>
-                .<span class="ident">get</span>(<span class="kw-2">&amp;</span>(<span class="ident">x</span>.<span class="ident">round</span>() - <span class="number">1</span>))
-                .<span class="ident">and_then</span>(|<span class="ident">x</span>| <span class="ident">x</span>.<span class="ident">values</span>().<span class="ident">find</span>(|(<span class="ident">x</span>, <span class="kw">_</span>)| <span class="ident">x</span> == <span class="ident">parent</span>))
+    <span class="kw">let </span><span class="kw-2">mut </span>buffer = <span class="macro">vec!</span>[leader];
+    <span class="kw">while let </span><span class="prelude-val">Some</span>(x) = buffer.pop() {
+        <span class="macro">debug!</span>(<span class="string">&quot;Sequencing {:?}&quot;</span>, x);
+        ordered.push(x.clone());
+        <span class="kw">for </span>parent <span class="kw">in </span><span class="kw-2">&amp;</span>x.header.parents {
+            <span class="kw">let </span>(digest, certificate) = <span class="kw">match </span>state
+                .dag
+                .get(<span class="kw-2">&amp;</span>(x.round() - <span class="number">1</span>))
+                .and_then(|x| x.values().find(|(x, <span class="kw">_</span>)| x == parent))
             {
-                <span class="prelude-val">Some</span>(<span class="ident">x</span>) =&gt; <span class="ident">x</span>,
-                <span class="prelude-val">None</span> =&gt; <span class="kw">continue</span>, <span class="comment">// We already ordered or GC up to here.</span>
-            };
+                <span class="prelude-val">Some</span>(x) =&gt; x,
+                <span class="prelude-val">None </span>=&gt; <span class="kw">continue</span>, <span class="comment">// We already ordered or GC up to here.
+            </span>};
 
-            <span class="comment">// We skip the certificate if we (1) already processed it or (2) we reached a round that we already</span>
-            <span class="comment">// committed for this authority.</span>
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">skip</span> = <span class="ident">already_ordered</span>.<span class="ident">contains</span>(<span class="kw-2">&amp;</span><span class="ident">digest</span>);
-            <span class="ident">skip</span> |= <span class="ident">state</span>
-                .<span class="ident">last_committed</span>
-                .<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">certificate</span>.<span class="ident">origin</span>())
-                .<span class="ident">map_or_else</span>(|| <span class="bool-val">false</span>, |<span class="ident">r</span>| <span class="ident">r</span> == <span class="kw-2">&amp;</span><span class="ident">certificate</span>.<span class="ident">round</span>());
-            <span class="kw">if</span> !<span class="ident">skip</span> {
-                <span class="ident">buffer</span>.<span class="ident">push</span>(<span class="ident">certificate</span>);
-                <span class="ident">already_ordered</span>.<span class="ident">insert</span>(<span class="ident">digest</span>);
+            <span class="comment">// We skip the certificate if we (1) already processed it or (2) we reached a round that we already
+            // committed for this authority.
+            </span><span class="kw">let </span><span class="kw-2">mut </span>skip = already_ordered.contains(<span class="kw-2">&amp;</span>digest);
+            skip |= state
+                .last_committed
+                .get(<span class="kw-2">&amp;</span>certificate.origin())
+                .map_or_else(|| <span class="bool-val">false</span>, |r| r == <span class="kw-2">&amp;</span>certificate.round());
+            <span class="kw">if </span>!skip {
+                buffer.push(certificate);
+                already_ordered.insert(digest);
             }
         }
     }
 
-    <span class="comment">// Ensure we do not commit garbage collected certificates.</span>
-    <span class="ident">ordered</span>.<span class="ident">retain</span>(|<span class="ident">x</span>| <span class="ident">x</span>.<span class="ident">round</span>() + <span class="ident">gc_depth</span> &gt;= <span class="ident">state</span>.<span class="ident">last_committed_round</span>);
+    <span class="comment">// Ensure we do not commit garbage collected certificates.
+    </span>ordered.retain(|x| x.round() + gc_depth &gt;= state.last_committed_round);
 
-    <span class="comment">// Ordering the output by round is not really necessary but it makes the commit sequence prettier.</span>
-    <span class="ident">ordered</span>.<span class="ident">sort_by_key</span>(|<span class="ident">x</span>| <span class="ident">x</span>.<span class="ident">round</span>());
-    <span class="ident">ordered</span>
+    <span class="comment">// Ordering the output by round is not really necessary but it makes the commit sequence prettier.
+    </span>ordered.sort_by_key(|x| x.round());
+    ordered
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="consensus" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="consensus" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (801821d15 2022-08-14)" ></div></body></html>

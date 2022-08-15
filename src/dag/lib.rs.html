@@ -376,378 +376,378 @@
 <span id="376">376</span>
 <span id="377">377</span>
 <span id="378">378</span>
-</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
-<span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
+</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
 
-<span class="kw">use</span> <span class="ident">arc_swap::ArcSwap</span>;
-<span class="kw">use</span> <span class="ident">itertools::Itertools</span>;
-<span class="kw">use</span> <span class="ident">once_cell::sync::OnceCell</span>;
-<span class="kw">use</span> <span class="ident">rayon::prelude</span>::<span class="kw-2">*</span>;
-<span class="kw">use</span> <span class="ident">std</span>::{
-    <span class="ident">ops::Deref</span>,
-    <span class="ident">sync</span>::{<span class="ident">Arc</span>, <span class="ident">Weak</span>},
+</span><span class="kw">use </span>arc_swap::ArcSwap;
+<span class="kw">use </span>itertools::Itertools;
+<span class="kw">use </span>once_cell::sync::OnceCell;
+<span class="kw">use </span>rayon::prelude::<span class="kw-2">*</span>;
+<span class="kw">use </span>std::{
+    ops::Deref,
+    sync::{Arc, Weak},
 };
 
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">bft</span>;
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">node_dag</span>;
+<span class="kw">pub mod </span>bft;
+<span class="kw">pub mod </span>node_dag;
 
-<span class="doccomment">/// Reference-counted pointers to a Node</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">NodeRef</span>&lt;<span class="ident">T</span>&gt;(<span class="ident">Arc</span>&lt;<span class="ident">Node</span>&lt;<span class="ident">T</span>&gt;&gt;);
+<span class="doccomment">/// Reference-counted pointers to a Node
+</span><span class="attribute">#[derive(Debug)]</span>
+<span class="kw">pub struct </span>NodeRef&lt;T&gt;(Arc&lt;Node&lt;T&gt;&gt;);
 
-<span class="comment">// reimplemented to avoid a clone bound on T</span>
-<span class="kw">impl</span>&lt;<span class="ident">T</span>&gt; <span class="ident">Clone</span> <span class="kw">for</span> <span class="ident">NodeRef</span>&lt;<span class="ident">T</span>&gt; {
-    <span class="kw">fn</span> <span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="self">Self</span> {
-        <span class="self">Self</span>(<span class="self">self</span>.<span class="number">0</span>.<span class="ident">clone</span>())
+<span class="comment">// reimplemented to avoid a clone bound on T
+</span><span class="kw">impl</span>&lt;T&gt; Clone <span class="kw">for </span>NodeRef&lt;T&gt; {
+    <span class="kw">fn </span>clone(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>(<span class="self">self</span>.<span class="number">0</span>.clone())
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="ident">T</span>&gt; <span class="ident">std::hash::Hash</span> <span class="kw">for</span> <span class="ident">NodeRef</span>&lt;<span class="ident">T</span>&gt; {
-    <span class="kw">fn</span> <span class="ident">hash</span>&lt;<span class="ident">H</span>&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">state</span>: <span class="kw-2">&amp;mut</span> <span class="ident">H</span>)
-    <span class="kw">where</span>
-        <span class="ident">H</span>: <span class="ident">std::hash::Hasher</span>,
+<span class="kw">impl</span>&lt;T&gt; std::hash::Hash <span class="kw">for </span>NodeRef&lt;T&gt; {
+    <span class="kw">fn </span>hash&lt;H&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, state: <span class="kw-2">&amp;mut </span>H)
+    <span class="kw">where
+        </span>H: std::hash::Hasher,
     {
-        (<span class="ident">Arc::as_ptr</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>)).<span class="ident">hash</span>(<span class="ident">state</span>)
+        (Arc::as_ptr(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>)).hash(state)
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="ident">T</span>&gt; <span class="ident">PartialEq</span>&lt;<span class="ident">NodeRef</span>&lt;<span class="ident">T</span>&gt;&gt; <span class="kw">for</span> <span class="ident">NodeRef</span>&lt;<span class="ident">T</span>&gt; {
-    <span class="kw">fn</span> <span class="ident">eq</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="ident">NodeRef</span>&lt;<span class="ident">T</span>&gt;) -&gt; <span class="ident">bool</span> {
-        <span class="ident">Arc::as_ptr</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>) == <span class="ident">Arc::as_ptr</span>(<span class="kw-2">&amp;</span><span class="ident">other</span>.<span class="number">0</span>)
+<span class="kw">impl</span>&lt;T&gt; PartialEq&lt;NodeRef&lt;T&gt;&gt; <span class="kw">for </span>NodeRef&lt;T&gt; {
+    <span class="kw">fn </span>eq(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span>NodeRef&lt;T&gt;) -&gt; bool {
+        Arc::as_ptr(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>) == Arc::as_ptr(<span class="kw-2">&amp;</span>other.<span class="number">0</span>)
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="ident">T</span>&gt; <span class="ident">Eq</span> <span class="kw">for</span> <span class="ident">NodeRef</span>&lt;<span class="ident">T</span>&gt; {}
+<span class="kw">impl</span>&lt;T&gt; Eq <span class="kw">for </span>NodeRef&lt;T&gt; {}
 
-<span class="comment">// The NodeRef is just a wrapper around a smart pointer (only here to define reference equality</span>
-<span class="comment">// when inserting in a collection).</span>
-<span class="kw">impl</span>&lt;<span class="ident">T</span>&gt; <span class="ident">Deref</span> <span class="kw">for</span> <span class="ident">NodeRef</span>&lt;<span class="ident">T</span>&gt; {
-    <span class="kw">type</span> <span class="ident">Target</span> = <span class="ident">Arc</span>&lt;<span class="ident">Node</span>&lt;<span class="ident">T</span>&gt;&gt;;
+<span class="comment">// The NodeRef is just a wrapper around a smart pointer (only here to define reference equality
+// when inserting in a collection).
+</span><span class="kw">impl</span>&lt;T&gt; Deref <span class="kw">for </span>NodeRef&lt;T&gt; {
+    <span class="kw">type </span>Target = Arc&lt;Node&lt;T&gt;&gt;;
 
-    <span class="kw">fn</span> <span class="ident">deref</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident"><span class="self">Self</span>::Target</span> {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>
+    <span class="kw">fn </span>deref(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="self">Self</span>::Target {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0
+    </span>}
+}
+
+<span class="kw">impl</span>&lt;T&gt; From&lt;Arc&lt;Node&lt;T&gt;&gt;&gt; <span class="kw">for </span>NodeRef&lt;T&gt; {
+    <span class="kw">fn </span>from(pointer: Arc&lt;Node&lt;T&gt;&gt;) -&gt; <span class="self">Self </span>{
+        NodeRef(pointer)
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="ident">T</span>&gt; <span class="ident">From</span>&lt;<span class="ident">Arc</span>&lt;<span class="ident">Node</span>&lt;<span class="ident">T</span>&gt;&gt;&gt; <span class="kw">for</span> <span class="ident">NodeRef</span>&lt;<span class="ident">T</span>&gt; {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">pointer</span>: <span class="ident">Arc</span>&lt;<span class="ident">Node</span>&lt;<span class="ident">T</span>&gt;&gt;) -&gt; <span class="self">Self</span> {
-        <span class="ident">NodeRef</span>(<span class="ident">pointer</span>)
+<span class="kw">impl</span>&lt;T&gt; From&lt;Node&lt;T&gt;&gt; <span class="kw">for </span>NodeRef&lt;T&gt; {
+    <span class="kw">fn </span>from(node: Node&lt;T&gt;) -&gt; <span class="self">Self </span>{
+        NodeRef::from_pointee(node)
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="ident">T</span>&gt; <span class="ident">From</span>&lt;<span class="ident">Node</span>&lt;<span class="ident">T</span>&gt;&gt; <span class="kw">for</span> <span class="ident">NodeRef</span>&lt;<span class="ident">T</span>&gt; {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">node</span>: <span class="ident">Node</span>&lt;<span class="ident">T</span>&gt;) -&gt; <span class="self">Self</span> {
-        <span class="ident">NodeRef::from_pointee</span>(<span class="ident">node</span>)
+<span class="kw">impl</span>&lt;T&gt; NodeRef&lt;T&gt; {
+    <span class="doccomment">/// Returns a NodeRef pointing at the Node passed as argument
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use dag::{ Node, NodeRef };
+    ///
+    /// let node = Node::new_leaf(1, false);
+    /// // Note the 2 derefs: one for the newtype, one for the Arc
+    /// assert_eq!(Node::new_leaf(1, false), **NodeRef::from_pointee(node));
+    /// ```
+    </span><span class="kw">pub fn </span>from_pointee(val: Node&lt;T&gt;) -&gt; <span class="self">Self </span>{
+        Arc::new(val).into()
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="ident">T</span>&gt; <span class="ident">NodeRef</span>&lt;<span class="ident">T</span>&gt; {
-    <span class="doccomment">/// Returns a NodeRef pointing at the Node passed as argument</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Example</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// ```</span>
-    <span class="doccomment">/// use dag::{ Node, NodeRef };</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// let node = Node::new_leaf(1, false);</span>
-    <span class="doccomment">/// // Note the 2 derefs: one for the newtype, one for the Arc</span>
-    <span class="doccomment">/// assert_eq!(Node::new_leaf(1, false), **NodeRef::from_pointee(node));</span>
-    <span class="doccomment">/// ```</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_pointee</span>(<span class="ident">val</span>: <span class="ident">Node</span>&lt;<span class="ident">T</span>&gt;) -&gt; <span class="self">Self</span> {
-        <span class="ident">Arc::new</span>(<span class="ident">val</span>).<span class="ident">into</span>()
+<span class="doccomment">/// Non reference-counted pointers to a Node
+</span><span class="kw">pub type </span>WeakNodeRef&lt;T&gt; = Weak&lt;Node&lt;T&gt;&gt;;
+
+<span class="doccomment">/// The Dag node, aka vertex.
+</span><span class="attribute">#[derive(Debug)]</span>
+<span class="kw">pub struct </span>Node&lt;T&gt; {
+    <span class="doccomment">/// The antecedents of the Node, aka the edges of the DAG in association list form.
+    </span>parents: ArcSwap&lt;Vec&lt;NodeRef&lt;T&gt;&gt;&gt;,
+    <span class="doccomment">/// Whether the node is &quot;empty&quot; in some sense: the nodes have a value payload on top of the connections they form.
+    /// An &quot;empty&quot; node can be reclaimed in ways that preserve the connectedness of the graph.
+    </span>compressible: OnceCell&lt;()&gt;,
+    <span class="doccomment">/// The value payload of the node
+    </span>value: T,
+}
+
+<span class="kw">impl</span>&lt;T: PartialEq&gt; PartialEq <span class="kw">for </span>Node&lt;T&gt; {
+    <span class="kw">fn </span>eq(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; bool {
+        <span class="kw-2">*</span><span class="self">self</span>.parents.load() == <span class="kw-2">*</span>other.parents.load()
+            &amp;&amp; <span class="self">self</span>.is_compressible() == other.is_compressible()
+            &amp;&amp; <span class="self">self</span>.value.eq(<span class="kw-2">&amp;</span>other.value)
     }
 }
 
-<span class="doccomment">/// Non reference-counted pointers to a Node</span>
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">WeakNodeRef</span>&lt;<span class="ident">T</span>&gt; = <span class="ident">Weak</span>&lt;<span class="ident">Node</span>&lt;<span class="ident">T</span>&gt;&gt;;
+<span class="kw">impl</span>&lt;T: Eq&gt; Eq <span class="kw">for </span>Node&lt;T&gt; {}
 
-<span class="doccomment">/// The Dag node, aka vertex.</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Node</span>&lt;<span class="ident">T</span>&gt; {
-    <span class="doccomment">/// The antecedents of the Node, aka the edges of the DAG in association list form.</span>
-    <span class="ident">parents</span>: <span class="ident">ArcSwap</span>&lt;<span class="ident">Vec</span>&lt;<span class="ident">NodeRef</span>&lt;<span class="ident">T</span>&gt;&gt;&gt;,
-    <span class="doccomment">/// Whether the node is &quot;empty&quot; in some sense: the nodes have a value payload on top of the connections they form.</span>
-    <span class="doccomment">/// An &quot;empty&quot; node can be reclaimed in ways that preserve the connectedness of the graph.</span>
-    <span class="ident">compressible</span>: <span class="ident">OnceCell</span>&lt;()&gt;,
-    <span class="doccomment">/// The value payload of the node</span>
-    <span class="ident">value</span>: <span class="ident">T</span>,
-}
-
-<span class="kw">impl</span>&lt;<span class="ident">T</span>: <span class="ident">PartialEq</span>&gt; <span class="ident">PartialEq</span> <span class="kw">for</span> <span class="ident">Node</span>&lt;<span class="ident">T</span>&gt; {
-    <span class="kw">fn</span> <span class="ident">eq</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="ident">bool</span> {
-        <span class="kw-2">*</span><span class="self">self</span>.<span class="ident">parents</span>.<span class="ident">load</span>() == <span class="kw-2">*</span><span class="ident">other</span>.<span class="ident">parents</span>.<span class="ident">load</span>()
-            &amp;&amp; <span class="self">self</span>.<span class="ident">is_compressible</span>() == <span class="ident">other</span>.<span class="ident">is_compressible</span>()
-            &amp;&amp; <span class="self">self</span>.<span class="ident">value</span>.<span class="ident">eq</span>(<span class="kw-2">&amp;</span><span class="ident">other</span>.<span class="ident">value</span>)
-    }
-}
-
-<span class="kw">impl</span>&lt;<span class="ident">T</span>: <span class="ident">Eq</span>&gt; <span class="ident">Eq</span> <span class="kw">for</span> <span class="ident">Node</span>&lt;<span class="ident">T</span>&gt; {}
-
-<span class="kw">impl</span>&lt;<span class="ident">T</span>&gt; <span class="ident">Node</span>&lt;<span class="ident">T</span>&gt; {
-    <span class="doccomment">/// Create a new DAG leaf node that contains the given value.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Example</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// ```</span>
-    <span class="doccomment">/// use dag::{ Node, NodeRef };</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// let node = Node::new_leaf(1, false);</span>
-    <span class="doccomment">/// ```</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_leaf</span>(<span class="ident">value</span>: <span class="ident">T</span>, <span class="ident">compressible</span>: <span class="ident">bool</span>) -&gt; <span class="self">Self</span> {
-        <span class="ident"><span class="self">Self</span>::new</span>(<span class="ident">value</span>, <span class="ident">compressible</span>, <span class="ident">Vec::default</span>())
+<span class="kw">impl</span>&lt;T&gt; Node&lt;T&gt; {
+    <span class="doccomment">/// Create a new DAG leaf node that contains the given value.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use dag::{ Node, NodeRef };
+    ///
+    /// let node = Node::new_leaf(1, false);
+    /// ```
+    </span><span class="kw">pub fn </span>new_leaf(value: T, compressible: bool) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::new(value, compressible, Vec::default())
     }
 
-    <span class="doccomment">/// Create a new DAG inner node that contains the given value and points to the given parents.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">value</span>: <span class="ident">T</span>, <span class="ident">compressible</span>: <span class="ident">bool</span>, <span class="ident">parents</span>: <span class="ident">Vec</span>&lt;<span class="ident">NodeRef</span>&lt;<span class="ident">T</span>&gt;&gt;) -&gt; <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="ident">once_cell</span> = {
-            <span class="kw">let</span> <span class="ident">cell</span> = <span class="ident">OnceCell::new</span>();
-            <span class="kw">if</span> <span class="ident">compressible</span> {
-                <span class="kw">let</span> <span class="kw">_</span> = <span class="ident">cell</span>.<span class="ident">set</span>(());
+    <span class="doccomment">/// Create a new DAG inner node that contains the given value and points to the given parents.
+    </span><span class="kw">pub fn </span>new(value: T, compressible: bool, parents: Vec&lt;NodeRef&lt;T&gt;&gt;) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>once_cell = {
+            <span class="kw">let </span>cell = OnceCell::new();
+            <span class="kw">if </span>compressible {
+                <span class="kw">let _ </span>= cell.set(());
             }
-            <span class="ident">cell</span>
+            cell
         };
-        <span class="self">Self</span> {
-            <span class="ident">parents</span>: <span class="ident">ArcSwap::from_pointee</span>(<span class="ident">parents</span>),
-            <span class="ident">compressible</span>: <span class="ident">once_cell</span>,
-            <span class="ident">value</span>,
+        <span class="self">Self </span>{
+            parents: ArcSwap::from_pointee(parents),
+            compressible: once_cell,
+            value,
         }
     }
 
-    <span class="doccomment">/// Return the value payload of the node</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Example</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// ```</span>
-    <span class="doccomment">/// use dag::Node;</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// let node = Node::new_leaf(1, false);</span>
-    <span class="doccomment">/// assert_eq!(*node.value(), 1);</span>
-    <span class="doccomment">/// ```</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">value</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">T</span> {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">value</span>
+    <span class="doccomment">/// Return the value payload of the node
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use dag::Node;
+    ///
+    /// let node = Node::new_leaf(1, false);
+    /// assert_eq!(*node.value(), 1);
+    /// ```
+    </span><span class="kw">pub fn </span>value(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>T {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.value
     }
 
-    <span class="doccomment">/// Is the node parent-less?</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Examples</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// ```</span>
-    <span class="doccomment">/// use dag::Node;</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// let node = Node::new_leaf(1, false);</span>
-    <span class="doccomment">/// assert_eq!(node.is_leaf(), true);</span>
-    <span class="doccomment">/// ```</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_leaf</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">bool</span> {
-        <span class="self">self</span>.<span class="ident">parents</span>.<span class="ident">load</span>().<span class="ident">is_empty</span>()
+    <span class="doccomment">/// Is the node parent-less?
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use dag::Node;
+    ///
+    /// let node = Node::new_leaf(1, false);
+    /// assert_eq!(node.is_leaf(), true);
+    /// ```
+    </span><span class="kw">pub fn </span>is_leaf(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="self">self</span>.parents.load().is_empty()
     }
 
-    <span class="doccomment">/// Is the node compressible?</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Examples</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// ```</span>
-    <span class="doccomment">/// use dag::Node;</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// let node = Node::new_leaf(1, true);</span>
-    <span class="doccomment">/// assert_eq!(node.is_compressible(), true);</span>
-    <span class="doccomment">/// ```</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_compressible</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">bool</span> {
-        <span class="self">self</span>.<span class="ident">compressible</span>.<span class="ident">get</span>().<span class="ident">is_some</span>()
+    <span class="doccomment">/// Is the node compressible?
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use dag::Node;
+    ///
+    /// let node = Node::new_leaf(1, true);
+    /// assert_eq!(node.is_compressible(), true);
+    /// ```
+    </span><span class="kw">pub fn </span>is_compressible(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="self">self</span>.compressible.get().is_some()
     }
 
-    <span class="doccomment">/// Make the node compressible.</span>
-    <span class="doccomment">/// Returns true if the node was made compressible, false if it already was.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Beware: this operation is irreversible.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Examples</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// ```</span>
-    <span class="doccomment">/// use dag::Node;</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// let node = Node::new_leaf(1, false);</span>
-    <span class="doccomment">/// assert_eq!(node.make_compressible(), true);</span>
-    <span class="doccomment">/// let node2 = Node::new_leaf(2, true);</span>
-    <span class="doccomment">/// assert_eq!(node.make_compressible(), false);</span>
-    <span class="doccomment">/// ```</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">make_compressible</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">bool</span> {
-        <span class="self">self</span>.<span class="ident">compressible</span>.<span class="ident">set</span>(()).<span class="ident">is_ok</span>()
+    <span class="doccomment">/// Make the node compressible.
+    /// Returns true if the node was made compressible, false if it already was.
+    ///
+    /// Beware: this operation is irreversible.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use dag::Node;
+    ///
+    /// let node = Node::new_leaf(1, false);
+    /// assert_eq!(node.make_compressible(), true);
+    /// let node2 = Node::new_leaf(2, true);
+    /// assert_eq!(node.make_compressible(), false);
+    /// ```
+    </span><span class="kw">pub fn </span>make_compressible(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="self">self</span>.compressible.set(()).is_ok()
     }
 
-    <span class="comment">// What&#39;s the maximum distance from this to a leaf?</span>
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-    <span class="kw">fn</span> <span class="ident">height</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">usize</span> {
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">is_leaf</span>() {
-            <span class="number">1</span>
-        } <span class="kw">else</span> {
-            <span class="kw">let</span> <span class="ident">max_p_heights</span> = <span class="self">self</span>
-                .<span class="ident">parents</span>
-                .<span class="ident">load</span>()
-                .<span class="ident">iter</span>()
-                .<span class="ident">map</span>(|<span class="ident">p</span>| <span class="ident">p</span>.<span class="ident">height</span>())
-                .<span class="ident">max</span>()
-                .<span class="ident">unwrap_or</span>(<span class="number">1</span>);
-            <span class="ident">max_p_heights</span> + <span class="number">1</span>
-        }
+    <span class="comment">// What&#39;s the maximum distance from this to a leaf?
+    </span><span class="attribute">#[cfg(test)]</span>
+    <span class="kw">fn </span>height(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
+        <span class="kw">if </span><span class="self">self</span>.is_leaf() {
+            <span class="number">1
+        </span>} <span class="kw">else </span>{
+            <span class="kw">let </span>max_p_heights = <span class="self">self
+                </span>.parents
+                .load()
+                .iter()
+                .map(|p| p.height())
+                .max()
+                .unwrap_or(<span class="number">1</span>);
+            max_p_heights + <span class="number">1
+        </span>}
     }
 
-    <span class="doccomment">/// Get the parent nodes in a [`Vec`]. Note the &quot;parents&quot; are in the reverse of the usual tree structure.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// If this node is a leaf node, this function returns [`Vec::empty()`].</span>
-    <span class="kw">fn</span> <span class="ident">raw_parents_snapshot</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Vec</span>&lt;<span class="ident">NodeRef</span>&lt;<span class="ident">T</span>&gt;&gt; {
-        <span class="self">self</span>.<span class="ident">parents</span>.<span class="ident">load</span>().<span class="ident">to_vec</span>()
+    <span class="doccomment">/// Get the parent nodes in a [`Vec`]. Note the &quot;parents&quot; are in the reverse of the usual tree structure.
+    ///
+    /// If this node is a leaf node, this function returns [`Vec::empty()`].
+    </span><span class="kw">fn </span>raw_parents_snapshot(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;NodeRef&lt;T&gt;&gt; {
+        <span class="self">self</span>.parents.load().to_vec()
     }
 
-    <span class="comment">// A trivial node is one whose parents are all incompressible (or a leaf)</span>
-    <span class="kw">fn</span> <span class="ident">is_trivial</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">bool</span> {
-        <span class="self">self</span>.<span class="ident">parents</span>.<span class="ident">load</span>().<span class="ident">iter</span>().<span class="ident">all</span>(|<span class="ident">p</span>| !<span class="ident">p</span>.<span class="ident">is_compressible</span>())
+    <span class="comment">// A trivial node is one whose parents are all incompressible (or a leaf)
+    </span><span class="kw">fn </span>is_trivial(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="self">self</span>.parents.load().iter().all(|p| !p.is_compressible())
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="ident">T</span>: <span class="ident">Sync</span> + <span class="ident">Send</span> + <span class="ident">std::fmt::Debug</span>&gt; <span class="ident">Node</span>&lt;<span class="ident">T</span>&gt; {
-    <span class="doccomment">/// Compress the path from this node to the next incompressible layer of the DAG.</span>
-    <span class="doccomment">/// Returns the parents of the node.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// After path compression, one of these three conditions holds:</span>
-    <span class="doccomment">/// * This node is a leaf node;</span>
-    <span class="doccomment">/// * This node has only incompressible parents, and keeps them;</span>
-    <span class="doccomment">/// * This node has compressible parents, and after path compression, they are replaced by their closest incompressible ancestors.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">parents</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Vec</span>&lt;<span class="ident">NodeRef</span>&lt;<span class="ident">T</span>&gt;&gt; {
-        <span class="comment">// Quick check to bail the trivial situations out in which:</span>
-        <span class="comment">// * `self` is itself a leaf node;</span>
-        <span class="comment">// * The parent nodes of `self` are all incompressible node.</span>
-        <span class="comment">//</span>
-        <span class="comment">// In any of the two cases above, we don&#39;t have to do anything.</span>
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">is_trivial</span>() {
-            <span class="kw">return</span> <span class="self">self</span>.<span class="ident">raw_parents_snapshot</span>();
+<span class="kw">impl</span>&lt;T: Sync + Send + std::fmt::Debug&gt; Node&lt;T&gt; {
+    <span class="doccomment">/// Compress the path from this node to the next incompressible layer of the DAG.
+    /// Returns the parents of the node.
+    ///
+    /// After path compression, one of these three conditions holds:
+    /// * This node is a leaf node;
+    /// * This node has only incompressible parents, and keeps them;
+    /// * This node has compressible parents, and after path compression, they are replaced by their closest incompressible ancestors.
+    </span><span class="kw">pub fn </span>parents(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;NodeRef&lt;T&gt;&gt; {
+        <span class="comment">// Quick check to bail the trivial situations out in which:
+        // * `self` is itself a leaf node;
+        // * The parent nodes of `self` are all incompressible node.
+        //
+        // In any of the two cases above, we don&#39;t have to do anything.
+        </span><span class="kw">if </span><span class="self">self</span>.is_trivial() {
+            <span class="kw">return </span><span class="self">self</span>.raw_parents_snapshot();
         }
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">res</span>: <span class="ident">Vec</span>&lt;<span class="ident">NodeRef</span>&lt;<span class="ident">T</span>&gt;&gt; = <span class="ident">Vec::new</span>();
-        <span class="comment">// Do the path compression.</span>
-        <span class="kw">let</span> (<span class="ident">compressibles</span>, <span class="ident">incompressibles</span>): (<span class="ident">Vec</span>&lt;<span class="ident">NodeRef</span>&lt;<span class="ident">T</span>&gt;&gt;, <span class="ident">Vec</span>&lt;<span class="ident">NodeRef</span>&lt;<span class="ident">T</span>&gt;&gt;) = <span class="self">self</span>
-            .<span class="ident">raw_parents_snapshot</span>()
-            .<span class="ident">into_iter</span>()
-            .<span class="ident">partition</span>(|<span class="ident">p</span>| <span class="ident">p</span>.<span class="ident">is_compressible</span>());
+        <span class="kw">let </span><span class="kw-2">mut </span>res: Vec&lt;NodeRef&lt;T&gt;&gt; = Vec::new();
+        <span class="comment">// Do the path compression.
+        </span><span class="kw">let </span>(compressibles, incompressibles): (Vec&lt;NodeRef&lt;T&gt;&gt;, Vec&lt;NodeRef&lt;T&gt;&gt;) = <span class="self">self
+            </span>.raw_parents_snapshot()
+            .into_iter()
+            .partition(|p| p.is_compressible());
 
-        <span class="ident">res</span>.<span class="ident">extend</span>(<span class="ident">incompressibles</span>);
-        <span class="comment">// First, compress the path from the parent to some incompressible nodes. After this step, the parents of the</span>
-        <span class="comment">// parent node should be incompressible.</span>
-        <span class="kw">let</span> <span class="ident">new_parents</span>: <span class="ident">Vec</span>&lt;<span class="kw">_</span>&gt; = <span class="ident">compressibles</span>
-            .<span class="ident">par_iter</span>()
-            .<span class="ident">flat_map_iter</span>(|<span class="ident">parent</span>| {
-                <span class="comment">// there are no cycles!</span>
-                <span class="kw">let</span> <span class="ident">these_new_parents</span>: <span class="ident">Vec</span>&lt;<span class="ident">NodeRef</span>&lt;<span class="ident">T</span>&gt;&gt; = { <span class="ident">parent</span>.<span class="ident">parents</span>() };
+        res.extend(incompressibles);
+        <span class="comment">// First, compress the path from the parent to some incompressible nodes. After this step, the parents of the
+        // parent node should be incompressible.
+        </span><span class="kw">let </span>new_parents: Vec&lt;<span class="kw">_</span>&gt; = compressibles
+            .par_iter()
+            .flat_map_iter(|parent| {
+                <span class="comment">// there are no cycles!
+                </span><span class="kw">let </span>these_new_parents: Vec&lt;NodeRef&lt;T&gt;&gt; = { parent.parents() };
 
-                <span class="comment">// parent is compressed: it&#39;s now trivial</span>
-                <span class="macro">debug_assert!</span>(<span class="ident">parent</span>.<span class="ident">is_trivial</span>(), <span class="string">&quot;{:?} is not trivial!&quot;</span>, <span class="ident">parent</span>);
-                <span class="comment">// we report its parents to the final parents result, enacting the path compression</span>
-                <span class="ident">these_new_parents</span>
+                <span class="comment">// parent is compressed: it&#39;s now trivial
+                </span><span class="macro">debug_assert!</span>(parent.is_trivial(), <span class="string">&quot;{:?} is not trivial!&quot;</span>, parent);
+                <span class="comment">// we report its parents to the final parents result, enacting the path compression
+                </span>these_new_parents
             })
-            .<span class="ident">collect</span>();
-        <span class="ident">res</span>.<span class="ident">extend</span>(<span class="ident">new_parents</span>);
+            .collect();
+        res.extend(new_parents);
 
-        <span class="kw">let</span> <span class="ident">res</span>: <span class="ident">Vec</span>&lt;<span class="ident">NodeRef</span>&lt;<span class="ident">T</span>&gt;&gt; = <span class="ident">res</span>.<span class="ident">into_iter</span>().<span class="ident">unique_by</span>(|<span class="ident">arc</span>| <span class="ident">Arc::as_ptr</span>(<span class="ident">arc</span>)).<span class="ident">collect</span>();
-        <span class="self">self</span>.<span class="ident">parents</span>.<span class="ident">store</span>(<span class="ident">Arc::new</span>(<span class="ident">res</span>));
-        <span class="macro">debug_assert!</span>(<span class="self">self</span>.<span class="ident">is_trivial</span>());
-        <span class="self">self</span>.<span class="ident">raw_parents_snapshot</span>()
+        <span class="kw">let </span>res: Vec&lt;NodeRef&lt;T&gt;&gt; = res.into_iter().unique_by(|arc| Arc::as_ptr(arc)).collect();
+        <span class="self">self</span>.parents.store(Arc::new(res));
+        <span class="macro">debug_assert!</span>(<span class="self">self</span>.is_trivial());
+        <span class="self">self</span>.raw_parents_snapshot()
     }
 }
 
-<span class="doccomment">/// Returns a Breadth-first search of the DAG, as an iterator of [`NodeRef`]</span>
-<span class="doccomment">/// This is expected to be used in conjunction with a [`NodeDag&lt;T&gt;`], walking the graph from one of its heads.</span>
-<span class="doccomment">///</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">bfs</span>&lt;<span class="ident">T</span>: <span class="ident">Sync</span> + <span class="ident">Send</span> + <span class="ident">std::fmt::Debug</span>&gt;(
-    <span class="ident">initial</span>: <span class="ident">NodeRef</span>&lt;<span class="ident">T</span>&gt;,
-) -&gt; <span class="kw">impl</span> <span class="ident">Iterator</span>&lt;<span class="ident">Item</span> = <span class="ident">NodeRef</span>&lt;<span class="ident">T</span>&gt;&gt; {
-    <span class="ident">bft::Bft::new</span>(<span class="ident">initial</span>, |<span class="ident">node</span>| <span class="ident">node</span>.<span class="ident">parents</span>().<span class="ident">into_iter</span>())
+<span class="doccomment">/// Returns a Breadth-first search of the DAG, as an iterator of [`NodeRef`]
+/// This is expected to be used in conjunction with a [`NodeDag&lt;T&gt;`], walking the graph from one of its heads.
+///
+</span><span class="kw">pub fn </span>bfs&lt;T: Sync + Send + std::fmt::Debug&gt;(
+    initial: NodeRef&lt;T&gt;,
+) -&gt; <span class="kw">impl </span>Iterator&lt;Item = NodeRef&lt;T&gt;&gt; {
+    bft::Bft::new(initial, |node| node.parents().into_iter())
 }
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="kw">mod</span> <span class="ident">tests</span> {
-    <span class="kw">use</span> <span class="ident">proptest::prelude</span>::<span class="kw-2">*</span>;
+<span class="attribute">#[cfg(test)]</span>
+<span class="kw">mod </span>tests {
+    <span class="kw">use </span>proptest::prelude::<span class="kw-2">*</span>;
 
-    <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
+    <span class="kw">use super</span>::<span class="kw-2">*</span>;
 
     <span class="macro">prop_compose!</span> {
-        <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">arb_leaf_node</span>()(
-            <span class="ident">value</span> <span class="kw">in</span> <span class="ident">any</span>::&lt;<span class="ident">u64</span>&gt;(),
-            <span class="ident">compressible</span> <span class="kw">in</span> <span class="ident">any</span>::&lt;<span class="ident">bool</span>&gt;(),
-        ) -&gt; <span class="ident">Node</span>&lt;<span class="ident">u64</span>&gt; {
-            <span class="ident">Node::new_leaf</span>(<span class="ident">value</span>, <span class="ident">compressible</span>)
+        <span class="kw">pub fn </span>arb_leaf_node()(
+            value <span class="kw">in </span>any::&lt;u64&gt;(),
+            compressible <span class="kw">in </span>any::&lt;bool&gt;(),
+        ) -&gt; Node&lt;u64&gt; {
+            Node::new_leaf(value, compressible)
         }
     }
 
     <span class="macro">prop_compose!</span> {
-        <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">arb_inner_node</span>(<span class="ident">prior_round</span>: <span class="ident">Vec</span>&lt;<span class="ident">NodeRef</span>&lt;<span class="ident">u64</span>&gt;&gt;)(
-            <span class="comment">// this is a 50% inclusion rate, in production we&#39;d shoot for &gt; 67%</span>
-            <span class="ident">picks</span> <span class="kw">in</span> <span class="ident">prop::collection::vec</span>(<span class="ident">any</span>::&lt;<span class="ident">bool</span>&gt;(), <span class="ident">prior_round</span>.<span class="ident">len</span>()..=<span class="ident">prior_round</span>.<span class="ident">len</span>()),
-            <span class="ident">value</span> <span class="kw">in</span> <span class="ident">any</span>::&lt;<span class="ident">u64</span>&gt;(),
-            <span class="ident">compressible</span> <span class="kw">in</span> <span class="ident">any</span>::&lt;<span class="ident">bool</span>&gt;(),
-        ) -&gt; <span class="ident">Node</span>&lt;<span class="ident">u64</span>&gt; {
-            <span class="kw">let</span> <span class="ident">parents</span> = <span class="ident">prior_round</span>.<span class="ident">iter</span>().<span class="ident">zip</span>(<span class="ident">picks</span>).<span class="ident">flat_map</span>(|(<span class="ident">parent</span>, <span class="ident">pick</span>)| <span class="ident">pick</span>.<span class="ident">then_some</span>(<span class="ident">parent</span>.<span class="ident">clone</span>())).<span class="ident">collect</span>();
-            <span class="ident">Node::new</span>(<span class="ident">value</span>, <span class="ident">compressible</span>, <span class="ident">parents</span>)
+        <span class="kw">pub fn </span>arb_inner_node(prior_round: Vec&lt;NodeRef&lt;u64&gt;&gt;)(
+            <span class="comment">// this is a 50% inclusion rate, in production we&#39;d shoot for &gt; 67%
+            </span>picks <span class="kw">in </span>prop::collection::vec(any::&lt;bool&gt;(), prior_round.len()..=prior_round.len()),
+            value <span class="kw">in </span>any::&lt;u64&gt;(),
+            compressible <span class="kw">in </span>any::&lt;bool&gt;(),
+        ) -&gt; Node&lt;u64&gt; {
+            <span class="kw">let </span>parents = prior_round.iter().zip(picks).flat_map(|(parent, pick)| pick.then_some(parent.clone())).collect();
+            Node::new(value, compressible, parents)
         }
     }
 
     <span class="macro">prop_compose!</span> {
-        <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">next_round</span>(<span class="ident">prior_round</span>: <span class="ident">Vec</span>&lt;<span class="ident">NodeRef</span>&lt;<span class="ident">u64</span>&gt;&gt;)(
-            <span class="ident">nodes</span> <span class="kw">in</span> { <span class="kw">let</span> <span class="ident">n</span> = <span class="ident">prior_round</span>.<span class="ident">len</span>(); <span class="ident">prop::collection::vec</span>(<span class="ident">arb_inner_node</span>(<span class="ident">prior_round</span>), <span class="ident">n</span>..=<span class="ident">n</span>) }
-        ) -&gt; <span class="ident">Vec</span>&lt;<span class="ident">NodeRef</span>&lt;<span class="ident">u64</span>&gt;&gt; {
-            <span class="ident">nodes</span>.<span class="ident">into_iter</span>().<span class="ident">map</span>(|<span class="ident">node</span>| <span class="ident">node</span>.<span class="ident">into</span>()).<span class="ident">collect</span>()
+        <span class="kw">pub fn </span>next_round(prior_round: Vec&lt;NodeRef&lt;u64&gt;&gt;)(
+            nodes <span class="kw">in </span>{ <span class="kw">let </span>n = prior_round.len(); prop::collection::vec(arb_inner_node(prior_round), n..=n) }
+        ) -&gt; Vec&lt;NodeRef&lt;u64&gt;&gt; {
+            nodes.into_iter().map(|node| node.into()).collect()
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">arb_dag_complete</span>(
-        <span class="ident">authorities</span>: <span class="ident">usize</span>,
-        <span class="ident">rounds</span>: <span class="ident">usize</span>,
-    ) -&gt; <span class="kw">impl</span> <span class="ident">Strategy</span>&lt;<span class="ident">Value</span> = <span class="ident">Vec</span>&lt;<span class="ident">NodeRef</span>&lt;<span class="ident">u64</span>&gt;&gt;&gt; {
-        <span class="kw">let</span> <span class="ident">initial_round</span> =
-            <span class="ident">prop::collection::vec</span>(<span class="ident">arb_leaf_node</span>().<span class="ident">no_shrink</span>(), <span class="ident">authorities</span>..=<span class="ident">authorities</span>)
-                .<span class="ident">prop_map</span>(|<span class="ident">nodevec</span>| <span class="ident">nodevec</span>.<span class="ident">into_iter</span>().<span class="ident">map</span>(|<span class="ident">node</span>| <span class="ident">node</span>.<span class="ident">into</span>()).<span class="ident">collect</span>());
+    <span class="kw">pub fn </span>arb_dag_complete(
+        authorities: usize,
+        rounds: usize,
+    ) -&gt; <span class="kw">impl </span>Strategy&lt;Value = Vec&lt;NodeRef&lt;u64&gt;&gt;&gt; {
+        <span class="kw">let </span>initial_round =
+            prop::collection::vec(arb_leaf_node().no_shrink(), authorities..=authorities)
+                .prop_map(|nodevec| nodevec.into_iter().map(|node| node.into()).collect());
 
-        <span class="ident">initial_round</span>.<span class="ident">prop_recursive</span>(
-            <span class="ident">rounds</span> <span class="kw">as</span> <span class="ident">u32</span>,                 <span class="comment">// max rounds level deep</span>
-            (<span class="ident">authorities</span> * <span class="ident">rounds</span>) <span class="kw">as</span> <span class="ident">u32</span>, <span class="comment">// max authorities nodes total</span>
-            <span class="ident">authorities</span> <span class="kw">as</span> <span class="ident">u32</span>,            <span class="comment">// authorities nodes per round</span>
-            <span class="kw">move</span> |<span class="ident">inner</span>| <span class="ident">inner</span>.<span class="ident">prop_flat_map</span>(<span class="ident">next_round</span>),
+        initial_round.prop_recursive(
+            rounds <span class="kw">as </span>u32,                 <span class="comment">// max rounds level deep
+            </span>(authorities * rounds) <span class="kw">as </span>u32, <span class="comment">// max authorities nodes total
+            </span>authorities <span class="kw">as </span>u32,            <span class="comment">// authorities nodes per round
+            </span><span class="kw">move </span>|inner| inner.prop_flat_map(next_round),
         )
     }
 
     <span class="macro">proptest!</span> {
-        <span class="attribute">#[<span class="ident">test</span>]</span>
-        <span class="kw">fn</span> <span class="ident">test_dag_sanity_check</span>(
-            <span class="ident">dag</span> <span class="kw">in</span> <span class="ident">arb_dag_complete</span>(<span class="number">10</span>, <span class="number">10</span>)
+        <span class="attribute">#[test]</span>
+        <span class="kw">fn </span>test_dag_sanity_check(
+            dag <span class="kw">in </span>arb_dag_complete(<span class="number">10</span>, <span class="number">10</span>)
         ) {
-            <span class="macro">assert!</span>(<span class="ident">dag</span>.<span class="ident">len</span>() &lt;= <span class="number">10</span>);
-            <span class="macro">assert!</span>(<span class="ident">dag</span>.<span class="ident">iter</span>().<span class="ident">all</span>(|<span class="ident">node</span>| <span class="ident">node</span>.<span class="ident">height</span>() &lt;= <span class="number">10</span>));
-            <span class="macro">assert!</span>(<span class="ident">dag</span>.<span class="ident">iter</span>().<span class="ident">all</span>(|<span class="ident">node</span>| <span class="ident">node</span>.<span class="ident">raw_parents_snapshot</span>().<span class="ident">len</span>() &lt;= <span class="number">10</span>));
+            <span class="macro">assert!</span>(dag.len() &lt;= <span class="number">10</span>);
+            <span class="macro">assert!</span>(dag.iter().all(|node| node.height() &lt;= <span class="number">10</span>));
+            <span class="macro">assert!</span>(dag.iter().all(|node| node.raw_parents_snapshot().len() &lt;= <span class="number">10</span>));
         }
 
-        <span class="attribute">#[<span class="ident">test</span>]</span>
-        <span class="kw">fn</span> <span class="ident">test_path_compression</span>(
-            <span class="ident">dag</span> <span class="kw">in</span> <span class="ident">arb_dag_complete</span>(<span class="number">10</span>, <span class="number">100</span>)
+        <span class="attribute">#[test]</span>
+        <span class="kw">fn </span>test_path_compression(
+            dag <span class="kw">in </span>arb_dag_complete(<span class="number">10</span>, <span class="number">100</span>)
         ) {
-            <span class="kw">let</span> <span class="ident">first</span> = <span class="ident">dag</span>.<span class="ident">first</span>().<span class="ident">unwrap</span>();
-            <span class="kw">let</span> <span class="ident">initial_height</span> = <span class="ident">first</span>.<span class="ident">height</span>();
-            <span class="kw">let</span> <span class="ident">_parents</span> = <span class="ident">first</span>.<span class="ident">parents</span>();
-            <span class="kw">let</span> <span class="ident">final_height</span> = <span class="ident">first</span>.<span class="ident">height</span>();
-            <span class="macro">assert!</span>(<span class="ident">final_height</span> &lt;= <span class="ident">initial_height</span>);
-            <span class="macro">assert!</span>(<span class="ident">first</span>.<span class="ident">is_trivial</span>())
+            <span class="kw">let </span>first = dag.first().unwrap();
+            <span class="kw">let </span>initial_height = first.height();
+            <span class="kw">let </span>_parents = first.parents();
+            <span class="kw">let </span>final_height = first.height();
+            <span class="macro">assert!</span>(final_height &lt;= initial_height);
+            <span class="macro">assert!</span>(first.is_trivial())
         }
 
-        <span class="attribute">#[<span class="ident">test</span>]</span>
-        <span class="kw">fn</span> <span class="ident">test_path_compression_bfs</span>(
-            <span class="ident">dag</span> <span class="kw">in</span> <span class="ident">arb_dag_complete</span>(<span class="number">10</span>, <span class="number">100</span>)
+        <span class="attribute">#[test]</span>
+        <span class="kw">fn </span>test_path_compression_bfs(
+            dag <span class="kw">in </span>arb_dag_complete(<span class="number">10</span>, <span class="number">100</span>)
         ) {
-            <span class="kw">let</span> <span class="ident">first</span> = <span class="ident">dag</span>.<span class="ident">first</span>().<span class="ident">unwrap</span>();
-            <span class="kw">let</span> <span class="ident">iter</span> = <span class="ident">bfs</span>(<span class="ident">first</span>.<span class="ident">clone</span>());
-            <span class="comment">// The first node may end up compressible as a result of our random DAG</span>
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">is_first</span> = <span class="bool-val">true</span>;
-            <span class="kw">for</span> <span class="ident">node</span> <span class="kw">in</span> <span class="ident">iter</span> {
-                <span class="kw">if</span> !<span class="ident">is_first</span> {
-                <span class="macro">assert!</span>(!<span class="ident">node</span>.<span class="ident">is_compressible</span>())
+            <span class="kw">let </span>first = dag.first().unwrap();
+            <span class="kw">let </span>iter = bfs(first.clone());
+            <span class="comment">// The first node may end up compressible as a result of our random DAG
+            </span><span class="kw">let </span><span class="kw-2">mut </span>is_first = <span class="bool-val">true</span>;
+            <span class="kw">for </span>node <span class="kw">in </span>iter {
+                <span class="kw">if </span>!is_first {
+                <span class="macro">assert!</span>(!node.is_compressible())
                 }
-                <span class="ident">is_first</span> = <span class="bool-val">false</span>;
+                is_first = <span class="bool-val">false</span>;
             }
 
         }
@@ -755,4 +755,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="dag" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="dag" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (801821d15 2022-08-14)" ></div></body></html>

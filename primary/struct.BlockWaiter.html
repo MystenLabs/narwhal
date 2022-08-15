@@ -9,68 +9,68 @@ and how a request (command) should be issued to get a block and receive
 the result of it.</p>
 
 <div class="example-wrap"><pre class="rust rust-example-rendered"><code>
-<span class="kw">struct</span> <span class="ident">BlockSynchronizerHandler</span>;
+<span class="kw">struct </span>BlockSynchronizerHandler;
 
-<span class="attribute">#[<span class="ident">async_trait</span>]</span>
-<span class="kw">impl</span> <span class="ident">Handler</span> <span class="kw">for</span> <span class="ident">BlockSynchronizerHandler</span> {
+<span class="attribute">#[async_trait]</span>
+<span class="kw">impl </span>Handler <span class="kw">for </span>BlockSynchronizerHandler {
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get_and_synchronize_block_headers</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">block_ids</span>: <span class="ident">Vec</span>&lt;<span class="ident">CertificateDigest</span>&gt;) -&gt; <span class="ident">Vec</span>&lt;<span class="prelude-ty">Result</span>&lt;<span class="ident">Certificate</span>, <span class="ident">Error</span>&gt;&gt; {
+    <span class="kw">async fn </span>get_and_synchronize_block_headers(<span class="kw-2">&amp;</span><span class="self">self</span>, block_ids: Vec&lt;CertificateDigest&gt;) -&gt; Vec&lt;<span class="prelude-ty">Result</span>&lt;Certificate, Error&gt;&gt; {
         <span class="macro">vec!</span>[]
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get_block_headers</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">block_ids</span>: <span class="ident">Vec</span>&lt;<span class="ident">CertificateDigest</span>&gt;) -&gt; <span class="ident">Vec</span>&lt;<span class="ident">BlockSynchronizeResult</span>&lt;<span class="ident">BlockHeader</span>&gt;&gt; {
+    <span class="kw">async fn </span>get_block_headers(<span class="kw-2">&amp;</span><span class="self">self</span>, block_ids: Vec&lt;CertificateDigest&gt;) -&gt; Vec&lt;BlockSynchronizeResult&lt;BlockHeader&gt;&gt; {
         <span class="macro">vec!</span>[]
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">synchronize_block_payloads</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">certificates</span>: <span class="ident">Vec</span>&lt;<span class="ident">Certificate</span>&gt;) -&gt; <span class="ident">Vec</span>&lt;<span class="prelude-ty">Result</span>&lt;<span class="ident">Certificate</span>, <span class="ident">Error</span>&gt;&gt; {
+    <span class="kw">async fn </span>synchronize_block_payloads(<span class="kw-2">&amp;</span><span class="self">self</span>, certificates: Vec&lt;Certificate&gt;) -&gt; Vec&lt;<span class="prelude-ty">Result</span>&lt;Certificate, Error&gt;&gt; {
         <span class="macro">vec!</span>[]
     }
 
 }
 
-<span class="attribute">#[<span class="ident">tokio::main</span>(<span class="ident">flavor</span> = <span class="string">&quot;current_thread&quot;</span>)]</span>
-    <span class="kw">let</span> (<span class="ident">tx_commands</span>, <span class="ident">rx_commands</span>) = <span class="macro">test_utils::test_channel!</span>(<span class="number">1</span>);
-    <span class="kw">let</span> (<span class="ident">tx_batches</span>, <span class="ident">rx_batches</span>) = <span class="macro">test_utils::test_channel!</span>(<span class="number">1</span>);
-    <span class="kw">let</span> (<span class="ident">tx_get_block</span>, <span class="kw-2">mut</span> <span class="ident">rx_get_block</span>) = <span class="ident">oneshot::channel</span>();
+<span class="attribute">#[tokio::main(flavor = <span class="string">&quot;current_thread&quot;</span>)]</span>
+    <span class="kw">let </span>(tx_commands, rx_commands) = <span class="macro">test_utils::test_channel!</span>(<span class="number">1</span>);
+    <span class="kw">let </span>(tx_batches, rx_batches) = <span class="macro">test_utils::test_channel!</span>(<span class="number">1</span>);
+    <span class="kw">let </span>(tx_get_block, <span class="kw-2">mut </span>rx_get_block) = oneshot::channel();
 
-    <span class="kw">let</span> <span class="ident">name</span> = <span class="ident">Ed25519PublicKey::default</span>();
-    <span class="kw">let</span> <span class="ident">committee</span> = <span class="ident">Committee</span>{ <span class="ident">epoch</span>: <span class="number">0</span>, <span class="ident">authorities</span>: <span class="ident">BTreeMap::new</span>() };
-    <span class="kw">let</span> (<span class="ident">_tx_reconfigure</span>, <span class="ident">rx_reconfigure</span>) = <span class="ident">watch::channel</span>(<span class="ident">ReconfigureNotification::NewEpoch</span>(<span class="ident">committee</span>.<span class="ident">clone</span>()));
+    <span class="kw">let </span>name = Ed25519PublicKey::default();
+    <span class="kw">let </span>committee = Committee{ epoch: <span class="number">0</span>, authorities: BTreeMap::new() };
+    <span class="kw">let </span>(_tx_reconfigure, rx_reconfigure) = watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));
 
-    <span class="comment">// A dummy certificate</span>
-    <span class="kw">let</span> <span class="ident">certificate</span> = <span class="ident">Certificate::default</span>();
+    <span class="comment">// A dummy certificate
+    </span><span class="kw">let </span>certificate = Certificate::default();
 
-    <span class="comment">// Dummy - we expect the BlockSynchronizer to actually respond, here</span>
-    <span class="comment">// we are using a mock</span>
-    <span class="ident">BlockWaiter::spawn</span>(
-        <span class="ident">name</span>,
-        <span class="ident">committee</span>,
-        <span class="ident">rx_reconfigure</span>,
-        <span class="ident">rx_commands</span>,
-        <span class="ident">rx_batches</span>,
-        <span class="ident">Arc::new</span>(<span class="ident">BlockSynchronizerHandler</span>{}),
-        <span class="ident">PrimaryToWorkerNetwork::default</span>()
+    <span class="comment">// Dummy - we expect the BlockSynchronizer to actually respond, here
+    // we are using a mock
+    </span>BlockWaiter::spawn(
+        name,
+        committee,
+        rx_reconfigure,
+        rx_commands,
+        rx_batches,
+        Arc::new(BlockSynchronizerHandler{}),
+        PrimaryToWorkerNetwork::default()
     );
 
-    <span class="comment">// Send a command to receive a block</span>
-    <span class="ident">tx_commands</span>
-        .<span class="ident">send</span>(<span class="ident">BlockCommand::GetBlock</span> {
-            <span class="ident">id</span>: <span class="ident">certificate</span>.<span class="ident">digest</span>(),
-            <span class="ident">sender</span>: <span class="ident">tx_get_block</span>,
+    <span class="comment">// Send a command to receive a block
+    </span>tx_commands
+        .send(BlockCommand::GetBlock {
+            id: certificate.digest(),
+            sender: tx_get_block,
         })
         .<span class="kw">await</span>;
 
-    <span class="comment">// Dummy - we expect to receive the requested batches via another component</span>
-    <span class="comment">// and get fed via the tx_batches channel.</span>
-    <span class="ident">tx_batches</span>.<span class="ident">send</span>(<span class="prelude-val">Ok</span>(<span class="ident">BatchMessage</span>{ <span class="ident">id</span>: <span class="ident">BatchDigest::default</span>(), <span class="ident">transactions</span>: <span class="ident">Batch</span>(<span class="macro">vec!</span>[]) })).<span class="kw">await</span>;
+    <span class="comment">// Dummy - we expect to receive the requested batches via another component
+    // and get fed via the tx_batches channel.
+    </span>tx_batches.send(<span class="prelude-val">Ok</span>(BatchMessage{ id: BatchDigest::default(), transactions: Batch(<span class="macro">vec!</span>[]) })).<span class="kw">await</span>;
 
-    <span class="comment">// Wait to receive the block output to the provided sender channel</span>
-    <span class="kw">match</span> <span class="ident">rx_get_block</span>.<span class="kw">await</span>.<span class="ident">unwrap</span>() {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; {
+    <span class="comment">// Wait to receive the block output to the provided sender channel
+    </span><span class="kw">match </span>rx_get_block.<span class="kw">await</span>.unwrap() {
+        <span class="prelude-val">Ok</span>(result) =&gt; {
             <span class="macro">println!</span>(<span class="string">&quot;Successfully received a block response&quot;</span>);
         }
-        <span class="prelude-val">Err</span>(<span class="ident">err</span>) =&gt; {
-            <span class="macro">println!</span>(<span class="string">&quot;Received an error {}&quot;</span>, <span class="ident">err</span>);
+        <span class="prelude-val">Err</span>(err) =&gt; {
+            <span class="macro">println!</span>(<span class="string">&quot;Received an error {}&quot;</span>, err);
         }
     }</code></pre></div>
 </div></details><h2 id="implementations" class="small-section-header">Implementations<a href="#implementations" class="anchor"></a></h2><div id="implementations-list"><details class="rustdoc-toggle implementors-toggle" open><summary><section id="impl-BlockWaiter%3CSynchronizerHandler%3E" class="impl has-srclink"><span class="rightside"><a class="srclink" href="../src/primary/block_waiter.rs.html#250-812">source</a></span><a href="#impl-BlockWaiter%3CSynchronizerHandler%3E" class="anchor"></a><h3 class="code-header in-band">impl&lt;SynchronizerHandler:&nbsp;<a class="trait" href="block_synchronizer/handler/trait.Handler.html" title="trait primary::block_synchronizer::handler::Handler">Handler</a> + <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a> + <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sync.html" title="trait core::marker::Sync">Sync</a> + 'static&gt; <a class="struct" href="struct.BlockWaiter.html" title="struct primary::BlockWaiter">BlockWaiter</a>&lt;SynchronizerHandler&gt;</h3></section></summary><div class="impl-items"><section id="method.spawn" class="method has-srclink"><span class="rightside"><a class="srclink" href="../src/primary/block_waiter.rs.html#254-280">source</a></span><h4 class="code-header">pub fn <a href="#method.spawn" class="fnname">spawn</a>(<br>&nbsp;&nbsp;&nbsp;&nbsp;name: <a class="type" href="../crypto/type.PublicKey.html" title="type crypto::PublicKey">PublicKey</a>,<br>&nbsp;&nbsp;&nbsp;&nbsp;committee: <a class="struct" href="../config/struct.Committee.html" title="struct config::Committee">Committee</a>,<br>&nbsp;&nbsp;&nbsp;&nbsp;rx_reconfigure: Receiver&lt;<a class="enum" href="../types/primary/enum.ReconfigureNotification.html" title="enum types::primary::ReconfigureNotification">ReconfigureNotification</a>&gt;,<br>&nbsp;&nbsp;&nbsp;&nbsp;rx_commands: <a class="struct" href="../types/metered_channel/struct.Receiver.html" title="struct types::metered_channel::Receiver">Receiver</a>&lt;<a class="enum" href="enum.BlockCommand.html" title="enum primary::BlockCommand">BlockCommand</a>&gt;,<br>&nbsp;&nbsp;&nbsp;&nbsp;batch_receiver: <a class="struct" href="../types/metered_channel/struct.Receiver.html" title="struct types::metered_channel::Receiver">Receiver</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="struct" href="../types/primary/struct.BatchMessage.html" title="struct types::primary::BatchMessage">BatchMessage</a>, BatchMessageError&gt;&gt;,<br>&nbsp;&nbsp;&nbsp;&nbsp;block_synchronizer_handler: <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/sync/struct.Arc.html" title="struct alloc::sync::Arc">Arc</a>&lt;SynchronizerHandler&gt;,<br>&nbsp;&nbsp;&nbsp;&nbsp;worker_network: <a class="struct" href="../network/primary/struct.PrimaryToWorkerNetwork.html" title="struct network::primary::PrimaryToWorkerNetwork">PrimaryToWorkerNetwork</a><br>) -&gt; JoinHandle&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;</h4></section></div></details></div><h2 id="synthetic-implementations" class="small-section-header">Auto Trait Implementations<a href="#synthetic-implementations" class="anchor"></a></h2><div id="synthetic-implementations-list"><section id="impl-RefUnwindSafe-for-BlockWaiter%3CSynchronizerHandler%3E" class="impl has-srclink"><a href="#impl-RefUnwindSafe-for-BlockWaiter%3CSynchronizerHandler%3E" class="anchor"></a><h3 class="code-header in-band">impl&lt;SynchronizerHandler&gt; !<a class="trait" href="https://doc.rust-lang.org/nightly/core/panic/unwind_safe/trait.RefUnwindSafe.html" title="trait core::panic::unwind_safe::RefUnwindSafe">RefUnwindSafe</a> for <a class="struct" href="struct.BlockWaiter.html" title="struct primary::BlockWaiter">BlockWaiter</a>&lt;SynchronizerHandler&gt;</h3></section><section id="impl-Send-for-BlockWaiter%3CSynchronizerHandler%3E" class="impl has-srclink"><a href="#impl-Send-for-BlockWaiter%3CSynchronizerHandler%3E" class="anchor"></a><h3 class="code-header in-band">impl&lt;SynchronizerHandler&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a> for <a class="struct" href="struct.BlockWaiter.html" title="struct primary::BlockWaiter">BlockWaiter</a>&lt;SynchronizerHandler&gt;</h3></section><section id="impl-Sync-for-BlockWaiter%3CSynchronizerHandler%3E" class="impl has-srclink"><a href="#impl-Sync-for-BlockWaiter%3CSynchronizerHandler%3E" class="anchor"></a><h3 class="code-header in-band">impl&lt;SynchronizerHandler&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sync.html" title="trait core::marker::Sync">Sync</a> for <a class="struct" href="struct.BlockWaiter.html" title="struct primary::BlockWaiter">BlockWaiter</a>&lt;SynchronizerHandler&gt;</h3></section><section id="impl-Unpin-for-BlockWaiter%3CSynchronizerHandler%3E" class="impl has-srclink"><a href="#impl-Unpin-for-BlockWaiter%3CSynchronizerHandler%3E" class="anchor"></a><h3 class="code-header in-band">impl&lt;SynchronizerHandler&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Unpin.html" title="trait core::marker::Unpin">Unpin</a> for <a class="struct" href="struct.BlockWaiter.html" title="struct primary::BlockWaiter">BlockWaiter</a>&lt;SynchronizerHandler&gt;</h3></section><section id="impl-UnwindSafe-for-BlockWaiter%3CSynchronizerHandler%3E" class="impl has-srclink"><a href="#impl-UnwindSafe-for-BlockWaiter%3CSynchronizerHandler%3E" class="anchor"></a><h3 class="code-header in-band">impl&lt;SynchronizerHandler&gt; !<a class="trait" href="https://doc.rust-lang.org/nightly/core/panic/unwind_safe/trait.UnwindSafe.html" title="trait core::panic::unwind_safe::UnwindSafe">UnwindSafe</a> for <a class="struct" href="struct.BlockWaiter.html" title="struct primary::BlockWaiter">BlockWaiter</a>&lt;SynchronizerHandler&gt;</h3></section></div><h2 id="blanket-implementations" class="small-section-header">Blanket Implementations<a href="#blanket-implementations" class="anchor"></a></h2><div id="blanket-implementations-list"><details class="rustdoc-toggle implementors-toggle"><summary><section id="impl-Any-for-BlockWaiter%3CSynchronizerHandler%3E" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/nightly/src/core/any.rs.html#203">source</a></span><a href="#impl-Any-for-BlockWaiter%3CSynchronizerHandler%3E" class="anchor"></a><h3 class="code-header in-band">impl&lt;T&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/any/trait.Any.html" title="trait core::any::Any">Any</a> for T <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;T: 'static + ?<a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>,&nbsp;</span></h3></section></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><section id="method.type_id" class="method trait-impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/nightly/src/core/any.rs.html#204">source</a></span><a href="#method.type_id" class="anchor"></a><h4 class="code-header">fn <a href="https://doc.rust-lang.org/nightly/core/any/trait.Any.html#tymethod.type_id" class="fnname">type_id</a>(&amp;self) -&gt; <a class="struct" href="https://doc.rust-lang.org/nightly/core/any/struct.TypeId.html" title="struct core::any::TypeId">TypeId</a></h4></section></summary><div class='docblock'><p>Gets the <code>TypeId</code> of <code>self</code>. <a href="https://doc.rust-lang.org/nightly/core/any/trait.Any.html#tymethod.type_id">Read more</a></p>
@@ -100,4 +100,4 @@ the result of it.</p>
 <a href="https://docs.rs/tracing/0.1.36/tracing/instrument/struct.WithDispatch.html" title="WithDispatch"><code>WithDispatch</code></a> wrapper. <a href="https://docs.rs/tracing/0.1.36/tracing/instrument/trait.WithSubscriber.html#method.with_subscriber">Read more</a></p>
 </div></details><details class="rustdoc-toggle method-toggle" open><summary><section id="method.with_current_subscriber" class="method trait-impl has-srclink"><span class="rightside"><a class="srclink" href="https://docs.rs/tracing/0.1.36/src/tracing/instrument.rs.html#221">source</a></span><a href="#method.with_current_subscriber" class="anchor"></a><h4 class="code-header">fn <a href="https://docs.rs/tracing/0.1.36/tracing/instrument/trait.WithSubscriber.html#method.with_current_subscriber" class="fnname">with_current_subscriber</a>(self) -&gt; <a class="struct" href="https://docs.rs/tracing/0.1.36/tracing/instrument/struct.WithDispatch.html" title="struct tracing::instrument::WithDispatch">WithDispatch</a>&lt;Self&gt;</h4></section></summary><div class='docblock'><p>Attaches the current <a href="https://docs.rs/tracing/0.1.36/tracing/dispatcher/index.html#setting-the-default-subscriber">default</a> <a href="https://docs.rs/tracing-core/0.1.22/tracing_core/subscriber/trait.Subscriber.html"><code>Subscriber</code></a> to this type, returning a
 <a href="https://docs.rs/tracing/0.1.36/tracing/instrument/struct.WithDispatch.html" title="WithDispatch"><code>WithDispatch</code></a> wrapper. <a href="https://docs.rs/tracing/0.1.36/tracing/instrument/trait.WithSubscriber.html#method.with_current_subscriber">Read more</a></p>
-</div></details></div></details></div></section></div></main><div id="rustdoc-vars" data-root-path="../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>
+</div></details></div></details></div></section></div></main><div id="rustdoc-vars" data-root-path="../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (801821d15 2022-08-14)" ></div></body></html>

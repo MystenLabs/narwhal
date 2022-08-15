@@ -655,662 +655,662 @@
 <span id="655">655</span>
 <span id="656">656</span>
 <span id="657">657</span>
-</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
-<span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
-<span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="kw">use</span> <span class="kw">crate</span>::{
-    <span class="ident">aggregators</span>::{<span class="ident">CertificatesAggregator</span>, <span class="ident">VotesAggregator</span>},
-    <span class="ident">metrics::PrimaryMetrics</span>,
-    <span class="ident">primary::PrimaryMessage</span>,
-    <span class="ident">synchronizer::Synchronizer</span>,
+</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
+// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+</span><span class="kw">use crate</span>::{
+    aggregators::{CertificatesAggregator, VotesAggregator},
+    metrics::PrimaryMetrics,
+    primary::PrimaryMessage,
+    synchronizer::Synchronizer,
 };
-<span class="kw">use</span> <span class="ident">async_recursion::async_recursion</span>;
-<span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">Committee</span>, <span class="ident">Epoch</span>};
-<span class="kw">use</span> <span class="ident">crypto</span>::{<span class="ident">Hash</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">PublicKey</span>, <span class="ident">Signature</span>, <span class="ident">SignatureService</span>};
-<span class="kw">use</span> <span class="ident">network</span>::{<span class="ident">CancelOnDropHandler</span>, <span class="ident">MessageResult</span>, <span class="ident">PrimaryNetwork</span>, <span class="ident">ReliableNetwork</span>};
-<span class="kw">use</span> <span class="ident">std</span>::{
-    <span class="ident">collections</span>::{<span class="ident">HashMap</span>, <span class="ident">HashSet</span>},
-    <span class="ident">sync::Arc</span>,
-    <span class="ident">time::Instant</span>,
+<span class="kw">use </span>async_recursion::async_recursion;
+<span class="kw">use </span>config::{Committee, Epoch};
+<span class="kw">use </span>crypto::{Hash <span class="kw">as _</span>, PublicKey, Signature, SignatureService};
+<span class="kw">use </span>network::{CancelOnDropHandler, MessageResult, PrimaryNetwork, ReliableNetwork};
+<span class="kw">use </span>std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+    time::Instant,
 };
-<span class="kw">use</span> <span class="ident">store::Store</span>;
-<span class="kw">use</span> <span class="ident">tokio</span>::{<span class="ident">sync::watch</span>, <span class="ident">task::JoinHandle</span>};
-<span class="kw">use</span> <span class="ident">tracing</span>::{<span class="ident">debug</span>, <span class="ident">error</span>, <span class="ident">info</span>, <span class="ident">instrument</span>, <span class="ident">warn</span>};
-<span class="kw">use</span> <span class="ident">types</span>::{
-    <span class="ident">ensure</span>,
-    <span class="ident">error</span>::{<span class="ident">DagError</span>, <span class="ident">DagResult</span>},
-    <span class="ident">metered_channel</span>::{<span class="ident">Receiver</span>, <span class="ident">Sender</span>},
-    <span class="ident">Certificate</span>, <span class="ident">CertificateDigest</span>, <span class="ident">Header</span>, <span class="ident">HeaderDigest</span>, <span class="ident">ReconfigureNotification</span>, <span class="ident">Round</span>, <span class="ident">Vote</span>,
+<span class="kw">use </span>store::Store;
+<span class="kw">use </span>tokio::{sync::watch, task::JoinHandle};
+<span class="kw">use </span>tracing::{debug, error, info, instrument, warn};
+<span class="kw">use </span>types::{
+    ensure,
+    error::{DagError, DagResult},
+    metered_channel::{Receiver, Sender},
+    Certificate, CertificateDigest, Header, HeaderDigest, ReconfigureNotification, Round, Vote,
 };
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="attribute">#[<span class="ident">path</span> = <span class="string">&quot;tests/core_tests.rs&quot;</span>]</span>
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">core_tests</span>;
+<span class="attribute">#[cfg(test)]</span>
+<span class="attribute">#[path = <span class="string">&quot;tests/core_tests.rs&quot;</span>]</span>
+<span class="kw">pub mod </span>core_tests;
 
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Core</span> {
-    <span class="doccomment">/// The public key of this primary.</span>
-    <span class="ident">name</span>: <span class="ident">PublicKey</span>,
-    <span class="doccomment">/// The committee information.</span>
-    <span class="ident">committee</span>: <span class="ident">Committee</span>,
-    <span class="doccomment">/// The persistent storage keyed to headers.</span>
-    <span class="ident">header_store</span>: <span class="ident">Store</span>&lt;<span class="ident">HeaderDigest</span>, <span class="ident">Header</span>&gt;,
-    <span class="doccomment">/// The persistent storage keyed to certificates.</span>
-    <span class="ident">certificate_store</span>: <span class="ident">Store</span>&lt;<span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span>&gt;,
-    <span class="doccomment">/// Handles synchronization with other nodes and our workers.</span>
-    <span class="ident">synchronizer</span>: <span class="ident">Synchronizer</span>,
-    <span class="doccomment">/// Service to sign headers.</span>
-    <span class="ident">signature_service</span>: <span class="ident">SignatureService</span>&lt;<span class="ident">Signature</span>&gt;,
-    <span class="doccomment">/// Get a signal when the round changes</span>
-    <span class="ident">rx_consensus_round_updates</span>: <span class="ident">watch::Receiver</span>&lt;<span class="ident">u64</span>&gt;,
-    <span class="doccomment">/// The depth of the garbage collector.</span>
-    <span class="ident">gc_depth</span>: <span class="ident">Round</span>,
+<span class="kw">pub struct </span>Core {
+    <span class="doccomment">/// The public key of this primary.
+    </span>name: PublicKey,
+    <span class="doccomment">/// The committee information.
+    </span>committee: Committee,
+    <span class="doccomment">/// The persistent storage keyed to headers.
+    </span>header_store: Store&lt;HeaderDigest, Header&gt;,
+    <span class="doccomment">/// The persistent storage keyed to certificates.
+    </span>certificate_store: Store&lt;CertificateDigest, Certificate&gt;,
+    <span class="doccomment">/// Handles synchronization with other nodes and our workers.
+    </span>synchronizer: Synchronizer,
+    <span class="doccomment">/// Service to sign headers.
+    </span>signature_service: SignatureService&lt;Signature&gt;,
+    <span class="doccomment">/// Get a signal when the round changes
+    </span>rx_consensus_round_updates: watch::Receiver&lt;u64&gt;,
+    <span class="doccomment">/// The depth of the garbage collector.
+    </span>gc_depth: Round,
 
-    <span class="doccomment">/// Watch channel to reconfigure the committee.</span>
-    <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span>&lt;<span class="ident">ReconfigureNotification</span>&gt;,
-    <span class="doccomment">/// Receiver for dag messages (headers, votes, certificates).</span>
-    <span class="ident">rx_primaries</span>: <span class="ident">Receiver</span>&lt;<span class="ident">PrimaryMessage</span>&gt;,
-    <span class="doccomment">/// Receives loopback headers from the `HeaderWaiter`.</span>
-    <span class="ident">rx_header_waiter</span>: <span class="ident">Receiver</span>&lt;<span class="ident">Header</span>&gt;,
-    <span class="doccomment">/// Receives loopback certificates from the `CertificateWaiter`.</span>
-    <span class="ident">rx_certificate_waiter</span>: <span class="ident">Receiver</span>&lt;<span class="ident">Certificate</span>&gt;,
-    <span class="doccomment">/// Receives our newly created headers from the `Proposer`.</span>
-    <span class="ident">rx_proposer</span>: <span class="ident">Receiver</span>&lt;<span class="ident">Header</span>&gt;,
-    <span class="doccomment">/// Output all certificates to the consensus layer.</span>
-    <span class="ident">tx_consensus</span>: <span class="ident">Sender</span>&lt;<span class="ident">Certificate</span>&gt;,
-    <span class="doccomment">/// Send valid a quorum of certificates&#39; ids to the `Proposer` (along with their round).</span>
-    <span class="ident">tx_proposer</span>: <span class="ident">Sender</span>&lt;(<span class="ident">Vec</span>&lt;<span class="ident">Certificate</span>&gt;, <span class="ident">Round</span>, <span class="ident">Epoch</span>)&gt;,
+    <span class="doccomment">/// Watch channel to reconfigure the committee.
+    </span>rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;,
+    <span class="doccomment">/// Receiver for dag messages (headers, votes, certificates).
+    </span>rx_primaries: Receiver&lt;PrimaryMessage&gt;,
+    <span class="doccomment">/// Receives loopback headers from the `HeaderWaiter`.
+    </span>rx_header_waiter: Receiver&lt;Header&gt;,
+    <span class="doccomment">/// Receives loopback certificates from the `CertificateWaiter`.
+    </span>rx_certificate_waiter: Receiver&lt;Certificate&gt;,
+    <span class="doccomment">/// Receives our newly created headers from the `Proposer`.
+    </span>rx_proposer: Receiver&lt;Header&gt;,
+    <span class="doccomment">/// Output all certificates to the consensus layer.
+    </span>tx_consensus: Sender&lt;Certificate&gt;,
+    <span class="doccomment">/// Send valid a quorum of certificates&#39; ids to the `Proposer` (along with their round).
+    </span>tx_proposer: Sender&lt;(Vec&lt;Certificate&gt;, Round, Epoch)&gt;,
 
-    <span class="doccomment">/// The last garbage collected round.</span>
-    <span class="ident">gc_round</span>: <span class="ident">Round</span>,
-    <span class="doccomment">/// The authors of the last voted headers.</span>
-    <span class="ident">last_voted</span>: <span class="ident">HashMap</span>&lt;<span class="ident">Round</span>, <span class="ident">HashSet</span>&lt;<span class="ident">PublicKey</span>&gt;&gt;,
-    <span class="doccomment">/// The set of headers we are currently processing.</span>
-    <span class="ident">processing</span>: <span class="ident">HashMap</span>&lt;<span class="ident">Round</span>, <span class="ident">HashSet</span>&lt;<span class="ident">HeaderDigest</span>&gt;&gt;,
-    <span class="doccomment">/// The last header we proposed (for which we are waiting votes).</span>
-    <span class="ident">current_header</span>: <span class="ident">Header</span>,
-    <span class="doccomment">/// Aggregates votes into a certificate.</span>
-    <span class="ident">votes_aggregator</span>: <span class="ident">VotesAggregator</span>,
-    <span class="doccomment">/// Aggregates certificates to use as parents for new headers.</span>
-    <span class="ident">certificates_aggregators</span>: <span class="ident">HashMap</span>&lt;<span class="ident">Round</span>, <span class="ident">Box</span>&lt;<span class="ident">CertificatesAggregator</span>&gt;&gt;,
-    <span class="doccomment">/// A network sender to send the batches to the other workers.</span>
-    <span class="ident">network</span>: <span class="ident">PrimaryNetwork</span>,
-    <span class="doccomment">/// Keeps the cancel handlers of the messages we sent.</span>
-    <span class="ident">cancel_handlers</span>: <span class="ident">HashMap</span>&lt;<span class="ident">Round</span>, <span class="ident">Vec</span>&lt;<span class="ident">CancelOnDropHandler</span>&lt;<span class="ident">MessageResult</span>&gt;&gt;&gt;,
-    <span class="doccomment">/// Metrics handler</span>
-    <span class="ident">metrics</span>: <span class="ident">Arc</span>&lt;<span class="ident">PrimaryMetrics</span>&gt;,
+    <span class="doccomment">/// The last garbage collected round.
+    </span>gc_round: Round,
+    <span class="doccomment">/// The authors of the last voted headers.
+    </span>last_voted: HashMap&lt;Round, HashSet&lt;PublicKey&gt;&gt;,
+    <span class="doccomment">/// The set of headers we are currently processing.
+    </span>processing: HashMap&lt;Round, HashSet&lt;HeaderDigest&gt;&gt;,
+    <span class="doccomment">/// The last header we proposed (for which we are waiting votes).
+    </span>current_header: Header,
+    <span class="doccomment">/// Aggregates votes into a certificate.
+    </span>votes_aggregator: VotesAggregator,
+    <span class="doccomment">/// Aggregates certificates to use as parents for new headers.
+    </span>certificates_aggregators: HashMap&lt;Round, Box&lt;CertificatesAggregator&gt;&gt;,
+    <span class="doccomment">/// A network sender to send the batches to the other workers.
+    </span>network: PrimaryNetwork,
+    <span class="doccomment">/// Keeps the cancel handlers of the messages we sent.
+    </span>cancel_handlers: HashMap&lt;Round, Vec&lt;CancelOnDropHandler&lt;MessageResult&gt;&gt;&gt;,
+    <span class="doccomment">/// Metrics handler
+    </span>metrics: Arc&lt;PrimaryMetrics&gt;,
 }
 
-<span class="kw">impl</span> <span class="ident">Core</span> {
-    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy::too_many_arguments</span>)]</span>
-    <span class="attribute">#[<span class="ident">must_use</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(
-        <span class="ident">name</span>: <span class="ident">PublicKey</span>,
-        <span class="ident">committee</span>: <span class="ident">Committee</span>,
-        <span class="ident">header_store</span>: <span class="ident">Store</span>&lt;<span class="ident">HeaderDigest</span>, <span class="ident">Header</span>&gt;,
-        <span class="ident">certificate_store</span>: <span class="ident">Store</span>&lt;<span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span>&gt;,
-        <span class="ident">synchronizer</span>: <span class="ident">Synchronizer</span>,
-        <span class="ident">signature_service</span>: <span class="ident">SignatureService</span>&lt;<span class="ident">Signature</span>&gt;,
-        <span class="ident">rx_consensus_round_updates</span>: <span class="ident">watch::Receiver</span>&lt;<span class="ident">u64</span>&gt;,
-        <span class="ident">gc_depth</span>: <span class="ident">Round</span>,
-        <span class="ident">rx_committee</span>: <span class="ident">watch::Receiver</span>&lt;<span class="ident">ReconfigureNotification</span>&gt;,
-        <span class="ident">rx_primaries</span>: <span class="ident">Receiver</span>&lt;<span class="ident">PrimaryMessage</span>&gt;,
-        <span class="ident">rx_header_waiter</span>: <span class="ident">Receiver</span>&lt;<span class="ident">Header</span>&gt;,
-        <span class="ident">rx_certificate_waiter</span>: <span class="ident">Receiver</span>&lt;<span class="ident">Certificate</span>&gt;,
-        <span class="ident">rx_proposer</span>: <span class="ident">Receiver</span>&lt;<span class="ident">Header</span>&gt;,
-        <span class="ident">tx_consensus</span>: <span class="ident">Sender</span>&lt;<span class="ident">Certificate</span>&gt;,
-        <span class="ident">tx_proposer</span>: <span class="ident">Sender</span>&lt;(<span class="ident">Vec</span>&lt;<span class="ident">Certificate</span>&gt;, <span class="ident">Round</span>, <span class="ident">Epoch</span>)&gt;,
-        <span class="ident">metrics</span>: <span class="ident">Arc</span>&lt;<span class="ident">PrimaryMetrics</span>&gt;,
-        <span class="ident">primary_network</span>: <span class="ident">PrimaryNetwork</span>,
-    ) -&gt; <span class="ident">JoinHandle</span>&lt;()&gt; {
-        <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
-            <span class="self">Self</span> {
-                <span class="ident">name</span>,
-                <span class="ident">committee</span>,
-                <span class="ident">header_store</span>,
-                <span class="ident">certificate_store</span>,
-                <span class="ident">synchronizer</span>,
-                <span class="ident">signature_service</span>,
-                <span class="ident">rx_consensus_round_updates</span>,
-                <span class="ident">gc_depth</span>,
-                <span class="ident">rx_reconfigure</span>: <span class="ident">rx_committee</span>,
-                <span class="ident">rx_primaries</span>,
-                <span class="ident">rx_header_waiter</span>,
-                <span class="ident">rx_certificate_waiter</span>,
-                <span class="ident">rx_proposer</span>,
-                <span class="ident">tx_consensus</span>,
-                <span class="ident">tx_proposer</span>,
-                <span class="ident">gc_round</span>: <span class="number">0</span>,
-                <span class="ident">last_voted</span>: <span class="ident">HashMap::with_capacity</span>(<span class="number">2</span> * <span class="ident">gc_depth</span> <span class="kw">as</span> <span class="ident">usize</span>),
-                <span class="ident">processing</span>: <span class="ident">HashMap::with_capacity</span>(<span class="number">2</span> * <span class="ident">gc_depth</span> <span class="kw">as</span> <span class="ident">usize</span>),
-                <span class="ident">current_header</span>: <span class="ident">Header::default</span>(),
-                <span class="ident">votes_aggregator</span>: <span class="ident">VotesAggregator::new</span>(),
-                <span class="ident">certificates_aggregators</span>: <span class="ident">HashMap::with_capacity</span>(<span class="number">2</span> * <span class="ident">gc_depth</span> <span class="kw">as</span> <span class="ident">usize</span>),
-                <span class="ident">network</span>: <span class="ident">primary_network</span>,
-                <span class="ident">cancel_handlers</span>: <span class="ident">HashMap::with_capacity</span>(<span class="number">2</span> * <span class="ident">gc_depth</span> <span class="kw">as</span> <span class="ident">usize</span>),
-                <span class="ident">metrics</span>,
+<span class="kw">impl </span>Core {
+    <span class="attribute">#[allow(clippy::too_many_arguments)]</span>
+    <span class="attribute">#[must_use]</span>
+    <span class="kw">pub fn </span>spawn(
+        name: PublicKey,
+        committee: Committee,
+        header_store: Store&lt;HeaderDigest, Header&gt;,
+        certificate_store: Store&lt;CertificateDigest, Certificate&gt;,
+        synchronizer: Synchronizer,
+        signature_service: SignatureService&lt;Signature&gt;,
+        rx_consensus_round_updates: watch::Receiver&lt;u64&gt;,
+        gc_depth: Round,
+        rx_committee: watch::Receiver&lt;ReconfigureNotification&gt;,
+        rx_primaries: Receiver&lt;PrimaryMessage&gt;,
+        rx_header_waiter: Receiver&lt;Header&gt;,
+        rx_certificate_waiter: Receiver&lt;Certificate&gt;,
+        rx_proposer: Receiver&lt;Header&gt;,
+        tx_consensus: Sender&lt;Certificate&gt;,
+        tx_proposer: Sender&lt;(Vec&lt;Certificate&gt;, Round, Epoch)&gt;,
+        metrics: Arc&lt;PrimaryMetrics&gt;,
+        primary_network: PrimaryNetwork,
+    ) -&gt; JoinHandle&lt;()&gt; {
+        tokio::spawn(<span class="kw">async move </span>{
+            <span class="self">Self </span>{
+                name,
+                committee,
+                header_store,
+                certificate_store,
+                synchronizer,
+                signature_service,
+                rx_consensus_round_updates,
+                gc_depth,
+                rx_reconfigure: rx_committee,
+                rx_primaries,
+                rx_header_waiter,
+                rx_certificate_waiter,
+                rx_proposer,
+                tx_consensus,
+                tx_proposer,
+                gc_round: <span class="number">0</span>,
+                last_voted: HashMap::with_capacity(<span class="number">2 </span>* gc_depth <span class="kw">as </span>usize),
+                processing: HashMap::with_capacity(<span class="number">2 </span>* gc_depth <span class="kw">as </span>usize),
+                current_header: Header::default(),
+                votes_aggregator: VotesAggregator::new(),
+                certificates_aggregators: HashMap::with_capacity(<span class="number">2 </span>* gc_depth <span class="kw">as </span>usize),
+                network: primary_network,
+                cancel_handlers: HashMap::with_capacity(<span class="number">2 </span>* gc_depth <span class="kw">as </span>usize),
+                metrics,
             }
-            .<span class="ident">run</span>()
+            .run()
             .<span class="kw">await</span>;
         })
     }
 
-    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span> = <span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>)]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">process_own_header</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">header</span>: <span class="ident">Header</span>) -&gt; <span class="ident">DagResult</span>&lt;()&gt; {
-        <span class="kw">if</span> <span class="ident">header</span>.<span class="ident">epoch</span> &lt; <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">epoch</span>() {
+    <span class="attribute">#[instrument(level = <span class="string">&quot;debug&quot;</span>, skip_all)]</span>
+    <span class="kw">async fn </span>process_own_header(<span class="kw-2">&amp;mut </span><span class="self">self</span>, header: Header) -&gt; DagResult&lt;()&gt; {
+        <span class="kw">if </span>header.epoch &lt; <span class="self">self</span>.committee.epoch() {
             <span class="macro">debug!</span>(<span class="string">&quot;Proposer outdated&quot;</span>);
-            <span class="kw">return</span> <span class="prelude-val">Ok</span>(());
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
         }
 
-        <span class="comment">// Update the committee now if the proposer already did so.</span>
-        <span class="self">self</span>.<span class="ident">try_update_committee</span>();
+        <span class="comment">// Update the committee now if the proposer already did so.
+        </span><span class="self">self</span>.try_update_committee();
 
-        <span class="comment">// Reset the votes aggregator.</span>
-        <span class="self">self</span>.<span class="ident">current_header</span> = <span class="ident">header</span>.<span class="ident">clone</span>();
-        <span class="self">self</span>.<span class="ident">votes_aggregator</span> = <span class="ident">VotesAggregator::new</span>();
+        <span class="comment">// Reset the votes aggregator.
+        </span><span class="self">self</span>.current_header = header.clone();
+        <span class="self">self</span>.votes_aggregator = VotesAggregator::new();
 
-        <span class="comment">// Broadcast the new header in a reliable manner.</span>
-        <span class="kw">let</span> <span class="ident">addresses</span> = <span class="self">self</span>
-            .<span class="ident">committee</span>
-            .<span class="ident">others_primaries</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">name</span>)
-            .<span class="ident">into_iter</span>()
-            .<span class="ident">map</span>(|(<span class="kw">_</span>, <span class="ident">x</span>)| <span class="ident">x</span>.<span class="ident">primary_to_primary</span>)
-            .<span class="ident">collect</span>();
+        <span class="comment">// Broadcast the new header in a reliable manner.
+        </span><span class="kw">let </span>addresses = <span class="self">self
+            </span>.committee
+            .others_primaries(<span class="kw-2">&amp;</span><span class="self">self</span>.name)
+            .into_iter()
+            .map(|(<span class="kw">_</span>, x)| x.primary_to_primary)
+            .collect();
 
-        <span class="kw">let</span> <span class="ident">message</span> = <span class="ident">PrimaryMessage::Header</span>(<span class="ident">header</span>.<span class="ident">clone</span>());
-        <span class="kw">let</span> <span class="ident">handlers</span> = <span class="self">self</span>.<span class="ident">network</span>.<span class="ident">broadcast</span>(<span class="ident">addresses</span>, <span class="kw-2">&amp;</span><span class="ident">message</span>).<span class="kw">await</span>;
-        <span class="self">self</span>.<span class="ident">cancel_handlers</span>
-            .<span class="ident">entry</span>(<span class="ident">header</span>.<span class="ident">round</span>)
-            .<span class="ident">or_insert_with</span>(<span class="ident">Vec::new</span>)
-            .<span class="ident">extend</span>(<span class="ident">handlers</span>);
+        <span class="kw">let </span>message = PrimaryMessage::Header(header.clone());
+        <span class="kw">let </span>handlers = <span class="self">self</span>.network.broadcast(addresses, <span class="kw-2">&amp;</span>message).<span class="kw">await</span>;
+        <span class="self">self</span>.cancel_handlers
+            .entry(header.round)
+            .or_insert_with(Vec::new)
+            .extend(handlers);
 
-        <span class="comment">// Process the header.</span>
-        <span class="self">self</span>.<span class="ident">process_header</span>(<span class="kw-2">&amp;</span><span class="ident">header</span>).<span class="kw">await</span>
-    }
+        <span class="comment">// Process the header.
+        </span><span class="self">self</span>.process_header(<span class="kw-2">&amp;</span>header).<span class="kw">await
+    </span>}
 
-    <span class="attribute">#[<span class="ident">async_recursion</span>]</span>
-    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span> = <span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>)]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">process_header</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">header</span>: <span class="kw-2">&amp;</span><span class="ident">Header</span>) -&gt; <span class="ident">DagResult</span>&lt;()&gt; {
-        <span class="macro">debug!</span>(<span class="string">&quot;Processing {:?} round:{:?}&quot;</span>, <span class="ident">header</span>, <span class="ident">header</span>.<span class="ident">round</span>);
-        <span class="kw">let</span> <span class="ident">header_source</span> = <span class="kw">if</span> <span class="self">self</span>.<span class="ident">name</span>.<span class="ident">eq</span>(<span class="kw-2">&amp;</span><span class="ident">header</span>.<span class="ident">author</span>) {
-            <span class="string">&quot;own&quot;</span>
-        } <span class="kw">else</span> {
-            <span class="string">&quot;other&quot;</span>
-        };
+    <span class="attribute">#[async_recursion]</span>
+    <span class="attribute">#[instrument(level = <span class="string">&quot;debug&quot;</span>, skip_all)]</span>
+    <span class="kw">async fn </span>process_header(<span class="kw-2">&amp;mut </span><span class="self">self</span>, header: <span class="kw-2">&amp;</span>Header) -&gt; DagResult&lt;()&gt; {
+        <span class="macro">debug!</span>(<span class="string">&quot;Processing {:?} round:{:?}&quot;</span>, header, header.round);
+        <span class="kw">let </span>header_source = <span class="kw">if </span><span class="self">self</span>.name.eq(<span class="kw-2">&amp;</span>header.author) {
+            <span class="string">&quot;own&quot;
+        </span>} <span class="kw">else </span>{
+            <span class="string">&quot;other&quot;
+        </span>};
 
-        <span class="comment">// Indicate that we are processing this header.</span>
-        <span class="kw">let</span> <span class="ident">inserted</span> = <span class="self">self</span>
-            .<span class="ident">processing</span>
-            .<span class="ident">entry</span>(<span class="ident">header</span>.<span class="ident">round</span>)
-            .<span class="ident">or_insert_with</span>(<span class="ident">HashSet::new</span>)
-            .<span class="ident">insert</span>(<span class="ident">header</span>.<span class="ident">id</span>);
+        <span class="comment">// Indicate that we are processing this header.
+        </span><span class="kw">let </span>inserted = <span class="self">self
+            </span>.processing
+            .entry(header.round)
+            .or_insert_with(HashSet::new)
+            .insert(header.id);
 
-        <span class="kw">if</span> <span class="ident">inserted</span> {
-            <span class="comment">// Only increase the metric when the header has been seen for the first</span>
-            <span class="comment">// time. Edge case is headers received past gc_round so we might have already</span>
-            <span class="comment">// processed them, but not big issue for now.</span>
-            <span class="self">self</span>.<span class="ident">metrics</span>
-                .<span class="ident">unique_headers_received</span>
-                .<span class="ident">with_label_values</span>(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="ident">header</span>.<span class="ident">epoch</span>.<span class="ident">to_string</span>(), <span class="ident">header_source</span>])
-                .<span class="ident">inc</span>();
+        <span class="kw">if </span>inserted {
+            <span class="comment">// Only increase the metric when the header has been seen for the first
+            // time. Edge case is headers received past gc_round so we might have already
+            // processed them, but not big issue for now.
+            </span><span class="self">self</span>.metrics
+                .unique_headers_received
+                .with_label_values(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>header.epoch.to_string(), header_source])
+                .inc();
         }
 
-        <span class="comment">// If the following condition is valid, it means we already garbage collected the parents. There is thus</span>
-        <span class="comment">// no points in trying to synchronize them or vote for the header. We just need to gather the payload.</span>
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">gc_round</span> &gt;= <span class="ident">header</span>.<span class="ident">round</span> {
-            <span class="kw">if</span> <span class="self">self</span>.<span class="ident">synchronizer</span>.<span class="ident">missing_payload</span>(<span class="ident">header</span>).<span class="kw">await</span><span class="question-mark">?</span> {
-                <span class="self">self</span>.<span class="ident">metrics</span>
-                    .<span class="ident">headers_suspended</span>
-                    .<span class="ident">with_label_values</span>(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="ident">header</span>.<span class="ident">epoch</span>.<span class="ident">to_string</span>(), <span class="string">&quot;missing_payload&quot;</span>])
-                    .<span class="ident">inc</span>();
+        <span class="comment">// If the following condition is valid, it means we already garbage collected the parents. There is thus
+        // no points in trying to synchronize them or vote for the header. We just need to gather the payload.
+        </span><span class="kw">if </span><span class="self">self</span>.gc_round &gt;= header.round {
+            <span class="kw">if </span><span class="self">self</span>.synchronizer.missing_payload(header).<span class="kw">await</span><span class="question-mark">? </span>{
+                <span class="self">self</span>.metrics
+                    .headers_suspended
+                    .with_label_values(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>header.epoch.to_string(), <span class="string">&quot;missing_payload&quot;</span>])
+                    .inc();
                 <span class="macro">debug!</span>(<span class="string">&quot;Downloading the payload of {header}&quot;</span>);
             }
-            <span class="kw">return</span> <span class="prelude-val">Ok</span>(());
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
         }
 
-        <span class="comment">// Ensure we have the parents. If at least one parent is missing, the synchronizer returns an empty</span>
-        <span class="comment">// vector; it will gather the missing parents (as well as all ancestors) from other nodes and then</span>
-        <span class="comment">// reschedule processing of this header.</span>
-        <span class="kw">let</span> <span class="ident">parents</span>: <span class="ident">Vec</span>&lt;<span class="ident">Certificate</span>&gt; = <span class="self">self</span>.<span class="ident">synchronizer</span>.<span class="ident">get_parents</span>(<span class="ident">header</span>).<span class="kw">await</span><span class="question-mark">?</span>;
-        <span class="kw">if</span> <span class="ident">parents</span>.<span class="ident">is_empty</span>() {
-            <span class="self">self</span>.<span class="ident">metrics</span>
-                .<span class="ident">headers_suspended</span>
-                .<span class="ident">with_label_values</span>(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="ident">header</span>.<span class="ident">epoch</span>.<span class="ident">to_string</span>(), <span class="string">&quot;missing_parents&quot;</span>])
-                .<span class="ident">inc</span>();
-            <span class="macro">debug!</span>(<span class="string">&quot;Processing of {} suspended: missing parent(s)&quot;</span>, <span class="ident">header</span>.<span class="ident">id</span>);
-            <span class="kw">return</span> <span class="prelude-val">Ok</span>(());
+        <span class="comment">// Ensure we have the parents. If at least one parent is missing, the synchronizer returns an empty
+        // vector; it will gather the missing parents (as well as all ancestors) from other nodes and then
+        // reschedule processing of this header.
+        </span><span class="kw">let </span>parents: Vec&lt;Certificate&gt; = <span class="self">self</span>.synchronizer.get_parents(header).<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="kw">if </span>parents.is_empty() {
+            <span class="self">self</span>.metrics
+                .headers_suspended
+                .with_label_values(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>header.epoch.to_string(), <span class="string">&quot;missing_parents&quot;</span>])
+                .inc();
+            <span class="macro">debug!</span>(<span class="string">&quot;Processing of {} suspended: missing parent(s)&quot;</span>, header.id);
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
         }
 
-        <span class="comment">// Check the parent certificates. Ensure the parents form a quorum and are all from the previous round.</span>
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">stake</span> = <span class="number">0</span>;
-        <span class="kw">for</span> <span class="ident">x</span> <span class="kw">in</span> <span class="ident">parents</span> {
+        <span class="comment">// Check the parent certificates. Ensure the parents form a quorum and are all from the previous round.
+        </span><span class="kw">let </span><span class="kw-2">mut </span>stake = <span class="number">0</span>;
+        <span class="kw">for </span>x <span class="kw">in </span>parents {
             <span class="macro">ensure!</span>(
-                <span class="ident">x</span>.<span class="ident">round</span>() + <span class="number">1</span> == <span class="ident">header</span>.<span class="ident">round</span>,
-                <span class="ident">DagError::MalformedHeader</span>(<span class="ident">header</span>.<span class="ident">id</span>)
+                x.round() + <span class="number">1 </span>== header.round,
+                DagError::MalformedHeader(header.id)
             );
-            <span class="ident">stake</span> += <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">stake</span>(<span class="kw-2">&amp;</span><span class="ident">x</span>.<span class="ident">origin</span>());
+            stake += <span class="self">self</span>.committee.stake(<span class="kw-2">&amp;</span>x.origin());
         }
         <span class="macro">ensure!</span>(
-            <span class="ident">stake</span> &gt;= <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">quorum_threshold</span>(),
-            <span class="ident">DagError::HeaderRequiresQuorum</span>(<span class="ident">header</span>.<span class="ident">id</span>)
+            stake &gt;= <span class="self">self</span>.committee.quorum_threshold(),
+            DagError::HeaderRequiresQuorum(header.id)
         );
 
-        <span class="comment">// Ensure we have the payload. If we don&#39;t, the synchronizer will ask our workers to get it, and then</span>
-        <span class="comment">// reschedule processing of this header once we have it.</span>
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">synchronizer</span>.<span class="ident">missing_payload</span>(<span class="ident">header</span>).<span class="kw">await</span><span class="question-mark">?</span> {
-            <span class="self">self</span>.<span class="ident">metrics</span>
-                .<span class="ident">headers_suspended</span>
-                .<span class="ident">with_label_values</span>(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="ident">header</span>.<span class="ident">epoch</span>.<span class="ident">to_string</span>(), <span class="string">&quot;missing_payload&quot;</span>])
-                .<span class="ident">inc</span>();
+        <span class="comment">// Ensure we have the payload. If we don&#39;t, the synchronizer will ask our workers to get it, and then
+        // reschedule processing of this header once we have it.
+        </span><span class="kw">if </span><span class="self">self</span>.synchronizer.missing_payload(header).<span class="kw">await</span><span class="question-mark">? </span>{
+            <span class="self">self</span>.metrics
+                .headers_suspended
+                .with_label_values(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>header.epoch.to_string(), <span class="string">&quot;missing_payload&quot;</span>])
+                .inc();
             <span class="macro">debug!</span>(<span class="string">&quot;Processing of {header} suspended: missing payload&quot;</span>);
-            <span class="kw">return</span> <span class="prelude-val">Ok</span>(());
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
         }
 
-        <span class="comment">// Store the header.</span>
-        <span class="self">self</span>.<span class="ident">header_store</span>.<span class="ident">write</span>(<span class="ident">header</span>.<span class="ident">id</span>, <span class="ident">header</span>.<span class="ident">clone</span>()).<span class="kw">await</span>;
+        <span class="comment">// Store the header.
+        </span><span class="self">self</span>.header_store.write(header.id, header.clone()).<span class="kw">await</span>;
 
-        <span class="self">self</span>.<span class="ident">metrics</span>
-            .<span class="ident">headers_processed</span>
-            .<span class="ident">with_label_values</span>(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="ident">header</span>.<span class="ident">epoch</span>.<span class="ident">to_string</span>(), <span class="ident">header_source</span>])
-            .<span class="ident">inc</span>();
+        <span class="self">self</span>.metrics
+            .headers_processed
+            .with_label_values(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>header.epoch.to_string(), header_source])
+            .inc();
 
-        <span class="comment">// Check if we can vote for this header.</span>
-        <span class="comment">// TODO: compute from a persisted last_voted (issue #488)</span>
-        <span class="kw">if</span> <span class="self">self</span>
-            .<span class="ident">last_voted</span>
-            .<span class="ident">entry</span>(<span class="ident">header</span>.<span class="ident">round</span>)
-            .<span class="ident">or_insert_with</span>(<span class="ident">HashSet::new</span>)
-            .<span class="ident">insert</span>(<span class="ident">header</span>.<span class="ident">author</span>.<span class="ident">clone</span>())
+        <span class="comment">// Check if we can vote for this header.
+        // TODO: compute from a persisted last_voted (issue #488)
+        </span><span class="kw">if </span><span class="self">self
+            </span>.last_voted
+            .entry(header.round)
+            .or_insert_with(HashSet::new)
+            .insert(header.author.clone())
         {
-            <span class="comment">// Make a vote and send it to the header&#39;s creator.</span>
-            <span class="kw">let</span> <span class="ident">vote</span> = <span class="ident">Vote::new</span>(<span class="ident">header</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">name</span>, <span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">signature_service</span>).<span class="kw">await</span>;
+            <span class="comment">// Make a vote and send it to the header&#39;s creator.
+            </span><span class="kw">let </span>vote = Vote::new(header, <span class="kw-2">&amp;</span><span class="self">self</span>.name, <span class="kw-2">&amp;mut </span><span class="self">self</span>.signature_service).<span class="kw">await</span>;
             <span class="macro">debug!</span>(
                 <span class="string">&quot;Created vote {vote:?} for {header} at round {}&quot;</span>,
-                <span class="ident">header</span>.<span class="ident">round</span>
+                header.round
             );
-            <span class="kw">if</span> <span class="ident">vote</span>.<span class="ident">origin</span> == <span class="self">self</span>.<span class="ident">name</span> {
-                <span class="comment">// This used to be a panic, but this may fail if we&#39;re processing a late-received</span>
-                <span class="comment">// header where we were already are part of the signers (as a restart could have blown our `last_voted`)</span>
-                <span class="comment">// TODO: change this back to a panic-on-error once we have persisted last_voted (issue #488)</span>
-                <span class="kw">let</span> <span class="ident">res</span> = <span class="self">self</span>.<span class="ident">process_vote</span>(<span class="ident">vote</span>).<span class="kw">await</span>;
-                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">e</span>) = <span class="ident">res</span> {
-                    <span class="macro">error!</span>(<span class="string">&quot;Failed to process our own vote: {}&quot;</span>, <span class="ident">e</span>.<span class="ident">to_string</span>());
+            <span class="kw">if </span>vote.origin == <span class="self">self</span>.name {
+                <span class="comment">// This used to be a panic, but this may fail if we&#39;re processing a late-received
+                // header where we were already are part of the signers (as a restart could have blown our `last_voted`)
+                // TODO: change this back to a panic-on-error once we have persisted last_voted (issue #488)
+                </span><span class="kw">let </span>res = <span class="self">self</span>.process_vote(vote).<span class="kw">await</span>;
+                <span class="kw">if let </span><span class="prelude-val">Err</span>(e) = res {
+                    <span class="macro">error!</span>(<span class="string">&quot;Failed to process our own vote: {}&quot;</span>, e.to_string());
                 }
-            } <span class="kw">else</span> {
-                <span class="kw">let</span> <span class="ident">address</span> = <span class="self">self</span>
-                    .<span class="ident">committee</span>
-                    .<span class="ident">primary</span>(<span class="kw-2">&amp;</span><span class="ident">header</span>.<span class="ident">author</span>)
-                    .<span class="ident">expect</span>(<span class="string">&quot;Author of valid header is not in the committee&quot;</span>)
-                    .<span class="ident">primary_to_primary</span>;
-                <span class="kw">let</span> <span class="ident">handler</span> = <span class="self">self</span>
-                    .<span class="ident">network</span>
-                    .<span class="ident">send</span>(<span class="ident">address</span>, <span class="kw-2">&amp;</span><span class="ident">PrimaryMessage::Vote</span>(<span class="ident">vote</span>))
+            } <span class="kw">else </span>{
+                <span class="kw">let </span>address = <span class="self">self
+                    </span>.committee
+                    .primary(<span class="kw-2">&amp;</span>header.author)
+                    .expect(<span class="string">&quot;Author of valid header is not in the committee&quot;</span>)
+                    .primary_to_primary;
+                <span class="kw">let </span>handler = <span class="self">self
+                    </span>.network
+                    .send(address, <span class="kw-2">&amp;</span>PrimaryMessage::Vote(vote))
                     .<span class="kw">await</span>;
-                <span class="self">self</span>.<span class="ident">cancel_handlers</span>
-                    .<span class="ident">entry</span>(<span class="ident">header</span>.<span class="ident">round</span>)
-                    .<span class="ident">or_insert_with</span>(<span class="ident">Vec::new</span>)
-                    .<span class="ident">push</span>(<span class="ident">handler</span>);
+                <span class="self">self</span>.cancel_handlers
+                    .entry(header.round)
+                    .or_insert_with(Vec::new)
+                    .push(handler);
             }
         }
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="attribute">#[<span class="ident">async_recursion</span>]</span>
-    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span> = <span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>)]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">process_vote</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">vote</span>: <span class="ident">Vote</span>) -&gt; <span class="ident">DagResult</span>&lt;()&gt; {
-        <span class="macro">debug!</span>(<span class="string">&quot;Processing {:?}&quot;</span>, <span class="ident">vote</span>);
+    <span class="attribute">#[async_recursion]</span>
+    <span class="attribute">#[instrument(level = <span class="string">&quot;debug&quot;</span>, skip_all)]</span>
+    <span class="kw">async fn </span>process_vote(<span class="kw-2">&amp;mut </span><span class="self">self</span>, vote: Vote) -&gt; DagResult&lt;()&gt; {
+        <span class="macro">debug!</span>(<span class="string">&quot;Processing {:?}&quot;</span>, vote);
 
-        <span class="comment">// Add it to the votes&#39; aggregator and try to make a new certificate.</span>
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">certificate</span>) =
-            <span class="self">self</span>.<span class="ident">votes_aggregator</span>
-                .<span class="ident">append</span>(<span class="ident">vote</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">committee</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">current_header</span>)<span class="question-mark">?</span>
-        {
-            <span class="macro">debug!</span>(<span class="string">&quot;Assembled {:?}&quot;</span>, <span class="ident">certificate</span>);
+        <span class="comment">// Add it to the votes&#39; aggregator and try to make a new certificate.
+        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(certificate) =
+            <span class="self">self</span>.votes_aggregator
+                .append(vote, <span class="kw-2">&amp;</span><span class="self">self</span>.committee, <span class="kw-2">&amp;</span><span class="self">self</span>.current_header)<span class="question-mark">?
+        </span>{
+            <span class="macro">debug!</span>(<span class="string">&quot;Assembled {:?}&quot;</span>, certificate);
 
-            <span class="comment">// Broadcast the certificate.</span>
-            <span class="kw">let</span> <span class="ident">addresses</span> = <span class="self">self</span>
-                .<span class="ident">committee</span>
-                .<span class="ident">others_primaries</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">name</span>)
-                .<span class="ident">into_iter</span>()
-                .<span class="ident">map</span>(|(<span class="kw">_</span>, <span class="ident">x</span>)| <span class="ident">x</span>.<span class="ident">primary_to_primary</span>)
-                .<span class="ident">collect</span>();
-            <span class="kw">let</span> <span class="ident">message</span> = <span class="ident">PrimaryMessage::Certificate</span>(<span class="ident">certificate</span>.<span class="ident">clone</span>());
-            <span class="kw">let</span> <span class="ident">handlers</span> = <span class="self">self</span>.<span class="ident">network</span>.<span class="ident">broadcast</span>(<span class="ident">addresses</span>, <span class="kw-2">&amp;</span><span class="ident">message</span>).<span class="kw">await</span>;
-            <span class="self">self</span>.<span class="ident">cancel_handlers</span>
-                .<span class="ident">entry</span>(<span class="ident">certificate</span>.<span class="ident">round</span>())
-                .<span class="ident">or_insert_with</span>(<span class="ident">Vec::new</span>)
-                .<span class="ident">extend</span>(<span class="ident">handlers</span>);
+            <span class="comment">// Broadcast the certificate.
+            </span><span class="kw">let </span>addresses = <span class="self">self
+                </span>.committee
+                .others_primaries(<span class="kw-2">&amp;</span><span class="self">self</span>.name)
+                .into_iter()
+                .map(|(<span class="kw">_</span>, x)| x.primary_to_primary)
+                .collect();
+            <span class="kw">let </span>message = PrimaryMessage::Certificate(certificate.clone());
+            <span class="kw">let </span>handlers = <span class="self">self</span>.network.broadcast(addresses, <span class="kw-2">&amp;</span>message).<span class="kw">await</span>;
+            <span class="self">self</span>.cancel_handlers
+                .entry(certificate.round())
+                .or_insert_with(Vec::new)
+                .extend(handlers);
 
-            <span class="self">self</span>.<span class="ident">metrics</span>
-                .<span class="ident">certificates_created</span>
-                .<span class="ident">with_label_values</span>(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="ident">certificate</span>.<span class="ident">epoch</span>().<span class="ident">to_string</span>()])
-                .<span class="ident">inc</span>();
+            <span class="self">self</span>.metrics
+                .certificates_created
+                .with_label_values(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>certificate.epoch().to_string()])
+                .inc();
 
-            <span class="comment">// Process the new certificate.</span>
-            <span class="kw">match</span> <span class="self">self</span>.<span class="ident">process_certificate</span>(<span class="ident">certificate</span>).<span class="kw">await</span> {
+            <span class="comment">// Process the new certificate.
+            </span><span class="kw">match </span><span class="self">self</span>.process_certificate(certificate).<span class="kw">await </span>{
                 <span class="prelude-val">Ok</span>(()) =&gt; (),
-                <span class="ident">result</span> @ <span class="prelude-val">Err</span>(<span class="ident">DagError::ShuttingDown</span>) =&gt; <span class="ident">result</span><span class="question-mark">?</span>,
-                <span class="kw">_</span> =&gt; <span class="macro">panic!</span>(<span class="string">&quot;Failed to process valid certificate&quot;</span>),
+                result @ <span class="prelude-val">Err</span>(DagError::ShuttingDown) =&gt; result<span class="question-mark">?</span>,
+                <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">&quot;Failed to process valid certificate&quot;</span>),
             }
         }
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="attribute">#[<span class="ident">async_recursion</span>]</span>
-    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span> = <span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>)]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">process_certificate</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">certificate</span>: <span class="ident">Certificate</span>) -&gt; <span class="ident">DagResult</span>&lt;()&gt; {
+    <span class="attribute">#[async_recursion]</span>
+    <span class="attribute">#[instrument(level = <span class="string">&quot;debug&quot;</span>, skip_all)]</span>
+    <span class="kw">async fn </span>process_certificate(<span class="kw-2">&amp;mut </span><span class="self">self</span>, certificate: Certificate) -&gt; DagResult&lt;()&gt; {
         <span class="macro">debug!</span>(
             <span class="string">&quot;Processing {:?} round:{:?}&quot;</span>,
-            <span class="ident">certificate</span>,
-            <span class="ident">certificate</span>.<span class="ident">round</span>()
+            certificate,
+            certificate.round()
         );
 
-        <span class="comment">// Let the proposer draw early conclusions from a certificate at this round and epoch, without its</span>
-        <span class="comment">// parents or payload (which we may not have yet).</span>
-        <span class="comment">//</span>
-        <span class="comment">// Since our certificate is well-signed, it shows a majority of honest signers stand at round r,</span>
-        <span class="comment">// so to make a successful proposal, our proposer must use parents at least at round r-1.</span>
-        <span class="comment">//</span>
-        <span class="comment">// This allows the proposer not to fire proposals at rounds strictly below the certificate we witnessed.</span>
-        <span class="kw">let</span> <span class="ident">minimal_round_for_parents</span> = <span class="ident">certificate</span>.<span class="ident">round</span>().<span class="ident">saturating_sub</span>(<span class="number">1</span>);
-        <span class="self">self</span>.<span class="ident">tx_proposer</span>
-            .<span class="ident">send</span>((<span class="macro">vec!</span>[], <span class="ident">minimal_round_for_parents</span>, <span class="ident">certificate</span>.<span class="ident">epoch</span>()))
-            .<span class="kw">await</span>
-            .<span class="ident">map_err</span>(|<span class="kw">_</span>| <span class="ident">DagError::ShuttingDown</span>)<span class="question-mark">?</span>;
+        <span class="comment">// Let the proposer draw early conclusions from a certificate at this round and epoch, without its
+        // parents or payload (which we may not have yet).
+        //
+        // Since our certificate is well-signed, it shows a majority of honest signers stand at round r,
+        // so to make a successful proposal, our proposer must use parents at least at round r-1.
+        //
+        // This allows the proposer not to fire proposals at rounds strictly below the certificate we witnessed.
+        </span><span class="kw">let </span>minimal_round_for_parents = certificate.round().saturating_sub(<span class="number">1</span>);
+        <span class="self">self</span>.tx_proposer
+            .send((<span class="macro">vec!</span>[], minimal_round_for_parents, certificate.epoch()))
+            .<span class="kw">await
+            </span>.map_err(|<span class="kw">_</span>| DagError::ShuttingDown)<span class="question-mark">?</span>;
 
-        <span class="comment">// Process the header embedded in the certificate if we haven&#39;t already voted for it (if we already</span>
-        <span class="comment">// voted, it means we already processed it). Since this header got certified, we are sure that all</span>
-        <span class="comment">// the data it refers to (ie. its payload and its parents) are available. We can thus continue the</span>
-        <span class="comment">// processing of the certificate even if we don&#39;t have them in store right now.</span>
-        <span class="kw">if</span> !<span class="self">self</span>
-            .<span class="ident">processing</span>
-            .<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">certificate</span>.<span class="ident">header</span>.<span class="ident">round</span>)
-            .<span class="ident">map_or_else</span>(|| <span class="bool-val">false</span>, |<span class="ident">x</span>| <span class="ident">x</span>.<span class="ident">contains</span>(<span class="kw-2">&amp;</span><span class="ident">certificate</span>.<span class="ident">header</span>.<span class="ident">id</span>))
+        <span class="comment">// Process the header embedded in the certificate if we haven&#39;t already voted for it (if we already
+        // voted, it means we already processed it). Since this header got certified, we are sure that all
+        // the data it refers to (ie. its payload and its parents) are available. We can thus continue the
+        // processing of the certificate even if we don&#39;t have them in store right now.
+        </span><span class="kw">if </span>!<span class="self">self
+            </span>.processing
+            .get(<span class="kw-2">&amp;</span>certificate.header.round)
+            .map_or_else(|| <span class="bool-val">false</span>, |x| x.contains(<span class="kw-2">&amp;</span>certificate.header.id))
         {
-            <span class="comment">// This function may still throw an error if the storage fails.</span>
-            <span class="self">self</span>.<span class="ident">process_header</span>(<span class="kw-2">&amp;</span><span class="ident">certificate</span>.<span class="ident">header</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+            <span class="comment">// This function may still throw an error if the storage fails.
+            </span><span class="self">self</span>.process_header(<span class="kw-2">&amp;</span>certificate.header).<span class="kw">await</span><span class="question-mark">?</span>;
         }
 
-        <span class="comment">// Ensure we have all the ancestors of this certificate yet (if we didn&#39;t already garbage collect them).</span>
-        <span class="comment">// If we don&#39;t, the synchronizer will gather them and trigger re-processing of this certificate.</span>
-        <span class="kw">if</span> <span class="ident">certificate</span>.<span class="ident">round</span>() &gt; <span class="self">self</span>.<span class="ident">gc_round</span> + <span class="number">1</span>
-            &amp;&amp; !<span class="self">self</span>.<span class="ident">synchronizer</span>.<span class="ident">deliver_certificate</span>(<span class="kw-2">&amp;</span><span class="ident">certificate</span>).<span class="kw">await</span><span class="question-mark">?</span>
-        {
+        <span class="comment">// Ensure we have all the ancestors of this certificate yet (if we didn&#39;t already garbage collect them).
+        // If we don&#39;t, the synchronizer will gather them and trigger re-processing of this certificate.
+        </span><span class="kw">if </span>certificate.round() &gt; <span class="self">self</span>.gc_round + <span class="number">1
+            </span>&amp;&amp; !<span class="self">self</span>.synchronizer.deliver_certificate(<span class="kw-2">&amp;</span>certificate).<span class="kw">await</span><span class="question-mark">?
+        </span>{
             <span class="macro">debug!</span>(
                 <span class="string">&quot;Processing of {:?} suspended: missing ancestors&quot;</span>,
-                <span class="ident">certificate</span>
+                certificate
             );
-            <span class="self">self</span>.<span class="ident">metrics</span>
-                .<span class="ident">certificates_suspended</span>
-                .<span class="ident">with_label_values</span>(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="ident">certificate</span>.<span class="ident">epoch</span>().<span class="ident">to_string</span>(), <span class="string">&quot;missing_parents&quot;</span>])
-                .<span class="ident">inc</span>();
-            <span class="kw">return</span> <span class="prelude-val">Ok</span>(());
+            <span class="self">self</span>.metrics
+                .certificates_suspended
+                .with_label_values(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>certificate.epoch().to_string(), <span class="string">&quot;missing_parents&quot;</span>])
+                .inc();
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
         }
 
-        <span class="comment">// Store the certificate.</span>
-        <span class="self">self</span>.<span class="ident">certificate_store</span>
-            .<span class="ident">write</span>(<span class="ident">certificate</span>.<span class="ident">digest</span>(), <span class="ident">certificate</span>.<span class="ident">clone</span>())
+        <span class="comment">// Store the certificate.
+        </span><span class="self">self</span>.certificate_store
+            .write(certificate.digest(), certificate.clone())
             .<span class="kw">await</span>;
 
-        <span class="kw">let</span> <span class="ident">certificate_source</span> = <span class="kw">if</span> <span class="self">self</span>.<span class="ident">name</span>.<span class="ident">eq</span>(<span class="kw-2">&amp;</span><span class="ident">certificate</span>.<span class="ident">header</span>.<span class="ident">author</span>) {
-            <span class="string">&quot;own&quot;</span>
-        } <span class="kw">else</span> {
-            <span class="string">&quot;other&quot;</span>
-        };
-        <span class="self">self</span>.<span class="ident">metrics</span>
-            .<span class="ident">certificates_processed</span>
-            .<span class="ident">with_label_values</span>(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="ident">certificate</span>.<span class="ident">epoch</span>().<span class="ident">to_string</span>(), <span class="ident">certificate_source</span>])
-            .<span class="ident">inc</span>();
+        <span class="kw">let </span>certificate_source = <span class="kw">if </span><span class="self">self</span>.name.eq(<span class="kw-2">&amp;</span>certificate.header.author) {
+            <span class="string">&quot;own&quot;
+        </span>} <span class="kw">else </span>{
+            <span class="string">&quot;other&quot;
+        </span>};
+        <span class="self">self</span>.metrics
+            .certificates_processed
+            .with_label_values(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>certificate.epoch().to_string(), certificate_source])
+            .inc();
 
-        <span class="comment">// Check if we have enough certificates to enter a new dag round and propose a header.</span>
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">parents</span>) = <span class="self">self</span>
-            .<span class="ident">certificates_aggregators</span>
-            .<span class="ident">entry</span>(<span class="ident">certificate</span>.<span class="ident">round</span>())
-            .<span class="ident">or_insert_with</span>(|| <span class="ident">Box::new</span>(<span class="ident">CertificatesAggregator::new</span>()))
-            .<span class="ident">append</span>(<span class="ident">certificate</span>.<span class="ident">clone</span>(), <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">committee</span>)
+        <span class="comment">// Check if we have enough certificates to enter a new dag round and propose a header.
+        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(parents) = <span class="self">self
+            </span>.certificates_aggregators
+            .entry(certificate.round())
+            .or_insert_with(|| Box::new(CertificatesAggregator::new()))
+            .append(certificate.clone(), <span class="kw-2">&amp;</span><span class="self">self</span>.committee)
         {
-            <span class="comment">// Send it to the `Proposer`.</span>
-            <span class="self">self</span>.<span class="ident">tx_proposer</span>
-                .<span class="ident">send</span>((<span class="ident">parents</span>, <span class="ident">certificate</span>.<span class="ident">round</span>(), <span class="ident">certificate</span>.<span class="ident">epoch</span>()))
-                .<span class="kw">await</span>
-                .<span class="ident">map_err</span>(|<span class="kw">_</span>| <span class="ident">DagError::ShuttingDown</span>)<span class="question-mark">?</span>;
+            <span class="comment">// Send it to the `Proposer`.
+            </span><span class="self">self</span>.tx_proposer
+                .send((parents, certificate.round(), certificate.epoch()))
+                .<span class="kw">await
+                </span>.map_err(|<span class="kw">_</span>| DagError::ShuttingDown)<span class="question-mark">?</span>;
 
-            <span class="kw">let</span> <span class="ident">before</span> = <span class="self">self</span>.<span class="ident">cancel_handlers</span>.<span class="ident">len</span>();
-            <span class="kw">if</span> <span class="ident">certificate</span>.<span class="ident">round</span>() &gt; <span class="number">0</span> {
-                <span class="self">self</span>.<span class="ident">cancel_handlers</span>
-                    .<span class="ident">retain</span>(|<span class="ident">k</span>, <span class="kw">_</span>| <span class="kw-2">*</span><span class="ident">k</span> &gt;= <span class="ident">certificate</span>.<span class="ident">round</span>() - <span class="number">1</span>);
+            <span class="kw">let </span>before = <span class="self">self</span>.cancel_handlers.len();
+            <span class="kw">if </span>certificate.round() &gt; <span class="number">0 </span>{
+                <span class="self">self</span>.cancel_handlers
+                    .retain(|k, <span class="kw">_</span>| <span class="kw-2">*</span>k &gt;= certificate.round() - <span class="number">1</span>);
             }
             <span class="macro">debug!</span>(
                 <span class="string">&quot;Pruned {} messages from obsolete rounds.&quot;</span>,
-                <span class="ident">before</span>.<span class="ident">saturating_sub</span>(<span class="self">self</span>.<span class="ident">cancel_handlers</span>.<span class="ident">len</span>())
+                before.saturating_sub(<span class="self">self</span>.cancel_handlers.len())
             );
         }
 
-        <span class="comment">// Send it to the consensus layer.</span>
-        <span class="kw">let</span> <span class="ident">id</span> = <span class="ident">certificate</span>.<span class="ident">header</span>.<span class="ident">id</span>;
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">e</span>) = <span class="self">self</span>.<span class="ident">tx_consensus</span>.<span class="ident">send</span>(<span class="ident">certificate</span>).<span class="kw">await</span> {
+        <span class="comment">// Send it to the consensus layer.
+        </span><span class="kw">let </span>id = certificate.header.id;
+        <span class="kw">if let </span><span class="prelude-val">Err</span>(e) = <span class="self">self</span>.tx_consensus.send(certificate).<span class="kw">await </span>{
             <span class="macro">warn!</span>(
                 <span class="string">&quot;Failed to deliver certificate {} to the consensus: {}&quot;</span>,
-                <span class="ident">id</span>, <span class="ident">e</span>
+                id, e
             );
         }
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">fn</span> <span class="ident">sanitize_header</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">header</span>: <span class="kw-2">&amp;</span><span class="ident">Header</span>) -&gt; <span class="ident">DagResult</span>&lt;()&gt; {
-        <span class="kw">if</span> <span class="ident">header</span>.<span class="ident">epoch</span> &gt; <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">epoch</span>() {
-            <span class="self">self</span>.<span class="ident">try_update_committee</span>();
+    <span class="kw">fn </span>sanitize_header(<span class="kw-2">&amp;mut </span><span class="self">self</span>, header: <span class="kw-2">&amp;</span>Header) -&gt; DagResult&lt;()&gt; {
+        <span class="kw">if </span>header.epoch &gt; <span class="self">self</span>.committee.epoch() {
+            <span class="self">self</span>.try_update_committee();
         }
         <span class="macro">ensure!</span>(
-            <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">epoch</span>() == <span class="ident">header</span>.<span class="ident">epoch</span>,
-            <span class="ident">DagError::InvalidEpoch</span> {
-                <span class="ident">expected</span>: <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">epoch</span>(),
-                <span class="ident">received</span>: <span class="ident">header</span>.<span class="ident">epoch</span>
+            <span class="self">self</span>.committee.epoch() == header.epoch,
+            DagError::InvalidEpoch {
+                expected: <span class="self">self</span>.committee.epoch(),
+                received: header.epoch
             }
         );
         <span class="macro">ensure!</span>(
-            <span class="self">self</span>.<span class="ident">gc_round</span> &lt; <span class="ident">header</span>.<span class="ident">round</span>,
-            <span class="ident">DagError::TooOld</span>(<span class="ident">header</span>.<span class="ident">id</span>.<span class="ident">into</span>(), <span class="ident">header</span>.<span class="ident">round</span>, <span class="self">self</span>.<span class="ident">gc_round</span>)
+            <span class="self">self</span>.gc_round &lt; header.round,
+            DagError::TooOld(header.id.into(), header.round, <span class="self">self</span>.gc_round)
         );
 
-        <span class="comment">// Verify the header&#39;s signature.</span>
-        <span class="ident">header</span>.<span class="ident">verify</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">committee</span>)<span class="question-mark">?</span>;
+        <span class="comment">// Verify the header&#39;s signature.
+        </span>header.verify(<span class="kw-2">&amp;</span><span class="self">self</span>.committee)<span class="question-mark">?</span>;
 
-        <span class="comment">// TODO [issue #672]: Prevent bad nodes from sending junk headers with high round numbers.</span>
+        <span class="comment">// TODO [issue #672]: Prevent bad nodes from sending junk headers with high round numbers.
 
-        <span class="prelude-val">Ok</span>(())
+        </span><span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">fn</span> <span class="ident">sanitize_vote</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">vote</span>: <span class="kw-2">&amp;</span><span class="ident">Vote</span>) -&gt; <span class="ident">DagResult</span>&lt;()&gt; {
-        <span class="kw">if</span> <span class="ident">vote</span>.<span class="ident">epoch</span> &gt; <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">epoch</span>() {
-            <span class="self">self</span>.<span class="ident">try_update_committee</span>();
+    <span class="kw">fn </span>sanitize_vote(<span class="kw-2">&amp;mut </span><span class="self">self</span>, vote: <span class="kw-2">&amp;</span>Vote) -&gt; DagResult&lt;()&gt; {
+        <span class="kw">if </span>vote.epoch &gt; <span class="self">self</span>.committee.epoch() {
+            <span class="self">self</span>.try_update_committee();
         }
         <span class="macro">ensure!</span>(
-            <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">epoch</span>() == <span class="ident">vote</span>.<span class="ident">epoch</span>,
-            <span class="ident">DagError::InvalidEpoch</span> {
-                <span class="ident">expected</span>: <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">epoch</span>(),
-                <span class="ident">received</span>: <span class="ident">vote</span>.<span class="ident">epoch</span>
+            <span class="self">self</span>.committee.epoch() == vote.epoch,
+            DagError::InvalidEpoch {
+                expected: <span class="self">self</span>.committee.epoch(),
+                received: vote.epoch
             }
         );
         <span class="macro">ensure!</span>(
-            <span class="self">self</span>.<span class="ident">current_header</span>.<span class="ident">round</span> &lt;= <span class="ident">vote</span>.<span class="ident">round</span>,
-            <span class="ident">DagError::VoteTooOld</span>(<span class="ident">vote</span>.<span class="ident">digest</span>().<span class="ident">into</span>(), <span class="ident">vote</span>.<span class="ident">round</span>, <span class="self">self</span>.<span class="ident">current_header</span>.<span class="ident">round</span>)
+            <span class="self">self</span>.current_header.round &lt;= vote.round,
+            DagError::VoteTooOld(vote.digest().into(), vote.round, <span class="self">self</span>.current_header.round)
         );
 
-        <span class="comment">// Ensure we receive a vote on the expected header.</span>
-        <span class="macro">ensure!</span>(
-            <span class="ident">vote</span>.<span class="ident">id</span> == <span class="self">self</span>.<span class="ident">current_header</span>.<span class="ident">id</span>
-                &amp;&amp; <span class="ident">vote</span>.<span class="ident">origin</span> == <span class="self">self</span>.<span class="ident">current_header</span>.<span class="ident">author</span>
-                &amp;&amp; <span class="ident">vote</span>.<span class="ident">round</span> == <span class="self">self</span>.<span class="ident">current_header</span>.<span class="ident">round</span>,
-            <span class="ident">DagError::UnexpectedVote</span>(<span class="ident">vote</span>.<span class="ident">id</span>)
+        <span class="comment">// Ensure we receive a vote on the expected header.
+        </span><span class="macro">ensure!</span>(
+            vote.id == <span class="self">self</span>.current_header.id
+                &amp;&amp; vote.origin == <span class="self">self</span>.current_header.author
+                &amp;&amp; vote.round == <span class="self">self</span>.current_header.round,
+            DagError::UnexpectedVote(vote.id)
         );
 
-        <span class="comment">// Verify the vote.</span>
-        <span class="ident">vote</span>.<span class="ident">verify</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">committee</span>).<span class="ident">map_err</span>(<span class="ident">DagError::from</span>)
+        <span class="comment">// Verify the vote.
+        </span>vote.verify(<span class="kw-2">&amp;</span><span class="self">self</span>.committee).map_err(DagError::from)
     }
 
-    <span class="kw">fn</span> <span class="ident">sanitize_certificate</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">certificate</span>: <span class="kw-2">&amp;</span><span class="ident">Certificate</span>) -&gt; <span class="ident">DagResult</span>&lt;()&gt; {
-        <span class="kw">if</span> <span class="ident">certificate</span>.<span class="ident">epoch</span>() &gt; <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">epoch</span>() {
-            <span class="self">self</span>.<span class="ident">try_update_committee</span>();
+    <span class="kw">fn </span>sanitize_certificate(<span class="kw-2">&amp;mut </span><span class="self">self</span>, certificate: <span class="kw-2">&amp;</span>Certificate) -&gt; DagResult&lt;()&gt; {
+        <span class="kw">if </span>certificate.epoch() &gt; <span class="self">self</span>.committee.epoch() {
+            <span class="self">self</span>.try_update_committee();
         }
         <span class="macro">ensure!</span>(
-            <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">epoch</span>() == <span class="ident">certificate</span>.<span class="ident">epoch</span>(),
-            <span class="ident">DagError::InvalidEpoch</span> {
-                <span class="ident">expected</span>: <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">epoch</span>(),
-                <span class="ident">received</span>: <span class="ident">certificate</span>.<span class="ident">epoch</span>()
+            <span class="self">self</span>.committee.epoch() == certificate.epoch(),
+            DagError::InvalidEpoch {
+                expected: <span class="self">self</span>.committee.epoch(),
+                received: certificate.epoch()
             }
         );
         <span class="macro">ensure!</span>(
-            <span class="self">self</span>.<span class="ident">gc_round</span> &lt; <span class="ident">certificate</span>.<span class="ident">round</span>(),
-            <span class="ident">DagError::TooOld</span>(
-                <span class="ident">certificate</span>.<span class="ident">digest</span>().<span class="ident">into</span>(),
-                <span class="ident">certificate</span>.<span class="ident">round</span>(),
-                <span class="self">self</span>.<span class="ident">gc_round</span>
+            <span class="self">self</span>.gc_round &lt; certificate.round(),
+            DagError::TooOld(
+                certificate.digest().into(),
+                certificate.round(),
+                <span class="self">self</span>.gc_round
             )
         );
 
-        <span class="comment">// Verify the certificate (and the embedded header).</span>
-        <span class="ident">certificate</span>.<span class="ident">verify</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">committee</span>).<span class="ident">map_err</span>(<span class="ident">DagError::from</span>)
+        <span class="comment">// Verify the certificate (and the embedded header).
+        </span>certificate.verify(<span class="kw-2">&amp;</span><span class="self">self</span>.committee).map_err(DagError::from)
     }
 
-    <span class="doccomment">/// If a new committee is available, update our internal state.</span>
-    <span class="kw">fn</span> <span class="ident">try_update_committee</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
-        <span class="kw">if</span> <span class="self">self</span>
-            .<span class="ident">rx_reconfigure</span>
-            .<span class="ident">has_changed</span>()
-            .<span class="ident">expect</span>(<span class="string">&quot;Reconfigure channel dropped&quot;</span>)
+    <span class="doccomment">/// If a new committee is available, update our internal state.
+    </span><span class="kw">fn </span>try_update_committee(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="kw">if </span><span class="self">self
+            </span>.rx_reconfigure
+            .has_changed()
+            .expect(<span class="string">&quot;Reconfigure channel dropped&quot;</span>)
         {
-            <span class="kw">let</span> <span class="ident">message</span> = <span class="self">self</span>.<span class="ident">rx_reconfigure</span>.<span class="ident">borrow</span>().<span class="ident">clone</span>();
-            <span class="kw">if</span> <span class="kw">let</span> <span class="ident">ReconfigureNotification::NewEpoch</span>(<span class="ident">new_committee</span>) = <span class="ident">message</span> {
-                <span class="self">self</span>.<span class="ident">change_epoch</span>(<span class="ident">new_committee</span>);
-                <span class="comment">// Mark the value as seen.</span>
-                <span class="kw">let</span> <span class="kw">_</span> = <span class="self">self</span>.<span class="ident">rx_reconfigure</span>.<span class="ident">borrow_and_update</span>();
+            <span class="kw">let </span>message = <span class="self">self</span>.rx_reconfigure.borrow().clone();
+            <span class="kw">if let </span>ReconfigureNotification::NewEpoch(new_committee) = message {
+                <span class="self">self</span>.change_epoch(new_committee);
+                <span class="comment">// Mark the value as seen.
+                </span><span class="kw">let _ </span>= <span class="self">self</span>.rx_reconfigure.borrow_and_update();
             }
         }
     }
 
-    <span class="doccomment">/// Update the committee and cleanup internal state.</span>
-    <span class="kw">fn</span> <span class="ident">change_epoch</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">committee</span>: <span class="ident">Committee</span>) {
-        <span class="comment">// Cleanup the network.</span>
-        <span class="self">self</span>.<span class="ident">network</span>
-            .<span class="ident">cleanup</span>(<span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">network_diff</span>(<span class="kw-2">&amp;</span><span class="ident">committee</span>));
+    <span class="doccomment">/// Update the committee and cleanup internal state.
+    </span><span class="kw">fn </span>change_epoch(<span class="kw-2">&amp;mut </span><span class="self">self</span>, committee: Committee) {
+        <span class="comment">// Cleanup the network.
+        </span><span class="self">self</span>.network
+            .cleanup(<span class="self">self</span>.committee.network_diff(<span class="kw-2">&amp;</span>committee));
 
-        <span class="comment">// Cleanup internal state.</span>
-        <span class="self">self</span>.<span class="ident">last_voted</span>.<span class="ident">clear</span>();
-        <span class="self">self</span>.<span class="ident">processing</span>.<span class="ident">clear</span>();
-        <span class="self">self</span>.<span class="ident">certificates_aggregators</span>.<span class="ident">clear</span>();
-        <span class="self">self</span>.<span class="ident">cancel_handlers</span>.<span class="ident">clear</span>();
+        <span class="comment">// Cleanup internal state.
+        </span><span class="self">self</span>.last_voted.clear();
+        <span class="self">self</span>.processing.clear();
+        <span class="self">self</span>.certificates_aggregators.clear();
+        <span class="self">self</span>.cancel_handlers.clear();
 
-        <span class="comment">// Update the committee</span>
-        <span class="self">self</span>.<span class="ident">committee</span> = <span class="ident">committee</span>;
+        <span class="comment">// Update the committee
+        </span><span class="self">self</span>.committee = committee;
 
-        <span class="comment">// Cleanup the synchronizer</span>
-        <span class="self">self</span>.<span class="ident">synchronizer</span>.<span class="ident">update_genesis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">committee</span>);
+        <span class="comment">// Cleanup the synchronizer
+        </span><span class="self">self</span>.synchronizer.update_genesis(<span class="kw-2">&amp;</span><span class="self">self</span>.committee);
     }
 
-    <span class="comment">// Main loop listening to incoming messages.</span>
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">run</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
-        <span class="macro">info!</span>(<span class="string">&quot;Core on node {} has started successfully.&quot;</span>, <span class="self">self</span>.<span class="ident">name</span>);
-        <span class="kw">loop</span> {
-            <span class="kw">let</span> <span class="ident">result</span> = <span class="macro">tokio::select!</span> {
-                <span class="comment">// We receive here messages from other primaries.</span>
-                <span class="prelude-val">Some</span>(<span class="ident">message</span>) = <span class="self">self</span>.<span class="ident">rx_primaries</span>.<span class="ident">recv</span>() =&gt; {
-                    <span class="kw">match</span> <span class="ident">message</span> {
-                        <span class="ident">PrimaryMessage::Header</span>(<span class="ident">header</span>) =&gt; {
-                            <span class="kw">match</span> <span class="self">self</span>.<span class="ident">sanitize_header</span>(<span class="kw-2">&amp;</span><span class="ident">header</span>) {
-                                <span class="prelude-val">Ok</span>(()) =&gt; <span class="self">self</span>.<span class="ident">process_header</span>(<span class="kw-2">&amp;</span><span class="ident">header</span>).<span class="kw">await</span>,
-                                <span class="ident">error</span> =&gt; <span class="ident">error</span>
+    <span class="comment">// Main loop listening to incoming messages.
+    </span><span class="kw">pub async fn </span>run(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="macro">info!</span>(<span class="string">&quot;Core on node {} has started successfully.&quot;</span>, <span class="self">self</span>.name);
+        <span class="kw">loop </span>{
+            <span class="kw">let </span>result = <span class="macro">tokio::select!</span> {
+                <span class="comment">// We receive here messages from other primaries.
+                </span><span class="prelude-val">Some</span>(message) = <span class="self">self</span>.rx_primaries.recv() =&gt; {
+                    <span class="kw">match </span>message {
+                        PrimaryMessage::Header(header) =&gt; {
+                            <span class="kw">match </span><span class="self">self</span>.sanitize_header(<span class="kw-2">&amp;</span>header) {
+                                <span class="prelude-val">Ok</span>(()) =&gt; <span class="self">self</span>.process_header(<span class="kw-2">&amp;</span>header).<span class="kw">await</span>,
+                                error =&gt; error
                             }
 
                         },
-                        <span class="ident">PrimaryMessage::Vote</span>(<span class="ident">vote</span>) =&gt; {
-                            <span class="kw">match</span> <span class="self">self</span>.<span class="ident">sanitize_vote</span>(<span class="kw-2">&amp;</span><span class="ident">vote</span>) {
-                                <span class="prelude-val">Ok</span>(()) =&gt; <span class="self">self</span>.<span class="ident">process_vote</span>(<span class="ident">vote</span>).<span class="kw">await</span>,
-                                <span class="ident">error</span> =&gt; <span class="ident">error</span>
+                        PrimaryMessage::Vote(vote) =&gt; {
+                            <span class="kw">match </span><span class="self">self</span>.sanitize_vote(<span class="kw-2">&amp;</span>vote) {
+                                <span class="prelude-val">Ok</span>(()) =&gt; <span class="self">self</span>.process_vote(vote).<span class="kw">await</span>,
+                                error =&gt; error
                             }
                         },
-                        <span class="ident">PrimaryMessage::Certificate</span>(<span class="ident">certificate</span>) =&gt; {
-                            <span class="kw">match</span> <span class="self">self</span>.<span class="ident">sanitize_certificate</span>(<span class="kw-2">&amp;</span><span class="ident">certificate</span>) {
-                                <span class="prelude-val">Ok</span>(()) =&gt;  <span class="self">self</span>.<span class="ident">process_certificate</span>(<span class="ident">certificate</span>).<span class="kw">await</span>,
-                                <span class="ident">error</span> =&gt; <span class="ident">error</span>
+                        PrimaryMessage::Certificate(certificate) =&gt; {
+                            <span class="kw">match </span><span class="self">self</span>.sanitize_certificate(<span class="kw-2">&amp;</span>certificate) {
+                                <span class="prelude-val">Ok</span>(()) =&gt;  <span class="self">self</span>.process_certificate(certificate).<span class="kw">await</span>,
+                                error =&gt; error
                             }
                         },
-                        <span class="kw">_</span> =&gt; <span class="macro">panic!</span>(<span class="string">&quot;Unexpected core message&quot;</span>)
+                        <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">&quot;Unexpected core message&quot;</span>)
                     }
                 },
 
-                <span class="comment">// We receive here loopback headers from the `HeaderWaiter`. Those are headers for which we interrupted</span>
-                <span class="comment">// execution (we were missing some of their dependencies) and we are now ready to resume processing.</span>
-                <span class="prelude-val">Some</span>(<span class="ident">header</span>) = <span class="self">self</span>.<span class="ident">rx_header_waiter</span>.<span class="ident">recv</span>() =&gt; <span class="self">self</span>.<span class="ident">process_header</span>(<span class="kw-2">&amp;</span><span class="ident">header</span>).<span class="kw">await</span>,
+                <span class="comment">// We receive here loopback headers from the `HeaderWaiter`. Those are headers for which we interrupted
+                // execution (we were missing some of their dependencies) and we are now ready to resume processing.
+                </span><span class="prelude-val">Some</span>(header) = <span class="self">self</span>.rx_header_waiter.recv() =&gt; <span class="self">self</span>.process_header(<span class="kw-2">&amp;</span>header).<span class="kw">await</span>,
 
-                <span class="comment">// We receive here loopback certificates from the `CertificateWaiter`. Those are certificates for which</span>
-                <span class="comment">// we interrupted execution (we were missing some of their ancestors) and we are now ready to resume</span>
-                <span class="comment">// processing.</span>
-                <span class="prelude-val">Some</span>(<span class="ident">certificate</span>) = <span class="self">self</span>.<span class="ident">rx_certificate_waiter</span>.<span class="ident">recv</span>() =&gt; <span class="self">self</span>.<span class="ident">process_certificate</span>(<span class="ident">certificate</span>).<span class="kw">await</span>,
+                <span class="comment">// We receive here loopback certificates from the `CertificateWaiter`. Those are certificates for which
+                // we interrupted execution (we were missing some of their ancestors) and we are now ready to resume
+                // processing.
+                </span><span class="prelude-val">Some</span>(certificate) = <span class="self">self</span>.rx_certificate_waiter.recv() =&gt; <span class="self">self</span>.process_certificate(certificate).<span class="kw">await</span>,
 
-                <span class="comment">// We also receive here our new headers created by the `Proposer`.</span>
-                <span class="prelude-val">Some</span>(<span class="ident">header</span>) = <span class="self">self</span>.<span class="ident">rx_proposer</span>.<span class="ident">recv</span>() =&gt; <span class="self">self</span>.<span class="ident">process_own_header</span>(<span class="ident">header</span>).<span class="kw">await</span>,
+                <span class="comment">// We also receive here our new headers created by the `Proposer`.
+                </span><span class="prelude-val">Some</span>(header) = <span class="self">self</span>.rx_proposer.recv() =&gt; <span class="self">self</span>.process_own_header(header).<span class="kw">await</span>,
 
-                <span class="comment">// Check whether the committee changed.</span>
-                <span class="ident">result</span> = <span class="self">self</span>.<span class="ident">rx_reconfigure</span>.<span class="ident">changed</span>() =&gt; {
-                    <span class="ident">result</span>.<span class="ident">expect</span>(<span class="string">&quot;Committee channel dropped&quot;</span>);
-                    <span class="kw">let</span> <span class="ident">message</span> = <span class="self">self</span>.<span class="ident">rx_reconfigure</span>.<span class="ident">borrow</span>().<span class="ident">clone</span>();
-                    <span class="kw">match</span> <span class="ident">message</span> {
-                        <span class="ident">ReconfigureNotification::NewEpoch</span>(<span class="ident">new_committee</span>) =&gt; {
-                            <span class="self">self</span>.<span class="ident">change_epoch</span>(<span class="ident">new_committee</span>);
+                <span class="comment">// Check whether the committee changed.
+                </span>result = <span class="self">self</span>.rx_reconfigure.changed() =&gt; {
+                    result.expect(<span class="string">&quot;Committee channel dropped&quot;</span>);
+                    <span class="kw">let </span>message = <span class="self">self</span>.rx_reconfigure.borrow().clone();
+                    <span class="kw">match </span>message {
+                        ReconfigureNotification::NewEpoch(new_committee) =&gt; {
+                            <span class="self">self</span>.change_epoch(new_committee);
                         },
-                        <span class="ident">ReconfigureNotification::UpdateCommittee</span>(<span class="ident">new_committee</span>) =&gt; {
-                            <span class="comment">// Cleanup the network.</span>
-                            <span class="self">self</span>.<span class="ident">network</span>.<span class="ident">cleanup</span>(<span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">network_diff</span>(<span class="kw-2">&amp;</span><span class="ident">new_committee</span>));
+                        ReconfigureNotification::UpdateCommittee(new_committee) =&gt; {
+                            <span class="comment">// Cleanup the network.
+                            </span><span class="self">self</span>.network.cleanup(<span class="self">self</span>.committee.network_diff(<span class="kw-2">&amp;</span>new_committee));
 
-                            <span class="comment">// Update the committee.</span>
-                            <span class="self">self</span>.<span class="ident">committee</span> = <span class="ident">new_committee</span>;
+                            <span class="comment">// Update the committee.
+                            </span><span class="self">self</span>.committee = new_committee;
                         },
-                        <span class="ident">ReconfigureNotification::Shutdown</span> =&gt; <span class="kw">return</span>
-                    }
-                    <span class="macro">tracing::debug!</span>(<span class="string">&quot;Committee updated to {}&quot;</span>, <span class="self">self</span>.<span class="ident">committee</span>);
+                        ReconfigureNotification::Shutdown =&gt; <span class="kw">return
+                    </span>}
+                    <span class="macro">tracing::debug!</span>(<span class="string">&quot;Committee updated to {}&quot;</span>, <span class="self">self</span>.committee);
                     <span class="prelude-val">Ok</span>(())
                 }
 
-                <span class="comment">// Check whether the consensus round has changed, to clean up structures</span>
-                <span class="prelude-val">Ok</span>(()) = <span class="self">self</span>.<span class="ident">rx_consensus_round_updates</span>.<span class="ident">changed</span>() =&gt; {
-                    <span class="kw">let</span> <span class="ident">round</span> = <span class="kw-2">*</span><span class="self">self</span>.<span class="ident">rx_consensus_round_updates</span>.<span class="ident">borrow</span>();
-                    <span class="kw">if</span> <span class="ident">round</span> &gt; <span class="self">self</span>.<span class="ident">gc_depth</span> {
-                        <span class="kw">let</span> <span class="ident">now</span> = <span class="ident">Instant::now</span>();
+                <span class="comment">// Check whether the consensus round has changed, to clean up structures
+                </span><span class="prelude-val">Ok</span>(()) = <span class="self">self</span>.rx_consensus_round_updates.changed() =&gt; {
+                    <span class="kw">let </span>round = <span class="kw-2">*</span><span class="self">self</span>.rx_consensus_round_updates.borrow();
+                    <span class="kw">if </span>round &gt; <span class="self">self</span>.gc_depth {
+                        <span class="kw">let </span>now = Instant::now();
 
-                        <span class="kw">let</span> <span class="ident">gc_round</span> = <span class="ident">round</span> - <span class="self">self</span>.<span class="ident">gc_depth</span>;
-                        <span class="self">self</span>.<span class="ident">last_voted</span>.<span class="ident">retain</span>(|<span class="ident">k</span>, <span class="kw">_</span>| <span class="ident">k</span> &gt; <span class="kw-2">&amp;</span><span class="ident">gc_round</span>);
-                        <span class="self">self</span>.<span class="ident">processing</span>.<span class="ident">retain</span>(|<span class="ident">k</span>, <span class="kw">_</span>| <span class="ident">k</span> &gt; <span class="kw-2">&amp;</span><span class="ident">gc_round</span>);
-                        <span class="self">self</span>.<span class="ident">certificates_aggregators</span>.<span class="ident">retain</span>(|<span class="ident">k</span>, <span class="kw">_</span>| <span class="ident">k</span> &gt; <span class="kw-2">&amp;</span><span class="ident">gc_round</span>);
-                        <span class="self">self</span>.<span class="ident">cancel_handlers</span>.<span class="ident">retain</span>(|<span class="ident">k</span>, <span class="kw">_</span>| <span class="ident">k</span> &gt; <span class="kw-2">&amp;</span><span class="ident">gc_round</span>);
-                        <span class="self">self</span>.<span class="ident">gc_round</span> = <span class="ident">gc_round</span>;
+                        <span class="kw">let </span>gc_round = round - <span class="self">self</span>.gc_depth;
+                        <span class="self">self</span>.last_voted.retain(|k, <span class="kw">_</span>| k &gt; <span class="kw-2">&amp;</span>gc_round);
+                        <span class="self">self</span>.processing.retain(|k, <span class="kw">_</span>| k &gt; <span class="kw-2">&amp;</span>gc_round);
+                        <span class="self">self</span>.certificates_aggregators.retain(|k, <span class="kw">_</span>| k &gt; <span class="kw-2">&amp;</span>gc_round);
+                        <span class="self">self</span>.cancel_handlers.retain(|k, <span class="kw">_</span>| k &gt; <span class="kw-2">&amp;</span>gc_round);
+                        <span class="self">self</span>.gc_round = gc_round;
 
-                        <span class="self">self</span>.<span class="ident">metrics</span>
-                            .<span class="ident">gc_core_latency</span>
-                            .<span class="ident">with_label_values</span>(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">epoch</span>.<span class="ident">to_string</span>()])
-                            .<span class="ident">observe</span>(<span class="ident">now</span>.<span class="ident">elapsed</span>().<span class="ident">as_secs_f64</span>());
+                        <span class="self">self</span>.metrics
+                            .gc_core_latency
+                            .with_label_values(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="self">self</span>.committee.epoch.to_string()])
+                            .observe(now.elapsed().as_secs_f64());
                     }
 
                     <span class="prelude-val">Ok</span>(())
                 }
 
             };
-            <span class="kw">match</span> <span class="ident">result</span> {
+            <span class="kw">match </span>result {
                 <span class="prelude-val">Ok</span>(()) =&gt; (),
-                <span class="prelude-val">Err</span>(<span class="ident">e</span> @ <span class="ident">DagError::ShuttingDown</span>) =&gt; <span class="macro">debug!</span>(<span class="string">&quot;{e}&quot;</span>),
-                <span class="prelude-val">Err</span>(<span class="ident">DagError::StoreError</span>(<span class="ident">e</span>)) =&gt; {
+                <span class="prelude-val">Err</span>(e @ DagError::ShuttingDown) =&gt; <span class="macro">debug!</span>(<span class="string">&quot;{e}&quot;</span>),
+                <span class="prelude-val">Err</span>(DagError::StoreError(e)) =&gt; {
                     <span class="macro">error!</span>(<span class="string">&quot;{e}&quot;</span>);
                     <span class="macro">panic!</span>(<span class="string">&quot;Storage failure: killing node.&quot;</span>);
                 }
-                <span class="prelude-val">Err</span>(<span class="ident">e</span> @ <span class="ident">DagError::TooOld</span>(..) | <span class="ident">e</span> @ <span class="ident">DagError::InvalidEpoch</span> { .. }) =&gt; <span class="macro">debug!</span>(<span class="string">&quot;{e}&quot;</span>),
-                <span class="prelude-val">Err</span>(<span class="ident">e</span>) =&gt; <span class="macro">warn!</span>(<span class="string">&quot;{e}&quot;</span>),
+                <span class="prelude-val">Err</span>(e @ DagError::TooOld(..) | e @ DagError::InvalidEpoch { .. }) =&gt; <span class="macro">debug!</span>(<span class="string">&quot;{e}&quot;</span>),
+                <span class="prelude-val">Err</span>(e) =&gt; <span class="macro">warn!</span>(<span class="string">&quot;{e}&quot;</span>),
             }
 
-            <span class="self">self</span>.<span class="ident">metrics</span>
-                .<span class="ident">core_cancel_handlers_total</span>
-                .<span class="ident">with_label_values</span>(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">epoch</span>.<span class="ident">to_string</span>()])
-                .<span class="ident">set</span>(<span class="self">self</span>.<span class="ident">cancel_handlers</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">i64</span>);
+            <span class="self">self</span>.metrics
+                .core_cancel_handlers_total
+                .with_label_values(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="self">self</span>.committee.epoch.to_string()])
+                .set(<span class="self">self</span>.cancel_handlers.len() <span class="kw">as </span>i64);
         }
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (801821d15 2022-08-14)" ></div></body></html>

@@ -30,37 +30,37 @@
 <span id="30">30</span>
 <span id="31">31</span>
 <span id="32">32</span>
-</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
-<span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="attribute">#![<span class="ident">warn</span>(
-    <span class="ident">future_incompatible</span>,
-    <span class="ident">nonstandard_style</span>,
-    <span class="ident">rust_2018_idioms</span>,
-    <span class="ident">rust_2021_compatibility</span>
+</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+</span><span class="attribute">#![warn(
+    future_incompatible,
+    nonstandard_style,
+    rust_2018_idioms,
+    rust_2021_compatibility
 )]</span>
 
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">bullshark</span>;
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">consensus</span>;
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">dag</span>;
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">metrics</span>;
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">tusk</span>;
-<span class="kw">mod</span> <span class="ident">utils</span>;
+<span class="kw">pub mod </span>bullshark;
+<span class="kw">pub mod </span>consensus;
+<span class="kw">pub mod </span>dag;
+<span class="kw">pub mod </span>metrics;
+<span class="kw">pub mod </span>tusk;
+<span class="kw">mod </span>utils;
 
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::consensus::Consensus</span>;
+<span class="kw">pub use </span><span class="kw">crate</span>::consensus::Consensus;
 
-<span class="kw">use</span> <span class="ident">serde</span>::{<span class="ident">Deserialize</span>, <span class="ident">Serialize</span>};
-<span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">Certificate</span>, <span class="ident">SequenceNumber</span>};
+<span class="kw">use </span>serde::{Deserialize, Serialize};
+<span class="kw">use </span>types::{Certificate, SequenceNumber};
 
-<span class="doccomment">/// The default channel size used in the consensus and subscriber logic.</span>
-<span class="kw">pub</span> <span class="kw">const</span> <span class="ident">DEFAULT_CHANNEL_SIZE</span>: <span class="ident">usize</span> = <span class="number">1_000</span>;
+<span class="doccomment">/// The default channel size used in the consensus and subscriber logic.
+</span><span class="kw">pub const </span>DEFAULT_CHANNEL_SIZE: usize = <span class="number">1_000</span>;
 
-<span class="doccomment">/// The output format of the consensus.</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Serialize</span>, <span class="ident">Deserialize</span>, <span class="ident">Clone</span>, <span class="ident">Debug</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ConsensusOutput</span> {
-    <span class="doccomment">/// The sequenced certificate.</span>
-    <span class="kw">pub</span> <span class="ident">certificate</span>: <span class="ident">Certificate</span>,
-    <span class="doccomment">/// The (global) index associated with this certificate.</span>
-    <span class="kw">pub</span> <span class="ident">consensus_index</span>: <span class="ident">SequenceNumber</span>,
+<span class="doccomment">/// The output format of the consensus.
+</span><span class="attribute">#[derive(Serialize, Deserialize, Clone, Debug)]</span>
+<span class="kw">pub struct </span>ConsensusOutput {
+    <span class="doccomment">/// The sequenced certificate.
+    </span><span class="kw">pub </span>certificate: Certificate,
+    <span class="doccomment">/// The (global) index associated with this certificate.
+    </span><span class="kw">pub </span>consensus_index: SequenceNumber,
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="consensus" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="consensus" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (801821d15 2022-08-14)" ></div></body></html>

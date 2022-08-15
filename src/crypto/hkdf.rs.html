@@ -83,90 +83,90 @@
 <span id="83">83</span>
 <span id="84">84</span>
 <span id="85">85</span>
-</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
-<span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::traits</span>::{<span class="ident">KeyPair</span>, <span class="ident">SigningKey</span>, <span class="ident">ToFromBytes</span>, <span class="ident">DEFAULT_DOMAIN</span>};
-<span class="kw">use</span> <span class="ident">digest</span>::{
-    <span class="ident">block_buffer::Eager</span>,
-    <span class="ident">consts::U256</span>,
-    <span class="ident">core_api</span>::{<span class="ident">BlockSizeUser</span>, <span class="ident">BufferKindUser</span>, <span class="ident">CoreProxy</span>, <span class="ident">FixedOutputCore</span>, <span class="ident">UpdateCore</span>},
-    <span class="ident">typenum</span>::{<span class="ident">IsLess</span>, <span class="ident">Le</span>, <span class="ident">NonZero</span>, <span class="ident">Unsigned</span>},
-    <span class="ident">HashMarker</span>, <span class="ident">OutputSizeUser</span>,
+</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+</span><span class="kw">use </span><span class="kw">crate</span>::traits::{KeyPair, SigningKey, ToFromBytes, DEFAULT_DOMAIN};
+<span class="kw">use </span>digest::{
+    block_buffer::Eager,
+    consts::U256,
+    core_api::{BlockSizeUser, BufferKindUser, CoreProxy, FixedOutputCore, UpdateCore},
+    typenum::{IsLess, Le, NonZero, Unsigned},
+    HashMarker, OutputSizeUser,
 };
-<span class="kw">use</span> <span class="ident">hkdf::hmac::Hmac</span>;
+<span class="kw">use </span>hkdf::hmac::Hmac;
 
-<span class="doccomment">/// Creation of a keypair using the [RFC 5869](https://tools.ietf.org/html/rfc5869) HKDF specification.</span>
-<span class="doccomment">/// This requires choosing an HMAC function of the correct length (conservatively, the size of a private key for this curve).</span>
-<span class="doccomment">/// Despite the unsightly generics (which aim to ensure this works for a wide range of hash functions), this is straightforward to use.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// Example:</span>
-<span class="doccomment">/// ```rust</span>
-<span class="doccomment">/// use sha3::Sha3_256;</span>
-<span class="doccomment">/// use crypto::ed25519::Ed25519KeyPair;</span>
-<span class="doccomment">/// use crypto::hkdf::hkdf_generate_from_ikm;</span>
-<span class="doccomment">/// # fn main() {</span>
-<span class="doccomment">///     let ikm = b&quot;some_ikm&quot;;</span>
-<span class="doccomment">///     let domain = b&quot;my_app&quot;;</span>
-<span class="doccomment">///     let salt = b&quot;some_salt&quot;;</span>
-<span class="doccomment">///     let my_keypair = hkdf_generate_from_ikm::&lt;Sha3_256, Ed25519KeyPair&gt;(ikm, salt, Some(domain));</span>
-<span class="doccomment">///</span>
-<span class="doccomment">///     let my_keypair_default_domain = hkdf_generate_from_ikm::&lt;Sha3_256, Ed25519KeyPair&gt;(ikm, salt, None);</span>
-<span class="doccomment">/// # }</span>
-<span class="doccomment">/// ```</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// Note: This HKDF function may not match the native library&#39;s deterministic key generation functions.</span>
-<span class="doccomment">/// For example, observe that in the blst library:</span>
-<span class="doccomment">/// ```rust</span>
-<span class="doccomment">/// use sha3::Sha3_256;</span>
-<span class="doccomment">/// use crypto::bls12381::BLS12381KeyPair;</span>
-<span class="doccomment">/// use crypto::traits::{KeyPair, SigningKey, ToFromBytes};</span>
-<span class="doccomment">/// use crypto::hkdf::hkdf_generate_from_ikm;</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// # fn main() {</span>
-<span class="doccomment">///     let ikm = b&quot;02345678001234567890123456789012&quot;;</span>
-<span class="doccomment">///     let domain = b&quot;my_app&quot;;</span>
-<span class="doccomment">///     let salt = b&quot;some_salt&quot;;</span>
+<span class="doccomment">/// Creation of a keypair using the [RFC 5869](https://tools.ietf.org/html/rfc5869) HKDF specification.
+/// This requires choosing an HMAC function of the correct length (conservatively, the size of a private key for this curve).
+/// Despite the unsightly generics (which aim to ensure this works for a wide range of hash functions), this is straightforward to use.
+///
+/// Example:
+/// ```rust
+/// use sha3::Sha3_256;
+/// use crypto::ed25519::Ed25519KeyPair;
+/// use crypto::hkdf::hkdf_generate_from_ikm;
+/// # fn main() {
+///     let ikm = b&quot;some_ikm&quot;;
+///     let domain = b&quot;my_app&quot;;
+///     let salt = b&quot;some_salt&quot;;
+///     let my_keypair = hkdf_generate_from_ikm::&lt;Sha3_256, Ed25519KeyPair&gt;(ikm, salt, Some(domain));
+///
+///     let my_keypair_default_domain = hkdf_generate_from_ikm::&lt;Sha3_256, Ed25519KeyPair&gt;(ikm, salt, None);
+/// # }
+/// ```
+///
+/// Note: This HKDF function may not match the native library&#39;s deterministic key generation functions.
+/// For example, observe that in the blst library:
+/// ```rust
+/// use sha3::Sha3_256;
+/// use crypto::bls12381::BLS12381KeyPair;
+/// use crypto::traits::{KeyPair, SigningKey, ToFromBytes};
+/// use crypto::hkdf::hkdf_generate_from_ikm;
+///
+/// # fn main() {
+///     let ikm = b&quot;02345678001234567890123456789012&quot;;
+///     let domain = b&quot;my_app&quot;;
+///     let salt = b&quot;some_salt&quot;;
 
-<span class="doccomment">///     let my_keypair = hkdf_generate_from_ikm::&lt;Sha3_256, BLS12381KeyPair&gt;(ikm, salt, Some(domain)).unwrap();</span>
-<span class="doccomment">///     let native_sk = blst::min_sig::SecretKey::key_gen_v4_5(ikm, salt, domain).unwrap();</span>
+///     let my_keypair = hkdf_generate_from_ikm::&lt;Sha3_256, BLS12381KeyPair&gt;(ikm, salt, Some(domain)).unwrap();
+///     let native_sk = blst::min_sig::SecretKey::key_gen_v4_5(ikm, salt, domain).unwrap();
 
-<span class="doccomment">///     assert_ne!(native_sk.to_bytes(), my_keypair.private().as_bytes());</span>
-<span class="doccomment">/// # }</span>
-<span class="doccomment">/// ```</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">hkdf_generate_from_ikm</span>&lt;<span class="lifetime">&#39;a</span>, <span class="ident">H</span>: <span class="ident">OutputSizeUser</span>, <span class="ident">K</span>: <span class="ident">KeyPair</span>&gt;(
-    <span class="ident">ikm</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],             <span class="comment">// IKM (32 bytes)</span>
-    <span class="ident">salt</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],            <span class="comment">// Optional salt</span>
-    <span class="ident">info</span>: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> [<span class="ident">u8</span>]&gt;, <span class="comment">// Optional domain</span>
-) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">K</span>, <span class="ident">signature::Error</span>&gt;
-<span class="kw">where</span>
-    <span class="comment">// This is a tad tedious, because of hkdf&#39;s use of a sealed trait. But mostly harmless.</span>
-    <span class="ident">H</span>: <span class="ident">CoreProxy</span> + <span class="ident">OutputSizeUser</span>,
-    <span class="ident">H::Core</span>: <span class="ident">HashMarker</span>
-        + <span class="ident">UpdateCore</span>
-        + <span class="ident">FixedOutputCore</span>
-        + <span class="ident">BufferKindUser</span>&lt;<span class="ident">BufferKind</span> = <span class="ident">Eager</span>&gt;
-        + <span class="ident">Default</span>
-        + <span class="ident">Clone</span>,
-    &lt;<span class="ident">H::Core</span> <span class="kw">as</span> <span class="ident">BlockSizeUser</span>&gt;<span class="ident">::BlockSize</span>: <span class="ident">IsLess</span>&lt;<span class="ident">U256</span>&gt;,
-    <span class="ident">Le</span>&lt;&lt;<span class="ident">H::Core</span> <span class="kw">as</span> <span class="ident">BlockSizeUser</span>&gt;<span class="ident">::BlockSize</span>, <span class="ident">U256</span>&gt;: <span class="ident">NonZero</span>,
+///     assert_ne!(native_sk.to_bytes(), my_keypair.private().as_bytes());
+/// # }
+/// ```
+</span><span class="kw">pub fn </span>hkdf_generate_from_ikm&lt;<span class="lifetime">&#39;a</span>, H: OutputSizeUser, K: KeyPair&gt;(
+    ikm: <span class="kw-2">&amp;</span>[u8],             <span class="comment">// IKM (32 bytes)
+    </span>salt: <span class="kw-2">&amp;</span>[u8],            <span class="comment">// Optional salt
+    </span>info: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[u8]&gt;, <span class="comment">// Optional domain
+</span>) -&gt; <span class="prelude-ty">Result</span>&lt;K, signature::Error&gt;
+<span class="kw">where
+    </span><span class="comment">// This is a tad tedious, because of hkdf&#39;s use of a sealed trait. But mostly harmless.
+    </span>H: CoreProxy + OutputSizeUser,
+    H::Core: HashMarker
+        + UpdateCore
+        + FixedOutputCore
+        + BufferKindUser&lt;BufferKind = Eager&gt;
+        + Default
+        + Clone,
+    &lt;H::Core <span class="kw">as </span>BlockSizeUser&gt;::BlockSize: IsLess&lt;U256&gt;,
+    Le&lt;&lt;H::Core <span class="kw">as </span>BlockSizeUser&gt;::BlockSize, U256&gt;: NonZero,
 {
-    <span class="kw">let</span> <span class="ident">info</span> = <span class="ident">info</span>.<span class="ident">unwrap_or</span>(<span class="kw-2">&amp;</span><span class="ident">DEFAULT_DOMAIN</span>);
-    <span class="kw">let</span> <span class="ident">hk</span> = <span class="ident">hkdf::Hkdf</span>::&lt;<span class="ident">H</span>, <span class="ident">Hmac</span>&lt;<span class="ident">H</span>&gt;&gt;<span class="ident">::new</span>(<span class="prelude-val">Some</span>(<span class="ident">salt</span>), <span class="ident">ikm</span>);
+    <span class="kw">let </span>info = info.unwrap_or(<span class="kw-2">&amp;</span>DEFAULT_DOMAIN);
+    <span class="kw">let </span>hk = hkdf::Hkdf::&lt;H, Hmac&lt;H&gt;&gt;::new(<span class="prelude-val">Some</span>(salt), ikm);
 
-    <span class="comment">// we need the HKDF to be able to expand precisely to the byte length of a Private key for the chosen KeyPair parameter.</span>
-    <span class="comment">// This check is a tad over constraining (check Hkdf impl for a more relaxed variant) but is always correct.</span>
-    <span class="kw">if</span> <span class="ident">H::OutputSize::USIZE</span> != <span class="ident">K::PrivKey::LENGTH</span> {
-        <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">signature::Error::from_source</span>(<span class="ident">hkdf::InvalidLength</span>));
+    <span class="comment">// we need the HKDF to be able to expand precisely to the byte length of a Private key for the chosen KeyPair parameter.
+    // This check is a tad over constraining (check Hkdf impl for a more relaxed variant) but is always correct.
+    </span><span class="kw">if </span>H::OutputSize::USIZE != K::PrivKey::LENGTH {
+        <span class="kw">return </span><span class="prelude-val">Err</span>(signature::Error::from_source(hkdf::InvalidLength));
     }
 
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">okm</span> = <span class="macro">vec!</span>[<span class="number">0u8</span>; <span class="ident">K::PrivKey::LENGTH</span>];
-    <span class="ident">hk</span>.<span class="ident">expand</span>(<span class="ident">info</span>, <span class="kw-2">&amp;mut</span> <span class="ident">okm</span>)
-        .<span class="ident">map_err</span>(|<span class="kw">_</span>| <span class="ident">signature::Error::new</span>())<span class="question-mark">?</span>;
+    <span class="kw">let </span><span class="kw-2">mut </span>okm = <span class="macro">vec!</span>[<span class="number">0u8</span>; K::PrivKey::LENGTH];
+    hk.expand(info, <span class="kw-2">&amp;mut </span>okm)
+        .map_err(|<span class="kw">_</span>| signature::Error::new())<span class="question-mark">?</span>;
 
-    <span class="kw">let</span> <span class="ident">secret_key</span> = <span class="ident">K::PrivKey::from_bytes</span>(<span class="kw-2">&amp;</span><span class="ident">okm</span>[..]).<span class="ident">map_err</span>(|<span class="kw">_</span>| <span class="ident">signature::Error::new</span>())<span class="question-mark">?</span>;
+    <span class="kw">let </span>secret_key = K::PrivKey::from_bytes(<span class="kw-2">&amp;</span>okm[..]).map_err(|<span class="kw">_</span>| signature::Error::new())<span class="question-mark">?</span>;
 
-    <span class="kw">let</span> <span class="ident">keypair</span> = <span class="ident">K::from</span>(<span class="ident">secret_key</span>);
-    <span class="prelude-val">Ok</span>(<span class="ident">keypair</span>)
+    <span class="kw">let </span>keypair = K::from(secret_key);
+    <span class="prelude-val">Ok</span>(keypair)
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="crypto" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="crypto" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (801821d15 2022-08-14)" ></div></body></html>

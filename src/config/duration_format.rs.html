@@ -120,127 +120,127 @@
 <span id="120">120</span>
 <span id="121">121</span>
 <span id="122">122</span>
-</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
-<span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
+</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
 
-<span class="doccomment">//! Allow us to deserialize Duration values in a more human friendly format</span>
-<span class="doccomment">//! (e.x in json files). The deserialization supports to time units:</span>
-<span class="doccomment">//! * miliseconds</span>
-<span class="doccomment">//! * seconds</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! To identify miliseconds then a string of the following format should be</span>
-<span class="doccomment">//! provided: [number]ms , for example &quot;20ms&quot;, or &quot;2_000ms&quot;.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! To identify seconds, then the following format should be used:</span>
-<span class="doccomment">//! [number]s, for example &quot;20s&quot;, or &quot;10_000s&quot;.</span>
-<span class="kw">use</span> <span class="ident">serde</span>::{<span class="ident">Deserialize</span>, <span class="ident">Deserializer</span>, <span class="ident">Serialize</span>, <span class="ident">Serializer</span>};
-<span class="kw">use</span> <span class="ident">std::time::Duration</span>;
+</span><span class="doccomment">//! Allow us to deserialize Duration values in a more human friendly format
+//! (e.x in json files). The deserialization supports to time units:
+//! * miliseconds
+//! * seconds
+//!
+//! To identify miliseconds then a string of the following format should be
+//! provided: [number]ms , for example &quot;20ms&quot;, or &quot;2_000ms&quot;.
+//!
+//! To identify seconds, then the following format should be used:
+//! [number]s, for example &quot;20s&quot;, or &quot;10_000s&quot;.
+</span><span class="kw">use </span>serde::{Deserialize, Deserializer, Serialize, Serializer};
+<span class="kw">use </span>std::time::Duration;
 
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">deserialize</span>&lt;<span class="lifetime">&#39;de</span>, <span class="ident">D</span>&gt;(<span class="ident">deserializer</span>: <span class="ident">D</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">Duration</span>, <span class="ident">D::Error</span>&gt;
-<span class="kw">where</span>
-    <span class="ident">D</span>: <span class="ident">Deserializer</span>&lt;<span class="lifetime">&#39;de</span>&gt;,
+<span class="kw">pub fn </span>deserialize&lt;<span class="lifetime">&#39;de</span>, D&gt;(deserializer: D) -&gt; <span class="prelude-ty">Result</span>&lt;Duration, D::Error&gt;
+<span class="kw">where
+    </span>D: Deserializer&lt;<span class="lifetime">&#39;de</span>&gt;,
 {
-    <span class="kw">let</span> <span class="ident">s</span> = <span class="ident">String::deserialize</span>(<span class="ident">deserializer</span>)<span class="question-mark">?</span>;
+    <span class="kw">let </span>s = String::deserialize(deserializer)<span class="question-mark">?</span>;
 
-    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">milis</span>) = <span class="ident">s</span>.<span class="ident">strip_suffix</span>(<span class="string">&quot;ms&quot;</span>) {
-        <span class="kw">return</span> <span class="ident">milis</span>
-            .<span class="ident">replace</span>(<span class="string">&#39;_&#39;</span>, <span class="string">&quot;&quot;</span>)
-            .<span class="ident">parse</span>::&lt;<span class="ident">u64</span>&gt;()
-            .<span class="ident">map</span>(<span class="ident">Duration::from_millis</span>)
-            .<span class="ident">map_err</span>(|<span class="ident">e</span>| <span class="ident">serde::de::Error::custom</span>(<span class="ident">e</span>.<span class="ident">to_string</span>()));
-    } <span class="kw">else</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">seconds</span>) = <span class="ident">s</span>.<span class="ident">strip_suffix</span>(<span class="string">&#39;s&#39;</span>) {
-        <span class="kw">return</span> <span class="ident">seconds</span>
-            .<span class="ident">replace</span>(<span class="string">&#39;_&#39;</span>, <span class="string">&quot;&quot;</span>)
-            .<span class="ident">parse</span>::&lt;<span class="ident">u64</span>&gt;()
-            .<span class="ident">map</span>(<span class="ident">Duration::from_secs</span>)
-            .<span class="ident">map_err</span>(|<span class="ident">e</span>| <span class="ident">serde::de::Error::custom</span>(<span class="ident">e</span>.<span class="ident">to_string</span>()));
+    <span class="kw">if let </span><span class="prelude-val">Some</span>(milis) = s.strip_suffix(<span class="string">&quot;ms&quot;</span>) {
+        <span class="kw">return </span>milis
+            .replace(<span class="string">&#39;_&#39;</span>, <span class="string">&quot;&quot;</span>)
+            .parse::&lt;u64&gt;()
+            .map(Duration::from_millis)
+            .map_err(|e| serde::de::Error::custom(e.to_string()));
+    } <span class="kw">else if let </span><span class="prelude-val">Some</span>(seconds) = s.strip_suffix(<span class="string">&#39;s&#39;</span>) {
+        <span class="kw">return </span>seconds
+            .replace(<span class="string">&#39;_&#39;</span>, <span class="string">&quot;&quot;</span>)
+            .parse::&lt;u64&gt;()
+            .map(Duration::from_secs)
+            .map_err(|e| serde::de::Error::custom(e.to_string()));
     }
 
-    <span class="prelude-val">Err</span>(<span class="ident">serde::de::Error::custom</span>(<span class="macro">format!</span>(
-        <span class="string">&quot;Wrong format detected: {s}. It should be number in miliseconds, e.x 10ms&quot;</span>
-    )))
+    <span class="prelude-val">Err</span>(serde::de::Error::custom(<span class="macro">format!</span>(
+        <span class="string">&quot;Wrong format detected: {s}. It should be number in miliseconds, e.x 10ms&quot;
+    </span>)))
 }
 
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">serialize</span>&lt;<span class="ident">S</span>&gt;(<span class="ident">duration</span>: <span class="kw-2">&amp;</span><span class="ident">Duration</span>, <span class="ident">serializer</span>: <span class="ident">S</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">S::Ok</span>, <span class="ident">S::Error</span>&gt;
-<span class="kw">where</span>
-    <span class="ident">S</span>: <span class="ident">Serializer</span>,
+<span class="kw">pub fn </span>serialize&lt;S&gt;(duration: <span class="kw-2">&amp;</span>Duration, serializer: S) -&gt; <span class="prelude-ty">Result</span>&lt;S::Ok, S::Error&gt;
+<span class="kw">where
+    </span>S: Serializer,
 {
-    <span class="macro">format!</span>(<span class="string">&quot;{}ms&quot;</span>, <span class="ident">duration</span>.<span class="ident">as_millis</span>()).<span class="ident">serialize</span>(<span class="ident">serializer</span>)
+    <span class="macro">format!</span>(<span class="string">&quot;{}ms&quot;</span>, duration.as_millis()).serialize(serializer)
 }
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="kw">mod</span> <span class="ident">tests</span> {
-    <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::duration_format</span>;
-    <span class="kw">use</span> <span class="ident">serde</span>::{<span class="ident">Deserialize</span>, <span class="ident">Serialize</span>};
-    <span class="kw">use</span> <span class="ident">std::time::Duration</span>;
+<span class="attribute">#[cfg(test)]</span>
+<span class="kw">mod </span>tests {
+    <span class="kw">use </span><span class="kw">crate</span>::duration_format;
+    <span class="kw">use </span>serde::{Deserialize, Serialize};
+    <span class="kw">use </span>std::time::Duration;
 
-    <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Deserialize</span>, <span class="ident">Serialize</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>)]</span>
-    <span class="kw">struct</span> <span class="ident">MockProperties</span> {
-        <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">with</span> = <span class="string">&quot;duration_format&quot;</span>)]</span>
-        <span class="ident">property_1</span>: <span class="ident">Duration</span>,
-        <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">with</span> = <span class="string">&quot;duration_format&quot;</span>)]</span>
-        <span class="ident">property_2</span>: <span class="ident">Duration</span>,
-        <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">with</span> = <span class="string">&quot;duration_format&quot;</span>)]</span>
-        <span class="ident">property_3</span>: <span class="ident">Duration</span>,
-        <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">with</span> = <span class="string">&quot;duration_format&quot;</span>)]</span>
-        <span class="ident">property_4</span>: <span class="ident">Duration</span>,
+    <span class="attribute">#[derive(Debug, Deserialize, Serialize, Eq, PartialEq)]</span>
+    <span class="kw">struct </span>MockProperties {
+        <span class="attribute">#[serde(with = <span class="string">&quot;duration_format&quot;</span>)]</span>
+        property_1: Duration,
+        <span class="attribute">#[serde(with = <span class="string">&quot;duration_format&quot;</span>)]</span>
+        property_2: Duration,
+        <span class="attribute">#[serde(with = <span class="string">&quot;duration_format&quot;</span>)]</span>
+        property_3: Duration,
+        <span class="attribute">#[serde(with = <span class="string">&quot;duration_format&quot;</span>)]</span>
+        property_4: Duration,
     }
 
-    <span class="attribute">#[<span class="ident">test</span>]</span>
-    <span class="kw">fn</span> <span class="ident">parse_miliseconds_and_seconds</span>() {
-        <span class="comment">// GIVEN</span>
-        <span class="kw">let</span> <span class="ident">input</span> = <span class="string">r#&quot;{
+    <span class="attribute">#[test]</span>
+    <span class="kw">fn </span>parse_miliseconds_and_seconds() {
+        <span class="comment">// GIVEN
+        </span><span class="kw">let </span>input = <span class="string">r#&quot;{
              &quot;property_1&quot;: &quot;1_000ms&quot;,
              &quot;property_2&quot;: &quot;2ms&quot;,
              &quot;property_3&quot;: &quot;8s&quot;,
              &quot;property_4&quot;: &quot;5_000s&quot;
           }&quot;#</span>;
 
-        <span class="comment">// WHEN</span>
-        <span class="kw">let</span> <span class="ident">result</span>: <span class="ident">MockProperties</span> =
-            <span class="ident">serde_json::from_str</span>(<span class="ident">input</span>).<span class="ident">expect</span>(<span class="string">&quot;Couldn&#39;t deserialize string&quot;</span>);
+        <span class="comment">// WHEN
+        </span><span class="kw">let </span>result: MockProperties =
+            serde_json::from_str(input).expect(<span class="string">&quot;Couldn&#39;t deserialize string&quot;</span>);
 
-        <span class="comment">// THEN</span>
-        <span class="macro">assert_eq!</span>(<span class="ident">result</span>.<span class="ident">property_1</span>.<span class="ident">as_millis</span>(), <span class="number">1_000</span>);
-        <span class="macro">assert_eq!</span>(<span class="ident">result</span>.<span class="ident">property_2</span>.<span class="ident">as_millis</span>(), <span class="number">2</span>);
-        <span class="macro">assert_eq!</span>(<span class="ident">result</span>.<span class="ident">property_3</span>.<span class="ident">as_secs</span>(), <span class="number">8</span>);
-        <span class="macro">assert_eq!</span>(<span class="ident">result</span>.<span class="ident">property_4</span>.<span class="ident">as_secs</span>(), <span class="number">5_000</span>);
+        <span class="comment">// THEN
+        </span><span class="macro">assert_eq!</span>(result.property_1.as_millis(), <span class="number">1_000</span>);
+        <span class="macro">assert_eq!</span>(result.property_2.as_millis(), <span class="number">2</span>);
+        <span class="macro">assert_eq!</span>(result.property_3.as_secs(), <span class="number">8</span>);
+        <span class="macro">assert_eq!</span>(result.property_4.as_secs(), <span class="number">5_000</span>);
     }
 
-    <span class="attribute">#[<span class="ident">test</span>]</span>
-    <span class="kw">fn</span> <span class="ident">roundtrip</span>() {
-        <span class="comment">// GIVEN</span>
-        <span class="kw">let</span> <span class="ident">input</span> = <span class="string">r#&quot;{
+    <span class="attribute">#[test]</span>
+    <span class="kw">fn </span>roundtrip() {
+        <span class="comment">// GIVEN
+        </span><span class="kw">let </span>input = <span class="string">r#&quot;{
              &quot;property_1&quot;: &quot;1_000ms&quot;,
              &quot;property_2&quot;: &quot;2ms&quot;,
              &quot;property_3&quot;: &quot;8s&quot;,
              &quot;property_4&quot;: &quot;5_000s&quot;
           }&quot;#</span>;
 
-        <span class="comment">// WHEN</span>
-        <span class="kw">let</span> <span class="ident">result</span>: <span class="ident">MockProperties</span> =
-            <span class="ident">serde_json::from_str</span>(<span class="ident">input</span>).<span class="ident">expect</span>(<span class="string">&quot;Couldn&#39;t deserialize string&quot;</span>);
+        <span class="comment">// WHEN
+        </span><span class="kw">let </span>result: MockProperties =
+            serde_json::from_str(input).expect(<span class="string">&quot;Couldn&#39;t deserialize string&quot;</span>);
 
-        <span class="comment">// THEN</span>
-        <span class="kw">let</span> <span class="ident">serialized</span> = <span class="ident">serde_json::to_string</span>(<span class="kw-2">&amp;</span><span class="ident">result</span>).<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="ident">deserialized</span> = <span class="ident">serde_json::from_str</span>(<span class="kw-2">&amp;</span><span class="ident">serialized</span>).<span class="ident">unwrap</span>();
-        <span class="macro">assert_eq!</span>(<span class="ident">result</span>, <span class="ident">deserialized</span>);
+        <span class="comment">// THEN
+        </span><span class="kw">let </span>serialized = serde_json::to_string(<span class="kw-2">&amp;</span>result).unwrap();
+        <span class="kw">let </span>deserialized = serde_json::from_str(<span class="kw-2">&amp;</span>serialized).unwrap();
+        <span class="macro">assert_eq!</span>(result, deserialized);
     }
 
-    <span class="attribute">#[<span class="ident">test</span>]</span>
-    <span class="kw">fn</span> <span class="ident">parse_error</span>() {
-        <span class="comment">// GIVEN</span>
-        <span class="kw">let</span> <span class="ident">input</span> = <span class="string">r#&quot;{
+    <span class="attribute">#[test]</span>
+    <span class="kw">fn </span>parse_error() {
+        <span class="comment">// GIVEN
+        </span><span class="kw">let </span>input = <span class="string">r#&quot;{
              &quot;property_1&quot;: &quot;1000 ms&quot;,
              &quot;property_2&quot;: &quot;8seconds&quot;
           }&quot;#</span>;
 
-        <span class="comment">// WHEN</span>
-        <span class="kw">let</span> <span class="ident">result</span> = <span class="ident">serde_json::from_str</span>::&lt;<span class="ident">MockProperties</span>&gt;(<span class="ident">input</span>);
+        <span class="comment">// WHEN
+        </span><span class="kw">let </span>result = serde_json::from_str::&lt;MockProperties&gt;(input);
 
-        <span class="comment">// THEN</span>
-        <span class="macro">assert!</span>(<span class="ident">result</span>.<span class="ident">is_err</span>());
+        <span class="comment">// THEN
+        </span><span class="macro">assert!</span>(result.is_err());
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="config" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="config" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (801821d15 2022-08-14)" ></div></body></html>

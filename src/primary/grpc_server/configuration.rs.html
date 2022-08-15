@@ -166,173 +166,173 @@
 <span id="166">166</span>
 <span id="167">167</span>
 <span id="168">168</span>
-</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
-<span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">PrimaryAddresses</span>, <span class="ident">SharedCommittee</span>};
-<span class="kw">use</span> <span class="ident">crypto</span>::{<span class="ident">traits::ToFromBytes</span>, <span class="ident">PublicKey</span>};
-<span class="kw">use</span> <span class="ident">multiaddr::Multiaddr</span>;
-<span class="kw">use</span> <span class="ident">std::collections::BTreeMap</span>;
-<span class="kw">use</span> <span class="ident">tonic</span>::{<span class="ident">Request</span>, <span class="ident">Response</span>, <span class="ident">Status</span>};
-<span class="kw">use</span> <span class="ident">types</span>::{
-    <span class="ident">Configuration</span>, <span class="ident">Empty</span>, <span class="ident">GetPrimaryAddressResponse</span>, <span class="ident">MultiAddrProto</span>, <span class="ident">NewEpochRequest</span>,
-    <span class="ident">NewNetworkInfoRequest</span>, <span class="ident">PublicKeyProto</span>,
+</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+</span><span class="kw">use </span>config::{PrimaryAddresses, SharedCommittee};
+<span class="kw">use </span>crypto::{traits::ToFromBytes, PublicKey};
+<span class="kw">use </span>multiaddr::Multiaddr;
+<span class="kw">use </span>std::collections::BTreeMap;
+<span class="kw">use </span>tonic::{Request, Response, Status};
+<span class="kw">use </span>types::{
+    Configuration, Empty, GetPrimaryAddressResponse, MultiAddrProto, NewEpochRequest,
+    NewNetworkInfoRequest, PublicKeyProto,
 };
 
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">NarwhalConfiguration</span> {
-    <span class="ident">primary_address</span>: <span class="ident">Multiaddr</span>,
-    <span class="doccomment">/// The committee</span>
-    <span class="ident">committee</span>: <span class="ident">SharedCommittee</span>,
+<span class="kw">pub struct </span>NarwhalConfiguration {
+    primary_address: Multiaddr,
+    <span class="doccomment">/// The committee
+    </span>committee: SharedCommittee,
 }
 
-<span class="kw">impl</span> <span class="ident">NarwhalConfiguration</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">primary_address</span>: <span class="ident">Multiaddr</span>, <span class="ident">committee</span>: <span class="ident">SharedCommittee</span>) -&gt; <span class="self">Self</span> {
-        <span class="self">Self</span> {
-            <span class="ident">primary_address</span>,
-            <span class="ident">committee</span>,
+<span class="kw">impl </span>NarwhalConfiguration {
+    <span class="kw">pub fn </span>new(primary_address: Multiaddr, committee: SharedCommittee) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            primary_address,
+            committee,
         }
     }
 
-    <span class="doccomment">/// Extracts and verifies the public key provided from the RoundsRequest.</span>
-    <span class="doccomment">/// The method will return a result where the OK() will hold the</span>
-    <span class="doccomment">/// parsed public key. The Err() will hold a Status message with the</span>
-    <span class="doccomment">/// specific error description.</span>
-    <span class="kw">fn</span> <span class="ident">get_public_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">request</span>: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="ident">PublicKeyProto</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">PublicKey</span>, <span class="ident">Status</span>&gt; {
-        <span class="kw">let</span> <span class="ident">proto_key</span> = <span class="ident">request</span>
-            .<span class="ident">ok_or_else</span>(|| <span class="ident">Status::invalid_argument</span>(<span class="string">&quot;Invalid public key: no key provided&quot;</span>))<span class="question-mark">?</span>;
-        <span class="kw">let</span> <span class="ident">key</span> = <span class="ident">PublicKey::from_bytes</span>(<span class="ident">proto_key</span>.<span class="ident">bytes</span>.<span class="ident">as_ref</span>())
-            .<span class="ident">map_err</span>(|<span class="kw">_</span>| <span class="ident">Status::invalid_argument</span>(<span class="string">&quot;Invalid public key: couldn&#39;t parse&quot;</span>))<span class="question-mark">?</span>;
+    <span class="doccomment">/// Extracts and verifies the public key provided from the RoundsRequest.
+    /// The method will return a result where the OK() will hold the
+    /// parsed public key. The Err() will hold a Status message with the
+    /// specific error description.
+    </span><span class="kw">fn </span>get_public_key(<span class="kw-2">&amp;</span><span class="self">self</span>, request: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>PublicKeyProto&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;PublicKey, Status&gt; {
+        <span class="kw">let </span>proto_key = request
+            .ok_or_else(|| Status::invalid_argument(<span class="string">&quot;Invalid public key: no key provided&quot;</span>))<span class="question-mark">?</span>;
+        <span class="kw">let </span>key = PublicKey::from_bytes(proto_key.bytes.as_ref())
+            .map_err(|<span class="kw">_</span>| Status::invalid_argument(<span class="string">&quot;Invalid public key: couldn&#39;t parse&quot;</span>))<span class="question-mark">?</span>;
 
-        <span class="comment">// ensure provided key is part of the committee</span>
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">load</span>().<span class="ident">primary</span>(<span class="kw-2">&amp;</span><span class="ident">key</span>).<span class="ident">is_err</span>() {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Status::invalid_argument</span>(
+        <span class="comment">// ensure provided key is part of the committee
+        </span><span class="kw">if </span><span class="self">self</span>.committee.load().primary(<span class="kw-2">&amp;</span>key).is_err() {
+            <span class="kw">return </span><span class="prelude-val">Err</span>(Status::invalid_argument(
                 <span class="string">&quot;Invalid public key: unknown authority&quot;</span>,
             ));
         }
 
-        <span class="prelude-val">Ok</span>(<span class="ident">key</span>)
+        <span class="prelude-val">Ok</span>(key)
     }
 }
 
-<span class="attribute">#[<span class="ident">tonic::async_trait</span>]</span>
-<span class="kw">impl</span> <span class="ident">Configuration</span> <span class="kw">for</span> <span class="ident">NarwhalConfiguration</span> {
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">new_epoch</span>(
+<span class="attribute">#[tonic::async_trait]</span>
+<span class="kw">impl </span>Configuration <span class="kw">for </span>NarwhalConfiguration {
+    <span class="kw">async fn </span>new_epoch(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">request</span>: <span class="ident">Request</span>&lt;<span class="ident">NewEpochRequest</span>&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">Response</span>&lt;<span class="ident">Empty</span>&gt;, <span class="ident">Status</span>&gt; {
-        <span class="kw">let</span> <span class="ident">new_epoch_request</span> = <span class="ident">request</span>.<span class="ident">into_inner</span>();
-        <span class="kw">let</span> <span class="ident">epoch_number</span> = <span class="ident">new_epoch_request</span>.<span class="ident">epoch_number</span>;
-        <span class="kw">let</span> <span class="ident">validators</span> = <span class="ident">new_epoch_request</span>.<span class="ident">validators</span>;
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">parsed_input</span> = <span class="macro">vec!</span>[];
-        <span class="kw">for</span> <span class="ident">validator</span> <span class="kw">in</span> <span class="ident">validators</span>.<span class="ident">iter</span>() {
-            <span class="kw">let</span> <span class="ident">public_key</span> = <span class="self">self</span>.<span class="ident">get_public_key</span>(<span class="ident">validator</span>.<span class="ident">public_key</span>.<span class="ident">as_ref</span>())<span class="question-mark">?</span>;
+        request: Request&lt;NewEpochRequest&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;Response&lt;Empty&gt;, Status&gt; {
+        <span class="kw">let </span>new_epoch_request = request.into_inner();
+        <span class="kw">let </span>epoch_number = new_epoch_request.epoch_number;
+        <span class="kw">let </span>validators = new_epoch_request.validators;
+        <span class="kw">let </span><span class="kw-2">mut </span>parsed_input = <span class="macro">vec!</span>[];
+        <span class="kw">for </span>validator <span class="kw">in </span>validators.iter() {
+            <span class="kw">let </span>public_key = <span class="self">self</span>.get_public_key(validator.public_key.as_ref())<span class="question-mark">?</span>;
 
-            <span class="kw">let</span> <span class="ident">stake_weight</span> = <span class="ident">validator</span>.<span class="ident">stake_weight</span>;
-            <span class="kw">let</span> <span class="ident">primary_addresses</span> = <span class="ident">validator</span>
-                .<span class="ident">primary_addresses</span>
-                .<span class="ident">as_ref</span>()
-                .<span class="ident">ok_or_else</span>(|| <span class="ident">Status::invalid_argument</span>(<span class="string">&quot;Missing primary addresses&quot;</span>))<span class="question-mark">?</span>;
-            <span class="kw">let</span> <span class="ident">primary_to_primary</span> = <span class="ident">primary_addresses</span>
-                .<span class="ident">primary_to_primary</span>
-                .<span class="ident">as_ref</span>()
-                .<span class="ident">ok_or_else</span>(|| <span class="ident">Status::invalid_argument</span>(<span class="string">&quot;Missing primary to primary address&quot;</span>))<span class="question-mark">?</span>
-                .<span class="ident">address</span>
-                .<span class="ident">parse</span>()
-                .<span class="ident">map_err</span>(|<span class="ident">err</span>| {
-                    <span class="ident">Status::invalid_argument</span>(<span class="macro">format!</span>(<span class="string">&quot;Could not serialize: {:?}&quot;</span>, <span class="ident">err</span>))
+            <span class="kw">let </span>stake_weight = validator.stake_weight;
+            <span class="kw">let </span>primary_addresses = validator
+                .primary_addresses
+                .as_ref()
+                .ok_or_else(|| Status::invalid_argument(<span class="string">&quot;Missing primary addresses&quot;</span>))<span class="question-mark">?</span>;
+            <span class="kw">let </span>primary_to_primary = primary_addresses
+                .primary_to_primary
+                .as_ref()
+                .ok_or_else(|| Status::invalid_argument(<span class="string">&quot;Missing primary to primary address&quot;</span>))<span class="question-mark">?
+                </span>.address
+                .parse()
+                .map_err(|err| {
+                    Status::invalid_argument(<span class="macro">format!</span>(<span class="string">&quot;Could not serialize: {:?}&quot;</span>, err))
                 })<span class="question-mark">?</span>;
-            <span class="kw">let</span> <span class="ident">worker_to_primary</span> = <span class="ident">primary_addresses</span>
-                .<span class="ident">primary_to_primary</span>
-                .<span class="ident">as_ref</span>()
-                .<span class="ident">ok_or_else</span>(|| <span class="ident">Status::invalid_argument</span>(<span class="string">&quot;Missing worker to primary address&quot;</span>))<span class="question-mark">?</span>
-                .<span class="ident">address</span>
-                .<span class="ident">parse</span>()
-                .<span class="ident">map_err</span>(|<span class="ident">err</span>| {
-                    <span class="ident">Status::invalid_argument</span>(<span class="macro">format!</span>(<span class="string">&quot;Could not serialize: {:?}&quot;</span>, <span class="ident">err</span>))
+            <span class="kw">let </span>worker_to_primary = primary_addresses
+                .primary_to_primary
+                .as_ref()
+                .ok_or_else(|| Status::invalid_argument(<span class="string">&quot;Missing worker to primary address&quot;</span>))<span class="question-mark">?
+                </span>.address
+                .parse()
+                .map_err(|err| {
+                    Status::invalid_argument(<span class="macro">format!</span>(<span class="string">&quot;Could not serialize: {:?}&quot;</span>, err))
                 })<span class="question-mark">?</span>;
-            <span class="kw">let</span> <span class="ident">primary</span> = <span class="ident">PrimaryAddresses</span> {
-                <span class="ident">primary_to_primary</span>,
-                <span class="ident">worker_to_primary</span>,
+            <span class="kw">let </span>primary = PrimaryAddresses {
+                primary_to_primary,
+                worker_to_primary,
             };
-            <span class="ident">parsed_input</span>.<span class="ident">push</span>(<span class="macro">format!</span>(
+            parsed_input.push(<span class="macro">format!</span>(
                 <span class="string">&quot;public_key: {:?} stake_weight: {:?} primary addresses: {:?}&quot;</span>,
-                <span class="ident">public_key</span>, <span class="ident">stake_weight</span>, <span class="ident">primary</span>
+                public_key, stake_weight, primary
             ));
         }
-        <span class="prelude-val">Err</span>(<span class="ident">Status::internal</span>(<span class="macro">format!</span>(
+        <span class="prelude-val">Err</span>(Status::internal(<span class="macro">format!</span>(
             <span class="string">&quot;Not Implemented! But parsed input - epoch_number: {:?} &amp; validator_data: {:?}&quot;</span>,
-            <span class="ident">epoch_number</span>, <span class="ident">parsed_input</span>
+            epoch_number, parsed_input
         )))
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">new_network_info</span>(
+    <span class="kw">async fn </span>new_network_info(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">request</span>: <span class="ident">Request</span>&lt;<span class="ident">NewNetworkInfoRequest</span>&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">Response</span>&lt;<span class="ident">Empty</span>&gt;, <span class="ident">Status</span>&gt; {
-        <span class="kw">let</span> <span class="ident">new_network_info_request</span> = <span class="ident">request</span>.<span class="ident">into_inner</span>();
-        <span class="kw">let</span> <span class="ident">epoch_number</span>: <span class="ident">u64</span> = <span class="ident">new_network_info_request</span>.<span class="ident">epoch_number</span>.<span class="ident">into</span>();
-        <span class="kw">if</span> <span class="ident">epoch_number</span> != <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">load</span>().<span class="ident">epoch</span>() {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Status::invalid_argument</span>(<span class="macro">format!</span>(
+        request: Request&lt;NewNetworkInfoRequest&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;Response&lt;Empty&gt;, Status&gt; {
+        <span class="kw">let </span>new_network_info_request = request.into_inner();
+        <span class="kw">let </span>epoch_number: u64 = new_network_info_request.epoch_number.into();
+        <span class="kw">if </span>epoch_number != <span class="self">self</span>.committee.load().epoch() {
+            <span class="kw">return </span><span class="prelude-val">Err</span>(Status::invalid_argument(<span class="macro">format!</span>(
                 <span class="string">&quot;Passed in epoch {epoch_number} does not match current epoch {}&quot;</span>,
-                <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">load</span>().<span class="ident">epoch</span>
+                <span class="self">self</span>.committee.load().epoch
             )));
         }
-        <span class="kw">let</span> <span class="ident">validators</span> = <span class="ident">new_network_info_request</span>.<span class="ident">validators</span>;
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">new_network_info</span> = <span class="ident">BTreeMap::new</span>();
-        <span class="kw">for</span> <span class="ident">validator</span> <span class="kw">in</span> <span class="ident">validators</span>.<span class="ident">iter</span>() {
-            <span class="kw">let</span> <span class="ident">public_key</span> = <span class="self">self</span>.<span class="ident">get_public_key</span>(<span class="ident">validator</span>.<span class="ident">public_key</span>.<span class="ident">as_ref</span>())<span class="question-mark">?</span>;
+        <span class="kw">let </span>validators = new_network_info_request.validators;
+        <span class="kw">let </span><span class="kw-2">mut </span>new_network_info = BTreeMap::new();
+        <span class="kw">for </span>validator <span class="kw">in </span>validators.iter() {
+            <span class="kw">let </span>public_key = <span class="self">self</span>.get_public_key(validator.public_key.as_ref())<span class="question-mark">?</span>;
 
-            <span class="kw">let</span> <span class="ident">stake_weight</span>: <span class="ident">u32</span> = <span class="ident">validator</span>
-                .<span class="ident">stake_weight</span>
-                .<span class="ident">try_into</span>()
-                .<span class="ident">map_err</span>(|<span class="kw">_</span>| <span class="ident">Status::invalid_argument</span>(<span class="string">&quot;Invalid stake weight&quot;</span>))<span class="question-mark">?</span>;
-            <span class="kw">let</span> <span class="ident">primary_addresses</span> = <span class="ident">validator</span>
-                .<span class="ident">primary_addresses</span>
-                .<span class="ident">as_ref</span>()
-                .<span class="ident">ok_or_else</span>(|| <span class="ident">Status::invalid_argument</span>(<span class="string">&quot;Missing primary addresses&quot;</span>))<span class="question-mark">?</span>;
-            <span class="kw">let</span> <span class="ident">primary_to_primary</span> = <span class="ident">primary_addresses</span>
-                .<span class="ident">primary_to_primary</span>
-                .<span class="ident">as_ref</span>()
-                .<span class="ident">ok_or_else</span>(|| <span class="ident">Status::invalid_argument</span>(<span class="string">&quot;Missing primary to primary address&quot;</span>))<span class="question-mark">?</span>
-                .<span class="ident">address</span>
-                .<span class="ident">parse</span>()
-                .<span class="ident">map_err</span>(|<span class="ident">err</span>| {
-                    <span class="ident">Status::invalid_argument</span>(<span class="macro">format!</span>(<span class="string">&quot;Could not serialize: {:?}&quot;</span>, <span class="ident">err</span>))
+            <span class="kw">let </span>stake_weight: u32 = validator
+                .stake_weight
+                .try_into()
+                .map_err(|<span class="kw">_</span>| Status::invalid_argument(<span class="string">&quot;Invalid stake weight&quot;</span>))<span class="question-mark">?</span>;
+            <span class="kw">let </span>primary_addresses = validator
+                .primary_addresses
+                .as_ref()
+                .ok_or_else(|| Status::invalid_argument(<span class="string">&quot;Missing primary addresses&quot;</span>))<span class="question-mark">?</span>;
+            <span class="kw">let </span>primary_to_primary = primary_addresses
+                .primary_to_primary
+                .as_ref()
+                .ok_or_else(|| Status::invalid_argument(<span class="string">&quot;Missing primary to primary address&quot;</span>))<span class="question-mark">?
+                </span>.address
+                .parse()
+                .map_err(|err| {
+                    Status::invalid_argument(<span class="macro">format!</span>(<span class="string">&quot;Could not serialize: {:?}&quot;</span>, err))
                 })<span class="question-mark">?</span>;
-            <span class="kw">let</span> <span class="ident">worker_to_primary</span> = <span class="ident">primary_addresses</span>
-                .<span class="ident">primary_to_primary</span>
-                .<span class="ident">as_ref</span>()
-                .<span class="ident">ok_or_else</span>(|| <span class="ident">Status::invalid_argument</span>(<span class="string">&quot;Missing worker to primary address&quot;</span>))<span class="question-mark">?</span>
-                .<span class="ident">address</span>
-                .<span class="ident">parse</span>()
-                .<span class="ident">map_err</span>(|<span class="ident">err</span>| {
-                    <span class="ident">Status::invalid_argument</span>(<span class="macro">format!</span>(<span class="string">&quot;Could not serialize: {:?}&quot;</span>, <span class="ident">err</span>))
+            <span class="kw">let </span>worker_to_primary = primary_addresses
+                .primary_to_primary
+                .as_ref()
+                .ok_or_else(|| Status::invalid_argument(<span class="string">&quot;Missing worker to primary address&quot;</span>))<span class="question-mark">?
+                </span>.address
+                .parse()
+                .map_err(|err| {
+                    Status::invalid_argument(<span class="macro">format!</span>(<span class="string">&quot;Could not serialize: {:?}&quot;</span>, err))
                 })<span class="question-mark">?</span>;
-            <span class="kw">let</span> <span class="ident">primary</span> = <span class="ident">PrimaryAddresses</span> {
-                <span class="ident">primary_to_primary</span>,
-                <span class="ident">worker_to_primary</span>,
+            <span class="kw">let </span>primary = PrimaryAddresses {
+                primary_to_primary,
+                worker_to_primary,
             };
-            <span class="ident">new_network_info</span>.<span class="ident">insert</span>(<span class="ident">public_key</span>, (<span class="ident">stake_weight</span>, <span class="ident">primary</span>));
+            new_network_info.insert(public_key, (stake_weight, primary));
         }
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">new_committee</span> = (<span class="kw-2">*</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">load</span>()).<span class="ident">clone</span>();
-        <span class="kw">let</span> <span class="ident">res</span> = <span class="ident">new_committee</span>.<span class="ident">update_primary_network_info</span>(<span class="ident">new_network_info</span>);
-        <span class="kw">if</span> <span class="ident">res</span>.<span class="ident">is_ok</span>() {
-            <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">swap</span>(<span class="ident">std::sync::Arc::new</span>(<span class="ident">new_committee</span>));
+        <span class="kw">let </span><span class="kw-2">mut </span>new_committee = (<span class="kw-2">**</span><span class="self">self</span>.committee.load()).clone();
+        <span class="kw">let </span>res = new_committee.update_primary_network_info(new_network_info);
+        <span class="kw">if </span>res.is_ok() {
+            <span class="self">self</span>.committee.swap(std::sync::Arc::new(new_committee));
         }
-        <span class="ident">res</span>.<span class="ident">map_err</span>(|<span class="ident">err</span>| <span class="ident">Status::internal</span>(<span class="macro">format!</span>(<span class="string">&quot;Could not update network info: {:?}&quot;</span>, <span class="ident">err</span>)))<span class="question-mark">?</span>;
+        res.map_err(|err| Status::internal(<span class="macro">format!</span>(<span class="string">&quot;Could not update network info: {:?}&quot;</span>, err)))<span class="question-mark">?</span>;
 
-        <span class="prelude-val">Ok</span>(<span class="ident">Response::new</span>(<span class="ident">Empty</span> {}))
+        <span class="prelude-val">Ok</span>(Response::new(Empty {}))
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get_primary_address</span>(
+    <span class="kw">async fn </span>get_primary_address(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">_request</span>: <span class="ident">Request</span>&lt;<span class="ident">Empty</span>&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">Response</span>&lt;<span class="ident">GetPrimaryAddressResponse</span>&gt;, <span class="ident">Status</span>&gt; {
-        <span class="prelude-val">Ok</span>(<span class="ident">Response::new</span>(<span class="ident">GetPrimaryAddressResponse</span> {
-            <span class="ident">primary_address</span>: <span class="prelude-val">Some</span>(<span class="ident">MultiAddrProto</span> {
-                <span class="ident">address</span>: <span class="self">self</span>.<span class="ident">primary_address</span>.<span class="ident">to_string</span>(),
+        _request: Request&lt;Empty&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;Response&lt;GetPrimaryAddressResponse&gt;, Status&gt; {
+        <span class="prelude-val">Ok</span>(Response::new(GetPrimaryAddressResponse {
+            primary_address: <span class="prelude-val">Some</span>(MultiAddrProto {
+                address: <span class="self">self</span>.primary_address.to_string(),
             }),
         }))
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (801821d15 2022-08-14)" ></div></body></html>

@@ -126,133 +126,133 @@
 <span id="126">126</span>
 <span id="127">127</span>
 <span id="128">128</span>
-</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
-<span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">Node</span>, <span class="ident">NodeStorage</span>};
-<span class="kw">use</span> <span class="ident">arc_swap::ArcSwap</span>;
-<span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">Committee</span>, <span class="ident">Parameters</span>};
-<span class="kw">use</span> <span class="ident">crypto</span>::{<span class="ident">traits::KeyPair</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">KeyPair</span>};
-<span class="kw">use</span> <span class="ident">executor</span>::{<span class="ident">ExecutionState</span>, <span class="ident">ExecutorOutput</span>};
-<span class="kw">use</span> <span class="ident">futures::future::join_all</span>;
-<span class="kw">use</span> <span class="ident">network</span>::{<span class="ident">PrimaryToWorkerNetwork</span>, <span class="ident">ReliableNetwork</span>, <span class="ident">UnreliableNetwork</span>, <span class="ident">WorkerToPrimaryNetwork</span>};
-<span class="kw">use</span> <span class="ident">prometheus::Registry</span>;
-<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">fmt::Debug</span>, <span class="ident">path::PathBuf</span>, <span class="ident">sync::Arc</span>};
-<span class="kw">use</span> <span class="ident">tokio::sync::mpsc</span>::{<span class="ident">Receiver</span>, <span class="ident">Sender</span>};
-<span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">PrimaryWorkerMessage</span>, <span class="ident">ReconfigureNotification</span>, <span class="ident">WorkerPrimaryMessage</span>};
+</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+</span><span class="kw">use crate</span>::{Node, NodeStorage};
+<span class="kw">use </span>arc_swap::ArcSwap;
+<span class="kw">use </span>config::{Committee, Parameters};
+<span class="kw">use </span>crypto::{traits::KeyPair <span class="kw">as _</span>, KeyPair};
+<span class="kw">use </span>executor::{ExecutionState, ExecutorOutput};
+<span class="kw">use </span>futures::future::join_all;
+<span class="kw">use </span>network::{PrimaryToWorkerNetwork, ReliableNetwork, UnreliableNetwork, WorkerToPrimaryNetwork};
+<span class="kw">use </span>prometheus::Registry;
+<span class="kw">use </span>std::{fmt::Debug, path::PathBuf, sync::Arc};
+<span class="kw">use </span>tokio::sync::mpsc::{Receiver, Sender};
+<span class="kw">use </span>types::{PrimaryWorkerMessage, ReconfigureNotification, WorkerPrimaryMessage};
 
-<span class="comment">// Module to start a node (primary, workers and default consensus), keep it running, and restarting it</span>
-<span class="doccomment">/// every time the committee changes.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">NodeRestarter</span>;
+<span class="comment">// Module to start a node (primary, workers and default consensus), keep it running, and restarting it
+</span><span class="doccomment">/// every time the committee changes.
+</span><span class="kw">pub struct </span>NodeRestarter;
 
-<span class="kw">impl</span> <span class="ident">NodeRestarter</span> {
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">watch</span>&lt;<span class="ident">State</span>&gt;(
-        <span class="ident">keypair</span>: <span class="ident">KeyPair</span>,
-        <span class="ident">committee</span>: <span class="kw-2">&amp;</span><span class="ident">Committee</span>,
-        <span class="ident">storage_base_path</span>: <span class="ident">PathBuf</span>,
-        <span class="ident">execution_state</span>: <span class="ident">Arc</span>&lt;<span class="ident">State</span>&gt;,
-        <span class="ident">parameters</span>: <span class="ident">Parameters</span>,
-        <span class="kw-2">mut</span> <span class="ident">rx_reconfigure</span>: <span class="ident">Receiver</span>&lt;(<span class="ident">KeyPair</span>, <span class="ident">Committee</span>)&gt;,
-        <span class="ident">tx_output</span>: <span class="ident">Sender</span>&lt;<span class="ident">ExecutorOutput</span>&lt;<span class="ident">State</span>&gt;&gt;,
-        <span class="ident">registry</span>: <span class="kw-2">&amp;</span><span class="ident">Registry</span>,
-    ) <span class="kw">where</span>
-        <span class="ident">State</span>: <span class="ident">ExecutionState</span> + <span class="ident">Send</span> + <span class="ident">Sync</span> + <span class="lifetime">&#39;static</span>,
-        <span class="ident">State::Outcome</span>: <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
-        <span class="ident">State::Error</span>: <span class="ident">Debug</span>,
+<span class="kw">impl </span>NodeRestarter {
+    <span class="kw">pub async fn </span>watch&lt;State&gt;(
+        keypair: KeyPair,
+        committee: <span class="kw-2">&amp;</span>Committee,
+        storage_base_path: PathBuf,
+        execution_state: Arc&lt;State&gt;,
+        parameters: Parameters,
+        <span class="kw-2">mut </span>rx_reconfigure: Receiver&lt;(KeyPair, Committee)&gt;,
+        tx_output: Sender&lt;ExecutorOutput&lt;State&gt;&gt;,
+        registry: <span class="kw-2">&amp;</span>Registry,
+    ) <span class="kw">where
+        </span>State: ExecutionState + Send + Sync + <span class="lifetime">&#39;static</span>,
+        State::Outcome: Send + <span class="lifetime">&#39;static</span>,
+        State::Error: Debug,
     {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">keypair</span> = <span class="ident">keypair</span>;
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">name</span> = <span class="ident">keypair</span>.<span class="ident">public</span>().<span class="ident">clone</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">committee</span> = <span class="ident">committee</span>.<span class="ident">clone</span>();
+        <span class="kw">let </span><span class="kw-2">mut </span>keypair = keypair;
+        <span class="kw">let </span><span class="kw-2">mut </span>name = keypair.public().clone();
+        <span class="kw">let </span><span class="kw-2">mut </span>committee = committee.clone();
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">task_managers</span> = <span class="ident">Vec::new</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">primary_network</span> = <span class="ident">WorkerToPrimaryNetwork::default</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">worker_network</span> = <span class="ident">PrimaryToWorkerNetwork::default</span>();
+        <span class="kw">let </span><span class="kw-2">mut </span>task_managers = Vec::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>primary_network = WorkerToPrimaryNetwork::default();
+        <span class="kw">let </span><span class="kw-2">mut </span>worker_network = PrimaryToWorkerNetwork::default();
 
-        <span class="comment">// Listen for new committees.</span>
-        <span class="kw">loop</span> {
-            <span class="macro">tracing::info!</span>(<span class="string">&quot;Starting epoch E{}&quot;</span>, <span class="ident">committee</span>.<span class="ident">epoch</span>());
+        <span class="comment">// Listen for new committees.
+        </span><span class="kw">loop </span>{
+            <span class="macro">tracing::info!</span>(<span class="string">&quot;Starting epoch E{}&quot;</span>, committee.epoch());
 
-            <span class="comment">// Get a fresh store for the new epoch.</span>
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">store_path</span> = <span class="ident">storage_base_path</span>.<span class="ident">clone</span>();
-            <span class="ident">store_path</span>.<span class="ident">push</span>(<span class="macro">format!</span>(<span class="string">&quot;epoch{}&quot;</span>, <span class="ident">committee</span>.<span class="ident">epoch</span>()));
-            <span class="kw">let</span> <span class="ident">store</span> = <span class="ident">NodeStorage::reopen</span>(<span class="ident">store_path</span>);
+            <span class="comment">// Get a fresh store for the new epoch.
+            </span><span class="kw">let </span><span class="kw-2">mut </span>store_path = storage_base_path.clone();
+            store_path.push(<span class="macro">format!</span>(<span class="string">&quot;epoch{}&quot;</span>, committee.epoch()));
+            <span class="kw">let </span>store = NodeStorage::reopen(store_path);
 
-            <span class="comment">// Restart the relevant components.</span>
-            <span class="kw">let</span> <span class="ident">primary</span> = <span class="ident">Node::spawn_primary</span>(
-                <span class="ident">keypair</span>,
-                <span class="ident">Arc::new</span>(<span class="ident">ArcSwap::new</span>(<span class="ident">Arc::new</span>(<span class="ident">committee</span>.<span class="ident">clone</span>()))),
-                <span class="kw-2">&amp;</span><span class="ident">store</span>,
-                <span class="ident">parameters</span>.<span class="ident">clone</span>(),
-                <span class="comment">/* consensus */</span> <span class="bool-val">true</span>,
-                <span class="ident">execution_state</span>.<span class="ident">clone</span>(),
-                <span class="ident">tx_output</span>.<span class="ident">clone</span>(),
-                <span class="ident">registry</span>,
+            <span class="comment">// Restart the relevant components.
+            </span><span class="kw">let </span>primary = Node::spawn_primary(
+                keypair,
+                Arc::new(ArcSwap::new(Arc::new(committee.clone()))),
+                <span class="kw-2">&amp;</span>store,
+                parameters.clone(),
+                <span class="comment">/* consensus */ </span><span class="bool-val">true</span>,
+                execution_state.clone(),
+                tx_output.clone(),
+                registry,
             )
-            .<span class="kw">await</span>
-            .<span class="ident">unwrap</span>();
+            .<span class="kw">await
+            </span>.unwrap();
 
-            <span class="kw">let</span> <span class="ident">workers</span> = <span class="ident">Node::spawn_workers</span>(
-                <span class="ident">name</span>.<span class="ident">clone</span>(),
-                <span class="comment">/* worker_ids */</span> <span class="macro">vec!</span>[<span class="number">0</span>],
-                <span class="ident">Arc::new</span>(<span class="ident">ArcSwap::new</span>(<span class="ident">Arc::new</span>(<span class="ident">committee</span>.<span class="ident">clone</span>()))),
-                <span class="kw-2">&amp;</span><span class="ident">store</span>,
-                <span class="ident">parameters</span>.<span class="ident">clone</span>(),
-                <span class="ident">registry</span>,
+            <span class="kw">let </span>workers = Node::spawn_workers(
+                name.clone(),
+                <span class="comment">/* worker_ids */ </span><span class="macro">vec!</span>[<span class="number">0</span>],
+                Arc::new(ArcSwap::new(Arc::new(committee.clone()))),
+                <span class="kw-2">&amp;</span>store,
+                parameters.clone(),
+                registry,
             );
 
-            <span class="ident">task_managers</span>.<span class="ident">push</span>(<span class="ident">primary</span>);
-            <span class="ident">task_managers</span>.<span class="ident">push</span>(<span class="ident">workers</span>);
+            task_managers.push(primary);
+            task_managers.push(workers);
 
-            <span class="comment">// Wait for a committee change.</span>
-            <span class="kw">let</span> (<span class="ident">new_keypair</span>, <span class="ident">new_committee</span>) = <span class="kw">match</span> <span class="ident">rx_reconfigure</span>.<span class="ident">recv</span>().<span class="kw">await</span> {
-                <span class="prelude-val">Some</span>(<span class="ident">x</span>) =&gt; <span class="ident">x</span>,
-                <span class="prelude-val">None</span> =&gt; <span class="kw">break</span>,
+            <span class="comment">// Wait for a committee change.
+            </span><span class="kw">let </span>(new_keypair, new_committee) = <span class="kw">match </span>rx_reconfigure.recv().<span class="kw">await </span>{
+                <span class="prelude-val">Some</span>(x) =&gt; x,
+                <span class="prelude-val">None </span>=&gt; <span class="kw">break</span>,
             };
             <span class="macro">tracing::info!</span>(<span class="string">&quot;Starting reconfiguration with committee {committee}&quot;</span>);
 
-            <span class="comment">// Shutdown all relevant components.</span>
-            <span class="kw">let</span> <span class="ident">address</span> = <span class="ident">committee</span>
-                .<span class="ident">primary</span>(<span class="kw-2">&amp;</span><span class="ident">name</span>)
-                .<span class="ident">expect</span>(<span class="string">&quot;Our key is not in the committee&quot;</span>)
-                .<span class="ident">worker_to_primary</span>;
-            <span class="kw">let</span> <span class="ident">message</span> = <span class="ident">WorkerPrimaryMessage::Reconfigure</span>(<span class="ident">ReconfigureNotification::Shutdown</span>);
-            <span class="kw">let</span> <span class="ident">primary_cancel_handle</span> = <span class="ident">primary_network</span>.<span class="ident">send</span>(<span class="ident">address</span>, <span class="kw-2">&amp;</span><span class="ident">message</span>).<span class="kw">await</span>;
+            <span class="comment">// Shutdown all relevant components.
+            </span><span class="kw">let </span>address = committee
+                .primary(<span class="kw-2">&amp;</span>name)
+                .expect(<span class="string">&quot;Our key is not in the committee&quot;</span>)
+                .worker_to_primary;
+            <span class="kw">let </span>message = WorkerPrimaryMessage::Reconfigure(ReconfigureNotification::Shutdown);
+            <span class="kw">let </span>primary_cancel_handle = primary_network.send(address, <span class="kw-2">&amp;</span>message).<span class="kw">await</span>;
 
-            <span class="kw">let</span> <span class="ident">addresses</span> = <span class="ident">committee</span>
-                .<span class="ident">our_workers</span>(<span class="kw-2">&amp;</span><span class="ident">name</span>)
-                .<span class="ident">expect</span>(<span class="string">&quot;Our key is not in the committee&quot;</span>)
-                .<span class="ident">into_iter</span>()
-                .<span class="ident">map</span>(|<span class="ident">x</span>| <span class="ident">x</span>.<span class="ident">primary_to_worker</span>)
-                .<span class="ident">collect</span>();
-            <span class="kw">let</span> <span class="ident">message</span> = <span class="ident">PrimaryWorkerMessage::Reconfigure</span>(<span class="ident">ReconfigureNotification::Shutdown</span>);
-            <span class="kw">let</span> <span class="ident">worker_cancel_handles</span> = <span class="ident">worker_network</span>
-                .<span class="ident">unreliable_broadcast</span>(<span class="ident">addresses</span>, <span class="kw-2">&amp;</span><span class="ident">message</span>)
+            <span class="kw">let </span>addresses = committee
+                .our_workers(<span class="kw-2">&amp;</span>name)
+                .expect(<span class="string">&quot;Our key is not in the committee&quot;</span>)
+                .into_iter()
+                .map(|x| x.primary_to_worker)
+                .collect();
+            <span class="kw">let </span>message = PrimaryWorkerMessage::Reconfigure(ReconfigureNotification::Shutdown);
+            <span class="kw">let </span>worker_cancel_handles = worker_network
+                .unreliable_broadcast(addresses, <span class="kw-2">&amp;</span>message)
                 .<span class="kw">await</span>;
 
-            <span class="comment">// Ensure the message has been received.</span>
-            <span class="ident">primary_cancel_handle</span>
-                .<span class="kw">await</span>
-                .<span class="ident">expect</span>(<span class="string">&quot;Failed to notify primary&quot;</span>);
-            <span class="ident">join_all</span>(<span class="ident">worker_cancel_handles</span>).<span class="kw">await</span>;
+            <span class="comment">// Ensure the message has been received.
+            </span>primary_cancel_handle
+                .<span class="kw">await
+                </span>.expect(<span class="string">&quot;Failed to notify primary&quot;</span>);
+            join_all(worker_cancel_handles).<span class="kw">await</span>;
             <span class="macro">tracing::debug!</span>(<span class="string">&quot;Committee reconfiguration message successfully sent&quot;</span>);
 
-            <span class="comment">// Cleanup the network.</span>
-            <span class="ident">worker_network</span>.<span class="ident">cleanup</span>(<span class="ident">committee</span>.<span class="ident">network_diff</span>(<span class="kw-2">&amp;</span><span class="ident">new_committee</span>));
+            <span class="comment">// Cleanup the network.
+            </span>worker_network.cleanup(committee.network_diff(<span class="kw-2">&amp;</span>new_committee));
 
-            <span class="comment">// Wait for the components to shut down.</span>
-            <span class="ident">join_all</span>(<span class="ident">task_managers</span>.<span class="ident">drain</span>(..)).<span class="kw">await</span>;
+            <span class="comment">// Wait for the components to shut down.
+            </span>join_all(task_managers.drain(..)).<span class="kw">await</span>;
             <span class="macro">tracing::debug!</span>(<span class="string">&quot;All tasks successfully exited&quot;</span>);
 
-            <span class="comment">// Give it an extra second in case the last task to exit is a network server. The OS</span>
-            <span class="comment">// may need a moment to make the TCP ports available again.</span>
-            <span class="ident">tokio::time::sleep</span>(<span class="ident">tokio::time::Duration::from_secs</span>(<span class="number">1</span>)).<span class="kw">await</span>;
-            <span class="macro">tracing::debug!</span>(<span class="string">&quot;Epoch E{} terminated&quot;</span>, <span class="ident">committee</span>.<span class="ident">epoch</span>());
+            <span class="comment">// Give it an extra second in case the last task to exit is a network server. The OS
+            // may need a moment to make the TCP ports available again.
+            </span>tokio::time::sleep(tokio::time::Duration::from_secs(<span class="number">1</span>)).<span class="kw">await</span>;
+            <span class="macro">tracing::debug!</span>(<span class="string">&quot;Epoch E{} terminated&quot;</span>, committee.epoch());
 
-            <span class="comment">// Update the settings for the next epoch.</span>
-            <span class="ident">keypair</span> = <span class="ident">new_keypair</span>;
-            <span class="ident">name</span> = <span class="ident">keypair</span>.<span class="ident">public</span>().<span class="ident">clone</span>();
-            <span class="ident">committee</span> = <span class="ident">new_committee</span>;
+            <span class="comment">// Update the settings for the next epoch.
+            </span>keypair = new_keypair;
+            name = keypair.public().clone();
+            committee = new_committee;
         }
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="node" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="node" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (801821d15 2022-08-14)" ></div></body></html>

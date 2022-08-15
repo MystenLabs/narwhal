@@ -79,79 +79,79 @@
 <span id="79">79</span>
 <span id="80">80</span>
 <span id="81">81</span>
-</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
-<span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
-<span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
+</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
+// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
 
-<span class="kw">use</span> <span class="ident">config::WorkerId</span>;
-<span class="kw">use</span> <span class="ident">store::Store</span>;
-<span class="kw">use</span> <span class="ident">tokio</span>::{<span class="ident">sync::watch</span>, <span class="ident">task::JoinHandle</span>};
-<span class="kw">use</span> <span class="ident">tracing::error</span>;
-<span class="kw">use</span> <span class="ident">types</span>::{
-    <span class="ident">error::DagError</span>,
-    <span class="ident">metered_channel</span>::{<span class="ident">Receiver</span>, <span class="ident">Sender</span>},
-    <span class="ident">serialized_batch_digest</span>, <span class="ident">BatchDigest</span>, <span class="ident">ReconfigureNotification</span>, <span class="ident">SerializedBatchMessage</span>,
-    <span class="ident">WorkerPrimaryMessage</span>,
+</span><span class="kw">use </span>config::WorkerId;
+<span class="kw">use </span>store::Store;
+<span class="kw">use </span>tokio::{sync::watch, task::JoinHandle};
+<span class="kw">use </span>tracing::error;
+<span class="kw">use </span>types::{
+    error::DagError,
+    metered_channel::{Receiver, Sender},
+    serialized_batch_digest, BatchDigest, ReconfigureNotification, SerializedBatchMessage,
+    WorkerPrimaryMessage,
 };
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="attribute">#[<span class="ident">path</span> = <span class="string">&quot;tests/processor_tests.rs&quot;</span>]</span>
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">processor_tests</span>;
+<span class="attribute">#[cfg(test)]</span>
+<span class="attribute">#[path = <span class="string">&quot;tests/processor_tests.rs&quot;</span>]</span>
+<span class="kw">pub mod </span>processor_tests;
 
-<span class="doccomment">/// Hashes and stores batches, it then outputs the batch&#39;s digest.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Processor</span>;
+<span class="doccomment">/// Hashes and stores batches, it then outputs the batch&#39;s digest.
+</span><span class="kw">pub struct </span>Processor;
 
-<span class="kw">impl</span> <span class="ident">Processor</span> {
-    <span class="attribute">#[<span class="ident">must_use</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(
-        <span class="comment">// Our worker&#39;s id.</span>
-        <span class="ident">id</span>: <span class="ident">WorkerId</span>,
-        <span class="comment">// The persistent storage.</span>
-        <span class="ident">store</span>: <span class="ident">Store</span>&lt;<span class="ident">BatchDigest</span>, <span class="ident">SerializedBatchMessage</span>&gt;,
-        <span class="comment">// Receive reconfiguration signals.</span>
-        <span class="kw-2">mut</span> <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span>&lt;<span class="ident">ReconfigureNotification</span>&gt;,
-        <span class="comment">// Input channel to receive batches.</span>
-        <span class="kw-2">mut</span> <span class="ident">rx_batch</span>: <span class="ident">Receiver</span>&lt;<span class="ident">SerializedBatchMessage</span>&gt;,
-        <span class="comment">// Output channel to send out batches&#39; digests.</span>
-        <span class="ident">tx_digest</span>: <span class="ident">Sender</span>&lt;<span class="ident">WorkerPrimaryMessage</span>&gt;,
-        <span class="comment">// Whether we are processing our own batches or the batches of other nodes.</span>
-        <span class="ident">own_digest</span>: <span class="ident">bool</span>,
-    ) -&gt; <span class="ident">JoinHandle</span>&lt;()&gt; {
-        <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
-            <span class="kw">loop</span> {
+<span class="kw">impl </span>Processor {
+    <span class="attribute">#[must_use]</span>
+    <span class="kw">pub fn </span>spawn(
+        <span class="comment">// Our worker&#39;s id.
+        </span>id: WorkerId,
+        <span class="comment">// The persistent storage.
+        </span>store: Store&lt;BatchDigest, SerializedBatchMessage&gt;,
+        <span class="comment">// Receive reconfiguration signals.
+        </span><span class="kw-2">mut </span>rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;,
+        <span class="comment">// Input channel to receive batches.
+        </span><span class="kw-2">mut </span>rx_batch: Receiver&lt;SerializedBatchMessage&gt;,
+        <span class="comment">// Output channel to send out batches&#39; digests.
+        </span>tx_digest: Sender&lt;WorkerPrimaryMessage&gt;,
+        <span class="comment">// Whether we are processing our own batches or the batches of other nodes.
+        </span>own_digest: bool,
+    ) -&gt; JoinHandle&lt;()&gt; {
+        tokio::spawn(<span class="kw">async move </span>{
+            <span class="kw">loop </span>{
                 <span class="macro">tokio::select!</span> {
-                    <span class="prelude-val">Some</span>(<span class="ident">batch</span>) = <span class="ident">rx_batch</span>.<span class="ident">recv</span>() =&gt; {
-                        <span class="comment">// Hash the batch.</span>
-                        <span class="kw">let</span> <span class="ident">res_digest</span> = <span class="ident">serialized_batch_digest</span>(<span class="kw-2">&amp;</span><span class="ident">batch</span>);
+                    <span class="prelude-val">Some</span>(batch) = rx_batch.recv() =&gt; {
+                        <span class="comment">// Hash the batch.
+                        </span><span class="kw">let </span>res_digest = serialized_batch_digest(<span class="kw-2">&amp;</span>batch);
 
-                        <span class="kw">match</span> <span class="ident">res_digest</span> {
-                            <span class="prelude-val">Ok</span>(<span class="ident">digest</span>) =&gt; {
-                                <span class="comment">// Store the batch.</span>
-                                <span class="ident">store</span>.<span class="ident">write</span>(<span class="ident">digest</span>, <span class="ident">batch</span>).<span class="kw">await</span>;
+                        <span class="kw">match </span>res_digest {
+                            <span class="prelude-val">Ok</span>(digest) =&gt; {
+                                <span class="comment">// Store the batch.
+                                </span>store.write(digest, batch).<span class="kw">await</span>;
 
-                                <span class="comment">// Deliver the batch&#39;s digest.</span>
-                                <span class="kw">let</span> <span class="ident">message</span> = <span class="kw">match</span> <span class="ident">own_digest</span> {
-                                    <span class="bool-val">true</span> =&gt; <span class="ident">WorkerPrimaryMessage::OurBatch</span>(<span class="ident">digest</span>, <span class="ident">id</span>),
-                                    <span class="bool-val">false</span> =&gt; <span class="ident">WorkerPrimaryMessage::OthersBatch</span>(<span class="ident">digest</span>, <span class="ident">id</span>),
+                                <span class="comment">// Deliver the batch&#39;s digest.
+                                </span><span class="kw">let </span>message = <span class="kw">match </span>own_digest {
+                                    <span class="bool-val">true </span>=&gt; WorkerPrimaryMessage::OurBatch(digest, id),
+                                    <span class="bool-val">false </span>=&gt; WorkerPrimaryMessage::OthersBatch(digest, id),
                                 };
-                                <span class="kw">if</span> <span class="ident">tx_digest</span>
-                                    .<span class="ident">send</span>(<span class="ident">message</span>)
-                                    .<span class="kw">await</span>
-                                    .<span class="ident">is_err</span>() {
-                                    <span class="macro">tracing::debug!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">DagError::ShuttingDown</span>);
+                                <span class="kw">if </span>tx_digest
+                                    .send(message)
+                                    .<span class="kw">await
+                                    </span>.is_err() {
+                                    <span class="macro">tracing::debug!</span>(<span class="string">&quot;{}&quot;</span>, DagError::ShuttingDown);
                                 };
                             }
-                            <span class="prelude-val">Err</span>(<span class="ident">error</span>) =&gt; {
+                            <span class="prelude-val">Err</span>(error) =&gt; {
                                 <span class="macro">error!</span>(<span class="string">&quot;Received invalid batch, serialization failure: {error}&quot;</span>);
                             }
                         }
                     },
 
-                    <span class="comment">// Trigger reconfigure.</span>
-                    <span class="ident">result</span> = <span class="ident">rx_reconfigure</span>.<span class="ident">changed</span>() =&gt; {
-                        <span class="ident">result</span>.<span class="ident">expect</span>(<span class="string">&quot;Committee channel dropped&quot;</span>);
-                        <span class="kw">let</span> <span class="ident">message</span> = <span class="ident">rx_reconfigure</span>.<span class="ident">borrow</span>().<span class="ident">clone</span>();
-                        <span class="kw">if</span> <span class="kw">let</span> <span class="ident">ReconfigureNotification::Shutdown</span> = <span class="ident">message</span> {
+                    <span class="comment">// Trigger reconfigure.
+                    </span>result = rx_reconfigure.changed() =&gt; {
+                        result.expect(<span class="string">&quot;Committee channel dropped&quot;</span>);
+                        <span class="kw">let </span>message = rx_reconfigure.borrow().clone();
+                        <span class="kw">if let </span>ReconfigureNotification::Shutdown = message {
                             <span class="kw">return</span>;
                         }
                     }
@@ -161,4 +161,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (801821d15 2022-08-14)" ></div></body></html>

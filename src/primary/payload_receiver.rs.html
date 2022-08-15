@@ -35,42 +35,42 @@
 <span id="35">35</span>
 <span id="36">36</span>
 <span id="37">37</span>
-</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
-<span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
-<span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::primary::PayloadToken</span>;
-<span class="kw">use</span> <span class="ident">config::WorkerId</span>;
-<span class="kw">use</span> <span class="ident">store::Store</span>;
-<span class="kw">use</span> <span class="ident">tokio::task::JoinHandle</span>;
-<span class="kw">use</span> <span class="ident">tracing::info</span>;
-<span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">metered_channel::Receiver</span>, <span class="ident">BatchDigest</span>};
+</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
+// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+</span><span class="kw">use </span><span class="kw">crate</span>::primary::PayloadToken;
+<span class="kw">use </span>config::WorkerId;
+<span class="kw">use </span>store::Store;
+<span class="kw">use </span>tokio::task::JoinHandle;
+<span class="kw">use </span>tracing::info;
+<span class="kw">use </span>types::{metered_channel::Receiver, BatchDigest};
 
-<span class="doccomment">/// Receives batches&#39; digests of other authorities. These are only needed to verify incoming</span>
-<span class="doccomment">/// headers (i.e.. make sure we have their payload).</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">PayloadReceiver</span> {
-    <span class="doccomment">/// The persistent storage.</span>
-    <span class="ident">store</span>: <span class="ident">Store</span>&lt;(<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>), <span class="ident">PayloadToken</span>&gt;,
-    <span class="doccomment">/// Receives batches&#39; digests from the network.</span>
-    <span class="ident">rx_workers</span>: <span class="ident">Receiver</span>&lt;(<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>)&gt;,
+<span class="doccomment">/// Receives batches&#39; digests of other authorities. These are only needed to verify incoming
+/// headers (i.e.. make sure we have their payload).
+</span><span class="kw">pub struct </span>PayloadReceiver {
+    <span class="doccomment">/// The persistent storage.
+    </span>store: Store&lt;(BatchDigest, WorkerId), PayloadToken&gt;,
+    <span class="doccomment">/// Receives batches&#39; digests from the network.
+    </span>rx_workers: Receiver&lt;(BatchDigest, WorkerId)&gt;,
 }
 
-<span class="kw">impl</span> <span class="ident">PayloadReceiver</span> {
-    <span class="attribute">#[<span class="ident">must_use</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(
-        <span class="ident">store</span>: <span class="ident">Store</span>&lt;(<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>), <span class="ident">PayloadToken</span>&gt;,
-        <span class="ident">rx_workers</span>: <span class="ident">Receiver</span>&lt;(<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>)&gt;,
-    ) -&gt; <span class="ident">JoinHandle</span>&lt;()&gt; {
-        <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
-            <span class="self">Self</span> { <span class="ident">store</span>, <span class="ident">rx_workers</span> }.<span class="ident">run</span>().<span class="kw">await</span>;
+<span class="kw">impl </span>PayloadReceiver {
+    <span class="attribute">#[must_use]</span>
+    <span class="kw">pub fn </span>spawn(
+        store: Store&lt;(BatchDigest, WorkerId), PayloadToken&gt;,
+        rx_workers: Receiver&lt;(BatchDigest, WorkerId)&gt;,
+    ) -&gt; JoinHandle&lt;()&gt; {
+        tokio::spawn(<span class="kw">async move </span>{
+            <span class="self">Self </span>{ store, rx_workers }.run().<span class="kw">await</span>;
         })
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">run</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
+    <span class="kw">async fn </span>run(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="macro">info!</span>(<span class="string">&quot;PayloadReceiver has started successfully.&quot;</span>);
-        <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">digest</span>, <span class="ident">worker_id</span>)) = <span class="self">self</span>.<span class="ident">rx_workers</span>.<span class="ident">recv</span>().<span class="kw">await</span> {
-            <span class="self">self</span>.<span class="ident">store</span>.<span class="ident">write</span>((<span class="ident">digest</span>, <span class="ident">worker_id</span>), <span class="number">0u8</span>).<span class="kw">await</span>;
+        <span class="kw">while let </span><span class="prelude-val">Some</span>((digest, worker_id)) = <span class="self">self</span>.rx_workers.recv().<span class="kw">await </span>{
+            <span class="self">self</span>.store.write((digest, worker_id), <span class="number">0u8</span>).<span class="kw">await</span>;
         }
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (801821d15 2022-08-14)" ></div></body></html>

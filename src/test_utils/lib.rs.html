@@ -848,855 +848,855 @@
 <span id="848">848</span>
 <span id="849">849</span>
 <span id="850">850</span>
-</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
-<span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
-<span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="kw">use</span> <span class="ident">config</span>::{
-    <span class="ident">utils::get_available_port</span>, <span class="ident">Authority</span>, <span class="ident">Committee</span>, <span class="ident">Epoch</span>, <span class="ident">PrimaryAddresses</span>, <span class="ident">WorkerId</span>, <span class="ident">WorkerInfo</span>,
+</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
+// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+</span><span class="kw">use </span>config::{
+    utils::get_available_port, Authority, Committee, Epoch, PrimaryAddresses, WorkerId, WorkerInfo,
 };
-<span class="kw">use</span> <span class="ident">crypto</span>::{
-    <span class="ident">traits</span>::{<span class="ident">KeyPair</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">Signer</span> <span class="kw">as</span> <span class="kw">_</span>},
-    <span class="ident">Digest</span>, <span class="ident">Hash</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">KeyPair</span>, <span class="ident">PublicKey</span>, <span class="ident">Signature</span>,
+<span class="kw">use </span>crypto::{
+    traits::{KeyPair <span class="kw">as _</span>, Signer <span class="kw">as _</span>},
+    Digest, Hash <span class="kw">as _</span>, KeyPair, PublicKey, Signature,
 };
-<span class="kw">use</span> <span class="ident">futures::Stream</span>;
-<span class="kw">use</span> <span class="ident">indexmap::IndexMap</span>;
-<span class="kw">use</span> <span class="ident">multiaddr::Multiaddr</span>;
-<span class="kw">use</span> <span class="ident">rand</span>::{<span class="ident">rngs::StdRng</span>, <span class="ident">Rng</span>, <span class="ident">SeedableRng</span> <span class="kw">as</span> <span class="kw">_</span>};
-<span class="kw">use</span> <span class="ident">std</span>::{
-    <span class="ident">collections</span>::{<span class="ident">BTreeSet</span>, <span class="ident">HashMap</span>, <span class="ident">VecDeque</span>},
-    <span class="ident">ops::RangeInclusive</span>,
-    <span class="ident">pin::Pin</span>,
-    <span class="ident">sync::Arc</span>,
+<span class="kw">use </span>futures::Stream;
+<span class="kw">use </span>indexmap::IndexMap;
+<span class="kw">use </span>multiaddr::Multiaddr;
+<span class="kw">use </span>rand::{rngs::StdRng, Rng, SeedableRng <span class="kw">as _</span>};
+<span class="kw">use </span>std::{
+    collections::{BTreeSet, HashMap, VecDeque},
+    ops::RangeInclusive,
+    pin::Pin,
+    sync::Arc,
 };
-<span class="kw">use</span> <span class="ident">store</span>::{<span class="ident">reopen</span>, <span class="ident">rocks</span>, <span class="ident">rocks::DBMap</span>, <span class="ident">Store</span>};
-<span class="kw">use</span> <span class="ident">tokio::sync::mpsc</span>::{<span class="ident">channel</span>, <span class="ident">Receiver</span>, <span class="ident">Sender</span>};
-<span class="kw">use</span> <span class="ident">tonic::Response</span>;
-<span class="kw">use</span> <span class="ident">types</span>::{
-    <span class="ident">serialized_batch_digest</span>, <span class="ident">Batch</span>, <span class="ident">BatchDigest</span>, <span class="ident">BincodeEncodedPayload</span>, <span class="ident">Certificate</span>,
-    <span class="ident">CertificateDigest</span>, <span class="ident">ConsensusStore</span>, <span class="ident">Empty</span>, <span class="ident">Header</span>, <span class="ident">HeaderBuilder</span>, <span class="ident">PrimaryToPrimary</span>,
-    <span class="ident">PrimaryToPrimaryServer</span>, <span class="ident">PrimaryToWorker</span>, <span class="ident">PrimaryToWorkerServer</span>, <span class="ident">Round</span>, <span class="ident">SequenceNumber</span>,
-    <span class="ident">Transaction</span>, <span class="ident">Vote</span>, <span class="ident">WorkerToPrimary</span>, <span class="ident">WorkerToPrimaryServer</span>, <span class="ident">WorkerToWorker</span>,
-    <span class="ident">WorkerToWorkerServer</span>,
+<span class="kw">use </span>store::{reopen, rocks, rocks::DBMap, Store};
+<span class="kw">use </span>tokio::sync::mpsc::{channel, Receiver, Sender};
+<span class="kw">use </span>tonic::Response;
+<span class="kw">use </span>types::{
+    serialized_batch_digest, Batch, BatchDigest, BincodeEncodedPayload, Certificate,
+    CertificateDigest, ConsensusStore, Empty, Header, HeaderBuilder, PrimaryToPrimary,
+    PrimaryToPrimaryServer, PrimaryToWorker, PrimaryToWorkerServer, Round, SequenceNumber,
+    Transaction, Vote, WorkerToPrimary, WorkerToPrimaryServer, WorkerToWorker,
+    WorkerToWorkerServer,
 };
 
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">cluster</span>;
+<span class="kw">pub mod </span>cluster;
 
-<span class="kw">pub</span> <span class="kw">const</span> <span class="ident">HEADERS_CF</span>: <span class="kw-2">&amp;</span><span class="ident">str</span> = <span class="string">&quot;headers&quot;</span>;
-<span class="kw">pub</span> <span class="kw">const</span> <span class="ident">CERTIFICATES_CF</span>: <span class="kw-2">&amp;</span><span class="ident">str</span> = <span class="string">&quot;certificates&quot;</span>;
-<span class="kw">pub</span> <span class="kw">const</span> <span class="ident">PAYLOAD_CF</span>: <span class="kw-2">&amp;</span><span class="ident">str</span> = <span class="string">&quot;payload&quot;</span>;
+<span class="kw">pub const </span>HEADERS_CF: <span class="kw-2">&amp;</span>str = <span class="string">&quot;headers&quot;</span>;
+<span class="kw">pub const </span>CERTIFICATES_CF: <span class="kw-2">&amp;</span>str = <span class="string">&quot;certificates&quot;</span>;
+<span class="kw">pub const </span>PAYLOAD_CF: <span class="kw-2">&amp;</span>str = <span class="string">&quot;payload&quot;</span>;
 
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">temp_dir</span>() -&gt; <span class="ident">std::path::PathBuf</span> {
-    <span class="ident">tempfile::tempdir</span>()
-        .<span class="ident">expect</span>(<span class="string">&quot;Failed to open temporary directory&quot;</span>)
-        .<span class="ident">into_path</span>()
+<span class="kw">pub fn </span>temp_dir() -&gt; std::path::PathBuf {
+    tempfile::tempdir()
+        .expect(<span class="string">&quot;Failed to open temporary directory&quot;</span>)
+        .into_path()
 }
 
-<span class="attribute">#[<span class="ident">macro_export</span>]</span>
-<span class="macro">macro_rules!</span> <span class="ident">test_channel</span> {
-    (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">e</span>:<span class="ident">expr</span>) =&gt; {
-        <span class="ident">types::metered_channel::channel</span>(
-            <span class="macro-nonterminal">$</span><span class="macro-nonterminal">e</span>,
-            <span class="kw-2">&amp;</span><span class="ident">prometheus::IntGauge::new</span>(<span class="string">&quot;TEST_COUNTER&quot;</span>, <span class="string">&quot;test counter&quot;</span>).<span class="ident">unwrap</span>(),
+<span class="attribute">#[macro_export]</span>
+<span class="macro">macro_rules!</span> test_channel {
+    (<span class="macro-nonterminal">$e</span>:expr) =&gt; {
+        types::metered_channel::channel(
+            <span class="macro-nonterminal">$e</span>,
+            <span class="kw-2">&amp;</span>prometheus::IntGauge::new(<span class="string">&quot;TEST_COUNTER&quot;</span>, <span class="string">&quot;test counter&quot;</span>).unwrap(),
         );
     };
 }
 
-<span class="comment">// Note: use the following macros to initialize your Primary / Consensus channels</span>
-<span class="comment">// if your test is spawning a primary and you encounter an `AllReg` error.</span>
-<span class="comment">//</span>
-<span class="comment">// Rationale:</span>
-<span class="comment">// The primary initialization will try to edit a specific metric in its registry</span>
-<span class="comment">// for its new_certificates and committeed_certificates channel. The gauge situated</span>
-<span class="comment">// in the channel you&#39;re passing as an argument to the primary initialization is</span>
-<span class="comment">// the replacement. If that gauge is a dummy gauge, such as the one above, the</span>
-<span class="comment">// initialization of the primary will panic (to protect the production code against</span>
-<span class="comment">// an erroneous mistake in editing this bootstrap logic).</span>
-<span class="attribute">#[<span class="ident">macro_export</span>]</span>
-<span class="macro">macro_rules!</span> <span class="ident">test_committed_certificates_channel</span> {
-    (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">e</span>:<span class="ident">expr</span>) =&gt; {
-        <span class="ident">types::metered_channel::channel</span>(
-            <span class="macro-nonterminal">$</span><span class="macro-nonterminal">e</span>,
-            <span class="kw-2">&amp;</span><span class="ident">prometheus::IntGauge::new</span>(
-                <span class="ident">primary::PrimaryChannelMetrics::NAME_COMMITTED_CERTS</span>,
-                <span class="ident">primary::PrimaryChannelMetrics::DESC_COMMITTED_CERTS</span>,
+<span class="comment">// Note: use the following macros to initialize your Primary / Consensus channels
+// if your test is spawning a primary and you encounter an `AllReg` error.
+//
+// Rationale:
+// The primary initialization will try to edit a specific metric in its registry
+// for its new_certificates and committeed_certificates channel. The gauge situated
+// in the channel you&#39;re passing as an argument to the primary initialization is
+// the replacement. If that gauge is a dummy gauge, such as the one above, the
+// initialization of the primary will panic (to protect the production code against
+// an erroneous mistake in editing this bootstrap logic).
+</span><span class="attribute">#[macro_export]</span>
+<span class="macro">macro_rules!</span> test_committed_certificates_channel {
+    (<span class="macro-nonterminal">$e</span>:expr) =&gt; {
+        types::metered_channel::channel(
+            <span class="macro-nonterminal">$e</span>,
+            <span class="kw-2">&amp;</span>prometheus::IntGauge::new(
+                primary::PrimaryChannelMetrics::NAME_COMMITTED_CERTS,
+                primary::PrimaryChannelMetrics::DESC_COMMITTED_CERTS,
             )
-            .<span class="ident">unwrap</span>(),
+            .unwrap(),
         );
     };
 }
 
-<span class="attribute">#[<span class="ident">macro_export</span>]</span>
-<span class="macro">macro_rules!</span> <span class="ident">test_new_certificates_channel</span> {
-    (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">e</span>:<span class="ident">expr</span>) =&gt; {
-        <span class="ident">types::metered_channel::channel</span>(
-            <span class="macro-nonterminal">$</span><span class="macro-nonterminal">e</span>,
-            <span class="kw-2">&amp;</span><span class="ident">prometheus::IntGauge::new</span>(
-                <span class="ident">primary::PrimaryChannelMetrics::NAME_NEW_CERTS</span>,
-                <span class="ident">primary::PrimaryChannelMetrics::DESC_NEW_CERTS</span>,
+<span class="attribute">#[macro_export]</span>
+<span class="macro">macro_rules!</span> test_new_certificates_channel {
+    (<span class="macro-nonterminal">$e</span>:expr) =&gt; {
+        types::metered_channel::channel(
+            <span class="macro-nonterminal">$e</span>,
+            <span class="kw-2">&amp;</span>prometheus::IntGauge::new(
+                primary::PrimaryChannelMetrics::NAME_NEW_CERTS,
+                primary::PrimaryChannelMetrics::DESC_NEW_CERTS,
             )
-            .<span class="ident">unwrap</span>(),
+            .unwrap(),
         );
     };
 }
 
-<span class="comment">////////////////////////////////////////////////////////////////</span>
-<span class="doccomment">/// Keys, Committee</span>
-<span class="comment">////////////////////////////////////////////////////////////////</span>
+<span class="comment">////////////////////////////////////////////////////////////////
+</span><span class="doccomment">/// Keys, Committee
+</span><span class="comment">////////////////////////////////////////////////////////////////
 
-<span class="comment">// Fixture</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">keys</span>(<span class="ident">rng_seed</span>: <span class="kw">impl</span> <span class="ident">Into</span>&lt;<span class="prelude-ty">Option</span>&lt;<span class="ident">u64</span>&gt;&gt;) -&gt; <span class="ident">Vec</span>&lt;<span class="ident">KeyPair</span>&gt; {
-    <span class="kw">let</span> <span class="ident">seed</span> = <span class="ident">rng_seed</span>.<span class="ident">into</span>().<span class="ident">unwrap_or</span>(<span class="number">0u64</span>).<span class="ident">to_le_bytes</span>();
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">rng_arg</span> = [<span class="number">0u8</span>; <span class="number">32</span>];
-    <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="number">4</span> {
-        <span class="ident">rng_arg</span>[<span class="ident">i</span> * <span class="number">8</span>..(<span class="ident">i</span> + <span class="number">1</span>) * <span class="number">8</span>].<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">seed</span>[..]);
+// Fixture
+</span><span class="kw">pub fn </span>keys(rng_seed: <span class="kw">impl </span>Into&lt;<span class="prelude-ty">Option</span>&lt;u64&gt;&gt;) -&gt; Vec&lt;KeyPair&gt; {
+    <span class="kw">let </span>seed = rng_seed.into().unwrap_or(<span class="number">0u64</span>).to_le_bytes();
+    <span class="kw">let </span><span class="kw-2">mut </span>rng_arg = [<span class="number">0u8</span>; <span class="number">32</span>];
+    <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..<span class="number">4 </span>{
+        rng_arg[i * <span class="number">8</span>..(i + <span class="number">1</span>) * <span class="number">8</span>].copy_from_slice(<span class="kw-2">&amp;</span>seed[..]);
     }
 
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">rng</span> = <span class="ident">StdRng::from_seed</span>(<span class="ident">rng_arg</span>);
-    (<span class="number">0</span>..<span class="number">4</span>).<span class="ident">map</span>(|<span class="kw">_</span>| <span class="ident">KeyPair::generate</span>(<span class="kw-2">&amp;mut</span> <span class="ident">rng</span>)).<span class="ident">collect</span>()
+    <span class="kw">let </span><span class="kw-2">mut </span>rng = StdRng::from_seed(rng_arg);
+    (<span class="number">0</span>..<span class="number">4</span>).map(|<span class="kw">_</span>| KeyPair::generate(<span class="kw-2">&amp;mut </span>rng)).collect()
 }
 
-<span class="comment">// Fixture</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">committee</span>(<span class="ident">rng_seed</span>: <span class="kw">impl</span> <span class="ident">Into</span>&lt;<span class="prelude-ty">Option</span>&lt;<span class="ident">u64</span>&gt;&gt;) -&gt; <span class="ident">Committee</span> {
-    <span class="ident">committee_from_keys</span>(<span class="kw-2">&amp;</span><span class="ident">keys</span>(<span class="ident">rng_seed</span>))
+<span class="comment">// Fixture
+</span><span class="kw">pub fn </span>committee(rng_seed: <span class="kw">impl </span>Into&lt;<span class="prelude-ty">Option</span>&lt;u64&gt;&gt;) -&gt; Committee {
+    committee_from_keys(<span class="kw-2">&amp;</span>keys(rng_seed))
 }
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">committee_from_keys</span>(<span class="ident">keys</span>: <span class="kw-2">&amp;</span>[<span class="ident">KeyPair</span>]) -&gt; <span class="ident">Committee</span> {
-    <span class="ident">pure_committee_from_keys</span>(<span class="ident">keys</span>)
+<span class="kw">pub fn </span>committee_from_keys(keys: <span class="kw-2">&amp;</span>[KeyPair]) -&gt; Committee {
+    pure_committee_from_keys(keys)
 }
 
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">make_authority_with_port_getter</span>&lt;<span class="ident">F</span>: <span class="ident">FnMut</span>() -&gt; <span class="ident">u16</span>&gt;(<span class="kw-2">mut</span> <span class="ident">get_port</span>: <span class="ident">F</span>) -&gt; <span class="ident">Authority</span> {
-    <span class="kw">let</span> <span class="ident">primary</span> = <span class="ident">PrimaryAddresses</span> {
-        <span class="ident">primary_to_primary</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_port</span>())
-            .<span class="ident">parse</span>()
-            .<span class="ident">unwrap</span>(),
-        <span class="ident">worker_to_primary</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_port</span>())
-            .<span class="ident">parse</span>()
-            .<span class="ident">unwrap</span>(),
+<span class="kw">pub fn </span>make_authority_with_port_getter&lt;F: FnMut() -&gt; u16&gt;(<span class="kw-2">mut </span>get_port: F) -&gt; Authority {
+    <span class="kw">let </span>primary = PrimaryAddresses {
+        primary_to_primary: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, get_port())
+            .parse()
+            .unwrap(),
+        worker_to_primary: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, get_port())
+            .parse()
+            .unwrap(),
     };
-    <span class="kw">let</span> <span class="ident">workers</span> = <span class="macro">vec!</span>[
+    <span class="kw">let </span>workers = <span class="macro">vec!</span>[
         (
             <span class="number">0</span>,
-            <span class="ident">WorkerInfo</span> {
-                <span class="ident">primary_to_worker</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_port</span>())
-                    .<span class="ident">parse</span>()
-                    .<span class="ident">unwrap</span>(),
-                <span class="ident">transactions</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_port</span>())
-                    .<span class="ident">parse</span>()
-                    .<span class="ident">unwrap</span>(),
-                <span class="ident">worker_to_worker</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_port</span>())
-                    .<span class="ident">parse</span>()
-                    .<span class="ident">unwrap</span>(),
+            WorkerInfo {
+                primary_to_worker: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, get_port())
+                    .parse()
+                    .unwrap(),
+                transactions: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, get_port())
+                    .parse()
+                    .unwrap(),
+                worker_to_worker: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, get_port())
+                    .parse()
+                    .unwrap(),
             },
         ),
         (
             <span class="number">1</span>,
-            <span class="ident">WorkerInfo</span> {
-                <span class="ident">primary_to_worker</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_port</span>())
-                    .<span class="ident">parse</span>()
-                    .<span class="ident">unwrap</span>(),
-                <span class="ident">transactions</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_port</span>())
-                    .<span class="ident">parse</span>()
-                    .<span class="ident">unwrap</span>(),
-                <span class="ident">worker_to_worker</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_port</span>())
-                    .<span class="ident">parse</span>()
-                    .<span class="ident">unwrap</span>(),
+            WorkerInfo {
+                primary_to_worker: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, get_port())
+                    .parse()
+                    .unwrap(),
+                transactions: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, get_port())
+                    .parse()
+                    .unwrap(),
+                worker_to_worker: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, get_port())
+                    .parse()
+                    .unwrap(),
             },
         ),
         (
             <span class="number">2</span>,
-            <span class="ident">WorkerInfo</span> {
-                <span class="ident">primary_to_worker</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_port</span>())
-                    .<span class="ident">parse</span>()
-                    .<span class="ident">unwrap</span>(),
-                <span class="ident">transactions</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_port</span>())
-                    .<span class="ident">parse</span>()
-                    .<span class="ident">unwrap</span>(),
-                <span class="ident">worker_to_worker</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_port</span>())
-                    .<span class="ident">parse</span>()
-                    .<span class="ident">unwrap</span>(),
+            WorkerInfo {
+                primary_to_worker: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, get_port())
+                    .parse()
+                    .unwrap(),
+                transactions: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, get_port())
+                    .parse()
+                    .unwrap(),
+                worker_to_worker: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, get_port())
+                    .parse()
+                    .unwrap(),
             },
         ),
         (
             <span class="number">3</span>,
-            <span class="ident">WorkerInfo</span> {
-                <span class="ident">primary_to_worker</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_port</span>())
-                    .<span class="ident">parse</span>()
-                    .<span class="ident">unwrap</span>(),
-                <span class="ident">transactions</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_port</span>())
-                    .<span class="ident">parse</span>()
-                    .<span class="ident">unwrap</span>(),
-                <span class="ident">worker_to_worker</span>: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, <span class="ident">get_port</span>())
-                    .<span class="ident">parse</span>()
-                    .<span class="ident">unwrap</span>(),
+            WorkerInfo {
+                primary_to_worker: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, get_port())
+                    .parse()
+                    .unwrap(),
+                transactions: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, get_port())
+                    .parse()
+                    .unwrap(),
+                worker_to_worker: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, get_port())
+                    .parse()
+                    .unwrap(),
             },
         ),
     ]
-    .<span class="ident">iter</span>()
-    .<span class="ident">cloned</span>()
-    .<span class="ident">collect</span>();
+    .iter()
+    .cloned()
+    .collect();
 
-    <span class="ident">Authority</span> {
-        <span class="ident">stake</span>: <span class="number">1</span>,
-        <span class="ident">primary</span>,
-        <span class="ident">workers</span>,
+    Authority {
+        stake: <span class="number">1</span>,
+        primary,
+        workers,
     }
 }
 
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">make_authority</span>() -&gt; <span class="ident">Authority</span> {
-    <span class="ident">make_authority_with_port_getter</span>(<span class="ident">get_available_port</span>)
+<span class="kw">pub fn </span>make_authority() -&gt; Authority {
+    make_authority_with_port_getter(get_available_port)
 }
 
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">pure_committee_from_keys</span>(<span class="ident">keys</span>: <span class="kw-2">&amp;</span>[<span class="ident">KeyPair</span>]) -&gt; <span class="ident">Committee</span> {
-    <span class="ident">Committee</span> {
-        <span class="ident">epoch</span>: <span class="ident">Epoch::default</span>(),
-        <span class="ident">authorities</span>: <span class="ident">keys</span>
-            .<span class="ident">iter</span>()
-            .<span class="ident">map</span>(|<span class="ident">kp</span>| (<span class="ident">kp</span>.<span class="ident">public</span>().<span class="ident">clone</span>(), <span class="ident">make_authority</span>()))
-            .<span class="ident">collect</span>(),
+<span class="kw">pub fn </span>pure_committee_from_keys(keys: <span class="kw-2">&amp;</span>[KeyPair]) -&gt; Committee {
+    Committee {
+        epoch: Epoch::default(),
+        authorities: keys
+            .iter()
+            .map(|kp| (kp.public().clone(), make_authority()))
+            .collect(),
     }
 }
 
-<span class="comment">////////////////////////////////////////////////////////////////</span>
-<span class="doccomment">/// Headers, Votes, Certificates</span>
-<span class="comment">////////////////////////////////////////////////////////////////</span>
+<span class="comment">////////////////////////////////////////////////////////////////
+</span><span class="doccomment">/// Headers, Votes, Certificates
+</span><span class="comment">////////////////////////////////////////////////////////////////
 
-<span class="comment">// Fixture</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">mock_committee</span>(<span class="ident">keys</span>: <span class="kw-2">&amp;</span>[<span class="ident">PublicKey</span>]) -&gt; <span class="ident">Committee</span> {
-    <span class="ident">Committee</span> {
-        <span class="ident">epoch</span>: <span class="ident">Epoch::default</span>(),
-        <span class="ident">authorities</span>: <span class="ident">keys</span>
-            .<span class="ident">iter</span>()
-            .<span class="ident">map</span>(|<span class="ident">id</span>| {
+// Fixture
+</span><span class="kw">pub fn </span>mock_committee(keys: <span class="kw-2">&amp;</span>[PublicKey]) -&gt; Committee {
+    Committee {
+        epoch: Epoch::default(),
+        authorities: keys
+            .iter()
+            .map(|id| {
                 (
-                    <span class="ident">id</span>.<span class="ident">clone</span>(),
-                    <span class="ident">Authority</span> {
-                        <span class="ident">stake</span>: <span class="number">1</span>,
-                        <span class="ident">primary</span>: <span class="ident">PrimaryAddresses</span> {
-                            <span class="ident">primary_to_primary</span>: <span class="string">&quot;/ip4/0.0.0.0/tcp/0/http&quot;</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>(),
-                            <span class="ident">worker_to_primary</span>: <span class="string">&quot;/ip4/0.0.0.0/tcp/0/http&quot;</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>(),
+                    id.clone(),
+                    Authority {
+                        stake: <span class="number">1</span>,
+                        primary: PrimaryAddresses {
+                            primary_to_primary: <span class="string">&quot;/ip4/0.0.0.0/tcp/0/http&quot;</span>.parse().unwrap(),
+                            worker_to_primary: <span class="string">&quot;/ip4/0.0.0.0/tcp/0/http&quot;</span>.parse().unwrap(),
                         },
-                        <span class="ident">workers</span>: <span class="ident">HashMap::default</span>(),
+                        workers: HashMap::default(),
                     },
                 )
             })
-            .<span class="ident">collect</span>(),
+            .collect(),
     }
 }
 
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">make_consensus_store</span>(<span class="ident">store_path</span>: <span class="kw-2">&amp;</span><span class="ident">std::path::Path</span>) -&gt; <span class="ident">Arc</span>&lt;<span class="ident">ConsensusStore</span>&gt; {
-    <span class="kw">const</span> <span class="ident">LAST_COMMITTED_CF</span>: <span class="kw-2">&amp;</span><span class="ident">str</span> = <span class="string">&quot;last_committed&quot;</span>;
-    <span class="kw">const</span> <span class="ident">SEQUENCE_CF</span>: <span class="kw-2">&amp;</span><span class="ident">str</span> = <span class="string">&quot;sequence&quot;</span>;
+<span class="kw">pub fn </span>make_consensus_store(store_path: <span class="kw-2">&amp;</span>std::path::Path) -&gt; Arc&lt;ConsensusStore&gt; {
+    <span class="kw">const </span>LAST_COMMITTED_CF: <span class="kw-2">&amp;</span>str = <span class="string">&quot;last_committed&quot;</span>;
+    <span class="kw">const </span>SEQUENCE_CF: <span class="kw-2">&amp;</span>str = <span class="string">&quot;sequence&quot;</span>;
 
-    <span class="kw">let</span> <span class="ident">rocksdb</span> = <span class="ident">rocks::open_cf</span>(<span class="ident">store_path</span>, <span class="prelude-val">None</span>, <span class="kw-2">&amp;</span>[<span class="ident">LAST_COMMITTED_CF</span>, <span class="ident">SEQUENCE_CF</span>])
-        .<span class="ident">expect</span>(<span class="string">&quot;Failed creating database&quot;</span>);
+    <span class="kw">let </span>rocksdb = rocks::open_cf(store_path, <span class="prelude-val">None</span>, <span class="kw-2">&amp;</span>[LAST_COMMITTED_CF, SEQUENCE_CF])
+        .expect(<span class="string">&quot;Failed creating database&quot;</span>);
 
-    <span class="kw">let</span> (<span class="ident">last_committed_map</span>, <span class="ident">sequence_map</span>) = <span class="macro">reopen!</span>(<span class="kw-2">&amp;</span><span class="ident">rocksdb</span>,
-        <span class="ident">LAST_COMMITTED_CF</span>;&lt;<span class="ident">PublicKey</span>, <span class="ident">Round</span>&gt;,
-        <span class="ident">SEQUENCE_CF</span>;&lt;<span class="ident">SequenceNumber</span>, <span class="ident">CertificateDigest</span>&gt;
+    <span class="kw">let </span>(last_committed_map, sequence_map) = <span class="macro">reopen!</span>(<span class="kw-2">&amp;</span>rocksdb,
+        LAST_COMMITTED_CF;&lt;PublicKey, Round&gt;,
+        SEQUENCE_CF;&lt;SequenceNumber, CertificateDigest&gt;
     );
 
-    <span class="ident">Arc::new</span>(<span class="ident">ConsensusStore::new</span>(<span class="ident">last_committed_map</span>, <span class="ident">sequence_map</span>))
+    Arc::new(ConsensusStore::new(last_committed_map, sequence_map))
 }
 
-<span class="comment">// Fixture</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">header</span>() -&gt; <span class="ident">Header</span> {
-    <span class="ident">header_with_epoch</span>(<span class="kw-2">&amp;</span><span class="ident">committee</span>(<span class="prelude-val">None</span>))
+<span class="comment">// Fixture
+</span><span class="kw">pub fn </span>header() -&gt; Header {
+    header_with_epoch(<span class="kw-2">&amp;</span>committee(<span class="prelude-val">None</span>))
 }
 
-<span class="comment">// Fixture</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">headers</span>() -&gt; <span class="ident">Vec</span>&lt;<span class="ident">Header</span>&gt; {
-    <span class="ident">keys</span>(<span class="prelude-val">None</span>)
-        .<span class="ident">into_iter</span>()
-        .<span class="ident">map</span>(|<span class="ident">kp</span>| {
-            <span class="kw">let</span> <span class="ident">header</span> = <span class="ident">Header</span> {
-                <span class="ident">author</span>: <span class="ident">kp</span>.<span class="ident">public</span>().<span class="ident">clone</span>(),
-                <span class="ident">round</span>: <span class="number">1</span>,
-                <span class="ident">parents</span>: <span class="ident">Certificate::genesis</span>(<span class="kw-2">&amp;</span><span class="ident">committee</span>(<span class="prelude-val">None</span>))
-                    .<span class="ident">iter</span>()
-                    .<span class="ident">map</span>(|<span class="ident">x</span>| <span class="ident">x</span>.<span class="ident">digest</span>())
-                    .<span class="ident">collect</span>(),
-                ..<span class="ident">Header::default</span>()
+<span class="comment">// Fixture
+</span><span class="kw">pub fn </span>headers() -&gt; Vec&lt;Header&gt; {
+    keys(<span class="prelude-val">None</span>)
+        .into_iter()
+        .map(|kp| {
+            <span class="kw">let </span>header = Header {
+                author: kp.public().clone(),
+                round: <span class="number">1</span>,
+                parents: Certificate::genesis(<span class="kw-2">&amp;</span>committee(<span class="prelude-val">None</span>))
+                    .iter()
+                    .map(|x| x.digest())
+                    .collect(),
+                ..Header::default()
             };
-            <span class="kw">let</span> <span class="ident">header_digest</span> = <span class="ident">header</span>.<span class="ident">digest</span>();
-            <span class="ident">Header</span> {
-                <span class="ident">id</span>: <span class="ident">header_digest</span>,
-                <span class="ident">signature</span>: <span class="ident">kp</span>.<span class="ident">sign</span>(<span class="ident">Digest::from</span>(<span class="ident">header_digest</span>).<span class="ident">as_ref</span>()),
-                ..<span class="ident">header</span>
+            <span class="kw">let </span>header_digest = header.digest();
+            Header {
+                id: header_digest,
+                signature: kp.sign(Digest::from(header_digest).as_ref()),
+                ..header
             }
         })
-        .<span class="ident">collect</span>()
+        .collect()
 }
 
-<span class="comment">// Fixture</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">header_with_epoch</span>(<span class="ident">committee</span>: <span class="kw-2">&amp;</span><span class="ident">Committee</span>) -&gt; <span class="ident">Header</span> {
-    <span class="kw">let</span> <span class="ident">kp</span> = <span class="ident">keys</span>(<span class="prelude-val">None</span>).<span class="ident">pop</span>().<span class="ident">unwrap</span>();
-    <span class="kw">let</span> <span class="ident">header</span> = <span class="ident">Header</span> {
-        <span class="ident">author</span>: <span class="ident">kp</span>.<span class="ident">public</span>().<span class="ident">clone</span>(),
-        <span class="ident">round</span>: <span class="number">1</span>,
-        <span class="ident">epoch</span>: <span class="ident">committee</span>.<span class="ident">epoch</span>(),
-        <span class="ident">parents</span>: <span class="ident">Certificate::genesis</span>(<span class="ident">committee</span>)
-            .<span class="ident">iter</span>()
-            .<span class="ident">map</span>(|<span class="ident">x</span>| <span class="ident">x</span>.<span class="ident">digest</span>())
-            .<span class="ident">collect</span>(),
-        ..<span class="ident">Header::default</span>()
+<span class="comment">// Fixture
+</span><span class="kw">pub fn </span>header_with_epoch(committee: <span class="kw-2">&amp;</span>Committee) -&gt; Header {
+    <span class="kw">let </span>kp = keys(<span class="prelude-val">None</span>).pop().unwrap();
+    <span class="kw">let </span>header = Header {
+        author: kp.public().clone(),
+        round: <span class="number">1</span>,
+        epoch: committee.epoch(),
+        parents: Certificate::genesis(committee)
+            .iter()
+            .map(|x| x.digest())
+            .collect(),
+        ..Header::default()
     };
 
-    <span class="kw">let</span> <span class="ident">header_digest</span> = <span class="ident">header</span>.<span class="ident">digest</span>();
-    <span class="ident">Header</span> {
-        <span class="ident">id</span>: <span class="ident">header_digest</span>,
-        <span class="ident">signature</span>: <span class="ident">kp</span>.<span class="ident">sign</span>(<span class="ident">Digest::from</span>(<span class="ident">header_digest</span>).<span class="ident">as_ref</span>()),
-        ..<span class="ident">header</span>
+    <span class="kw">let </span>header_digest = header.digest();
+    Header {
+        id: header_digest,
+        signature: kp.sign(Digest::from(header_digest).as_ref()),
+        ..header
     }
 }
 
-<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">dead_code</span>)]</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">fixture_header</span>() -&gt; <span class="ident">Header</span> {
-    <span class="kw">let</span> <span class="ident">kp</span> = <span class="ident">keys</span>(<span class="prelude-val">None</span>).<span class="ident">pop</span>().<span class="ident">unwrap</span>();
+<span class="attribute">#[allow(dead_code)]</span>
+<span class="kw">pub fn </span>fixture_header() -&gt; Header {
+    <span class="kw">let </span>kp = keys(<span class="prelude-val">None</span>).pop().unwrap();
 
-    <span class="ident">fixture_header_builder</span>().<span class="ident">build</span>(<span class="kw-2">&amp;</span><span class="ident">kp</span>).<span class="ident">unwrap</span>()
+    fixture_header_builder().build(<span class="kw-2">&amp;</span>kp).unwrap()
 }
 
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">fixture_header_builder</span>() -&gt; <span class="ident">types::HeaderBuilder</span> {
-    <span class="kw">let</span> <span class="ident">kp</span> = <span class="ident">keys</span>(<span class="prelude-val">None</span>).<span class="ident">pop</span>().<span class="ident">unwrap</span>();
+<span class="kw">pub fn </span>fixture_header_builder() -&gt; types::HeaderBuilder {
+    <span class="kw">let </span>kp = keys(<span class="prelude-val">None</span>).pop().unwrap();
 
-    <span class="kw">let</span> <span class="ident">builder</span> = <span class="ident">types::HeaderBuilder::default</span>();
-    <span class="ident">builder</span>
-        .<span class="ident">author</span>(<span class="ident">kp</span>.<span class="ident">public</span>().<span class="ident">clone</span>())
-        .<span class="ident">round</span>(<span class="number">1</span>)
-        .<span class="ident">epoch</span>(<span class="number">0</span>)
-        .<span class="ident">parents</span>(
-            <span class="ident">Certificate::genesis</span>(<span class="kw-2">&amp;</span><span class="ident">committee</span>(<span class="prelude-val">None</span>))
-                .<span class="ident">iter</span>()
-                .<span class="ident">map</span>(|<span class="ident">x</span>| <span class="ident">x</span>.<span class="ident">digest</span>())
-                .<span class="ident">collect</span>(),
+    <span class="kw">let </span>builder = types::HeaderBuilder::default();
+    builder
+        .author(kp.public().clone())
+        .round(<span class="number">1</span>)
+        .epoch(<span class="number">0</span>)
+        .parents(
+            Certificate::genesis(<span class="kw-2">&amp;</span>committee(<span class="prelude-val">None</span>))
+                .iter()
+                .map(|x| x.digest())
+                .collect(),
         )
 }
 
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">fixture_headers_round</span>(
-    <span class="ident">prior_round</span>: <span class="ident">Round</span>,
-    <span class="ident">parents</span>: <span class="kw-2">&amp;</span><span class="ident">BTreeSet</span>&lt;<span class="ident">CertificateDigest</span>&gt;,
-) -&gt; (<span class="ident">Round</span>, <span class="ident">Vec</span>&lt;<span class="ident">Header</span>&gt;) {
-    <span class="kw">let</span> <span class="ident">round</span> = <span class="ident">prior_round</span> + <span class="number">1</span>;
-    <span class="kw">let</span> <span class="ident">next_headers</span>: <span class="ident">Vec</span>&lt;<span class="kw">_</span>&gt; = <span class="ident">keys</span>(<span class="prelude-val">None</span>)
-        .<span class="ident">into_iter</span>()
-        .<span class="ident">map</span>(|<span class="ident">kp</span>| {
-            <span class="kw">let</span> <span class="ident">builder</span> = <span class="ident">types::HeaderBuilder::default</span>();
-            <span class="ident">builder</span>
-                .<span class="ident">author</span>(<span class="ident">kp</span>.<span class="ident">public</span>().<span class="ident">clone</span>())
-                .<span class="ident">round</span>(<span class="ident">round</span>)
-                .<span class="ident">epoch</span>(<span class="number">0</span>)
-                .<span class="ident">parents</span>(<span class="ident">parents</span>.<span class="ident">clone</span>())
-                .<span class="ident">with_payload_batch</span>(<span class="ident">fixture_batch_with_transactions</span>(<span class="number">10</span>), <span class="number">0</span>)
-                .<span class="ident">build</span>(<span class="kw-2">&amp;</span><span class="ident">kp</span>)
-                .<span class="ident">unwrap</span>()
+<span class="kw">pub fn </span>fixture_headers_round(
+    prior_round: Round,
+    parents: <span class="kw-2">&amp;</span>BTreeSet&lt;CertificateDigest&gt;,
+) -&gt; (Round, Vec&lt;Header&gt;) {
+    <span class="kw">let </span>round = prior_round + <span class="number">1</span>;
+    <span class="kw">let </span>next_headers: Vec&lt;<span class="kw">_</span>&gt; = keys(<span class="prelude-val">None</span>)
+        .into_iter()
+        .map(|kp| {
+            <span class="kw">let </span>builder = types::HeaderBuilder::default();
+            builder
+                .author(kp.public().clone())
+                .round(round)
+                .epoch(<span class="number">0</span>)
+                .parents(parents.clone())
+                .with_payload_batch(fixture_batch_with_transactions(<span class="number">10</span>), <span class="number">0</span>)
+                .build(<span class="kw-2">&amp;</span>kp)
+                .unwrap()
         })
-        .<span class="ident">collect</span>();
-    (<span class="ident">round</span>, <span class="ident">next_headers</span>)
+        .collect();
+    (round, next_headers)
 }
 
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">fixture_payload</span>(<span class="ident">number_of_batches</span>: <span class="ident">u8</span>) -&gt; <span class="ident">IndexMap</span>&lt;<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>&gt; {
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">payload</span>: <span class="ident">IndexMap</span>&lt;<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>&gt; = <span class="ident">IndexMap::new</span>();
+<span class="kw">pub fn </span>fixture_payload(number_of_batches: u8) -&gt; IndexMap&lt;BatchDigest, WorkerId&gt; {
+    <span class="kw">let </span><span class="kw-2">mut </span>payload: IndexMap&lt;BatchDigest, WorkerId&gt; = IndexMap::new();
 
-    <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">number_of_batches</span> {
-        <span class="kw">let</span> <span class="ident">dummy_serialized_batch</span> = <span class="macro">vec!</span>[
-            <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="comment">// enum variant prefix</span>
-            <span class="number">1u8</span>, <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="comment">// num txes</span>
-            <span class="number">5u8</span>, <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="comment">// tx length</span>
-            <span class="number">10u8</span>, <span class="number">5u8</span>, <span class="number">8u8</span>, <span class="number">20u8</span>, <span class="ident">i</span>, <span class="comment">//tx</span>
-        ];
-        <span class="kw">let</span> <span class="ident">batch_digest</span> = <span class="ident">serialized_batch_digest</span>(<span class="kw-2">&amp;</span><span class="ident">dummy_serialized_batch</span>).<span class="ident">unwrap</span>();
+    <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..number_of_batches {
+        <span class="kw">let </span>dummy_serialized_batch = <span class="macro">vec!</span>[
+            <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="comment">// enum variant prefix
+            </span><span class="number">1u8</span>, <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="comment">// num txes
+            </span><span class="number">5u8</span>, <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="comment">// tx length
+            </span><span class="number">10u8</span>, <span class="number">5u8</span>, <span class="number">8u8</span>, <span class="number">20u8</span>, i, <span class="comment">//tx
+        </span>];
+        <span class="kw">let </span>batch_digest = serialized_batch_digest(<span class="kw-2">&amp;</span>dummy_serialized_batch).unwrap();
 
-        <span class="ident">payload</span>.<span class="ident">insert</span>(<span class="ident">batch_digest</span>, <span class="number">0</span>);
+        payload.insert(batch_digest, <span class="number">0</span>);
     }
 
-    <span class="ident">payload</span>
+    payload
 }
 
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">fixture_header_with_payload</span>(<span class="ident">number_of_batches</span>: <span class="ident">u8</span>) -&gt; <span class="ident">Header</span> {
-    <span class="kw">let</span> <span class="ident">kp</span> = <span class="ident">keys</span>(<span class="prelude-val">None</span>).<span class="ident">pop</span>().<span class="ident">unwrap</span>();
-    <span class="kw">let</span> <span class="ident">payload</span> = <span class="ident">fixture_payload</span>(<span class="ident">number_of_batches</span>);
+<span class="kw">pub fn </span>fixture_header_with_payload(number_of_batches: u8) -&gt; Header {
+    <span class="kw">let </span>kp = keys(<span class="prelude-val">None</span>).pop().unwrap();
+    <span class="kw">let </span>payload = fixture_payload(number_of_batches);
 
-    <span class="kw">let</span> <span class="ident">builder</span> = <span class="ident">fixture_header_builder</span>();
-    <span class="ident">builder</span>.<span class="ident">payload</span>(<span class="ident">payload</span>).<span class="ident">build</span>(<span class="kw-2">&amp;</span><span class="ident">kp</span>).<span class="ident">unwrap</span>()
+    <span class="kw">let </span>builder = fixture_header_builder();
+    builder.payload(payload).build(<span class="kw-2">&amp;</span>kp).unwrap()
 }
 
-<span class="comment">// will create a batch with randomly formed transactions</span>
-<span class="comment">// dictated by the parameter number_of_transactions</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">fixture_batch_with_transactions</span>(<span class="ident">number_of_transactions</span>: <span class="ident">u32</span>) -&gt; <span class="ident">Batch</span> {
-    <span class="kw">let</span> <span class="ident">transactions</span> = (<span class="number">0</span>..<span class="ident">number_of_transactions</span>)
-        .<span class="ident">map</span>(|<span class="ident">_v</span>| <span class="ident">transaction</span>())
-        .<span class="ident">collect</span>();
+<span class="comment">// will create a batch with randomly formed transactions
+// dictated by the parameter number_of_transactions
+</span><span class="kw">pub fn </span>fixture_batch_with_transactions(number_of_transactions: u32) -&gt; Batch {
+    <span class="kw">let </span>transactions = (<span class="number">0</span>..number_of_transactions)
+        .map(|_v| transaction())
+        .collect();
 
-    <span class="ident">Batch</span>(<span class="ident">transactions</span>)
+    Batch(transactions)
 }
 
-<span class="comment">// Fixture</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">transaction</span>() -&gt; <span class="ident">Transaction</span> {
-    <span class="comment">// generate random value transactions, but the length will be always 100 bytes</span>
-    (<span class="number">0</span>..<span class="number">100</span>).<span class="ident">map</span>(|<span class="ident">_v</span>| <span class="ident">rand::random</span>::&lt;<span class="ident">u8</span>&gt;()).<span class="ident">collect</span>()
+<span class="comment">// Fixture
+</span><span class="kw">pub fn </span>transaction() -&gt; Transaction {
+    <span class="comment">// generate random value transactions, but the length will be always 100 bytes
+    </span>(<span class="number">0</span>..<span class="number">100</span>).map(|_v| rand::random::&lt;u8&gt;()).collect()
 }
 
-<span class="comment">// Fixture</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">votes</span>(<span class="ident">header</span>: <span class="kw-2">&amp;</span><span class="ident">Header</span>) -&gt; <span class="ident">Vec</span>&lt;<span class="ident">Vote</span>&gt; {
-    <span class="ident">keys</span>(<span class="prelude-val">None</span>)
-        .<span class="ident">into_iter</span>()
-        .<span class="ident">flat_map</span>(|<span class="ident">kp</span>| {
-            <span class="comment">// we should not re-sign using the key of the authority</span>
-            <span class="comment">// that produced the header</span>
-            <span class="kw">if</span> <span class="ident">kp</span>.<span class="ident">public</span>() == <span class="kw-2">&amp;</span><span class="ident">header</span>.<span class="ident">author</span> {
-                <span class="prelude-val">None</span>
-            } <span class="kw">else</span> {
-                <span class="kw">let</span> <span class="ident">vote</span> = <span class="ident">Vote</span> {
-                    <span class="ident">id</span>: <span class="ident">header</span>.<span class="ident">id</span>,
-                    <span class="ident">round</span>: <span class="ident">header</span>.<span class="ident">round</span>,
-                    <span class="ident">epoch</span>: <span class="ident">header</span>.<span class="ident">epoch</span>,
-                    <span class="ident">origin</span>: <span class="ident">header</span>.<span class="ident">author</span>.<span class="ident">clone</span>(),
-                    <span class="ident">author</span>: <span class="ident">kp</span>.<span class="ident">public</span>().<span class="ident">clone</span>(),
-                    <span class="ident">signature</span>: <span class="ident">Signature::default</span>(),
+<span class="comment">// Fixture
+</span><span class="kw">pub fn </span>votes(header: <span class="kw-2">&amp;</span>Header) -&gt; Vec&lt;Vote&gt; {
+    keys(<span class="prelude-val">None</span>)
+        .into_iter()
+        .flat_map(|kp| {
+            <span class="comment">// we should not re-sign using the key of the authority
+            // that produced the header
+            </span><span class="kw">if </span>kp.public() == <span class="kw-2">&amp;</span>header.author {
+                <span class="prelude-val">None
+            </span>} <span class="kw">else </span>{
+                <span class="kw">let </span>vote = Vote {
+                    id: header.id,
+                    round: header.round,
+                    epoch: header.epoch,
+                    origin: header.author.clone(),
+                    author: kp.public().clone(),
+                    signature: Signature::default(),
                 };
-                <span class="prelude-val">Some</span>(<span class="ident">Vote</span> {
-                    <span class="ident">signature</span>: <span class="ident">kp</span>.<span class="ident">sign</span>(<span class="ident">Digest::from</span>(<span class="ident">vote</span>.<span class="ident">digest</span>()).<span class="ident">as_ref</span>()),
-                    ..<span class="ident">vote</span>
+                <span class="prelude-val">Some</span>(Vote {
+                    signature: kp.sign(Digest::from(vote.digest()).as_ref()),
+                    ..vote
                 })
             }
         })
-        .<span class="ident">collect</span>()
+        .collect()
 }
 
-<span class="comment">// Fixture</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">certificate</span>(<span class="ident">header</span>: <span class="kw-2">&amp;</span><span class="ident">Header</span>) -&gt; <span class="ident">Certificate</span> {
-    <span class="ident">Certificate</span> {
-        <span class="ident">header</span>: <span class="ident">header</span>.<span class="ident">clone</span>(),
-        <span class="ident">votes</span>: <span class="ident">votes</span>(<span class="ident">header</span>)
-            .<span class="ident">into_iter</span>()
-            .<span class="ident">map</span>(|<span class="ident">x</span>| (<span class="ident">x</span>.<span class="ident">author</span>, <span class="ident">x</span>.<span class="ident">signature</span>))
-            .<span class="ident">collect</span>(),
+<span class="comment">// Fixture
+</span><span class="kw">pub fn </span>certificate(header: <span class="kw-2">&amp;</span>Header) -&gt; Certificate {
+    Certificate {
+        header: header.clone(),
+        votes: votes(header)
+            .into_iter()
+            .map(|x| (x.author, x.signature))
+            .collect(),
     }
 }
 
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">PrimaryToPrimaryMockServer</span> {
-    <span class="ident">sender</span>: <span class="ident">Sender</span>&lt;<span class="ident">BincodeEncodedPayload</span>&gt;,
+<span class="kw">pub struct </span>PrimaryToPrimaryMockServer {
+    sender: Sender&lt;BincodeEncodedPayload&gt;,
 }
 
-<span class="kw">impl</span> <span class="ident">PrimaryToPrimaryMockServer</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(<span class="ident">address</span>: <span class="ident">Multiaddr</span>) -&gt; <span class="ident">Receiver</span>&lt;<span class="ident">BincodeEncodedPayload</span>&gt; {
-        <span class="kw">let</span> (<span class="ident">sender</span>, <span class="ident">receiver</span>) = <span class="ident">channel</span>(<span class="number">1</span>);
-        <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
-            <span class="kw">let</span> <span class="ident">config</span> = <span class="ident">mysten_network::config::Config::new</span>();
-            <span class="kw">let</span> <span class="ident">mock</span> = <span class="self">Self</span> { <span class="ident">sender</span> };
-            <span class="ident">config</span>
-                .<span class="ident">server_builder</span>()
-                .<span class="ident">add_service</span>(<span class="ident">PrimaryToPrimaryServer::new</span>(<span class="ident">mock</span>))
-                .<span class="ident">bind</span>(<span class="kw-2">&amp;</span><span class="ident">address</span>)
-                .<span class="kw">await</span>
-                .<span class="ident">unwrap</span>()
-                .<span class="ident">serve</span>()
-                .<span class="kw">await</span>
-        });
-        <span class="ident">receiver</span>
+<span class="kw">impl </span>PrimaryToPrimaryMockServer {
+    <span class="kw">pub fn </span>spawn(address: Multiaddr) -&gt; Receiver&lt;BincodeEncodedPayload&gt; {
+        <span class="kw">let </span>(sender, receiver) = channel(<span class="number">1</span>);
+        tokio::spawn(<span class="kw">async move </span>{
+            <span class="kw">let </span>config = mysten_network::config::Config::new();
+            <span class="kw">let </span>mock = <span class="self">Self </span>{ sender };
+            config
+                .server_builder()
+                .add_service(PrimaryToPrimaryServer::new(mock))
+                .bind(<span class="kw-2">&amp;</span>address)
+                .<span class="kw">await
+                </span>.unwrap()
+                .serve()
+                .<span class="kw">await
+        </span>});
+        receiver
     }
 }
 
-<span class="attribute">#[<span class="ident">tonic::async_trait</span>]</span>
-<span class="kw">impl</span> <span class="ident">PrimaryToPrimary</span> <span class="kw">for</span> <span class="ident">PrimaryToPrimaryMockServer</span> {
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">send_message</span>(
+<span class="attribute">#[tonic::async_trait]</span>
+<span class="kw">impl </span>PrimaryToPrimary <span class="kw">for </span>PrimaryToPrimaryMockServer {
+    <span class="kw">async fn </span>send_message(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">request</span>: <span class="ident">tonic::Request</span>&lt;<span class="ident">BincodeEncodedPayload</span>&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">tonic::Response</span>&lt;<span class="ident">Empty</span>&gt;, <span class="ident">tonic::Status</span>&gt; {
-        <span class="self">self</span>.<span class="ident">sender</span>.<span class="ident">send</span>(<span class="ident">request</span>.<span class="ident">into_inner</span>()).<span class="kw">await</span>.<span class="ident">unwrap</span>();
-        <span class="prelude-val">Ok</span>(<span class="ident">Response::new</span>(<span class="ident">Empty</span> {}))
+        request: tonic::Request&lt;BincodeEncodedPayload&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;tonic::Response&lt;Empty&gt;, tonic::Status&gt; {
+        <span class="self">self</span>.sender.send(request.into_inner()).<span class="kw">await</span>.unwrap();
+        <span class="prelude-val">Ok</span>(Response::new(Empty {}))
     }
 }
 
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">WorkerToPrimaryMockServer</span> {
-    <span class="ident">sender</span>: <span class="ident">Sender</span>&lt;<span class="ident">BincodeEncodedPayload</span>&gt;,
+<span class="kw">pub struct </span>WorkerToPrimaryMockServer {
+    sender: Sender&lt;BincodeEncodedPayload&gt;,
 }
 
-<span class="kw">impl</span> <span class="ident">WorkerToPrimaryMockServer</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(<span class="ident">address</span>: <span class="ident">Multiaddr</span>) -&gt; <span class="ident">Receiver</span>&lt;<span class="ident">BincodeEncodedPayload</span>&gt; {
-        <span class="kw">let</span> (<span class="ident">sender</span>, <span class="ident">receiver</span>) = <span class="ident">channel</span>(<span class="number">1</span>);
-        <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
-            <span class="kw">let</span> <span class="ident">config</span> = <span class="ident">mysten_network::config::Config::new</span>();
-            <span class="kw">let</span> <span class="ident">mock</span> = <span class="self">Self</span> { <span class="ident">sender</span> };
-            <span class="ident">config</span>
-                .<span class="ident">server_builder</span>()
-                .<span class="ident">add_service</span>(<span class="ident">WorkerToPrimaryServer::new</span>(<span class="ident">mock</span>))
-                .<span class="ident">bind</span>(<span class="kw-2">&amp;</span><span class="ident">address</span>)
-                .<span class="kw">await</span>
-                .<span class="ident">unwrap</span>()
-                .<span class="ident">serve</span>()
-                .<span class="kw">await</span>
-        });
-        <span class="ident">receiver</span>
+<span class="kw">impl </span>WorkerToPrimaryMockServer {
+    <span class="kw">pub fn </span>spawn(address: Multiaddr) -&gt; Receiver&lt;BincodeEncodedPayload&gt; {
+        <span class="kw">let </span>(sender, receiver) = channel(<span class="number">1</span>);
+        tokio::spawn(<span class="kw">async move </span>{
+            <span class="kw">let </span>config = mysten_network::config::Config::new();
+            <span class="kw">let </span>mock = <span class="self">Self </span>{ sender };
+            config
+                .server_builder()
+                .add_service(WorkerToPrimaryServer::new(mock))
+                .bind(<span class="kw-2">&amp;</span>address)
+                .<span class="kw">await
+                </span>.unwrap()
+                .serve()
+                .<span class="kw">await
+        </span>});
+        receiver
     }
 }
 
-<span class="attribute">#[<span class="ident">tonic::async_trait</span>]</span>
-<span class="kw">impl</span> <span class="ident">WorkerToPrimary</span> <span class="kw">for</span> <span class="ident">WorkerToPrimaryMockServer</span> {
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">send_message</span>(
+<span class="attribute">#[tonic::async_trait]</span>
+<span class="kw">impl </span>WorkerToPrimary <span class="kw">for </span>WorkerToPrimaryMockServer {
+    <span class="kw">async fn </span>send_message(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">request</span>: <span class="ident">tonic::Request</span>&lt;<span class="ident">BincodeEncodedPayload</span>&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">tonic::Response</span>&lt;<span class="ident">Empty</span>&gt;, <span class="ident">tonic::Status</span>&gt; {
-        <span class="self">self</span>.<span class="ident">sender</span>.<span class="ident">send</span>(<span class="ident">request</span>.<span class="ident">into_inner</span>()).<span class="kw">await</span>.<span class="ident">unwrap</span>();
-        <span class="prelude-val">Ok</span>(<span class="ident">Response::new</span>(<span class="ident">Empty</span> {}))
+        request: tonic::Request&lt;BincodeEncodedPayload&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;tonic::Response&lt;Empty&gt;, tonic::Status&gt; {
+        <span class="self">self</span>.sender.send(request.into_inner()).<span class="kw">await</span>.unwrap();
+        <span class="prelude-val">Ok</span>(Response::new(Empty {}))
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">worker_info</span>(
+    <span class="kw">async fn </span>worker_info(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">_request</span>: <span class="ident">tonic::Request</span>&lt;<span class="ident">Empty</span>&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">tonic::Response</span>&lt;<span class="ident">BincodeEncodedPayload</span>&gt;, <span class="ident">tonic::Status</span>&gt; {
+        _request: tonic::Request&lt;Empty&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;tonic::Response&lt;BincodeEncodedPayload&gt;, tonic::Status&gt; {
         <span class="macro">unimplemented!</span>()
     }
 }
 
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">PrimaryToWorkerMockServer</span> {
-    <span class="ident">sender</span>: <span class="ident">Sender</span>&lt;<span class="ident">BincodeEncodedPayload</span>&gt;,
+<span class="kw">pub struct </span>PrimaryToWorkerMockServer {
+    sender: Sender&lt;BincodeEncodedPayload&gt;,
 }
 
-<span class="kw">impl</span> <span class="ident">PrimaryToWorkerMockServer</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(<span class="ident">address</span>: <span class="ident">Multiaddr</span>) -&gt; <span class="ident">Receiver</span>&lt;<span class="ident">BincodeEncodedPayload</span>&gt; {
-        <span class="kw">let</span> (<span class="ident">sender</span>, <span class="ident">receiver</span>) = <span class="ident">channel</span>(<span class="number">1</span>);
-        <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
-            <span class="kw">let</span> <span class="ident">config</span> = <span class="ident">mysten_network::config::Config::new</span>();
-            <span class="kw">let</span> <span class="ident">mock</span> = <span class="self">Self</span> { <span class="ident">sender</span> };
-            <span class="ident">config</span>
-                .<span class="ident">server_builder</span>()
-                .<span class="ident">add_service</span>(<span class="ident">PrimaryToWorkerServer::new</span>(<span class="ident">mock</span>))
-                .<span class="ident">bind</span>(<span class="kw-2">&amp;</span><span class="ident">address</span>)
-                .<span class="kw">await</span>
-                .<span class="ident">unwrap</span>()
-                .<span class="ident">serve</span>()
-                .<span class="kw">await</span>
-        });
-        <span class="ident">receiver</span>
+<span class="kw">impl </span>PrimaryToWorkerMockServer {
+    <span class="kw">pub fn </span>spawn(address: Multiaddr) -&gt; Receiver&lt;BincodeEncodedPayload&gt; {
+        <span class="kw">let </span>(sender, receiver) = channel(<span class="number">1</span>);
+        tokio::spawn(<span class="kw">async move </span>{
+            <span class="kw">let </span>config = mysten_network::config::Config::new();
+            <span class="kw">let </span>mock = <span class="self">Self </span>{ sender };
+            config
+                .server_builder()
+                .add_service(PrimaryToWorkerServer::new(mock))
+                .bind(<span class="kw-2">&amp;</span>address)
+                .<span class="kw">await
+                </span>.unwrap()
+                .serve()
+                .<span class="kw">await
+        </span>});
+        receiver
     }
 }
 
-<span class="attribute">#[<span class="ident">tonic::async_trait</span>]</span>
-<span class="kw">impl</span> <span class="ident">PrimaryToWorker</span> <span class="kw">for</span> <span class="ident">PrimaryToWorkerMockServer</span> {
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">send_message</span>(
+<span class="attribute">#[tonic::async_trait]</span>
+<span class="kw">impl </span>PrimaryToWorker <span class="kw">for </span>PrimaryToWorkerMockServer {
+    <span class="kw">async fn </span>send_message(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">request</span>: <span class="ident">tonic::Request</span>&lt;<span class="ident">BincodeEncodedPayload</span>&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">tonic::Response</span>&lt;<span class="ident">Empty</span>&gt;, <span class="ident">tonic::Status</span>&gt; {
-        <span class="self">self</span>.<span class="ident">sender</span>.<span class="ident">send</span>(<span class="ident">request</span>.<span class="ident">into_inner</span>()).<span class="kw">await</span>.<span class="ident">unwrap</span>();
-        <span class="prelude-val">Ok</span>(<span class="ident">Response::new</span>(<span class="ident">Empty</span> {}))
+        request: tonic::Request&lt;BincodeEncodedPayload&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;tonic::Response&lt;Empty&gt;, tonic::Status&gt; {
+        <span class="self">self</span>.sender.send(request.into_inner()).<span class="kw">await</span>.unwrap();
+        <span class="prelude-val">Ok</span>(Response::new(Empty {}))
     }
 }
 
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">WorkerToWorkerMockServer</span> {
-    <span class="ident">sender</span>: <span class="ident">Sender</span>&lt;<span class="ident">BincodeEncodedPayload</span>&gt;,
+<span class="kw">pub struct </span>WorkerToWorkerMockServer {
+    sender: Sender&lt;BincodeEncodedPayload&gt;,
 }
 
-<span class="kw">impl</span> <span class="ident">WorkerToWorkerMockServer</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(<span class="ident">address</span>: <span class="ident">Multiaddr</span>) -&gt; <span class="ident">Receiver</span>&lt;<span class="ident">BincodeEncodedPayload</span>&gt; {
-        <span class="kw">let</span> (<span class="ident">sender</span>, <span class="ident">receiver</span>) = <span class="ident">channel</span>(<span class="number">1</span>);
-        <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
-            <span class="kw">let</span> <span class="ident">config</span> = <span class="ident">mysten_network::config::Config::new</span>();
-            <span class="kw">let</span> <span class="ident">mock</span> = <span class="self">Self</span> { <span class="ident">sender</span> };
-            <span class="ident">config</span>
-                .<span class="ident">server_builder</span>()
-                .<span class="ident">add_service</span>(<span class="ident">WorkerToWorkerServer::new</span>(<span class="ident">mock</span>))
-                .<span class="ident">bind</span>(<span class="kw-2">&amp;</span><span class="ident">address</span>)
-                .<span class="kw">await</span>
-                .<span class="ident">unwrap</span>()
-                .<span class="ident">serve</span>()
-                .<span class="kw">await</span>
-        });
-        <span class="ident">receiver</span>
+<span class="kw">impl </span>WorkerToWorkerMockServer {
+    <span class="kw">pub fn </span>spawn(address: Multiaddr) -&gt; Receiver&lt;BincodeEncodedPayload&gt; {
+        <span class="kw">let </span>(sender, receiver) = channel(<span class="number">1</span>);
+        tokio::spawn(<span class="kw">async move </span>{
+            <span class="kw">let </span>config = mysten_network::config::Config::new();
+            <span class="kw">let </span>mock = <span class="self">Self </span>{ sender };
+            config
+                .server_builder()
+                .add_service(WorkerToWorkerServer::new(mock))
+                .bind(<span class="kw-2">&amp;</span>address)
+                .<span class="kw">await
+                </span>.unwrap()
+                .serve()
+                .<span class="kw">await
+        </span>});
+        receiver
     }
 }
 
-<span class="attribute">#[<span class="ident">tonic::async_trait</span>]</span>
-<span class="kw">impl</span> <span class="ident">WorkerToWorker</span> <span class="kw">for</span> <span class="ident">WorkerToWorkerMockServer</span> {
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">send_message</span>(
+<span class="attribute">#[tonic::async_trait]</span>
+<span class="kw">impl </span>WorkerToWorker <span class="kw">for </span>WorkerToWorkerMockServer {
+    <span class="kw">async fn </span>send_message(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">request</span>: <span class="ident">tonic::Request</span>&lt;<span class="ident">BincodeEncodedPayload</span>&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">tonic::Response</span>&lt;<span class="ident">Empty</span>&gt;, <span class="ident">tonic::Status</span>&gt; {
-        <span class="self">self</span>.<span class="ident">sender</span>.<span class="ident">send</span>(<span class="ident">request</span>.<span class="ident">into_inner</span>()).<span class="kw">await</span>.<span class="ident">unwrap</span>();
-        <span class="prelude-val">Ok</span>(<span class="ident">Response::new</span>(<span class="ident">Empty</span> {}))
+        request: tonic::Request&lt;BincodeEncodedPayload&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;tonic::Response&lt;Empty&gt;, tonic::Status&gt; {
+        <span class="self">self</span>.sender.send(request.into_inner()).<span class="kw">await</span>.unwrap();
+        <span class="prelude-val">Ok</span>(Response::new(Empty {}))
     }
 
-    <span class="kw">type</span> <span class="ident">ClientBatchRequestStream</span> =
-        <span class="ident">Pin</span>&lt;<span class="ident">Box</span>&lt;<span class="kw">dyn</span> <span class="ident">Stream</span>&lt;<span class="ident">Item</span> = <span class="prelude-ty">Result</span>&lt;<span class="ident">BincodeEncodedPayload</span>, <span class="ident">tonic::Status</span>&gt;&gt; + <span class="ident">Send</span>&gt;&gt;;
+    <span class="kw">type </span>ClientBatchRequestStream =
+        Pin&lt;Box&lt;<span class="kw">dyn </span>Stream&lt;Item = <span class="prelude-ty">Result</span>&lt;BincodeEncodedPayload, tonic::Status&gt;&gt; + Send&gt;&gt;;
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">client_batch_request</span>(
+    <span class="kw">async fn </span>client_batch_request(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">_request</span>: <span class="ident">tonic::Request</span>&lt;<span class="ident">BincodeEncodedPayload</span>&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">tonic::Response</span>&lt;<span class="ident"><span class="self">Self</span>::ClientBatchRequestStream</span>&gt;, <span class="ident">tonic::Status</span>&gt; {
+        _request: tonic::Request&lt;BincodeEncodedPayload&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;tonic::Response&lt;<span class="self">Self</span>::ClientBatchRequestStream&gt;, tonic::Status&gt; {
         <span class="macro">todo!</span>()
     }
 }
 
-<span class="comment">// helper method to get a name and a committee.</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">resolve_name_and_committee</span>() -&gt; (<span class="ident">PublicKey</span>, <span class="ident">Committee</span>) {
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">keys</span> = <span class="ident">keys</span>(<span class="prelude-val">None</span>);
-    <span class="kw">let</span> <span class="kw">_</span> = <span class="ident">keys</span>.<span class="ident">pop</span>().<span class="ident">unwrap</span>(); <span class="comment">// Skip the header&#39; author.</span>
-    <span class="kw">let</span> <span class="ident">kp</span> = <span class="ident">keys</span>.<span class="ident">pop</span>().<span class="ident">unwrap</span>();
-    <span class="kw">let</span> <span class="ident">name</span> = <span class="ident">kp</span>.<span class="ident">public</span>().<span class="ident">clone</span>();
-    <span class="kw">let</span> <span class="ident">committee</span> = <span class="ident">committee</span>(<span class="prelude-val">None</span>);
+<span class="comment">// helper method to get a name and a committee.
+</span><span class="kw">pub fn </span>resolve_name_and_committee() -&gt; (PublicKey, Committee) {
+    <span class="kw">let </span><span class="kw-2">mut </span>keys = keys(<span class="prelude-val">None</span>);
+    <span class="kw">let _ </span>= keys.pop().unwrap(); <span class="comment">// Skip the header&#39; author.
+    </span><span class="kw">let </span>kp = keys.pop().unwrap();
+    <span class="kw">let </span>name = kp.public().clone();
+    <span class="kw">let </span>committee = committee(<span class="prelude-val">None</span>);
 
-    (<span class="ident">name</span>, <span class="ident">committee</span>)
+    (name, committee)
 }
 
-<span class="comment">////////////////////////////////////////////////////////////////</span>
-<span class="doccomment">/// Batches</span>
-<span class="comment">////////////////////////////////////////////////////////////////</span>
+<span class="comment">////////////////////////////////////////////////////////////////
+</span><span class="doccomment">/// Batches
+</span><span class="comment">////////////////////////////////////////////////////////////////
 
-<span class="comment">// Fixture</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">batch</span>() -&gt; <span class="ident">Batch</span> {
-    <span class="ident">Batch</span>(<span class="macro">vec!</span>[<span class="ident">transaction</span>(), <span class="ident">transaction</span>()])
+// Fixture
+</span><span class="kw">pub fn </span>batch() -&gt; Batch {
+    Batch(<span class="macro">vec!</span>[transaction(), transaction()])
 }
 
-<span class="comment">// Fixture</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">batch_digest</span>() -&gt; <span class="ident">BatchDigest</span> {
-    <span class="ident">serialized_batch_digest</span>(<span class="kw-2">&amp;</span><span class="ident">serialized_batch</span>()).<span class="ident">unwrap</span>()
+<span class="comment">// Fixture
+</span><span class="kw">pub fn </span>batch_digest() -&gt; BatchDigest {
+    serialized_batch_digest(<span class="kw-2">&amp;</span>serialized_batch()).unwrap()
 }
 
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">digest_batch</span>(<span class="ident">batch</span>: <span class="ident">Batch</span>) -&gt; <span class="ident">BatchDigest</span> {
-    <span class="kw">let</span> <span class="ident">serialized_batch</span> = <span class="ident">serialize_batch_message</span>(<span class="ident">batch</span>);
-    <span class="ident">serialized_batch_digest</span>(<span class="kw-2">&amp;</span><span class="ident">serialized_batch</span>).<span class="ident">unwrap</span>()
+<span class="kw">pub fn </span>digest_batch(batch: Batch) -&gt; BatchDigest {
+    <span class="kw">let </span>serialized_batch = serialize_batch_message(batch);
+    serialized_batch_digest(<span class="kw-2">&amp;</span>serialized_batch).unwrap()
 }
 
-<span class="comment">// Fixture</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">serialized_batch</span>() -&gt; <span class="ident">Vec</span>&lt;<span class="ident">u8</span>&gt; {
-    <span class="ident">serialize_batch_message</span>(<span class="ident">batch</span>())
+<span class="comment">// Fixture
+</span><span class="kw">pub fn </span>serialized_batch() -&gt; Vec&lt;u8&gt; {
+    serialize_batch_message(batch())
 }
 
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">serialize_batch_message</span>(<span class="ident">batch</span>: <span class="ident">Batch</span>) -&gt; <span class="ident">Vec</span>&lt;<span class="ident">u8</span>&gt; {
-    <span class="kw">let</span> <span class="ident">message</span> = <span class="ident">worker::WorkerMessage::Batch</span>(<span class="ident">batch</span>);
-    <span class="ident">bincode::serialize</span>(<span class="kw-2">&amp;</span><span class="ident">message</span>).<span class="ident">unwrap</span>()
+<span class="kw">pub fn </span>serialize_batch_message(batch: Batch) -&gt; Vec&lt;u8&gt; {
+    <span class="kw">let </span>message = worker::WorkerMessage::Batch(batch);
+    bincode::serialize(<span class="kw-2">&amp;</span>message).unwrap()
 }
 
-<span class="doccomment">/// generate multiple fixture batches. The number of generated batches</span>
-<span class="doccomment">/// are dictated by the parameter num_of_batches.</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">batches</span>(<span class="ident">num_of_batches</span>: <span class="ident">usize</span>) -&gt; <span class="ident">Vec</span>&lt;<span class="ident">Batch</span>&gt; {
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">batches</span> = <span class="ident">Vec::new</span>();
+<span class="doccomment">/// generate multiple fixture batches. The number of generated batches
+/// are dictated by the parameter num_of_batches.
+</span><span class="kw">pub fn </span>batches(num_of_batches: usize) -&gt; Vec&lt;Batch&gt; {
+    <span class="kw">let </span><span class="kw-2">mut </span>batches = Vec::new();
 
-    <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">1</span>..<span class="ident">num_of_batches</span> + <span class="number">1</span> {
-        <span class="ident">batches</span>.<span class="ident">push</span>(<span class="ident">batch_with_transactions</span>(<span class="ident">i</span>));
+    <span class="kw">for </span>i <span class="kw">in </span><span class="number">1</span>..num_of_batches + <span class="number">1 </span>{
+        batches.push(batch_with_transactions(i));
     }
 
-    <span class="ident">batches</span>
+    batches
 }
 
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">batch_with_transactions</span>(<span class="ident">num_of_transactions</span>: <span class="ident">usize</span>) -&gt; <span class="ident">Batch</span> {
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">transactions</span> = <span class="ident">Vec::new</span>();
+<span class="kw">pub fn </span>batch_with_transactions(num_of_transactions: usize) -&gt; Batch {
+    <span class="kw">let </span><span class="kw-2">mut </span>transactions = Vec::new();
 
-    <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">num_of_transactions</span> {
-        <span class="ident">transactions</span>.<span class="ident">push</span>(<span class="ident">transaction</span>());
+    <span class="kw">for _ in </span><span class="number">0</span>..num_of_transactions {
+        transactions.push(transaction());
     }
 
-    <span class="ident">Batch</span>(<span class="ident">transactions</span>)
+    Batch(transactions)
 }
 
-<span class="kw">const</span> <span class="ident">BATCHES_CF</span>: <span class="kw-2">&amp;</span><span class="ident">str</span> = <span class="string">&quot;batches&quot;</span>;
+<span class="kw">const </span>BATCHES_CF: <span class="kw-2">&amp;</span>str = <span class="string">&quot;batches&quot;</span>;
 
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">open_batch_store</span>() -&gt; <span class="ident">Store</span>&lt;<span class="ident">BatchDigest</span>, <span class="ident">types::SerializedBatchMessage</span>&gt; {
-    <span class="kw">let</span> <span class="ident">db</span> = <span class="ident">rocks::DBMap</span>::&lt;<span class="ident">BatchDigest</span>, <span class="ident">types::SerializedBatchMessage</span>&gt;<span class="ident">::open</span>(
-        <span class="ident">temp_dir</span>(),
+<span class="kw">pub fn </span>open_batch_store() -&gt; Store&lt;BatchDigest, types::SerializedBatchMessage&gt; {
+    <span class="kw">let </span>db = rocks::DBMap::&lt;BatchDigest, types::SerializedBatchMessage&gt;::open(
+        temp_dir(),
         <span class="prelude-val">None</span>,
-        <span class="prelude-val">Some</span>(<span class="ident">BATCHES_CF</span>),
+        <span class="prelude-val">Some</span>(BATCHES_CF),
     )
-    .<span class="ident">unwrap</span>();
-    <span class="ident">Store::new</span>(<span class="ident">db</span>)
+    .unwrap();
+    Store::new(db)
 }
 
-<span class="comment">// Creates one certificate per authority starting and finishing at the specified rounds (inclusive).</span>
-<span class="comment">// Outputs a VecDeque of certificates (the certificate with higher round is on the front) and a set</span>
-<span class="comment">// of digests to be used as parents for the certificates of the next round.</span>
-<span class="comment">// Note : the certificates are unsigned</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">make_optimal_certificates</span>(
-    <span class="ident">range</span>: <span class="ident">RangeInclusive</span>&lt;<span class="ident">Round</span>&gt;,
-    <span class="ident">initial_parents</span>: <span class="kw-2">&amp;</span><span class="ident">BTreeSet</span>&lt;<span class="ident">CertificateDigest</span>&gt;,
-    <span class="ident">keys</span>: <span class="kw-2">&amp;</span>[<span class="ident">PublicKey</span>],
-) -&gt; (<span class="ident">VecDeque</span>&lt;<span class="ident">Certificate</span>&gt;, <span class="ident">BTreeSet</span>&lt;<span class="ident">CertificateDigest</span>&gt;) {
-    <span class="ident">make_certificates</span>(<span class="ident">range</span>, <span class="ident">initial_parents</span>, <span class="ident">keys</span>, <span class="number">0.0</span>)
+<span class="comment">// Creates one certificate per authority starting and finishing at the specified rounds (inclusive).
+// Outputs a VecDeque of certificates (the certificate with higher round is on the front) and a set
+// of digests to be used as parents for the certificates of the next round.
+// Note : the certificates are unsigned
+</span><span class="kw">pub fn </span>make_optimal_certificates(
+    range: RangeInclusive&lt;Round&gt;,
+    initial_parents: <span class="kw-2">&amp;</span>BTreeSet&lt;CertificateDigest&gt;,
+    keys: <span class="kw-2">&amp;</span>[PublicKey],
+) -&gt; (VecDeque&lt;Certificate&gt;, BTreeSet&lt;CertificateDigest&gt;) {
+    make_certificates(range, initial_parents, keys, <span class="number">0.0</span>)
 }
 
-<span class="comment">// Outputs rounds worth of certificates with optimal parents, signed</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">make_optimal_signed_certificates</span>(
-    <span class="ident">range</span>: <span class="ident">RangeInclusive</span>&lt;<span class="ident">Round</span>&gt;,
-    <span class="ident">initial_parents</span>: <span class="kw-2">&amp;</span><span class="ident">BTreeSet</span>&lt;<span class="ident">CertificateDigest</span>&gt;,
-    <span class="ident">keys</span>: <span class="kw-2">&amp;</span>[<span class="ident">KeyPair</span>],
-) -&gt; (<span class="ident">VecDeque</span>&lt;<span class="ident">Certificate</span>&gt;, <span class="ident">BTreeSet</span>&lt;<span class="ident">CertificateDigest</span>&gt;) {
-    <span class="ident">make_signed_certificates</span>(<span class="ident">range</span>, <span class="ident">initial_parents</span>, <span class="ident">keys</span>, <span class="number">0.0</span>)
+<span class="comment">// Outputs rounds worth of certificates with optimal parents, signed
+</span><span class="kw">pub fn </span>make_optimal_signed_certificates(
+    range: RangeInclusive&lt;Round&gt;,
+    initial_parents: <span class="kw-2">&amp;</span>BTreeSet&lt;CertificateDigest&gt;,
+    keys: <span class="kw-2">&amp;</span>[KeyPair],
+) -&gt; (VecDeque&lt;Certificate&gt;, BTreeSet&lt;CertificateDigest&gt;) {
+    make_signed_certificates(range, initial_parents, keys, <span class="number">0.0</span>)
 }
 
-<span class="comment">// Bernoulli-samples from a set of ancestors passed as a argument,</span>
-<span class="kw">fn</span> <span class="ident">this_cert_parents</span>(
-    <span class="ident">ancestors</span>: <span class="kw-2">&amp;</span><span class="ident">BTreeSet</span>&lt;<span class="ident">CertificateDigest</span>&gt;,
-    <span class="ident">failure_prob</span>: <span class="ident">f64</span>,
-) -&gt; <span class="ident">BTreeSet</span>&lt;<span class="ident">CertificateDigest</span>&gt; {
-    <span class="ident">std::iter::from_fn</span>(|| {
-        <span class="kw">let</span> <span class="ident">f</span>: <span class="ident">f64</span> = <span class="ident">rand::thread_rng</span>().<span class="ident">gen</span>();
-        <span class="prelude-val">Some</span>(<span class="ident">f</span> &gt; <span class="ident">failure_prob</span>)
+<span class="comment">// Bernoulli-samples from a set of ancestors passed as a argument,
+</span><span class="kw">fn </span>this_cert_parents(
+    ancestors: <span class="kw-2">&amp;</span>BTreeSet&lt;CertificateDigest&gt;,
+    failure_prob: f64,
+) -&gt; BTreeSet&lt;CertificateDigest&gt; {
+    std::iter::from_fn(|| {
+        <span class="kw">let </span>f: f64 = rand::thread_rng().gen();
+        <span class="prelude-val">Some</span>(f &gt; failure_prob)
     })
-    .<span class="ident">take</span>(<span class="ident">ancestors</span>.<span class="ident">len</span>())
-    .<span class="ident">zip</span>(<span class="ident">ancestors</span>)
-    .<span class="ident">flat_map</span>(|(<span class="ident">parenthood</span>, <span class="ident">parent</span>)| <span class="ident">parenthood</span>.<span class="ident">then</span>(|| <span class="kw-2">*</span><span class="ident">parent</span>))
-    .<span class="ident">collect</span>::&lt;<span class="ident">BTreeSet</span>&lt;<span class="kw">_</span>&gt;&gt;()
+    .take(ancestors.len())
+    .zip(ancestors)
+    .flat_map(|(parenthood, parent)| parenthood.then(|| <span class="kw-2">*</span>parent))
+    .collect::&lt;BTreeSet&lt;<span class="kw">_</span>&gt;&gt;()
 }
 
-<span class="comment">// Utility for making several rounds worth of certificates through iterated parenthood sampling.</span>
-<span class="comment">// The making of individial certificates once parents are figured out is delegated to the `make_one_certificate` argument</span>
-<span class="kw">fn</span> <span class="ident">rounds_of_certificates</span>(
-    <span class="ident">range</span>: <span class="ident">RangeInclusive</span>&lt;<span class="ident">Round</span>&gt;,
-    <span class="ident">initial_parents</span>: <span class="kw-2">&amp;</span><span class="ident">BTreeSet</span>&lt;<span class="ident">CertificateDigest</span>&gt;,
-    <span class="ident">keys</span>: <span class="kw-2">&amp;</span>[<span class="ident">PublicKey</span>],
-    <span class="ident">failure_probability</span>: <span class="ident">f64</span>,
-    <span class="ident">make_one_certificate</span>: <span class="kw">impl</span> <span class="ident">Fn</span>(
-        <span class="ident">PublicKey</span>,
-        <span class="ident">Round</span>,
-        <span class="ident">BTreeSet</span>&lt;<span class="ident">CertificateDigest</span>&gt;,
-    ) -&gt; (<span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span>),
-) -&gt; (<span class="ident">VecDeque</span>&lt;<span class="ident">Certificate</span>&gt;, <span class="ident">BTreeSet</span>&lt;<span class="ident">CertificateDigest</span>&gt;) {
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">certificates</span> = <span class="ident">VecDeque::new</span>();
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">parents</span> = <span class="ident">initial_parents</span>.<span class="ident">iter</span>().<span class="ident">cloned</span>().<span class="ident">collect</span>::&lt;<span class="ident">BTreeSet</span>&lt;<span class="kw">_</span>&gt;&gt;();
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">next_parents</span> = <span class="ident">BTreeSet::new</span>();
+<span class="comment">// Utility for making several rounds worth of certificates through iterated parenthood sampling.
+// The making of individial certificates once parents are figured out is delegated to the `make_one_certificate` argument
+</span><span class="kw">fn </span>rounds_of_certificates(
+    range: RangeInclusive&lt;Round&gt;,
+    initial_parents: <span class="kw-2">&amp;</span>BTreeSet&lt;CertificateDigest&gt;,
+    keys: <span class="kw-2">&amp;</span>[PublicKey],
+    failure_probability: f64,
+    make_one_certificate: <span class="kw">impl </span>Fn(
+        PublicKey,
+        Round,
+        BTreeSet&lt;CertificateDigest&gt;,
+    ) -&gt; (CertificateDigest, Certificate),
+) -&gt; (VecDeque&lt;Certificate&gt;, BTreeSet&lt;CertificateDigest&gt;) {
+    <span class="kw">let </span><span class="kw-2">mut </span>certificates = VecDeque::new();
+    <span class="kw">let </span><span class="kw-2">mut </span>parents = initial_parents.iter().cloned().collect::&lt;BTreeSet&lt;<span class="kw">_</span>&gt;&gt;();
+    <span class="kw">let </span><span class="kw-2">mut </span>next_parents = BTreeSet::new();
 
-    <span class="kw">for</span> <span class="ident">round</span> <span class="kw">in</span> <span class="ident">range</span> {
-        <span class="ident">next_parents</span>.<span class="ident">clear</span>();
-        <span class="kw">for</span> <span class="ident">name</span> <span class="kw">in</span> <span class="ident">keys</span> {
-            <span class="kw">let</span> <span class="ident">this_cert_parents</span> = <span class="ident">this_cert_parents</span>(<span class="kw-2">&amp;</span><span class="ident">parents</span>, <span class="ident">failure_probability</span>);
+    <span class="kw">for </span>round <span class="kw">in </span>range {
+        next_parents.clear();
+        <span class="kw">for </span>name <span class="kw">in </span>keys {
+            <span class="kw">let </span>this_cert_parents = this_cert_parents(<span class="kw-2">&amp;</span>parents, failure_probability);
 
-            <span class="kw">let</span> (<span class="ident">digest</span>, <span class="ident">certificate</span>) =
-                <span class="ident">make_one_certificate</span>(<span class="ident">name</span>.<span class="ident">clone</span>(), <span class="ident">round</span>, <span class="ident">this_cert_parents</span>);
-            <span class="ident">certificates</span>.<span class="ident">push_back</span>(<span class="ident">certificate</span>);
-            <span class="ident">next_parents</span>.<span class="ident">insert</span>(<span class="ident">digest</span>);
+            <span class="kw">let </span>(digest, certificate) =
+                make_one_certificate(name.clone(), round, this_cert_parents);
+            certificates.push_back(certificate);
+            next_parents.insert(digest);
         }
-        <span class="ident">parents</span> = <span class="ident">next_parents</span>.<span class="ident">clone</span>();
+        parents = next_parents.clone();
     }
-    (<span class="ident">certificates</span>, <span class="ident">next_parents</span>)
+    (certificates, next_parents)
 }
 
-<span class="comment">// make rounds worth of unsigned certificates with the sampled number of parents</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">make_certificates</span>(
-    <span class="ident">range</span>: <span class="ident">RangeInclusive</span>&lt;<span class="ident">Round</span>&gt;,
-    <span class="ident">initial_parents</span>: <span class="kw-2">&amp;</span><span class="ident">BTreeSet</span>&lt;<span class="ident">CertificateDigest</span>&gt;,
-    <span class="ident">keys</span>: <span class="kw-2">&amp;</span>[<span class="ident">PublicKey</span>],
-    <span class="ident">failure_probability</span>: <span class="ident">f64</span>,
-) -&gt; (<span class="ident">VecDeque</span>&lt;<span class="ident">Certificate</span>&gt;, <span class="ident">BTreeSet</span>&lt;<span class="ident">CertificateDigest</span>&gt;) {
-    <span class="ident">rounds_of_certificates</span>(
-        <span class="ident">range</span>,
-        <span class="ident">initial_parents</span>,
-        <span class="ident">keys</span>,
-        <span class="ident">failure_probability</span>,
-        <span class="ident">mock_certificate</span>,
+<span class="comment">// make rounds worth of unsigned certificates with the sampled number of parents
+</span><span class="kw">pub fn </span>make_certificates(
+    range: RangeInclusive&lt;Round&gt;,
+    initial_parents: <span class="kw-2">&amp;</span>BTreeSet&lt;CertificateDigest&gt;,
+    keys: <span class="kw-2">&amp;</span>[PublicKey],
+    failure_probability: f64,
+) -&gt; (VecDeque&lt;Certificate&gt;, BTreeSet&lt;CertificateDigest&gt;) {
+    rounds_of_certificates(
+        range,
+        initial_parents,
+        keys,
+        failure_probability,
+        mock_certificate,
     )
 }
 
-<span class="comment">// make rounds worth of unsigned certificates with the sampled number of parents</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">make_certificates_with_epoch</span>(
-    <span class="ident">range</span>: <span class="ident">RangeInclusive</span>&lt;<span class="ident">Round</span>&gt;,
-    <span class="ident">epoch</span>: <span class="ident">Epoch</span>,
-    <span class="ident">initial_parents</span>: <span class="kw-2">&amp;</span><span class="ident">BTreeSet</span>&lt;<span class="ident">CertificateDigest</span>&gt;,
-    <span class="ident">keys</span>: <span class="kw-2">&amp;</span>[<span class="ident">PublicKey</span>],
-) -&gt; (<span class="ident">VecDeque</span>&lt;<span class="ident">Certificate</span>&gt;, <span class="ident">BTreeSet</span>&lt;<span class="ident">CertificateDigest</span>&gt;) {
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">certificates</span> = <span class="ident">VecDeque::new</span>();
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">parents</span> = <span class="ident">initial_parents</span>.<span class="ident">iter</span>().<span class="ident">cloned</span>().<span class="ident">collect</span>::&lt;<span class="ident">BTreeSet</span>&lt;<span class="kw">_</span>&gt;&gt;();
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">next_parents</span> = <span class="ident">BTreeSet::new</span>();
+<span class="comment">// make rounds worth of unsigned certificates with the sampled number of parents
+</span><span class="kw">pub fn </span>make_certificates_with_epoch(
+    range: RangeInclusive&lt;Round&gt;,
+    epoch: Epoch,
+    initial_parents: <span class="kw-2">&amp;</span>BTreeSet&lt;CertificateDigest&gt;,
+    keys: <span class="kw-2">&amp;</span>[PublicKey],
+) -&gt; (VecDeque&lt;Certificate&gt;, BTreeSet&lt;CertificateDigest&gt;) {
+    <span class="kw">let </span><span class="kw-2">mut </span>certificates = VecDeque::new();
+    <span class="kw">let </span><span class="kw-2">mut </span>parents = initial_parents.iter().cloned().collect::&lt;BTreeSet&lt;<span class="kw">_</span>&gt;&gt;();
+    <span class="kw">let </span><span class="kw-2">mut </span>next_parents = BTreeSet::new();
 
-    <span class="kw">for</span> <span class="ident">round</span> <span class="kw">in</span> <span class="ident">range</span> {
-        <span class="ident">next_parents</span>.<span class="ident">clear</span>();
-        <span class="kw">for</span> <span class="ident">name</span> <span class="kw">in</span> <span class="ident">keys</span> {
-            <span class="kw">let</span> (<span class="ident">digest</span>, <span class="ident">certificate</span>) =
-                <span class="ident">mock_certificate_with_epoch</span>(<span class="ident">name</span>.<span class="ident">clone</span>(), <span class="ident">round</span>, <span class="ident">epoch</span>, <span class="ident">parents</span>.<span class="ident">clone</span>());
-            <span class="ident">certificates</span>.<span class="ident">push_back</span>(<span class="ident">certificate</span>);
-            <span class="ident">next_parents</span>.<span class="ident">insert</span>(<span class="ident">digest</span>);
+    <span class="kw">for </span>round <span class="kw">in </span>range {
+        next_parents.clear();
+        <span class="kw">for </span>name <span class="kw">in </span>keys {
+            <span class="kw">let </span>(digest, certificate) =
+                mock_certificate_with_epoch(name.clone(), round, epoch, parents.clone());
+            certificates.push_back(certificate);
+            next_parents.insert(digest);
         }
-        <span class="ident">parents</span> = <span class="ident">next_parents</span>.<span class="ident">clone</span>();
+        parents = next_parents.clone();
     }
-    (<span class="ident">certificates</span>, <span class="ident">next_parents</span>)
+    (certificates, next_parents)
 }
 
-<span class="comment">// make rounds worth of signed certificates with the sampled number of parents</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">make_signed_certificates</span>(
-    <span class="ident">range</span>: <span class="ident">RangeInclusive</span>&lt;<span class="ident">Round</span>&gt;,
-    <span class="ident">initial_parents</span>: <span class="kw-2">&amp;</span><span class="ident">BTreeSet</span>&lt;<span class="ident">CertificateDigest</span>&gt;,
-    <span class="ident">keys</span>: <span class="kw-2">&amp;</span>[<span class="ident">KeyPair</span>],
-    <span class="ident">failure_probability</span>: <span class="ident">f64</span>,
-) -&gt; (<span class="ident">VecDeque</span>&lt;<span class="ident">Certificate</span>&gt;, <span class="ident">BTreeSet</span>&lt;<span class="ident">CertificateDigest</span>&gt;) {
-    <span class="kw">let</span> <span class="ident">public_keys</span> = <span class="ident">keys</span>.<span class="ident">iter</span>().<span class="ident">map</span>(|<span class="ident">k</span>| <span class="ident">k</span>.<span class="ident">public</span>().<span class="ident">clone</span>()).<span class="ident">collect</span>::&lt;<span class="ident">Vec</span>&lt;<span class="kw">_</span>&gt;&gt;();
-    <span class="kw">let</span> <span class="ident">generator</span> = |<span class="ident">pk</span>, <span class="ident">round</span>, <span class="ident">parents</span>| <span class="ident">mock_signed_certificate</span>(<span class="ident">keys</span>, <span class="ident">pk</span>, <span class="ident">round</span>, <span class="ident">parents</span>);
+<span class="comment">// make rounds worth of signed certificates with the sampled number of parents
+</span><span class="kw">pub fn </span>make_signed_certificates(
+    range: RangeInclusive&lt;Round&gt;,
+    initial_parents: <span class="kw-2">&amp;</span>BTreeSet&lt;CertificateDigest&gt;,
+    keys: <span class="kw-2">&amp;</span>[KeyPair],
+    failure_probability: f64,
+) -&gt; (VecDeque&lt;Certificate&gt;, BTreeSet&lt;CertificateDigest&gt;) {
+    <span class="kw">let </span>public_keys = keys.iter().map(|k| k.public().clone()).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+    <span class="kw">let </span>generator = |pk, round, parents| mock_signed_certificate(keys, pk, round, parents);
 
-    <span class="ident">rounds_of_certificates</span>(
-        <span class="ident">range</span>,
-        <span class="ident">initial_parents</span>,
-        <span class="kw-2">&amp;</span><span class="ident">public_keys</span>[..],
-        <span class="ident">failure_probability</span>,
-        <span class="ident">generator</span>,
+    rounds_of_certificates(
+        range,
+        initial_parents,
+        <span class="kw-2">&amp;</span>public_keys[..],
+        failure_probability,
+        generator,
     )
 }
 
-<span class="comment">// Creates an unsigned certificate from its given round, origin and parents,</span>
-<span class="comment">// Note: the certificate is unsigned</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">mock_certificate</span>(
-    <span class="ident">origin</span>: <span class="ident">PublicKey</span>,
-    <span class="ident">round</span>: <span class="ident">Round</span>,
-    <span class="ident">parents</span>: <span class="ident">BTreeSet</span>&lt;<span class="ident">CertificateDigest</span>&gt;,
-) -&gt; (<span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span>) {
-    <span class="kw">let</span> <span class="ident">certificate</span> = <span class="ident">Certificate</span> {
-        <span class="ident">header</span>: <span class="ident">Header</span> {
-            <span class="ident">author</span>: <span class="ident">origin</span>,
-            <span class="ident">round</span>,
-            <span class="ident">parents</span>,
-            <span class="ident">payload</span>: <span class="ident">fixture_payload</span>(<span class="number">1</span>),
-            ..<span class="ident">Header::default</span>()
+<span class="comment">// Creates an unsigned certificate from its given round, origin and parents,
+// Note: the certificate is unsigned
+</span><span class="kw">pub fn </span>mock_certificate(
+    origin: PublicKey,
+    round: Round,
+    parents: BTreeSet&lt;CertificateDigest&gt;,
+) -&gt; (CertificateDigest, Certificate) {
+    <span class="kw">let </span>certificate = Certificate {
+        header: Header {
+            author: origin,
+            round,
+            parents,
+            payload: fixture_payload(<span class="number">1</span>),
+            ..Header::default()
         },
-        ..<span class="ident">Certificate::default</span>()
+        ..Certificate::default()
     };
-    (<span class="ident">certificate</span>.<span class="ident">digest</span>(), <span class="ident">certificate</span>)
+    (certificate.digest(), certificate)
 }
 
-<span class="comment">// Creates an unsigned certificate from its given round, epoch, origin, and parents,</span>
-<span class="comment">// Note: the certificate is unsigned</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">mock_certificate_with_epoch</span>(
-    <span class="ident">origin</span>: <span class="ident">PublicKey</span>,
-    <span class="ident">round</span>: <span class="ident">Round</span>,
-    <span class="ident">epoch</span>: <span class="ident">Epoch</span>,
-    <span class="ident">parents</span>: <span class="ident">BTreeSet</span>&lt;<span class="ident">CertificateDigest</span>&gt;,
-) -&gt; (<span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span>) {
-    <span class="kw">let</span> <span class="ident">certificate</span> = <span class="ident">Certificate</span> {
-        <span class="ident">header</span>: <span class="ident">Header</span> {
-            <span class="ident">author</span>: <span class="ident">origin</span>,
-            <span class="ident">round</span>,
-            <span class="ident">epoch</span>,
-            <span class="ident">parents</span>,
-            <span class="ident">payload</span>: <span class="ident">fixture_payload</span>(<span class="number">1</span>),
-            ..<span class="ident">Header::default</span>()
+<span class="comment">// Creates an unsigned certificate from its given round, epoch, origin, and parents,
+// Note: the certificate is unsigned
+</span><span class="kw">pub fn </span>mock_certificate_with_epoch(
+    origin: PublicKey,
+    round: Round,
+    epoch: Epoch,
+    parents: BTreeSet&lt;CertificateDigest&gt;,
+) -&gt; (CertificateDigest, Certificate) {
+    <span class="kw">let </span>certificate = Certificate {
+        header: Header {
+            author: origin,
+            round,
+            epoch,
+            parents,
+            payload: fixture_payload(<span class="number">1</span>),
+            ..Header::default()
         },
-        ..<span class="ident">Certificate::default</span>()
+        ..Certificate::default()
     };
-    (<span class="ident">certificate</span>.<span class="ident">digest</span>(), <span class="ident">certificate</span>)
+    (certificate.digest(), certificate)
 }
 
-<span class="comment">// Creates one signed certificate from a set of signers - the signers must include the origin</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">mock_signed_certificate</span>(
-    <span class="ident">signers</span>: <span class="kw-2">&amp;</span>[<span class="ident">KeyPair</span>],
-    <span class="ident">origin</span>: <span class="ident">PublicKey</span>,
-    <span class="ident">round</span>: <span class="ident">Round</span>,
-    <span class="ident">parents</span>: <span class="ident">BTreeSet</span>&lt;<span class="ident">CertificateDigest</span>&gt;,
-) -&gt; (<span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span>) {
-    <span class="kw">let</span> <span class="ident">author</span> = <span class="ident">signers</span>.<span class="ident">iter</span>().<span class="ident">find</span>(|<span class="ident">kp</span>| <span class="kw-2">*</span><span class="ident">kp</span>.<span class="ident">public</span>() == <span class="ident">origin</span>).<span class="ident">unwrap</span>();
-    <span class="kw">let</span> <span class="ident">header_builder</span> = <span class="ident">HeaderBuilder::default</span>()
-        .<span class="ident">author</span>(<span class="ident">origin</span>.<span class="ident">clone</span>())
-        .<span class="ident">payload</span>(<span class="ident">fixture_payload</span>(<span class="number">1</span>))
-        .<span class="ident">round</span>(<span class="ident">round</span>)
-        .<span class="ident">epoch</span>(<span class="number">0</span>)
-        .<span class="ident">parents</span>(<span class="ident">parents</span>);
-    <span class="kw">let</span> <span class="ident">header</span> = <span class="ident">header_builder</span>.<span class="ident">build</span>(<span class="ident">author</span>).<span class="ident">unwrap</span>();
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">cert</span> = <span class="ident">Certificate</span> {
-        <span class="ident">header</span>,
-        ..<span class="ident">Certificate::default</span>()
+<span class="comment">// Creates one signed certificate from a set of signers - the signers must include the origin
+</span><span class="kw">pub fn </span>mock_signed_certificate(
+    signers: <span class="kw-2">&amp;</span>[KeyPair],
+    origin: PublicKey,
+    round: Round,
+    parents: BTreeSet&lt;CertificateDigest&gt;,
+) -&gt; (CertificateDigest, Certificate) {
+    <span class="kw">let </span>author = signers.iter().find(|kp| <span class="kw-2">*</span>kp.public() == origin).unwrap();
+    <span class="kw">let </span>header_builder = HeaderBuilder::default()
+        .author(origin.clone())
+        .payload(fixture_payload(<span class="number">1</span>))
+        .round(round)
+        .epoch(<span class="number">0</span>)
+        .parents(parents);
+    <span class="kw">let </span>header = header_builder.build(author).unwrap();
+    <span class="kw">let </span><span class="kw-2">mut </span>cert = Certificate {
+        header,
+        ..Certificate::default()
     };
 
-    <span class="kw">for</span> <span class="ident">signer</span> <span class="kw">in</span> <span class="ident">signers</span> {
-        <span class="kw">let</span> <span class="ident">pk</span> = <span class="ident">signer</span>.<span class="ident">public</span>();
-        <span class="kw">let</span> <span class="ident">sig</span> = <span class="ident">signer</span>
-            .<span class="ident">try_sign</span>(<span class="ident">Digest::from</span>(<span class="ident">cert</span>.<span class="ident">digest</span>()).<span class="ident">as_ref</span>())
-            .<span class="ident">unwrap</span>();
-        <span class="ident">cert</span>.<span class="ident">votes</span>.<span class="ident">push</span>((<span class="ident">pk</span>.<span class="ident">clone</span>(), <span class="ident">sig</span>))
+    <span class="kw">for </span>signer <span class="kw">in </span>signers {
+        <span class="kw">let </span>pk = signer.public();
+        <span class="kw">let </span>sig = signer
+            .try_sign(Digest::from(cert.digest()).as_ref())
+            .unwrap();
+        cert.votes.push((pk.clone(), sig))
     }
-    (<span class="ident">cert</span>.<span class="ident">digest</span>(), <span class="ident">cert</span>)
+    (cert.digest(), cert)
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="test_utils" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="test_utils" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (801821d15 2022-08-14)" ></div></body></html>

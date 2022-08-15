@@ -54,61 +54,61 @@
 <span id="54">54</span>
 <span id="55">55</span>
 <span id="56">56</span>
-</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
-<span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="kw">use</span> <span class="ident">axum</span>::{<span class="ident">http::StatusCode</span>, <span class="ident">routing::get</span>, <span class="ident">Extension</span>, <span class="ident">Router</span>};
-<span class="kw">use</span> <span class="ident">config::WorkerId</span>;
-<span class="kw">use</span> <span class="ident">crypto::PublicKey</span>;
-<span class="kw">use</span> <span class="ident">multiaddr::Multiaddr</span>;
-<span class="kw">use</span> <span class="ident">mysten_network::multiaddr::to_socket_addr</span>;
-<span class="kw">use</span> <span class="ident">prometheus</span>::{<span class="ident">Registry</span>, <span class="ident">TextEncoder</span>};
-<span class="kw">use</span> <span class="ident">std::collections::HashMap</span>;
-<span class="kw">use</span> <span class="ident">tokio::task::JoinHandle</span>;
+</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+</span><span class="kw">use </span>axum::{http::StatusCode, routing::get, Extension, Router};
+<span class="kw">use </span>config::WorkerId;
+<span class="kw">use </span>crypto::PublicKey;
+<span class="kw">use </span>multiaddr::Multiaddr;
+<span class="kw">use </span>mysten_network::multiaddr::to_socket_addr;
+<span class="kw">use </span>prometheus::{Registry, TextEncoder};
+<span class="kw">use </span>std::collections::HashMap;
+<span class="kw">use </span>tokio::task::JoinHandle;
 
-<span class="kw">const</span> <span class="ident">METRICS_ROUTE</span>: <span class="kw-2">&amp;</span><span class="ident">str</span> = <span class="string">&quot;/metrics&quot;</span>;
-<span class="kw">const</span> <span class="ident">PRIMARY_METRICS_PREFIX</span>: <span class="kw-2">&amp;</span><span class="ident">str</span> = <span class="string">&quot;narwhal_primary&quot;</span>;
-<span class="kw">const</span> <span class="ident">WORKER_METRICS_PREFIX</span>: <span class="kw-2">&amp;</span><span class="ident">str</span> = <span class="string">&quot;narwhal_worker&quot;</span>;
+<span class="kw">const </span>METRICS_ROUTE: <span class="kw-2">&amp;</span>str = <span class="string">&quot;/metrics&quot;</span>;
+<span class="kw">const </span>PRIMARY_METRICS_PREFIX: <span class="kw-2">&amp;</span>str = <span class="string">&quot;narwhal_primary&quot;</span>;
+<span class="kw">const </span>WORKER_METRICS_PREFIX: <span class="kw-2">&amp;</span>str = <span class="string">&quot;narwhal_worker&quot;</span>;
 
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">primary_metrics_registry</span>(<span class="ident">name</span>: <span class="ident">PublicKey</span>) -&gt; <span class="ident">Registry</span> {
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">labels</span> = <span class="ident">HashMap::new</span>();
-    <span class="ident">labels</span>.<span class="ident">insert</span>(<span class="string">&quot;node_name&quot;</span>.<span class="ident">to_string</span>(), <span class="ident">name</span>.<span class="ident">to_string</span>());
+<span class="kw">pub fn </span>primary_metrics_registry(name: PublicKey) -&gt; Registry {
+    <span class="kw">let </span><span class="kw-2">mut </span>labels = HashMap::new();
+    labels.insert(<span class="string">&quot;node_name&quot;</span>.to_string(), name.to_string());
 
-    <span class="ident">Registry::new_custom</span>(<span class="prelude-val">Some</span>(<span class="ident">PRIMARY_METRICS_PREFIX</span>.<span class="ident">to_string</span>()), <span class="prelude-val">Some</span>(<span class="ident">labels</span>)).<span class="ident">unwrap</span>()
+    Registry::new_custom(<span class="prelude-val">Some</span>(PRIMARY_METRICS_PREFIX.to_string()), <span class="prelude-val">Some</span>(labels)).unwrap()
 }
 
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">worker_metrics_registry</span>(<span class="ident">worker_id</span>: <span class="ident">WorkerId</span>, <span class="ident">name</span>: <span class="ident">PublicKey</span>) -&gt; <span class="ident">Registry</span> {
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">labels</span> = <span class="ident">HashMap::new</span>();
-    <span class="ident">labels</span>.<span class="ident">insert</span>(<span class="string">&quot;node_name&quot;</span>.<span class="ident">to_string</span>(), <span class="ident">name</span>.<span class="ident">to_string</span>());
-    <span class="ident">labels</span>.<span class="ident">insert</span>(<span class="string">&quot;worker_id&quot;</span>.<span class="ident">to_string</span>(), <span class="ident">worker_id</span>.<span class="ident">to_string</span>());
+<span class="kw">pub fn </span>worker_metrics_registry(worker_id: WorkerId, name: PublicKey) -&gt; Registry {
+    <span class="kw">let </span><span class="kw-2">mut </span>labels = HashMap::new();
+    labels.insert(<span class="string">&quot;node_name&quot;</span>.to_string(), name.to_string());
+    labels.insert(<span class="string">&quot;worker_id&quot;</span>.to_string(), worker_id.to_string());
 
-    <span class="ident">Registry::new_custom</span>(<span class="prelude-val">Some</span>(<span class="ident">WORKER_METRICS_PREFIX</span>.<span class="ident">to_string</span>()), <span class="prelude-val">Some</span>(<span class="ident">labels</span>)).<span class="ident">unwrap</span>()
+    Registry::new_custom(<span class="prelude-val">Some</span>(WORKER_METRICS_PREFIX.to_string()), <span class="prelude-val">Some</span>(labels)).unwrap()
 }
 
-<span class="attribute">#[<span class="ident">must_use</span>]</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">start_prometheus_server</span>(<span class="ident">addr</span>: <span class="ident">Multiaddr</span>, <span class="ident">registry</span>: <span class="kw-2">&amp;</span><span class="ident">Registry</span>) -&gt; <span class="ident">JoinHandle</span>&lt;()&gt; {
-    <span class="kw">let</span> <span class="ident">app</span> = <span class="ident">Router::new</span>()
-        .<span class="ident">route</span>(<span class="ident">METRICS_ROUTE</span>, <span class="ident">get</span>(<span class="ident">metrics</span>))
-        .<span class="ident">layer</span>(<span class="ident">Extension</span>(<span class="ident">registry</span>.<span class="ident">clone</span>()));
+<span class="attribute">#[must_use]</span>
+<span class="kw">pub fn </span>start_prometheus_server(addr: Multiaddr, registry: <span class="kw-2">&amp;</span>Registry) -&gt; JoinHandle&lt;()&gt; {
+    <span class="kw">let </span>app = Router::new()
+        .route(METRICS_ROUTE, get(metrics))
+        .layer(Extension(registry.clone()));
 
-    <span class="kw">let</span> <span class="ident">socket_addr</span> = <span class="ident">to_socket_addr</span>(<span class="kw-2">&amp;</span><span class="ident">addr</span>).<span class="ident">expect</span>(<span class="string">&quot;failed to convert Multiaddr to SocketAddr&quot;</span>);
+    <span class="kw">let </span>socket_addr = to_socket_addr(<span class="kw-2">&amp;</span>addr).expect(<span class="string">&quot;failed to convert Multiaddr to SocketAddr&quot;</span>);
 
-    <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
-        <span class="ident">axum::Server::bind</span>(<span class="kw-2">&amp;</span><span class="ident">socket_addr</span>)
-            .<span class="ident">serve</span>(<span class="ident">app</span>.<span class="ident">into_make_service</span>())
-            .<span class="kw">await</span>
-            .<span class="ident">unwrap</span>();
+    tokio::spawn(<span class="kw">async move </span>{
+        axum::Server::bind(<span class="kw-2">&amp;</span>socket_addr)
+            .serve(app.into_make_service())
+            .<span class="kw">await
+            </span>.unwrap();
     })
 }
 
-<span class="kw">async</span> <span class="kw">fn</span> <span class="ident">metrics</span>(<span class="ident">registry</span>: <span class="ident">Extension</span>&lt;<span class="ident">Registry</span>&gt;) -&gt; (<span class="ident">StatusCode</span>, <span class="ident">String</span>) {
-    <span class="kw">let</span> <span class="ident">metrics_families</span> = <span class="ident">registry</span>.<span class="ident">gather</span>();
-    <span class="kw">match</span> <span class="ident">TextEncoder</span>.<span class="ident">encode_to_string</span>(<span class="kw-2">&amp;</span><span class="ident">metrics_families</span>) {
-        <span class="prelude-val">Ok</span>(<span class="ident">metrics</span>) =&gt; (<span class="ident">StatusCode::OK</span>, <span class="ident">metrics</span>),
-        <span class="prelude-val">Err</span>(<span class="ident">error</span>) =&gt; (
-            <span class="ident">StatusCode::INTERNAL_SERVER_ERROR</span>,
+<span class="kw">async fn </span>metrics(registry: Extension&lt;Registry&gt;) -&gt; (StatusCode, String) {
+    <span class="kw">let </span>metrics_families = registry.gather();
+    <span class="kw">match </span>TextEncoder.encode_to_string(<span class="kw-2">&amp;</span>metrics_families) {
+        <span class="prelude-val">Ok</span>(metrics) =&gt; (StatusCode::OK, metrics),
+        <span class="prelude-val">Err</span>(error) =&gt; (
+            StatusCode::INTERNAL_SERVER_ERROR,
             <span class="macro">format!</span>(<span class="string">&quot;unable to encode metrics: {error}&quot;</span>),
         ),
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="node" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="node" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (801821d15 2022-08-14)" ></div></body></html>

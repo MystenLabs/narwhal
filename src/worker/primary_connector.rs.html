@@ -87,94 +87,94 @@
 <span id="87">87</span>
 <span id="88">88</span>
 <span id="89">89</span>
-</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
-<span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
-<span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="kw">use</span> <span class="ident">config::Committee</span>;
-<span class="kw">use</span> <span class="ident">crypto::PublicKey</span>;
-<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">stream::FuturesUnordered</span>, <span class="ident">StreamExt</span>};
-<span class="kw">use</span> <span class="ident">network</span>::{<span class="ident">ReliableNetwork</span>, <span class="ident">WorkerToPrimaryNetwork</span>};
-<span class="kw">use</span> <span class="ident">tokio</span>::{<span class="ident">sync::watch</span>, <span class="ident">task::JoinHandle</span>};
-<span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">metered_channel::Receiver</span>, <span class="ident">ReconfigureNotification</span>, <span class="ident">WorkerPrimaryMessage</span>};
+</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
+// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+</span><span class="kw">use </span>config::Committee;
+<span class="kw">use </span>crypto::PublicKey;
+<span class="kw">use </span>futures::{stream::FuturesUnordered, StreamExt};
+<span class="kw">use </span>network::{ReliableNetwork, WorkerToPrimaryNetwork};
+<span class="kw">use </span>tokio::{sync::watch, task::JoinHandle};
+<span class="kw">use </span>types::{metered_channel::Receiver, ReconfigureNotification, WorkerPrimaryMessage};
 
-<span class="doccomment">/// The maximum number of digests kept in memory waiting to be sent to the primary.</span>
-<span class="kw">pub</span> <span class="kw">const</span> <span class="ident">MAX_PENDING_DIGESTS</span>: <span class="ident">usize</span> = <span class="number">10_000</span>;
+<span class="doccomment">/// The maximum number of digests kept in memory waiting to be sent to the primary.
+</span><span class="kw">pub const </span>MAX_PENDING_DIGESTS: usize = <span class="number">10_000</span>;
 
-<span class="comment">// Send batches&#39; digests to the primary.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">PrimaryConnector</span> {
-    <span class="doccomment">/// The public key of this authority.</span>
-    <span class="ident">name</span>: <span class="ident">PublicKey</span>,
-    <span class="doccomment">/// The committee information.</span>
-    <span class="ident">committee</span>: <span class="ident">Committee</span>,
-    <span class="doccomment">/// Receive reconfiguration updates.</span>
-    <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span>&lt;<span class="ident">ReconfigureNotification</span>&gt;,
-    <span class="doccomment">/// Input channel to receive the messages to send to the primary.</span>
-    <span class="ident">rx_digest</span>: <span class="ident">Receiver</span>&lt;<span class="ident">WorkerPrimaryMessage</span>&gt;,
-    <span class="doccomment">/// A network sender to send the batches&#39; digests to the primary.</span>
-    <span class="ident">primary_client</span>: <span class="ident">WorkerToPrimaryNetwork</span>,
+<span class="comment">// Send batches&#39; digests to the primary.
+</span><span class="kw">pub struct </span>PrimaryConnector {
+    <span class="doccomment">/// The public key of this authority.
+    </span>name: PublicKey,
+    <span class="doccomment">/// The committee information.
+    </span>committee: Committee,
+    <span class="doccomment">/// Receive reconfiguration updates.
+    </span>rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;,
+    <span class="doccomment">/// Input channel to receive the messages to send to the primary.
+    </span>rx_digest: Receiver&lt;WorkerPrimaryMessage&gt;,
+    <span class="doccomment">/// A network sender to send the batches&#39; digests to the primary.
+    </span>primary_client: WorkerToPrimaryNetwork,
 }
 
-<span class="kw">impl</span> <span class="ident">PrimaryConnector</span> {
-    <span class="attribute">#[<span class="ident">must_use</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(
-        <span class="ident">name</span>: <span class="ident">PublicKey</span>,
-        <span class="ident">committee</span>: <span class="ident">Committee</span>,
-        <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span>&lt;<span class="ident">ReconfigureNotification</span>&gt;,
-        <span class="ident">rx_digest</span>: <span class="ident">Receiver</span>&lt;<span class="ident">WorkerPrimaryMessage</span>&gt;,
-    ) -&gt; <span class="ident">JoinHandle</span>&lt;()&gt; {
-        <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
-            <span class="self">Self</span> {
-                <span class="ident">name</span>,
-                <span class="ident">committee</span>,
-                <span class="ident">rx_reconfigure</span>,
-                <span class="ident">rx_digest</span>,
-                <span class="ident">primary_client</span>: <span class="ident">WorkerToPrimaryNetwork::default</span>(),
+<span class="kw">impl </span>PrimaryConnector {
+    <span class="attribute">#[must_use]</span>
+    <span class="kw">pub fn </span>spawn(
+        name: PublicKey,
+        committee: Committee,
+        rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;,
+        rx_digest: Receiver&lt;WorkerPrimaryMessage&gt;,
+    ) -&gt; JoinHandle&lt;()&gt; {
+        tokio::spawn(<span class="kw">async move </span>{
+            <span class="self">Self </span>{
+                name,
+                committee,
+                rx_reconfigure,
+                rx_digest,
+                primary_client: WorkerToPrimaryNetwork::default(),
             }
-            .<span class="ident">run</span>()
+            .run()
             .<span class="kw">await</span>;
         })
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">run</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">futures</span> = <span class="ident">FuturesUnordered::new</span>();
-        <span class="kw">loop</span> {
+    <span class="kw">async fn </span>run(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="kw">let </span><span class="kw-2">mut </span>futures = FuturesUnordered::new();
+        <span class="kw">loop </span>{
             <span class="macro">tokio::select!</span> {
-                <span class="comment">// Send the digest through the network.</span>
-                <span class="prelude-val">Some</span>(<span class="ident">digest</span>) = <span class="self">self</span>.<span class="ident">rx_digest</span>.<span class="ident">recv</span>() =&gt; {
-                    <span class="kw">if</span> <span class="ident">futures</span>.<span class="ident">len</span>() &gt;= <span class="ident">MAX_PENDING_DIGESTS</span> {
+                <span class="comment">// Send the digest through the network.
+                </span><span class="prelude-val">Some</span>(digest) = <span class="self">self</span>.rx_digest.recv() =&gt; {
+                    <span class="kw">if </span>futures.len() &gt;= MAX_PENDING_DIGESTS {
                         <span class="macro">tracing::warn!</span>(<span class="string">&quot;Primary unreachable: dropping {digest:?}&quot;</span>);
                         <span class="kw">continue</span>;
                     }
 
-                    <span class="kw">let</span> <span class="ident">address</span> = <span class="self">self</span>.<span class="ident">committee</span>
-                        .<span class="ident">primary</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">name</span>)
-                        .<span class="ident">expect</span>(<span class="string">&quot;Our public key is not in the committee&quot;</span>)
-                        .<span class="ident">worker_to_primary</span>;
-                    <span class="kw">let</span> <span class="ident">handle</span> = <span class="self">self</span>.<span class="ident">primary_client</span>.<span class="ident">send</span>(<span class="ident">address</span>, <span class="kw-2">&amp;</span><span class="ident">digest</span>).<span class="kw">await</span>;
-                    <span class="ident">futures</span>.<span class="ident">push</span>(<span class="ident">handle</span>);
+                    <span class="kw">let </span>address = <span class="self">self</span>.committee
+                        .primary(<span class="kw-2">&amp;</span><span class="self">self</span>.name)
+                        .expect(<span class="string">&quot;Our public key is not in the committee&quot;</span>)
+                        .worker_to_primary;
+                    <span class="kw">let </span>handle = <span class="self">self</span>.primary_client.send(address, <span class="kw-2">&amp;</span>digest).<span class="kw">await</span>;
+                    futures.push(handle);
                 },
 
-                <span class="comment">// Trigger reconfigure.</span>
-                <span class="ident">result</span> = <span class="self">self</span>.<span class="ident">rx_reconfigure</span>.<span class="ident">changed</span>() =&gt; {
-                    <span class="ident">result</span>.<span class="ident">expect</span>(<span class="string">&quot;Committee channel dropped&quot;</span>);
-                    <span class="kw">let</span> <span class="ident">message</span> = <span class="self">self</span>.<span class="ident">rx_reconfigure</span>.<span class="ident">borrow</span>().<span class="ident">clone</span>();
-                    <span class="kw">match</span> <span class="ident">message</span> {
-                        <span class="ident">ReconfigureNotification::NewEpoch</span>(<span class="ident">new_committee</span>) =&gt; {
-                            <span class="self">self</span>.<span class="ident">committee</span> = <span class="ident">new_committee</span>;
+                <span class="comment">// Trigger reconfigure.
+                </span>result = <span class="self">self</span>.rx_reconfigure.changed() =&gt; {
+                    result.expect(<span class="string">&quot;Committee channel dropped&quot;</span>);
+                    <span class="kw">let </span>message = <span class="self">self</span>.rx_reconfigure.borrow().clone();
+                    <span class="kw">match </span>message {
+                        ReconfigureNotification::NewEpoch(new_committee) =&gt; {
+                            <span class="self">self</span>.committee = new_committee;
                         },
-                        <span class="ident">ReconfigureNotification::UpdateCommittee</span>(<span class="ident">new_committee</span>) =&gt; {
-                            <span class="self">self</span>.<span class="ident">committee</span> = <span class="ident">new_committee</span>;
+                        ReconfigureNotification::UpdateCommittee(new_committee) =&gt; {
+                            <span class="self">self</span>.committee = new_committee;
 
                         },
-                        <span class="ident">ReconfigureNotification::Shutdown</span> =&gt; <span class="kw">return</span>
-                    }
-                    <span class="macro">tracing::debug!</span>(<span class="string">&quot;Committee updated to {}&quot;</span>, <span class="self">self</span>.<span class="ident">committee</span>);
+                        ReconfigureNotification::Shutdown =&gt; <span class="kw">return
+                    </span>}
+                    <span class="macro">tracing::debug!</span>(<span class="string">&quot;Committee updated to {}&quot;</span>, <span class="self">self</span>.committee);
                 }
 
-                <span class="prelude-val">Some</span>(<span class="ident">_result</span>) = <span class="ident">futures</span>.<span class="ident">next</span>() =&gt; ()
+                <span class="prelude-val">Some</span>(_result) = futures.next() =&gt; ()
             }
         }
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (801821d15 2022-08-14)" ></div></body></html>

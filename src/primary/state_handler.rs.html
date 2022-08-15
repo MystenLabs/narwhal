@@ -137,138 +137,138 @@
 <span id="137">137</span>
 <span id="138">138</span>
 <span id="139">139</span>
-</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
-<span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
-<span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::primary::PrimaryWorkerMessage</span>;
-<span class="kw">use</span> <span class="ident">config::SharedCommittee</span>;
-<span class="kw">use</span> <span class="ident">crypto::PublicKey</span>;
-<span class="kw">use</span> <span class="ident">network</span>::{<span class="ident">PrimaryToWorkerNetwork</span>, <span class="ident">UnreliableNetwork</span>};
-<span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
-<span class="kw">use</span> <span class="ident">tokio</span>::{<span class="ident">sync::watch</span>, <span class="ident">task::JoinHandle</span>};
-<span class="kw">use</span> <span class="ident">tracing::info</span>;
-<span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">metered_channel::Receiver</span>, <span class="ident">Certificate</span>, <span class="ident">ReconfigureNotification</span>, <span class="ident">Round</span>};
+</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
+// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+</span><span class="kw">use </span><span class="kw">crate</span>::primary::PrimaryWorkerMessage;
+<span class="kw">use </span>config::SharedCommittee;
+<span class="kw">use </span>crypto::PublicKey;
+<span class="kw">use </span>network::{PrimaryToWorkerNetwork, UnreliableNetwork};
+<span class="kw">use </span>std::sync::Arc;
+<span class="kw">use </span>tokio::{sync::watch, task::JoinHandle};
+<span class="kw">use </span>tracing::info;
+<span class="kw">use </span>types::{metered_channel::Receiver, Certificate, ReconfigureNotification, Round};
 
-<span class="doccomment">/// Receives the highest round reached by consensus and update it for all tasks.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">StateHandler</span> {
-    <span class="doccomment">/// The public key of this authority.</span>
-    <span class="ident">name</span>: <span class="ident">PublicKey</span>,
-    <span class="doccomment">/// The committee information.</span>
-    <span class="ident">committee</span>: <span class="ident">SharedCommittee</span>,
-    <span class="doccomment">/// Receives the ordered certificates from consensus.</span>
-    <span class="ident">rx_consensus</span>: <span class="ident">Receiver</span>&lt;<span class="ident">Certificate</span>&gt;,
-    <span class="doccomment">/// Signals a new consensus round</span>
-    <span class="ident">tx_consensus_round_updates</span>: <span class="ident">watch::Sender</span>&lt;<span class="ident">u64</span>&gt;,
-    <span class="doccomment">/// Receives notifications to reconfigure the system.</span>
-    <span class="ident">rx_reconfigure</span>: <span class="ident">Receiver</span>&lt;<span class="ident">ReconfigureNotification</span>&gt;,
-    <span class="doccomment">/// Channel to signal committee changes.</span>
-    <span class="ident">tx_reconfigure</span>: <span class="ident">watch::Sender</span>&lt;<span class="ident">ReconfigureNotification</span>&gt;,
-    <span class="doccomment">/// The latest round committed by consensus.</span>
-    <span class="ident">last_committed_round</span>: <span class="ident">Round</span>,
-    <span class="doccomment">/// A network sender to notify our workers of cleanup events.</span>
-    <span class="ident">worker_network</span>: <span class="ident">PrimaryToWorkerNetwork</span>,
+<span class="doccomment">/// Receives the highest round reached by consensus and update it for all tasks.
+</span><span class="kw">pub struct </span>StateHandler {
+    <span class="doccomment">/// The public key of this authority.
+    </span>name: PublicKey,
+    <span class="doccomment">/// The committee information.
+    </span>committee: SharedCommittee,
+    <span class="doccomment">/// Receives the ordered certificates from consensus.
+    </span>rx_consensus: Receiver&lt;Certificate&gt;,
+    <span class="doccomment">/// Signals a new consensus round
+    </span>tx_consensus_round_updates: watch::Sender&lt;u64&gt;,
+    <span class="doccomment">/// Receives notifications to reconfigure the system.
+    </span>rx_reconfigure: Receiver&lt;ReconfigureNotification&gt;,
+    <span class="doccomment">/// Channel to signal committee changes.
+    </span>tx_reconfigure: watch::Sender&lt;ReconfigureNotification&gt;,
+    <span class="doccomment">/// The latest round committed by consensus.
+    </span>last_committed_round: Round,
+    <span class="doccomment">/// A network sender to notify our workers of cleanup events.
+    </span>worker_network: PrimaryToWorkerNetwork,
 }
 
-<span class="kw">impl</span> <span class="ident">StateHandler</span> {
-    <span class="attribute">#[<span class="ident">must_use</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(
-        <span class="ident">name</span>: <span class="ident">PublicKey</span>,
-        <span class="ident">committee</span>: <span class="ident">SharedCommittee</span>,
-        <span class="ident">rx_consensus</span>: <span class="ident">Receiver</span>&lt;<span class="ident">Certificate</span>&gt;,
-        <span class="ident">tx_consensus_round_updates</span>: <span class="ident">watch::Sender</span>&lt;<span class="ident">u64</span>&gt;,
-        <span class="ident">rx_reconfigure</span>: <span class="ident">Receiver</span>&lt;<span class="ident">ReconfigureNotification</span>&gt;,
-        <span class="ident">tx_reconfigure</span>: <span class="ident">watch::Sender</span>&lt;<span class="ident">ReconfigureNotification</span>&gt;,
-    ) -&gt; <span class="ident">JoinHandle</span>&lt;()&gt; {
-        <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
-            <span class="self">Self</span> {
-                <span class="ident">name</span>,
-                <span class="ident">committee</span>,
-                <span class="ident">rx_consensus</span>,
-                <span class="ident">tx_consensus_round_updates</span>,
-                <span class="ident">rx_reconfigure</span>,
-                <span class="ident">tx_reconfigure</span>,
-                <span class="ident">last_committed_round</span>: <span class="number">0</span>,
-                <span class="ident">worker_network</span>: <span class="ident">Default::default</span>(),
+<span class="kw">impl </span>StateHandler {
+    <span class="attribute">#[must_use]</span>
+    <span class="kw">pub fn </span>spawn(
+        name: PublicKey,
+        committee: SharedCommittee,
+        rx_consensus: Receiver&lt;Certificate&gt;,
+        tx_consensus_round_updates: watch::Sender&lt;u64&gt;,
+        rx_reconfigure: Receiver&lt;ReconfigureNotification&gt;,
+        tx_reconfigure: watch::Sender&lt;ReconfigureNotification&gt;,
+    ) -&gt; JoinHandle&lt;()&gt; {
+        tokio::spawn(<span class="kw">async move </span>{
+            <span class="self">Self </span>{
+                name,
+                committee,
+                rx_consensus,
+                tx_consensus_round_updates,
+                rx_reconfigure,
+                tx_reconfigure,
+                last_committed_round: <span class="number">0</span>,
+                worker_network: Default::default(),
             }
-            .<span class="ident">run</span>()
+            .run()
             .<span class="kw">await</span>;
         })
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">handle_sequenced</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">certificate</span>: <span class="ident">Certificate</span>) {
-        <span class="comment">// TODO [issue #9]: Re-include batch digests that have not been sequenced into our next block.</span>
+    <span class="kw">async fn </span>handle_sequenced(<span class="kw-2">&amp;mut </span><span class="self">self</span>, certificate: Certificate) {
+        <span class="comment">// TODO [issue #9]: Re-include batch digests that have not been sequenced into our next block.
 
-        <span class="kw">let</span> <span class="ident">round</span> = <span class="ident">certificate</span>.<span class="ident">round</span>();
-        <span class="kw">if</span> <span class="ident">round</span> &gt; <span class="self">self</span>.<span class="ident">last_committed_round</span> {
-            <span class="self">self</span>.<span class="ident">last_committed_round</span> = <span class="ident">round</span>;
+        </span><span class="kw">let </span>round = certificate.round();
+        <span class="kw">if </span>round &gt; <span class="self">self</span>.last_committed_round {
+            <span class="self">self</span>.last_committed_round = round;
 
-            <span class="comment">// Trigger cleanup on the primary.</span>
-            <span class="kw">let</span> <span class="kw">_</span> = <span class="self">self</span>.<span class="ident">tx_consensus_round_updates</span>.<span class="ident">send</span>(<span class="ident">round</span>); <span class="comment">// ignore error when receivers dropped.</span>
+            <span class="comment">// Trigger cleanup on the primary.
+            </span><span class="kw">let _ </span>= <span class="self">self</span>.tx_consensus_round_updates.send(round); <span class="comment">// ignore error when receivers dropped.
 
-            <span class="comment">// Trigger cleanup on the workers..</span>
-            <span class="kw">let</span> <span class="ident">addresses</span> = <span class="self">self</span>
-                .<span class="ident">committee</span>
-                .<span class="ident">load</span>()
-                .<span class="ident">our_workers</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">name</span>)
-                .<span class="ident">expect</span>(<span class="string">&quot;Our public key or worker id is not in the committee&quot;</span>)
-                .<span class="ident">into_iter</span>()
-                .<span class="ident">map</span>(|<span class="ident">x</span>| <span class="ident">x</span>.<span class="ident">primary_to_worker</span>)
-                .<span class="ident">collect</span>();
-            <span class="kw">let</span> <span class="ident">message</span> = <span class="ident">PrimaryWorkerMessage::Cleanup</span>(<span class="ident">round</span>);
-            <span class="self">self</span>.<span class="ident">worker_network</span>
-                .<span class="ident">unreliable_broadcast</span>(<span class="ident">addresses</span>, <span class="kw-2">&amp;</span><span class="ident">message</span>)
+            // Trigger cleanup on the workers..
+            </span><span class="kw">let </span>addresses = <span class="self">self
+                </span>.committee
+                .load()
+                .our_workers(<span class="kw-2">&amp;</span><span class="self">self</span>.name)
+                .expect(<span class="string">&quot;Our public key or worker id is not in the committee&quot;</span>)
+                .into_iter()
+                .map(|x| x.primary_to_worker)
+                .collect();
+            <span class="kw">let </span>message = PrimaryWorkerMessage::Cleanup(round);
+            <span class="self">self</span>.worker_network
+                .unreliable_broadcast(addresses, <span class="kw-2">&amp;</span>message)
                 .<span class="kw">await</span>;
         }
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">run</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
+    <span class="kw">async fn </span>run(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="macro">info!</span>(
             <span class="string">&quot;StateHandler on node {} has started successfully.&quot;</span>,
-            <span class="self">self</span>.<span class="ident">name</span>
+            <span class="self">self</span>.name
         );
-        <span class="kw">loop</span> {
+        <span class="kw">loop </span>{
             <span class="macro">tokio::select!</span> {
-                <span class="prelude-val">Some</span>(<span class="ident">certificate</span>) = <span class="self">self</span>.<span class="ident">rx_consensus</span>.<span class="ident">recv</span>() =&gt; {
-                    <span class="self">self</span>.<span class="ident">handle_sequenced</span>(<span class="ident">certificate</span>).<span class="kw">await</span>;
+                <span class="prelude-val">Some</span>(certificate) = <span class="self">self</span>.rx_consensus.recv() =&gt; {
+                    <span class="self">self</span>.handle_sequenced(certificate).<span class="kw">await</span>;
                 },
 
-                <span class="prelude-val">Some</span>(<span class="ident">message</span>) = <span class="self">self</span>.<span class="ident">rx_reconfigure</span>.<span class="ident">recv</span>() =&gt; {
-                    <span class="kw">let</span> <span class="ident">shutdown</span> = <span class="kw">match</span> <span class="kw-2">&amp;</span><span class="ident">message</span> {
-                        <span class="ident">ReconfigureNotification::NewEpoch</span>(<span class="ident">committee</span>) =&gt; {
-                            <span class="comment">// Cleanup the network.</span>
-                            <span class="self">self</span>.<span class="ident">worker_network</span>.<span class="ident">cleanup</span>(<span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">load</span>().<span class="ident">network_diff</span>(<span class="ident">committee</span>));
+                <span class="prelude-val">Some</span>(message) = <span class="self">self</span>.rx_reconfigure.recv() =&gt; {
+                    <span class="kw">let </span>shutdown = <span class="kw">match </span><span class="kw-2">&amp;</span>message {
+                        ReconfigureNotification::NewEpoch(committee) =&gt; {
+                            <span class="comment">// Cleanup the network.
+                            </span><span class="self">self</span>.worker_network.cleanup(<span class="self">self</span>.committee.load().network_diff(committee));
 
-                            <span class="comment">// Update the committee.</span>
-                            <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">swap</span>(<span class="ident">Arc::new</span>(<span class="ident">committee</span>.<span class="ident">clone</span>()));
+                            <span class="comment">// Update the committee.
+                            </span><span class="self">self</span>.committee.swap(Arc::new(committee.clone()));
 
-                            <span class="comment">// Trigger cleanup on the primary.</span>
-                            <span class="kw">let</span> <span class="kw">_</span> = <span class="self">self</span>.<span class="ident">tx_consensus_round_updates</span>.<span class="ident">send</span>(<span class="number">0</span>); <span class="comment">// ignore error when receivers dropped.</span>
+                            <span class="comment">// Trigger cleanup on the primary.
+                            </span><span class="kw">let _ </span>= <span class="self">self</span>.tx_consensus_round_updates.send(<span class="number">0</span>); <span class="comment">// ignore error when receivers dropped.
 
-                            <span class="macro">tracing::debug!</span>(<span class="string">&quot;Committee updated to {}&quot;</span>, <span class="self">self</span>.<span class="ident">committee</span>);
-                            <span class="bool-val">false</span>
-                        },
-                        <span class="ident">ReconfigureNotification::UpdateCommittee</span>(<span class="ident">committee</span>) =&gt; {
-                            <span class="comment">// Cleanup the network.</span>
-                            <span class="self">self</span>.<span class="ident">worker_network</span>.<span class="ident">cleanup</span>(<span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">load</span>().<span class="ident">network_diff</span>(<span class="ident">committee</span>));
+                            </span><span class="macro">tracing::debug!</span>(<span class="string">&quot;Committee updated to {}&quot;</span>, <span class="self">self</span>.committee);
+                            <span class="bool-val">false
+                        </span>},
+                        ReconfigureNotification::UpdateCommittee(committee) =&gt; {
+                            <span class="comment">// Cleanup the network.
+                            </span><span class="self">self</span>.worker_network.cleanup(<span class="self">self</span>.committee.load().network_diff(committee));
 
-                            <span class="comment">// Update the committee.</span>
-                            <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">swap</span>(<span class="ident">Arc::new</span>(<span class="ident">committee</span>.<span class="ident">clone</span>()));
+                            <span class="comment">// Update the committee.
+                            </span><span class="self">self</span>.committee.swap(Arc::new(committee.clone()));
 
-                            <span class="macro">tracing::debug!</span>(<span class="string">&quot;Committee updated to {}&quot;</span>, <span class="self">self</span>.<span class="ident">committee</span>);
-                            <span class="bool-val">false</span>
-                        }
-                        <span class="ident">ReconfigureNotification::Shutdown</span> =&gt; <span class="bool-val">true</span>,
+                            <span class="macro">tracing::debug!</span>(<span class="string">&quot;Committee updated to {}&quot;</span>, <span class="self">self</span>.committee);
+                            <span class="bool-val">false
+                        </span>}
+                        ReconfigureNotification::Shutdown =&gt; <span class="bool-val">true</span>,
                     };
 
-                    <span class="comment">// Notify all other tasks.</span>
-                    <span class="self">self</span>.<span class="ident">tx_reconfigure</span>
-                        .<span class="ident">send</span>(<span class="ident">message</span>)
-                        .<span class="ident">expect</span>(<span class="string">&quot;Reconfigure channel dropped&quot;</span>);
+                    <span class="comment">// Notify all other tasks.
+                    </span><span class="self">self</span>.tx_reconfigure
+                        .send(message)
+                        .expect(<span class="string">&quot;Reconfigure channel dropped&quot;</span>);
 
-                    <span class="comment">// Exit only when we are sure that all the other tasks received</span>
-                    <span class="comment">// the shutdown message.</span>
-                    <span class="kw">if</span> <span class="ident">shutdown</span> {
-                        <span class="self">self</span>.<span class="ident">tx_reconfigure</span>.<span class="ident">closed</span>().<span class="kw">await</span>;
+                    <span class="comment">// Exit only when we are sure that all the other tasks received
+                    // the shutdown message.
+                    </span><span class="kw">if </span>shutdown {
+                        <span class="self">self</span>.tx_reconfigure.closed().<span class="kw">await</span>;
                         <span class="kw">return</span>;
                     }
                 }
@@ -277,4 +277,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (801821d15 2022-08-14)" ></div></body></html>

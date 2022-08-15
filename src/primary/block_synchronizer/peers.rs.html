@@ -402,409 +402,409 @@
 <span id="402">402</span>
 <span id="403">403</span>
 <span id="404">404</span>
-</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
-<span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="kw">use</span> <span class="ident">crypto</span>::{<span class="ident">Hash</span>, <span class="ident">PublicKey</span>};
-<span class="kw">use</span> <span class="ident">rand</span>::{<span class="ident">prelude::SliceRandom</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">rngs::SmallRng</span>};
-<span class="kw">use</span> <span class="ident">std::collections::HashMap</span>;
+</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+</span><span class="kw">use </span>crypto::{Hash, PublicKey};
+<span class="kw">use </span>rand::{prelude::SliceRandom <span class="kw">as _</span>, rngs::SmallRng};
+<span class="kw">use </span>std::collections::HashMap;
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Peer</span>&lt;<span class="ident">Value</span>: <span class="ident">Hash</span> + <span class="ident">Clone</span>&gt; {
-    <span class="kw">pub</span> <span class="ident">name</span>: <span class="ident">PublicKey</span>,
+<span class="attribute">#[derive(Clone)]</span>
+<span class="kw">pub struct </span>Peer&lt;Value: Hash + Clone&gt; {
+    <span class="kw">pub </span>name: PublicKey,
 
-    <span class="doccomment">/// Those are the values that we got from the peer and that is able</span>
-    <span class="doccomment">/// to serve.</span>
-    <span class="kw">pub</span> <span class="ident">values_able_to_serve</span>: <span class="ident">HashMap</span>&lt;&lt;<span class="ident">Value</span> <span class="kw">as</span> <span class="ident">Hash</span>&gt;<span class="ident">::TypedDigest</span>, <span class="ident">Value</span>&gt;,
+    <span class="doccomment">/// Those are the values that we got from the peer and that is able
+    /// to serve.
+    </span><span class="kw">pub </span>values_able_to_serve: HashMap&lt;&lt;Value <span class="kw">as </span>Hash&gt;::TypedDigest, Value&gt;,
 
-    <span class="doccomment">/// Those are the assigned values after a re-balancing event</span>
-    <span class="ident">assigned_values</span>: <span class="ident">HashMap</span>&lt;&lt;<span class="ident">Value</span> <span class="kw">as</span> <span class="ident">Hash</span>&gt;<span class="ident">::TypedDigest</span>, <span class="ident">Value</span>&gt;,
+    <span class="doccomment">/// Those are the assigned values after a re-balancing event
+    </span>assigned_values: HashMap&lt;&lt;Value <span class="kw">as </span>Hash&gt;::TypedDigest, Value&gt;,
 }
 
-<span class="kw">impl</span>&lt;<span class="ident">Value</span>: <span class="ident">Hash</span> + <span class="ident">Clone</span>&gt; <span class="ident">Peer</span>&lt;<span class="ident">Value</span>&gt; {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">name</span>: <span class="ident">PublicKey</span>, <span class="ident">values_able_to_serve</span>: <span class="ident">Vec</span>&lt;<span class="ident">Value</span>&gt;) -&gt; <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="ident">certs</span>: <span class="ident">HashMap</span>&lt;&lt;<span class="ident">Value</span> <span class="kw">as</span> <span class="ident">crypto::Hash</span>&gt;<span class="ident">::TypedDigest</span>, <span class="ident">Value</span>&gt; = <span class="ident">values_able_to_serve</span>
-            .<span class="ident">into_iter</span>()
-            .<span class="ident">map</span>(|<span class="ident">c</span>| (<span class="ident">c</span>.<span class="ident">digest</span>(), <span class="ident">c</span>))
-            .<span class="ident">collect</span>();
+<span class="kw">impl</span>&lt;Value: Hash + Clone&gt; Peer&lt;Value&gt; {
+    <span class="kw">pub fn </span>new(name: PublicKey, values_able_to_serve: Vec&lt;Value&gt;) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>certs: HashMap&lt;&lt;Value <span class="kw">as </span>crypto::Hash&gt;::TypedDigest, Value&gt; = values_able_to_serve
+            .into_iter()
+            .map(|c| (c.digest(), c))
+            .collect();
 
-        <span class="ident">Peer</span> {
-            <span class="ident">name</span>,
-            <span class="ident">values_able_to_serve</span>: <span class="ident">certs</span>,
-            <span class="ident">assigned_values</span>: <span class="ident">HashMap::new</span>(),
+        Peer {
+            name,
+            values_able_to_serve: certs,
+            assigned_values: HashMap::new(),
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">assign_values</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">certificate</span>: <span class="ident">Value</span>) {
-        <span class="self">self</span>.<span class="ident">assigned_values</span>
-            .<span class="ident">insert</span>(<span class="ident">certificate</span>.<span class="ident">digest</span>(), <span class="ident">certificate</span>);
+    <span class="kw">pub fn </span>assign_values(<span class="kw-2">&amp;mut </span><span class="self">self</span>, certificate: Value) {
+        <span class="self">self</span>.assigned_values
+            .insert(certificate.digest(), certificate);
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">assigned_values</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Vec</span>&lt;<span class="ident">Value</span>&gt; {
-        <span class="self">self</span>.<span class="ident">assigned_values</span>.<span class="ident">values</span>().<span class="ident">cloned</span>().<span class="ident">collect</span>()
+    <span class="kw">pub fn </span>assigned_values(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;Value&gt; {
+        <span class="self">self</span>.assigned_values.values().cloned().collect()
     }
 }
 
-<span class="doccomment">/// A helper structure to allow us store the peer result values</span>
-<span class="doccomment">/// and redistribute the common ones between them evenly.</span>
-<span class="doccomment">/// The implementation is NOT considered thread safe. Especially</span>
-<span class="doccomment">/// the re-balancing process is not guaranteed to be atomic and</span>
-<span class="doccomment">/// thread safe which could lead to potential issues if used in</span>
-<span class="doccomment">/// such environment.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Peers</span>&lt;<span class="ident">Value</span>: <span class="ident">Hash</span> + <span class="ident">Clone</span>&gt; {
-    <span class="doccomment">/// A map with all the peers assigned on this pool.</span>
-    <span class="ident">peers</span>: <span class="ident">HashMap</span>&lt;<span class="ident">PublicKey</span>, <span class="ident">Peer</span>&lt;<span class="ident">Value</span>&gt;&gt;,
+<span class="doccomment">/// A helper structure to allow us store the peer result values
+/// and redistribute the common ones between them evenly.
+/// The implementation is NOT considered thread safe. Especially
+/// the re-balancing process is not guaranteed to be atomic and
+/// thread safe which could lead to potential issues if used in
+/// such environment.
+</span><span class="kw">pub struct </span>Peers&lt;Value: Hash + Clone&gt; {
+    <span class="doccomment">/// A map with all the peers assigned on this pool.
+    </span>peers: HashMap&lt;PublicKey, Peer&lt;Value&gt;&gt;,
 
-    <span class="doccomment">/// When true, it means that the values have been assigned to peers and no</span>
-    <span class="doccomment">/// more mutating operations can be applied</span>
-    <span class="ident">rebalanced</span>: <span class="ident">bool</span>,
+    <span class="doccomment">/// When true, it means that the values have been assigned to peers and no
+    /// more mutating operations can be applied
+    </span>rebalanced: bool,
 
-    <span class="doccomment">/// Keeps all the unique values in the map so we don&#39;t</span>
-    <span class="doccomment">/// have to recompute every time they are needed by</span>
-    <span class="doccomment">/// iterating over the peers.</span>
-    <span class="ident">unique_values</span>: <span class="ident">HashMap</span>&lt;&lt;<span class="ident">Value</span> <span class="kw">as</span> <span class="ident">Hash</span>&gt;<span class="ident">::TypedDigest</span>, <span class="ident">Value</span>&gt;,
+    <span class="doccomment">/// Keeps all the unique values in the map so we don&#39;t
+    /// have to recompute every time they are needed by
+    /// iterating over the peers.
+    </span>unique_values: HashMap&lt;&lt;Value <span class="kw">as </span>Hash&gt;::TypedDigest, Value&gt;,
 
-    <span class="doccomment">/// An rng used to shuffle the list of peers</span>
-    <span class="ident">rng</span>: <span class="ident">SmallRng</span>,
+    <span class="doccomment">/// An rng used to shuffle the list of peers
+    </span>rng: SmallRng,
 }
 
-<span class="kw">impl</span>&lt;<span class="ident">Value</span>: <span class="ident">Hash</span> + <span class="ident">Clone</span>&gt; <span class="ident">Peers</span>&lt;<span class="ident">Value</span>&gt; {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">rng</span>: <span class="ident">SmallRng</span>) -&gt; <span class="self">Self</span> {
-        <span class="self">Self</span> {
-            <span class="ident">peers</span>: <span class="ident">HashMap::new</span>(),
-            <span class="ident">unique_values</span>: <span class="ident">HashMap::new</span>(),
-            <span class="ident">rebalanced</span>: <span class="bool-val">false</span>,
-            <span class="ident">rng</span>,
+<span class="kw">impl</span>&lt;Value: Hash + Clone&gt; Peers&lt;Value&gt; {
+    <span class="kw">pub fn </span>new(rng: SmallRng) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            peers: HashMap::new(),
+            unique_values: HashMap::new(),
+            rebalanced: <span class="bool-val">false</span>,
+            rng,
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">peers</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">HashMap</span>&lt;<span class="ident">PublicKey</span>, <span class="ident">Peer</span>&lt;<span class="ident">Value</span>&gt;&gt; {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">peers</span>
+    <span class="kw">pub fn </span>peers(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>HashMap&lt;PublicKey, Peer&lt;Value&gt;&gt; {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.peers
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">unique_values</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Vec</span>&lt;<span class="ident">Value</span>&gt; {
-        <span class="self">self</span>.<span class="ident">unique_values</span>.<span class="ident">values</span>().<span class="ident">cloned</span>().<span class="ident">collect</span>()
+    <span class="kw">pub fn </span>unique_values(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;Value&gt; {
+        <span class="self">self</span>.unique_values.values().cloned().collect()
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">contains_peer</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">name</span>: <span class="kw-2">&amp;</span><span class="ident">PublicKey</span>) -&gt; <span class="ident">bool</span> {
-        <span class="self">self</span>.<span class="ident">peers</span>.<span class="ident">contains_key</span>(<span class="ident">name</span>)
+    <span class="kw">pub fn </span>contains_peer(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>PublicKey) -&gt; bool {
+        <span class="self">self</span>.peers.contains_key(name)
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_peer</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">name</span>: <span class="ident">PublicKey</span>, <span class="ident">available_values</span>: <span class="ident">Vec</span>&lt;<span class="ident">Value</span>&gt;) {
-        <span class="self">self</span>.<span class="ident">ensure_not_rebalanced</span>();
+    <span class="kw">pub fn </span>add_peer(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: PublicKey, available_values: Vec&lt;Value&gt;) {
+        <span class="self">self</span>.ensure_not_rebalanced();
 
-        <span class="comment">// update the unique values</span>
-        <span class="kw">for</span> <span class="ident">value</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">available_values</span> {
-            <span class="self">self</span>.<span class="ident">unique_values</span>.<span class="ident">insert</span>(<span class="ident">value</span>.<span class="ident">digest</span>(), <span class="ident">value</span>.<span class="ident">to_owned</span>());
+        <span class="comment">// update the unique values
+        </span><span class="kw">for </span>value <span class="kw">in </span><span class="kw-2">&amp;</span>available_values {
+            <span class="self">self</span>.unique_values.insert(value.digest(), value.to_owned());
         }
 
-        <span class="self">self</span>.<span class="ident">peers</span>
-            .<span class="ident">insert</span>(<span class="ident">name</span>.<span class="ident">clone</span>(), <span class="ident">Peer::new</span>(<span class="ident">name</span>, <span class="ident">available_values</span>));
+        <span class="self">self</span>.peers
+            .insert(name.clone(), Peer::new(name, available_values));
     }
 
-    <span class="doccomment">/// Re-distributes the values to the peers in a load balanced manner.</span>
-    <span class="doccomment">/// We expect to have duplicates across the peers. The goal is in the end</span>
-    <span class="doccomment">/// for each peer to have a unique list of values and those lists to</span>
-    <span class="doccomment">/// not differ significantly in length, so we balance the load.</span>
-    <span class="doccomment">/// Once the peers are rebalanced, then no other operation that mutates</span>
-    <span class="doccomment">/// the struct is allowed.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">rebalance_values</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
-        <span class="self">self</span>.<span class="ident">ensure_not_rebalanced</span>();
+    <span class="doccomment">/// Re-distributes the values to the peers in a load balanced manner.
+    /// We expect to have duplicates across the peers. The goal is in the end
+    /// for each peer to have a unique list of values and those lists to
+    /// not differ significantly in length, so we balance the load.
+    /// Once the peers are rebalanced, then no other operation that mutates
+    /// the struct is allowed.
+    </span><span class="kw">pub fn </span>rebalance_values(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="self">self</span>.ensure_not_rebalanced();
 
-        <span class="kw">let</span> <span class="ident">values</span> = <span class="self">self</span>.<span class="ident">unique_values</span>();
+        <span class="kw">let </span>values = <span class="self">self</span>.unique_values();
 
-        <span class="kw">for</span> <span class="ident">v</span> <span class="kw">in</span> <span class="ident">values</span> {
-            <span class="self">self</span>.<span class="ident">reassign_value</span>(<span class="ident">v</span>);
+        <span class="kw">for </span>v <span class="kw">in </span>values {
+            <span class="self">self</span>.reassign_value(v);
         }
 
-        <span class="self">self</span>.<span class="ident">rebalanced</span> = <span class="bool-val">true</span>;
+        <span class="self">self</span>.rebalanced = <span class="bool-val">true</span>;
     }
 
-    <span class="kw">fn</span> <span class="ident">reassign_value</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">value</span>: <span class="ident">Value</span>) {
-        <span class="kw">let</span> <span class="ident">id</span> = <span class="ident">value</span>.<span class="ident">digest</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">peer</span> = <span class="self">self</span>.<span class="ident">peer_to_assign_value</span>(<span class="ident">id</span>);
+    <span class="kw">fn </span>reassign_value(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: Value) {
+        <span class="kw">let </span>id = value.digest();
+        <span class="kw">let </span><span class="kw-2">mut </span>peer = <span class="self">self</span>.peer_to_assign_value(id);
 
-        <span class="ident">peer</span>.<span class="ident">assign_values</span>(<span class="ident">value</span>);
+        peer.assign_values(value);
 
-        <span class="self">self</span>.<span class="ident">peers</span>.<span class="ident">insert</span>(<span class="ident">peer</span>.<span class="ident">name</span>.<span class="ident">clone</span>(), <span class="ident">peer</span>);
+        <span class="self">self</span>.peers.insert(peer.name.clone(), peer);
 
-        <span class="self">self</span>.<span class="ident">delete_values_from_peers</span>(<span class="ident">id</span>);
+        <span class="self">self</span>.delete_values_from_peers(id);
     }
 
-    <span class="doccomment">/// Finds a peer to assign the value identified by the provided `id`.</span>
-    <span class="doccomment">/// This method will perform two operations:</span>
-    <span class="doccomment">/// 1) Will filter only the peers that value dictated by the</span>
-    <span class="doccomment">/// provided `value_id`</span>
-    <span class="doccomment">/// 2) Will pick a peer in random to assign the value to</span>
-    <span class="kw">fn</span> <span class="ident">peer_to_assign_value</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">value_id</span>: &lt;<span class="ident">Value</span> <span class="kw">as</span> <span class="ident">Hash</span>&gt;<span class="ident">::TypedDigest</span>) -&gt; <span class="ident">Peer</span>&lt;<span class="ident">Value</span>&gt; {
-        <span class="comment">// step 1 - find the peers who have this id</span>
-        <span class="kw">let</span> <span class="ident">peers_with_value</span>: <span class="ident">Vec</span>&lt;<span class="ident">Peer</span>&lt;<span class="ident">Value</span>&gt;&gt; = <span class="self">self</span>
-            .<span class="ident">peers</span>
-            .<span class="ident">iter</span>()
-            .<span class="ident">filter</span>(|<span class="ident">p</span>| <span class="ident">p</span>.<span class="number">1</span>.<span class="ident">values_able_to_serve</span>.<span class="ident">contains_key</span>(<span class="kw-2">&amp;</span><span class="ident">value_id</span>))
-            .<span class="ident">map</span>(|<span class="ident">p</span>| <span class="ident">p</span>.<span class="number">1</span>.<span class="ident">clone</span>())
-            .<span class="ident">collect</span>();
+    <span class="doccomment">/// Finds a peer to assign the value identified by the provided `id`.
+    /// This method will perform two operations:
+    /// 1) Will filter only the peers that value dictated by the
+    /// provided `value_id`
+    /// 2) Will pick a peer in random to assign the value to
+    </span><span class="kw">fn </span>peer_to_assign_value(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value_id: &lt;Value <span class="kw">as </span>Hash&gt;::TypedDigest) -&gt; Peer&lt;Value&gt; {
+        <span class="comment">// step 1 - find the peers who have this id
+        </span><span class="kw">let </span>peers_with_value: Vec&lt;Peer&lt;Value&gt;&gt; = <span class="self">self
+            </span>.peers
+            .iter()
+            .filter(|p| p.<span class="number">1</span>.values_able_to_serve.contains_key(<span class="kw-2">&amp;</span>value_id))
+            .map(|p| p.<span class="number">1</span>.clone())
+            .collect();
 
-        <span class="comment">// step 2 - pick at random a peer to assign the value.</span>
-        <span class="comment">// For now we consider this good enough and we avoid doing any</span>
-        <span class="comment">// explicit client-side load balancing as this should be tackled</span>
-        <span class="comment">// on the server-side via demand control.</span>
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">peer</span>) = <span class="ident">peers_with_value</span>.<span class="ident">choose</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">rng</span>) {
-            <span class="ident">peer</span>.<span class="ident">to_owned</span>()
-        } <span class="kw">else</span> {
+        <span class="comment">// step 2 - pick at random a peer to assign the value.
+        // For now we consider this good enough and we avoid doing any
+        // explicit client-side load balancing as this should be tackled
+        // on the server-side via demand control.
+        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(peer) = peers_with_value.choose(<span class="kw-2">&amp;mut </span><span class="self">self</span>.rng) {
+            peer.to_owned()
+        } <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">&quot;At least one peer should be available when trying to assign a value!&quot;</span>);
         }
     }
 
-    <span class="comment">// Deletes the value identified by the provided id from the list of</span>
-    <span class="comment">// available values from all the peers.</span>
-    <span class="kw">fn</span> <span class="ident">delete_values_from_peers</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">id</span>: &lt;<span class="ident">Value</span> <span class="kw">as</span> <span class="ident">Hash</span>&gt;<span class="ident">::TypedDigest</span>) {
-        <span class="kw">for</span> (<span class="kw">_</span>, <span class="ident">peer</span>) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">peers</span>.<span class="ident">iter_mut</span>() {
-            <span class="ident">peer</span>.<span class="ident">values_able_to_serve</span>.<span class="ident">remove</span>(<span class="kw-2">&amp;</span><span class="ident">id</span>);
+    <span class="comment">// Deletes the value identified by the provided id from the list of
+    // available values from all the peers.
+    </span><span class="kw">fn </span>delete_values_from_peers(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: &lt;Value <span class="kw">as </span>Hash&gt;::TypedDigest) {
+        <span class="kw">for </span>(<span class="kw">_</span>, peer) <span class="kw">in </span><span class="self">self</span>.peers.iter_mut() {
+            peer.values_able_to_serve.remove(<span class="kw-2">&amp;</span>id);
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">ensure_not_rebalanced</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
+    <span class="kw">fn </span>ensure_not_rebalanced(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="macro">debug_assert!</span>(
-            !<span class="self">self</span>.<span class="ident">rebalanced</span>,
-            <span class="string">&quot;rebalance has been called, this operation is not allowed&quot;</span>
-        );
+            !<span class="self">self</span>.rebalanced,
+            <span class="string">&quot;rebalance has been called, this operation is not allowed&quot;
+        </span>);
     }
 }
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="kw">mod</span> <span class="ident">tests</span> {
-    <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::block_synchronizer::peers::Peers</span>;
-    <span class="kw">use</span> <span class="ident">blake2</span>::{<span class="ident">digest::Update</span>, <span class="ident">VarBlake2b</span>};
-    <span class="kw">use</span> <span class="ident">crypto</span>::{<span class="ident">traits::KeyPair</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">Digest</span>, <span class="ident">Hash</span>, <span class="ident">KeyPair</span>, <span class="ident">DIGEST_LEN</span>};
-    <span class="kw">use</span> <span class="ident">rand</span>::{
-        <span class="ident">rngs</span>::{<span class="ident">SmallRng</span>, <span class="ident">StdRng</span>},
-        <span class="ident">SeedableRng</span>,
+<span class="attribute">#[cfg(test)]</span>
+<span class="kw">mod </span>tests {
+    <span class="kw">use </span><span class="kw">crate</span>::block_synchronizer::peers::Peers;
+    <span class="kw">use </span>blake2::{digest::Update, VarBlake2b};
+    <span class="kw">use </span>crypto::{traits::KeyPair <span class="kw">as _</span>, Digest, Hash, KeyPair, DIGEST_LEN};
+    <span class="kw">use </span>rand::{
+        rngs::{SmallRng, StdRng},
+        SeedableRng,
     };
-    <span class="kw">use</span> <span class="ident">std</span>::{
-        <span class="ident">borrow::Borrow</span>,
-        <span class="ident">collections</span>::{<span class="ident">HashMap</span>, <span class="ident">HashSet</span>},
-        <span class="ident">fmt</span>,
+    <span class="kw">use </span>std::{
+        borrow::Borrow,
+        collections::{HashMap, HashSet},
+        fmt,
     };
 
-    <span class="attribute">#[<span class="ident">test</span>]</span>
-    <span class="kw">fn</span> <span class="ident">test_assign_certificates_to_peers_when_all_respond</span>() {
-        <span class="kw">struct</span> <span class="ident">TestCase</span> {
-            <span class="ident">num_of_certificates</span>: <span class="ident">u8</span>,
-            <span class="ident">num_of_peers</span>: <span class="ident">u8</span>,
+    <span class="attribute">#[test]</span>
+    <span class="kw">fn </span>test_assign_certificates_to_peers_when_all_respond() {
+        <span class="kw">struct </span>TestCase {
+            num_of_certificates: u8,
+            num_of_peers: u8,
         }
 
-        <span class="kw">let</span> <span class="ident">test_cases</span>: <span class="ident">Vec</span>&lt;<span class="ident">TestCase</span>&gt; = <span class="macro">vec!</span>[
-            <span class="ident">TestCase</span> {
-                <span class="ident">num_of_certificates</span>: <span class="number">5</span>,
-                <span class="ident">num_of_peers</span>: <span class="number">4</span>,
+        <span class="kw">let </span>test_cases: Vec&lt;TestCase&gt; = <span class="macro">vec!</span>[
+            TestCase {
+                num_of_certificates: <span class="number">5</span>,
+                num_of_peers: <span class="number">4</span>,
             },
-            <span class="ident">TestCase</span> {
-                <span class="ident">num_of_certificates</span>: <span class="number">8</span>,
-                <span class="ident">num_of_peers</span>: <span class="number">2</span>,
+            TestCase {
+                num_of_certificates: <span class="number">8</span>,
+                num_of_peers: <span class="number">2</span>,
             },
-            <span class="ident">TestCase</span> {
-                <span class="ident">num_of_certificates</span>: <span class="number">3</span>,
-                <span class="ident">num_of_peers</span>: <span class="number">2</span>,
+            TestCase {
+                num_of_certificates: <span class="number">3</span>,
+                num_of_peers: <span class="number">2</span>,
             },
-            <span class="ident">TestCase</span> {
-                <span class="ident">num_of_certificates</span>: <span class="number">20</span>,
-                <span class="ident">num_of_peers</span>: <span class="number">5</span>,
+            TestCase {
+                num_of_certificates: <span class="number">20</span>,
+                num_of_peers: <span class="number">5</span>,
             },
-            <span class="ident">TestCase</span> {
-                <span class="ident">num_of_certificates</span>: <span class="number">10</span>,
-                <span class="ident">num_of_peers</span>: <span class="number">1</span>,
+            TestCase {
+                num_of_certificates: <span class="number">10</span>,
+                num_of_peers: <span class="number">1</span>,
             },
         ];
 
-        <span class="kw">for</span> <span class="ident">test</span> <span class="kw">in</span> <span class="ident">test_cases</span> {
+        <span class="kw">for </span>test <span class="kw">in </span>test_cases {
             <span class="macro">println!</span>(
                 <span class="string">&quot;Testing case where num_of_certificates={} , num_of_peers={}&quot;</span>,
-                <span class="ident">test</span>.<span class="ident">num_of_certificates</span>, <span class="ident">test</span>.<span class="ident">num_of_peers</span>
+                test.num_of_certificates, test.num_of_peers
             );
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">mock_certificates</span> = <span class="ident">Vec::new</span>();
+            <span class="kw">let </span><span class="kw-2">mut </span>mock_certificates = Vec::new();
 
-            <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">test</span>.<span class="ident">num_of_certificates</span> {
-                <span class="ident">mock_certificates</span>.<span class="ident">push</span>(<span class="ident">MockCertificate</span>(<span class="ident">i</span>));
+            <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..test.num_of_certificates {
+                mock_certificates.push(MockCertificate(i));
             }
 
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">rng</span> = <span class="ident">StdRng::from_seed</span>([<span class="number">0</span>; <span class="number">32</span>]);
+            <span class="kw">let </span><span class="kw-2">mut </span>rng = StdRng::from_seed([<span class="number">0</span>; <span class="number">32</span>]);
 
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">peers</span> = <span class="ident">Peers</span>::&lt;<span class="ident">MockCertificate</span>&gt;<span class="ident">::new</span>(<span class="ident">SmallRng::from_entropy</span>());
+            <span class="kw">let </span><span class="kw-2">mut </span>peers = Peers::&lt;MockCertificate&gt;::new(SmallRng::from_entropy());
 
-            <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">test</span>.<span class="ident">num_of_peers</span> {
-                <span class="kw">let</span> <span class="ident">key_pair</span> = <span class="ident">KeyPair::generate</span>(<span class="kw-2">&amp;mut</span> <span class="ident">rng</span>);
-                <span class="ident">peers</span>.<span class="ident">add_peer</span>(<span class="ident">key_pair</span>.<span class="ident">public</span>().<span class="ident">clone</span>(), <span class="ident">mock_certificates</span>.<span class="ident">clone</span>());
+            <span class="kw">for _ in </span><span class="number">0</span>..test.num_of_peers {
+                <span class="kw">let </span>key_pair = KeyPair::generate(<span class="kw-2">&amp;mut </span>rng);
+                peers.add_peer(key_pair.public().clone(), mock_certificates.clone());
             }
 
-            <span class="comment">// WHEN</span>
-            <span class="ident">peers</span>.<span class="ident">rebalance_values</span>();
+            <span class="comment">// WHEN
+            </span>peers.rebalance_values();
 
-            <span class="comment">// THEN</span>
-            <span class="macro">assert_eq!</span>(<span class="ident">peers</span>.<span class="ident">peers</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u8</span>, <span class="ident">test</span>.<span class="ident">num_of_peers</span>);
+            <span class="comment">// THEN
+            </span><span class="macro">assert_eq!</span>(peers.peers.len() <span class="kw">as </span>u8, test.num_of_peers);
 
-            <span class="comment">// The certificates should be balanced to the peers.</span>
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">seen_certificates</span> = <span class="ident">HashSet::new</span>();
+            <span class="comment">// The certificates should be balanced to the peers.
+            </span><span class="kw">let </span><span class="kw-2">mut </span>seen_certificates = HashSet::new();
 
-            <span class="kw">for</span> <span class="ident">peer</span> <span class="kw">in</span> <span class="ident">peers</span>.<span class="ident">peers</span>().<span class="ident">values</span>() {
-                <span class="kw">for</span> <span class="ident">c</span> <span class="kw">in</span> <span class="ident">peer</span>.<span class="ident">assigned_values</span>() {
+            <span class="kw">for </span>peer <span class="kw">in </span>peers.peers().values() {
+                <span class="kw">for </span>c <span class="kw">in </span>peer.assigned_values() {
                     <span class="macro">assert!</span>(
-                        <span class="ident">seen_certificates</span>.<span class="ident">insert</span>(<span class="ident">c</span>.<span class="ident">digest</span>()),
-                        <span class="string">&quot;Certificate already assigned to another peer&quot;</span>
-                    );
+                        seen_certificates.insert(c.digest()),
+                        <span class="string">&quot;Certificate already assigned to another peer&quot;
+                    </span>);
                 }
             }
 
-            <span class="comment">// ensure that all the initial certificates have been assigned</span>
-            <span class="macro">assert_eq!</span>(
-                <span class="ident">seen_certificates</span>.<span class="ident">len</span>(),
-                <span class="ident">mock_certificates</span>.<span class="ident">len</span>(),
-                <span class="string">&quot;Returned certificates != Expected certificates&quot;</span>
-            );
+            <span class="comment">// ensure that all the initial certificates have been assigned
+            </span><span class="macro">assert_eq!</span>(
+                seen_certificates.len(),
+                mock_certificates.len(),
+                <span class="string">&quot;Returned certificates != Expected certificates&quot;
+            </span>);
 
-            <span class="kw">for</span> <span class="ident">c</span> <span class="kw">in</span> <span class="ident">mock_certificates</span> {
+            <span class="kw">for </span>c <span class="kw">in </span>mock_certificates {
                 <span class="macro">assert!</span>(
-                    <span class="ident">seen_certificates</span>.<span class="ident">contains</span>(<span class="kw-2">&amp;</span><span class="ident">c</span>.<span class="ident">digest</span>()),
-                    <span class="string">&quot;Expected certificate not found in set of returned ones&quot;</span>
-                );
+                    seen_certificates.contains(<span class="kw-2">&amp;</span>c.digest()),
+                    <span class="string">&quot;Expected certificate not found in set of returned ones&quot;
+                </span>);
             }
         }
     }
 
-    <span class="attribute">#[<span class="ident">test</span>]</span>
-    <span class="kw">fn</span> <span class="ident">test_assign_certificates_to_peers_when_all_respond_uniquely</span>() {
-        <span class="kw">struct</span> <span class="ident">TestCase</span> {
-            <span class="ident">num_of_certificates_each_peer</span>: <span class="ident">u8</span>,
-            <span class="ident">num_of_peers</span>: <span class="ident">u8</span>,
+    <span class="attribute">#[test]</span>
+    <span class="kw">fn </span>test_assign_certificates_to_peers_when_all_respond_uniquely() {
+        <span class="kw">struct </span>TestCase {
+            num_of_certificates_each_peer: u8,
+            num_of_peers: u8,
         }
 
-        <span class="kw">let</span> <span class="ident">test_cases</span>: <span class="ident">Vec</span>&lt;<span class="ident">TestCase</span>&gt; = <span class="macro">vec!</span>[
-            <span class="ident">TestCase</span> {
-                <span class="ident">num_of_certificates_each_peer</span>: <span class="number">5</span>,
-                <span class="ident">num_of_peers</span>: <span class="number">4</span>,
+        <span class="kw">let </span>test_cases: Vec&lt;TestCase&gt; = <span class="macro">vec!</span>[
+            TestCase {
+                num_of_certificates_each_peer: <span class="number">5</span>,
+                num_of_peers: <span class="number">4</span>,
             },
-            <span class="ident">TestCase</span> {
-                <span class="ident">num_of_certificates_each_peer</span>: <span class="number">8</span>,
-                <span class="ident">num_of_peers</span>: <span class="number">2</span>,
+            TestCase {
+                num_of_certificates_each_peer: <span class="number">8</span>,
+                num_of_peers: <span class="number">2</span>,
             },
-            <span class="ident">TestCase</span> {
-                <span class="ident">num_of_certificates_each_peer</span>: <span class="number">3</span>,
-                <span class="ident">num_of_peers</span>: <span class="number">2</span>,
+            TestCase {
+                num_of_certificates_each_peer: <span class="number">3</span>,
+                num_of_peers: <span class="number">2</span>,
             },
-            <span class="ident">TestCase</span> {
-                <span class="ident">num_of_certificates_each_peer</span>: <span class="number">20</span>,
-                <span class="ident">num_of_peers</span>: <span class="number">5</span>,
+            TestCase {
+                num_of_certificates_each_peer: <span class="number">20</span>,
+                num_of_peers: <span class="number">5</span>,
             },
-            <span class="ident">TestCase</span> {
-                <span class="ident">num_of_certificates_each_peer</span>: <span class="number">10</span>,
-                <span class="ident">num_of_peers</span>: <span class="number">1</span>,
+            TestCase {
+                num_of_certificates_each_peer: <span class="number">10</span>,
+                num_of_peers: <span class="number">1</span>,
             },
-            <span class="ident">TestCase</span> {
-                <span class="ident">num_of_certificates_each_peer</span>: <span class="number">0</span>,
-                <span class="ident">num_of_peers</span>: <span class="number">4</span>,
+            TestCase {
+                num_of_certificates_each_peer: <span class="number">0</span>,
+                num_of_peers: <span class="number">4</span>,
             },
         ];
 
-        <span class="kw">for</span> <span class="ident">test</span> <span class="kw">in</span> <span class="ident">test_cases</span> {
+        <span class="kw">for </span>test <span class="kw">in </span>test_cases {
             <span class="macro">println!</span>(
                 <span class="string">&quot;Testing case where num_of_certificates_each_peer={} , num_of_peers={}&quot;</span>,
-                <span class="ident">test</span>.<span class="ident">num_of_certificates_each_peer</span>, <span class="ident">test</span>.<span class="ident">num_of_peers</span>
+                test.num_of_certificates_each_peer, test.num_of_peers
             );
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">mock_certificates_by_peer</span> = <span class="ident">HashMap::new</span>();
+            <span class="kw">let </span><span class="kw-2">mut </span>mock_certificates_by_peer = HashMap::new();
 
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">rng</span> = <span class="ident">StdRng::from_seed</span>([<span class="number">0</span>; <span class="number">32</span>]);
+            <span class="kw">let </span><span class="kw-2">mut </span>rng = StdRng::from_seed([<span class="number">0</span>; <span class="number">32</span>]);
 
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">peers</span> = <span class="ident">Peers</span>::&lt;<span class="ident">MockCertificate</span>&gt;<span class="ident">::new</span>(<span class="ident">SmallRng::from_entropy</span>());
+            <span class="kw">let </span><span class="kw-2">mut </span>peers = Peers::&lt;MockCertificate&gt;::new(SmallRng::from_entropy());
 
-            <span class="kw">for</span> <span class="ident">peer_index</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">test</span>.<span class="ident">num_of_peers</span> {
-                <span class="kw">let</span> <span class="ident">key_pair</span> = <span class="ident">KeyPair::generate</span>(<span class="kw-2">&amp;mut</span> <span class="ident">rng</span>);
-                <span class="kw">let</span> <span class="ident">peer_name</span> = <span class="ident">key_pair</span>.<span class="ident">public</span>().<span class="ident">clone</span>();
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">mock_certificates</span> = <span class="ident">Vec::new</span>();
+            <span class="kw">for </span>peer_index <span class="kw">in </span><span class="number">0</span>..test.num_of_peers {
+                <span class="kw">let </span>key_pair = KeyPair::generate(<span class="kw-2">&amp;mut </span>rng);
+                <span class="kw">let </span>peer_name = key_pair.public().clone();
+                <span class="kw">let </span><span class="kw-2">mut </span>mock_certificates = Vec::new();
 
-                <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">test</span>.<span class="ident">num_of_certificates_each_peer</span> {
-                    <span class="ident">mock_certificates</span>.<span class="ident">push</span>(<span class="ident">MockCertificate</span>(
-                        <span class="ident">i</span> + (<span class="ident">peer_index</span> * <span class="ident">test</span>.<span class="ident">num_of_certificates_each_peer</span>),
+                <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..test.num_of_certificates_each_peer {
+                    mock_certificates.push(MockCertificate(
+                        i + (peer_index * test.num_of_certificates_each_peer),
                     ));
                 }
 
-                <span class="ident">peers</span>.<span class="ident">add_peer</span>(<span class="ident">peer_name</span>.<span class="ident">clone</span>(), <span class="ident">mock_certificates</span>.<span class="ident">clone</span>());
+                peers.add_peer(peer_name.clone(), mock_certificates.clone());
 
-                <span class="ident">mock_certificates_by_peer</span>.<span class="ident">insert</span>(<span class="ident">peer_name</span>, <span class="ident">mock_certificates</span>.<span class="ident">clone</span>());
+                mock_certificates_by_peer.insert(peer_name, mock_certificates.clone());
             }
 
-            <span class="comment">// WHEN</span>
-            <span class="ident">peers</span>.<span class="ident">rebalance_values</span>();
+            <span class="comment">// WHEN
+            </span>peers.rebalance_values();
 
-            <span class="comment">// THEN</span>
-            <span class="macro">assert_eq!</span>(<span class="ident">peers</span>.<span class="ident">peers</span>().<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u8</span>, <span class="ident">test</span>.<span class="ident">num_of_peers</span>);
+            <span class="comment">// THEN
+            </span><span class="macro">assert_eq!</span>(peers.peers().len() <span class="kw">as </span>u8, test.num_of_peers);
 
-            <span class="comment">// The certificates should be balanced to the peers.</span>
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">seen_certificates</span> = <span class="ident">HashSet::new</span>();
+            <span class="comment">// The certificates should be balanced to the peers.
+            </span><span class="kw">let </span><span class="kw-2">mut </span>seen_certificates = HashSet::new();
 
-            <span class="kw">for</span> <span class="ident">peer</span> <span class="kw">in</span> <span class="ident">peers</span>.<span class="ident">peers</span>().<span class="ident">values</span>() {
-                <span class="comment">// we want to ensure that a peer has got at least a certificate</span>
-                <span class="kw">let</span> <span class="ident">peer_certs</span> = <span class="ident">mock_certificates_by_peer</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">peer</span>.<span class="ident">name</span>).<span class="ident">unwrap</span>();
+            <span class="kw">for </span>peer <span class="kw">in </span>peers.peers().values() {
+                <span class="comment">// we want to ensure that a peer has got at least a certificate
+                </span><span class="kw">let </span>peer_certs = mock_certificates_by_peer.get(<span class="kw-2">&amp;</span>peer.name).unwrap();
                 <span class="macro">assert_eq!</span>(
-                    <span class="ident">peer</span>.<span class="ident">assigned_values</span>().<span class="ident">len</span>(),
-                    <span class="ident">peer_certs</span>.<span class="ident">len</span>(),
-                    <span class="string">&quot;Expected peer to have been assigned the required certificates&quot;</span>
-                );
+                    peer.assigned_values().len(),
+                    peer_certs.len(),
+                    <span class="string">&quot;Expected peer to have been assigned the required certificates&quot;
+                </span>);
 
-                <span class="kw">for</span> <span class="ident">c</span> <span class="kw">in</span> <span class="ident">peer</span>.<span class="ident">assigned_values</span>() {
-                    <span class="kw">let</span> <span class="ident">found</span> = <span class="ident">peer_certs</span>
-                        .<span class="ident">clone</span>()
-                        .<span class="ident">into_iter</span>()
-                        .<span class="ident">any</span>(|<span class="ident">c</span>| <span class="ident">c</span>.<span class="ident">digest</span>().<span class="ident">eq</span>(<span class="kw-2">&amp;</span><span class="ident">c</span>.<span class="ident">digest</span>()));
+                <span class="kw">for </span>c <span class="kw">in </span>peer.assigned_values() {
+                    <span class="kw">let </span>found = peer_certs
+                        .clone()
+                        .into_iter()
+                        .any(|c| c.digest().eq(<span class="kw-2">&amp;</span>c.digest()));
 
-                    <span class="macro">assert!</span>(<span class="ident">found</span>, <span class="string">&quot;Assigned certificate not in set of expected&quot;</span>);
+                    <span class="macro">assert!</span>(found, <span class="string">&quot;Assigned certificate not in set of expected&quot;</span>);
                     <span class="macro">assert!</span>(
-                        <span class="ident">seen_certificates</span>.<span class="ident">insert</span>(<span class="ident">c</span>.<span class="ident">digest</span>()),
-                        <span class="string">&quot;Certificate already assigned to another peer&quot;</span>
-                    );
+                        seen_certificates.insert(c.digest()),
+                        <span class="string">&quot;Certificate already assigned to another peer&quot;
+                    </span>);
                 }
             }
         }
     }
 
-    <span class="comment">// The mock certificate structure we&#39;ll use for our tests</span>
-    <span class="comment">// It&#39;s easier to debug since the value is a u8 which can</span>
-    <span class="comment">// be easily understood, print etc.</span>
-    <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
-    <span class="kw">struct</span> <span class="ident">MockCertificate</span>(<span class="ident">u8</span>);
+    <span class="comment">// The mock certificate structure we&#39;ll use for our tests
+    // It&#39;s easier to debug since the value is a u8 which can
+    // be easily understood, print etc.
+    </span><span class="attribute">#[derive(Clone)]</span>
+    <span class="kw">struct </span>MockCertificate(u8);
 
-    <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Copy</span>, <span class="ident">Default</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>, <span class="ident">Hash</span>, <span class="ident">PartialOrd</span>, <span class="ident">Ord</span>)]</span>
-    <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">MockDigest</span>([<span class="ident">u8</span>; <span class="ident">DIGEST_LEN</span>]);
+    <span class="attribute">#[derive(Clone, Copy, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]</span>
+    <span class="kw">pub struct </span>MockDigest([u8; DIGEST_LEN]);
 
-    <span class="kw">impl</span> <span class="ident">From</span>&lt;<span class="ident">MockDigest</span>&gt; <span class="kw">for</span> <span class="ident">Digest</span> {
-        <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">hd</span>: <span class="ident">MockDigest</span>) -&gt; <span class="self">Self</span> {
-            <span class="ident">Digest::new</span>(<span class="ident">hd</span>.<span class="number">0</span>)
+    <span class="kw">impl </span>From&lt;MockDigest&gt; <span class="kw">for </span>Digest {
+        <span class="kw">fn </span>from(hd: MockDigest) -&gt; <span class="self">Self </span>{
+            Digest::new(hd.<span class="number">0</span>)
         }
     }
 
-    <span class="kw">impl</span> <span class="ident">fmt::Debug</span> <span class="kw">for</span> <span class="ident">MockDigest</span> {
-        <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">fmt::Formatter</span>&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">fmt::Error</span>&gt; {
-            <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">base64::encode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>))
+    <span class="kw">impl </span>fmt::Debug <span class="kw">for </span>MockDigest {
+        <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), fmt::Error&gt; {
+            <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, base64::encode(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>))
         }
     }
 
-    <span class="kw">impl</span> <span class="ident">fmt::Display</span> <span class="kw">for</span> <span class="ident">MockDigest</span> {
-        <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">fmt::Formatter</span>&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">fmt::Error</span>&gt; {
-            <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">base64::encode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>).<span class="ident">get</span>(<span class="number">0</span>..<span class="number">16</span>).<span class="ident">unwrap</span>())
+    <span class="kw">impl </span>fmt::Display <span class="kw">for </span>MockDigest {
+        <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), fmt::Error&gt; {
+            <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, base64::encode(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>).get(<span class="number">0</span>..<span class="number">16</span>).unwrap())
         }
     }
 
-    <span class="kw">impl</span> <span class="ident">Hash</span> <span class="kw">for</span> <span class="ident">MockCertificate</span> {
-        <span class="kw">type</span> <span class="ident">TypedDigest</span> = <span class="ident">MockDigest</span>;
+    <span class="kw">impl </span>Hash <span class="kw">for </span>MockCertificate {
+        <span class="kw">type </span>TypedDigest = MockDigest;
 
-        <span class="kw">fn</span> <span class="ident">digest</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">MockDigest</span> {
-            <span class="kw">let</span> <span class="ident">v</span> = <span class="self">self</span>.<span class="number">0</span>.<span class="ident">borrow</span>();
+        <span class="kw">fn </span>digest(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; MockDigest {
+            <span class="kw">let </span>v = <span class="self">self</span>.<span class="number">0</span>.borrow();
 
-            <span class="kw">let</span> <span class="ident">hasher_update</span> = |<span class="ident">hasher</span>: <span class="kw-2">&amp;mut</span> <span class="ident">VarBlake2b</span>| {
-                <span class="ident">hasher</span>.<span class="ident">update</span>([<span class="kw-2">*</span><span class="ident">v</span>].<span class="ident">as_ref</span>());
+            <span class="kw">let </span>hasher_update = |hasher: <span class="kw-2">&amp;mut </span>VarBlake2b| {
+                hasher.update([<span class="kw-2">*</span>v].as_ref());
             };
 
-            <span class="ident">MockDigest</span>(<span class="ident">crypto::blake2b_256</span>(<span class="ident">hasher_update</span>))
+            MockDigest(crypto::blake2b_256(hasher_update))
         }
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (801821d15 2022-08-14)" ></div></body></html>

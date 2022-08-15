@@ -734,741 +734,741 @@
 <span id="734">734</span>
 <span id="735">735</span>
 <span id="736">736</span>
-</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
-<span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">committee</span>, <span class="ident">keys</span>, <span class="ident">temp_dir</span>};
-<span class="kw">use</span> <span class="ident">arc_swap</span>::{<span class="ident">ArcSwap</span>, <span class="ident">ArcSwapOption</span>};
-<span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">Committee</span>, <span class="ident">Parameters</span>, <span class="ident">SharedCommittee</span>, <span class="ident">WorkerId</span>};
-<span class="kw">use</span> <span class="ident">crypto</span>::{<span class="ident">traits::KeyPair</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">KeyPair</span>, <span class="ident">PublicKey</span>};
-<span class="kw">use</span> <span class="ident">executor</span>::{<span class="ident">SerializedTransaction</span>, <span class="ident">SubscriberResult</span>, <span class="ident">DEFAULT_CHANNEL_SIZE</span>};
-<span class="kw">use</span> <span class="ident">itertools::Itertools</span>;
-<span class="kw">use</span> <span class="ident">multiaddr::Multiaddr</span>;
-<span class="kw">use</span> <span class="ident">node</span>::{
-    <span class="ident">execution_state::SimpleExecutionState</span>,
-    <span class="ident">metrics</span>::{<span class="ident">primary_metrics_registry</span>, <span class="ident">worker_metrics_registry</span>},
-    <span class="ident">Node</span>, <span class="ident">NodeStorage</span>,
+</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+</span><span class="kw">use crate</span>::{committee, keys, temp_dir};
+<span class="kw">use </span>arc_swap::{ArcSwap, ArcSwapOption};
+<span class="kw">use </span>config::{Committee, Parameters, SharedCommittee, WorkerId};
+<span class="kw">use </span>crypto::{traits::KeyPair <span class="kw">as _</span>, KeyPair, PublicKey};
+<span class="kw">use </span>executor::{SerializedTransaction, SubscriberResult, DEFAULT_CHANNEL_SIZE};
+<span class="kw">use </span>itertools::Itertools;
+<span class="kw">use </span>multiaddr::Multiaddr;
+<span class="kw">use </span>node::{
+    execution_state::SimpleExecutionState,
+    metrics::{primary_metrics_registry, worker_metrics_registry},
+    Node, NodeStorage,
 };
-<span class="kw">use</span> <span class="ident">prometheus</span>::{<span class="ident">proto::Metric</span>, <span class="ident">Registry</span>};
-<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">cell::RefCell</span>, <span class="ident">collections::HashMap</span>, <span class="ident">path::PathBuf</span>, <span class="ident">rc::Rc</span>, <span class="ident">sync::Arc</span>, <span class="ident">time::Duration</span>};
-<span class="kw">use</span> <span class="ident">task_group::TaskManager</span>;
-<span class="kw">use</span> <span class="ident">tokio</span>::{
-    <span class="ident">sync</span>::{<span class="ident">broadcast::Sender</span>, <span class="ident">mpsc::channel</span>, <span class="ident">RwLock</span>},
-    <span class="ident">task</span>::{<span class="ident">JoinError</span>, <span class="ident">JoinHandle</span>},
+<span class="kw">use </span>prometheus::{proto::Metric, Registry};
+<span class="kw">use </span>std::{cell::RefCell, collections::HashMap, path::PathBuf, rc::Rc, sync::Arc, time::Duration};
+<span class="kw">use </span>task_group::TaskManager;
+<span class="kw">use </span>tokio::{
+    sync::{broadcast::Sender, mpsc::channel, RwLock},
+    task::{JoinError, JoinHandle},
 };
-<span class="kw">use</span> <span class="ident">tonic::transport::Channel</span>;
-<span class="kw">use</span> <span class="ident">tracing::info</span>;
-<span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">ConfigurationClient</span>, <span class="ident">ProposerClient</span>};
+<span class="kw">use </span>tonic::transport::Channel;
+<span class="kw">use </span>tracing::info;
+<span class="kw">use </span>types::{ConfigurationClient, ProposerClient};
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="attribute">#[<span class="ident">path</span> = <span class="string">&quot;tests/cluster_tests.rs&quot;</span>]</span>
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">cluster_tests</span>;
+<span class="attribute">#[cfg(test)]</span>
+<span class="attribute">#[path = <span class="string">&quot;tests/cluster_tests.rs&quot;</span>]</span>
+<span class="kw">pub mod </span>cluster_tests;
 
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Cluster</span> {
-    <span class="ident">authorities</span>: <span class="ident">HashMap</span>&lt;<span class="ident">usize</span>, <span class="ident">AuthorityDetails</span>&gt;,
-    <span class="kw">pub</span> <span class="ident">committee_shared</span>: <span class="ident">SharedCommittee</span>,
-    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">dead_code</span>)]</span>
-    <span class="ident">parameters</span>: <span class="ident">Parameters</span>,
+<span class="kw">pub struct </span>Cluster {
+    authorities: HashMap&lt;usize, AuthorityDetails&gt;,
+    <span class="kw">pub </span>committee_shared: SharedCommittee,
+    <span class="attribute">#[allow(dead_code)]</span>
+    parameters: Parameters,
 }
 
-<span class="kw">impl</span> <span class="ident">Cluster</span> {
-    <span class="doccomment">/// Initialises a new cluster by the provided parameters. The cluster will</span>
-    <span class="doccomment">/// create all the authorities (primaries &amp; workers) that are defined under</span>
-    <span class="doccomment">/// the committee structure, but none of them will be started.</span>
-    <span class="doccomment">/// If an `input_committee` is provided then this will be used, otherwise the default</span>
-    <span class="doccomment">/// will be used instead.</span>
-    <span class="doccomment">/// When the `internal_consensus_enabled` is true then the standard internal</span>
-    <span class="doccomment">/// consensus engine will be enabled. If false, then the internal consensus will</span>
-    <span class="doccomment">/// be disabled and the gRPC server will be enabled to manage the Collections &amp; the</span>
-    <span class="doccomment">/// DAG externally.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(
-        <span class="ident">parameters</span>: <span class="prelude-ty">Option</span>&lt;<span class="ident">Parameters</span>&gt;,
-        <span class="ident">input_committee</span>: <span class="prelude-ty">Option</span>&lt;<span class="ident">Committee</span>&gt;,
-        <span class="ident">internal_consensus_enabled</span>: <span class="ident">bool</span>,
-    ) -&gt; <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="ident">c</span> = <span class="ident">input_committee</span>.<span class="ident">unwrap_or_else</span>(|| <span class="ident">committee</span>(<span class="prelude-val">None</span>));
-        <span class="kw">let</span> <span class="ident">shared_committee</span> = <span class="ident">Arc::new</span>(<span class="ident">ArcSwap::from_pointee</span>(<span class="ident">c</span>));
-        <span class="kw">let</span> <span class="ident">params</span> = <span class="ident">parameters</span>.<span class="ident">unwrap_or_else</span>(<span class="ident"><span class="self">Self</span>::parameters</span>);
+<span class="kw">impl </span>Cluster {
+    <span class="doccomment">/// Initialises a new cluster by the provided parameters. The cluster will
+    /// create all the authorities (primaries &amp; workers) that are defined under
+    /// the committee structure, but none of them will be started.
+    /// If an `input_committee` is provided then this will be used, otherwise the default
+    /// will be used instead.
+    /// When the `internal_consensus_enabled` is true then the standard internal
+    /// consensus engine will be enabled. If false, then the internal consensus will
+    /// be disabled and the gRPC server will be enabled to manage the Collections &amp; the
+    /// DAG externally.
+    </span><span class="kw">pub fn </span>new(
+        parameters: <span class="prelude-ty">Option</span>&lt;Parameters&gt;,
+        input_committee: <span class="prelude-ty">Option</span>&lt;Committee&gt;,
+        internal_consensus_enabled: bool,
+    ) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>c = input_committee.unwrap_or_else(|| committee(<span class="prelude-val">None</span>));
+        <span class="kw">let </span>shared_committee = Arc::new(ArcSwap::from_pointee(c));
+        <span class="kw">let </span>params = parameters.unwrap_or_else(<span class="self">Self</span>::parameters);
 
         <span class="macro">info!</span>(<span class="string">&quot;###### Creating new cluster ######&quot;</span>);
         <span class="macro">info!</span>(<span class="string">&quot;Validator keys:&quot;</span>);
-        <span class="kw">let</span> <span class="ident">k</span> = <span class="ident">keys</span>(<span class="prelude-val">None</span>);
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">nodes</span> = <span class="ident">HashMap::new</span>();
+        <span class="kw">let </span>k = keys(<span class="prelude-val">None</span>);
+        <span class="kw">let </span><span class="kw-2">mut </span>nodes = HashMap::new();
 
-        <span class="kw">for</span> (<span class="ident">id</span>, <span class="ident">key_pair</span>) <span class="kw">in</span> <span class="ident">k</span>.<span class="ident">into_iter</span>().<span class="ident">enumerate</span>() {
-            <span class="macro">info!</span>(<span class="string">&quot;Key {id} -&gt; {}&quot;</span>, <span class="ident">key_pair</span>.<span class="ident">public</span>().<span class="ident">clone</span>());
+        <span class="kw">for </span>(id, key_pair) <span class="kw">in </span>k.into_iter().enumerate() {
+            <span class="macro">info!</span>(<span class="string">&quot;Key {id} -&gt; {}&quot;</span>, key_pair.public().clone());
 
-            <span class="kw">let</span> <span class="ident">authority</span> = <span class="ident">AuthorityDetails::new</span>(
-                <span class="ident">id</span>,
-                <span class="ident">key_pair</span>,
-                <span class="ident">params</span>.<span class="ident">clone</span>(),
-                <span class="ident">shared_committee</span>.<span class="ident">clone</span>(),
-                <span class="ident">internal_consensus_enabled</span>,
+            <span class="kw">let </span>authority = AuthorityDetails::new(
+                id,
+                key_pair,
+                params.clone(),
+                shared_committee.clone(),
+                internal_consensus_enabled,
             );
-            <span class="ident">nodes</span>.<span class="ident">insert</span>(<span class="ident">id</span>, <span class="ident">authority</span>);
+            nodes.insert(id, authority);
         }
 
-        <span class="self">Self</span> {
-            <span class="ident">authorities</span>: <span class="ident">nodes</span>,
-            <span class="ident">committee_shared</span>: <span class="ident">shared_committee</span>,
-            <span class="ident">parameters</span>: <span class="ident">params</span>,
+        <span class="self">Self </span>{
+            authorities: nodes,
+            committee_shared: shared_committee,
+            parameters: params,
         }
     }
 
-    <span class="doccomment">/// Starts a cluster by the defined number of authorities. The authorities</span>
-    <span class="doccomment">/// will be started sequentially started from the one with id zero up to</span>
-    <span class="doccomment">/// the provided number `authorities_number`. If none number is provided, then</span>
-    <span class="doccomment">/// the maximum number of authorities will be started.</span>
-    <span class="doccomment">/// If a number higher than the available ones in the committee is provided then</span>
-    <span class="doccomment">/// the method will panic.</span>
-    <span class="doccomment">/// The workers_per_authority dictates how many workers per authority should</span>
-    <span class="doccomment">/// also be started (the same number will be started for each authority). If none</span>
-    <span class="doccomment">/// is provided then the maximum number of workers will be started.</span>
-    <span class="doccomment">/// If the `boot_wait_time` is provided then between node starts we&#39;ll wait for this</span>
-    <span class="doccomment">/// time before the next node is started. This is useful to simulate staggered</span>
-    <span class="doccomment">/// node starts. If none is provided then the nodes will be started immediately</span>
-    <span class="doccomment">/// the one after the other.</span>
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">start</span>(
-        <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
-        <span class="ident">authorities_number</span>: <span class="prelude-ty">Option</span>&lt;<span class="ident">usize</span>&gt;,
-        <span class="ident">workers_per_authority</span>: <span class="prelude-ty">Option</span>&lt;<span class="ident">usize</span>&gt;,
-        <span class="ident">boot_wait_time</span>: <span class="prelude-ty">Option</span>&lt;<span class="ident">Duration</span>&gt;,
+    <span class="doccomment">/// Starts a cluster by the defined number of authorities. The authorities
+    /// will be started sequentially started from the one with id zero up to
+    /// the provided number `authorities_number`. If none number is provided, then
+    /// the maximum number of authorities will be started.
+    /// If a number higher than the available ones in the committee is provided then
+    /// the method will panic.
+    /// The workers_per_authority dictates how many workers per authority should
+    /// also be started (the same number will be started for each authority). If none
+    /// is provided then the maximum number of workers will be started.
+    /// If the `boot_wait_time` is provided then between node starts we&#39;ll wait for this
+    /// time before the next node is started. This is useful to simulate staggered
+    /// node starts. If none is provided then the nodes will be started immediately
+    /// the one after the other.
+    </span><span class="kw">pub async fn </span>start(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        authorities_number: <span class="prelude-ty">Option</span>&lt;usize&gt;,
+        workers_per_authority: <span class="prelude-ty">Option</span>&lt;usize&gt;,
+        boot_wait_time: <span class="prelude-ty">Option</span>&lt;Duration&gt;,
     ) {
-        <span class="kw">let</span> <span class="ident">max_authorities</span> = <span class="self">self</span>.<span class="ident">committee_shared</span>.<span class="ident">load</span>().<span class="ident">authorities</span>.<span class="ident">len</span>();
-        <span class="kw">let</span> <span class="ident">authorities</span> = <span class="ident">authorities_number</span>.<span class="ident">unwrap_or</span>(<span class="ident">max_authorities</span>);
+        <span class="kw">let </span>max_authorities = <span class="self">self</span>.committee_shared.load().authorities.len();
+        <span class="kw">let </span>authorities = authorities_number.unwrap_or(max_authorities);
 
-        <span class="kw">if</span> <span class="ident">authorities</span> &gt; <span class="ident">max_authorities</span> {
+        <span class="kw">if </span>authorities &gt; max_authorities {
             <span class="macro">panic!</span>(<span class="string">&quot;Provided nodes number is greater than the maximum allowed&quot;</span>);
         }
 
-        <span class="kw">for</span> <span class="ident">id</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">authorities</span> {
+        <span class="kw">for </span>id <span class="kw">in </span><span class="number">0</span>..authorities {
             <span class="macro">info!</span>(<span class="string">&quot;Spinning up node: {id}&quot;</span>);
-            <span class="self">self</span>.<span class="ident">start_node</span>(<span class="ident">id</span>, <span class="bool-val">false</span>, <span class="ident">workers_per_authority</span>).<span class="kw">await</span>;
+            <span class="self">self</span>.start_node(id, <span class="bool-val">false</span>, workers_per_authority).<span class="kw">await</span>;
 
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">d</span>) = <span class="ident">boot_wait_time</span> {
-                <span class="comment">// we don&#39;t want to wait after the last node has been boostraped</span>
-                <span class="kw">if</span> <span class="ident">id</span> &lt; <span class="ident">authorities</span> - <span class="number">1</span> {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(d) = boot_wait_time {
+                <span class="comment">// we don&#39;t want to wait after the last node has been boostraped
+                </span><span class="kw">if </span>id &lt; authorities - <span class="number">1 </span>{
                     <span class="macro">info!</span>(
                         <span class="string">&quot;#### Will wait for {} seconds before starting the next node ####&quot;</span>,
-                        <span class="ident">d</span>.<span class="ident">as_secs</span>()
+                        d.as_secs()
                     );
-                    <span class="ident">tokio::time::sleep</span>(<span class="ident">d</span>).<span class="kw">await</span>;
+                    tokio::time::sleep(d).<span class="kw">await</span>;
                 }
             }
         }
     }
 
-    <span class="doccomment">/// Starts the authority node by the defined id - if not already running - and</span>
-    <span class="doccomment">/// the details are returned. If the node is already running then a panic</span>
-    <span class="doccomment">/// is thrown instead.</span>
-    <span class="doccomment">/// When the preserve_store is true, then the started authority will use the</span>
-    <span class="doccomment">/// same path that has been used the last time when started (both the primary</span>
-    <span class="doccomment">/// and the workers).</span>
-    <span class="doccomment">/// This is basically a way to use the same storage between node restarts.</span>
-    <span class="doccomment">/// When the preserve_store is false, then authority will start with an empty</span>
-    <span class="doccomment">/// storage.</span>
-    <span class="doccomment">/// If the `workers_per_authority` is provided then the corresponding number of</span>
-    <span class="doccomment">/// workers will be started per authority. Otherwise if not provided, then maximum</span>
-    <span class="doccomment">/// number of workers will be started per authority.</span>
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">start_node</span>(
-        <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
-        <span class="ident">id</span>: <span class="ident">usize</span>,
-        <span class="ident">preserve_store</span>: <span class="ident">bool</span>,
-        <span class="ident">workers_per_authority</span>: <span class="prelude-ty">Option</span>&lt;<span class="ident">usize</span>&gt;,
+    <span class="doccomment">/// Starts the authority node by the defined id - if not already running - and
+    /// the details are returned. If the node is already running then a panic
+    /// is thrown instead.
+    /// When the preserve_store is true, then the started authority will use the
+    /// same path that has been used the last time when started (both the primary
+    /// and the workers).
+    /// This is basically a way to use the same storage between node restarts.
+    /// When the preserve_store is false, then authority will start with an empty
+    /// storage.
+    /// If the `workers_per_authority` is provided then the corresponding number of
+    /// workers will be started per authority. Otherwise if not provided, then maximum
+    /// number of workers will be started per authority.
+    </span><span class="kw">pub async fn </span>start_node(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        id: usize,
+        preserve_store: bool,
+        workers_per_authority: <span class="prelude-ty">Option</span>&lt;usize&gt;,
     ) {
-        <span class="kw">let</span> <span class="ident">authority</span> = <span class="self">self</span>
-            .<span class="ident">authorities</span>
-            .<span class="ident">get_mut</span>(<span class="kw-2">&amp;</span><span class="ident">id</span>)
-            .<span class="ident">unwrap_or_else</span>(|| <span class="macro">panic!</span>(<span class="string">&quot;Authority with id {} not found&quot;</span>, <span class="ident">id</span>));
+        <span class="kw">let </span>authority = <span class="self">self
+            </span>.authorities
+            .get_mut(<span class="kw-2">&amp;</span>id)
+            .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">&quot;Authority with id {} not found&quot;</span>, id));
 
-        <span class="comment">// start the primary</span>
-        <span class="ident">authority</span>.<span class="ident">start_primary</span>(<span class="ident">preserve_store</span>).<span class="kw">await</span>;
+        <span class="comment">// start the primary
+        </span>authority.start_primary(preserve_store).<span class="kw">await</span>;
 
-        <span class="comment">// start the workers</span>
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">workers</span>) = <span class="ident">workers_per_authority</span> {
-            <span class="kw">for</span> <span class="ident">worker_id</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">workers</span> {
-                <span class="ident">authority</span>
-                    .<span class="ident">start_worker</span>(<span class="ident">worker_id</span> <span class="kw">as</span> <span class="ident">WorkerId</span>, <span class="ident">preserve_store</span>)
+        <span class="comment">// start the workers
+        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(workers) = workers_per_authority {
+            <span class="kw">for </span>worker_id <span class="kw">in </span><span class="number">0</span>..workers {
+                authority
+                    .start_worker(worker_id <span class="kw">as </span>WorkerId, preserve_store)
                     .<span class="kw">await</span>;
             }
-        } <span class="kw">else</span> {
-            <span class="ident">authority</span>.<span class="ident">start_all_workers</span>(<span class="ident">preserve_store</span>).<span class="kw">await</span>;
+        } <span class="kw">else </span>{
+            authority.start_all_workers(preserve_store).<span class="kw">await</span>;
         }
     }
 
-    <span class="doccomment">/// This method stops the authority (both the primary and the worker nodes)</span>
-    <span class="doccomment">/// with the provided id.</span>
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">stop_node</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">id</span>: <span class="ident">usize</span>) {
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">node</span>) = <span class="self">self</span>.<span class="ident">authorities</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">id</span>) {
-            <span class="ident">node</span>.<span class="ident">stop_all</span>().<span class="kw">await</span>;
+    <span class="doccomment">/// This method stops the authority (both the primary and the worker nodes)
+    /// with the provided id.
+    </span><span class="kw">pub async fn </span>stop_node(<span class="kw-2">&amp;</span><span class="self">self</span>, id: usize) {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(node) = <span class="self">self</span>.authorities.get(<span class="kw-2">&amp;</span>id) {
+            node.stop_all().<span class="kw">await</span>;
             <span class="macro">info!</span>(<span class="string">&quot;Aborted node for id {id}&quot;</span>);
-        } <span class="kw">else</span> {
+        } <span class="kw">else </span>{
             <span class="macro">info!</span>(<span class="string">&quot;Node with {id} not found - nothing to stop&quot;</span>);
         }
     }
 
-    <span class="doccomment">/// Returns all the running authorities. Any authority that:</span>
-    <span class="doccomment">/// * has been started ever</span>
-    <span class="doccomment">/// * or has been stopped</span>
-    <span class="doccomment">/// will not be returned by this method.</span>
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">authorities</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Vec</span>&lt;<span class="ident">AuthorityDetails</span>&gt; {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> = <span class="ident">Vec::new</span>();
+    <span class="doccomment">/// Returns all the running authorities. Any authority that:
+    /// * has been started ever
+    /// * or has been stopped
+    /// will not be returned by this method.
+    </span><span class="kw">pub async fn </span>authorities(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;AuthorityDetails&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>result = Vec::new();
 
-        <span class="kw">for</span> <span class="ident">authority</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">authorities</span>.<span class="ident">values</span>() {
-            <span class="kw">if</span> <span class="ident">authority</span>.<span class="ident">is_running</span>().<span class="kw">await</span> {
-                <span class="ident">result</span>.<span class="ident">push</span>(<span class="ident">authority</span>.<span class="ident">clone</span>());
+        <span class="kw">for </span>authority <span class="kw">in </span><span class="self">self</span>.authorities.values() {
+            <span class="kw">if </span>authority.is_running().<span class="kw">await </span>{
+                result.push(authority.clone());
             }
         }
 
-        <span class="ident">result</span>
+        result
     }
 
-    <span class="doccomment">/// Returns the authority identified by the provided id. Will panic if the</span>
-    <span class="doccomment">/// authority with the id is not found. The returned authority can be freely</span>
-    <span class="doccomment">/// cloned and managed without having the need to fetch again.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">authority</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">id</span>: <span class="ident">usize</span>) -&gt; <span class="ident">AuthorityDetails</span> {
-        <span class="self">self</span>.<span class="ident">authorities</span>
-            .<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">id</span>)
-            .<span class="ident">unwrap_or_else</span>(|| <span class="macro">panic!</span>(<span class="string">&quot;Authority with id {} not found&quot;</span>, <span class="ident">id</span>))
-            .<span class="ident">clone</span>()
+    <span class="doccomment">/// Returns the authority identified by the provided id. Will panic if the
+    /// authority with the id is not found. The returned authority can be freely
+    /// cloned and managed without having the need to fetch again.
+    </span><span class="kw">pub fn </span>authority(<span class="kw-2">&amp;</span><span class="self">self</span>, id: usize) -&gt; AuthorityDetails {
+        <span class="self">self</span>.authorities
+            .get(<span class="kw-2">&amp;</span>id)
+            .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">&quot;Authority with id {} not found&quot;</span>, id))
+            .clone()
     }
 
-    <span class="doccomment">/// This method asserts the progress of the cluster.</span>
-    <span class="doccomment">/// `expected_nodes`: Nodes expected to have made progress. Any number different than that</span>
-    <span class="doccomment">/// will make the assertion fail.</span>
-    <span class="doccomment">/// `commit_threshold`: The acceptable threshold between the minimum and maximum reported</span>
-    <span class="doccomment">/// commit value from the nodes.</span>
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">assert_progress</span>(
+    <span class="doccomment">/// This method asserts the progress of the cluster.
+    /// `expected_nodes`: Nodes expected to have made progress. Any number different than that
+    /// will make the assertion fail.
+    /// `commit_threshold`: The acceptable threshold between the minimum and maximum reported
+    /// commit value from the nodes.
+    </span><span class="kw">pub async fn </span>assert_progress(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">expected_nodes</span>: <span class="ident">u64</span>,
-        <span class="ident">commit_threshold</span>: <span class="ident">u64</span>,
-    ) -&gt; <span class="ident">HashMap</span>&lt;<span class="ident">usize</span>, <span class="ident">u64</span>&gt; {
-        <span class="kw">let</span> <span class="ident">r</span> = <span class="self">self</span>.<span class="ident">authorities_latest_commit_round</span>().<span class="kw">await</span>;
-        <span class="kw">let</span> <span class="ident">rounds</span>: <span class="ident">HashMap</span>&lt;<span class="ident">usize</span>, <span class="ident">u64</span>&gt; = <span class="ident">r</span>
-            .<span class="ident">into_iter</span>()
-            .<span class="ident">map</span>(|(<span class="ident">key</span>, <span class="ident">value</span>)| (<span class="ident">key</span>, <span class="ident">value</span> <span class="kw">as</span> <span class="ident">u64</span>))
-            .<span class="ident">collect</span>();
+        expected_nodes: u64,
+        commit_threshold: u64,
+    ) -&gt; HashMap&lt;usize, u64&gt; {
+        <span class="kw">let </span>r = <span class="self">self</span>.authorities_latest_commit_round().<span class="kw">await</span>;
+        <span class="kw">let </span>rounds: HashMap&lt;usize, u64&gt; = r
+            .into_iter()
+            .map(|(key, value)| (key, value <span class="kw">as </span>u64))
+            .collect();
 
         <span class="macro">assert_eq!</span>(
-            <span class="ident">rounds</span>.<span class="ident">len</span>(),
-            <span class="ident">expected_nodes</span> <span class="kw">as</span> <span class="ident">usize</span>,
-            <span class="string">&quot;Expected to have received commit metrics from {expected_nodes} nodes&quot;</span>
-        );
-        <span class="macro">assert!</span>(<span class="ident">rounds</span>.<span class="ident">values</span>().<span class="ident">all</span>(|<span class="ident">v</span>| <span class="ident">v</span> &gt; <span class="kw-2">&amp;</span><span class="number">1</span>), <span class="string">&quot;All nodes are available so all should have made progress and committed at least after the first round&quot;</span>);
+            rounds.len(),
+            expected_nodes <span class="kw">as </span>usize,
+            <span class="string">&quot;Expected to have received commit metrics from {expected_nodes} nodes&quot;
+        </span>);
+        <span class="macro">assert!</span>(rounds.values().all(|v| v &gt; <span class="kw-2">&amp;</span><span class="number">1</span>), <span class="string">&quot;All nodes are available so all should have made progress and committed at least after the first round&quot;</span>);
 
-        <span class="kw">if</span> <span class="ident">expected_nodes</span> == <span class="number">0</span> {
-            <span class="kw">return</span> <span class="ident">HashMap::new</span>();
+        <span class="kw">if </span>expected_nodes == <span class="number">0 </span>{
+            <span class="kw">return </span>HashMap::new();
         }
 
-        <span class="kw">let</span> (<span class="ident">min</span>, <span class="ident">max</span>) = <span class="ident">rounds</span>.<span class="ident">values</span>().<span class="ident">into_iter</span>().<span class="ident">minmax</span>().<span class="ident">into_option</span>().<span class="ident">unwrap</span>();
+        <span class="kw">let </span>(min, max) = rounds.values().into_iter().minmax().into_option().unwrap();
         <span class="macro">assert!</span>(
-            <span class="ident">max</span> - <span class="ident">min</span> &lt;= <span class="ident">commit_threshold</span>,
-            <span class="string">&quot;Nodes shouldn&#39;t be that behind&quot;</span>
-        );
+            max - min &lt;= commit_threshold,
+            <span class="string">&quot;Nodes shouldn&#39;t be that behind&quot;
+        </span>);
 
-        <span class="ident">rounds</span>
+        rounds
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">authorities_latest_commit_round</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">HashMap</span>&lt;<span class="ident">usize</span>, <span class="ident">f64</span>&gt; {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">authorities_latest_commit</span> = <span class="ident">HashMap::new</span>();
+    <span class="kw">async fn </span>authorities_latest_commit_round(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; HashMap&lt;usize, f64&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>authorities_latest_commit = HashMap::new();
 
-        <span class="kw">for</span> <span class="ident">authority</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">authorities</span>().<span class="kw">await</span> {
-            <span class="kw">let</span> <span class="ident">primary</span> = <span class="ident">authority</span>.<span class="ident">primary</span>().<span class="kw">await</span>;
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">metric</span>) = <span class="ident">primary</span>.<span class="ident">metric</span>(<span class="string">&quot;narwhal_primary_last_committed_round&quot;</span>) {
-                <span class="kw">let</span> <span class="ident">value</span> = <span class="ident">metric</span>.<span class="ident">get_gauge</span>().<span class="ident">get_value</span>();
+        <span class="kw">for </span>authority <span class="kw">in </span><span class="self">self</span>.authorities().<span class="kw">await </span>{
+            <span class="kw">let </span>primary = authority.primary().<span class="kw">await</span>;
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(metric) = primary.metric(<span class="string">&quot;narwhal_primary_last_committed_round&quot;</span>) {
+                <span class="kw">let </span>value = metric.get_gauge().get_value();
 
-                <span class="ident">authorities_latest_commit</span>.<span class="ident">insert</span>(<span class="ident">primary</span>.<span class="ident">id</span>, <span class="ident">value</span>);
+                authorities_latest_commit.insert(primary.id, value);
 
                 <span class="macro">info!</span>(
                     <span class="string">&quot;[Node {}] Metric narwhal_primary_last_committed_round -&gt; {value}&quot;</span>,
-                    <span class="ident">primary</span>.<span class="ident">id</span>
+                    primary.id
                 );
             }
         }
 
-        <span class="ident">authorities_latest_commit</span>
+        authorities_latest_commit
     }
 
-    <span class="kw">fn</span> <span class="ident">parameters</span>() -&gt; <span class="ident">Parameters</span> {
-        <span class="ident">Parameters</span> {
-            <span class="ident">batch_size</span>: <span class="number">200</span>,
-            <span class="ident">max_header_delay</span>: <span class="ident">Duration::from_secs</span>(<span class="number">2</span>),
-            ..<span class="ident">Parameters::default</span>()
+    <span class="kw">fn </span>parameters() -&gt; Parameters {
+        Parameters {
+            batch_size: <span class="number">200</span>,
+            max_header_delay: Duration::from_secs(<span class="number">2</span>),
+            ..Parameters::default()
         }
     }
 }
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">PrimaryNodeDetails</span> {
-    <span class="kw">pub</span> <span class="ident">id</span>: <span class="ident">usize</span>,
-    <span class="kw">pub</span> <span class="ident">key_pair</span>: <span class="ident">Arc</span>&lt;<span class="ident">KeyPair</span>&gt;,
-    <span class="kw">pub</span> <span class="ident">tx_transaction_confirmation</span>: <span class="ident">Sender</span>&lt;(<span class="ident">SubscriberResult</span>&lt;<span class="ident">Vec</span>&lt;<span class="ident">u8</span>&gt;&gt;, <span class="ident">SerializedTransaction</span>)&gt;,
-    <span class="ident">registry</span>: <span class="ident">Registry</span>,
-    <span class="ident">store_path</span>: <span class="ident">PathBuf</span>,
-    <span class="ident">committee</span>: <span class="ident">SharedCommittee</span>,
-    <span class="ident">parameters</span>: <span class="ident">Parameters</span>,
-    <span class="ident">handlers</span>: <span class="ident">Rc</span>&lt;<span class="ident">RefCell</span>&lt;<span class="ident">Vec</span>&lt;<span class="ident">JoinHandle</span>&lt;()&gt;&gt;&gt;&gt;,
-    <span class="ident">primary</span>: <span class="ident">Rc</span>&lt;<span class="ident">RefCell</span>&lt;<span class="prelude-ty">Option</span>&lt;<span class="ident">TaskManager</span>&lt;<span class="ident">JoinError</span>&gt;&gt;&gt;&gt;,
-    <span class="ident">internal_consensus_enabled</span>: <span class="ident">bool</span>,
+<span class="attribute">#[derive(Clone)]</span>
+<span class="kw">pub struct </span>PrimaryNodeDetails {
+    <span class="kw">pub </span>id: usize,
+    <span class="kw">pub </span>key_pair: Arc&lt;KeyPair&gt;,
+    <span class="kw">pub </span>tx_transaction_confirmation: Sender&lt;(SubscriberResult&lt;Vec&lt;u8&gt;&gt;, SerializedTransaction)&gt;,
+    registry: Registry,
+    store_path: PathBuf,
+    committee: SharedCommittee,
+    parameters: Parameters,
+    handlers: Rc&lt;RefCell&lt;Vec&lt;JoinHandle&lt;()&gt;&gt;&gt;&gt;,
+    primary: Rc&lt;RefCell&lt;<span class="prelude-ty">Option</span>&lt;TaskManager&lt;JoinError&gt;&gt;&gt;&gt;,
+    internal_consensus_enabled: bool,
 }
 
-<span class="kw">impl</span> <span class="ident">PrimaryNodeDetails</span> {
-    <span class="kw">fn</span> <span class="ident">new</span>(
-        <span class="ident">id</span>: <span class="ident">usize</span>,
-        <span class="ident">key_pair</span>: <span class="ident">KeyPair</span>,
-        <span class="ident">parameters</span>: <span class="ident">Parameters</span>,
-        <span class="ident">committee</span>: <span class="ident">SharedCommittee</span>,
-        <span class="ident">internal_consensus_enabled</span>: <span class="ident">bool</span>,
-    ) -&gt; <span class="self">Self</span> {
-        <span class="comment">// used just to initialise the struct value</span>
-        <span class="kw">let</span> (<span class="ident">tx</span>, <span class="kw">_</span>) = <span class="ident">tokio::sync::broadcast::channel</span>(<span class="number">1</span>);
+<span class="kw">impl </span>PrimaryNodeDetails {
+    <span class="kw">fn </span>new(
+        id: usize,
+        key_pair: KeyPair,
+        parameters: Parameters,
+        committee: SharedCommittee,
+        internal_consensus_enabled: bool,
+    ) -&gt; <span class="self">Self </span>{
+        <span class="comment">// used just to initialise the struct value
+        </span><span class="kw">let </span>(tx, <span class="kw">_</span>) = tokio::sync::broadcast::channel(<span class="number">1</span>);
 
-        <span class="self">Self</span> {
-            <span class="ident">id</span>,
-            <span class="ident">key_pair</span>: <span class="ident">Arc::new</span>(<span class="ident">key_pair</span>),
-            <span class="ident">registry</span>: <span class="ident">Registry::new</span>(),
-            <span class="ident">store_path</span>: <span class="ident">temp_dir</span>(),
-            <span class="ident">tx_transaction_confirmation</span>: <span class="ident">tx</span>,
-            <span class="ident">committee</span>,
-            <span class="ident">parameters</span>,
-            <span class="ident">handlers</span>: <span class="ident">Rc::new</span>(<span class="ident">RefCell::new</span>(<span class="ident">Vec::new</span>())),
-            <span class="ident">primary</span>: <span class="ident">Rc::new</span>(<span class="ident">RefCell::new</span>(<span class="prelude-val">None</span>)),
-            <span class="ident">internal_consensus_enabled</span>,
+        <span class="self">Self </span>{
+            id,
+            key_pair: Arc::new(key_pair),
+            registry: Registry::new(),
+            store_path: temp_dir(),
+            tx_transaction_confirmation: tx,
+            committee,
+            parameters,
+            handlers: Rc::new(RefCell::new(Vec::new())),
+            primary: Rc::new(RefCell::new(<span class="prelude-val">None</span>)),
+            internal_consensus_enabled,
         }
     }
 
-    <span class="doccomment">/// Returns the metric - if exists - identified by the provided name.</span>
-    <span class="doccomment">/// If metric has not been found then None is returned instead.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">metric</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">name</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="ident">Metric</span>&gt; {
-        <span class="kw">let</span> <span class="ident">metrics</span> = <span class="self">self</span>.<span class="ident">registry</span>.<span class="ident">gather</span>();
+    <span class="doccomment">/// Returns the metric - if exists - identified by the provided name.
+    /// If metric has not been found then None is returned instead.
+    </span><span class="kw">pub fn </span>metric(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;Metric&gt; {
+        <span class="kw">let </span>metrics = <span class="self">self</span>.registry.gather();
 
-        <span class="kw">let</span> <span class="ident">metric</span> = <span class="ident">metrics</span>.<span class="ident">into_iter</span>().<span class="ident">find</span>(|<span class="ident">m</span>| <span class="ident">m</span>.<span class="ident">get_name</span>() == <span class="ident">name</span>);
-        <span class="ident">metric</span>.<span class="ident">map</span>(|<span class="ident">m</span>| <span class="ident">m</span>.<span class="ident">get_metric</span>().<span class="ident">first</span>().<span class="ident">unwrap</span>().<span class="ident">clone</span>())
+        <span class="kw">let </span>metric = metrics.into_iter().find(|m| m.get_name() == name);
+        metric.map(|m| m.get_metric().first().unwrap().clone())
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">start</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">preserve_store</span>: <span class="ident">bool</span>) {
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">is_running</span>() {
+    <span class="kw">async fn </span>start(<span class="kw-2">&amp;mut </span><span class="self">self</span>, preserve_store: bool) {
+        <span class="kw">if </span><span class="self">self</span>.is_running() {
             <span class="macro">panic!</span>(<span class="string">&quot;Tried to start a node that is already running&quot;</span>);
         }
 
-        <span class="kw">let</span> <span class="ident">registry</span> = <span class="ident">primary_metrics_registry</span>(<span class="self">self</span>.<span class="ident">key_pair</span>.<span class="ident">public</span>().<span class="ident">clone</span>());
+        <span class="kw">let </span>registry = primary_metrics_registry(<span class="self">self</span>.key_pair.public().clone());
 
-        <span class="comment">// Make the data store.</span>
-        <span class="kw">let</span> <span class="ident">store_path</span> = <span class="kw">if</span> <span class="ident">preserve_store</span> {
-            <span class="self">self</span>.<span class="ident">store_path</span>.<span class="ident">clone</span>()
-        } <span class="kw">else</span> {
-            <span class="ident">temp_dir</span>()
+        <span class="comment">// Make the data store.
+        </span><span class="kw">let </span>store_path = <span class="kw">if </span>preserve_store {
+            <span class="self">self</span>.store_path.clone()
+        } <span class="kw">else </span>{
+            temp_dir()
         };
 
         <span class="macro">info!</span>(
             <span class="string">&quot;Primary Node {} will use path {:?}&quot;</span>,
-            <span class="self">self</span>.<span class="ident">id</span>,
-            <span class="ident">store_path</span>.<span class="ident">clone</span>()
+            <span class="self">self</span>.id,
+            store_path.clone()
         );
 
-        <span class="comment">// The channel returning the result for each transaction&#39;s execution.</span>
-        <span class="kw">let</span> (<span class="ident">tx_transaction_confirmation</span>, <span class="kw-2">mut</span> <span class="ident">rx_transaction_confirmation</span>) =
-            <span class="ident">channel</span>(<span class="ident">Node::CHANNEL_CAPACITY</span>);
+        <span class="comment">// The channel returning the result for each transaction&#39;s execution.
+        </span><span class="kw">let </span>(tx_transaction_confirmation, <span class="kw-2">mut </span>rx_transaction_confirmation) =
+            channel(Node::CHANNEL_CAPACITY);
 
-        <span class="comment">// Primary node</span>
-        <span class="kw">let</span> <span class="ident">primary_store</span>: <span class="ident">NodeStorage</span> = <span class="ident">NodeStorage::reopen</span>(<span class="ident">store_path</span>.<span class="ident">clone</span>());
-        <span class="self">self</span>.<span class="ident">primary</span>.<span class="ident">replace</span>(<span class="prelude-val">Some</span>(
-            <span class="ident">Node::spawn_primary</span>(
-                <span class="self">self</span>.<span class="ident">key_pair</span>.<span class="ident">copy</span>(),
-                <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">clone</span>(),
-                <span class="kw-2">&amp;</span><span class="ident">primary_store</span>,
-                <span class="self">self</span>.<span class="ident">parameters</span>.<span class="ident">clone</span>(),
-                <span class="comment">/* consensus */</span> <span class="self">self</span>.<span class="ident">internal_consensus_enabled</span>,
-                <span class="comment">/* execution_state */</span> <span class="ident">Arc::new</span>(<span class="ident">SimpleExecutionState::default</span>()),
-                <span class="ident">tx_transaction_confirmation</span>,
-                <span class="kw-2">&amp;</span><span class="ident">registry</span>,
+        <span class="comment">// Primary node
+        </span><span class="kw">let </span>primary_store: NodeStorage = NodeStorage::reopen(store_path.clone());
+        <span class="self">self</span>.primary.replace(<span class="prelude-val">Some</span>(
+            Node::spawn_primary(
+                <span class="self">self</span>.key_pair.copy(),
+                <span class="self">self</span>.committee.clone(),
+                <span class="kw-2">&amp;</span>primary_store,
+                <span class="self">self</span>.parameters.clone(),
+                <span class="comment">/* consensus */ </span><span class="self">self</span>.internal_consensus_enabled,
+                <span class="comment">/* execution_state */ </span>Arc::new(SimpleExecutionState::default()),
+                tx_transaction_confirmation,
+                <span class="kw-2">&amp;</span>registry,
             )
-            .<span class="kw">await</span>
-            .<span class="ident">unwrap</span>(),
+            .<span class="kw">await
+            </span>.unwrap(),
         ));
 
-        <span class="kw">let</span> (<span class="ident">tx</span>, <span class="kw">_</span>) = <span class="ident">tokio::sync::broadcast::channel</span>(<span class="ident">DEFAULT_CHANNEL_SIZE</span>);
-        <span class="kw">let</span> <span class="ident">transactions_sender</span> = <span class="ident">tx</span>.<span class="ident">clone</span>();
-        <span class="comment">// spawn a task to listen on the committed transactions</span>
-        <span class="comment">// and translate to a mpmc channel</span>
-        <span class="kw">let</span> <span class="ident">h</span> = <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
-            <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">t</span>) = <span class="ident">rx_transaction_confirmation</span>.<span class="ident">recv</span>().<span class="kw">await</span> {
-                <span class="comment">// send the transaction to the mpmc channel</span>
-                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">e</span>) = <span class="ident">t</span>.<span class="ident">clone</span>().<span class="number">0</span> {
-                    <span class="macro">println!</span>(<span class="string">&quot;The result from consensus is an error: {:?}&quot;</span>, <span class="ident">e</span>);
+        <span class="kw">let </span>(tx, <span class="kw">_</span>) = tokio::sync::broadcast::channel(DEFAULT_CHANNEL_SIZE);
+        <span class="kw">let </span>transactions_sender = tx.clone();
+        <span class="comment">// spawn a task to listen on the committed transactions
+        // and translate to a mpmc channel
+        </span><span class="kw">let </span>h = tokio::spawn(<span class="kw">async move </span>{
+            <span class="kw">while let </span><span class="prelude-val">Some</span>(t) = rx_transaction_confirmation.recv().<span class="kw">await </span>{
+                <span class="comment">// send the transaction to the mpmc channel
+                </span><span class="kw">if let </span><span class="prelude-val">Err</span>(e) = t.clone().<span class="number">0 </span>{
+                    <span class="macro">println!</span>(<span class="string">&quot;The result from consensus is an error: {:?}&quot;</span>, e);
                 }
-                <span class="kw">let</span> <span class="kw">_</span> = <span class="ident">transactions_sender</span>.<span class="ident">send</span>(<span class="ident">t</span>);
+                <span class="kw">let _ </span>= transactions_sender.send(t);
             }
         });
-        <span class="self">self</span>.<span class="ident">handlers</span>.<span class="ident">replace</span>(<span class="macro">vec!</span>[<span class="ident">h</span>]);
+        <span class="self">self</span>.handlers.replace(<span class="macro">vec!</span>[h]);
 
-        <span class="self">self</span>.<span class="ident">store_path</span> = <span class="ident">store_path</span>;
-        <span class="self">self</span>.<span class="ident">registry</span> = <span class="ident">registry</span>;
-        <span class="self">self</span>.<span class="ident">tx_transaction_confirmation</span> = <span class="ident">tx</span>;
+        <span class="self">self</span>.store_path = store_path;
+        <span class="self">self</span>.registry = registry;
+        <span class="self">self</span>.tx_transaction_confirmation = tx;
     }
 
-    <span class="kw">fn</span> <span class="ident">stop</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) {
-        <span class="self">self</span>.<span class="ident">handlers</span>.<span class="ident">borrow</span>().<span class="ident">iter</span>().<span class="ident">for_each</span>(|<span class="ident">h</span>| <span class="ident">h</span>.<span class="ident">abort</span>());
-        <span class="self">self</span>.<span class="ident">primary</span>.<span class="ident">replace</span>(<span class="prelude-val">None</span>);
-        <span class="macro">info!</span>(<span class="string">&quot;Aborted primary node for id {}&quot;</span>, <span class="self">self</span>.<span class="ident">id</span>);
+    <span class="kw">fn </span>stop(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+        <span class="self">self</span>.handlers.borrow().iter().for_each(|h| h.abort());
+        <span class="self">self</span>.primary.replace(<span class="prelude-val">None</span>);
+        <span class="macro">info!</span>(<span class="string">&quot;Aborted primary node for id {}&quot;</span>, <span class="self">self</span>.id);
     }
 
-    <span class="doccomment">/// Returns whether the primary is still running, by checking if the TaskManager</span>
-    <span class="doccomment">/// and task handles exist and at least one of them is not finished.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_running</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">bool</span> {
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">primary</span>.<span class="ident">borrow</span>().<span class="ident">is_none</span>() || <span class="self">self</span>.<span class="ident">handlers</span>.<span class="ident">borrow</span>().<span class="ident">is_empty</span>() {
-            <span class="kw">return</span> <span class="bool-val">false</span>;
+    <span class="doccomment">/// Returns whether the primary is still running, by checking if the TaskManager
+    /// and task handles exist and at least one of them is not finished.
+    </span><span class="kw">pub fn </span>is_running(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="kw">if </span><span class="self">self</span>.primary.borrow().is_none() || <span class="self">self</span>.handlers.borrow().is_empty() {
+            <span class="kw">return </span><span class="bool-val">false</span>;
         }
-        <span class="self">self</span>.<span class="ident">handlers</span>.<span class="ident">borrow</span>().<span class="ident">iter</span>().<span class="ident">any</span>(|<span class="ident">h</span>| !<span class="ident">h</span>.<span class="ident">is_finished</span>())
+        <span class="self">self</span>.handlers.borrow().iter().any(|h| !h.is_finished())
     }
 }
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">WorkerNodeDetails</span> {
-    <span class="kw">pub</span> <span class="ident">id</span>: <span class="ident">WorkerId</span>,
-    <span class="kw">pub</span> <span class="ident">transactions_address</span>: <span class="ident">Multiaddr</span>,
-    <span class="kw">pub</span> <span class="ident">registry</span>: <span class="ident">Registry</span>,
-    <span class="ident">name</span>: <span class="ident">PublicKey</span>,
-    <span class="ident">committee</span>: <span class="ident">SharedCommittee</span>,
-    <span class="ident">parameters</span>: <span class="ident">Parameters</span>,
-    <span class="ident">store_path</span>: <span class="ident">PathBuf</span>,
-    <span class="ident">worker</span>: <span class="ident">Arc</span>&lt;<span class="ident">ArcSwapOption</span>&lt;<span class="ident">TaskManager</span>&lt;<span class="ident">JoinError</span>&gt;&gt;&gt;,
+<span class="attribute">#[derive(Clone)]</span>
+<span class="kw">pub struct </span>WorkerNodeDetails {
+    <span class="kw">pub </span>id: WorkerId,
+    <span class="kw">pub </span>transactions_address: Multiaddr,
+    <span class="kw">pub </span>registry: Registry,
+    name: PublicKey,
+    committee: SharedCommittee,
+    parameters: Parameters,
+    store_path: PathBuf,
+    worker: Arc&lt;ArcSwapOption&lt;TaskManager&lt;JoinError&gt;&gt;&gt;,
 }
 
-<span class="kw">impl</span> <span class="ident">WorkerNodeDetails</span> {
-    <span class="kw">fn</span> <span class="ident">new</span>(
-        <span class="ident">id</span>: <span class="ident">WorkerId</span>,
-        <span class="ident">name</span>: <span class="ident">PublicKey</span>,
-        <span class="ident">parameters</span>: <span class="ident">Parameters</span>,
-        <span class="ident">transactions_address</span>: <span class="ident">Multiaddr</span>,
-        <span class="ident">committee</span>: <span class="ident">SharedCommittee</span>,
-    ) -&gt; <span class="self">Self</span> {
-        <span class="self">Self</span> {
-            <span class="ident">id</span>,
-            <span class="ident">name</span>,
-            <span class="ident">registry</span>: <span class="ident">Registry::new</span>(),
-            <span class="ident">store_path</span>: <span class="ident">temp_dir</span>(),
-            <span class="ident">transactions_address</span>,
-            <span class="ident">committee</span>,
-            <span class="ident">parameters</span>,
-            <span class="ident">worker</span>: <span class="ident">Arc::new</span>(<span class="ident">ArcSwapOption::from</span>(<span class="prelude-val">None</span>)),
+<span class="kw">impl </span>WorkerNodeDetails {
+    <span class="kw">fn </span>new(
+        id: WorkerId,
+        name: PublicKey,
+        parameters: Parameters,
+        transactions_address: Multiaddr,
+        committee: SharedCommittee,
+    ) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            id,
+            name,
+            registry: Registry::new(),
+            store_path: temp_dir(),
+            transactions_address,
+            committee,
+            parameters,
+            worker: Arc::new(ArcSwapOption::from(<span class="prelude-val">None</span>)),
         }
     }
 
-    <span class="doccomment">/// Starts the node. When preserve_store is true then the last used</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">start</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">preserve_store</span>: <span class="ident">bool</span>) {
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">is_running</span>() {
+    <span class="doccomment">/// Starts the node. When preserve_store is true then the last used
+    </span><span class="kw">async fn </span>start(<span class="kw-2">&amp;mut </span><span class="self">self</span>, preserve_store: bool) {
+        <span class="kw">if </span><span class="self">self</span>.is_running() {
             <span class="macro">panic!</span>(
                 <span class="string">&quot;Worker with id {} is already running, can&#39;t start again&quot;</span>,
-                <span class="self">self</span>.<span class="ident">id</span>
+                <span class="self">self</span>.id
             );
         }
 
-        <span class="kw">let</span> <span class="ident">registry</span> = <span class="ident">worker_metrics_registry</span>(<span class="self">self</span>.<span class="ident">id</span>, <span class="self">self</span>.<span class="ident">name</span>.<span class="ident">clone</span>());
+        <span class="kw">let </span>registry = worker_metrics_registry(<span class="self">self</span>.id, <span class="self">self</span>.name.clone());
 
-        <span class="comment">// Make the data store.</span>
-        <span class="kw">let</span> <span class="ident">store_path</span> = <span class="kw">if</span> <span class="ident">preserve_store</span> {
-            <span class="self">self</span>.<span class="ident">store_path</span>.<span class="ident">clone</span>()
-        } <span class="kw">else</span> {
-            <span class="ident">temp_dir</span>()
+        <span class="comment">// Make the data store.
+        </span><span class="kw">let </span>store_path = <span class="kw">if </span>preserve_store {
+            <span class="self">self</span>.store_path.clone()
+        } <span class="kw">else </span>{
+            temp_dir()
         };
 
-        <span class="kw">let</span> <span class="ident">worker_store</span> = <span class="ident">NodeStorage::reopen</span>(<span class="ident">store_path</span>.<span class="ident">clone</span>());
-        <span class="self">self</span>.<span class="ident">worker</span>.<span class="ident">store</span>(<span class="prelude-val">Some</span>(<span class="ident">Arc::new</span>(<span class="ident">Node::spawn_workers</span>(
-            <span class="self">self</span>.<span class="ident">name</span>.<span class="ident">clone</span>(),
-            <span class="macro">vec!</span>[<span class="self">self</span>.<span class="ident">id</span>],
-            <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">clone</span>(),
-            <span class="kw-2">&amp;</span><span class="ident">worker_store</span>,
-            <span class="self">self</span>.<span class="ident">parameters</span>.<span class="ident">clone</span>(),
-            <span class="kw-2">&amp;</span><span class="ident">registry</span>,
+        <span class="kw">let </span>worker_store = NodeStorage::reopen(store_path.clone());
+        <span class="self">self</span>.worker.store(<span class="prelude-val">Some</span>(Arc::new(Node::spawn_workers(
+            <span class="self">self</span>.name.clone(),
+            <span class="macro">vec!</span>[<span class="self">self</span>.id],
+            <span class="self">self</span>.committee.clone(),
+            <span class="kw-2">&amp;</span>worker_store,
+            <span class="self">self</span>.parameters.clone(),
+            <span class="kw-2">&amp;</span>registry,
         ))));
 
-        <span class="self">self</span>.<span class="ident">store_path</span> = <span class="ident">store_path</span>;
-        <span class="self">self</span>.<span class="ident">registry</span> = <span class="ident">registry</span>;
+        <span class="self">self</span>.store_path = store_path;
+        <span class="self">self</span>.registry = registry;
     }
 
-    <span class="kw">fn</span> <span class="ident">stop</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) {
-        <span class="self">self</span>.<span class="ident">worker</span>.<span class="ident">store</span>(<span class="prelude-val">None</span>);
-        <span class="macro">info!</span>(<span class="string">&quot;Aborted worker node for id {}&quot;</span>, <span class="self">self</span>.<span class="ident">id</span>);
+    <span class="kw">fn </span>stop(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+        <span class="self">self</span>.worker.store(<span class="prelude-val">None</span>);
+        <span class="macro">info!</span>(<span class="string">&quot;Aborted worker node for id {}&quot;</span>, <span class="self">self</span>.id);
     }
 
-    <span class="doccomment">/// Returns whether the worker is still running, by checking if the</span>
-    <span class="doccomment">/// TaskManager for worker tasks exists.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_running</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">bool</span> {
-        <span class="self">self</span>.<span class="ident">worker</span>.<span class="ident">load</span>().<span class="ident">is_some</span>()
+    <span class="doccomment">/// Returns whether the worker is still running, by checking if the
+    /// TaskManager for worker tasks exists.
+    </span><span class="kw">pub fn </span>is_running(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="self">self</span>.worker.load().is_some()
     }
 }
 
-<span class="doccomment">/// The authority details hold all the necessary structs and details</span>
-<span class="doccomment">/// to identify and manage a specific authority. An authority is</span>
-<span class="doccomment">/// composed of its primary node and the worker nodes. Via this struct</span>
-<span class="doccomment">/// we can manage the nodes one by one or in batch fashion (ex stop_all).</span>
-<span class="doccomment">/// The Authority can be cloned and reused across the instances as its</span>
-<span class="doccomment">/// internals are thread safe. So changes made from one instance will be</span>
-<span class="doccomment">/// reflected to another.</span>
-<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">dead_code</span>)]</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">AuthorityDetails</span> {
-    <span class="kw">pub</span> <span class="ident">id</span>: <span class="ident">usize</span>,
-    <span class="kw">pub</span> <span class="ident">name</span>: <span class="ident">PublicKey</span>,
-    <span class="ident">internal</span>: <span class="ident">Arc</span>&lt;<span class="ident">RwLock</span>&lt;<span class="ident">AuthorityDetailsInternal</span>&gt;&gt;,
+<span class="doccomment">/// The authority details hold all the necessary structs and details
+/// to identify and manage a specific authority. An authority is
+/// composed of its primary node and the worker nodes. Via this struct
+/// we can manage the nodes one by one or in batch fashion (ex stop_all).
+/// The Authority can be cloned and reused across the instances as its
+/// internals are thread safe. So changes made from one instance will be
+/// reflected to another.
+</span><span class="attribute">#[allow(dead_code)]</span>
+<span class="attribute">#[derive(Clone)]</span>
+<span class="kw">pub struct </span>AuthorityDetails {
+    <span class="kw">pub </span>id: usize,
+    <span class="kw">pub </span>name: PublicKey,
+    internal: Arc&lt;RwLock&lt;AuthorityDetailsInternal&gt;&gt;,
 }
 
-<span class="kw">struct</span> <span class="ident">AuthorityDetailsInternal</span> {
-    <span class="ident">primary</span>: <span class="ident">PrimaryNodeDetails</span>,
-    <span class="ident">workers</span>: <span class="ident">HashMap</span>&lt;<span class="ident">WorkerId</span>, <span class="ident">WorkerNodeDetails</span>&gt;,
+<span class="kw">struct </span>AuthorityDetailsInternal {
+    primary: PrimaryNodeDetails,
+    workers: HashMap&lt;WorkerId, WorkerNodeDetails&gt;,
 }
 
-<span class="kw">impl</span> <span class="ident">AuthorityDetails</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(
-        <span class="ident">id</span>: <span class="ident">usize</span>,
-        <span class="ident">key_pair</span>: <span class="ident">KeyPair</span>,
-        <span class="ident">parameters</span>: <span class="ident">Parameters</span>,
-        <span class="ident">committee</span>: <span class="ident">SharedCommittee</span>,
-        <span class="ident">internal_consensus_enabled</span>: <span class="ident">bool</span>,
-    ) -&gt; <span class="self">Self</span> {
-        <span class="comment">// Create all the nodes we have in the committee</span>
-        <span class="kw">let</span> <span class="ident">name</span> = <span class="ident">key_pair</span>.<span class="ident">public</span>().<span class="ident">clone</span>();
-        <span class="kw">let</span> <span class="ident">primary</span> = <span class="ident">PrimaryNodeDetails::new</span>(
-            <span class="ident">id</span>,
-            <span class="ident">key_pair</span>,
-            <span class="ident">parameters</span>.<span class="ident">clone</span>(),
-            <span class="ident">committee</span>.<span class="ident">clone</span>(),
-            <span class="ident">internal_consensus_enabled</span>,
+<span class="kw">impl </span>AuthorityDetails {
+    <span class="kw">pub fn </span>new(
+        id: usize,
+        key_pair: KeyPair,
+        parameters: Parameters,
+        committee: SharedCommittee,
+        internal_consensus_enabled: bool,
+    ) -&gt; <span class="self">Self </span>{
+        <span class="comment">// Create all the nodes we have in the committee
+        </span><span class="kw">let </span>name = key_pair.public().clone();
+        <span class="kw">let </span>primary = PrimaryNodeDetails::new(
+            id,
+            key_pair,
+            parameters.clone(),
+            committee.clone(),
+            internal_consensus_enabled,
         );
 
-        <span class="comment">// Create all the workers - even if we don&#39;t intend to start them all. Those</span>
-        <span class="comment">// act as place holder setups. That gives us the power in a clear way manage</span>
-        <span class="comment">// the nodes independently.</span>
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">workers</span> = <span class="ident">HashMap::new</span>();
-        <span class="kw">for</span> (<span class="ident">worker_id</span>, <span class="ident">addresses</span>) <span class="kw">in</span> <span class="ident">committee</span>
-            .<span class="ident">load</span>()
-            .<span class="ident">authorities</span>
-            .<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">name</span>)
-            .<span class="ident">unwrap</span>()
-            .<span class="ident">workers</span>
-            .<span class="ident">clone</span>()
+        <span class="comment">// Create all the workers - even if we don&#39;t intend to start them all. Those
+        // act as place holder setups. That gives us the power in a clear way manage
+        // the nodes independently.
+        </span><span class="kw">let </span><span class="kw-2">mut </span>workers = HashMap::new();
+        <span class="kw">for </span>(worker_id, addresses) <span class="kw">in </span>committee
+            .load()
+            .authorities
+            .get(<span class="kw-2">&amp;</span>name)
+            .unwrap()
+            .workers
+            .clone()
         {
-            <span class="kw">let</span> <span class="ident">worker</span> = <span class="ident">WorkerNodeDetails::new</span>(
-                <span class="ident">worker_id</span>,
-                <span class="ident">name</span>.<span class="ident">clone</span>(),
-                <span class="ident">parameters</span>.<span class="ident">clone</span>(),
-                <span class="ident">addresses</span>.<span class="ident">transactions</span>.<span class="ident">clone</span>(),
-                <span class="ident">committee</span>.<span class="ident">clone</span>(),
+            <span class="kw">let </span>worker = WorkerNodeDetails::new(
+                worker_id,
+                name.clone(),
+                parameters.clone(),
+                addresses.transactions.clone(),
+                committee.clone(),
             );
-            <span class="ident">workers</span>.<span class="ident">insert</span>(<span class="ident">worker_id</span>, <span class="ident">worker</span>);
+            workers.insert(worker_id, worker);
         }
 
-        <span class="kw">let</span> <span class="ident">internal</span> = <span class="ident">AuthorityDetailsInternal</span> { <span class="ident">primary</span>, <span class="ident">workers</span> };
+        <span class="kw">let </span>internal = AuthorityDetailsInternal { primary, workers };
 
-        <span class="self">Self</span> {
-            <span class="ident">id</span>,
-            <span class="ident">name</span>,
-            <span class="ident">internal</span>: <span class="ident">Arc::new</span>(<span class="ident">RwLock::new</span>(<span class="ident">internal</span>)),
+        <span class="self">Self </span>{
+            id,
+            name,
+            internal: Arc::new(RwLock::new(internal)),
         }
     }
 
-    <span class="doccomment">/// Starts the node&#39;s primary and workers. If the num_of_workers is provided</span>
-    <span class="doccomment">/// then only those ones will be started. Otherwise all the available workers</span>
-    <span class="doccomment">/// will be started instead.</span>
-    <span class="doccomment">/// If the preserve_store value is true then the previous node&#39;s storage</span>
-    <span class="doccomment">/// will be preserved. If false then the node will  start with a fresh</span>
-    <span class="doccomment">/// (empty) storage.</span>
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">start</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">preserve_store</span>: <span class="ident">bool</span>, <span class="ident">num_of_workers</span>: <span class="prelude-ty">Option</span>&lt;<span class="ident">usize</span>&gt;) {
-        <span class="self">self</span>.<span class="ident">start_primary</span>(<span class="ident">preserve_store</span>).<span class="kw">await</span>;
+    <span class="doccomment">/// Starts the node&#39;s primary and workers. If the num_of_workers is provided
+    /// then only those ones will be started. Otherwise all the available workers
+    /// will be started instead.
+    /// If the preserve_store value is true then the previous node&#39;s storage
+    /// will be preserved. If false then the node will  start with a fresh
+    /// (empty) storage.
+    </span><span class="kw">pub async fn </span>start(<span class="kw-2">&amp;</span><span class="self">self</span>, preserve_store: bool, num_of_workers: <span class="prelude-ty">Option</span>&lt;usize&gt;) {
+        <span class="self">self</span>.start_primary(preserve_store).<span class="kw">await</span>;
 
-        <span class="kw">let</span> <span class="ident">workers_to_start</span>;
+        <span class="kw">let </span>workers_to_start;
         {
-            <span class="kw">let</span> <span class="ident">internal</span> = <span class="self">self</span>.<span class="ident">internal</span>.<span class="ident">read</span>().<span class="kw">await</span>;
-            <span class="ident">workers_to_start</span> = <span class="ident">num_of_workers</span>.<span class="ident">unwrap_or</span>(<span class="ident">internal</span>.<span class="ident">workers</span>.<span class="ident">len</span>());
+            <span class="kw">let </span>internal = <span class="self">self</span>.internal.read().<span class="kw">await</span>;
+            workers_to_start = num_of_workers.unwrap_or(internal.workers.len());
         }
 
-        <span class="kw">for</span> <span class="ident">id</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">workers_to_start</span> {
-            <span class="self">self</span>.<span class="ident">start_worker</span>(<span class="ident">id</span> <span class="kw">as</span> <span class="ident">WorkerId</span>, <span class="ident">preserve_store</span>).<span class="kw">await</span>;
-        }
-    }
-
-    <span class="doccomment">/// Starts the primary node. If the preserve_store value is true then the</span>
-    <span class="doccomment">/// previous node&#39;s storage will be preserved. If false then the node will</span>
-    <span class="doccomment">/// start with a fresh (empty) storage.</span>
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">start_primary</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">preserve_store</span>: <span class="ident">bool</span>) {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">internal</span> = <span class="self">self</span>.<span class="ident">internal</span>.<span class="ident">write</span>().<span class="kw">await</span>;
-
-        <span class="ident">internal</span>.<span class="ident">primary</span>.<span class="ident">start</span>(<span class="ident">preserve_store</span>).<span class="kw">await</span>;
-    }
-
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">stop_primary</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) {
-        <span class="kw">let</span> <span class="ident">internal</span> = <span class="self">self</span>.<span class="ident">internal</span>.<span class="ident">read</span>().<span class="kw">await</span>;
-
-        <span class="ident">internal</span>.<span class="ident">primary</span>.<span class="ident">stop</span>();
-    }
-
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">start_all_workers</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">preserve_store</span>: <span class="ident">bool</span>) {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">internal</span> = <span class="self">self</span>.<span class="ident">internal</span>.<span class="ident">write</span>().<span class="kw">await</span>;
-
-        <span class="kw">for</span> (<span class="kw">_</span>, <span class="ident">worker</span>) <span class="kw">in</span> <span class="ident">internal</span>.<span class="ident">workers</span>.<span class="ident">iter_mut</span>() {
-            <span class="ident">worker</span>.<span class="ident">start</span>(<span class="ident">preserve_store</span>).<span class="kw">await</span>;
+        <span class="kw">for </span>id <span class="kw">in </span><span class="number">0</span>..workers_to_start {
+            <span class="self">self</span>.start_worker(id <span class="kw">as </span>WorkerId, preserve_store).<span class="kw">await</span>;
         }
     }
 
-    <span class="doccomment">/// Starts the worker node by the provided id. If worker is not found then</span>
-    <span class="doccomment">/// a panic is raised. If the preserve_store value is true then the</span>
-    <span class="doccomment">/// previous node&#39;s storage will be preserved. If false then the node will</span>
-    <span class="doccomment">/// start with a fresh (empty) storage.</span>
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">start_worker</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">id</span>: <span class="ident">WorkerId</span>, <span class="ident">preserve_store</span>: <span class="ident">bool</span>) {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">internal</span> = <span class="self">self</span>.<span class="ident">internal</span>.<span class="ident">write</span>().<span class="kw">await</span>;
+    <span class="doccomment">/// Starts the primary node. If the preserve_store value is true then the
+    /// previous node&#39;s storage will be preserved. If false then the node will
+    /// start with a fresh (empty) storage.
+    </span><span class="kw">pub async fn </span>start_primary(<span class="kw-2">&amp;</span><span class="self">self</span>, preserve_store: bool) {
+        <span class="kw">let </span><span class="kw-2">mut </span>internal = <span class="self">self</span>.internal.write().<span class="kw">await</span>;
 
-        <span class="kw">let</span> <span class="ident">worker</span> = <span class="ident">internal</span>
-            .<span class="ident">workers</span>
-            .<span class="ident">get_mut</span>(<span class="kw-2">&amp;</span><span class="ident">id</span>)
-            .<span class="ident">unwrap_or_else</span>(|| <span class="macro">panic!</span>(<span class="string">&quot;Worker with id {} not found &quot;</span>, <span class="ident">id</span>));
-
-        <span class="ident">worker</span>.<span class="ident">start</span>(<span class="ident">preserve_store</span>).<span class="kw">await</span>;
+        internal.primary.start(preserve_store).<span class="kw">await</span>;
     }
 
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">stop_worker</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">id</span>: <span class="ident">WorkerId</span>) {
-        <span class="kw">let</span> <span class="ident">internal</span> = <span class="self">self</span>.<span class="ident">internal</span>.<span class="ident">read</span>().<span class="kw">await</span>;
+    <span class="kw">pub async fn </span>stop_primary(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+        <span class="kw">let </span>internal = <span class="self">self</span>.internal.read().<span class="kw">await</span>;
 
-        <span class="ident">internal</span>
-            .<span class="ident">workers</span>
-            .<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">id</span>)
-            .<span class="ident">unwrap_or_else</span>(|| <span class="macro">panic!</span>(<span class="string">&quot;Worker with id {} not found &quot;</span>, <span class="ident">id</span>))
-            .<span class="ident">stop</span>();
+        internal.primary.stop();
     }
 
-    <span class="doccomment">/// Stops all the nodes (primary &amp; workers)</span>
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">stop_all</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) {
-        <span class="kw">let</span> <span class="ident">internal</span> = <span class="self">self</span>.<span class="ident">internal</span>.<span class="ident">read</span>().<span class="kw">await</span>;
+    <span class="kw">pub async fn </span>start_all_workers(<span class="kw-2">&amp;</span><span class="self">self</span>, preserve_store: bool) {
+        <span class="kw">let </span><span class="kw-2">mut </span>internal = <span class="self">self</span>.internal.write().<span class="kw">await</span>;
 
-        <span class="ident">internal</span>.<span class="ident">primary</span>.<span class="ident">stop</span>();
-
-        <span class="kw">for</span> (<span class="kw">_</span>, <span class="ident">worker</span>) <span class="kw">in</span> <span class="ident">internal</span>.<span class="ident">workers</span>.<span class="ident">iter</span>() {
-            <span class="ident">worker</span>.<span class="ident">stop</span>();
+        <span class="kw">for </span>(<span class="kw">_</span>, worker) <span class="kw">in </span>internal.workers.iter_mut() {
+            worker.start(preserve_store).<span class="kw">await</span>;
         }
     }
 
-    <span class="doccomment">/// Will restart the node with the current setup that has been chosen</span>
-    <span class="doccomment">/// (ex same number of nodes).</span>
-    <span class="doccomment">/// `preserve_store`: if true then the same storage will be used for the</span>
-    <span class="doccomment">/// node</span>
-    <span class="doccomment">/// `delay`: before starting again we&#39;ll wait for that long. If zero provided</span>
-    <span class="doccomment">/// then won&#39;t wait at all</span>
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">restart</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">preserve_store</span>: <span class="ident">bool</span>, <span class="ident">delay</span>: <span class="ident">Duration</span>) {
-        <span class="kw">let</span> <span class="ident">num_of_workers</span> = <span class="self">self</span>.<span class="ident">workers</span>().<span class="kw">await</span>.<span class="ident">len</span>();
+    <span class="doccomment">/// Starts the worker node by the provided id. If worker is not found then
+    /// a panic is raised. If the preserve_store value is true then the
+    /// previous node&#39;s storage will be preserved. If false then the node will
+    /// start with a fresh (empty) storage.
+    </span><span class="kw">pub async fn </span>start_worker(<span class="kw-2">&amp;</span><span class="self">self</span>, id: WorkerId, preserve_store: bool) {
+        <span class="kw">let </span><span class="kw-2">mut </span>internal = <span class="self">self</span>.internal.write().<span class="kw">await</span>;
 
-        <span class="self">self</span>.<span class="ident">stop_all</span>().<span class="kw">await</span>;
+        <span class="kw">let </span>worker = internal
+            .workers
+            .get_mut(<span class="kw-2">&amp;</span>id)
+            .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">&quot;Worker with id {} not found &quot;</span>, id));
 
-        <span class="ident">tokio::time::sleep</span>(<span class="ident">delay</span>).<span class="kw">await</span>;
-
-        <span class="comment">// now start again the node with the same workers</span>
-        <span class="self">self</span>.<span class="ident">start</span>(<span class="ident">preserve_store</span>, <span class="prelude-val">Some</span>(<span class="ident">num_of_workers</span>)).<span class="kw">await</span>;
+        worker.start(preserve_store).<span class="kw">await</span>;
     }
 
-    <span class="doccomment">/// Returns the current primary node running as a clone. If the primary</span>
-    <span class="doccomment">///node stops and starts again and it&#39;s needed by the user then this</span>
-    <span class="doccomment">/// method should be called again to get the latest one.</span>
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">primary</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">PrimaryNodeDetails</span> {
-        <span class="kw">let</span> <span class="ident">internal</span> = <span class="self">self</span>.<span class="ident">internal</span>.<span class="ident">read</span>().<span class="kw">await</span>;
+    <span class="kw">pub async fn </span>stop_worker(<span class="kw-2">&amp;</span><span class="self">self</span>, id: WorkerId) {
+        <span class="kw">let </span>internal = <span class="self">self</span>.internal.read().<span class="kw">await</span>;
 
-        <span class="ident">internal</span>.<span class="ident">primary</span>.<span class="ident">clone</span>()
+        internal
+            .workers
+            .get(<span class="kw-2">&amp;</span>id)
+            .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">&quot;Worker with id {} not found &quot;</span>, id))
+            .stop();
     }
 
-    <span class="doccomment">/// Returns the worker with the provided id. If not found then a panic</span>
-    <span class="doccomment">/// is raised instead. If the worker is stopped and started again then</span>
-    <span class="doccomment">/// the worker will need to be fetched again via this method.</span>
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">worker</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">id</span>: <span class="ident">WorkerId</span>) -&gt; <span class="ident">WorkerNodeDetails</span> {
-        <span class="kw">let</span> <span class="ident">internal</span> = <span class="self">self</span>.<span class="ident">internal</span>.<span class="ident">read</span>().<span class="kw">await</span>;
+    <span class="doccomment">/// Stops all the nodes (primary &amp; workers)
+    </span><span class="kw">pub async fn </span>stop_all(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+        <span class="kw">let </span>internal = <span class="self">self</span>.internal.read().<span class="kw">await</span>;
 
-        <span class="ident">internal</span>
-            .<span class="ident">workers</span>
-            .<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">id</span>)
-            .<span class="ident">unwrap_or_else</span>(|| <span class="macro">panic!</span>(<span class="string">&quot;Worker with id {} not found &quot;</span>, <span class="ident">id</span>))
-            .<span class="ident">clone</span>()
+        internal.primary.stop();
+
+        <span class="kw">for </span>(<span class="kw">_</span>, worker) <span class="kw">in </span>internal.workers.iter() {
+            worker.stop();
+        }
     }
 
-    <span class="doccomment">/// Helper method to return transaction addresses of</span>
-    <span class="doccomment">/// all the worker nodes.</span>
-    <span class="doccomment">/// Important: only the addresses of the running workers will</span>
-    <span class="doccomment">/// be returned.</span>
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">worker_transaction_addresses</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Vec</span>&lt;<span class="ident">Multiaddr</span>&gt; {
-        <span class="self">self</span>.<span class="ident">workers</span>()
-            .<span class="kw">await</span>
-            .<span class="ident">iter</span>()
-            .<span class="ident">map</span>(|<span class="ident">w</span>| <span class="ident">w</span>.<span class="ident">transactions_address</span>.<span class="ident">clone</span>())
-            .<span class="ident">collect</span>()
+    <span class="doccomment">/// Will restart the node with the current setup that has been chosen
+    /// (ex same number of nodes).
+    /// `preserve_store`: if true then the same storage will be used for the
+    /// node
+    /// `delay`: before starting again we&#39;ll wait for that long. If zero provided
+    /// then won&#39;t wait at all
+    </span><span class="kw">pub async fn </span>restart(<span class="kw-2">&amp;</span><span class="self">self</span>, preserve_store: bool, delay: Duration) {
+        <span class="kw">let </span>num_of_workers = <span class="self">self</span>.workers().<span class="kw">await</span>.len();
+
+        <span class="self">self</span>.stop_all().<span class="kw">await</span>;
+
+        tokio::time::sleep(delay).<span class="kw">await</span>;
+
+        <span class="comment">// now start again the node with the same workers
+        </span><span class="self">self</span>.start(preserve_store, <span class="prelude-val">Some</span>(num_of_workers)).<span class="kw">await</span>;
     }
 
-    <span class="doccomment">/// Returns all the running workers</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">workers</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Vec</span>&lt;<span class="ident">WorkerNodeDetails</span>&gt; {
-        <span class="kw">let</span> <span class="ident">internal</span> = <span class="self">self</span>.<span class="ident">internal</span>.<span class="ident">read</span>().<span class="kw">await</span>;
+    <span class="doccomment">/// Returns the current primary node running as a clone. If the primary
+    ///node stops and starts again and it&#39;s needed by the user then this
+    /// method should be called again to get the latest one.
+    </span><span class="kw">pub async fn </span>primary(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; PrimaryNodeDetails {
+        <span class="kw">let </span>internal = <span class="self">self</span>.internal.read().<span class="kw">await</span>;
 
-        <span class="ident">internal</span>
-            .<span class="ident">workers</span>
-            .<span class="ident">iter</span>()
-            .<span class="ident">filter_map</span>(|(<span class="kw">_</span>, <span class="ident">worker</span>)| {
-                <span class="kw">if</span> <span class="ident">worker</span>.<span class="ident">is_running</span>() {
-                    <span class="prelude-val">Some</span>(<span class="ident">worker</span>.<span class="ident">clone</span>())
-                } <span class="kw">else</span> {
-                    <span class="prelude-val">None</span>
-                }
+        internal.primary.clone()
+    }
+
+    <span class="doccomment">/// Returns the worker with the provided id. If not found then a panic
+    /// is raised instead. If the worker is stopped and started again then
+    /// the worker will need to be fetched again via this method.
+    </span><span class="kw">pub async fn </span>worker(<span class="kw-2">&amp;</span><span class="self">self</span>, id: WorkerId) -&gt; WorkerNodeDetails {
+        <span class="kw">let </span>internal = <span class="self">self</span>.internal.read().<span class="kw">await</span>;
+
+        internal
+            .workers
+            .get(<span class="kw-2">&amp;</span>id)
+            .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">&quot;Worker with id {} not found &quot;</span>, id))
+            .clone()
+    }
+
+    <span class="doccomment">/// Helper method to return transaction addresses of
+    /// all the worker nodes.
+    /// Important: only the addresses of the running workers will
+    /// be returned.
+    </span><span class="kw">pub async fn </span>worker_transaction_addresses(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;Multiaddr&gt; {
+        <span class="self">self</span>.workers()
+            .<span class="kw">await
+            </span>.iter()
+            .map(|w| w.transactions_address.clone())
+            .collect()
+    }
+
+    <span class="doccomment">/// Returns all the running workers
+    </span><span class="kw">async fn </span>workers(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;WorkerNodeDetails&gt; {
+        <span class="kw">let </span>internal = <span class="self">self</span>.internal.read().<span class="kw">await</span>;
+
+        internal
+            .workers
+            .iter()
+            .filter_map(|(<span class="kw">_</span>, worker)| {
+                <span class="kw">if </span>worker.is_running() {
+                    <span class="prelude-val">Some</span>(worker.clone())
+                } <span class="kw">else </span>{
+                    <span class="prelude-val">None
+                </span>}
             })
-            .<span class="ident">collect</span>()
+            .collect()
     }
 
-    <span class="doccomment">/// Creates a new proposer client that connects to the corresponding client.</span>
-    <span class="doccomment">/// This should be available only if the internal consensus is disabled. If</span>
-    <span class="doccomment">/// the internal consensus is enabled then a panic will be thrown instead.</span>
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">new_proposer_client</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">ProposerClient</span>&lt;<span class="ident">Channel</span>&gt; {
-        <span class="kw">let</span> <span class="ident">internal</span> = <span class="self">self</span>.<span class="ident">internal</span>.<span class="ident">read</span>().<span class="kw">await</span>;
+    <span class="doccomment">/// Creates a new proposer client that connects to the corresponding client.
+    /// This should be available only if the internal consensus is disabled. If
+    /// the internal consensus is enabled then a panic will be thrown instead.
+    </span><span class="kw">pub async fn </span>new_proposer_client(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ProposerClient&lt;Channel&gt; {
+        <span class="kw">let </span>internal = <span class="self">self</span>.internal.read().<span class="kw">await</span>;
 
-        <span class="kw">if</span> <span class="ident">internal</span>.<span class="ident">primary</span>.<span class="ident">internal_consensus_enabled</span> {
+        <span class="kw">if </span>internal.primary.internal_consensus_enabled {
             <span class="macro">panic!</span>(<span class="string">&quot;External consensus is disabled, won&#39;t create a proposer client&quot;</span>);
         }
 
-        <span class="kw">let</span> <span class="ident">config</span> = <span class="ident">mysten_network::config::Config::new</span>();
-        <span class="kw">let</span> <span class="ident">channel</span> = <span class="ident">config</span>
-            .<span class="ident">connect_lazy</span>(<span class="kw-2">&amp;</span><span class="ident">internal</span>.<span class="ident">primary</span>.<span class="ident">parameters</span>.<span class="ident">consensus_api_grpc</span>.<span class="ident">socket_addr</span>)
-            .<span class="ident">unwrap</span>();
+        <span class="kw">let </span>config = mysten_network::config::Config::new();
+        <span class="kw">let </span>channel = config
+            .connect_lazy(<span class="kw-2">&amp;</span>internal.primary.parameters.consensus_api_grpc.socket_addr)
+            .unwrap();
 
-        <span class="ident">ProposerClient::new</span>(<span class="ident">channel</span>)
+        ProposerClient::new(channel)
     }
 
-    <span class="doccomment">/// Creates a new configuration client that connects to the corresponding client.</span>
-    <span class="doccomment">/// This should be available only if the internal consensus is disabled. If</span>
-    <span class="doccomment">/// the internal consensus is enabled then a panic will be thrown instead.</span>
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">new_configuration_client</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">ConfigurationClient</span>&lt;<span class="ident">Channel</span>&gt; {
-        <span class="kw">let</span> <span class="ident">internal</span> = <span class="self">self</span>.<span class="ident">internal</span>.<span class="ident">read</span>().<span class="kw">await</span>;
+    <span class="doccomment">/// Creates a new configuration client that connects to the corresponding client.
+    /// This should be available only if the internal consensus is disabled. If
+    /// the internal consensus is enabled then a panic will be thrown instead.
+    </span><span class="kw">pub async fn </span>new_configuration_client(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ConfigurationClient&lt;Channel&gt; {
+        <span class="kw">let </span>internal = <span class="self">self</span>.internal.read().<span class="kw">await</span>;
 
-        <span class="kw">if</span> <span class="ident">internal</span>.<span class="ident">primary</span>.<span class="ident">internal_consensus_enabled</span> {
+        <span class="kw">if </span>internal.primary.internal_consensus_enabled {
             <span class="macro">panic!</span>(<span class="string">&quot;External consensus is disabled, won&#39;t create a configuration client&quot;</span>);
         }
 
-        <span class="kw">let</span> <span class="ident">config</span> = <span class="ident">mysten_network::config::Config::new</span>();
-        <span class="kw">let</span> <span class="ident">channel</span> = <span class="ident">config</span>
-            .<span class="ident">connect_lazy</span>(<span class="kw-2">&amp;</span><span class="ident">internal</span>.<span class="ident">primary</span>.<span class="ident">parameters</span>.<span class="ident">consensus_api_grpc</span>.<span class="ident">socket_addr</span>)
-            .<span class="ident">unwrap</span>();
+        <span class="kw">let </span>config = mysten_network::config::Config::new();
+        <span class="kw">let </span>channel = config
+            .connect_lazy(<span class="kw-2">&amp;</span>internal.primary.parameters.consensus_api_grpc.socket_addr)
+            .unwrap();
 
-        <span class="ident">ConfigurationClient::new</span>(<span class="ident">channel</span>)
+        ConfigurationClient::new(channel)
     }
 
-    <span class="doccomment">/// This method will return true either when the primary or any of</span>
-    <span class="doccomment">/// the workers is running. In order to make sure that we don&#39;t end up</span>
-    <span class="doccomment">/// in intermediate states we want to make sure that everything has</span>
-    <span class="doccomment">/// stopped before we report something as not running (in case we want</span>
-    <span class="doccomment">/// to start them again).</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">is_running</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">bool</span> {
-        <span class="kw">let</span> <span class="ident">internal</span> = <span class="self">self</span>.<span class="ident">internal</span>.<span class="ident">read</span>().<span class="kw">await</span>;
+    <span class="doccomment">/// This method will return true either when the primary or any of
+    /// the workers is running. In order to make sure that we don&#39;t end up
+    /// in intermediate states we want to make sure that everything has
+    /// stopped before we report something as not running (in case we want
+    /// to start them again).
+    </span><span class="kw">async fn </span>is_running(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="kw">let </span>internal = <span class="self">self</span>.internal.read().<span class="kw">await</span>;
 
-        <span class="kw">if</span> <span class="ident">internal</span>.<span class="ident">primary</span>.<span class="ident">is_running</span>() {
-            <span class="kw">return</span> <span class="bool-val">true</span>;
+        <span class="kw">if </span>internal.primary.is_running() {
+            <span class="kw">return </span><span class="bool-val">true</span>;
         }
 
-        <span class="kw">for</span> (<span class="kw">_</span>, <span class="ident">worker</span>) <span class="kw">in</span> <span class="ident">internal</span>.<span class="ident">workers</span>.<span class="ident">iter</span>() {
-            <span class="kw">if</span> <span class="ident">worker</span>.<span class="ident">is_running</span>() {
-                <span class="kw">return</span> <span class="bool-val">true</span>;
+        <span class="kw">for </span>(<span class="kw">_</span>, worker) <span class="kw">in </span>internal.workers.iter() {
+            <span class="kw">if </span>worker.is_running() {
+                <span class="kw">return </span><span class="bool-val">true</span>;
             }
         }
-        <span class="bool-val">false</span>
-    }
+        <span class="bool-val">false
+    </span>}
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="test_utils" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="test_utils" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (801821d15 2022-08-14)" ></div></body></html>

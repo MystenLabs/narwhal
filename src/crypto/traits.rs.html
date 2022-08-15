@@ -189,196 +189,196 @@
 <span id="189">189</span>
 <span id="190">190</span>
 <span id="191">191</span>
-</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
-<span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
-<span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="kw">use</span> <span class="ident">base64ct::Encoding</span>;
-<span class="kw">use</span> <span class="ident">eyre::eyre</span>;
+</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
+// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+</span><span class="kw">use </span>base64ct::Encoding;
+<span class="kw">use </span>eyre::eyre;
 
-<span class="kw">use</span> <span class="ident">rand</span>::{<span class="ident">CryptoRng</span>, <span class="ident">RngCore</span>};
+<span class="kw">use </span>rand::{CryptoRng, RngCore};
 
-<span class="kw">use</span> <span class="ident">serde</span>::{<span class="ident">de::DeserializeOwned</span>, <span class="ident">Serialize</span>};
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">signature</span>::{<span class="ident">Error</span>, <span class="ident">Signer</span>};
-<span class="kw">use</span> <span class="ident">std</span>::{
-    <span class="ident">fmt</span>::{<span class="ident">Debug</span>, <span class="ident">Display</span>},
-    <span class="ident">str::FromStr</span>,
+<span class="kw">use </span>serde::{de::DeserializeOwned, Serialize};
+<span class="kw">pub use </span>signature::{Error, Signer};
+<span class="kw">use </span>std::{
+    fmt::{Debug, Display},
+    str::FromStr,
 };
 
-<span class="kw">pub</span> <span class="kw">const</span> <span class="ident">DEFAULT_DOMAIN</span>: [<span class="ident">u8</span>; <span class="number">16</span>] = [<span class="number">0u8</span>; <span class="number">16</span>];
+<span class="kw">pub const </span>DEFAULT_DOMAIN: [u8; <span class="number">16</span>] = [<span class="number">0u8</span>; <span class="number">16</span>];
 
-<span class="doccomment">/// Trait impl&#39;d by concrete types that represent digital cryptographic material</span>
-<span class="doccomment">/// (keys). For signatures, we rely on `signature::Signature`, which may be more widely implemented.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// Key types *must* (as mandated by the `AsRef&lt;[u8]&gt;` bound) be a thin</span>
-<span class="doccomment">/// wrapper around the &quot;bag-of-bytes&quot; serialized form of a key which can</span>
-<span class="doccomment">/// be directly parsed from or written to the &quot;wire&quot;.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// The [`ToFromBytes`] trait aims to provide similar simplicity by minimizing</span>
-<span class="doccomment">/// the number of steps involved to obtain a serializable key and</span>
-<span class="doccomment">/// ideally ensuring there is one signature type for any given signature system</span>
-<span class="doccomment">/// shared by all &quot;provider&quot; crates.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// For signature systems which require a more advanced internal representation</span>
-<span class="doccomment">/// (e.g. involving decoded scalars or decompressed elliptic curve points) it&#39;s</span>
-<span class="doccomment">/// recommended that &quot;provider&quot; libraries maintain their own internal signature</span>
-<span class="doccomment">/// type and use `From` bounds to provide automatic conversions.</span>
-<span class="doccomment">///</span>
-<span class="comment">// This is essentially a copy of signature::Signature:</span>
-<span class="comment">// - we can&#39;t implement signature::Signature on Pubkeys / PrivKeys w/o violating the orphan rule,</span>
-<span class="comment">// - and we need a trait to base the definition of EncodeDecodeBase64 as an extension trait on.</span>
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">ToFromBytes</span>: <span class="ident">AsRef</span>&lt;[<span class="ident">u8</span>]&gt; + <span class="ident">Debug</span> + <span class="ident">Sized</span> {
-    <span class="doccomment">/// Parse a key from its byte representation</span>
-    <span class="kw">fn</span> <span class="ident">from_bytes</span>(<span class="ident">bytes</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="ident">Error</span>&gt;;
+<span class="doccomment">/// Trait impl&#39;d by concrete types that represent digital cryptographic material
+/// (keys). For signatures, we rely on `signature::Signature`, which may be more widely implemented.
+///
+/// Key types *must* (as mandated by the `AsRef&lt;[u8]&gt;` bound) be a thin
+/// wrapper around the &quot;bag-of-bytes&quot; serialized form of a key which can
+/// be directly parsed from or written to the &quot;wire&quot;.
+///
+/// The [`ToFromBytes`] trait aims to provide similar simplicity by minimizing
+/// the number of steps involved to obtain a serializable key and
+/// ideally ensuring there is one signature type for any given signature system
+/// shared by all &quot;provider&quot; crates.
+///
+/// For signature systems which require a more advanced internal representation
+/// (e.g. involving decoded scalars or decompressed elliptic curve points) it&#39;s
+/// recommended that &quot;provider&quot; libraries maintain their own internal signature
+/// type and use `From` bounds to provide automatic conversions.
+///
+</span><span class="comment">// This is essentially a copy of signature::Signature:
+// - we can&#39;t implement signature::Signature on Pubkeys / PrivKeys w/o violating the orphan rule,
+// - and we need a trait to base the definition of EncodeDecodeBase64 as an extension trait on.
+</span><span class="kw">pub trait </span>ToFromBytes: AsRef&lt;[u8]&gt; + Debug + Sized {
+    <span class="doccomment">/// Parse a key from its byte representation
+    </span><span class="kw">fn </span>from_bytes(bytes: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, Error&gt;;
 
-    <span class="doccomment">/// Borrow a byte slice representing the serialized form of this key</span>
-    <span class="kw">fn</span> <span class="ident">as_bytes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] {
-        <span class="self">self</span>.<span class="ident">as_ref</span>()
+    <span class="doccomment">/// Borrow a byte slice representing the serialized form of this key
+    </span><span class="kw">fn </span>as_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[u8] {
+        <span class="self">self</span>.as_ref()
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="ident">T</span>: <span class="ident">signature::Signature</span>&gt; <span class="ident">ToFromBytes</span> <span class="kw">for</span> <span class="ident">T</span> {
-    <span class="kw">fn</span> <span class="ident">from_bytes</span>(<span class="ident">bytes</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="ident">Error</span>&gt; {
-        &lt;<span class="self">Self</span> <span class="kw">as</span> <span class="ident">signature::Signature</span>&gt;<span class="ident">::from_bytes</span>(<span class="ident">bytes</span>)
+<span class="kw">impl</span>&lt;T: signature::Signature&gt; ToFromBytes <span class="kw">for </span>T {
+    <span class="kw">fn </span>from_bytes(bytes: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, Error&gt; {
+        &lt;<span class="self">Self </span><span class="kw">as </span>signature::Signature&gt;::from_bytes(bytes)
     }
 }
 
-<span class="doccomment">/// Cryptographic material with an immediate conversion to/from Base64 strings.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// This is an [extension trait](https://rust-lang.github.io/rfcs/0445-extension-trait-conventions.html) of `ToFromBytes` above.</span>
-<span class="doccomment">///</span>
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">EncodeDecodeBase64</span>: <span class="ident">Sized</span> {
-    <span class="kw">fn</span> <span class="ident">encode_base64</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">String</span>;
-    <span class="kw">fn</span> <span class="ident">decode_base64</span>(<span class="ident">value</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="ident">eyre::Report</span>&gt;;
+<span class="doccomment">/// Cryptographic material with an immediate conversion to/from Base64 strings.
+///
+/// This is an [extension trait](https://rust-lang.github.io/rfcs/0445-extension-trait-conventions.html) of `ToFromBytes` above.
+///
+</span><span class="kw">pub trait </span>EncodeDecodeBase64: Sized {
+    <span class="kw">fn </span>encode_base64(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; String;
+    <span class="kw">fn </span>decode_base64(value: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, eyre::Report&gt;;
 }
 
-<span class="comment">// The Base64ct is not strictly necessary for (PubKey|Signature), but this simplifies things a lot</span>
-<span class="kw">impl</span>&lt;<span class="ident">T</span>: <span class="ident">ToFromBytes</span>&gt; <span class="ident">EncodeDecodeBase64</span> <span class="kw">for</span> <span class="ident">T</span> {
-    <span class="kw">fn</span> <span class="ident">encode_base64</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">String</span> {
-        <span class="ident">base64ct::Base64::encode_string</span>(<span class="self">self</span>.<span class="ident">as_bytes</span>())
+<span class="comment">// The Base64ct is not strictly necessary for (PubKey|Signature), but this simplifies things a lot
+</span><span class="kw">impl</span>&lt;T: ToFromBytes&gt; EncodeDecodeBase64 <span class="kw">for </span>T {
+    <span class="kw">fn </span>encode_base64(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; String {
+        base64ct::Base64::encode_string(<span class="self">self</span>.as_bytes())
     }
 
-    <span class="kw">fn</span> <span class="ident">decode_base64</span>(<span class="ident">value</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="ident">eyre::Report</span>&gt; {
-        <span class="kw">let</span> <span class="ident">bytes</span> = <span class="ident">base64ct::Base64::decode_vec</span>(<span class="ident">value</span>).<span class="ident">map_err</span>(|<span class="ident">e</span>| <span class="macro">eyre!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">e</span>.<span class="ident">to_string</span>()))<span class="question-mark">?</span>;
-        &lt;<span class="ident">T</span> <span class="kw">as</span> <span class="ident">ToFromBytes</span>&gt;<span class="ident">::from_bytes</span>(<span class="kw-2">&amp;</span><span class="ident">bytes</span>).<span class="ident">map_err</span>(|<span class="ident">e</span>| <span class="ident">e</span>.<span class="ident">into</span>())
+    <span class="kw">fn </span>decode_base64(value: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, eyre::Report&gt; {
+        <span class="kw">let </span>bytes = base64ct::Base64::decode_vec(value).map_err(|e| <span class="macro">eyre!</span>(<span class="string">&quot;{}&quot;</span>, e.to_string()))<span class="question-mark">?</span>;
+        &lt;T <span class="kw">as </span>ToFromBytes&gt;::from_bytes(<span class="kw-2">&amp;</span>bytes).map_err(|e| e.into())
     }
 }
 
-<span class="doccomment">/// Trait impl&#39;d by public keys in asymmetric cryptography.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// The trait bounds are implemented so as to be symmetric and equivalent</span>
-<span class="doccomment">/// to the ones on its associated types for private and signature material.</span>
-<span class="doccomment">///</span>
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">VerifyingKey</span>:
-    <span class="ident">Serialize</span>
-    + <span class="ident">DeserializeOwned</span>
-    + <span class="ident">std::hash::Hash</span>
-    + <span class="ident">Display</span>
-    + <span class="ident">Eq</span>  <span class="comment">// required to make some cached bytes representations explicit</span>
-    + <span class="ident">Ord</span> <span class="comment">// required to put keys in BTreeMap</span>
-    + <span class="ident">Default</span> <span class="comment">// see [#34](https://github.com/MystenLabs/narwhal/issues/34)</span>
-    + <span class="ident">ToFromBytes</span>
-    + <span class="ident">signature::Verifier</span>&lt;<span class="ident"><span class="self">Self</span>::Sig</span>&gt;
-    + <span class="kw">for</span> &lt;<span class="lifetime">&#39;a</span>&gt; <span class="ident">From</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident"><span class="self">Self</span>::PrivKey</span>&gt; <span class="comment">// conversion PrivateKey -&gt; PublicKey</span>
-    + <span class="ident">Send</span>
-    + <span class="ident">Sync</span>
-    + <span class="lifetime">&#39;static</span>
-    + <span class="ident">Clone</span>
+<span class="doccomment">/// Trait impl&#39;d by public keys in asymmetric cryptography.
+///
+/// The trait bounds are implemented so as to be symmetric and equivalent
+/// to the ones on its associated types for private and signature material.
+///
+</span><span class="kw">pub trait </span>VerifyingKey:
+    Serialize
+    + DeserializeOwned
+    + std::hash::Hash
+    + Display
+    + Eq  <span class="comment">// required to make some cached bytes representations explicit
+    </span>+ Ord <span class="comment">// required to put keys in BTreeMap
+    </span>+ Default <span class="comment">// see [#34](https://github.com/MystenLabs/narwhal/issues/34)
+    </span>+ ToFromBytes
+    + signature::Verifier&lt;<span class="self">Self</span>::Sig&gt;
+    + <span class="kw">for </span>&lt;<span class="lifetime">&#39;a</span>&gt; From&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="self">Self</span>::PrivKey&gt; <span class="comment">// conversion PrivateKey -&gt; PublicKey
+    </span>+ Send
+    + Sync
+    + <span class="lifetime">&#39;static
+    </span>+ Clone
 {
-    <span class="kw">type</span> <span class="ident">PrivKey</span>: <span class="ident">SigningKey</span>&lt;<span class="ident">PubKey</span> = <span class="self">Self</span>&gt;;
-    <span class="kw">type</span> <span class="ident">Sig</span>: <span class="ident">Authenticator</span>&lt;<span class="ident">PubKey</span> = <span class="self">Self</span>&gt;;
-    <span class="kw">const</span> <span class="ident">LENGTH</span>: <span class="ident">usize</span>;
+    <span class="kw">type </span>PrivKey: SigningKey&lt;PubKey = <span class="self">Self</span>&gt;;
+    <span class="kw">type </span>Sig: Authenticator&lt;PubKey = <span class="self">Self</span>&gt;;
+    <span class="kw">const </span>LENGTH: usize;
 
-    <span class="comment">// Expected to be overridden by implementations</span>
-    <span class="kw">fn</span> <span class="ident">verify_batch</span>(<span class="ident">msg</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">pks</span>: <span class="kw-2">&amp;</span>[<span class="self">Self</span>], <span class="ident">sigs</span>: <span class="kw-2">&amp;</span>[<span class="ident"><span class="self">Self</span>::Sig</span>]) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">signature::Error</span>&gt; {
-        <span class="kw">if</span> <span class="ident">pks</span>.<span class="ident">len</span>() != <span class="ident">sigs</span>.<span class="ident">len</span>() {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">signature::Error::new</span>());
+    <span class="comment">// Expected to be overridden by implementations
+    </span><span class="kw">fn </span>verify_batch(msg: <span class="kw-2">&amp;</span>[u8], pks: <span class="kw-2">&amp;</span>[<span class="self">Self</span>], sigs: <span class="kw-2">&amp;</span>[<span class="self">Self</span>::Sig]) -&gt; <span class="prelude-ty">Result</span>&lt;(), signature::Error&gt; {
+        <span class="kw">if </span>pks.len() != sigs.len() {
+            <span class="kw">return </span><span class="prelude-val">Err</span>(signature::Error::new());
         }
-        <span class="ident">pks</span>.<span class="ident">iter</span>()
-            .<span class="ident">zip</span>(<span class="ident">sigs</span>)
-            .<span class="ident">try_for_each</span>(|(<span class="ident">pk</span>, <span class="ident">sig</span>)| <span class="ident">pk</span>.<span class="ident">verify</span>(<span class="ident">msg</span>, <span class="ident">sig</span>))
+        pks.iter()
+            .zip(sigs)
+            .try_for_each(|(pk, sig)| pk.verify(msg, sig))
     }
 }
 
-<span class="doccomment">/// Trait impl&#39;d by private (secret) keys in asymmetric cryptography.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// The trait bounds are implemented so as to be symmetric and equivalent</span>
-<span class="doccomment">/// to the ones on its associated types for public key and signature material.</span>
-<span class="doccomment">///</span>
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">SigningKey</span>: <span class="ident">ToFromBytes</span> + <span class="ident">Serialize</span> + <span class="ident">DeserializeOwned</span> + <span class="ident">Send</span> + <span class="ident">Sync</span> + <span class="lifetime">&#39;static</span> {
-    <span class="kw">type</span> <span class="ident">PubKey</span>: <span class="ident">VerifyingKey</span>&lt;<span class="ident">PrivKey</span> = <span class="self">Self</span>&gt;;
-    <span class="kw">type</span> <span class="ident">Sig</span>: <span class="ident">Authenticator</span>&lt;<span class="ident">PrivKey</span> = <span class="self">Self</span>&gt;;
-    <span class="kw">const</span> <span class="ident">LENGTH</span>: <span class="ident">usize</span>;
+<span class="doccomment">/// Trait impl&#39;d by private (secret) keys in asymmetric cryptography.
+///
+/// The trait bounds are implemented so as to be symmetric and equivalent
+/// to the ones on its associated types for public key and signature material.
+///
+</span><span class="kw">pub trait </span>SigningKey: ToFromBytes + Serialize + DeserializeOwned + Send + Sync + <span class="lifetime">&#39;static </span>{
+    <span class="kw">type </span>PubKey: VerifyingKey&lt;PrivKey = <span class="self">Self</span>&gt;;
+    <span class="kw">type </span>Sig: Authenticator&lt;PrivKey = <span class="self">Self</span>&gt;;
+    <span class="kw">const </span>LENGTH: usize;
 }
 
-<span class="doccomment">/// Trait impl&#39;d by signatures in asymmetric cryptography.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// The trait bounds are implemented so as to be symmetric and equivalent</span>
-<span class="doccomment">/// to the ones on its associated types for private key and public key material.</span>
-<span class="doccomment">///</span>
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">Authenticator</span>:
-    <span class="ident">signature::Signature</span>
-    + <span class="ident">Display</span>
-    + <span class="ident">Default</span>
-    + <span class="ident">Serialize</span>
-    + <span class="ident">DeserializeOwned</span>
-    + <span class="ident">Send</span>
-    + <span class="ident">Sync</span>
-    + <span class="lifetime">&#39;static</span>
-    + <span class="ident">Clone</span>
+<span class="doccomment">/// Trait impl&#39;d by signatures in asymmetric cryptography.
+///
+/// The trait bounds are implemented so as to be symmetric and equivalent
+/// to the ones on its associated types for private key and public key material.
+///
+</span><span class="kw">pub trait </span>Authenticator:
+    signature::Signature
+    + Display
+    + Default
+    + Serialize
+    + DeserializeOwned
+    + Send
+    + Sync
+    + <span class="lifetime">&#39;static
+    </span>+ Clone
 {
-    <span class="kw">type</span> <span class="ident">PubKey</span>: <span class="ident">VerifyingKey</span>&lt;<span class="ident">Sig</span> = <span class="self">Self</span>&gt;;
-    <span class="kw">type</span> <span class="ident">PrivKey</span>: <span class="ident">SigningKey</span>&lt;<span class="ident">Sig</span> = <span class="self">Self</span>&gt;;
-    <span class="kw">const</span> <span class="ident">LENGTH</span>: <span class="ident">usize</span>;
+    <span class="kw">type </span>PubKey: VerifyingKey&lt;Sig = <span class="self">Self</span>&gt;;
+    <span class="kw">type </span>PrivKey: SigningKey&lt;Sig = <span class="self">Self</span>&gt;;
+    <span class="kw">const </span>LENGTH: usize;
 }
 
-<span class="doccomment">/// Trait impl&#39;d by a public / private key pair in asymmetric cryptography.</span>
-<span class="doccomment">///</span>
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">KeyPair</span>:
-    <span class="ident">Sized</span> + <span class="ident">From</span>&lt;<span class="ident"><span class="self">Self</span>::PrivKey</span>&gt; + <span class="ident">Signer</span>&lt;<span class="ident"><span class="self">Self</span>::Sig</span>&gt; + <span class="ident">EncodeDecodeBase64</span> + <span class="ident">FromStr</span>
+<span class="doccomment">/// Trait impl&#39;d by a public / private key pair in asymmetric cryptography.
+///
+</span><span class="kw">pub trait </span>KeyPair:
+    Sized + From&lt;<span class="self">Self</span>::PrivKey&gt; + Signer&lt;<span class="self">Self</span>::Sig&gt; + EncodeDecodeBase64 + FromStr
 {
-    <span class="kw">type</span> <span class="ident">PubKey</span>: <span class="ident">VerifyingKey</span>&lt;<span class="ident">PrivKey</span> = <span class="ident"><span class="self">Self</span>::PrivKey</span>, <span class="ident">Sig</span> = <span class="ident"><span class="self">Self</span>::Sig</span>&gt;;
-    <span class="kw">type</span> <span class="ident">PrivKey</span>: <span class="ident">SigningKey</span>&lt;<span class="ident">PubKey</span> = <span class="ident"><span class="self">Self</span>::PubKey</span>, <span class="ident">Sig</span> = <span class="ident"><span class="self">Self</span>::Sig</span>&gt;;
-    <span class="kw">type</span> <span class="ident">Sig</span>: <span class="ident">Authenticator</span>&lt;<span class="ident">PubKey</span> = <span class="ident"><span class="self">Self</span>::PubKey</span>, <span class="ident">PrivKey</span> = <span class="ident"><span class="self">Self</span>::PrivKey</span>&gt;;
+    <span class="kw">type </span>PubKey: VerifyingKey&lt;PrivKey = <span class="self">Self</span>::PrivKey, Sig = <span class="self">Self</span>::Sig&gt;;
+    <span class="kw">type </span>PrivKey: SigningKey&lt;PubKey = <span class="self">Self</span>::PubKey, Sig = <span class="self">Self</span>::Sig&gt;;
+    <span class="kw">type </span>Sig: Authenticator&lt;PubKey = <span class="self">Self</span>::PubKey, PrivKey = <span class="self">Self</span>::PrivKey&gt;;
 
-    <span class="kw">fn</span> <span class="ident">public</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;_</span> <span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;_</span> <span class="ident"><span class="self">Self</span>::PubKey</span>;
-    <span class="kw">fn</span> <span class="ident">private</span>(<span class="self">self</span>) -&gt; <span class="ident"><span class="self">Self</span>::PrivKey</span>;
+    <span class="kw">fn </span>public(<span class="kw-2">&amp;</span><span class="lifetime">&#39;_ </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;_ </span><span class="self">Self</span>::PubKey;
+    <span class="kw">fn </span>private(<span class="self">self</span>) -&gt; <span class="self">Self</span>::PrivKey;
 
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> = <span class="string">&quot;copy_key&quot;</span>)]</span>
-    <span class="kw">fn</span> <span class="ident">copy</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="self">Self</span>;
+    <span class="attribute">#[cfg(feature = <span class="string">&quot;copy_key&quot;</span>)]</span>
+    <span class="kw">fn </span>copy(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="self">Self</span>;
 
-    <span class="kw">fn</span> <span class="ident">generate</span>&lt;<span class="ident">R</span>: <span class="ident">CryptoRng</span> + <span class="ident">RngCore</span>&gt;(<span class="ident">rng</span>: <span class="kw-2">&amp;mut</span> <span class="ident">R</span>) -&gt; <span class="self">Self</span>;
+    <span class="kw">fn </span>generate&lt;R: CryptoRng + RngCore&gt;(rng: <span class="kw-2">&amp;mut </span>R) -&gt; <span class="self">Self</span>;
 }
 
-<span class="doccomment">/// Trait impl&#39;d by aggregated signatures in asymmetric cryptography.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// The trait bounds are implemented to allow the aggregation of multiple signatures,</span>
-<span class="doccomment">/// and to verify it against multiple, unaggregated public keys. For signature schemes</span>
-<span class="doccomment">/// where aggregation is not possible, a trivial implementation is provided.</span>
-<span class="doccomment">///</span>
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">AggregateAuthenticator</span>:
-    <span class="ident">Display</span> + <span class="ident">Default</span> + <span class="ident">Serialize</span> + <span class="ident">DeserializeOwned</span> + <span class="ident">Send</span> + <span class="ident">Sync</span> + <span class="lifetime">&#39;static</span> + <span class="ident">Clone</span>
+<span class="doccomment">/// Trait impl&#39;d by aggregated signatures in asymmetric cryptography.
+///
+/// The trait bounds are implemented to allow the aggregation of multiple signatures,
+/// and to verify it against multiple, unaggregated public keys. For signature schemes
+/// where aggregation is not possible, a trivial implementation is provided.
+///
+</span><span class="kw">pub trait </span>AggregateAuthenticator:
+    Display + Default + Serialize + DeserializeOwned + Send + Sync + <span class="lifetime">&#39;static </span>+ Clone
 {
-    <span class="kw">type</span> <span class="ident">Sig</span>: <span class="ident">Authenticator</span>&lt;<span class="ident">PubKey</span> = <span class="ident"><span class="self">Self</span>::PubKey</span>&gt;;
-    <span class="kw">type</span> <span class="ident">PubKey</span>: <span class="ident">VerifyingKey</span>&lt;<span class="ident">Sig</span> = <span class="ident"><span class="self">Self</span>::Sig</span>&gt;;
-    <span class="kw">type</span> <span class="ident">PrivKey</span>: <span class="ident">SigningKey</span>&lt;<span class="ident">Sig</span> = <span class="ident"><span class="self">Self</span>::Sig</span>&gt;;
+    <span class="kw">type </span>Sig: Authenticator&lt;PubKey = <span class="self">Self</span>::PubKey&gt;;
+    <span class="kw">type </span>PubKey: VerifyingKey&lt;Sig = <span class="self">Self</span>::Sig&gt;;
+    <span class="kw">type </span>PrivKey: SigningKey&lt;Sig = <span class="self">Self</span>::Sig&gt;;
 
-    <span class="doccomment">/// Parse a key from its byte representation</span>
-    <span class="kw">fn</span> <span class="ident">aggregate</span>(<span class="ident">signatures</span>: <span class="ident">Vec</span>&lt;<span class="ident"><span class="self">Self</span>::Sig</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="ident">Error</span>&gt;;
+    <span class="doccomment">/// Parse a key from its byte representation
+    </span><span class="kw">fn </span>aggregate(signatures: Vec&lt;<span class="self">Self</span>::Sig&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, Error&gt;;
 
-    <span class="kw">fn</span> <span class="ident">add_signature</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">signature</span>: <span class="ident"><span class="self">Self</span>::Sig</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">Error</span>&gt;;
-    <span class="kw">fn</span> <span class="ident">add_aggregate</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">signature</span>: <span class="self">Self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">Error</span>&gt;;
+    <span class="kw">fn </span>add_signature(<span class="kw-2">&amp;mut </span><span class="self">self</span>, signature: <span class="self">Self</span>::Sig) -&gt; <span class="prelude-ty">Result</span>&lt;(), Error&gt;;
+    <span class="kw">fn </span>add_aggregate(<span class="kw-2">&amp;mut </span><span class="self">self</span>, signature: <span class="self">Self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(), Error&gt;;
 
-    <span class="kw">fn</span> <span class="ident">verify</span>(
+    <span class="kw">fn </span>verify(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">pks</span>: <span class="kw-2">&amp;</span>[&lt;<span class="ident"><span class="self">Self</span>::Sig</span> <span class="kw">as</span> <span class="ident">Authenticator</span>&gt;<span class="ident">::PubKey</span>],
-        <span class="ident">message</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">Error</span>&gt;;
+        pks: <span class="kw-2">&amp;</span>[&lt;<span class="self">Self</span>::Sig <span class="kw">as </span>Authenticator&gt;::PubKey],
+        message: <span class="kw-2">&amp;</span>[u8],
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), Error&gt;;
 
-    <span class="kw">fn</span> <span class="ident">batch_verify</span>(
-        <span class="ident">sigs</span>: <span class="kw-2">&amp;</span>[<span class="self">Self</span>],
-        <span class="ident">pks</span>: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>[<span class="ident"><span class="self">Self</span>::PubKey</span>]],
-        <span class="ident">messages</span>: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>[<span class="ident">u8</span>]],
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">Error</span>&gt;;
+    <span class="kw">fn </span>batch_verify(
+        sigs: <span class="kw-2">&amp;</span>[<span class="self">Self</span>],
+        pks: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>[<span class="self">Self</span>::PubKey]],
+        messages: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>[u8]],
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), Error&gt;;
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="crypto" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="crypto" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (801821d15 2022-08-14)" ></div></body></html>

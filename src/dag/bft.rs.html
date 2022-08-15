@@ -164,171 +164,171 @@
 <span id="164">164</span>
 <span id="165">165</span>
 <span id="166">166</span>
-</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2020 Christian Vallentin</span>
-<span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
-<span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
+</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2020 Christian Vallentin
+// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
 
-<span class="kw">use</span> <span class="ident">std::collections</span>::{<span class="ident">BTreeSet</span>, <span class="ident">VecDeque</span>};
+</span><span class="kw">use </span>std::collections::{BTreeSet, VecDeque};
 
-<span class="doccomment">/// [Breadth-First Traversal] (or Level Order Traversal).</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// [Breadth-First Traversal]: https://en.wikipedia.org/wiki/Tree_traversal</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// # Cycles</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// `Bft` does not handle cycles. If any</span>
-<span class="doccomment">/// cycles are present, then `Bft` will</span>
-<span class="doccomment">/// result in an infinite (never ending)</span>
-<span class="doccomment">/// [`Iterator`].</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// [`Iterator`]: https://doc.rust-lang.org/stable/std/iter/trait.Iterator.html</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// # Example</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// ```</span>
-<span class="doccomment">/// use dag::bft::Bft;</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// #[derive(PartialEq, Eq, Hash)]</span>
-<span class="doccomment">/// struct Node(&amp;&#39;static str, &amp;&#39;static [Node]);</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// let tree = Node(&quot;A&quot;, &amp;[</span>
-<span class="doccomment">///     Node(&quot;B&quot;, &amp;[</span>
-<span class="doccomment">///         Node(&quot;D&quot;, &amp;[]),</span>
-<span class="doccomment">///         Node(&quot;E&quot;, &amp;[])</span>
-<span class="doccomment">///     ]),</span>
-<span class="doccomment">///     Node(&quot;C&quot;, &amp;[</span>
-<span class="doccomment">///         Node(&quot;F&quot;, &amp;[]),</span>
-<span class="doccomment">///         Node(&quot;G&quot;, &amp;[])</span>
-<span class="doccomment">///     ]),</span>
-<span class="doccomment">/// ]);</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// // `&amp;tree` represents the root `Node`.</span>
-<span class="doccomment">/// // The `Fn(&amp;Node) -&gt; Iterator&lt;Item = &amp;Node&gt;` returns</span>
-<span class="doccomment">/// // an `Iterator` to get the child `Node`s.</span>
-<span class="doccomment">/// let iter = Bft::new(&amp;tree, |node| node.1.iter());</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// // Map `Iterator&lt;Item = &amp;Node&gt;` into `Iterator&lt;Item = &amp;str&gt;`</span>
-<span class="doccomment">/// let mut iter = iter.map(|node| node.0);</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// assert_eq!(iter.next(), Some((&quot;A&quot;)));</span>
-<span class="doccomment">/// assert_eq!(iter.next(), Some((&quot;B&quot;)));</span>
-<span class="doccomment">/// assert_eq!(iter.next(), Some((&quot;C&quot;)));</span>
-<span class="doccomment">/// assert_eq!(iter.next(), Some((&quot;D&quot;)));</span>
-<span class="doccomment">/// assert_eq!(iter.next(), Some((&quot;E&quot;)));</span>
-<span class="doccomment">/// assert_eq!(iter.next(), Some((&quot;F&quot;)));</span>
-<span class="doccomment">/// assert_eq!(iter.next(), Some((&quot;G&quot;)));</span>
-<span class="doccomment">/// assert_eq!(iter.next(), None);</span>
-<span class="doccomment">/// ```</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Bft</span>&lt;<span class="ident">T</span>, <span class="ident">F</span>, <span class="ident">I</span>&gt;
-<span class="kw">where</span>
-    <span class="ident">F</span>: <span class="ident">Fn</span>(<span class="kw-2">&amp;</span><span class="ident">T</span>) -&gt; <span class="ident">I</span>,
-    <span class="ident">I</span>: <span class="ident">Iterator</span>&lt;<span class="ident">Item</span> = <span class="ident">T</span>&gt;,
+<span class="doccomment">/// [Breadth-First Traversal] (or Level Order Traversal).
+///
+/// [Breadth-First Traversal]: https://en.wikipedia.org/wiki/Tree_traversal
+///
+/// # Cycles
+///
+/// `Bft` does not handle cycles. If any
+/// cycles are present, then `Bft` will
+/// result in an infinite (never ending)
+/// [`Iterator`].
+///
+/// [`Iterator`]: https://doc.rust-lang.org/stable/std/iter/trait.Iterator.html
+///
+/// # Example
+///
+/// ```
+/// use dag::bft::Bft;
+///
+/// #[derive(PartialEq, Eq, Hash)]
+/// struct Node(&amp;&#39;static str, &amp;&#39;static [Node]);
+///
+/// let tree = Node(&quot;A&quot;, &amp;[
+///     Node(&quot;B&quot;, &amp;[
+///         Node(&quot;D&quot;, &amp;[]),
+///         Node(&quot;E&quot;, &amp;[])
+///     ]),
+///     Node(&quot;C&quot;, &amp;[
+///         Node(&quot;F&quot;, &amp;[]),
+///         Node(&quot;G&quot;, &amp;[])
+///     ]),
+/// ]);
+///
+/// // `&amp;tree` represents the root `Node`.
+/// // The `Fn(&amp;Node) -&gt; Iterator&lt;Item = &amp;Node&gt;` returns
+/// // an `Iterator` to get the child `Node`s.
+/// let iter = Bft::new(&amp;tree, |node| node.1.iter());
+///
+/// // Map `Iterator&lt;Item = &amp;Node&gt;` into `Iterator&lt;Item = &amp;str&gt;`
+/// let mut iter = iter.map(|node| node.0);
+///
+/// assert_eq!(iter.next(), Some((&quot;A&quot;)));
+/// assert_eq!(iter.next(), Some((&quot;B&quot;)));
+/// assert_eq!(iter.next(), Some((&quot;C&quot;)));
+/// assert_eq!(iter.next(), Some((&quot;D&quot;)));
+/// assert_eq!(iter.next(), Some((&quot;E&quot;)));
+/// assert_eq!(iter.next(), Some((&quot;F&quot;)));
+/// assert_eq!(iter.next(), Some((&quot;G&quot;)));
+/// assert_eq!(iter.next(), None);
+/// ```
+</span><span class="attribute">#[derive(Clone, Debug)]</span>
+<span class="kw">pub struct </span>Bft&lt;T, F, I&gt;
+<span class="kw">where
+    </span>F: Fn(<span class="kw-2">&amp;</span>T) -&gt; I,
+    I: Iterator&lt;Item = T&gt;,
 {
-    <span class="ident">queue</span>: <span class="ident">VecDeque</span>&lt;<span class="ident">T</span>&gt;,
-    <span class="ident">visited</span>: <span class="ident">BTreeSet</span>&lt;<span class="ident">u64</span>&gt;,
-    <span class="ident">iter_children</span>: <span class="ident">F</span>,
+    queue: VecDeque&lt;T&gt;,
+    visited: BTreeSet&lt;u64&gt;,
+    iter_children: F,
 }
 
-<span class="kw">fn</span> <span class="ident">default_hash</span>&lt;<span class="ident">T</span>: <span class="ident">std::hash::Hash</span>&gt;(<span class="ident">val</span>: <span class="kw-2">&amp;</span><span class="ident">T</span>) -&gt; <span class="ident">u64</span> {
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">hasher</span> = <span class="ident">std::collections::hash_map::DefaultHasher::new</span>();
-    <span class="ident">val</span>.<span class="ident">hash</span>(<span class="kw-2">&amp;mut</span> <span class="ident">hasher</span>);
-    <span class="ident">std::hash::Hasher::finish</span>(<span class="kw-2">&amp;</span><span class="ident">hasher</span>)
+<span class="kw">fn </span>default_hash&lt;T: std::hash::Hash&gt;(val: <span class="kw-2">&amp;</span>T) -&gt; u64 {
+    <span class="kw">let </span><span class="kw-2">mut </span>hasher = std::collections::hash_map::DefaultHasher::new();
+    val.hash(<span class="kw-2">&amp;mut </span>hasher);
+    std::hash::Hasher::finish(<span class="kw-2">&amp;</span>hasher)
 }
 
-<span class="kw">impl</span>&lt;<span class="ident">T</span>, <span class="ident">F</span>, <span class="ident">I</span>&gt; <span class="ident">Bft</span>&lt;<span class="ident">T</span>, <span class="ident">F</span>, <span class="ident">I</span>&gt;
-<span class="kw">where</span>
-    <span class="ident">F</span>: <span class="ident">Fn</span>(<span class="kw-2">&amp;</span><span class="ident">T</span>) -&gt; <span class="ident">I</span>,
-    <span class="ident">I</span>: <span class="ident">Iterator</span>&lt;<span class="ident">Item</span> = <span class="ident">T</span>&gt;,
+<span class="kw">impl</span>&lt;T, F, I&gt; Bft&lt;T, F, I&gt;
+<span class="kw">where
+    </span>F: Fn(<span class="kw-2">&amp;</span>T) -&gt; I,
+    I: Iterator&lt;Item = T&gt;,
 {
-    <span class="doccomment">/// Creates a `Bft`, where `root` is the</span>
-    <span class="doccomment">/// starting `Node`.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// The `iter_children` [`Fn`] is (lazily) called</span>
-    <span class="doccomment">/// for each `Node` as needed, where the</span>
-    <span class="doccomment">/// returned [`Iterator`] produces the child</span>
-    <span class="doccomment">/// `Node`s for the given `Node`.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// [`Iterator`]: https://doc.rust-lang.org/stable/std/iter/trait.Iterator.html</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// *[See `Bft` for more information.][`Bft`]*</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// [`Bft`]: struct.Bft.html</span>
-    <span class="doccomment">///</span>
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">root</span>: <span class="ident">T</span>, <span class="ident">iter_children</span>: <span class="ident">F</span>) -&gt; <span class="self">Self</span> {
-        <span class="self">Self</span> {
-            <span class="ident">queue</span>: <span class="ident">VecDeque::from</span>(<span class="macro">vec!</span>[<span class="ident">root</span>]),
-            <span class="ident">visited</span>: <span class="ident">BTreeSet::new</span>(),
-            <span class="ident">iter_children</span>,
+    <span class="doccomment">/// Creates a `Bft`, where `root` is the
+    /// starting `Node`.
+    ///
+    /// The `iter_children` [`Fn`] is (lazily) called
+    /// for each `Node` as needed, where the
+    /// returned [`Iterator`] produces the child
+    /// `Node`s for the given `Node`.
+    ///
+    /// [`Iterator`]: https://doc.rust-lang.org/stable/std/iter/trait.Iterator.html
+    ///
+    /// *[See `Bft` for more information.][`Bft`]*
+    ///
+    /// [`Bft`]: struct.Bft.html
+    ///
+    </span><span class="attribute">#[inline]</span>
+    <span class="kw">pub fn </span>new(root: T, iter_children: F) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            queue: VecDeque::from(<span class="macro">vec!</span>[root]),
+            visited: BTreeSet::new(),
+            iter_children,
         }
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="ident">T</span>, <span class="ident">F</span>, <span class="ident">I</span>&gt; <span class="ident">Iterator</span> <span class="kw">for</span> <span class="ident">Bft</span>&lt;<span class="ident">T</span>, <span class="ident">F</span>, <span class="ident">I</span>&gt;
-<span class="kw">where</span>
-    <span class="ident">T</span>: <span class="ident">Eq</span> + <span class="ident">std::hash::Hash</span>,
-    <span class="ident">F</span>: <span class="ident">Fn</span>(<span class="kw-2">&amp;</span><span class="ident">T</span>) -&gt; <span class="ident">I</span>,
-    <span class="ident">I</span>: <span class="ident">Iterator</span>&lt;<span class="ident">Item</span> = <span class="ident">T</span>&gt;,
+<span class="kw">impl</span>&lt;T, F, I&gt; Iterator <span class="kw">for </span>Bft&lt;T, F, I&gt;
+<span class="kw">where
+    </span>T: Eq + std::hash::Hash,
+    F: Fn(<span class="kw-2">&amp;</span>T) -&gt; I,
+    I: Iterator&lt;Item = T&gt;,
 {
-    <span class="kw">type</span> <span class="ident">Item</span> = <span class="ident">T</span>;
+    <span class="kw">type </span>Item = T;
 
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">fn</span> <span class="ident">next</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="ident"><span class="self">Self</span>::Item</span>&gt; {
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">node</span>) = <span class="self">self</span>.<span class="ident">queue</span>.<span class="ident">pop_front</span>() {
-            <span class="kw">let</span> <span class="ident">children</span> = (<span class="self">self</span>.<span class="ident">iter_children</span>)(<span class="kw-2">&amp;</span><span class="ident">node</span>);
-            <span class="kw">for</span> <span class="ident">c</span> <span class="kw">in</span> <span class="ident">children</span> {
-                <span class="kw">let</span> <span class="ident">h</span> = <span class="ident">default_hash</span>(<span class="kw-2">&amp;</span><span class="ident">c</span>);
-                <span class="kw">if</span> !<span class="self">self</span>.<span class="ident">visited</span>.<span class="ident">contains</span>(<span class="kw-2">&amp;</span><span class="ident">h</span>) {
-                    <span class="self">self</span>.<span class="ident">visited</span>.<span class="ident">insert</span>(<span class="ident">h</span>);
-                    <span class="self">self</span>.<span class="ident">queue</span>.<span class="ident">push_back</span>(<span class="ident">c</span>)
+    <span class="attribute">#[inline]</span>
+    <span class="kw">fn </span>next(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>::Item&gt; {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(node) = <span class="self">self</span>.queue.pop_front() {
+            <span class="kw">let </span>children = (<span class="self">self</span>.iter_children)(<span class="kw-2">&amp;</span>node);
+            <span class="kw">for </span>c <span class="kw">in </span>children {
+                <span class="kw">let </span>h = default_hash(<span class="kw-2">&amp;</span>c);
+                <span class="kw">if </span>!<span class="self">self</span>.visited.contains(<span class="kw-2">&amp;</span>h) {
+                    <span class="self">self</span>.visited.insert(h);
+                    <span class="self">self</span>.queue.push_back(c)
                 }
             }
 
-            <span class="prelude-val">Some</span>(<span class="ident">node</span>)
-        } <span class="kw">else</span> {
-            <span class="prelude-val">None</span>
-        }
+            <span class="prelude-val">Some</span>(node)
+        } <span class="kw">else </span>{
+            <span class="prelude-val">None
+        </span>}
     }
 }
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="kw">mod</span> <span class="ident">tests</span> {
-    <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
+<span class="attribute">#[cfg(test)]</span>
+<span class="kw">mod </span>tests {
+    <span class="kw">use super</span>::<span class="kw-2">*</span>;
 
-    <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Eq</span>, <span class="ident">PartialEq</span>, <span class="ident">Hash</span>)]</span>
-    <span class="kw">struct</span> <span class="ident">Node</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> [<span class="ident">Node</span>]);
+    <span class="attribute">#[derive(Eq, PartialEq, Hash)]</span>
+    <span class="kw">struct </span>Node(<span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str, <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>[Node]);
 
-    <span class="attribute">#[<span class="ident">test</span>]</span>
-    <span class="kw">fn</span> <span class="ident">bft</span>() {
-        <span class="attribute">#[<span class="ident">rustfmt::skip</span>]</span>
-        <span class="kw">let</span> <span class="ident">tree</span> = <span class="ident">Node</span>(<span class="string">&quot;A&quot;</span>, <span class="kw-2">&amp;</span>[
-            <span class="ident">Node</span>(<span class="string">&quot;B&quot;</span>, <span class="kw-2">&amp;</span>[
-                <span class="ident">Node</span>(<span class="string">&quot;D&quot;</span>, <span class="kw-2">&amp;</span>[]),
-                <span class="ident">Node</span>(<span class="string">&quot;E&quot;</span>, <span class="kw-2">&amp;</span>[
-                    <span class="ident">Node</span>(<span class="string">&quot;H&quot;</span>, <span class="kw-2">&amp;</span>[])
+    <span class="attribute">#[test]</span>
+    <span class="kw">fn </span>bft() {
+        <span class="attribute">#[rustfmt::skip]</span>
+        <span class="kw">let </span>tree = Node(<span class="string">&quot;A&quot;</span>, <span class="kw-2">&amp;</span>[
+            Node(<span class="string">&quot;B&quot;</span>, <span class="kw-2">&amp;</span>[
+                Node(<span class="string">&quot;D&quot;</span>, <span class="kw-2">&amp;</span>[]),
+                Node(<span class="string">&quot;E&quot;</span>, <span class="kw-2">&amp;</span>[
+                    Node(<span class="string">&quot;H&quot;</span>, <span class="kw-2">&amp;</span>[])
                 ])]),
-            <span class="ident">Node</span>(<span class="string">&quot;C&quot;</span>, <span class="kw-2">&amp;</span>[
-                <span class="ident">Node</span>(<span class="string">&quot;F&quot;</span>, <span class="kw-2">&amp;</span>[
-                    <span class="ident">Node</span>(<span class="string">&quot;I&quot;</span>, <span class="kw-2">&amp;</span>[])
+            Node(<span class="string">&quot;C&quot;</span>, <span class="kw-2">&amp;</span>[
+                Node(<span class="string">&quot;F&quot;</span>, <span class="kw-2">&amp;</span>[
+                    Node(<span class="string">&quot;I&quot;</span>, <span class="kw-2">&amp;</span>[])
                 ]),
-                <span class="ident">Node</span>(<span class="string">&quot;G&quot;</span>, <span class="kw-2">&amp;</span>[])]),
+                Node(<span class="string">&quot;G&quot;</span>, <span class="kw-2">&amp;</span>[])]),
         ]);
 
-        <span class="kw">let</span> <span class="ident">iter</span> = <span class="ident">Bft::new</span>(<span class="kw-2">&amp;</span><span class="ident">tree</span>, |<span class="ident">node</span>| <span class="ident">node</span>.<span class="number">1</span>.<span class="ident">iter</span>());
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">iter</span> = <span class="ident">iter</span>.<span class="ident">map</span>(|<span class="ident">node</span>| <span class="ident">node</span>.<span class="number">0</span>);
+        <span class="kw">let </span>iter = Bft::new(<span class="kw-2">&amp;</span>tree, |node| node.<span class="number">1</span>.iter());
+        <span class="kw">let </span><span class="kw-2">mut </span>iter = iter.map(|node| node.<span class="number">0</span>);
 
-        <span class="macro">assert_eq!</span>(<span class="ident">iter</span>.<span class="ident">next</span>(), <span class="prelude-val">Some</span>(<span class="string">&quot;A&quot;</span>));
-        <span class="macro">assert_eq!</span>(<span class="ident">iter</span>.<span class="ident">next</span>(), <span class="prelude-val">Some</span>(<span class="string">&quot;B&quot;</span>));
-        <span class="macro">assert_eq!</span>(<span class="ident">iter</span>.<span class="ident">next</span>(), <span class="prelude-val">Some</span>(<span class="string">&quot;C&quot;</span>));
-        <span class="macro">assert_eq!</span>(<span class="ident">iter</span>.<span class="ident">next</span>(), <span class="prelude-val">Some</span>(<span class="string">&quot;D&quot;</span>));
-        <span class="macro">assert_eq!</span>(<span class="ident">iter</span>.<span class="ident">next</span>(), <span class="prelude-val">Some</span>(<span class="string">&quot;E&quot;</span>));
-        <span class="macro">assert_eq!</span>(<span class="ident">iter</span>.<span class="ident">next</span>(), <span class="prelude-val">Some</span>(<span class="string">&quot;F&quot;</span>));
-        <span class="macro">assert_eq!</span>(<span class="ident">iter</span>.<span class="ident">next</span>(), <span class="prelude-val">Some</span>(<span class="string">&quot;G&quot;</span>));
-        <span class="macro">assert_eq!</span>(<span class="ident">iter</span>.<span class="ident">next</span>(), <span class="prelude-val">Some</span>(<span class="string">&quot;H&quot;</span>));
-        <span class="macro">assert_eq!</span>(<span class="ident">iter</span>.<span class="ident">next</span>(), <span class="prelude-val">Some</span>(<span class="string">&quot;I&quot;</span>));
-        <span class="macro">assert_eq!</span>(<span class="ident">iter</span>.<span class="ident">next</span>(), <span class="prelude-val">None</span>);
+        <span class="macro">assert_eq!</span>(iter.next(), <span class="prelude-val">Some</span>(<span class="string">&quot;A&quot;</span>));
+        <span class="macro">assert_eq!</span>(iter.next(), <span class="prelude-val">Some</span>(<span class="string">&quot;B&quot;</span>));
+        <span class="macro">assert_eq!</span>(iter.next(), <span class="prelude-val">Some</span>(<span class="string">&quot;C&quot;</span>));
+        <span class="macro">assert_eq!</span>(iter.next(), <span class="prelude-val">Some</span>(<span class="string">&quot;D&quot;</span>));
+        <span class="macro">assert_eq!</span>(iter.next(), <span class="prelude-val">Some</span>(<span class="string">&quot;E&quot;</span>));
+        <span class="macro">assert_eq!</span>(iter.next(), <span class="prelude-val">Some</span>(<span class="string">&quot;F&quot;</span>));
+        <span class="macro">assert_eq!</span>(iter.next(), <span class="prelude-val">Some</span>(<span class="string">&quot;G&quot;</span>));
+        <span class="macro">assert_eq!</span>(iter.next(), <span class="prelude-val">Some</span>(<span class="string">&quot;H&quot;</span>));
+        <span class="macro">assert_eq!</span>(iter.next(), <span class="prelude-val">Some</span>(<span class="string">&quot;I&quot;</span>));
+        <span class="macro">assert_eq!</span>(iter.next(), <span class="prelude-val">None</span>);
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="dag" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="dag" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (801821d15 2022-08-14)" ></div></body></html>

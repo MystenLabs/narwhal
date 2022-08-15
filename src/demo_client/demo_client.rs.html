@@ -546,344 +546,344 @@
 <span id="546">546</span>
 <span id="547">547</span>
 <span id="548">548</span>
-</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
-<span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
+</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
 
-<span class="kw">use</span> <span class="ident">clap</span>::{<span class="ident">crate_name</span>, <span class="ident">crate_version</span>, <span class="ident">App</span>, <span class="ident">AppSettings</span>, <span class="ident">Arg</span>, <span class="ident">SubCommand</span>};
-<span class="kw">use</span> <span class="ident">narwhal</span>::{
-    <span class="ident">collection_retrieval_result::RetrievalResult</span>, <span class="ident">proposer_client::ProposerClient</span>,
-    <span class="ident">validator_client::ValidatorClient</span>, <span class="ident">CertificateDigest</span>, <span class="ident">CollectionRetrievalResult</span>, <span class="ident">Empty</span>,
-    <span class="ident">GetCollectionsRequest</span>, <span class="ident">GetCollectionsResponse</span>, <span class="ident">NodeReadCausalRequest</span>, <span class="ident">NodeReadCausalResponse</span>,
-    <span class="ident">PublicKey</span>, <span class="ident">ReadCausalRequest</span>, <span class="ident">ReadCausalResponse</span>, <span class="ident">RemoveCollectionsRequest</span>, <span class="ident">RoundsRequest</span>,
-    <span class="ident">RoundsResponse</span>,
+</span><span class="kw">use </span>clap::{crate_name, crate_version, App, AppSettings, Arg, SubCommand};
+<span class="kw">use </span>narwhal::{
+    collection_retrieval_result::RetrievalResult, proposer_client::ProposerClient,
+    validator_client::ValidatorClient, CertificateDigest, CollectionRetrievalResult, Empty,
+    GetCollectionsRequest, GetCollectionsResponse, NodeReadCausalRequest, NodeReadCausalResponse,
+    PublicKey, ReadCausalRequest, ReadCausalResponse, RemoveCollectionsRequest, RoundsRequest,
+    RoundsResponse,
 };
-<span class="kw">use</span> <span class="ident">std</span>::{
-    <span class="ident">fmt</span>,
-    <span class="ident">fmt</span>::{<span class="ident">Display</span>, <span class="ident">Formatter</span>},
+<span class="kw">use </span>std::{
+    fmt,
+    fmt::{Display, Formatter},
 };
-<span class="kw">use</span> <span class="ident">tonic::Status</span>;
+<span class="kw">use </span>tonic::Status;
 
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">narwhal</span> {
+<span class="kw">pub mod </span>narwhal {
     <span class="macro">tonic::include_proto!</span>(<span class="string">&quot;narwhal&quot;</span>);
 }
 
-<span class="doccomment">/// DEMO CONSTANTS</span>
-<span class="kw">const</span> <span class="ident">PRIMARY_0_PUBLIC_KEY</span>: <span class="kw-2">&amp;</span><span class="ident">str</span> = <span class="string">&quot;Zy82aSpF8QghKE4wWvyIoTWyLetCuUSfk2gxHEtwdbg=&quot;</span>;
-<span class="comment">// Assumption that each transaction costs 1 gas to complete</span>
-<span class="comment">// Chose this number because it allows demo to complete round + get extra collections when proposing block.</span>
-<span class="kw">const</span> <span class="ident">BLOCK_GAS_LIMIT</span>: <span class="ident">i32</span> = <span class="number">300000</span>;
+<span class="doccomment">/// DEMO CONSTANTS
+</span><span class="kw">const </span>PRIMARY_0_PUBLIC_KEY: <span class="kw-2">&amp;</span>str = <span class="string">&quot;Zy82aSpF8QghKE4wWvyIoTWyLetCuUSfk2gxHEtwdbg=&quot;</span>;
+<span class="comment">// Assumption that each transaction costs 1 gas to complete
+// Chose this number because it allows demo to complete round + get extra collections when proposing block.
+</span><span class="kw">const </span>BLOCK_GAS_LIMIT: i32 = <span class="number">300000</span>;
 
-<span class="attribute">#[<span class="ident">tokio::main</span>]</span>
-<span class="kw">async</span> <span class="kw">fn</span> <span class="ident">main</span>() -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">Box</span>&lt;<span class="kw">dyn</span> <span class="ident">std::error::Error</span>&gt;&gt; {
-    <span class="kw">let</span> <span class="ident">matches</span> = <span class="ident">App::new</span>(<span class="macro">crate_name!</span>())
-        .<span class="ident">version</span>(<span class="macro">crate_version!</span>())
-        .<span class="ident">about</span>(<span class="string">&quot;A gRPC client emulating the Proposer / Validator API&quot;</span>)
-        .<span class="ident">subcommand</span>(
-            <span class="ident">SubCommand::with_name</span>(<span class="string">&quot;docker_demo&quot;</span>)
-                .<span class="ident">about</span>(<span class="string">&quot;run the demo with the hardcoded Docker deployment&quot;</span>),
+<span class="attribute">#[tokio::main]</span>
+<span class="kw">async fn </span>main() -&gt; <span class="prelude-ty">Result</span>&lt;(), Box&lt;<span class="kw">dyn </span>std::error::Error&gt;&gt; {
+    <span class="kw">let </span>matches = App::new(<span class="macro">crate_name!</span>())
+        .version(<span class="macro">crate_version!</span>())
+        .about(<span class="string">&quot;A gRPC client emulating the Proposer / Validator API&quot;</span>)
+        .subcommand(
+            SubCommand::with_name(<span class="string">&quot;docker_demo&quot;</span>)
+                .about(<span class="string">&quot;run the demo with the hardcoded Docker deployment&quot;</span>),
         )
-        .<span class="ident">subcommand</span>(
-            <span class="ident">SubCommand::with_name</span>(<span class="string">&quot;run&quot;</span>)
-                .<span class="ident">about</span>(<span class="string">&quot;Run the demo with a local gRPC server&quot;</span>)
-                .<span class="ident">arg</span>(
-                    <span class="ident">Arg::with_name</span>(<span class="string">&quot;keys&quot;</span>)
-                        .<span class="ident">long</span>(<span class="string">&quot;keys&quot;</span>)
-                        .<span class="ident">help</span>(<span class="string">&quot;The base64-encoded publickey of the node to query&quot;</span>)
-                        .<span class="ident">use_delimiter</span>(<span class="bool-val">true</span>)
-                        .<span class="ident">min_values</span>(<span class="number">2</span>),
+        .subcommand(
+            SubCommand::with_name(<span class="string">&quot;run&quot;</span>)
+                .about(<span class="string">&quot;Run the demo with a local gRPC server&quot;</span>)
+                .arg(
+                    Arg::with_name(<span class="string">&quot;keys&quot;</span>)
+                        .long(<span class="string">&quot;keys&quot;</span>)
+                        .help(<span class="string">&quot;The base64-encoded publickey of the node to query&quot;</span>)
+                        .use_delimiter(<span class="bool-val">true</span>)
+                        .min_values(<span class="number">2</span>),
                 )
-                .<span class="ident">arg</span>(
-                    <span class="ident">Arg::with_name</span>(<span class="string">&quot;ports&quot;</span>)
-                        .<span class="ident">long</span>(<span class="string">&quot;ports&quot;</span>)
-                        .<span class="ident">help</span>(<span class="string">&quot;The ports on localhost where to reach the grpc server&quot;</span>)
-                        .<span class="ident">use_delimiter</span>(<span class="bool-val">true</span>)
-                        .<span class="ident">min_values</span>(<span class="number">2</span>),
+                .arg(
+                    Arg::with_name(<span class="string">&quot;ports&quot;</span>)
+                        .long(<span class="string">&quot;ports&quot;</span>)
+                        .help(<span class="string">&quot;The ports on localhost where to reach the grpc server&quot;</span>)
+                        .use_delimiter(<span class="bool-val">true</span>)
+                        .min_values(<span class="number">2</span>),
                 ),
         )
-        .<span class="ident">setting</span>(<span class="ident">AppSettings::SubcommandRequiredElseHelp</span>)
-        .<span class="ident">get_matches</span>();
+        .setting(AppSettings::SubcommandRequiredElseHelp)
+        .get_matches();
 
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">dsts</span> = <span class="ident">Vec::new</span>();
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">base64_keys</span> = <span class="ident">Vec::new</span>();
-    <span class="kw">match</span> <span class="ident">matches</span>.<span class="ident">subcommand</span>() {
-        (<span class="string">&quot;docker_demo&quot;</span>, <span class="prelude-val">Some</span>(<span class="ident">_sub_matches</span>)) =&gt; {
-            <span class="ident">dsts</span>.<span class="ident">push</span>(<span class="string">&quot;http://127.0.0.1:8000&quot;</span>.<span class="ident">to_owned</span>());
-            <span class="ident">base64_keys</span>.<span class="ident">push</span>(<span class="ident">PRIMARY_0_PUBLIC_KEY</span>.<span class="ident">to_owned</span>());
+    <span class="kw">let </span><span class="kw-2">mut </span>dsts = Vec::new();
+    <span class="kw">let </span><span class="kw-2">mut </span>base64_keys = Vec::new();
+    <span class="kw">match </span>matches.subcommand() {
+        (<span class="string">&quot;docker_demo&quot;</span>, <span class="prelude-val">Some</span>(_sub_matches)) =&gt; {
+            dsts.push(<span class="string">&quot;http://127.0.0.1:8000&quot;</span>.to_owned());
+            base64_keys.push(PRIMARY_0_PUBLIC_KEY.to_owned());
         }
-        (<span class="string">&quot;run&quot;</span>, <span class="prelude-val">Some</span>(<span class="ident">sub_matches</span>)) =&gt; {
-            <span class="kw">let</span> <span class="ident">ports</span> = <span class="ident">sub_matches</span>
-                .<span class="ident">values_of</span>(<span class="string">&quot;ports&quot;</span>)
-                .<span class="ident">expect</span>(<span class="string">&quot;Invalid ports specified&quot;</span>);
-            <span class="comment">// TODO : check this arg is correctly formatted (number &lt; 65536)</span>
-            <span class="kw">for</span> <span class="ident">port</span> <span class="kw">in</span> <span class="ident">ports</span> {
-                <span class="ident">dsts</span>.<span class="ident">push</span>(<span class="macro">format!</span>(<span class="string">&quot;http://127.0.0.1:{port}&quot;</span>))
+        (<span class="string">&quot;run&quot;</span>, <span class="prelude-val">Some</span>(sub_matches)) =&gt; {
+            <span class="kw">let </span>ports = sub_matches
+                .values_of(<span class="string">&quot;ports&quot;</span>)
+                .expect(<span class="string">&quot;Invalid ports specified&quot;</span>);
+            <span class="comment">// TODO : check this arg is correctly formatted (number &lt; 65536)
+            </span><span class="kw">for </span>port <span class="kw">in </span>ports {
+                dsts.push(<span class="macro">format!</span>(<span class="string">&quot;http://127.0.0.1:{port}&quot;</span>))
             }
-            <span class="kw">let</span> <span class="ident">keys</span> = <span class="ident">sub_matches</span>
-                .<span class="ident">values_of</span>(<span class="string">&quot;keys&quot;</span>)
-                .<span class="ident">expect</span>(<span class="string">&quot;Invalid public keys specified&quot;</span>);
-            <span class="comment">// TODO : check this arg is correctly formatted (pk in base64)</span>
-            <span class="kw">for</span> <span class="ident">key</span> <span class="kw">in</span> <span class="ident">keys</span> {
-                <span class="ident">base64_keys</span>.<span class="ident">push</span>(<span class="ident">key</span>.<span class="ident">to_owned</span>())
+            <span class="kw">let </span>keys = sub_matches
+                .values_of(<span class="string">&quot;keys&quot;</span>)
+                .expect(<span class="string">&quot;Invalid public keys specified&quot;</span>);
+            <span class="comment">// TODO : check this arg is correctly formatted (pk in base64)
+            </span><span class="kw">for </span>key <span class="kw">in </span>keys {
+                base64_keys.push(key.to_owned())
             }
         }
-        <span class="kw">_</span> =&gt; <span class="macro">unreachable!</span>(),
+        <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
     }
 
     <span class="macro">println!</span>(
-        <span class="string">&quot;******************************** Proposer Service ********************************\n&quot;</span>
-    );
-    <span class="macro">println!</span>(<span class="string">&quot;\nConnecting to {} as the proposer.&quot;</span>, <span class="ident">dsts</span>[<span class="number">0</span>]);
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">proposer_client_1</span> = <span class="ident">ProposerClient::connect</span>(<span class="ident">dsts</span>[<span class="number">0</span>].<span class="ident">clone</span>()).<span class="kw">await</span><span class="question-mark">?</span>;
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">validator_client_1</span> = <span class="ident">ValidatorClient::connect</span>(<span class="ident">dsts</span>[<span class="number">0</span>].<span class="ident">clone</span>()).<span class="kw">await</span><span class="question-mark">?</span>;
-    <span class="kw">let</span> <span class="ident">public_key</span> = <span class="ident">base64::decode</span>(<span class="kw-2">&amp;</span><span class="ident">base64_keys</span>[<span class="number">0</span>]).<span class="ident">unwrap</span>();
+        <span class="string">&quot;******************************** Proposer Service ********************************\n&quot;
+    </span>);
+    <span class="macro">println!</span>(<span class="string">&quot;\nConnecting to {} as the proposer.&quot;</span>, dsts[<span class="number">0</span>]);
+    <span class="kw">let </span><span class="kw-2">mut </span>proposer_client_1 = ProposerClient::connect(dsts[<span class="number">0</span>].clone()).<span class="kw">await</span><span class="question-mark">?</span>;
+    <span class="kw">let </span><span class="kw-2">mut </span>validator_client_1 = ValidatorClient::connect(dsts[<span class="number">0</span>].clone()).<span class="kw">await</span><span class="question-mark">?</span>;
+    <span class="kw">let </span>public_key = base64::decode(<span class="kw-2">&amp;</span>base64_keys[<span class="number">0</span>]).unwrap();
 
     <span class="macro">println!</span>(<span class="string">&quot;\n1) Retrieve the range of rounds you have a collection for&quot;</span>);
     <span class="macro">println!</span>(<span class="string">&quot;\n\t---- Use Rounds endpoint ----\n&quot;</span>);
 
-    <span class="kw">let</span> <span class="ident">rounds_request</span> = <span class="ident">RoundsRequest</span> {
-        <span class="ident">public_key</span>: <span class="prelude-val">Some</span>(<span class="ident">PublicKey</span> {
-            <span class="ident">bytes</span>: <span class="ident">public_key</span>.<span class="ident">clone</span>(),
+    <span class="kw">let </span>rounds_request = RoundsRequest {
+        public_key: <span class="prelude-val">Some</span>(PublicKey {
+            bytes: public_key.clone(),
         }),
     };
 
-    <span class="macro">println!</span>(<span class="string">&quot;\t{}\n&quot;</span>, <span class="ident">rounds_request</span>);
+    <span class="macro">println!</span>(<span class="string">&quot;\t{}\n&quot;</span>, rounds_request);
 
-    <span class="kw">let</span> <span class="ident">request</span> = <span class="ident">tonic::Request::new</span>(<span class="ident">rounds_request</span>);
-    <span class="kw">let</span> <span class="ident">response</span> = <span class="ident">proposer_client_1</span>.<span class="ident">rounds</span>(<span class="ident">request</span>).<span class="kw">await</span>;
-    <span class="kw">let</span> <span class="ident">rounds_response</span> = <span class="ident">response</span>.<span class="ident">unwrap</span>().<span class="ident">into_inner</span>();
+    <span class="kw">let </span>request = tonic::Request::new(rounds_request);
+    <span class="kw">let </span>response = proposer_client_1.rounds(request).<span class="kw">await</span>;
+    <span class="kw">let </span>rounds_response = response.unwrap().into_inner();
 
-    <span class="macro">println!</span>(<span class="string">&quot;\t{}\n&quot;</span>, <span class="ident">rounds_response</span>);
+    <span class="macro">println!</span>(<span class="string">&quot;\t{}\n&quot;</span>, rounds_response);
 
-    <span class="kw">let</span> <span class="ident">oldest_round</span> = <span class="ident">rounds_response</span>.<span class="ident">oldest_round</span>;
-    <span class="kw">let</span> <span class="ident">newest_round</span> = <span class="ident">rounds_response</span>.<span class="ident">newest_round</span>;
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">round</span> = <span class="ident">oldest_round</span> + <span class="number">1</span>;
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">last_completed_round</span> = <span class="ident">round</span>;
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">proposed_block_gas_cost</span>: <span class="ident">i32</span> = <span class="number">0</span>;
+    <span class="kw">let </span>oldest_round = rounds_response.oldest_round;
+    <span class="kw">let </span>newest_round = rounds_response.newest_round;
+    <span class="kw">let </span><span class="kw-2">mut </span>round = oldest_round + <span class="number">1</span>;
+    <span class="kw">let </span><span class="kw-2">mut </span>last_completed_round = round;
+    <span class="kw">let </span><span class="kw-2">mut </span>proposed_block_gas_cost: i32 = <span class="number">0</span>;
 
     <span class="macro">println!</span>(<span class="string">&quot;\n2) Find collections from earliest round and continue to add collections until gas limit is hit\n&quot;</span>);
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">block_proposal_collection_ids</span> = <span class="ident">Vec::new</span>();
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">extra_collections</span> = <span class="ident">Vec::new</span>();
-    <span class="kw">while</span> <span class="ident">round</span> &lt;= <span class="ident">newest_round</span> {
-        <span class="kw">let</span> <span class="ident">node_read_causal_request</span> = <span class="ident">NodeReadCausalRequest</span> {
-            <span class="ident">public_key</span>: <span class="prelude-val">Some</span>(<span class="ident">PublicKey</span> {
-                <span class="ident">bytes</span>: <span class="ident">public_key</span>.<span class="ident">clone</span>(),
+    <span class="kw">let </span><span class="kw-2">mut </span>block_proposal_collection_ids = Vec::new();
+    <span class="kw">let </span><span class="kw-2">mut </span>extra_collections = Vec::new();
+    <span class="kw">while </span>round &lt;= newest_round {
+        <span class="kw">let </span>node_read_causal_request = NodeReadCausalRequest {
+            public_key: <span class="prelude-val">Some</span>(PublicKey {
+                bytes: public_key.clone(),
             }),
-            <span class="ident">round</span>,
+            round,
         };
 
         <span class="macro">println!</span>(<span class="string">&quot;\t-------------------------------------&quot;</span>);
-        <span class="macro">println!</span>(<span class="string">&quot;\t| 2a) Find collections for round = {}&quot;</span>, <span class="ident">round</span>);
+        <span class="macro">println!</span>(<span class="string">&quot;\t| 2a) Find collections for round = {}&quot;</span>, round);
         <span class="macro">println!</span>(<span class="string">&quot;\t-------------------------------------&quot;</span>);
 
-        <span class="macro">println!</span>(<span class="string">&quot;\t{}\n&quot;</span>, <span class="ident">node_read_causal_request</span>);
+        <span class="macro">println!</span>(<span class="string">&quot;\t{}\n&quot;</span>, node_read_causal_request);
 
-        <span class="kw">let</span> <span class="ident">request</span> = <span class="ident">tonic::Request::new</span>(<span class="ident">node_read_causal_request</span>);
-        <span class="kw">let</span> <span class="ident">response</span> = <span class="ident">proposer_client_1</span>.<span class="ident">node_read_causal</span>(<span class="ident">request</span>).<span class="kw">await</span>;
+        <span class="kw">let </span>request = tonic::Request::new(node_read_causal_request);
+        <span class="kw">let </span>response = proposer_client_1.node_read_causal(request).<span class="kw">await</span>;
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">node_read_causal_response</span>) = <span class="ident">println_and_into_inner</span>(<span class="ident">response</span>) {
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">duplicate_collection_count</span> = <span class="number">0</span>;
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">new_collections</span> = <span class="ident">Vec::new</span>();
-            <span class="kw">let</span> <span class="ident">count_of_retrieved_collections</span> = <span class="ident">node_read_causal_response</span>.<span class="ident">collection_ids</span>.<span class="ident">len</span>();
-            <span class="kw">for</span> <span class="ident">collection_id</span> <span class="kw">in</span> <span class="ident">node_read_causal_response</span>.<span class="ident">collection_ids</span> {
-                <span class="kw">if</span> <span class="ident">block_proposal_collection_ids</span>.<span class="ident">contains</span>(<span class="kw-2">&amp;</span><span class="ident">collection_id</span>) {
-                    <span class="ident">duplicate_collection_count</span> += <span class="number">1</span>;
-                } <span class="kw">else</span> {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(node_read_causal_response) = println_and_into_inner(response) {
+            <span class="kw">let </span><span class="kw-2">mut </span>duplicate_collection_count = <span class="number">0</span>;
+            <span class="kw">let </span><span class="kw-2">mut </span>new_collections = Vec::new();
+            <span class="kw">let </span>count_of_retrieved_collections = node_read_causal_response.collection_ids.len();
+            <span class="kw">for </span>collection_id <span class="kw">in </span>node_read_causal_response.collection_ids {
+                <span class="kw">if </span>block_proposal_collection_ids.contains(<span class="kw-2">&amp;</span>collection_id) {
+                    duplicate_collection_count += <span class="number">1</span>;
+                } <span class="kw">else </span>{
                     <span class="macro">println!</span>(
-                        <span class="string">&quot;\n\t\t2b) Get collection [{}] payloads to calculate gas cost of proposed block.\n&quot;</span>, <span class="ident">collection_id</span>
+                        <span class="string">&quot;\n\t\t2b) Get collection [{}] payloads to calculate gas cost of proposed block.\n&quot;</span>, collection_id
                     );
 
-                    <span class="kw">let</span> <span class="ident">get_collections_request</span> = <span class="ident">GetCollectionsRequest</span> {
-                        <span class="ident">collection_ids</span>: <span class="macro">vec!</span>[<span class="ident">collection_id</span>.<span class="ident">clone</span>()],
+                    <span class="kw">let </span>get_collections_request = GetCollectionsRequest {
+                        collection_ids: <span class="macro">vec!</span>[collection_id.clone()],
                     };
 
-                    <span class="macro">println!</span>(<span class="string">&quot;\t\t{}\n&quot;</span>, <span class="ident">get_collections_request</span>);
+                    <span class="macro">println!</span>(<span class="string">&quot;\t\t{}\n&quot;</span>, get_collections_request);
 
-                    <span class="kw">let</span> <span class="ident">request</span> = <span class="ident">tonic::Request::new</span>(<span class="ident">get_collections_request</span>);
-                    <span class="kw">let</span> <span class="ident">response</span> = <span class="ident">validator_client_1</span>.<span class="ident">get_collections</span>(<span class="ident">request</span>).<span class="kw">await</span>;
-                    <span class="kw">let</span> <span class="ident">get_collection_response</span> = <span class="ident">response</span>.<span class="ident">unwrap</span>().<span class="ident">into_inner</span>();
+                    <span class="kw">let </span>request = tonic::Request::new(get_collections_request);
+                    <span class="kw">let </span>response = validator_client_1.get_collections(request).<span class="kw">await</span>;
+                    <span class="kw">let </span>get_collection_response = response.unwrap().into_inner();
 
-                    <span class="kw">let</span> (<span class="ident">total_num_of_transactions</span>, <span class="ident">total_transactions_size</span>) =
-                        <span class="ident">get_total_transaction_count_and_size</span>(
-                            <span class="ident">get_collection_response</span>.<span class="ident">result</span>.<span class="ident">clone</span>(),
+                    <span class="kw">let </span>(total_num_of_transactions, total_transactions_size) =
+                        get_total_transaction_count_and_size(
+                            get_collection_response.result.clone(),
                         );
 
-                    <span class="comment">// TODO: This doesn&#39;t work in Docker yet, figure out why</span>
-                    <span class="macro">println!</span>(<span class="string">&quot;\t\tFound {total_num_of_transactions} transactions with a total size of {total_transactions_size} bytes&quot;</span>);
+                    <span class="comment">// TODO: This doesn&#39;t work in Docker yet, figure out why
+                    </span><span class="macro">println!</span>(<span class="string">&quot;\t\tFound {total_num_of_transactions} transactions with a total size of {total_transactions_size} bytes&quot;</span>);
 
-                    <span class="ident">proposed_block_gas_cost</span> += <span class="ident">total_num_of_transactions</span>;
-                    <span class="kw">if</span> <span class="ident">proposed_block_gas_cost</span> &lt;= <span class="ident">BLOCK_GAS_LIMIT</span> {
+                    proposed_block_gas_cost += total_num_of_transactions;
+                    <span class="kw">if </span>proposed_block_gas_cost &lt;= BLOCK_GAS_LIMIT {
                         <span class="macro">println!</span>(<span class="string">&quot;\t\tAdding {total_num_of_transactions} transactions to the proposed block, increasing the block gas cost to {proposed_block_gas_cost}&quot;</span>);
-                        <span class="ident">new_collections</span>.<span class="ident">push</span>(<span class="ident">collection_id</span>);
-                    } <span class="kw">else</span> {
+                        new_collections.push(collection_id);
+                    } <span class="kw">else </span>{
                         <span class="macro">println!</span>(<span class="string">&quot;\t\t*Not adding {total_num_of_transactions} transactions to the proposed block as it would increase the block gas cost to {proposed_block_gas_cost} which is greater than block gas limit of {BLOCK_GAS_LIMIT}&quot;</span>);
                         <span class="kw">break</span>;
                     }
                 }
             }
-            <span class="kw">if</span> <span class="ident">new_collections</span>.<span class="ident">len</span>() + <span class="ident">duplicate_collection_count</span> != <span class="ident">count_of_retrieved_collections</span>
+            <span class="kw">if </span>new_collections.len() + duplicate_collection_count != count_of_retrieved_collections
             {
                 <span class="macro">println!</span>(
                     <span class="string">&quot;\t\tWe added {} extra collections to the block proposal from round {round}&quot;</span>,
-                    <span class="ident">new_collections</span>.<span class="ident">len</span>()
+                    new_collections.len()
                 );
-                <span class="ident">extra_collections</span>.<span class="ident">extend</span>(<span class="ident">new_collections</span>.<span class="ident">clone</span>());
-                <span class="ident">last_completed_round</span> = <span class="ident">round</span> - <span class="number">1</span>;
+                extra_collections.extend(new_collections.clone());
+                last_completed_round = round - <span class="number">1</span>;
             }
 
-            <span class="ident">block_proposal_collection_ids</span>.<span class="ident">extend</span>(<span class="ident">new_collections</span>);
+            block_proposal_collection_ids.extend(new_collections);
 
-            <span class="macro">println!</span>(<span class="string">&quot;\t\tDeduped {:?} collections\n&quot;</span>, <span class="ident">duplicate_collection_count</span>);
-        } <span class="kw">else</span> {
+            <span class="macro">println!</span>(<span class="string">&quot;\t\tDeduped {:?} collections\n&quot;</span>, duplicate_collection_count);
+        } <span class="kw">else </span>{
             <span class="macro">println!</span>(<span class="string">&quot;\tError trying to node read causal at round {round}\n&quot;</span>)
         }
-        <span class="kw">if</span> <span class="ident">proposed_block_gas_cost</span> &gt;= <span class="ident">BLOCK_GAS_LIMIT</span> {
+        <span class="kw">if </span>proposed_block_gas_cost &gt;= BLOCK_GAS_LIMIT {
             <span class="macro">println!</span>(<span class="string">&quot;\t\t***********************************************************************&quot;</span>);
             <span class="macro">println!</span>(
                 <span class="string">&quot;\t\t* Will not continue on more rounds as gas limit {} has been reached&quot;</span>,
-                <span class="ident">BLOCK_GAS_LIMIT</span>
+                BLOCK_GAS_LIMIT
             );
             <span class="macro">println!</span>(<span class="string">&quot;\t\t***********************************************************************&quot;</span>);
             <span class="kw">break</span>;
-        } <span class="kw">else</span> {
-            <span class="ident">round</span> += <span class="number">1</span>;
+        } <span class="kw">else </span>{
+            round += <span class="number">1</span>;
         }
     }
 
-    <span class="kw">if</span> <span class="ident">round</span> &gt; <span class="ident">newest_round</span> {
-        <span class="ident">last_completed_round</span> = <span class="ident">newest_round</span>;
+    <span class="kw">if </span>round &gt; newest_round {
+        last_completed_round = newest_round;
     }
 
     <span class="macro">println!</span>(
-        <span class="string">&quot;\n2c) Find the first collection returned from node read causal for fully completed round {last_completed_round} before gas limit was reached.\n&quot;</span>
-    );
+        <span class="string">&quot;\n2c) Find the first collection returned from node read causal for fully completed round {last_completed_round} before gas limit was reached.\n&quot;
+    </span>);
     <span class="macro">println!</span>(<span class="string">&quot;---- Use NodeReadCausal endpoint ----\n&quot;</span>);
 
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">block_proposal_starting_collection</span>: <span class="prelude-ty">Option</span>&lt;<span class="ident">CertificateDigest</span>&gt; = <span class="prelude-val">None</span>;
+    <span class="kw">let </span><span class="kw-2">mut </span>block_proposal_starting_collection: <span class="prelude-ty">Option</span>&lt;CertificateDigest&gt; = <span class="prelude-val">None</span>;
 
-    <span class="kw">while</span> <span class="ident">block_proposal_starting_collection</span>.<span class="ident">is_none</span>() {
-        <span class="kw">let</span> <span class="ident">node_read_causal_request</span> = <span class="ident">NodeReadCausalRequest</span> {
-            <span class="ident">public_key</span>: <span class="prelude-val">Some</span>(<span class="ident">PublicKey</span> {
-                <span class="ident">bytes</span>: <span class="ident">public_key</span>.<span class="ident">clone</span>(),
+    <span class="kw">while </span>block_proposal_starting_collection.is_none() {
+        <span class="kw">let </span>node_read_causal_request = NodeReadCausalRequest {
+            public_key: <span class="prelude-val">Some</span>(PublicKey {
+                bytes: public_key.clone(),
             }),
-            <span class="ident">round</span>: <span class="ident">last_completed_round</span>,
+            round: last_completed_round,
         };
 
-        <span class="macro">println!</span>(<span class="string">&quot;\t{}\n&quot;</span>, <span class="ident">node_read_causal_request</span>);
+        <span class="macro">println!</span>(<span class="string">&quot;\t{}\n&quot;</span>, node_read_causal_request);
 
-        <span class="kw">let</span> <span class="ident">request</span> = <span class="ident">tonic::Request::new</span>(<span class="ident">node_read_causal_request</span>);
-        <span class="kw">let</span> <span class="ident">response</span> = <span class="ident">proposer_client_1</span>.<span class="ident">node_read_causal</span>(<span class="ident">request</span>).<span class="kw">await</span>;
+        <span class="kw">let </span>request = tonic::Request::new(node_read_causal_request);
+        <span class="kw">let </span>response = proposer_client_1.node_read_causal(request).<span class="kw">await</span>;
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">node_read_causal_response</span>) = <span class="ident">println_and_into_inner</span>(<span class="ident">response</span>) {
-            <span class="ident">block_proposal_starting_collection</span> =
-                <span class="prelude-val">Some</span>(<span class="ident">node_read_causal_response</span>.<span class="ident">collection_ids</span>[<span class="number">0</span>].<span class="ident">clone</span>());
-            <span class="comment">// NodeReadCausal here will return the expected order of collections for validation versus the deduping we did in our search above.</span>
-            <span class="ident">block_proposal_collection_ids</span> = <span class="ident">node_read_causal_response</span>.<span class="ident">collection_ids</span>.<span class="ident">clone</span>();
-            <span class="ident">block_proposal_collection_ids</span>.<span class="ident">extend</span>(<span class="ident">extra_collections</span>.<span class="ident">clone</span>());
-        } <span class="kw">else</span> {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(node_read_causal_response) = println_and_into_inner(response) {
+            block_proposal_starting_collection =
+                <span class="prelude-val">Some</span>(node_read_causal_response.collection_ids[<span class="number">0</span>].clone());
+            <span class="comment">// NodeReadCausal here will return the expected order of collections for validation versus the deduping we did in our search above.
+            </span>block_proposal_collection_ids = node_read_causal_response.collection_ids.clone();
+            block_proposal_collection_ids.extend(extra_collections.clone());
+        } <span class="kw">else </span>{
             <span class="macro">println!</span>(<span class="string">&quot;\tError trying to node read causal at round {last_completed_round} going back another round and retrying...\n&quot;</span>);
-            <span class="ident">last_completed_round</span> -= <span class="number">1</span>;
+            last_completed_round -= <span class="number">1</span>;
         }
     }
 
-    <span class="kw">let</span> <span class="ident">block_proposal_starting_collection</span> = <span class="ident">block_proposal_starting_collection</span>.<span class="ident">unwrap</span>();
+    <span class="kw">let </span>block_proposal_starting_collection = block_proposal_starting_collection.unwrap();
 
     <span class="macro">println!</span>(
         <span class="string">&quot;\n\tProposing a block with {} collections starting from collection {block_proposal_starting_collection}!\n&quot;</span>,
-        <span class="ident">block_proposal_collection_ids</span>.<span class="ident">len</span>()
+        block_proposal_collection_ids.len()
     );
 
     <span class="macro">println!</span>(
-        <span class="string">&quot;\tBroadcasting block proposal with starting certificate `H` {block_proposal_starting_collection} from round {last_completed_round} in DAG + {} extra collections that fit in the block proposal.&quot;</span>, <span class="ident">extra_collections</span>.<span class="ident">len</span>()
+        <span class="string">&quot;\tBroadcasting block proposal with starting certificate `H` {block_proposal_starting_collection} from round {last_completed_round} in DAG + {} extra collections that fit in the block proposal.&quot;</span>, extra_collections.len()
     );
-    <span class="macro">println!</span>(<span class="string">&quot;\tValidators should call ReadCausal(H) which will return [collections] and call GetCollections([collections] + [{} extra_collections]) &quot;</span>, <span class="ident">extra_collections</span>.<span class="ident">len</span>());
+    <span class="macro">println!</span>(<span class="string">&quot;\tValidators should call ReadCausal(H) which will return [collections] and call GetCollections([collections] + [{} extra_collections]) &quot;</span>, extra_collections.len());
 
     <span class="macro">println!</span>(
-        <span class="string">&quot;\n******************************** Validator Service ********************************\n&quot;</span>
-    );
-    <span class="kw">let</span> <span class="ident">other_validator</span> = <span class="kw">if</span> <span class="ident">dsts</span>.<span class="ident">len</span>() &gt; <span class="number">1</span> {
-        <span class="ident">dsts</span>[<span class="number">1</span>].<span class="ident">clone</span>()
-    } <span class="kw">else</span> {
-        <span class="comment">// we&#39;re probably running the docker command with a single endpoint</span>
-        <span class="ident">dsts</span>[<span class="number">0</span>].<span class="ident">clone</span>()
+        <span class="string">&quot;\n******************************** Validator Service ********************************\n&quot;
+    </span>);
+    <span class="kw">let </span>other_validator = <span class="kw">if </span>dsts.len() &gt; <span class="number">1 </span>{
+        dsts[<span class="number">1</span>].clone()
+    } <span class="kw">else </span>{
+        <span class="comment">// we&#39;re probably running the docker command with a single endpoint
+        </span>dsts[<span class="number">0</span>].clone()
     };
     <span class="macro">println!</span>(<span class="string">&quot;\nConnecting to {other_validator} as the validator&quot;</span>);
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">validator_client_2</span> = <span class="ident">ValidatorClient::connect</span>(<span class="ident">other_validator</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+    <span class="kw">let </span><span class="kw-2">mut </span>validator_client_2 = ValidatorClient::connect(other_validator).<span class="kw">await</span><span class="question-mark">?</span>;
 
     <span class="macro">println!</span>(
         <span class="string">&quot;\n3) Find all causal collections from the starting collection {block_proposal_starting_collection} in block proposal.\n&quot;</span>,
     );
     <span class="macro">println!</span>(<span class="string">&quot;\n\t---- Use ReadCausal endpoint ----\n&quot;</span>);
 
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">block_validation_collection_ids</span> = <span class="ident">Vec::new</span>();
-    <span class="kw">let</span> <span class="ident">read_causal_request</span> = <span class="ident">ReadCausalRequest</span> {
-        <span class="ident">collection_id</span>: <span class="prelude-val">Some</span>(<span class="ident">block_proposal_starting_collection</span>),
+    <span class="kw">let </span><span class="kw-2">mut </span>block_validation_collection_ids = Vec::new();
+    <span class="kw">let </span>read_causal_request = ReadCausalRequest {
+        collection_id: <span class="prelude-val">Some</span>(block_proposal_starting_collection),
     };
 
-    <span class="macro">println!</span>(<span class="string">&quot;\t{}\n&quot;</span>, <span class="ident">read_causal_request</span>);
+    <span class="macro">println!</span>(<span class="string">&quot;\t{}\n&quot;</span>, read_causal_request);
 
-    <span class="kw">let</span> <span class="ident">request</span> = <span class="ident">tonic::Request::new</span>(<span class="ident">read_causal_request</span>);
-    <span class="kw">let</span> <span class="ident">response</span> = <span class="ident">validator_client_2</span>.<span class="ident">read_causal</span>(<span class="ident">request</span>).<span class="kw">await</span>;
-    <span class="kw">let</span> <span class="ident">read_causal_response</span> = <span class="ident">response</span>.<span class="ident">unwrap</span>().<span class="ident">into_inner</span>();
+    <span class="kw">let </span>request = tonic::Request::new(read_causal_request);
+    <span class="kw">let </span>response = validator_client_2.read_causal(request).<span class="kw">await</span>;
+    <span class="kw">let </span>read_causal_response = response.unwrap().into_inner();
 
-    <span class="macro">println!</span>(<span class="string">&quot;\t{}\n&quot;</span>, <span class="ident">read_causal_response</span>);
+    <span class="macro">println!</span>(<span class="string">&quot;\t{}\n&quot;</span>, read_causal_response);
 
-    <span class="ident">block_validation_collection_ids</span>.<span class="ident">extend</span>(<span class="ident">read_causal_response</span>.<span class="ident">collection_ids</span>);
+    block_validation_collection_ids.extend(read_causal_response.collection_ids);
 
-    <span class="macro">println!</span>(<span class="string">&quot;\tFound {} collections from read causal which will be combined with the {} extra collections from the block proposal\n&quot;</span>, <span class="ident">block_validation_collection_ids</span>.<span class="ident">len</span>(), <span class="ident">extra_collections</span>.<span class="ident">len</span>());
+    <span class="macro">println!</span>(<span class="string">&quot;\tFound {} collections from read causal which will be combined with the {} extra collections from the block proposal\n&quot;</span>, block_validation_collection_ids.len(), extra_collections.len());
 
-    <span class="ident">block_validation_collection_ids</span>.<span class="ident">extend</span>(<span class="ident">extra_collections</span>);
+    block_validation_collection_ids.extend(extra_collections);
 
     <span class="macro">println!</span>(<span class="string">&quot;\tProposed block included the following collections before compressing proposal:\n&quot;</span>);
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> = <span class="string">&quot;\t\t*** Block Proposal Collections ***&quot;</span>.<span class="ident">to_string</span>();
-    <span class="kw">for</span> <span class="ident">id</span> <span class="kw">in</span> <span class="ident">block_proposal_collection_ids</span>.<span class="ident">clone</span>() {
-        <span class="ident">result</span> = <span class="macro">format!</span>(<span class="string">&quot;{}\n\t\t|-id=\&quot;{}\&quot;&quot;</span>, <span class="ident">result</span>, <span class="ident">id</span>);
+    <span class="kw">let </span><span class="kw-2">mut </span>result = <span class="string">&quot;\t\t*** Block Proposal Collections ***&quot;</span>.to_string();
+    <span class="kw">for </span>id <span class="kw">in </span>block_proposal_collection_ids.clone() {
+        result = <span class="macro">format!</span>(<span class="string">&quot;{}\n\t\t|-id=\&quot;{}\&quot;&quot;</span>, result, id);
     }
-    <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">result</span>);
+    <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, result);
 
     <span class="macro">println!</span>(
-        <span class="string">&quot;\n\tBlock validation found the following collections after decompressing proposal:\n&quot;</span>
-    );
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> = <span class="string">&quot;\t\t*** Block Validation Collections ***&quot;</span>.<span class="ident">to_string</span>();
-    <span class="kw">for</span> <span class="ident">id</span> <span class="kw">in</span> <span class="ident">block_validation_collection_ids</span>.<span class="ident">clone</span>() {
-        <span class="ident">result</span> = <span class="macro">format!</span>(<span class="string">&quot;{}\n\t\t|-id=\&quot;{}\&quot;&quot;</span>, <span class="ident">result</span>, <span class="ident">id</span>);
+        <span class="string">&quot;\n\tBlock validation found the following collections after decompressing proposal:\n&quot;
+    </span>);
+    <span class="kw">let </span><span class="kw-2">mut </span>result = <span class="string">&quot;\t\t*** Block Validation Collections ***&quot;</span>.to_string();
+    <span class="kw">for </span>id <span class="kw">in </span>block_validation_collection_ids.clone() {
+        result = <span class="macro">format!</span>(<span class="string">&quot;{}\n\t\t|-id=\&quot;{}\&quot;&quot;</span>, result, id);
     }
-    <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">result</span>);
+    <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, result);
 
-    <span class="comment">// We&#39;re comparing `block_validation_collection_ids` which is a validator determined artifact,</span>
-    <span class="comment">// and `block_proposal_collection_ids` which is a proposer artifact. In production, the</span>
-    <span class="comment">// consensus would not have access to that second artifact at any node but the proposer,</span>
-    <span class="comment">// we are only show this here for didactic purposes.</span>
-    <span class="kw">if</span> <span class="ident">block_proposal_collection_ids</span> == <span class="ident">block_validation_collection_ids</span> {
+    <span class="comment">// We&#39;re comparing `block_validation_collection_ids` which is a validator determined artifact,
+    // and `block_proposal_collection_ids` which is a proposer artifact. In production, the
+    // consensus would not have access to that second artifact at any node but the proposer,
+    // we are only show this here for didactic purposes.
+    </span><span class="kw">if </span>block_proposal_collection_ids == block_validation_collection_ids {
         <span class="macro">println!</span>(<span class="string">&quot;\n\tThey match in value and order! Moving on to find the transactions...\n&quot;</span>);
-    } <span class="kw">else</span> {
+    } <span class="kw">else </span>{
         <span class="macro">println!</span>(<span class="string">&quot;\n\tThey dont match! Aborting...\n&quot;</span>);
-        <span class="kw">return</span> <span class="prelude-val">Ok</span>(());
+        <span class="kw">return </span><span class="prelude-val">Ok</span>(());
     }
 
     <span class="macro">println!</span>(
         <span class="string">&quot;\n4) Obtain the data payload for {} collections in block proposal.\n&quot;</span>,
-        <span class="ident">block_validation_collection_ids</span>.<span class="ident">len</span>()
+        block_validation_collection_ids.len()
     );
 
     <span class="macro">println!</span>(<span class="string">&quot;\n\t---- Use GetCollections endpoint ----\n&quot;</span>);
 
-    <span class="kw">let</span> <span class="ident">get_collections_request</span> = <span class="ident">GetCollectionsRequest</span> {
-        <span class="ident">collection_ids</span>: <span class="ident">block_validation_collection_ids</span>.<span class="ident">clone</span>(),
+    <span class="kw">let </span>get_collections_request = GetCollectionsRequest {
+        collection_ids: block_validation_collection_ids.clone(),
     };
 
-    <span class="macro">println!</span>(<span class="string">&quot;\t{}\n&quot;</span>, <span class="ident">get_collections_request</span>);
+    <span class="macro">println!</span>(<span class="string">&quot;\t{}\n&quot;</span>, get_collections_request);
 
-    <span class="kw">let</span> <span class="ident">request</span> = <span class="ident">tonic::Request::new</span>(<span class="ident">get_collections_request</span>);
-    <span class="kw">let</span> <span class="ident">response</span> = <span class="ident">validator_client_2</span>.<span class="ident">get_collections</span>(<span class="ident">request</span>).<span class="kw">await</span>;
-    <span class="kw">let</span> <span class="ident">get_collection_response</span> = <span class="ident">response</span>.<span class="ident">unwrap</span>().<span class="ident">into_inner</span>();
+    <span class="kw">let </span>request = tonic::Request::new(get_collections_request);
+    <span class="kw">let </span>response = validator_client_2.get_collections(request).<span class="kw">await</span>;
+    <span class="kw">let </span>get_collection_response = response.unwrap().into_inner();
 
-    <span class="macro">println!</span>(<span class="string">&quot;\t{}\n&quot;</span>, <span class="ident">get_collection_response</span>);
+    <span class="macro">println!</span>(<span class="string">&quot;\t{}\n&quot;</span>, get_collection_response);
 
-    <span class="kw">let</span> (<span class="ident">total_num_of_transactions</span>, <span class="ident">total_transactions_size</span>) =
-        <span class="ident">get_total_transaction_count_and_size</span>(<span class="ident">get_collection_response</span>.<span class="ident">result</span>.<span class="ident">clone</span>());
+    <span class="kw">let </span>(total_num_of_transactions, total_transactions_size) =
+        get_total_transaction_count_and_size(get_collection_response.result.clone());
 
-    <span class="comment">// TODO: This doesn&#39;t work in Docker yet, figure out why</span>
-    <span class="macro">println!</span>(<span class="string">&quot;\tFound {total_num_of_transactions} transactions with a total size of {total_transactions_size} bytes\n&quot;</span>);
+    <span class="comment">// TODO: This doesn&#39;t work in Docker yet, figure out why
+    </span><span class="macro">println!</span>(<span class="string">&quot;\tFound {total_num_of_transactions} transactions with a total size of {total_transactions_size} bytes\n&quot;</span>);
 
     <span class="macro">println!</span>(<span class="string">&quot;\tWaiting for validators to decide whether to vote for the block...\n&quot;</span>);
     <span class="macro">println!</span>(<span class="string">&quot;\tVote completed successfully, block can be removed!\n&quot;</span>);
@@ -891,208 +891,208 @@
     <span class="macro">println!</span>(<span class="string">&quot;\n4) Remove collections that have been voted on and committed.\n&quot;</span>);
     <span class="macro">println!</span>(<span class="string">&quot;\n\t---- Test RemoveCollections endpoint ----\n&quot;</span>);
 
-    <span class="kw">let</span> <span class="ident">remove_collections_request</span> = <span class="ident">RemoveCollectionsRequest</span> {
-        <span class="ident">collection_ids</span>: <span class="ident">block_validation_collection_ids</span>.<span class="ident">clone</span>(),
+    <span class="kw">let </span>remove_collections_request = RemoveCollectionsRequest {
+        collection_ids: block_validation_collection_ids.clone(),
     };
 
-    <span class="macro">println!</span>(<span class="string">&quot;\t{}\n&quot;</span>, <span class="ident">remove_collections_request</span>);
+    <span class="macro">println!</span>(<span class="string">&quot;\t{}\n&quot;</span>, remove_collections_request);
 
-    <span class="kw">let</span> <span class="ident">request</span> = <span class="ident">tonic::Request::new</span>(<span class="ident">remove_collections_request</span>);
-    <span class="kw">let</span> <span class="ident">response</span> = <span class="ident">validator_client_2</span>.<span class="ident">remove_collections</span>(<span class="ident">request</span>).<span class="kw">await</span>;
-    <span class="kw">if</span> <span class="ident">response</span>.<span class="ident">is_ok</span>() {
+    <span class="kw">let </span>request = tonic::Request::new(remove_collections_request);
+    <span class="kw">let </span>response = validator_client_2.remove_collections(request).<span class="kw">await</span>;
+    <span class="kw">if </span>response.is_ok() {
         <span class="macro">println!</span>(<span class="string">&quot;\tSuccessfully removed committed collections\n&quot;</span>);
-    } <span class="kw">else</span> {
+    } <span class="kw">else </span>{
         <span class="macro">println!</span>(<span class="string">&quot;\tWas not able to remove committed collections\n&quot;</span>);
     }
 
     <span class="prelude-val">Ok</span>(())
 }
 
-<span class="kw">fn</span> <span class="ident">get_total_transaction_count_and_size</span>(<span class="ident">result</span>: <span class="ident">Vec</span>&lt;<span class="ident">CollectionRetrievalResult</span>&gt;) -&gt; (<span class="ident">i32</span>, <span class="ident">usize</span>) {
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">total_num_of_transactions</span> = <span class="number">0</span>;
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">total_transactions_size</span> = <span class="number">0</span>;
-    <span class="kw">for</span> <span class="ident">r</span> <span class="kw">in</span> <span class="ident">result</span> {
-        <span class="kw">match</span> <span class="ident">r</span>.<span class="ident">retrieval_result</span>.<span class="ident">unwrap</span>() {
-            <span class="ident">RetrievalResult::Collection</span>(<span class="ident">collection</span>) =&gt; {
-                <span class="kw">for</span> <span class="ident">t</span> <span class="kw">in</span> <span class="ident">collection</span>.<span class="ident">transactions</span> {
-                    <span class="ident">total_transactions_size</span> += <span class="ident">t</span>.<span class="ident">transaction</span>.<span class="ident">len</span>();
-                    <span class="ident">total_num_of_transactions</span> += <span class="number">1</span>;
+<span class="kw">fn </span>get_total_transaction_count_and_size(result: Vec&lt;CollectionRetrievalResult&gt;) -&gt; (i32, usize) {
+    <span class="kw">let </span><span class="kw-2">mut </span>total_num_of_transactions = <span class="number">0</span>;
+    <span class="kw">let </span><span class="kw-2">mut </span>total_transactions_size = <span class="number">0</span>;
+    <span class="kw">for </span>r <span class="kw">in </span>result {
+        <span class="kw">match </span>r.retrieval_result.unwrap() {
+            RetrievalResult::Collection(collection) =&gt; {
+                <span class="kw">for </span>t <span class="kw">in </span>collection.transactions {
+                    total_transactions_size += t.transaction.len();
+                    total_num_of_transactions += <span class="number">1</span>;
                 }
             }
-            <span class="ident">RetrievalResult::Error</span>(<span class="kw">_</span>) =&gt; {}
+            RetrievalResult::Error(<span class="kw">_</span>) =&gt; {}
         }
     }
-    (<span class="ident">total_num_of_transactions</span>, <span class="ident">total_transactions_size</span>)
+    (total_num_of_transactions, total_transactions_size)
 }
 
-<span class="comment">////////////////////////////////////////////////////////////////////////</span>
-<span class="doccomment">/// Formatting the requests and responses                             //</span>
-<span class="comment">////////////////////////////////////////////////////////////////////////</span>
-<span class="kw">impl</span> <span class="ident">std::fmt::Display</span> <span class="kw">for</span> <span class="ident">GetCollectionsRequest</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Formatter</span>&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="ident">fmt::Result</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> = <span class="string">&quot;*** GetCollectionsRequest ***&quot;</span>.<span class="ident">to_string</span>();
-        <span class="kw">for</span> <span class="ident">id</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">collection_ids</span> {
-            <span class="ident">result</span> = <span class="macro">format!</span>(<span class="string">&quot;{}\n\t\t|-id=\&quot;{}\&quot;&quot;</span>, <span class="ident">result</span>, <span class="ident">id</span>);
+<span class="comment">////////////////////////////////////////////////////////////////////////
+</span><span class="doccomment">/// Formatting the requests and responses                             //
+</span><span class="comment">////////////////////////////////////////////////////////////////////////
+</span><span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>GetCollectionsRequest {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; fmt::Result {
+        <span class="kw">let </span><span class="kw-2">mut </span>result = <span class="string">&quot;*** GetCollectionsRequest ***&quot;</span>.to_string();
+        <span class="kw">for </span>id <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.collection_ids {
+            result = <span class="macro">format!</span>(<span class="string">&quot;{}\n\t\t|-id=\&quot;{}\&quot;&quot;</span>, result, id);
         }
-        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">result</span>)
+        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, result)
     }
 }
 
-<span class="kw">impl</span> <span class="ident">std::fmt::Display</span> <span class="kw">for</span> <span class="ident">RemoveCollectionsRequest</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Formatter</span>&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="ident">fmt::Result</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> = <span class="string">&quot;*** RemoveCollectionsRequest ***&quot;</span>.<span class="ident">to_string</span>();
-        <span class="kw">for</span> <span class="ident">id</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">collection_ids</span> {
-            <span class="ident">result</span> = <span class="macro">format!</span>(<span class="string">&quot;{}\n\t|-id=\&quot;{}\&quot;&quot;</span>, <span class="ident">result</span>, <span class="ident">id</span>);
+<span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>RemoveCollectionsRequest {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; fmt::Result {
+        <span class="kw">let </span><span class="kw-2">mut </span>result = <span class="string">&quot;*** RemoveCollectionsRequest ***&quot;</span>.to_string();
+        <span class="kw">for </span>id <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.collection_ids {
+            result = <span class="macro">format!</span>(<span class="string">&quot;{}\n\t|-id=\&quot;{}\&quot;&quot;</span>, result, id);
         }
-        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">result</span>)
+        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, result)
     }
 }
 
-<span class="kw">impl</span> <span class="ident">std::fmt::Display</span> <span class="kw">for</span> <span class="ident">Empty</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Formatter</span>&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="ident">fmt::Result</span> {
-        <span class="kw">let</span> <span class="ident">result</span> = <span class="string">&quot;*** Empty ***&quot;</span>.<span class="ident">to_string</span>();
-        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">result</span>)
+<span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>Empty {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; fmt::Result {
+        <span class="kw">let </span>result = <span class="string">&quot;*** Empty ***&quot;</span>.to_string();
+        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, result)
     }
 }
 
-<span class="kw">impl</span> <span class="ident">std::fmt::Display</span> <span class="kw">for</span> <span class="ident">GetCollectionsResponse</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Formatter</span>&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="ident">fmt::Result</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> = <span class="string">&quot;*** GetCollectionsResponse ***&quot;</span>.<span class="ident">to_string</span>();
+<span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>GetCollectionsResponse {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; fmt::Result {
+        <span class="kw">let </span><span class="kw-2">mut </span>result = <span class="string">&quot;*** GetCollectionsResponse ***&quot;</span>.to_string();
 
-        <span class="kw">for</span> <span class="ident">r</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">result</span>.<span class="ident">clone</span>() {
-            <span class="kw">match</span> <span class="ident">r</span>.<span class="ident">retrieval_result</span>.<span class="ident">unwrap</span>() {
-                <span class="ident">RetrievalResult::Collection</span>(<span class="ident">collection</span>) =&gt; {
-                    <span class="kw">let</span> <span class="ident">collection_id</span> = <span class="kw-2">&amp;</span><span class="ident">collection</span>.<span class="ident">id</span>.<span class="ident">unwrap</span>();
-                    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">transactions_size</span> = <span class="number">0</span>;
-                    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">num_of_transactions</span> = <span class="number">0</span>;
+        <span class="kw">for </span>r <span class="kw">in </span><span class="self">self</span>.result.clone() {
+            <span class="kw">match </span>r.retrieval_result.unwrap() {
+                RetrievalResult::Collection(collection) =&gt; {
+                    <span class="kw">let </span>collection_id = <span class="kw-2">&amp;</span>collection.id.unwrap();
+                    <span class="kw">let </span><span class="kw-2">mut </span>transactions_size = <span class="number">0</span>;
+                    <span class="kw">let </span><span class="kw-2">mut </span>num_of_transactions = <span class="number">0</span>;
 
-                    <span class="kw">for</span> <span class="ident">t</span> <span class="kw">in</span> <span class="ident">collection</span>.<span class="ident">transactions</span> {
-                        <span class="ident">transactions_size</span> += <span class="ident">t</span>.<span class="ident">transaction</span>.<span class="ident">len</span>();
-                        <span class="ident">num_of_transactions</span> += <span class="number">1</span>;
+                    <span class="kw">for </span>t <span class="kw">in </span>collection.transactions {
+                        transactions_size += t.transaction.len();
+                        num_of_transactions += <span class="number">1</span>;
                     }
 
-                    <span class="ident">result</span> = <span class="macro">format!</span>(
+                    result = <span class="macro">format!</span>(
                         <span class="string">&quot;{}\n\t|-Collection id {}, transactions {}, size: {} bytes&quot;</span>,
-                        <span class="ident">result</span>, <span class="ident">collection_id</span>, <span class="ident">num_of_transactions</span>, <span class="ident">transactions_size</span>
+                        result, collection_id, num_of_transactions, transactions_size
                     );
                 }
-                <span class="ident">RetrievalResult::Error</span>(<span class="ident">error</span>) =&gt; {
-                    <span class="comment">//let certificate_id = base64::encode(&amp;error.id.unwrap().digest);</span>
+                RetrievalResult::Error(error) =&gt; {
+                    <span class="comment">//let certificate_id = base64::encode(&amp;error.id.unwrap().digest);
 
-                    <span class="ident">result</span> = <span class="macro">format!</span>(
+                    </span>result = <span class="macro">format!</span>(
                         <span class="string">&quot;{}\n\tError for certificate id {}, error: {}&quot;</span>,
-                        <span class="ident">result</span>,
-                        <span class="kw-2">&amp;</span><span class="ident">error</span>.<span class="ident">id</span>.<span class="ident">unwrap</span>(),
-                        <span class="ident">error</span>.<span class="ident">error</span>
+                        result,
+                        <span class="kw-2">&amp;</span>error.id.unwrap(),
+                        error.error
                     );
                 }
             }
         }
 
-        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">result</span>)
+        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, result)
     }
 }
 
-<span class="kw">impl</span> <span class="ident">std::fmt::Display</span> <span class="kw">for</span> <span class="ident">NodeReadCausalResponse</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Formatter</span>&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="ident">fmt::Result</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> = <span class="string">&quot;*** NodeReadCausalResponse ***&quot;</span>.<span class="ident">to_string</span>();
+<span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>NodeReadCausalResponse {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; fmt::Result {
+        <span class="kw">let </span><span class="kw-2">mut </span>result = <span class="string">&quot;*** NodeReadCausalResponse ***&quot;</span>.to_string();
 
-        <span class="kw">for</span> <span class="ident">id</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">collection_ids</span> {
-            <span class="ident">result</span> = <span class="macro">format!</span>(<span class="string">&quot;{}\n\t|-id=\&quot;{}\&quot;&quot;</span>, <span class="ident">result</span>, <span class="ident">id</span>);
+        <span class="kw">for </span>id <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.collection_ids {
+            result = <span class="macro">format!</span>(<span class="string">&quot;{}\n\t|-id=\&quot;{}\&quot;&quot;</span>, result, id);
         }
 
-        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">result</span>)
+        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, result)
     }
 }
 
-<span class="kw">impl</span> <span class="ident">std::fmt::Display</span> <span class="kw">for</span> <span class="ident">NodeReadCausalRequest</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Formatter</span>&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="ident">fmt::Result</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> = <span class="string">&quot;**** NodeReadCausalRequest ***&quot;</span>.<span class="ident">to_string</span>();
+<span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>NodeReadCausalRequest {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; fmt::Result {
+        <span class="kw">let </span><span class="kw-2">mut </span>result = <span class="string">&quot;**** NodeReadCausalRequest ***&quot;</span>.to_string();
 
-        <span class="ident">result</span> = <span class="macro">format!</span>(<span class="string">&quot;{}\n\t|-Request for round {}&quot;</span>, <span class="ident">result</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">round</span>);
-        <span class="ident">result</span> = <span class="macro">format!</span>(
+        result = <span class="macro">format!</span>(<span class="string">&quot;{}\n\t|-Request for round {}&quot;</span>, result, <span class="kw-2">&amp;</span><span class="self">self</span>.round);
+        result = <span class="macro">format!</span>(
             <span class="string">&quot;{}\n\t|-Authority: {}&quot;</span>,
-            <span class="ident">result</span>,
-            <span class="ident">base64::encode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">public_key</span>.<span class="ident">clone</span>().<span class="ident">unwrap</span>().<span class="ident">bytes</span>)
+            result,
+            base64::encode(<span class="kw-2">&amp;</span><span class="self">self</span>.public_key.clone().unwrap().bytes)
         );
 
-        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">result</span>)
+        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, result)
     }
 }
 
-<span class="kw">impl</span> <span class="ident">std::fmt::Display</span> <span class="kw">for</span> <span class="ident">ReadCausalResponse</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Formatter</span>&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="ident">fmt::Result</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> = <span class="string">&quot;*** ReadCausalResponse ***&quot;</span>.<span class="ident">to_string</span>();
+<span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>ReadCausalResponse {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; fmt::Result {
+        <span class="kw">let </span><span class="kw-2">mut </span>result = <span class="string">&quot;*** ReadCausalResponse ***&quot;</span>.to_string();
 
-        <span class="kw">for</span> <span class="ident">id</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">collection_ids</span> {
-            <span class="ident">result</span> = <span class="macro">format!</span>(<span class="string">&quot;{}\n\tid=\&quot;{}\&quot;&quot;</span>, <span class="ident">result</span>, <span class="ident">id</span>);
+        <span class="kw">for </span>id <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.collection_ids {
+            result = <span class="macro">format!</span>(<span class="string">&quot;{}\n\tid=\&quot;{}\&quot;&quot;</span>, result, id);
         }
 
-        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">result</span>)
+        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, result)
     }
 }
 
-<span class="kw">impl</span> <span class="ident">std::fmt::Display</span> <span class="kw">for</span> <span class="ident">ReadCausalRequest</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Formatter</span>&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="ident">fmt::Result</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> = <span class="string">&quot;**** ReadCausalRequest ***&quot;</span>.<span class="ident">to_string</span>();
+<span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>ReadCausalRequest {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; fmt::Result {
+        <span class="kw">let </span><span class="kw-2">mut </span>result = <span class="string">&quot;**** ReadCausalRequest ***&quot;</span>.to_string();
 
-        <span class="ident">result</span> = <span class="macro">format!</span>(
+        result = <span class="macro">format!</span>(
             <span class="string">&quot;{}\n\t|-Request for collection {}&quot;</span>,
-            <span class="ident">result</span>,
-            <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">collection_id</span>.<span class="ident">as_ref</span>().<span class="ident">unwrap</span>()
+            result,
+            <span class="kw-2">&amp;</span><span class="self">self</span>.collection_id.as_ref().unwrap()
         );
 
-        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">result</span>)
+        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, result)
     }
 }
 
-<span class="kw">impl</span> <span class="ident">std::fmt::Display</span> <span class="kw">for</span> <span class="ident">RoundsRequest</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Formatter</span>&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="ident">fmt::Result</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> = <span class="string">&quot;**** RoundsRequest ***&quot;</span>.<span class="ident">to_string</span>();
+<span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>RoundsRequest {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; fmt::Result {
+        <span class="kw">let </span><span class="kw-2">mut </span>result = <span class="string">&quot;**** RoundsRequest ***&quot;</span>.to_string();
 
-        <span class="ident">result</span> = <span class="macro">format!</span>(
+        result = <span class="macro">format!</span>(
             <span class="string">&quot;{}\n\t|-Authority: {}&quot;</span>,
-            <span class="ident">result</span>,
-            <span class="ident">base64::encode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">public_key</span>.<span class="ident">clone</span>().<span class="ident">unwrap</span>().<span class="ident">bytes</span>)
+            result,
+            base64::encode(<span class="kw-2">&amp;</span><span class="self">self</span>.public_key.clone().unwrap().bytes)
         );
 
-        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">result</span>)
+        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, result)
     }
 }
 
-<span class="kw">impl</span> <span class="ident">std::fmt::Display</span> <span class="kw">for</span> <span class="ident">RoundsResponse</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Formatter</span>&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="ident">fmt::Result</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> = <span class="string">&quot;**** RoundsResponse ***&quot;</span>.<span class="ident">to_string</span>();
-        <span class="ident">result</span> = <span class="macro">format!</span>(
+<span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>RoundsResponse {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; fmt::Result {
+        <span class="kw">let </span><span class="kw-2">mut </span>result = <span class="string">&quot;**** RoundsResponse ***&quot;</span>.to_string();
+        result = <span class="macro">format!</span>(
             <span class="string">&quot;{}\n\t|-oldest_round: {}, newest_round: {}&quot;</span>,
-            <span class="ident">result</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">oldest_round</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">newest_round</span>
+            result, <span class="kw-2">&amp;</span><span class="self">self</span>.oldest_round, <span class="kw-2">&amp;</span><span class="self">self</span>.newest_round
         );
 
-        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">result</span>)
+        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, result)
     }
 }
 
-<span class="kw">impl</span> <span class="ident">std::fmt::Display</span> <span class="kw">for</span> <span class="ident">CertificateDigest</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Formatter</span>&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="ident">fmt::Result</span> {
-        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">base64::encode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">digest</span>))
+<span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>CertificateDigest {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; fmt::Result {
+        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, base64::encode(<span class="kw-2">&amp;</span><span class="self">self</span>.digest))
     }
 }
 
-<span class="kw">fn</span> <span class="ident">println_and_into_inner</span>&lt;<span class="ident">T</span>&gt;(<span class="ident">result</span>: <span class="prelude-ty">Result</span>&lt;<span class="ident">tonic::Response</span>&lt;<span class="ident">T</span>&gt;, <span class="ident">Status</span>&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="ident">T</span>&gt;
-<span class="kw">where</span>
-    <span class="ident">T</span>: <span class="ident">Display</span>,
+<span class="kw">fn </span>println_and_into_inner&lt;T&gt;(result: <span class="prelude-ty">Result</span>&lt;tonic::Response&lt;T&gt;, Status&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;T&gt;
+<span class="kw">where
+    </span>T: Display,
 {
-    <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">response</span>) =&gt; {
-            <span class="kw">let</span> <span class="ident">inner</span> = <span class="ident">response</span>.<span class="ident">into_inner</span>();
-            <span class="macro">println!</span>(<span class="string">&quot;\t{}&quot;</span>, <span class="kw-2">&amp;</span><span class="ident">inner</span>);
-            <span class="prelude-val">Some</span>(<span class="ident">inner</span>)
+    <span class="kw">match </span>result {
+        <span class="prelude-val">Ok</span>(response) =&gt; {
+            <span class="kw">let </span>inner = response.into_inner();
+            <span class="macro">println!</span>(<span class="string">&quot;\t{}&quot;</span>, <span class="kw-2">&amp;</span>inner);
+            <span class="prelude-val">Some</span>(inner)
         }
-        <span class="prelude-val">Err</span>(<span class="ident">error</span>) =&gt; {
-            <span class="macro">println!</span>(<span class="string">&quot;\t{:?}&quot;</span>, <span class="ident">error</span>);
-            <span class="prelude-val">None</span>
-        }
+        <span class="prelude-val">Err</span>(error) =&gt; {
+            <span class="macro">println!</span>(<span class="string">&quot;\t{:?}&quot;</span>, error);
+            <span class="prelude-val">None
+        </span>}
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="demo_client" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="demo_client" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (801821d15 2022-08-14)" ></div></body></html>

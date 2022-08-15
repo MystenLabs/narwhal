@@ -368,375 +368,375 @@
 <span id="368">368</span>
 <span id="369">369</span>
 <span id="370">370</span>
-</pre><pre class="rust"><code><span class="comment">// Copyright (c) The Diem Core Contributors</span>
-<span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
-<span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
+</pre><pre class="rust"><code><span class="comment">// Copyright (c) The Diem Core Contributors
+// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
 
-<span class="attribute">#![<span class="ident">forbid</span>(<span class="ident">unsafe_code</span>)]</span>
+</span><span class="attribute">#![forbid(unsafe_code)]</span>
 
-<span class="doccomment">//! A bounded tokio [`Handle`]. Only a bounded number of tasks can run</span>
-<span class="doccomment">//! concurrently when spawned through this executor, defined by the initial</span>
-<span class="doccomment">//! `capacity`.</span>
+<span class="doccomment">//! A bounded tokio [`Handle`]. Only a bounded number of tasks can run
+//! concurrently when spawned through this executor, defined by the initial
+//! `capacity`.
 
-<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">future::Future</span>, <span class="ident">FutureExt</span>};
-<span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
-<span class="kw">use</span> <span class="ident">tokio</span>::{
-    <span class="ident">runtime::Handle</span>,
-    <span class="ident">sync</span>::{<span class="ident">OwnedSemaphorePermit</span>, <span class="ident">Semaphore</span>},
-    <span class="ident">task::JoinHandle</span>,
+</span><span class="kw">use </span>futures::{future::Future, FutureExt};
+<span class="kw">use </span>std::sync::Arc;
+<span class="kw">use </span>tokio::{
+    runtime::Handle,
+    sync::{OwnedSemaphorePermit, Semaphore},
+    task::JoinHandle,
 };
 
-<span class="kw">use</span> <span class="ident">tracing::debug</span>;
+<span class="kw">use </span>tracing::debug;
 
-<span class="kw">use</span> <span class="ident">thiserror::Error</span>;
+<span class="kw">use </span>thiserror::Error;
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Error</span>)]</span>
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">BoundedExecutionError</span>&lt;<span class="ident">F</span>&gt;
-<span class="kw">where</span>
-    <span class="ident">F</span>: <span class="ident">Future</span> + <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
-    <span class="ident">F::Output</span>: <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
+<span class="attribute">#[derive(Error)]</span>
+<span class="kw">pub enum </span>BoundedExecutionError&lt;F&gt;
+<span class="kw">where
+    </span>F: Future + Send + <span class="lifetime">&#39;static</span>,
+    F::Output: Send + <span class="lifetime">&#39;static</span>,
 {
-    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Concurrent execution limit reached&quot;</span>)]</span>
-    <span class="ident">Full</span>(<span class="ident">F</span>),
+    <span class="attribute">#[error(<span class="string">&quot;Concurrent execution limit reached&quot;</span>)]</span>
+    Full(F),
 }
 
-<span class="kw">impl</span>&lt;<span class="ident">F</span>&gt; <span class="ident">std::fmt::Debug</span> <span class="kw">for</span> <span class="ident">BoundedExecutionError</span>&lt;<span class="ident">F</span>&gt;
-<span class="kw">where</span>
-    <span class="ident">F</span>: <span class="ident">Future</span> + <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
-    <span class="ident">F::Output</span>: <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
+<span class="kw">impl</span>&lt;F&gt; std::fmt::Debug <span class="kw">for </span>BoundedExecutionError&lt;F&gt;
+<span class="kw">where
+    </span>F: Future + Send + <span class="lifetime">&#39;static</span>,
+    F::Output: Send + <span class="lifetime">&#39;static</span>,
 {
-    <span class="comment">// Elide the future to let this be unwrapped</span>
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">std::fmt::Formatter</span>&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="ident">std::fmt::Result</span> {
-        <span class="kw">match</span> <span class="self">self</span> {
-            <span class="ident"><span class="self">Self</span>::Full</span>(<span class="ident">_f</span>) =&gt; <span class="ident">f</span>.<span class="ident">debug_tuple</span>(<span class="string">&quot;Full&quot;</span>).<span class="ident">finish</span>(),
+    <span class="comment">// Elide the future to let this be unwrapped
+    </span><span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; std::fmt::Result {
+        <span class="kw">match </span><span class="self">self </span>{
+            <span class="self">Self</span>::Full(_f) =&gt; f.debug_tuple(<span class="string">&quot;Full&quot;</span>).finish(),
         }
     }
 }
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BoundedExecutor</span> {
-    <span class="ident">semaphore</span>: <span class="ident">Arc</span>&lt;<span class="ident">Semaphore</span>&gt;,
-    <span class="ident">executor</span>: <span class="ident">Handle</span>,
+<span class="attribute">#[derive(Clone, Debug)]</span>
+<span class="kw">pub struct </span>BoundedExecutor {
+    semaphore: Arc&lt;Semaphore&gt;,
+    executor: Handle,
 }
 
-<span class="kw">impl</span> <span class="ident">BoundedExecutor</span> {
-    <span class="doccomment">/// Create a new `BoundedExecutor` from an existing tokio [`Handle`]</span>
-    <span class="doccomment">/// with a maximum concurrent task capacity of `capacity`.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">capacity</span>: <span class="ident">usize</span>, <span class="ident">executor</span>: <span class="ident">Handle</span>) -&gt; <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="ident">semaphore</span> = <span class="ident">Arc::new</span>(<span class="ident">Semaphore::new</span>(<span class="ident">capacity</span>));
-        <span class="self">Self</span> {
-            <span class="ident">semaphore</span>,
-            <span class="ident">executor</span>,
+<span class="kw">impl </span>BoundedExecutor {
+    <span class="doccomment">/// Create a new `BoundedExecutor` from an existing tokio [`Handle`]
+    /// with a maximum concurrent task capacity of `capacity`.
+    </span><span class="kw">pub fn </span>new(capacity: usize, executor: Handle) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>semaphore = Arc::new(Semaphore::new(capacity));
+        <span class="self">Self </span>{
+            semaphore,
+            executor,
         }
     }
 
-    <span class="comment">// Acquires a permit with the semaphore, first gracefully,</span>
-    <span class="comment">// then queuing after logging that we&#39;re out of capacity.</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">acquire_permit</span>(<span class="ident">semaphore</span>: <span class="ident">Arc</span>&lt;<span class="ident">Semaphore</span>&gt;) -&gt; <span class="ident">OwnedSemaphorePermit</span> {
-        <span class="kw">match</span> <span class="ident">semaphore</span>.<span class="ident">clone</span>().<span class="ident">try_acquire_owned</span>() {
-            <span class="prelude-val">Ok</span>(<span class="ident">p</span>) =&gt; <span class="ident">p</span>,
+    <span class="comment">// Acquires a permit with the semaphore, first gracefully,
+    // then queuing after logging that we&#39;re out of capacity.
+    </span><span class="kw">async fn </span>acquire_permit(semaphore: Arc&lt;Semaphore&gt;) -&gt; OwnedSemaphorePermit {
+        <span class="kw">match </span>semaphore.clone().try_acquire_owned() {
+            <span class="prelude-val">Ok</span>(p) =&gt; p,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; {
                 <span class="macro">debug!</span>(<span class="string">&quot;concurrent task limit reached, waiting...&quot;</span>);
-                <span class="ident">semaphore</span>.<span class="ident">acquire_owned</span>().<span class="kw">await</span>.<span class="ident">unwrap</span>()
+                semaphore.acquire_owned().<span class="kw">await</span>.unwrap()
             }
         }
     }
 
-    <span class="doccomment">/// Returns the executor available capacity for running tasks.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">available_capacity</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">usize</span> {
-        <span class="self">self</span>.<span class="ident">semaphore</span>.<span class="ident">available_permits</span>()
+    <span class="doccomment">/// Returns the executor available capacity for running tasks.
+    </span><span class="kw">pub fn </span>available_capacity(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
+        <span class="self">self</span>.semaphore.available_permits()
     }
 
-    <span class="doccomment">/// Spawn a [`Future`] on the `BoundedExecutor`. This function is async and</span>
-    <span class="doccomment">/// will block if the executor is at capacity until one of the other spawned</span>
-    <span class="doccomment">/// futures completes. This function returns a [`JoinHandle`] that the caller</span>
-    <span class="doccomment">/// can `.await` on for the results of the [`Future`].</span>
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">spawn</span>&lt;<span class="ident">F</span>&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="ident">F</span>) -&gt; <span class="ident">JoinHandle</span>&lt;<span class="ident">F::Output</span>&gt;
-    <span class="kw">where</span>
-        <span class="ident">F</span>: <span class="ident">Future</span> + <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
-        <span class="ident">F::Output</span>: <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
+    <span class="doccomment">/// Spawn a [`Future`] on the `BoundedExecutor`. This function is async and
+    /// will block if the executor is at capacity until one of the other spawned
+    /// futures completes. This function returns a [`JoinHandle`] that the caller
+    /// can `.await` on for the results of the [`Future`].
+    </span><span class="kw">pub async fn </span>spawn&lt;F&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, f: F) -&gt; JoinHandle&lt;F::Output&gt;
+    <span class="kw">where
+        </span>F: Future + Send + <span class="lifetime">&#39;static</span>,
+        F::Output: Send + <span class="lifetime">&#39;static</span>,
     {
-        <span class="kw">let</span> <span class="ident">permit</span> = <span class="ident"><span class="self">Self</span>::acquire_permit</span>(<span class="self">self</span>.<span class="ident">semaphore</span>.<span class="ident">clone</span>()).<span class="kw">await</span>;
+        <span class="kw">let </span>permit = <span class="self">Self</span>::acquire_permit(<span class="self">self</span>.semaphore.clone()).<span class="kw">await</span>;
 
-        <span class="self">self</span>.<span class="ident">spawn_with_permit</span>(<span class="ident">f</span>, <span class="ident">permit</span>)
+        <span class="self">self</span>.spawn_with_permit(f, permit)
     }
 
-    <span class="doccomment">/// Try to spawn a [`Future`] on the `BoundedExecutor`. If the `BoundedExecutor`</span>
-    <span class="doccomment">/// is at capacity, this will return an `Err(F)`, passing back the future the</span>
-    <span class="doccomment">/// caller attempted to spawn. Otherwise, this will spawn the future on the</span>
-    <span class="doccomment">/// executor and send back a [`JoinHandle`] that the caller can `.await` on</span>
-    <span class="doccomment">/// for the results of the [`Future`].</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">try_spawn</span>&lt;<span class="ident">F</span>&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="ident">F</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">JoinHandle</span>&lt;<span class="ident">F::Output</span>&gt;, <span class="ident">BoundedExecutionError</span>&lt;<span class="ident">F</span>&gt;&gt;
-    <span class="kw">where</span>
-        <span class="ident">F</span>: <span class="ident">Future</span> + <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
-        <span class="ident">F::Output</span>: <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
+    <span class="doccomment">/// Try to spawn a [`Future`] on the `BoundedExecutor`. If the `BoundedExecutor`
+    /// is at capacity, this will return an `Err(F)`, passing back the future the
+    /// caller attempted to spawn. Otherwise, this will spawn the future on the
+    /// executor and send back a [`JoinHandle`] that the caller can `.await` on
+    /// for the results of the [`Future`].
+    </span><span class="kw">pub fn </span>try_spawn&lt;F&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, f: F) -&gt; <span class="prelude-ty">Result</span>&lt;JoinHandle&lt;F::Output&gt;, BoundedExecutionError&lt;F&gt;&gt;
+    <span class="kw">where
+        </span>F: Future + Send + <span class="lifetime">&#39;static</span>,
+        F::Output: Send + <span class="lifetime">&#39;static</span>,
     {
-        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">semaphore</span>.<span class="ident">clone</span>().<span class="ident">try_acquire_owned</span>() {
-            <span class="prelude-val">Ok</span>(<span class="ident">permit</span>) =&gt; <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">spawn_with_permit</span>(<span class="ident">f</span>, <span class="ident">permit</span>)),
-            <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="prelude-val">Err</span>(<span class="ident">BoundedExecutionError::Full</span>(<span class="ident">f</span>)),
+        <span class="kw">match </span><span class="self">self</span>.semaphore.clone().try_acquire_owned() {
+            <span class="prelude-val">Ok</span>(permit) =&gt; <span class="prelude-val">Ok</span>(<span class="self">self</span>.spawn_with_permit(f, permit)),
+            <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="prelude-val">Err</span>(BoundedExecutionError::Full(f)),
         }
     }
 
-    <span class="attribute">#[<span class="ident">must_use</span>]</span>
-    <span class="kw">fn</span> <span class="ident">spawn_with_permit</span>&lt;<span class="ident">F</span>&gt;(
+    <span class="attribute">#[must_use]</span>
+    <span class="kw">fn </span>spawn_with_permit&lt;F&gt;(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">f</span>: <span class="ident">F</span>,
-        <span class="ident">spawn_permit</span>: <span class="ident">OwnedSemaphorePermit</span>,
-    ) -&gt; <span class="ident">JoinHandle</span>&lt;<span class="ident">F::Output</span>&gt;
-    <span class="kw">where</span>
-        <span class="ident">F</span>: <span class="ident">Future</span> + <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
-        <span class="ident">F::Output</span>: <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
+        f: F,
+        spawn_permit: OwnedSemaphorePermit,
+    ) -&gt; JoinHandle&lt;F::Output&gt;
+    <span class="kw">where
+        </span>F: Future + Send + <span class="lifetime">&#39;static</span>,
+        F::Output: Send + <span class="lifetime">&#39;static</span>,
     {
-        <span class="comment">// Release the permit back to the semaphore when this task completes.</span>
-        <span class="kw">let</span> <span class="ident">f</span> = <span class="ident"><span class="self">Self</span>::with_permit</span>(<span class="ident">f</span>, <span class="ident">spawn_permit</span>);
-        <span class="self">self</span>.<span class="ident">executor</span>.<span class="ident">spawn</span>(<span class="ident">f</span>)
+        <span class="comment">// Release the permit back to the semaphore when this task completes.
+        </span><span class="kw">let </span>f = <span class="self">Self</span>::with_permit(f, spawn_permit);
+        <span class="self">self</span>.executor.spawn(f)
     }
 
-    <span class="comment">// Returns a [`Future`] that complies with the `BoundedExecutor`. Once launched,</span>
-    <span class="comment">// will block if the executor is at capacity, until one of the other spawned</span>
-    <span class="comment">// futures completes.</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">run_on_semaphore</span>&lt;<span class="ident">F</span>&gt;(<span class="ident">semaphore</span>: <span class="ident">Arc</span>&lt;<span class="ident">Semaphore</span>&gt;, <span class="ident">f</span>: <span class="ident">F</span>) -&gt; <span class="ident">F::Output</span>
-    <span class="kw">where</span>
-        <span class="ident">F</span>: <span class="ident">Future</span> + <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
-        <span class="ident">F::Output</span>: <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
+    <span class="comment">// Returns a [`Future`] that complies with the `BoundedExecutor`. Once launched,
+    // will block if the executor is at capacity, until one of the other spawned
+    // futures completes.
+    </span><span class="kw">async fn </span>run_on_semaphore&lt;F&gt;(semaphore: Arc&lt;Semaphore&gt;, f: F) -&gt; F::Output
+    <span class="kw">where
+        </span>F: Future + Send + <span class="lifetime">&#39;static</span>,
+        F::Output: Send + <span class="lifetime">&#39;static</span>,
     {
-        <span class="kw">let</span> <span class="ident">permit</span> = <span class="ident"><span class="self">Self</span>::acquire_permit</span>(<span class="ident">semaphore</span>.<span class="ident">clone</span>()).<span class="kw">await</span>;
-        <span class="ident"><span class="self">Self</span>::with_permit</span>(<span class="ident">f</span>, <span class="ident">permit</span>).<span class="kw">await</span>
-    }
+        <span class="kw">let </span>permit = <span class="self">Self</span>::acquire_permit(semaphore.clone()).<span class="kw">await</span>;
+        <span class="self">Self</span>::with_permit(f, permit).<span class="kw">await
+    </span>}
 
-    <span class="doccomment">/// Unconditionally spawns a task driving retries of a [`Future`] on the `BoundedExecutor`.</span>
-    <span class="doccomment">/// This [`Future`] will be executed in the form of attempts, one after the other, run on</span>
-    <span class="doccomment">/// our bounded executor, each according to the provided [`crate::RetryConfig`].</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Each attempt is async and will block if the executor is at capacity until</span>
-    <span class="doccomment">/// one of the other attempts completes. In case the attempt completes with an error,</span>
-    <span class="doccomment">/// the driver completes a backoff (according to the retry configuration) without holding</span>
-    <span class="doccomment">/// a permit, before, queueing an attempt on the executor again.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// This function returns a [`JoinHandle`] that the caller can `.await` on for</span>
-    <span class="doccomment">/// the results of the overall retry driver.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// TODO: this still spawns one task, unconditionally, per call.</span>
-    <span class="doccomment">/// We would instead like to have one central task that drives all retries</span>
-    <span class="doccomment">/// for the whole executor.</span>
-    <span class="attribute">#[<span class="ident">must_use</span>]</span>
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">spawn_with_retries</span>&lt;<span class="ident">F</span>, <span class="ident">Fut</span>, <span class="ident">T</span>, <span class="ident">E</span>&gt;(
+    <span class="doccomment">/// Unconditionally spawns a task driving retries of a [`Future`] on the `BoundedExecutor`.
+    /// This [`Future`] will be executed in the form of attempts, one after the other, run on
+    /// our bounded executor, each according to the provided [`crate::RetryConfig`].
+    ///
+    /// Each attempt is async and will block if the executor is at capacity until
+    /// one of the other attempts completes. In case the attempt completes with an error,
+    /// the driver completes a backoff (according to the retry configuration) without holding
+    /// a permit, before, queueing an attempt on the executor again.
+    ///
+    /// This function returns a [`JoinHandle`] that the caller can `.await` on for
+    /// the results of the overall retry driver.
+    ///
+    /// TODO: this still spawns one task, unconditionally, per call.
+    /// We would instead like to have one central task that drives all retries
+    /// for the whole executor.
+    </span><span class="attribute">#[must_use]</span>
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>spawn_with_retries&lt;F, Fut, T, E&gt;(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">retry_config</span>: <span class="ident"><span class="kw">crate</span>::RetryConfig</span>,
-        <span class="kw-2">mut</span> <span class="ident">f</span>: <span class="ident">F</span>,
-    ) -&gt; <span class="ident">JoinHandle</span>&lt;<span class="prelude-ty">Result</span>&lt;<span class="ident">T</span>, <span class="ident">E</span>&gt;&gt;
-    <span class="kw">where</span>
-        <span class="ident">F</span>: <span class="ident">FnMut</span>() -&gt; <span class="ident">Fut</span> + <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
-        <span class="ident">Fut</span>: <span class="ident">Future</span>&lt;<span class="ident">Output</span> = <span class="prelude-ty">Result</span>&lt;<span class="ident">T</span>, <span class="ident">backoff::Error</span>&lt;<span class="ident">E</span>&gt;&gt;&gt; + <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
-        <span class="ident">T</span>: <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
-        <span class="ident">E</span>: <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
+        retry_config: <span class="kw">crate</span>::RetryConfig,
+        <span class="kw-2">mut </span>f: F,
+    ) -&gt; JoinHandle&lt;<span class="prelude-ty">Result</span>&lt;T, E&gt;&gt;
+    <span class="kw">where
+        </span>F: FnMut() -&gt; Fut + Send + <span class="lifetime">&#39;static</span>,
+        Fut: Future&lt;Output = <span class="prelude-ty">Result</span>&lt;T, backoff::Error&lt;E&gt;&gt;&gt; + Send + <span class="lifetime">&#39;static</span>,
+        T: Send + <span class="lifetime">&#39;static</span>,
+        E: Send + <span class="lifetime">&#39;static</span>,
     {
-        <span class="kw">let</span> <span class="ident">retrier</span> = {
-            <span class="kw">let</span> <span class="ident">semaphore</span> = <span class="self">self</span>.<span class="ident">semaphore</span>.<span class="ident">clone</span>();
+        <span class="kw">let </span>retrier = {
+            <span class="kw">let </span>semaphore = <span class="self">self</span>.semaphore.clone();
 
-            <span class="kw">let</span> <span class="ident">executor</span> = <span class="kw">move</span> || {
-                <span class="kw">let</span> <span class="ident">semaphore</span> = <span class="ident">semaphore</span>.<span class="ident">clone</span>();
-                <span class="ident">BoundedExecutor::run_on_semaphore</span>(<span class="ident">semaphore</span>, <span class="ident">f</span>())
+            <span class="kw">let </span>executor = <span class="kw">move </span>|| {
+                <span class="kw">let </span>semaphore = semaphore.clone();
+                BoundedExecutor::run_on_semaphore(semaphore, f())
             };
 
-            <span class="ident">retry_config</span>.<span class="ident">retry</span>(<span class="ident">executor</span>)
+            retry_config.retry(executor)
         };
-        <span class="self">self</span>.<span class="ident">executor</span>.<span class="ident">spawn</span>(<span class="ident">retrier</span>)
+        <span class="self">self</span>.executor.spawn(retrier)
     }
 
-    <span class="comment">// Equips a future with a final step that drops the held semaphore permit</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">with_permit</span>&lt;<span class="ident">F</span>&gt;(<span class="ident">f</span>: <span class="ident">F</span>, <span class="ident">spawn_permit</span>: <span class="ident">OwnedSemaphorePermit</span>) -&gt; <span class="ident">F::Output</span>
-    <span class="kw">where</span>
-        <span class="ident">F</span>: <span class="ident">Future</span> + <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
-        <span class="ident">F::Output</span>: <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
+    <span class="comment">// Equips a future with a final step that drops the held semaphore permit
+    </span><span class="kw">async fn </span>with_permit&lt;F&gt;(f: F, spawn_permit: OwnedSemaphorePermit) -&gt; F::Output
+    <span class="kw">where
+        </span>F: Future + Send + <span class="lifetime">&#39;static</span>,
+        F::Output: Send + <span class="lifetime">&#39;static</span>,
     {
-        <span class="ident">f</span>.<span class="ident">map</span>(|<span class="ident">ret</span>| {
-            <span class="ident">drop</span>(<span class="ident">spawn_permit</span>);
-            <span class="ident">ret</span>
+        f.map(|ret| {
+            drop(spawn_permit);
+            ret
         })
-        .<span class="kw">await</span>
-    }
+        .<span class="kw">await
+    </span>}
 }
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="kw">mod</span> <span class="ident">test</span> {
-    <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::RetryConfig</span>;
+<span class="attribute">#[cfg(test)]</span>
+<span class="kw">mod </span>test {
+    <span class="kw">use </span><span class="kw">crate</span>::RetryConfig;
 
-    <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
-    <span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">channel::oneshot</span>, <span class="ident">executor::block_on</span>, <span class="ident">future::Future</span>, <span class="ident">FutureExt</span>};
-    <span class="kw">use</span> <span class="ident">std</span>::{
-        <span class="ident">sync</span>::{
-            <span class="ident">atomic</span>::{<span class="ident">AtomicU32</span>, <span class="ident">Ordering</span>},
-            <span class="ident">mpsc</span>,
+    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+    <span class="kw">use </span>futures::{channel::oneshot, executor::block_on, future::Future, FutureExt};
+    <span class="kw">use </span>std::{
+        sync::{
+            atomic::{AtomicU32, Ordering},
+            mpsc,
         },
-        <span class="ident">thread</span>,
-        <span class="ident">time::Duration</span>,
+        thread,
+        time::Duration,
     };
-    <span class="kw">use</span> <span class="ident">tokio</span>::{<span class="ident">runtime::Runtime</span>, <span class="ident">time::sleep</span>};
+    <span class="kw">use </span>tokio::{runtime::Runtime, time::sleep};
 
-    <span class="attribute">#[<span class="ident">test</span>]</span>
-    <span class="kw">fn</span> <span class="ident">try_spawn_panicking</span>() {
-        <span class="kw">let</span> <span class="ident">rt</span> = <span class="ident">Runtime::new</span>().<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="ident">executor</span> = <span class="ident">rt</span>.<span class="ident">handle</span>().<span class="ident">clone</span>();
-        <span class="kw">let</span> <span class="ident">executor</span> = <span class="ident">BoundedExecutor::new</span>(<span class="number">1</span>, <span class="ident">executor</span>);
+    <span class="attribute">#[test]</span>
+    <span class="kw">fn </span>try_spawn_panicking() {
+        <span class="kw">let </span>rt = Runtime::new().unwrap();
+        <span class="kw">let </span>executor = rt.handle().clone();
+        <span class="kw">let </span>executor = BoundedExecutor::new(<span class="number">1</span>, executor);
 
-        <span class="comment">// executor has a free slot, spawn should succeed</span>
-        <span class="kw">let</span> <span class="ident">fpanic</span> = <span class="ident">executor</span>.<span class="ident">try_spawn</span>(<span class="ident">panicking</span>()).<span class="ident">unwrap</span>();
-        <span class="comment">// this would return a JoinError::panic</span>
-        <span class="ident">block_on</span>(<span class="ident">fpanic</span>).<span class="ident">unwrap_err</span>();
+        <span class="comment">// executor has a free slot, spawn should succeed
+        </span><span class="kw">let </span>fpanic = executor.try_spawn(panicking()).unwrap();
+        <span class="comment">// this would return a JoinError::panic
+        </span>block_on(fpanic).unwrap_err();
 
-        <span class="kw">let</span> (<span class="ident">tx1</span>, <span class="ident">rx1</span>) = <span class="ident">oneshot::channel</span>();
-        <span class="comment">// the executor should not be full, because the permit for the panicking task should drop at unwinding</span>
-        <span class="kw">let</span> <span class="ident">f1</span> = <span class="ident">executor</span>.<span class="ident">try_spawn</span>(<span class="ident">rx1</span>).<span class="ident">unwrap</span>();
+        <span class="kw">let </span>(tx1, rx1) = oneshot::channel();
+        <span class="comment">// the executor should not be full, because the permit for the panicking task should drop at unwinding
+        </span><span class="kw">let </span>f1 = executor.try_spawn(rx1).unwrap();
 
-        <span class="comment">// cleanup</span>
-        <span class="ident">tx1</span>.<span class="ident">send</span>(()).<span class="ident">unwrap</span>();
-        <span class="ident">block_on</span>(<span class="ident">f1</span>).<span class="ident">unwrap</span>().<span class="ident">unwrap</span>();
+        <span class="comment">// cleanup
+        </span>tx1.send(()).unwrap();
+        block_on(f1).unwrap().unwrap();
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">panicking</span>() {
+    <span class="kw">async fn </span>panicking() {
         <span class="macro">panic!</span>();
     }
 
-    <span class="attribute">#[<span class="ident">test</span>]</span>
-    <span class="kw">fn</span> <span class="ident">try_spawn</span>() {
-        <span class="kw">let</span> <span class="ident">rt</span> = <span class="ident">Runtime::new</span>().<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="ident">executor</span> = <span class="ident">rt</span>.<span class="ident">handle</span>().<span class="ident">clone</span>();
-        <span class="kw">let</span> <span class="ident">executor</span> = <span class="ident">BoundedExecutor::new</span>(<span class="number">1</span>, <span class="ident">executor</span>);
+    <span class="attribute">#[test]</span>
+    <span class="kw">fn </span>try_spawn() {
+        <span class="kw">let </span>rt = Runtime::new().unwrap();
+        <span class="kw">let </span>executor = rt.handle().clone();
+        <span class="kw">let </span>executor = BoundedExecutor::new(<span class="number">1</span>, executor);
 
-        <span class="kw">let</span> (<span class="ident">tx1</span>, <span class="ident">rx1</span>) = <span class="ident">oneshot::channel</span>();
-        <span class="kw">let</span> (<span class="ident">tx2</span>, <span class="ident">rx2</span>) = <span class="ident">oneshot::channel</span>();
+        <span class="kw">let </span>(tx1, rx1) = oneshot::channel();
+        <span class="kw">let </span>(tx2, rx2) = oneshot::channel();
 
-        <span class="comment">// executor has a free slot, spawn should succeed</span>
-        <span class="macro">assert_eq!</span>(<span class="ident">executor</span>.<span class="ident">available_capacity</span>(), <span class="number">1</span>);
+        <span class="comment">// executor has a free slot, spawn should succeed
+        </span><span class="macro">assert_eq!</span>(executor.available_capacity(), <span class="number">1</span>);
 
-        <span class="kw">let</span> <span class="ident">f1</span> = <span class="ident">executor</span>.<span class="ident">try_spawn</span>(<span class="ident">rx1</span>).<span class="ident">unwrap</span>();
+        <span class="kw">let </span>f1 = executor.try_spawn(rx1).unwrap();
 
-        <span class="comment">// executor is full, try_spawn should return err and give back the task</span>
-        <span class="comment">// we attempted to spawn</span>
-        <span class="kw">let</span> <span class="ident">BoundedExecutionError::Full</span>(<span class="ident">rx2</span>) = <span class="ident">executor</span>.<span class="ident">try_spawn</span>(<span class="ident">rx2</span>).<span class="ident">unwrap_err</span>();
+        <span class="comment">// executor is full, try_spawn should return err and give back the task
+        // we attempted to spawn
+        </span><span class="kw">let </span>BoundedExecutionError::Full(rx2) = executor.try_spawn(rx2).unwrap_err();
 
-        <span class="comment">// currently running tasks is updated</span>
-        <span class="macro">assert_eq!</span>(<span class="ident">executor</span>.<span class="ident">available_capacity</span>(), <span class="number">0</span>);
+        <span class="comment">// currently running tasks is updated
+        </span><span class="macro">assert_eq!</span>(executor.available_capacity(), <span class="number">0</span>);
 
-        <span class="comment">// complete f1 future, should open a free slot in executor</span>
+        <span class="comment">// complete f1 future, should open a free slot in executor
 
-        <span class="ident">tx1</span>.<span class="ident">send</span>(()).<span class="ident">unwrap</span>();
-        <span class="ident">block_on</span>(<span class="ident">f1</span>).<span class="ident">unwrap</span>().<span class="ident">unwrap</span>();
+        </span>tx1.send(()).unwrap();
+        block_on(f1).unwrap().unwrap();
 
-        <span class="comment">// should successfully spawn a new task now that the first is complete</span>
-        <span class="kw">let</span> <span class="ident">f2</span> = <span class="ident">executor</span>.<span class="ident">try_spawn</span>(<span class="ident">rx2</span>).<span class="ident">unwrap</span>();
+        <span class="comment">// should successfully spawn a new task now that the first is complete
+        </span><span class="kw">let </span>f2 = executor.try_spawn(rx2).unwrap();
 
-        <span class="comment">// cleanup</span>
+        <span class="comment">// cleanup
 
-        <span class="ident">tx2</span>.<span class="ident">send</span>(()).<span class="ident">unwrap</span>();
-        <span class="ident">block_on</span>(<span class="ident">f2</span>).<span class="ident">unwrap</span>().<span class="ident">unwrap</span>();
+        </span>tx2.send(()).unwrap();
+        block_on(f2).unwrap().unwrap();
 
-        <span class="comment">//ensure current running goes back to one</span>
-        <span class="macro">assert_eq!</span>(<span class="ident">executor</span>.<span class="ident">available_capacity</span>(), <span class="number">1</span>);
+        <span class="comment">//ensure current running goes back to one
+        </span><span class="macro">assert_eq!</span>(executor.available_capacity(), <span class="number">1</span>);
     }
 
-    <span class="comment">// ensure tasks spawned with retries do not hog the semaphore</span>
-    <span class="attribute">#[<span class="ident">test</span>]</span>
-    <span class="kw">fn</span> <span class="ident">test_spawn_with_semaphore</span>() {
-        <span class="comment">// beware: the timeout is here to witness a failure rather than a hung test in case the</span>
-        <span class="comment">// executor does not work correctly.</span>
-        <span class="ident">panic_after</span>(<span class="ident">Duration::from_secs</span>(<span class="number">10</span>), || {
-            <span class="kw">let</span> <span class="ident">rt</span> = <span class="ident">Runtime::new</span>().<span class="ident">unwrap</span>();
-            <span class="kw">let</span> <span class="ident">executor</span> = <span class="ident">rt</span>.<span class="ident">handle</span>().<span class="ident">clone</span>();
-            <span class="kw">let</span> <span class="ident">executor</span> = <span class="ident">BoundedExecutor::new</span>(<span class="number">1</span>, <span class="ident">executor</span>);
+    <span class="comment">// ensure tasks spawned with retries do not hog the semaphore
+    </span><span class="attribute">#[test]</span>
+    <span class="kw">fn </span>test_spawn_with_semaphore() {
+        <span class="comment">// beware: the timeout is here to witness a failure rather than a hung test in case the
+        // executor does not work correctly.
+        </span>panic_after(Duration::from_secs(<span class="number">10</span>), || {
+            <span class="kw">let </span>rt = Runtime::new().unwrap();
+            <span class="kw">let </span>executor = rt.handle().clone();
+            <span class="kw">let </span>executor = BoundedExecutor::new(<span class="number">1</span>, executor);
 
-            <span class="kw">let</span> <span class="ident">infinite_retry_config</span> = <span class="ident">RetryConfig</span> {
-                <span class="comment">// Retry for forever</span>
-                <span class="ident">retrying_max_elapsed_time</span>: <span class="prelude-val">None</span>,
-                ..<span class="ident">Default::default</span>()
+            <span class="kw">let </span>infinite_retry_config = RetryConfig {
+                <span class="comment">// Retry for forever
+                </span>retrying_max_elapsed_time: <span class="prelude-val">None</span>,
+                ..Default::default()
             };
 
-            <span class="comment">// we can queue this future with infinite retries</span>
-            <span class="kw">let</span> <span class="ident">handle_infinite_fails</span> =
-                <span class="ident">executor</span>.<span class="ident">spawn_with_retries</span>(<span class="ident">infinite_retry_config</span>, <span class="ident">always_failing</span>);
+            <span class="comment">// we can queue this future with infinite retries
+            </span><span class="kw">let </span>handle_infinite_fails =
+                executor.spawn_with_retries(infinite_retry_config, always_failing);
 
-            <span class="comment">// check we can still enqueue another successful task</span>
-            <span class="kw">let</span> (<span class="ident">tx1</span>, <span class="ident">rx1</span>) = <span class="ident">oneshot::channel</span>();
-            <span class="kw">let</span> <span class="ident">f1</span> = <span class="ident">block_on</span>(<span class="ident">executor</span>.<span class="ident">spawn</span>(<span class="ident">rx1</span>));
+            <span class="comment">// check we can still enqueue another successful task
+            </span><span class="kw">let </span>(tx1, rx1) = oneshot::channel();
+            <span class="kw">let </span>f1 = block_on(executor.spawn(rx1));
 
-            <span class="comment">// complete f1 future, should open a free slot in executor</span>
-            <span class="ident">tx1</span>.<span class="ident">send</span>(()).<span class="ident">unwrap</span>();
-            <span class="ident">block_on</span>(<span class="ident">f1</span>).<span class="ident">unwrap</span>().<span class="ident">unwrap</span>();
+            <span class="comment">// complete f1 future, should open a free slot in executor
+            </span>tx1.send(()).unwrap();
+            block_on(f1).unwrap().unwrap();
 
-            <span class="comment">// cleanup</span>
-            <span class="ident">handle_infinite_fails</span>.<span class="ident">abort</span>();
+            <span class="comment">// cleanup
+            </span>handle_infinite_fails.abort();
         })
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">always_failing</span>() -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">backoff::Error</span>&lt;<span class="ident">eyre::Report</span>&gt;&gt; {
-        <span class="prelude-val">Err</span>(<span class="ident">Into::into</span>(<span class="macro">eyre::eyre!</span>(<span class="string">&quot;oops&quot;</span>)))
+    <span class="kw">async fn </span>always_failing() -&gt; <span class="prelude-ty">Result</span>&lt;(), backoff::Error&lt;eyre::Report&gt;&gt; {
+        <span class="prelude-val">Err</span>(Into::into(<span class="macro">eyre::eyre!</span>(<span class="string">&quot;oops&quot;</span>)))
     }
 
-    <span class="kw">fn</span> <span class="ident">panic_after</span>&lt;<span class="ident">T</span>, <span class="ident">F</span>&gt;(<span class="ident">d</span>: <span class="ident">Duration</span>, <span class="ident">f</span>: <span class="ident">F</span>) -&gt; <span class="ident">T</span>
-    <span class="kw">where</span>
-        <span class="ident">T</span>: <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
-        <span class="ident">F</span>: <span class="ident">FnOnce</span>() -&gt; <span class="ident">T</span>,
-        <span class="ident">F</span>: <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
+    <span class="kw">fn </span>panic_after&lt;T, F&gt;(d: Duration, f: F) -&gt; T
+    <span class="kw">where
+        </span>T: Send + <span class="lifetime">&#39;static</span>,
+        F: FnOnce() -&gt; T,
+        F: Send + <span class="lifetime">&#39;static</span>,
     {
-        <span class="kw">let</span> (<span class="ident">done_tx</span>, <span class="ident">done_rx</span>) = <span class="ident">mpsc::channel</span>();
-        <span class="kw">let</span> <span class="ident">handle</span> = <span class="ident">thread::spawn</span>(<span class="kw">move</span> || {
-            <span class="kw">let</span> <span class="ident">val</span> = <span class="ident">f</span>();
-            <span class="ident">done_tx</span>.<span class="ident">send</span>(()).<span class="ident">expect</span>(<span class="string">&quot;Unable to send completion signal&quot;</span>);
-            <span class="ident">val</span>
+        <span class="kw">let </span>(done_tx, done_rx) = mpsc::channel();
+        <span class="kw">let </span>handle = thread::spawn(<span class="kw">move </span>|| {
+            <span class="kw">let </span>val = f();
+            done_tx.send(()).expect(<span class="string">&quot;Unable to send completion signal&quot;</span>);
+            val
         });
 
-        <span class="kw">match</span> <span class="ident">done_rx</span>.<span class="ident">recv_timeout</span>(<span class="ident">d</span>) {
-            <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; <span class="ident">handle</span>.<span class="ident">join</span>().<span class="ident">expect</span>(<span class="string">&quot;Thread panicked&quot;</span>),
+        <span class="kw">match </span>done_rx.recv_timeout(d) {
+            <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; handle.join().expect(<span class="string">&quot;Thread panicked&quot;</span>),
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="macro">panic!</span>(<span class="string">&quot;Thread took too long&quot;</span>),
         }
     }
 
-    <span class="comment">// spawn NUM_TASKS futures on a BoundedExecutor, ensuring that no more than</span>
-    <span class="comment">// MAX_WORKERS ever enter the critical section.</span>
-    <span class="attribute">#[<span class="ident">test</span>]</span>
-    <span class="kw">fn</span> <span class="ident">concurrent_bounded_executor</span>() {
-        <span class="kw">const</span> <span class="ident">MAX_WORKERS</span>: <span class="ident">u32</span> = <span class="number">20</span>;
-        <span class="kw">const</span> <span class="ident">NUM_TASKS</span>: <span class="ident">u32</span> = <span class="number">1000</span>;
-        <span class="kw">static</span> <span class="ident">WORKERS</span>: <span class="ident">AtomicU32</span> = <span class="ident">AtomicU32::new</span>(<span class="number">0</span>);
-        <span class="kw">static</span> <span class="ident">COMPLETED_TASKS</span>: <span class="ident">AtomicU32</span> = <span class="ident">AtomicU32::new</span>(<span class="number">0</span>);
+    <span class="comment">// spawn NUM_TASKS futures on a BoundedExecutor, ensuring that no more than
+    // MAX_WORKERS ever enter the critical section.
+    </span><span class="attribute">#[test]</span>
+    <span class="kw">fn </span>concurrent_bounded_executor() {
+        <span class="kw">const </span>MAX_WORKERS: u32 = <span class="number">20</span>;
+        <span class="kw">const </span>NUM_TASKS: u32 = <span class="number">1000</span>;
+        <span class="kw">static </span>WORKERS: AtomicU32 = AtomicU32::new(<span class="number">0</span>);
+        <span class="kw">static </span>COMPLETED_TASKS: AtomicU32 = AtomicU32::new(<span class="number">0</span>);
 
-        <span class="kw">let</span> <span class="ident">rt</span> = <span class="ident">Runtime::new</span>().<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="ident">executor</span> = <span class="ident">rt</span>.<span class="ident">handle</span>().<span class="ident">clone</span>();
-        <span class="kw">let</span> <span class="ident">executor</span> = <span class="ident">BoundedExecutor::new</span>(<span class="ident">MAX_WORKERS</span> <span class="kw">as</span> <span class="ident">usize</span>, <span class="ident">executor</span>);
+        <span class="kw">let </span>rt = Runtime::new().unwrap();
+        <span class="kw">let </span>executor = rt.handle().clone();
+        <span class="kw">let </span>executor = BoundedExecutor::new(MAX_WORKERS <span class="kw">as </span>usize, executor);
 
-        <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">NUM_TASKS</span> {
-            <span class="ident">block_on</span>(<span class="ident">executor</span>.<span class="ident">spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
-                <span class="comment">// acquired permit, there should only ever be MAX_WORKERS in this</span>
-                <span class="comment">// critical section</span>
+        <span class="kw">for _ in </span><span class="number">0</span>..NUM_TASKS {
+            block_on(executor.spawn(<span class="kw">async move </span>{
+                <span class="comment">// acquired permit, there should only ever be MAX_WORKERS in this
+                // critical section
 
-                <span class="kw">let</span> <span class="ident">prev_workers</span> = <span class="ident">WORKERS</span>.<span class="ident">fetch_add</span>(<span class="number">1</span>, <span class="ident">Ordering::SeqCst</span>);
-                <span class="macro">assert!</span>(<span class="ident">prev_workers</span> &lt; <span class="ident">MAX_WORKERS</span>);
+                </span><span class="kw">let </span>prev_workers = WORKERS.fetch_add(<span class="number">1</span>, Ordering::SeqCst);
+                <span class="macro">assert!</span>(prev_workers &lt; MAX_WORKERS);
 
-                <span class="comment">// yield back to the tokio scheduler</span>
-                <span class="ident">yield_task</span>().<span class="kw">await</span>;
+                <span class="comment">// yield back to the tokio scheduler
+                </span>yield_task().<span class="kw">await</span>;
 
-                <span class="kw">let</span> <span class="ident">prev_workers</span> = <span class="ident">WORKERS</span>.<span class="ident">fetch_sub</span>(<span class="number">1</span>, <span class="ident">Ordering::SeqCst</span>);
-                <span class="macro">assert!</span>(<span class="ident">prev_workers</span> &gt; <span class="number">0</span> &amp;&amp; <span class="ident">prev_workers</span> &lt;= <span class="ident">MAX_WORKERS</span>);
+                <span class="kw">let </span>prev_workers = WORKERS.fetch_sub(<span class="number">1</span>, Ordering::SeqCst);
+                <span class="macro">assert!</span>(prev_workers &gt; <span class="number">0 </span>&amp;&amp; prev_workers &lt;= MAX_WORKERS);
 
-                <span class="ident">COMPLETED_TASKS</span>.<span class="ident">fetch_add</span>(<span class="number">1</span>, <span class="ident">Ordering::Relaxed</span>);
+                COMPLETED_TASKS.fetch_add(<span class="number">1</span>, Ordering::Relaxed);
             }));
         }
 
-        <span class="comment">// spin until completed</span>
-        <span class="kw">loop</span> {
-            <span class="kw">let</span> <span class="ident">completed</span> = <span class="ident">COMPLETED_TASKS</span>.<span class="ident">load</span>(<span class="ident">Ordering::Relaxed</span>);
-            <span class="kw">if</span> <span class="ident">completed</span> == <span class="ident">NUM_TASKS</span> {
+        <span class="comment">// spin until completed
+        </span><span class="kw">loop </span>{
+            <span class="kw">let </span>completed = COMPLETED_TASKS.load(Ordering::Relaxed);
+            <span class="kw">if </span>completed == NUM_TASKS {
                 <span class="kw">break</span>;
-            } <span class="kw">else</span> {
-                <span class="ident">std::hint::spin_loop</span>()
+            } <span class="kw">else </span>{
+                std::hint::spin_loop()
             }
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">yield_task</span>() -&gt; <span class="kw">impl</span> <span class="ident">Future</span>&lt;<span class="ident">Output</span> = ()&gt; {
-        <span class="ident">sleep</span>(<span class="ident">Duration::from_millis</span>(<span class="number">1</span>)).<span class="ident">map</span>(|<span class="kw">_</span>| ())
+    <span class="kw">fn </span>yield_task() -&gt; <span class="kw">impl </span>Future&lt;Output = ()&gt; {
+        sleep(Duration::from_millis(<span class="number">1</span>)).map(|<span class="kw">_</span>| ())
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="network" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="network" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (801821d15 2022-08-14)" ></div></body></html>

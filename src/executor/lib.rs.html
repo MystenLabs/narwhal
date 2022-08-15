@@ -267,274 +267,274 @@
 <span id="267">267</span>
 <span id="268">268</span>
 <span id="269">269</span>
-</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
-<span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="kw">mod</span> <span class="ident">batch_loader</span>;
-<span class="kw">mod</span> <span class="ident">core</span>;
-<span class="kw">mod</span> <span class="ident">errors</span>;
-<span class="kw">mod</span> <span class="ident">state</span>;
-<span class="kw">mod</span> <span class="ident">subscriber</span>;
+</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+</span><span class="kw">mod </span>batch_loader;
+<span class="kw">mod </span>core;
+<span class="kw">mod </span>errors;
+<span class="kw">mod </span>state;
+<span class="kw">mod </span>subscriber;
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="attribute">#[<span class="ident">path</span> = <span class="string">&quot;tests/fixtures.rs&quot;</span>]</span>
-<span class="kw">mod</span> <span class="ident">fixtures</span>;
+<span class="attribute">#[cfg(test)]</span>
+<span class="attribute">#[path = <span class="string">&quot;tests/fixtures.rs&quot;</span>]</span>
+<span class="kw">mod </span>fixtures;
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="attribute">#[<span class="ident">path</span> = <span class="string">&quot;tests/execution_state.rs&quot;</span>]</span>
-<span class="kw">mod</span> <span class="ident">execution_state</span>;
+<span class="attribute">#[cfg(test)]</span>
+<span class="attribute">#[path = <span class="string">&quot;tests/execution_state.rs&quot;</span>]</span>
+<span class="kw">mod </span>execution_state;
 
-<span class="kw">mod</span> <span class="ident">metrics</span>;
+<span class="kw">mod </span>metrics;
 
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">errors</span>::{<span class="ident">ExecutionStateError</span>, <span class="ident">SubscriberError</span>, <span class="ident">SubscriberResult</span>};
-<span class="kw">use</span> <span class="ident">multiaddr</span>::{<span class="ident">Multiaddr</span>, <span class="ident">Protocol</span>};
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">state::ExecutionIndices</span>;
+<span class="kw">pub use </span>errors::{ExecutionStateError, SubscriberError, SubscriberResult};
+<span class="kw">use </span>multiaddr::{Multiaddr, Protocol};
+<span class="kw">pub use </span>state::ExecutionIndices;
 
-<span class="kw">use</span> <span class="kw">crate</span>::{
-    <span class="ident">batch_loader::BatchLoader</span>, <span class="ident">core::Core</span>, <span class="ident">metrics::ExecutorMetrics</span>, <span class="ident">subscriber::Subscriber</span>,
+<span class="kw">use crate</span>::{
+    batch_loader::BatchLoader, core::Core, metrics::ExecutorMetrics, subscriber::Subscriber,
 };
-<span class="kw">use</span> <span class="ident">async_trait::async_trait</span>;
-<span class="kw">use</span> <span class="ident">config::SharedCommittee</span>;
-<span class="kw">use</span> <span class="ident">consensus::ConsensusOutput</span>;
-<span class="kw">use</span> <span class="ident">crypto::PublicKey</span>;
-<span class="kw">use</span> <span class="ident">prometheus::Registry</span>;
-<span class="kw">use</span> <span class="ident">serde::de::DeserializeOwned</span>;
-<span class="kw">use</span> <span class="ident">std</span>::{
-    <span class="ident">borrow::Cow</span>,
-    <span class="ident">collections::HashMap</span>,
-    <span class="ident">fmt::Debug</span>,
-    <span class="ident">net</span>::{<span class="ident">Ipv4Addr</span>, <span class="ident">Ipv6Addr</span>},
-    <span class="ident">sync::Arc</span>,
+<span class="kw">use </span>async_trait::async_trait;
+<span class="kw">use </span>config::SharedCommittee;
+<span class="kw">use </span>consensus::ConsensusOutput;
+<span class="kw">use </span>crypto::PublicKey;
+<span class="kw">use </span>prometheus::Registry;
+<span class="kw">use </span>serde::de::DeserializeOwned;
+<span class="kw">use </span>std::{
+    borrow::Cow,
+    collections::HashMap,
+    fmt::Debug,
+    net::{Ipv4Addr, Ipv6Addr},
+    sync::Arc,
 };
-<span class="kw">use</span> <span class="ident">store::Store</span>;
-<span class="kw">use</span> <span class="ident">tokio</span>::{
-    <span class="ident">sync</span>::{<span class="ident">mpsc::Sender</span>, <span class="ident">watch</span>},
-    <span class="ident">task::JoinHandle</span>,
+<span class="kw">use </span>store::Store;
+<span class="kw">use </span>tokio::{
+    sync::{mpsc::Sender, watch},
+    task::JoinHandle,
 };
-<span class="kw">use</span> <span class="ident">tracing::info</span>;
-<span class="kw">use</span> <span class="ident">types</span>::{<span class="ident">metered_channel</span>, <span class="ident">BatchDigest</span>, <span class="ident">ReconfigureNotification</span>, <span class="ident">SerializedBatchMessage</span>};
+<span class="kw">use </span>tracing::info;
+<span class="kw">use </span>types::{metered_channel, BatchDigest, ReconfigureNotification, SerializedBatchMessage};
 
-<span class="doccomment">/// Default inter-task channel size.</span>
-<span class="kw">pub</span> <span class="kw">const</span> <span class="ident">DEFAULT_CHANNEL_SIZE</span>: <span class="ident">usize</span> = <span class="number">1_000</span>;
+<span class="doccomment">/// Default inter-task channel size.
+</span><span class="kw">pub const </span>DEFAULT_CHANNEL_SIZE: usize = <span class="number">1_000</span>;
 
-<span class="doccomment">/// Convenience type representing a serialized transaction.</span>
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">SerializedTransaction</span> = <span class="ident">Vec</span>&lt;<span class="ident">u8</span>&gt;;
+<span class="doccomment">/// Convenience type representing a serialized transaction.
+</span><span class="kw">pub type </span>SerializedTransaction = Vec&lt;u8&gt;;
 
-<span class="doccomment">/// Convenience type representing a serialized transaction digest.</span>
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">SerializedTransactionDigest</span> = <span class="ident">u64</span>;
+<span class="doccomment">/// Convenience type representing a serialized transaction digest.
+</span><span class="kw">pub type </span>SerializedTransactionDigest = u64;
 
-<span class="attribute">#[<span class="ident">async_trait</span>]</span>
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">ExecutionState</span> {
-    <span class="doccomment">/// The type of the transaction to process.</span>
-    <span class="kw">type</span> <span class="ident">Transaction</span>: <span class="ident">DeserializeOwned</span> + <span class="ident">Send</span> + <span class="ident">Debug</span>;
+<span class="attribute">#[async_trait]</span>
+<span class="kw">pub trait </span>ExecutionState {
+    <span class="doccomment">/// The type of the transaction to process.
+    </span><span class="kw">type </span>Transaction: DeserializeOwned + Send + Debug;
 
-    <span class="doccomment">/// The error type to return in case something went wrong during execution.</span>
-    <span class="kw">type</span> <span class="ident">Error</span>: <span class="ident">ExecutionStateError</span>;
+    <span class="doccomment">/// The error type to return in case something went wrong during execution.
+    </span><span class="kw">type </span>Error: ExecutionStateError;
 
-    <span class="doccomment">/// The execution outcome to output.</span>
-    <span class="kw">type</span> <span class="ident">Outcome</span>;
+    <span class="doccomment">/// The execution outcome to output.
+    </span><span class="kw">type </span>Outcome;
 
-    <span class="doccomment">/// Execute the transaction and atomically persist the consensus index. This function</span>
-    <span class="doccomment">/// returns an execution outcome that will be output by the executor channel. It may</span>
-    <span class="doccomment">/// also return a new committee to reconfigure the system.</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">handle_consensus_transaction</span>(
+    <span class="doccomment">/// Execute the transaction and atomically persist the consensus index. This function
+    /// returns an execution outcome that will be output by the executor channel. It may
+    /// also return a new committee to reconfigure the system.
+    </span><span class="kw">async fn </span>handle_consensus_transaction(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">consensus_output</span>: <span class="kw-2">&amp;</span><span class="ident">ConsensusOutput</span>,
-        <span class="ident">execution_indices</span>: <span class="ident">ExecutionIndices</span>,
-        <span class="ident">transaction</span>: <span class="ident"><span class="self">Self</span>::Transaction</span>,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident"><span class="self">Self</span>::Outcome</span>, <span class="ident"><span class="self">Self</span>::Error</span>&gt;;
+        consensus_output: <span class="kw-2">&amp;</span>ConsensusOutput,
+        execution_indices: ExecutionIndices,
+        transaction: <span class="self">Self</span>::Transaction,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>::Outcome, <span class="self">Self</span>::Error&gt;;
 
-    <span class="doccomment">/// Simple guardrail ensuring there is a single instance using the state</span>
-    <span class="doccomment">/// to call `handle_consensus_transaction`. Many instances may read the state,</span>
-    <span class="doccomment">/// or use it for other purposes.</span>
-    <span class="kw">fn</span> <span class="ident">ask_consensus_write_lock</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">bool</span>;
+    <span class="doccomment">/// Simple guardrail ensuring there is a single instance using the state
+    /// to call `handle_consensus_transaction`. Many instances may read the state,
+    /// or use it for other purposes.
+    </span><span class="kw">fn </span>ask_consensus_write_lock(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool;
 
-    <span class="doccomment">/// Tell the state that the caller instance is no longer using calling</span>
-    <span class="comment">//// `handle_consensus_transaction`.</span>
-    <span class="kw">fn</span> <span class="ident">release_consensus_write_lock</span>(<span class="kw-2">&amp;</span><span class="self">self</span>);
+    <span class="doccomment">/// Tell the state that the caller instance is no longer using calling
+    </span><span class="comment">//// `handle_consensus_transaction`.
+    </span><span class="kw">fn </span>release_consensus_write_lock(<span class="kw-2">&amp;</span><span class="self">self</span>);
 
-    <span class="doccomment">/// Load the last consensus index from storage.</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">load_execution_indices</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">ExecutionIndices</span>, <span class="ident"><span class="self">Self</span>::Error</span>&gt;;
+    <span class="doccomment">/// Load the last consensus index from storage.
+    </span><span class="kw">async fn </span>load_execution_indices(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;ExecutionIndices, <span class="self">Self</span>::Error&gt;;
 }
 
-<span class="doccomment">/// The output of the executor.</span>
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">ExecutorOutput</span>&lt;<span class="ident">State</span>&gt; = (
-    <span class="ident">SubscriberResult</span>&lt;&lt;<span class="ident">State</span> <span class="kw">as</span> <span class="ident">ExecutionState</span>&gt;<span class="ident">::Outcome</span>&gt;,
-    <span class="ident">SerializedTransaction</span>,
+<span class="doccomment">/// The output of the executor.
+</span><span class="kw">pub type </span>ExecutorOutput&lt;State&gt; = (
+    SubscriberResult&lt;&lt;State <span class="kw">as </span>ExecutionState&gt;::Outcome&gt;,
+    SerializedTransaction,
 );
 
-<span class="doccomment">/// A client subscribing to the consensus output and executing every transaction.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Executor</span>;
+<span class="doccomment">/// A client subscribing to the consensus output and executing every transaction.
+</span><span class="kw">pub struct </span>Executor;
 
-<span class="kw">impl</span> <span class="ident">Executor</span> {
-    <span class="doccomment">/// Spawn a new client subscriber.</span>
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">spawn</span>&lt;<span class="ident">State</span>&gt;(
-        <span class="ident">name</span>: <span class="ident">PublicKey</span>,
-        <span class="ident">committee</span>: <span class="ident">SharedCommittee</span>,
-        <span class="ident">store</span>: <span class="ident">Store</span>&lt;<span class="ident">BatchDigest</span>, <span class="ident">SerializedBatchMessage</span>&gt;,
-        <span class="ident">execution_state</span>: <span class="ident">Arc</span>&lt;<span class="ident">State</span>&gt;,
-        <span class="ident">tx_reconfigure</span>: <span class="kw-2">&amp;</span><span class="ident">watch::Sender</span>&lt;<span class="ident">ReconfigureNotification</span>&gt;,
-        <span class="ident">rx_consensus</span>: <span class="ident">metered_channel::Receiver</span>&lt;<span class="ident">ConsensusOutput</span>&gt;,
-        <span class="ident">tx_output</span>: <span class="ident">Sender</span>&lt;<span class="ident">ExecutorOutput</span>&lt;<span class="ident">State</span>&gt;&gt;,
-        <span class="ident">registry</span>: <span class="kw-2">&amp;</span><span class="ident">Registry</span>,
-    ) -&gt; <span class="ident">SubscriberResult</span>&lt;<span class="ident">Vec</span>&lt;(<span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>, <span class="ident">JoinHandle</span>&lt;()&gt;)&gt;&gt;
-    <span class="kw">where</span>
-        <span class="ident">State</span>: <span class="ident">ExecutionState</span> + <span class="ident">Send</span> + <span class="ident">Sync</span> + <span class="lifetime">&#39;static</span>,
-        <span class="ident">State::Outcome</span>: <span class="ident">Send</span> + <span class="lifetime">&#39;static</span>,
-        <span class="ident">State::Error</span>: <span class="ident">Debug</span>,
+<span class="kw">impl </span>Executor {
+    <span class="doccomment">/// Spawn a new client subscriber.
+    </span><span class="kw">pub async fn </span>spawn&lt;State&gt;(
+        name: PublicKey,
+        committee: SharedCommittee,
+        store: Store&lt;BatchDigest, SerializedBatchMessage&gt;,
+        execution_state: Arc&lt;State&gt;,
+        tx_reconfigure: <span class="kw-2">&amp;</span>watch::Sender&lt;ReconfigureNotification&gt;,
+        rx_consensus: metered_channel::Receiver&lt;ConsensusOutput&gt;,
+        tx_output: Sender&lt;ExecutorOutput&lt;State&gt;&gt;,
+        registry: <span class="kw-2">&amp;</span>Registry,
+    ) -&gt; SubscriberResult&lt;Vec&lt;(<span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str, JoinHandle&lt;()&gt;)&gt;&gt;
+    <span class="kw">where
+        </span>State: ExecutionState + Send + Sync + <span class="lifetime">&#39;static</span>,
+        State::Outcome: Send + <span class="lifetime">&#39;static</span>,
+        State::Error: Debug,
     {
-        <span class="kw">let</span> <span class="ident">metrics</span> = <span class="ident">ExecutorMetrics::new</span>(<span class="ident">registry</span>);
+        <span class="kw">let </span>metrics = ExecutorMetrics::new(registry);
 
-        <span class="kw">let</span> (<span class="ident">tx_batch_loader</span>, <span class="ident">rx_batch_loader</span>) =
-            <span class="ident">metered_channel::channel</span>(<span class="ident">DEFAULT_CHANNEL_SIZE</span>, <span class="kw-2">&amp;</span><span class="ident">metrics</span>.<span class="ident">tx_batch_loader</span>);
-        <span class="kw">let</span> (<span class="ident">tx_executor</span>, <span class="ident">rx_executor</span>) =
-            <span class="ident">metered_channel::channel</span>(<span class="ident">DEFAULT_CHANNEL_SIZE</span>, <span class="kw-2">&amp;</span><span class="ident">metrics</span>.<span class="ident">tx_executor</span>);
+        <span class="kw">let </span>(tx_batch_loader, rx_batch_loader) =
+            metered_channel::channel(DEFAULT_CHANNEL_SIZE, <span class="kw-2">&amp;</span>metrics.tx_batch_loader);
+        <span class="kw">let </span>(tx_executor, rx_executor) =
+            metered_channel::channel(DEFAULT_CHANNEL_SIZE, <span class="kw-2">&amp;</span>metrics.tx_executor);
 
-        <span class="comment">// Ensure there is a single consensus client modifying the execution state.</span>
-        <span class="macro">ensure!</span>(
-            <span class="ident">execution_state</span>.<span class="ident">ask_consensus_write_lock</span>(),
-            <span class="ident">SubscriberError::OnlyOneConsensusClientPermitted</span>
+        <span class="comment">// Ensure there is a single consensus client modifying the execution state.
+        </span><span class="macro">ensure!</span>(
+            execution_state.ask_consensus_write_lock(),
+            SubscriberError::OnlyOneConsensusClientPermitted
         );
 
-        <span class="comment">// Spawn the subscriber.</span>
-        <span class="kw">let</span> <span class="ident">subscriber_handle</span> = <span class="ident">Subscriber::spawn</span>(
-            <span class="ident">store</span>.<span class="ident">clone</span>(),
-            <span class="ident">tx_reconfigure</span>.<span class="ident">subscribe</span>(),
-            <span class="ident">rx_consensus</span>,
-            <span class="ident">tx_batch_loader</span>,
-            <span class="ident">tx_executor</span>,
+        <span class="comment">// Spawn the subscriber.
+        </span><span class="kw">let </span>subscriber_handle = Subscriber::spawn(
+            store.clone(),
+            tx_reconfigure.subscribe(),
+            rx_consensus,
+            tx_batch_loader,
+            tx_executor,
         );
 
-        <span class="comment">// Spawn the executor&#39;s core.</span>
-        <span class="kw">let</span> <span class="ident">executor_handle</span> = <span class="ident">Core</span>::&lt;<span class="ident">State</span>&gt;<span class="ident">::spawn</span>(
-            <span class="ident">store</span>.<span class="ident">clone</span>(),
-            <span class="ident">execution_state</span>,
-            <span class="ident">tx_reconfigure</span>.<span class="ident">subscribe</span>(),
-            <span class="comment">/* rx_subscriber */</span> <span class="ident">rx_executor</span>,
-            <span class="ident">tx_output</span>,
+        <span class="comment">// Spawn the executor&#39;s core.
+        </span><span class="kw">let </span>executor_handle = Core::&lt;State&gt;::spawn(
+            store.clone(),
+            execution_state,
+            tx_reconfigure.subscribe(),
+            <span class="comment">/* rx_subscriber */ </span>rx_executor,
+            tx_output,
         );
 
-        <span class="comment">// Spawn the batch loader.</span>
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">worker_addresses</span>: <span class="ident">HashMap</span>&lt;<span class="ident">u32</span>, <span class="ident">Multiaddr</span>&gt; = <span class="ident">committee</span>
-            .<span class="ident">load</span>()
-            .<span class="ident">authorities</span>
-            .<span class="ident">iter</span>()
-            .<span class="ident">find_map</span>(|<span class="ident">v</span>| <span class="macro">match_opt::match_opt!</span>(<span class="ident">v</span>, (<span class="ident">x</span>, <span class="ident">authority</span>) <span class="kw">if</span> <span class="kw-2">*</span><span class="ident">x</span> == <span class="ident">name</span> =&gt; <span class="ident">authority</span>))
-            .<span class="ident">expect</span>(<span class="string">&quot;Our public key is not in the committee&quot;</span>)
-            .<span class="ident">workers</span>
-            .<span class="ident">iter</span>()
-            .<span class="ident">map</span>(|(<span class="ident">id</span>, <span class="ident">x</span>)| (<span class="kw-2">*</span><span class="ident">id</span>, <span class="ident">x</span>.<span class="ident">worker_to_worker</span>.<span class="ident">clone</span>()))
-            .<span class="ident">collect</span>();
-        <span class="comment">////////////////////////////////////////////////////////////////</span>
-        <span class="comment">// TODO: remove this hack once #706 is fixed</span>
-        <span class="comment">////////////////////////////////////////////////////////////////</span>
+        <span class="comment">// Spawn the batch loader.
+        </span><span class="kw">let </span><span class="kw-2">mut </span>worker_addresses: HashMap&lt;u32, Multiaddr&gt; = committee
+            .load()
+            .authorities
+            .iter()
+            .find_map(|v| <span class="macro">match_opt::match_opt!</span>(v, (x, authority) <span class="kw">if </span><span class="kw-2">*</span>x == name =&gt; authority))
+            .expect(<span class="string">&quot;Our public key is not in the committee&quot;</span>)
+            .workers
+            .iter()
+            .map(|(id, x)| (<span class="kw-2">*</span>id, x.worker_to_worker.clone()))
+            .collect();
+        <span class="comment">////////////////////////////////////////////////////////////////
+        // TODO: remove this hack once #706 is fixed
+        ////////////////////////////////////////////////////////////////
 
-        <span class="comment">// retrieve our primary address</span>
-        <span class="kw">let</span> <span class="ident">our_primary_to_primary_address</span> = <span class="ident">committee</span>
-            .<span class="ident">load</span>()
-            .<span class="ident">primary</span>(<span class="kw-2">&amp;</span><span class="ident">name</span>)
-            .<span class="ident">expect</span>(<span class="string">&quot;Out public key is not in the committee!&quot;</span>)
-            .<span class="ident">primary_to_primary</span>;
-        <span class="comment">// extract the hostname portion</span>
-        <span class="kw">let</span> <span class="ident">our_primary_hostname</span> = <span class="ident">our_primary_to_primary_address</span>
-            .<span class="ident">into_iter</span>()
-            .<span class="ident">flat_map</span>(<span class="kw">move</span> |<span class="ident">x</span>| <span class="kw">match</span> <span class="ident">x</span> {
-                <span class="ident">p</span> @ <span class="ident">Protocol::Ip4</span>(<span class="kw">_</span>) | <span class="ident">p</span> @ <span class="ident">Protocol::Ip6</span>(<span class="kw">_</span>) | <span class="ident">p</span> @ <span class="ident">Protocol::Dns</span>(<span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(<span class="ident">p</span>),
-                <span class="kw">_</span> =&gt; <span class="prelude-val">None</span>,
+        // retrieve our primary address
+        </span><span class="kw">let </span>our_primary_to_primary_address = committee
+            .load()
+            .primary(<span class="kw-2">&amp;</span>name)
+            .expect(<span class="string">&quot;Out public key is not in the committee!&quot;</span>)
+            .primary_to_primary;
+        <span class="comment">// extract the hostname portion
+        </span><span class="kw">let </span>our_primary_hostname = our_primary_to_primary_address
+            .into_iter()
+            .flat_map(<span class="kw">move </span>|x| <span class="kw">match </span>x {
+                p @ Protocol::Ip4(<span class="kw">_</span>) | p @ Protocol::Ip6(<span class="kw">_</span>) | p @ Protocol::Dns(<span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(p),
+                <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
             })
-            .<span class="ident">next</span>()
-            .<span class="ident">expect</span>(<span class="string">&quot;Could not find hostname in our primary address!&quot;</span>);
-        <span class="comment">// Modify the worker addresses that we are about to use : would we talk better using a loopback address?</span>
-        <span class="kw">for</span> <span class="ident">worker_address</span> <span class="kw">in</span> <span class="ident">worker_addresses</span>.<span class="ident">values_mut</span>() {
-            <span class="ident">replace_distant_by_localhost</span>(<span class="ident">worker_address</span>, <span class="kw-2">&amp;</span><span class="ident">our_primary_hostname</span>);
+            .next()
+            .expect(<span class="string">&quot;Could not find hostname in our primary address!&quot;</span>);
+        <span class="comment">// Modify the worker addresses that we are about to use : would we talk better using a loopback address?
+        </span><span class="kw">for </span>worker_address <span class="kw">in </span>worker_addresses.values_mut() {
+            replace_distant_by_localhost(worker_address, <span class="kw-2">&amp;</span>our_primary_hostname);
         }
-        <span class="comment">////////////////////////////////////////////////////////////////</span>
+        <span class="comment">////////////////////////////////////////////////////////////////
 
-        <span class="kw">let</span> <span class="ident">batch_loader_handle</span> = <span class="ident">BatchLoader::spawn</span>(
-            <span class="ident">store</span>,
-            <span class="ident">tx_reconfigure</span>.<span class="ident">subscribe</span>(),
-            <span class="ident">rx_batch_loader</span>,
-            <span class="ident">worker_addresses</span>,
+        </span><span class="kw">let </span>batch_loader_handle = BatchLoader::spawn(
+            store,
+            tx_reconfigure.subscribe(),
+            rx_batch_loader,
+            worker_addresses,
         );
 
-        <span class="comment">// Return the handle.</span>
-        <span class="macro">info!</span>(<span class="string">&quot;Consensus subscriber successfully started&quot;</span>);
+        <span class="comment">// Return the handle.
+        </span><span class="macro">info!</span>(<span class="string">&quot;Consensus subscriber successfully started&quot;</span>);
         <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[
-            (<span class="string">&quot;executor_subscriber&quot;</span>, <span class="ident">subscriber_handle</span>),
-            (<span class="string">&quot;executor&quot;</span>, <span class="ident">executor_handle</span>),
-            (<span class="string">&quot;executor_batch_loader&quot;</span>, <span class="ident">batch_loader_handle</span>),
+            (<span class="string">&quot;executor_subscriber&quot;</span>, subscriber_handle),
+            (<span class="string">&quot;executor&quot;</span>, executor_handle),
+            (<span class="string">&quot;executor_batch_loader&quot;</span>, batch_loader_handle),
         ])
     }
 }
 
-<span class="kw">fn</span> <span class="ident">replace_distant_by_localhost</span>(<span class="ident">target</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Multiaddr</span>, <span class="ident">hostname_pattern</span>: <span class="kw-2">&amp;</span><span class="ident">Protocol</span>) {
-    <span class="comment">// does the hostname match our pattern exactly?</span>
-    <span class="kw">if</span> <span class="ident">target</span>.<span class="ident">iter</span>().<span class="ident">next</span>() == <span class="prelude-val">Some</span>(<span class="ident">hostname_pattern</span>.<span class="ident">clone</span>()) {
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">replacement</span>) = <span class="ident">target</span>.<span class="ident">replace</span>(<span class="number">0</span>, <span class="kw">move</span> |<span class="ident">x</span>| <span class="kw">match</span> <span class="ident">x</span> {
-            <span class="ident">Protocol::Ip4</span>(<span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(<span class="ident">Protocol::Ip4</span>(<span class="ident">Ipv4Addr::LOCALHOST</span>)),
-            <span class="ident">Protocol::Ip6</span>(<span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(<span class="ident">Protocol::Ip6</span>(<span class="ident">Ipv6Addr::LOCALHOST</span>)),
-            <span class="ident">Protocol::Dns</span>(<span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(<span class="ident">Protocol::Dns</span>(<span class="ident">Cow::Owned</span>(<span class="string">&quot;localhost&quot;</span>.<span class="ident">to_owned</span>()))),
-            <span class="kw">_</span> =&gt; <span class="prelude-val">None</span>,
+<span class="kw">fn </span>replace_distant_by_localhost(target: <span class="kw-2">&amp;mut </span>Multiaddr, hostname_pattern: <span class="kw-2">&amp;</span>Protocol) {
+    <span class="comment">// does the hostname match our pattern exactly?
+    </span><span class="kw">if </span>target.iter().next() == <span class="prelude-val">Some</span>(hostname_pattern.clone()) {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(replacement) = target.replace(<span class="number">0</span>, <span class="kw">move </span>|x| <span class="kw">match </span>x {
+            Protocol::Ip4(<span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(Protocol::Ip4(Ipv4Addr::LOCALHOST)),
+            Protocol::Ip6(<span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(Protocol::Ip6(Ipv6Addr::LOCALHOST)),
+            Protocol::Dns(<span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(Protocol::Dns(Cow::Owned(<span class="string">&quot;localhost&quot;</span>.to_owned()))),
+            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         }) {
-            <span class="macro">tracing::debug!</span>(<span class="string">&quot;Address for worker {} replaced by {}&quot;</span>, <span class="ident">target</span>, <span class="ident">replacement</span>);
-            <span class="kw-2">*</span><span class="ident">target</span> = <span class="ident">replacement</span>;
+            <span class="macro">tracing::debug!</span>(<span class="string">&quot;Address for worker {} replaced by {}&quot;</span>, target, replacement);
+            <span class="kw-2">*</span>target = replacement;
         }
     }
 }
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="kw">mod</span> <span class="ident">tests</span> {
-    <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
-    <span class="kw">use</span> <span class="ident">multiaddr</span>::{<span class="ident">multiaddr</span>, <span class="ident">Protocol</span>};
-    <span class="kw">use</span> <span class="ident">std::net::Ipv4Addr</span>;
+<span class="attribute">#[cfg(test)]</span>
+<span class="kw">mod </span>tests {
+    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+    <span class="kw">use </span>multiaddr::{multiaddr, Protocol};
+    <span class="kw">use </span>std::net::Ipv4Addr;
 
-    <span class="attribute">#[<span class="ident">test</span>]</span>
-    <span class="kw">fn</span> <span class="ident">test_replace_distant_by_localhost</span>() {
-        <span class="comment">// IPV4 positive</span>
-        <span class="kw">let</span> <span class="ident">non_local</span>: <span class="ident">Ipv4Addr</span> = <span class="string">&quot;8.8.8.8&quot;</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">addr1</span> = <span class="macro">multiaddr!</span>(<span class="ident">Ip4</span>(<span class="ident">non_local</span>), <span class="ident">Tcp</span>(<span class="number">10000u16</span>));
+    <span class="attribute">#[test]</span>
+    <span class="kw">fn </span>test_replace_distant_by_localhost() {
+        <span class="comment">// IPV4 positive
+        </span><span class="kw">let </span>non_local: Ipv4Addr = <span class="string">&quot;8.8.8.8&quot;</span>.parse().unwrap();
+        <span class="kw">let </span><span class="kw-2">mut </span>addr1 = <span class="macro">multiaddr!</span>(Ip4(non_local), Tcp(<span class="number">10000u16</span>));
 
-        <span class="ident">replace_distant_by_localhost</span>(<span class="kw-2">&amp;mut</span> <span class="ident">addr1</span>, <span class="kw-2">&amp;</span><span class="ident">Protocol::Ip4</span>(<span class="ident">non_local</span>));
-        <span class="macro">assert_eq!</span>(<span class="ident">addr1</span>, <span class="macro">multiaddr!</span>(<span class="ident">Ip4</span>(<span class="ident">Ipv4Addr::LOCALHOST</span>), <span class="ident">Tcp</span>(<span class="number">10000u16</span>)));
+        replace_distant_by_localhost(<span class="kw-2">&amp;mut </span>addr1, <span class="kw-2">&amp;</span>Protocol::Ip4(non_local));
+        <span class="macro">assert_eq!</span>(addr1, <span class="macro">multiaddr!</span>(Ip4(Ipv4Addr::LOCALHOST), Tcp(<span class="number">10000u16</span>)));
 
-        <span class="comment">// IPV4 negative</span>
-        <span class="kw">let</span> <span class="ident">other_target</span>: <span class="ident">Ipv4Addr</span> = <span class="string">&quot;8.8.8.4&quot;</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="ident">addr1</span> = <span class="macro">multiaddr!</span>(<span class="ident">Ip4</span>(<span class="ident">non_local</span>), <span class="ident">Tcp</span>(<span class="number">10000u16</span>));
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">addr2</span> = <span class="macro">multiaddr!</span>(<span class="ident">Ip4</span>(<span class="ident">non_local</span>), <span class="ident">Tcp</span>(<span class="number">10000u16</span>));
+        <span class="comment">// IPV4 negative
+        </span><span class="kw">let </span>other_target: Ipv4Addr = <span class="string">&quot;8.8.8.4&quot;</span>.parse().unwrap();
+        <span class="kw">let </span>addr1 = <span class="macro">multiaddr!</span>(Ip4(non_local), Tcp(<span class="number">10000u16</span>));
+        <span class="kw">let </span><span class="kw-2">mut </span>addr2 = <span class="macro">multiaddr!</span>(Ip4(non_local), Tcp(<span class="number">10000u16</span>));
 
-        <span class="ident">replace_distant_by_localhost</span>(<span class="kw-2">&amp;mut</span> <span class="ident">addr2</span>, <span class="kw-2">&amp;</span><span class="ident">Protocol::Ip4</span>(<span class="ident">other_target</span>));
-        <span class="macro">assert_eq!</span>(<span class="ident">addr2</span>, <span class="ident">addr1</span>);
+        replace_distant_by_localhost(<span class="kw-2">&amp;mut </span>addr2, <span class="kw-2">&amp;</span>Protocol::Ip4(other_target));
+        <span class="macro">assert_eq!</span>(addr2, addr1);
 
-        <span class="comment">// IPV6 positive</span>
-        <span class="kw">let</span> <span class="ident">non_local</span>: <span class="ident">Ipv6Addr</span> = <span class="string">&quot;2607:f0d0:1002:51::4&quot;</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">addr1</span> = <span class="macro">multiaddr!</span>(<span class="ident">Ip6</span>(<span class="ident">non_local</span>), <span class="ident">Tcp</span>(<span class="number">10000u16</span>));
+        <span class="comment">// IPV6 positive
+        </span><span class="kw">let </span>non_local: Ipv6Addr = <span class="string">&quot;2607:f0d0:1002:51::4&quot;</span>.parse().unwrap();
+        <span class="kw">let </span><span class="kw-2">mut </span>addr1 = <span class="macro">multiaddr!</span>(Ip6(non_local), Tcp(<span class="number">10000u16</span>));
 
-        <span class="ident">replace_distant_by_localhost</span>(<span class="kw-2">&amp;mut</span> <span class="ident">addr1</span>, <span class="kw-2">&amp;</span><span class="ident">Protocol::Ip6</span>(<span class="ident">non_local</span>));
-        <span class="macro">assert_eq!</span>(<span class="ident">addr1</span>, <span class="macro">multiaddr!</span>(<span class="ident">Ip6</span>(<span class="ident">Ipv6Addr::LOCALHOST</span>), <span class="ident">Tcp</span>(<span class="number">10000u16</span>)));
+        replace_distant_by_localhost(<span class="kw-2">&amp;mut </span>addr1, <span class="kw-2">&amp;</span>Protocol::Ip6(non_local));
+        <span class="macro">assert_eq!</span>(addr1, <span class="macro">multiaddr!</span>(Ip6(Ipv6Addr::LOCALHOST), Tcp(<span class="number">10000u16</span>)));
 
-        <span class="comment">// IPV6 negative</span>
-        <span class="kw">let</span> <span class="ident">other_target</span>: <span class="ident">Ipv6Addr</span> = <span class="string">&quot;2607:f0d0:1002:50::4&quot;</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="ident">addr1</span> = <span class="macro">multiaddr!</span>(<span class="ident">Ip6</span>(<span class="ident">non_local</span>), <span class="ident">Tcp</span>(<span class="number">10000u16</span>));
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">addr2</span> = <span class="macro">multiaddr!</span>(<span class="ident">Ip6</span>(<span class="ident">non_local</span>), <span class="ident">Tcp</span>(<span class="number">10000u16</span>));
+        <span class="comment">// IPV6 negative
+        </span><span class="kw">let </span>other_target: Ipv6Addr = <span class="string">&quot;2607:f0d0:1002:50::4&quot;</span>.parse().unwrap();
+        <span class="kw">let </span>addr1 = <span class="macro">multiaddr!</span>(Ip6(non_local), Tcp(<span class="number">10000u16</span>));
+        <span class="kw">let </span><span class="kw-2">mut </span>addr2 = <span class="macro">multiaddr!</span>(Ip6(non_local), Tcp(<span class="number">10000u16</span>));
 
-        <span class="ident">replace_distant_by_localhost</span>(<span class="kw-2">&amp;mut</span> <span class="ident">addr2</span>, <span class="kw-2">&amp;</span><span class="ident">Protocol::Ip6</span>(<span class="ident">other_target</span>));
-        <span class="macro">assert_eq!</span>(<span class="ident">addr2</span>, <span class="ident">addr1</span>);
+        replace_distant_by_localhost(<span class="kw-2">&amp;mut </span>addr2, <span class="kw-2">&amp;</span>Protocol::Ip6(other_target));
+        <span class="macro">assert_eq!</span>(addr2, addr1);
 
-        <span class="comment">// DNS positive</span>
-        <span class="kw">let</span> <span class="ident">non_local</span>: <span class="ident">Cow</span>&lt;<span class="ident">str</span>&gt; = <span class="ident">Cow::Owned</span>(<span class="string">&quot;google.com&quot;</span>.<span class="ident">to_owned</span>());
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">addr1</span> = <span class="macro">multiaddr!</span>(<span class="ident">Dns</span>(<span class="ident">non_local</span>.<span class="ident">clone</span>()), <span class="ident">Tcp</span>(<span class="number">10000u16</span>));
+        <span class="comment">// DNS positive
+        </span><span class="kw">let </span>non_local: Cow&lt;str&gt; = Cow::Owned(<span class="string">&quot;google.com&quot;</span>.to_owned());
+        <span class="kw">let </span><span class="kw-2">mut </span>addr1 = <span class="macro">multiaddr!</span>(Dns(non_local.clone()), Tcp(<span class="number">10000u16</span>));
 
-        <span class="ident">replace_distant_by_localhost</span>(<span class="kw-2">&amp;mut</span> <span class="ident">addr1</span>, <span class="kw-2">&amp;</span><span class="ident">Protocol::Dns</span>(<span class="ident">non_local</span>.<span class="ident">clone</span>()));
-        <span class="kw">let</span> <span class="ident">localhost</span>: <span class="ident">Cow</span>&lt;<span class="ident">str</span>&gt; = <span class="ident">Cow::Owned</span>(<span class="string">&quot;localhost&quot;</span>.<span class="ident">to_owned</span>());
-        <span class="macro">assert_eq!</span>(<span class="ident">addr1</span>, <span class="macro">multiaddr!</span>(<span class="ident">Dns</span>(<span class="ident">localhost</span>), <span class="ident">Tcp</span>(<span class="number">10000u16</span>)));
+        replace_distant_by_localhost(<span class="kw-2">&amp;mut </span>addr1, <span class="kw-2">&amp;</span>Protocol::Dns(non_local.clone()));
+        <span class="kw">let </span>localhost: Cow&lt;str&gt; = Cow::Owned(<span class="string">&quot;localhost&quot;</span>.to_owned());
+        <span class="macro">assert_eq!</span>(addr1, <span class="macro">multiaddr!</span>(Dns(localhost), Tcp(<span class="number">10000u16</span>)));
 
-        <span class="comment">// DNS negative</span>
-        <span class="kw">let</span> <span class="ident">other_target</span>: <span class="ident">Cow</span>&lt;<span class="ident">str</span>&gt; = <span class="ident">Cow::Owned</span>(<span class="string">&quot;apple.com&quot;</span>.<span class="ident">to_owned</span>());
-        <span class="kw">let</span> <span class="ident">addr1</span> = <span class="macro">multiaddr!</span>(<span class="ident">Dns</span>(<span class="ident">non_local</span>.<span class="ident">clone</span>()), <span class="ident">Tcp</span>(<span class="number">10000u16</span>));
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">addr2</span> = <span class="macro">multiaddr!</span>(<span class="ident">Dns</span>(<span class="ident">non_local</span>), <span class="ident">Tcp</span>(<span class="number">10000u16</span>));
+        <span class="comment">// DNS negative
+        </span><span class="kw">let </span>other_target: Cow&lt;str&gt; = Cow::Owned(<span class="string">&quot;apple.com&quot;</span>.to_owned());
+        <span class="kw">let </span>addr1 = <span class="macro">multiaddr!</span>(Dns(non_local.clone()), Tcp(<span class="number">10000u16</span>));
+        <span class="kw">let </span><span class="kw-2">mut </span>addr2 = <span class="macro">multiaddr!</span>(Dns(non_local), Tcp(<span class="number">10000u16</span>));
 
-        <span class="ident">replace_distant_by_localhost</span>(<span class="kw-2">&amp;mut</span> <span class="ident">addr2</span>, <span class="kw-2">&amp;</span><span class="ident">Protocol::Dns</span>(<span class="ident">other_target</span>));
-        <span class="macro">assert_eq!</span>(<span class="ident">addr2</span>, <span class="ident">addr1</span>);
+        replace_distant_by_localhost(<span class="kw-2">&amp;mut </span>addr2, <span class="kw-2">&amp;</span>Protocol::Dns(other_target));
+        <span class="macro">assert_eq!</span>(addr2, addr1);
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="executor" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="executor" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (801821d15 2022-08-14)" ></div></body></html>

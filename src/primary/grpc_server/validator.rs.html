@@ -217,224 +217,224 @@
 <span id="217">217</span>
 <span id="218">218</span>
 <span id="219">219</span>
-</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
-<span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">sync::Arc</span>, <span class="ident">time::Duration</span>};
+</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+</span><span class="kw">use </span>std::{sync::Arc, time::Duration};
 
-<span class="kw">use</span> <span class="kw">crate</span>::{
-    <span class="ident">block_synchronizer::handler::Handler</span>, <span class="ident">block_waiter::GetBlockResponse</span>, <span class="ident">BlockCommand</span>,
-    <span class="ident">BlockRemoverCommand</span>,
+<span class="kw">use crate</span>::{
+    block_synchronizer::handler::Handler, block_waiter::GetBlockResponse, BlockCommand,
+    BlockRemoverCommand,
 };
-<span class="kw">use</span> <span class="ident">consensus::dag::Dag</span>;
-<span class="kw">use</span> <span class="ident">tokio</span>::{
-    <span class="ident">sync</span>::{<span class="ident">mpsc::channel</span>, <span class="ident">oneshot</span>},
-    <span class="ident">time::timeout</span>,
+<span class="kw">use </span>consensus::dag::Dag;
+<span class="kw">use </span>tokio::{
+    sync::{mpsc::channel, oneshot},
+    time::timeout,
 };
-<span class="kw">use</span> <span class="ident">tonic</span>::{<span class="ident">Request</span>, <span class="ident">Response</span>, <span class="ident">Status</span>};
-<span class="kw">use</span> <span class="ident">types</span>::{
-    <span class="ident">metered_channel::Sender</span>, <span class="ident">BlockError</span>, <span class="ident">BlockRemoverErrorKind</span>, <span class="ident">CertificateDigest</span>,
-    <span class="ident">CertificateDigestProto</span>, <span class="ident">Collection</span>, <span class="ident">CollectionRetrievalResult</span>, <span class="ident">Empty</span>, <span class="ident">GetCollectionsRequest</span>,
-    <span class="ident">GetCollectionsResponse</span>, <span class="ident">ReadCausalRequest</span>, <span class="ident">ReadCausalResponse</span>, <span class="ident">RemoveCollectionsRequest</span>,
-    <span class="ident">TransactionProto</span>, <span class="ident">Validator</span>,
+<span class="kw">use </span>tonic::{Request, Response, Status};
+<span class="kw">use </span>types::{
+    metered_channel::Sender, BlockError, BlockRemoverErrorKind, CertificateDigest,
+    CertificateDigestProto, Collection, CollectionRetrievalResult, Empty, GetCollectionsRequest,
+    GetCollectionsResponse, ReadCausalRequest, ReadCausalResponse, RemoveCollectionsRequest,
+    TransactionProto, Validator,
 };
 
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">NarwhalValidator</span>&lt;<span class="ident">SynchronizerHandler</span>: <span class="ident">Handler</span> + <span class="ident">Send</span> + <span class="ident">Sync</span> + <span class="lifetime">&#39;static</span>&gt; {
-    <span class="ident">tx_get_block_commands</span>: <span class="ident">Sender</span>&lt;<span class="ident">BlockCommand</span>&gt;,
-    <span class="ident">tx_block_removal_commands</span>: <span class="ident">Sender</span>&lt;<span class="ident">BlockRemoverCommand</span>&gt;,
-    <span class="ident">get_collections_timeout</span>: <span class="ident">Duration</span>,
-    <span class="ident">remove_collections_timeout</span>: <span class="ident">Duration</span>,
-    <span class="ident">block_synchronizer_handler</span>: <span class="ident">Arc</span>&lt;<span class="ident">SynchronizerHandler</span>&gt;,
-    <span class="ident">dag</span>: <span class="prelude-ty">Option</span>&lt;<span class="ident">Arc</span>&lt;<span class="ident">Dag</span>&gt;&gt;,
+<span class="kw">pub struct </span>NarwhalValidator&lt;SynchronizerHandler: Handler + Send + Sync + <span class="lifetime">&#39;static</span>&gt; {
+    tx_get_block_commands: Sender&lt;BlockCommand&gt;,
+    tx_block_removal_commands: Sender&lt;BlockRemoverCommand&gt;,
+    get_collections_timeout: Duration,
+    remove_collections_timeout: Duration,
+    block_synchronizer_handler: Arc&lt;SynchronizerHandler&gt;,
+    dag: <span class="prelude-ty">Option</span>&lt;Arc&lt;Dag&gt;&gt;,
 }
 
-<span class="kw">impl</span>&lt;<span class="ident">SynchronizerHandler</span>: <span class="ident">Handler</span> + <span class="ident">Send</span> + <span class="ident">Sync</span> + <span class="lifetime">&#39;static</span>&gt; <span class="ident">NarwhalValidator</span>&lt;<span class="ident">SynchronizerHandler</span>&gt; {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(
-        <span class="ident">tx_get_block_commands</span>: <span class="ident">Sender</span>&lt;<span class="ident">BlockCommand</span>&gt;,
-        <span class="ident">tx_block_removal_commands</span>: <span class="ident">Sender</span>&lt;<span class="ident">BlockRemoverCommand</span>&gt;,
-        <span class="ident">get_collections_timeout</span>: <span class="ident">Duration</span>,
-        <span class="ident">remove_collections_timeout</span>: <span class="ident">Duration</span>,
-        <span class="ident">block_synchronizer_handler</span>: <span class="ident">Arc</span>&lt;<span class="ident">SynchronizerHandler</span>&gt;,
-        <span class="ident">dag</span>: <span class="prelude-ty">Option</span>&lt;<span class="ident">Arc</span>&lt;<span class="ident">Dag</span>&gt;&gt;,
-    ) -&gt; <span class="self">Self</span> {
-        <span class="self">Self</span> {
-            <span class="ident">tx_get_block_commands</span>,
-            <span class="ident">tx_block_removal_commands</span>,
-            <span class="ident">get_collections_timeout</span>,
-            <span class="ident">remove_collections_timeout</span>,
-            <span class="ident">block_synchronizer_handler</span>,
-            <span class="ident">dag</span>,
+<span class="kw">impl</span>&lt;SynchronizerHandler: Handler + Send + Sync + <span class="lifetime">&#39;static</span>&gt; NarwhalValidator&lt;SynchronizerHandler&gt; {
+    <span class="kw">pub fn </span>new(
+        tx_get_block_commands: Sender&lt;BlockCommand&gt;,
+        tx_block_removal_commands: Sender&lt;BlockRemoverCommand&gt;,
+        get_collections_timeout: Duration,
+        remove_collections_timeout: Duration,
+        block_synchronizer_handler: Arc&lt;SynchronizerHandler&gt;,
+        dag: <span class="prelude-ty">Option</span>&lt;Arc&lt;Dag&gt;&gt;,
+    ) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            tx_get_block_commands,
+            tx_block_removal_commands,
+            get_collections_timeout,
+            remove_collections_timeout,
+            block_synchronizer_handler,
+            dag,
         }
     }
 }
 
-<span class="attribute">#[<span class="ident">tonic::async_trait</span>]</span>
-<span class="kw">impl</span>&lt;<span class="ident">SynchronizerHandler</span>: <span class="ident">Handler</span> + <span class="ident">Send</span> + <span class="ident">Sync</span> + <span class="lifetime">&#39;static</span>&gt; <span class="ident">Validator</span>
-    <span class="kw">for</span> <span class="ident">NarwhalValidator</span>&lt;<span class="ident">SynchronizerHandler</span>&gt;
+<span class="attribute">#[tonic::async_trait]</span>
+<span class="kw">impl</span>&lt;SynchronizerHandler: Handler + Send + Sync + <span class="lifetime">&#39;static</span>&gt; Validator
+    <span class="kw">for </span>NarwhalValidator&lt;SynchronizerHandler&gt;
 {
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">read_causal</span>(
+    <span class="kw">async fn </span>read_causal(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">request</span>: <span class="ident">Request</span>&lt;<span class="ident">ReadCausalRequest</span>&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">Response</span>&lt;<span class="ident">ReadCausalResponse</span>&gt;, <span class="ident">Status</span>&gt; {
-        <span class="kw">let</span> <span class="ident">collection_id</span> = <span class="ident">request</span>
-            .<span class="ident">into_inner</span>()
-            .<span class="ident">collection_id</span>
-            .<span class="ident">ok_or_else</span>(|| <span class="ident">Status::invalid_argument</span>(<span class="string">&quot;No collection id has been provided&quot;</span>))<span class="question-mark">?</span>;
-        <span class="kw">let</span> <span class="ident">ids</span> = <span class="ident">parse_certificate_digests</span>(<span class="macro">vec!</span>[<span class="ident">collection_id</span>])<span class="question-mark">?</span>;
+        request: Request&lt;ReadCausalRequest&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;Response&lt;ReadCausalResponse&gt;, Status&gt; {
+        <span class="kw">let </span>collection_id = request
+            .into_inner()
+            .collection_id
+            .ok_or_else(|| Status::invalid_argument(<span class="string">&quot;No collection id has been provided&quot;</span>))<span class="question-mark">?</span>;
+        <span class="kw">let </span>ids = parse_certificate_digests(<span class="macro">vec!</span>[collection_id])<span class="question-mark">?</span>;
 
-        <span class="kw">let</span> <span class="ident">block_header_results</span> = <span class="self">self</span>
-            .<span class="ident">block_synchronizer_handler</span>
-            .<span class="ident">get_and_synchronize_block_headers</span>(<span class="ident">ids</span>.<span class="ident">clone</span>())
+        <span class="kw">let </span>block_header_results = <span class="self">self
+            </span>.block_synchronizer_handler
+            .get_and_synchronize_block_headers(ids.clone())
             .<span class="kw">await</span>;
 
-        <span class="kw">for</span> <span class="ident">result</span> <span class="kw">in</span> <span class="ident">block_header_results</span> {
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">err</span>) = <span class="ident">result</span> {
-                <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Status::internal</span>(<span class="macro">format!</span>(
+        <span class="kw">for </span>result <span class="kw">in </span>block_header_results {
+            <span class="kw">if let </span><span class="prelude-val">Err</span>(err) = result {
+                <span class="kw">return </span><span class="prelude-val">Err</span>(Status::internal(<span class="macro">format!</span>(
                     <span class="string">&quot;Error when trying to synchronize block headers: {:?}&quot;</span>,
-                    <span class="ident">err</span>
+                    err
                 )));
             }
         }
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dag</span>) = <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">dag</span> {
-            <span class="kw">let</span> <span class="ident">result</span> = <span class="kw">match</span> <span class="ident">dag</span>.<span class="ident">read_causal</span>(<span class="ident">ids</span>[<span class="number">0</span>]).<span class="kw">await</span> {
-                <span class="prelude-val">Ok</span>(<span class="ident">digests</span>) =&gt; <span class="prelude-val">Ok</span>(<span class="ident">ReadCausalResponse</span> {
-                    <span class="ident">collection_ids</span>: <span class="ident">digests</span>.<span class="ident">into_iter</span>().<span class="ident">map</span>(<span class="ident">Into::into</span>).<span class="ident">collect</span>(),
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(dag) = <span class="kw-2">&amp;</span><span class="self">self</span>.dag {
+            <span class="kw">let </span>result = <span class="kw">match </span>dag.read_causal(ids[<span class="number">0</span>]).<span class="kw">await </span>{
+                <span class="prelude-val">Ok</span>(digests) =&gt; <span class="prelude-val">Ok</span>(ReadCausalResponse {
+                    collection_ids: digests.into_iter().map(Into::into).collect(),
                 }),
-                <span class="prelude-val">Err</span>(<span class="ident">err</span>) =&gt; <span class="prelude-val">Err</span>(<span class="ident">Status::internal</span>(<span class="macro">format!</span>(<span class="string">&quot;Couldn&#39;t read causal: {err}&quot;</span>))),
+                <span class="prelude-val">Err</span>(err) =&gt; <span class="prelude-val">Err</span>(Status::internal(<span class="macro">format!</span>(<span class="string">&quot;Couldn&#39;t read causal: {err}&quot;</span>))),
             };
-            <span class="kw">return</span> <span class="ident">result</span>.<span class="ident">map</span>(<span class="ident">Response::new</span>);
+            <span class="kw">return </span>result.map(Response::new);
         }
-        <span class="prelude-val">Err</span>(<span class="ident">Status::internal</span>(<span class="string">&quot;Dag does not exist&quot;</span>))
+        <span class="prelude-val">Err</span>(Status::internal(<span class="string">&quot;Dag does not exist&quot;</span>))
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">remove_collections</span>(
+    <span class="kw">async fn </span>remove_collections(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">request</span>: <span class="ident">Request</span>&lt;<span class="ident">RemoveCollectionsRequest</span>&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">Response</span>&lt;<span class="ident">Empty</span>&gt;, <span class="ident">Status</span>&gt; {
-        <span class="kw">let</span> <span class="ident">collection_ids</span> = <span class="ident">request</span>.<span class="ident">into_inner</span>().<span class="ident">collection_ids</span>;
-        <span class="kw">let</span> <span class="ident">remove_collections_response</span> = <span class="kw">if</span> !<span class="ident">collection_ids</span>.<span class="ident">is_empty</span>() {
-            <span class="kw">let</span> (<span class="ident">tx_remove_block</span>, <span class="kw-2">mut</span> <span class="ident">rx_remove_block</span>) = <span class="ident">channel</span>(<span class="number">1</span>);
-            <span class="kw">let</span> <span class="ident">ids</span> = <span class="ident">parse_certificate_digests</span>(<span class="ident">collection_ids</span>)<span class="question-mark">?</span>;
-            <span class="self">self</span>.<span class="ident">tx_block_removal_commands</span>
-                .<span class="ident">send</span>(<span class="ident">BlockRemoverCommand::RemoveBlocks</span> {
-                    <span class="ident">ids</span>,
-                    <span class="ident">sender</span>: <span class="ident">tx_remove_block</span>,
+        request: Request&lt;RemoveCollectionsRequest&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;Response&lt;Empty&gt;, Status&gt; {
+        <span class="kw">let </span>collection_ids = request.into_inner().collection_ids;
+        <span class="kw">let </span>remove_collections_response = <span class="kw">if </span>!collection_ids.is_empty() {
+            <span class="kw">let </span>(tx_remove_block, <span class="kw-2">mut </span>rx_remove_block) = channel(<span class="number">1</span>);
+            <span class="kw">let </span>ids = parse_certificate_digests(collection_ids)<span class="question-mark">?</span>;
+            <span class="self">self</span>.tx_block_removal_commands
+                .send(BlockRemoverCommand::RemoveBlocks {
+                    ids,
+                    sender: tx_remove_block,
                 })
-                .<span class="kw">await</span>
-                .<span class="ident">map_err</span>(|<span class="ident">err</span>| <span class="ident">Status::internal</span>(<span class="macro">format!</span>(<span class="string">&quot;Send Error: {err:?}&quot;</span>)))<span class="question-mark">?</span>;
-            <span class="kw">match</span> <span class="ident">timeout</span>(<span class="self">self</span>.<span class="ident">remove_collections_timeout</span>, <span class="ident">rx_remove_block</span>.<span class="ident">recv</span>())
-                .<span class="kw">await</span>
-                .<span class="ident">map_err</span>(|<span class="ident">_err</span>| <span class="ident">Status::internal</span>(<span class="string">&quot;Timeout, no result has been received in time&quot;</span>))<span class="question-mark">?</span>
-            {
-                <span class="prelude-val">Some</span>(<span class="ident">result</span>) =&gt; <span class="kw">match</span> <span class="ident">result</span> {
-                    <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(<span class="ident">Empty</span> {}),
-                    <span class="prelude-val">Err</span>(<span class="ident">remove_block_error</span>)
-                        <span class="kw">if</span> <span class="ident">remove_block_error</span>.<span class="ident">error</span> == <span class="ident">BlockRemoverErrorKind::Timeout</span> =&gt;
+                .<span class="kw">await
+                </span>.map_err(|err| Status::internal(<span class="macro">format!</span>(<span class="string">&quot;Send Error: {err:?}&quot;</span>)))<span class="question-mark">?</span>;
+            <span class="kw">match </span>timeout(<span class="self">self</span>.remove_collections_timeout, rx_remove_block.recv())
+                .<span class="kw">await
+                </span>.map_err(|_err| Status::internal(<span class="string">&quot;Timeout, no result has been received in time&quot;</span>))<span class="question-mark">?
+            </span>{
+                <span class="prelude-val">Some</span>(result) =&gt; <span class="kw">match </span>result {
+                    <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(Empty {}),
+                    <span class="prelude-val">Err</span>(remove_block_error)
+                        <span class="kw">if </span>remove_block_error.error == BlockRemoverErrorKind::Timeout =&gt;
                     {
-                        <span class="prelude-val">Err</span>(<span class="ident">Status::internal</span>(
+                        <span class="prelude-val">Err</span>(Status::internal(
                             <span class="string">&quot;Timeout, no result has been received in time&quot;</span>,
                         ))
                     }
-                    <span class="prelude-val">Err</span>(<span class="ident">remove_block_error</span>) =&gt; <span class="prelude-val">Err</span>(<span class="ident">Status::internal</span>(<span class="macro">format!</span>(
+                    <span class="prelude-val">Err</span>(remove_block_error) =&gt; <span class="prelude-val">Err</span>(Status::internal(<span class="macro">format!</span>(
                         <span class="string">&quot;Removal Error: {:?}&quot;</span>,
-                        <span class="ident">remove_block_error</span>.<span class="ident">error</span>
+                        remove_block_error.error
                     ))),
                 },
-                <span class="prelude-val">None</span> =&gt; <span class="prelude-val">Err</span>(<span class="ident">Status::internal</span>(
+                <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Err</span>(Status::internal(
                     <span class="string">&quot;Removal channel closed, no result has been received.&quot;</span>,
                 )),
             }
-        } <span class="kw">else</span> {
-            <span class="prelude-val">Err</span>(<span class="ident">Status::invalid_argument</span>(
+        } <span class="kw">else </span>{
+            <span class="prelude-val">Err</span>(Status::invalid_argument(
                 <span class="string">&quot;Attempted to remove no collections!&quot;</span>,
             ))
         };
-        <span class="ident">remove_collections_response</span>.<span class="ident">map</span>(<span class="ident">Response::new</span>)
+        remove_collections_response.map(Response::new)
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get_collections</span>(
+    <span class="kw">async fn </span>get_collections(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">request</span>: <span class="ident">Request</span>&lt;<span class="ident">GetCollectionsRequest</span>&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">Response</span>&lt;<span class="ident">GetCollectionsResponse</span>&gt;, <span class="ident">Status</span>&gt; {
-        <span class="kw">let</span> <span class="ident">collection_ids</span> = <span class="ident">request</span>.<span class="ident">into_inner</span>().<span class="ident">collection_ids</span>;
-        <span class="kw">let</span> <span class="ident">get_collections_response</span> = <span class="kw">if</span> !<span class="ident">collection_ids</span>.<span class="ident">is_empty</span>() {
-            <span class="kw">let</span> (<span class="ident">tx_get_blocks</span>, <span class="ident">rx_get_blocks</span>) = <span class="ident">oneshot::channel</span>();
-            <span class="kw">let</span> <span class="ident">ids</span> = <span class="ident">parse_certificate_digests</span>(<span class="ident">collection_ids</span>)<span class="question-mark">?</span>;
-            <span class="self">self</span>.<span class="ident">tx_get_block_commands</span>
-                .<span class="ident">send</span>(<span class="ident">BlockCommand::GetBlocks</span> {
-                    <span class="ident">ids</span>,
-                    <span class="ident">sender</span>: <span class="ident">tx_get_blocks</span>,
+        request: Request&lt;GetCollectionsRequest&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;Response&lt;GetCollectionsResponse&gt;, Status&gt; {
+        <span class="kw">let </span>collection_ids = request.into_inner().collection_ids;
+        <span class="kw">let </span>get_collections_response = <span class="kw">if </span>!collection_ids.is_empty() {
+            <span class="kw">let </span>(tx_get_blocks, rx_get_blocks) = oneshot::channel();
+            <span class="kw">let </span>ids = parse_certificate_digests(collection_ids)<span class="question-mark">?</span>;
+            <span class="self">self</span>.tx_get_block_commands
+                .send(BlockCommand::GetBlocks {
+                    ids,
+                    sender: tx_get_blocks,
                 })
-                .<span class="kw">await</span>
-                .<span class="ident">map_err</span>(|<span class="ident">err</span>| <span class="ident">Status::internal</span>(<span class="macro">format!</span>(<span class="string">&quot;Send Error: {err:?}&quot;</span>)))<span class="question-mark">?</span>;
-            <span class="kw">match</span> <span class="ident">timeout</span>(<span class="self">self</span>.<span class="ident">get_collections_timeout</span>, <span class="ident">rx_get_blocks</span>)
-                .<span class="kw">await</span>
-                .<span class="ident">map_err</span>(|<span class="ident">_err</span>| <span class="ident">Status::internal</span>(<span class="string">&quot;Timeout, no result has been received in time&quot;</span>))<span class="question-mark">?</span>
-                .<span class="ident">map_err</span>(|<span class="ident">_err</span>| <span class="ident">Status::internal</span>(<span class="string">&quot;Fetch Error, no result has been received&quot;</span>))<span class="question-mark">?</span>
-            {
-                <span class="prelude-val">Ok</span>(<span class="ident">blocks_response</span>) =&gt; {
-                    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">retrieval_results</span> = <span class="macro">vec!</span>[];
-                    <span class="kw">for</span> <span class="ident">block_result</span> <span class="kw">in</span> <span class="ident">blocks_response</span>.<span class="ident">blocks</span> {
-                        <span class="ident">retrieval_results</span>.<span class="ident">push</span>(<span class="ident">get_collection_retrieval_results</span>(<span class="ident">block_result</span>));
+                .<span class="kw">await
+                </span>.map_err(|err| Status::internal(<span class="macro">format!</span>(<span class="string">&quot;Send Error: {err:?}&quot;</span>)))<span class="question-mark">?</span>;
+            <span class="kw">match </span>timeout(<span class="self">self</span>.get_collections_timeout, rx_get_blocks)
+                .<span class="kw">await
+                </span>.map_err(|_err| Status::internal(<span class="string">&quot;Timeout, no result has been received in time&quot;</span>))<span class="question-mark">?
+                </span>.map_err(|_err| Status::internal(<span class="string">&quot;Fetch Error, no result has been received&quot;</span>))<span class="question-mark">?
+            </span>{
+                <span class="prelude-val">Ok</span>(blocks_response) =&gt; {
+                    <span class="kw">let </span><span class="kw-2">mut </span>retrieval_results = <span class="macro">vec!</span>[];
+                    <span class="kw">for </span>block_result <span class="kw">in </span>blocks_response.blocks {
+                        retrieval_results.push(get_collection_retrieval_results(block_result));
                     }
-                    <span class="prelude-val">Ok</span>(<span class="ident">GetCollectionsResponse</span> {
-                        <span class="ident">result</span>: <span class="ident">retrieval_results</span>,
+                    <span class="prelude-val">Ok</span>(GetCollectionsResponse {
+                        result: retrieval_results,
                     })
                 }
-                <span class="prelude-val">Err</span>(<span class="ident">err</span>) =&gt; <span class="prelude-val">Err</span>(<span class="ident">Status::internal</span>(<span class="macro">format!</span>(
+                <span class="prelude-val">Err</span>(err) =&gt; <span class="prelude-val">Err</span>(Status::internal(<span class="macro">format!</span>(
                     <span class="string">&quot;Expected to receive a successful get blocks result, instead got error: {err:?}&quot;</span>,
                 ))),
             }
-        } <span class="kw">else</span> {
-            <span class="prelude-val">Err</span>(<span class="ident">Status::invalid_argument</span>(
+        } <span class="kw">else </span>{
+            <span class="prelude-val">Err</span>(Status::invalid_argument(
                 <span class="string">&quot;Attempted fetch of no collections!&quot;</span>,
             ))
         };
-        <span class="ident">get_collections_response</span>.<span class="ident">map</span>(<span class="ident">Response::new</span>)
+        get_collections_response.map(Response::new)
     }
 }
 
-<span class="kw">fn</span> <span class="ident">get_collection_retrieval_results</span>(
-    <span class="ident">block_result</span>: <span class="prelude-ty">Result</span>&lt;<span class="ident">GetBlockResponse</span>, <span class="ident">BlockError</span>&gt;,
-) -&gt; <span class="ident">CollectionRetrievalResult</span> {
-    <span class="kw">match</span> <span class="ident">block_result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">block_response</span>) =&gt; {
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">transactions</span> = <span class="macro">vec!</span>[];
-            <span class="kw">for</span> <span class="ident">batch</span> <span class="kw">in</span> <span class="ident">block_response</span>.<span class="ident">batches</span> {
-                <span class="ident">transactions</span>.<span class="ident">extend</span>(
-                    <span class="ident">batch</span>
-                        .<span class="ident">transactions</span>
-                        .<span class="number">0</span>
-                        .<span class="ident">into_iter</span>()
-                        .<span class="ident">map</span>(<span class="ident">Into::into</span>)
-                        .<span class="ident">collect</span>::&lt;<span class="ident">Vec</span>&lt;<span class="ident">TransactionProto</span>&gt;&gt;(),
+<span class="kw">fn </span>get_collection_retrieval_results(
+    block_result: <span class="prelude-ty">Result</span>&lt;GetBlockResponse, BlockError&gt;,
+) -&gt; CollectionRetrievalResult {
+    <span class="kw">match </span>block_result {
+        <span class="prelude-val">Ok</span>(block_response) =&gt; {
+            <span class="kw">let </span><span class="kw-2">mut </span>transactions = <span class="macro">vec!</span>[];
+            <span class="kw">for </span>batch <span class="kw">in </span>block_response.batches {
+                transactions.extend(
+                    batch
+                        .transactions
+                        .<span class="number">0
+                        </span>.into_iter()
+                        .map(Into::into)
+                        .collect::&lt;Vec&lt;TransactionProto&gt;&gt;(),
                 )
             }
-            <span class="ident">CollectionRetrievalResult</span> {
-                <span class="ident">retrieval_result</span>: <span class="prelude-val">Some</span>(<span class="ident">types::RetrievalResult::Collection</span>(<span class="ident">Collection</span> {
-                    <span class="ident">id</span>: <span class="prelude-val">Some</span>(<span class="ident">CertificateDigestProto::from</span>(<span class="ident">block_response</span>.<span class="ident">id</span>)),
-                    <span class="ident">transactions</span>,
+            CollectionRetrievalResult {
+                retrieval_result: <span class="prelude-val">Some</span>(types::RetrievalResult::Collection(Collection {
+                    id: <span class="prelude-val">Some</span>(CertificateDigestProto::from(block_response.id)),
+                    transactions,
                 })),
             }
         }
-        <span class="prelude-val">Err</span>(<span class="ident">block_error</span>) =&gt; <span class="ident">CollectionRetrievalResult</span> {
-            <span class="ident">retrieval_result</span>: <span class="prelude-val">Some</span>(<span class="ident">types::RetrievalResult::Error</span>(<span class="ident">block_error</span>.<span class="ident">into</span>())),
+        <span class="prelude-val">Err</span>(block_error) =&gt; CollectionRetrievalResult {
+            retrieval_result: <span class="prelude-val">Some</span>(types::RetrievalResult::Error(block_error.into())),
         },
     }
 }
 
-<span class="kw">fn</span> <span class="ident">parse_certificate_digests</span>(
-    <span class="ident">collection_ids</span>: <span class="ident">Vec</span>&lt;<span class="ident">CertificateDigestProto</span>&gt;,
-) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">Vec</span>&lt;<span class="ident">CertificateDigest</span>&gt;, <span class="ident">Status</span>&gt; {
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ids</span> = <span class="macro">vec!</span>[];
-    <span class="kw">for</span> <span class="ident">collection_id</span> <span class="kw">in</span> <span class="ident">collection_ids</span> {
-        <span class="ident">ids</span>.<span class="ident">push</span>(
-            <span class="ident">collection_id</span>.<span class="ident">try_into</span>().<span class="ident">map_err</span>(|<span class="ident">err</span>| {
-                <span class="ident">Status::invalid_argument</span>(<span class="macro">format!</span>(<span class="string">&quot;Could not serialize: {:?}&quot;</span>, <span class="ident">err</span>))
+<span class="kw">fn </span>parse_certificate_digests(
+    collection_ids: Vec&lt;CertificateDigestProto&gt;,
+) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;CertificateDigest&gt;, Status&gt; {
+    <span class="kw">let </span><span class="kw-2">mut </span>ids = <span class="macro">vec!</span>[];
+    <span class="kw">for </span>collection_id <span class="kw">in </span>collection_ids {
+        ids.push(
+            collection_id.try_into().map_err(|err| {
+                Status::invalid_argument(<span class="macro">format!</span>(<span class="string">&quot;Could not serialize: {:?}&quot;</span>, err))
             })<span class="question-mark">?</span>,
         );
     }
-    <span class="prelude-val">Ok</span>(<span class="ident">ids</span>)
+    <span class="prelude-val">Ok</span>(ids)
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (801821d15 2022-08-14)" ></div></body></html>

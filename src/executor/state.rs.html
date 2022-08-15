@@ -83,90 +83,90 @@
 <span id="83">83</span>
 <span id="84">84</span>
 <span id="85">85</span>
-</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
-<span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="kw">use</span> <span class="ident">serde</span>::{<span class="ident">Deserialize</span>, <span class="ident">Serialize</span>};
-<span class="kw">use</span> <span class="ident">types::SequenceNumber</span>;
+</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+</span><span class="kw">use </span>serde::{Deserialize, Serialize};
+<span class="kw">use </span>types::SequenceNumber;
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="attribute">#[<span class="ident">path</span> = <span class="string">&quot;tests/state_tests.rs&quot;</span>]</span>
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">state_tests</span>;
+<span class="attribute">#[cfg(test)]</span>
+<span class="attribute">#[path = <span class="string">&quot;tests/state_tests.rs&quot;</span>]</span>
+<span class="kw">pub mod </span>state_tests;
 
-<span class="doccomment">/// The state of the subscriber keeping track of the transactions that have already been</span>
-<span class="doccomment">/// executed. It ensures we do not process twice the same transaction despite crash-recovery.</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Serialize</span>, <span class="ident">Deserialize</span>, <span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">Default</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ExecutionIndices</span> {
-    <span class="doccomment">/// The index of the latest consensus message we processed (used for crash-recovery).</span>
-    <span class="kw">pub</span> <span class="ident">next_certificate_index</span>: <span class="ident">SequenceNumber</span>,
-    <span class="doccomment">/// The index of the last batch we executed (used for crash-recovery).</span>
-    <span class="kw">pub</span> <span class="ident">next_batch_index</span>: <span class="ident">SequenceNumber</span>,
-    <span class="doccomment">/// The index of the last transaction we executed (used for crash-recovery).</span>
-    <span class="kw">pub</span> <span class="ident">next_transaction_index</span>: <span class="ident">SequenceNumber</span>,
+<span class="doccomment">/// The state of the subscriber keeping track of the transactions that have already been
+/// executed. It ensures we do not process twice the same transaction despite crash-recovery.
+</span><span class="attribute">#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, Eq)]</span>
+<span class="kw">pub struct </span>ExecutionIndices {
+    <span class="doccomment">/// The index of the latest consensus message we processed (used for crash-recovery).
+    </span><span class="kw">pub </span>next_certificate_index: SequenceNumber,
+    <span class="doccomment">/// The index of the last batch we executed (used for crash-recovery).
+    </span><span class="kw">pub </span>next_batch_index: SequenceNumber,
+    <span class="doccomment">/// The index of the last transaction we executed (used for crash-recovery).
+    </span><span class="kw">pub </span>next_transaction_index: SequenceNumber,
 }
 
-<span class="kw">impl</span> <span class="ident">ExecutionIndices</span> {
-    <span class="doccomment">/// Compute the next expected indices.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">next</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">total_batches</span>: <span class="ident">usize</span>, <span class="ident">total_transactions</span>: <span class="ident">usize</span>) {
-        <span class="kw">let</span> <span class="ident">total_batches</span> = <span class="ident">total_batches</span> <span class="kw">as</span> <span class="ident">SequenceNumber</span>;
-        <span class="kw">let</span> <span class="ident">total_transactions</span> = <span class="ident">total_transactions</span> <span class="kw">as</span> <span class="ident">SequenceNumber</span>;
+<span class="kw">impl </span>ExecutionIndices {
+    <span class="doccomment">/// Compute the next expected indices.
+    </span><span class="kw">pub fn </span>next(<span class="kw-2">&amp;mut </span><span class="self">self</span>, total_batches: usize, total_transactions: usize) {
+        <span class="kw">let </span>total_batches = total_batches <span class="kw">as </span>SequenceNumber;
+        <span class="kw">let </span>total_transactions = total_transactions <span class="kw">as </span>SequenceNumber;
 
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">next_transaction_index</span> + <span class="number">1</span> == <span class="ident">total_transactions</span> {
-            <span class="kw">if</span> <span class="self">self</span>.<span class="ident">next_batch_index</span> + <span class="number">1</span> == <span class="ident">total_batches</span> {
-                <span class="self">self</span>.<span class="ident">next_certificate_index</span> += <span class="number">1</span>;
+        <span class="kw">if </span><span class="self">self</span>.next_transaction_index + <span class="number">1 </span>== total_transactions {
+            <span class="kw">if </span><span class="self">self</span>.next_batch_index + <span class="number">1 </span>== total_batches {
+                <span class="self">self</span>.next_certificate_index += <span class="number">1</span>;
             }
-            <span class="self">self</span>.<span class="ident">next_batch_index</span> = (<span class="self">self</span>.<span class="ident">next_batch_index</span> + <span class="number">1</span>) % <span class="ident">total_batches</span>;
+            <span class="self">self</span>.next_batch_index = (<span class="self">self</span>.next_batch_index + <span class="number">1</span>) % total_batches;
         }
-        <span class="self">self</span>.<span class="ident">next_transaction_index</span> = (<span class="self">self</span>.<span class="ident">next_transaction_index</span> + <span class="number">1</span>) % <span class="ident">total_transactions</span>;
+        <span class="self">self</span>.next_transaction_index = (<span class="self">self</span>.next_transaction_index + <span class="number">1</span>) % total_transactions;
     }
 
-    <span class="doccomment">/// Update the state to skip a batch.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">skip_batch</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">total_batches</span>: <span class="ident">usize</span>) {
-        <span class="kw">let</span> <span class="ident">total_batches</span> = <span class="ident">total_batches</span> <span class="kw">as</span> <span class="ident">SequenceNumber</span>;
+    <span class="doccomment">/// Update the state to skip a batch.
+    </span><span class="kw">pub fn </span>skip_batch(<span class="kw-2">&amp;mut </span><span class="self">self</span>, total_batches: usize) {
+        <span class="kw">let </span>total_batches = total_batches <span class="kw">as </span>SequenceNumber;
 
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">next_batch_index</span> + <span class="number">1</span> == <span class="ident">total_batches</span> {
-            <span class="self">self</span>.<span class="ident">next_certificate_index</span> += <span class="number">1</span>;
+        <span class="kw">if </span><span class="self">self</span>.next_batch_index + <span class="number">1 </span>== total_batches {
+            <span class="self">self</span>.next_certificate_index += <span class="number">1</span>;
         }
-        <span class="self">self</span>.<span class="ident">next_batch_index</span> = (<span class="self">self</span>.<span class="ident">next_batch_index</span> + <span class="number">1</span>) % <span class="ident">total_batches</span>;
-        <span class="self">self</span>.<span class="ident">next_transaction_index</span> = <span class="number">0</span>;
+        <span class="self">self</span>.next_batch_index = (<span class="self">self</span>.next_batch_index + <span class="number">1</span>) % total_batches;
+        <span class="self">self</span>.next_transaction_index = <span class="number">0</span>;
     }
 
-    <span class="doccomment">/// Update the state to skip a certificate.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">skip_certificate</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
-        <span class="self">self</span>.<span class="ident">next_transaction_index</span> = <span class="number">0</span>;
-        <span class="self">self</span>.<span class="ident">next_batch_index</span> = <span class="number">0</span>;
-        <span class="self">self</span>.<span class="ident">next_certificate_index</span> += <span class="number">1</span>;
+    <span class="doccomment">/// Update the state to skip a certificate.
+    </span><span class="kw">pub fn </span>skip_certificate(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="self">self</span>.next_transaction_index = <span class="number">0</span>;
+        <span class="self">self</span>.next_batch_index = <span class="number">0</span>;
+        <span class="self">self</span>.next_certificate_index += <span class="number">1</span>;
     }
 
-    <span class="doccomment">/// Check whether the input index is the next expected batch index.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">check_next_batch_index</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">batch_index</span>: <span class="ident">SequenceNumber</span>) -&gt; <span class="ident">bool</span> {
-        <span class="ident">batch_index</span> == <span class="self">self</span>.<span class="ident">next_batch_index</span>
+    <span class="doccomment">/// Check whether the input index is the next expected batch index.
+    </span><span class="kw">pub fn </span>check_next_batch_index(<span class="kw-2">&amp;</span><span class="self">self</span>, batch_index: SequenceNumber) -&gt; bool {
+        batch_index == <span class="self">self</span>.next_batch_index
     }
 
-    <span class="doccomment">/// Check whether the input index is the next expected transaction index.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">check_next_transaction_index</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">transaction_index</span>: <span class="ident">SequenceNumber</span>) -&gt; <span class="ident">bool</span> {
-        <span class="ident">transaction_index</span> == <span class="self">self</span>.<span class="ident">next_transaction_index</span>
+    <span class="doccomment">/// Check whether the input index is the next expected transaction index.
+    </span><span class="kw">pub fn </span>check_next_transaction_index(<span class="kw-2">&amp;</span><span class="self">self</span>, transaction_index: SequenceNumber) -&gt; bool {
+        transaction_index == <span class="self">self</span>.next_transaction_index
     }
 }
 
-<span class="kw">impl</span> <span class="ident">Ord</span> <span class="kw">for</span> <span class="ident">ExecutionIndices</span> {
-    <span class="kw">fn</span> <span class="ident">cmp</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="ident">std::cmp::Ordering</span> {
+<span class="kw">impl </span>Ord <span class="kw">for </span>ExecutionIndices {
+    <span class="kw">fn </span>cmp(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; std::cmp::Ordering {
         (
-            <span class="self">self</span>.<span class="ident">next_certificate_index</span>,
-            <span class="self">self</span>.<span class="ident">next_batch_index</span>,
-            <span class="self">self</span>.<span class="ident">next_transaction_index</span>,
+            <span class="self">self</span>.next_certificate_index,
+            <span class="self">self</span>.next_batch_index,
+            <span class="self">self</span>.next_transaction_index,
         )
-            .<span class="ident">cmp</span>(<span class="kw-2">&amp;</span>(
-                <span class="ident">other</span>.<span class="ident">next_certificate_index</span>,
-                <span class="ident">other</span>.<span class="ident">next_batch_index</span>,
-                <span class="ident">other</span>.<span class="ident">next_transaction_index</span>,
+            .cmp(<span class="kw-2">&amp;</span>(
+                other.next_certificate_index,
+                other.next_batch_index,
+                other.next_transaction_index,
             ))
     }
 }
 
-<span class="kw">impl</span> <span class="ident">PartialOrd</span> <span class="kw">for</span> <span class="ident">ExecutionIndices</span> {
-    <span class="kw">fn</span> <span class="ident">partial_cmp</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="ident">std::cmp::Ordering</span>&gt; {
-        <span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">cmp</span>(<span class="ident">other</span>))
+<span class="kw">impl </span>PartialOrd <span class="kw">for </span>ExecutionIndices {
+    <span class="kw">fn </span>partial_cmp(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;std::cmp::Ordering&gt; {
+        <span class="prelude-val">Some</span>(<span class="self">self</span>.cmp(other))
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="executor" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="executor" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (801821d15 2022-08-14)" ></div></body></html>

@@ -41,48 +41,48 @@
 <span id="41">41</span>
 <span id="42">42</span>
 <span id="43">43</span>
-</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
-<span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
-<span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="attribute">#![<span class="ident">warn</span>(
-    <span class="ident">future_incompatible</span>,
-    <span class="ident">nonstandard_style</span>,
-    <span class="ident">rust_2018_idioms</span>,
-    <span class="ident">rust_2021_compatibility</span>
+</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
+// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+</span><span class="attribute">#![warn(
+    future_incompatible,
+    nonstandard_style,
+    rust_2018_idioms,
+    rust_2021_compatibility
 )]</span>
 
-<span class="kw">mod</span> <span class="ident">aggregators</span>;
-<span class="kw">mod</span> <span class="ident">block_remover</span>;
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">block_synchronizer</span>;
-<span class="kw">mod</span> <span class="ident">block_waiter</span>;
-<span class="kw">mod</span> <span class="ident">certificate_waiter</span>;
-<span class="kw">mod</span> <span class="ident">core</span>;
-<span class="kw">mod</span> <span class="ident">grpc_server</span>;
-<span class="kw">mod</span> <span class="ident">header_waiter</span>;
-<span class="kw">mod</span> <span class="ident">helper</span>;
-<span class="kw">mod</span> <span class="ident">payload_receiver</span>;
-<span class="kw">mod</span> <span class="ident">primary</span>;
-<span class="kw">mod</span> <span class="ident">proposer</span>;
-<span class="kw">mod</span> <span class="ident">state_handler</span>;
-<span class="kw">mod</span> <span class="ident">synchronizer</span>;
-<span class="kw">mod</span> <span class="ident">utils</span>;
+<span class="kw">mod </span>aggregators;
+<span class="kw">mod </span>block_remover;
+<span class="kw">pub mod </span>block_synchronizer;
+<span class="kw">mod </span>block_waiter;
+<span class="kw">mod </span>certificate_waiter;
+<span class="kw">mod </span>core;
+<span class="kw">mod </span>grpc_server;
+<span class="kw">mod </span>header_waiter;
+<span class="kw">mod </span>helper;
+<span class="kw">mod </span>payload_receiver;
+<span class="kw">mod </span>primary;
+<span class="kw">mod </span>proposer;
+<span class="kw">mod </span>state_handler;
+<span class="kw">mod </span>synchronizer;
+<span class="kw">mod </span>utils;
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="attribute">#[<span class="ident">path</span> = <span class="string">&quot;tests/common.rs&quot;</span>]</span>
-<span class="kw">mod</span> <span class="ident">common</span>;
-<span class="kw">mod</span> <span class="ident">metrics</span>;
+<span class="attribute">#[cfg(test)]</span>
+<span class="attribute">#[path = <span class="string">&quot;tests/common.rs&quot;</span>]</span>
+<span class="kw">mod </span>common;
+<span class="kw">mod </span>metrics;
 
-<span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::{
-    <span class="ident">block_remover</span>::{<span class="ident">BlockRemover</span>, <span class="ident">BlockRemoverCommand</span>, <span class="ident">DeleteBatchMessage</span>},
-    <span class="ident">block_synchronizer</span>::{
-        <span class="ident">mock::MockBlockSynchronizer</span>,
-        <span class="ident">responses</span>::{<span class="ident">CertificatesResponse</span>, <span class="ident">PayloadAvailabilityResponse</span>},
-        <span class="ident">BlockHeader</span>,
+<span class="kw">pub use crate</span>::{
+    block_remover::{BlockRemover, BlockRemoverCommand, DeleteBatchMessage},
+    block_synchronizer::{
+        mock::MockBlockSynchronizer,
+        responses::{CertificatesResponse, PayloadAvailabilityResponse},
+        BlockHeader,
     },
-    <span class="ident">block_waiter</span>::{<span class="ident">BlockCommand</span>, <span class="ident">BlockWaiter</span>},
-    <span class="ident">grpc_server::metrics::EndpointMetrics</span>,
-    <span class="ident">metrics::PrimaryChannelMetrics</span>,
-    <span class="ident">primary</span>::{<span class="ident">NetworkModel</span>, <span class="ident">PayloadToken</span>, <span class="ident">Primary</span>, <span class="ident">PrimaryWorkerMessage</span>, <span class="ident">CHANNEL_CAPACITY</span>},
+    block_waiter::{BlockCommand, BlockWaiter},
+    grpc_server::metrics::EndpointMetrics,
+    metrics::PrimaryChannelMetrics,
+    primary::{NetworkModel, PayloadToken, Primary, PrimaryWorkerMessage, CHANNEL_CAPACITY},
 };
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (801821d15 2022-08-14)" ></div></body></html>

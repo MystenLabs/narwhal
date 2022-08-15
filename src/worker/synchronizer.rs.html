@@ -334,341 +334,341 @@
 <span id="334">334</span>
 <span id="335">335</span>
 <span id="336">336</span>
-</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
-<span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
-<span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::metrics::WorkerMetrics</span>;
-<span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">SharedCommittee</span>, <span class="ident">WorkerId</span>};
-<span class="kw">use</span> <span class="ident">crypto::PublicKey</span>;
-<span class="kw">use</span> <span class="ident">futures::stream</span>::{<span class="ident">futures_unordered::FuturesUnordered</span>, <span class="ident">StreamExt</span> <span class="kw">as</span> <span class="kw">_</span>};
-<span class="kw">use</span> <span class="ident">network</span>::{<span class="ident">LuckyNetwork</span>, <span class="ident">UnreliableNetwork</span>, <span class="ident">WorkerNetwork</span>};
-<span class="kw">use</span> <span class="ident">primary::PrimaryWorkerMessage</span>;
-<span class="kw">use</span> <span class="ident">std</span>::{
-    <span class="ident">collections::HashMap</span>,
-    <span class="ident">sync::Arc</span>,
-    <span class="ident">time</span>::{<span class="ident">SystemTime</span>, <span class="ident">UNIX_EPOCH</span>},
+</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
+// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+</span><span class="kw">use </span><span class="kw">crate</span>::metrics::WorkerMetrics;
+<span class="kw">use </span>config::{SharedCommittee, WorkerId};
+<span class="kw">use </span>crypto::PublicKey;
+<span class="kw">use </span>futures::stream::{futures_unordered::FuturesUnordered, StreamExt <span class="kw">as _</span>};
+<span class="kw">use </span>network::{LuckyNetwork, UnreliableNetwork, WorkerNetwork};
+<span class="kw">use </span>primary::PrimaryWorkerMessage;
+<span class="kw">use </span>std::{
+    collections::HashMap,
+    sync::Arc,
+    time::{SystemTime, UNIX_EPOCH},
 };
-<span class="kw">use</span> <span class="ident">store</span>::{<span class="ident">Store</span>, <span class="ident">StoreError</span>};
-<span class="kw">use</span> <span class="ident">tokio</span>::{
-    <span class="ident">sync</span>::{<span class="ident">mpsc</span>, <span class="ident">watch</span>},
-    <span class="ident">task::JoinHandle</span>,
-    <span class="ident">time</span>::{<span class="ident">sleep</span>, <span class="ident">Duration</span>, <span class="ident">Instant</span>},
+<span class="kw">use </span>store::{Store, StoreError};
+<span class="kw">use </span>tokio::{
+    sync::{mpsc, watch},
+    task::JoinHandle,
+    time::{sleep, Duration, Instant},
 };
-<span class="kw">use</span> <span class="ident">tracing</span>::{<span class="ident">debug</span>, <span class="ident">error</span>};
-<span class="kw">use</span> <span class="ident">types</span>::{
-    <span class="ident">metered_channel</span>::{<span class="ident">Receiver</span>, <span class="ident">Sender</span>},
-    <span class="ident">BatchDigest</span>, <span class="ident">ReconfigureNotification</span>, <span class="ident">Round</span>, <span class="ident">SerializedBatchMessage</span>, <span class="ident">WorkerMessage</span>,
-    <span class="ident">WorkerPrimaryError</span>, <span class="ident">WorkerPrimaryMessage</span>,
+<span class="kw">use </span>tracing::{debug, error};
+<span class="kw">use </span>types::{
+    metered_channel::{Receiver, Sender},
+    BatchDigest, ReconfigureNotification, Round, SerializedBatchMessage, WorkerMessage,
+    WorkerPrimaryError, WorkerPrimaryMessage,
 };
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="attribute">#[<span class="ident">path</span> = <span class="string">&quot;tests/synchronizer_tests.rs&quot;</span>]</span>
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">synchronizer_tests</span>;
+<span class="attribute">#[cfg(test)]</span>
+<span class="attribute">#[path = <span class="string">&quot;tests/synchronizer_tests.rs&quot;</span>]</span>
+<span class="kw">pub mod </span>synchronizer_tests;
 
-<span class="doccomment">/// Resolution of the timer managing retrials of sync requests (in ms).</span>
-<span class="kw">const</span> <span class="ident">TIMER_RESOLUTION</span>: <span class="ident">u64</span> = <span class="number">1_000</span>;
+<span class="doccomment">/// Resolution of the timer managing retrials of sync requests (in ms).
+</span><span class="kw">const </span>TIMER_RESOLUTION: u64 = <span class="number">1_000</span>;
 
-<span class="comment">// The `Synchronizer` is responsible to keep the worker in sync with the others.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Synchronizer</span> {
-    <span class="doccomment">/// The public key of this authority.</span>
-    <span class="ident">name</span>: <span class="ident">PublicKey</span>,
-    <span class="doccomment">/// The id of this worker.</span>
-    <span class="ident">id</span>: <span class="ident">WorkerId</span>,
-    <span class="doccomment">/// The committee information.</span>
-    <span class="ident">committee</span>: <span class="ident">SharedCommittee</span>,
-    <span class="comment">// The persistent storage.</span>
-    <span class="ident">store</span>: <span class="ident">Store</span>&lt;<span class="ident">BatchDigest</span>, <span class="ident">SerializedBatchMessage</span>&gt;,
-    <span class="doccomment">/// The depth of the garbage collection.</span>
-    <span class="ident">gc_depth</span>: <span class="ident">Round</span>,
-    <span class="doccomment">/// The delay to wait before re-trying to send sync requests.</span>
-    <span class="ident">sync_retry_delay</span>: <span class="ident">Duration</span>,
-    <span class="doccomment">/// Determine with how many nodes to sync when re-trying to send sync-requests. These nodes</span>
-    <span class="doccomment">/// are picked at random from the committee.</span>
-    <span class="ident">sync_retry_nodes</span>: <span class="ident">usize</span>,
-    <span class="doccomment">/// Input channel to receive the commands from the primary.</span>
-    <span class="ident">rx_message</span>: <span class="ident">Receiver</span>&lt;<span class="ident">PrimaryWorkerMessage</span>&gt;,
-    <span class="doccomment">/// A network sender to send requests to the other workers.</span>
-    <span class="ident">network</span>: <span class="ident">WorkerNetwork</span>,
-    <span class="doccomment">/// Loosely keep track of the primary&#39;s round number (only used for cleanup).</span>
-    <span class="ident">round</span>: <span class="ident">Round</span>,
-    <span class="doccomment">/// Keeps the digests (of batches) that are waiting to be processed by the primary. Their</span>
-    <span class="doccomment">/// processing will resume when we get the missing batches in the store or we no longer need them.</span>
-    <span class="doccomment">/// It also keeps the round number and a time stamp (`u128`) of each request we sent.</span>
-    <span class="ident">pending</span>: <span class="ident">HashMap</span>&lt;<span class="ident">BatchDigest</span>, (<span class="ident">Round</span>, <span class="ident">mpsc::Sender</span>&lt;()&gt;, <span class="ident">u128</span>)&gt;,
-    <span class="doccomment">/// Send reconfiguration update to other tasks.</span>
-    <span class="ident">tx_reconfigure</span>: <span class="ident">watch::Sender</span>&lt;<span class="ident">ReconfigureNotification</span>&gt;,
-    <span class="doccomment">/// Output channel to send out the batch requests.</span>
-    <span class="ident">tx_primary</span>: <span class="ident">Sender</span>&lt;<span class="ident">WorkerPrimaryMessage</span>&gt;,
-    <span class="doccomment">/// Metrics handler</span>
-    <span class="ident">metrics</span>: <span class="ident">Arc</span>&lt;<span class="ident">WorkerMetrics</span>&gt;,
+<span class="comment">// The `Synchronizer` is responsible to keep the worker in sync with the others.
+</span><span class="kw">pub struct </span>Synchronizer {
+    <span class="doccomment">/// The public key of this authority.
+    </span>name: PublicKey,
+    <span class="doccomment">/// The id of this worker.
+    </span>id: WorkerId,
+    <span class="doccomment">/// The committee information.
+    </span>committee: SharedCommittee,
+    <span class="comment">// The persistent storage.
+    </span>store: Store&lt;BatchDigest, SerializedBatchMessage&gt;,
+    <span class="doccomment">/// The depth of the garbage collection.
+    </span>gc_depth: Round,
+    <span class="doccomment">/// The delay to wait before re-trying to send sync requests.
+    </span>sync_retry_delay: Duration,
+    <span class="doccomment">/// Determine with how many nodes to sync when re-trying to send sync-requests. These nodes
+    /// are picked at random from the committee.
+    </span>sync_retry_nodes: usize,
+    <span class="doccomment">/// Input channel to receive the commands from the primary.
+    </span>rx_message: Receiver&lt;PrimaryWorkerMessage&gt;,
+    <span class="doccomment">/// A network sender to send requests to the other workers.
+    </span>network: WorkerNetwork,
+    <span class="doccomment">/// Loosely keep track of the primary&#39;s round number (only used for cleanup).
+    </span>round: Round,
+    <span class="doccomment">/// Keeps the digests (of batches) that are waiting to be processed by the primary. Their
+    /// processing will resume when we get the missing batches in the store or we no longer need them.
+    /// It also keeps the round number and a time stamp (`u128`) of each request we sent.
+    </span>pending: HashMap&lt;BatchDigest, (Round, mpsc::Sender&lt;()&gt;, u128)&gt;,
+    <span class="doccomment">/// Send reconfiguration update to other tasks.
+    </span>tx_reconfigure: watch::Sender&lt;ReconfigureNotification&gt;,
+    <span class="doccomment">/// Output channel to send out the batch requests.
+    </span>tx_primary: Sender&lt;WorkerPrimaryMessage&gt;,
+    <span class="doccomment">/// Metrics handler
+    </span>metrics: Arc&lt;WorkerMetrics&gt;,
 }
 
-<span class="kw">impl</span> <span class="ident">Synchronizer</span> {
-    <span class="attribute">#[<span class="ident">must_use</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(
-        <span class="ident">name</span>: <span class="ident">PublicKey</span>,
-        <span class="ident">id</span>: <span class="ident">WorkerId</span>,
-        <span class="ident">committee</span>: <span class="ident">SharedCommittee</span>,
-        <span class="ident">store</span>: <span class="ident">Store</span>&lt;<span class="ident">BatchDigest</span>, <span class="ident">SerializedBatchMessage</span>&gt;,
-        <span class="ident">gc_depth</span>: <span class="ident">Round</span>,
-        <span class="ident">sync_retry_delay</span>: <span class="ident">Duration</span>,
-        <span class="ident">sync_retry_nodes</span>: <span class="ident">usize</span>,
-        <span class="ident">rx_message</span>: <span class="ident">Receiver</span>&lt;<span class="ident">PrimaryWorkerMessage</span>&gt;,
-        <span class="ident">tx_reconfigure</span>: <span class="ident">watch::Sender</span>&lt;<span class="ident">ReconfigureNotification</span>&gt;,
-        <span class="ident">tx_primary</span>: <span class="ident">Sender</span>&lt;<span class="ident">WorkerPrimaryMessage</span>&gt;,
-        <span class="ident">metrics</span>: <span class="ident">Arc</span>&lt;<span class="ident">WorkerMetrics</span>&gt;,
-        <span class="ident">network</span>: <span class="ident">WorkerNetwork</span>,
-    ) -&gt; <span class="ident">JoinHandle</span>&lt;()&gt; {
-        <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
-            <span class="self">Self</span> {
-                <span class="ident">name</span>,
-                <span class="ident">id</span>,
-                <span class="ident">committee</span>,
-                <span class="ident">store</span>,
-                <span class="ident">gc_depth</span>,
-                <span class="ident">sync_retry_delay</span>,
-                <span class="ident">sync_retry_nodes</span>,
-                <span class="ident">rx_message</span>,
-                <span class="ident">network</span>,
-                <span class="ident">round</span>: <span class="ident">Round::default</span>(),
-                <span class="ident">pending</span>: <span class="ident">HashMap::new</span>(),
-                <span class="ident">tx_reconfigure</span>,
-                <span class="ident">tx_primary</span>,
-                <span class="ident">metrics</span>,
+<span class="kw">impl </span>Synchronizer {
+    <span class="attribute">#[must_use]</span>
+    <span class="kw">pub fn </span>spawn(
+        name: PublicKey,
+        id: WorkerId,
+        committee: SharedCommittee,
+        store: Store&lt;BatchDigest, SerializedBatchMessage&gt;,
+        gc_depth: Round,
+        sync_retry_delay: Duration,
+        sync_retry_nodes: usize,
+        rx_message: Receiver&lt;PrimaryWorkerMessage&gt;,
+        tx_reconfigure: watch::Sender&lt;ReconfigureNotification&gt;,
+        tx_primary: Sender&lt;WorkerPrimaryMessage&gt;,
+        metrics: Arc&lt;WorkerMetrics&gt;,
+        network: WorkerNetwork,
+    ) -&gt; JoinHandle&lt;()&gt; {
+        tokio::spawn(<span class="kw">async move </span>{
+            <span class="self">Self </span>{
+                name,
+                id,
+                committee,
+                store,
+                gc_depth,
+                sync_retry_delay,
+                sync_retry_nodes,
+                rx_message,
+                network,
+                round: Round::default(),
+                pending: HashMap::new(),
+                tx_reconfigure,
+                tx_primary,
+                metrics,
             }
-            .<span class="ident">run</span>()
+            .run()
             .<span class="kw">await</span>;
         })
     }
 
-    <span class="doccomment">/// Helper function. It waits for a batch to become available in the storage</span>
-    <span class="doccomment">/// and then delivers its digest.</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">waiter</span>(
-        <span class="ident">missing</span>: <span class="ident">BatchDigest</span>,
-        <span class="ident">store</span>: <span class="ident">Store</span>&lt;<span class="ident">BatchDigest</span>, <span class="ident">SerializedBatchMessage</span>&gt;,
-        <span class="ident">deliver</span>: <span class="ident">BatchDigest</span>,
-        <span class="kw-2">mut</span> <span class="ident">handler</span>: <span class="ident">mpsc::Receiver</span>&lt;()&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;<span class="ident">BatchDigest</span>&gt;, <span class="ident">StoreError</span>&gt; {
+    <span class="doccomment">/// Helper function. It waits for a batch to become available in the storage
+    /// and then delivers its digest.
+    </span><span class="kw">async fn </span>waiter(
+        missing: BatchDigest,
+        store: Store&lt;BatchDigest, SerializedBatchMessage&gt;,
+        deliver: BatchDigest,
+        <span class="kw-2">mut </span>handler: mpsc::Receiver&lt;()&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;BatchDigest&gt;, StoreError&gt; {
         <span class="macro">tokio::select!</span> {
-            <span class="ident">result</span> = <span class="ident">store</span>.<span class="ident">notify_read</span>(<span class="ident">missing</span>) =&gt; {
-                <span class="ident">result</span>.<span class="ident">map</span>(|<span class="kw">_</span>| <span class="prelude-val">Some</span>(<span class="ident">deliver</span>))
+            result = store.notify_read(missing) =&gt; {
+                result.map(|<span class="kw">_</span>| <span class="prelude-val">Some</span>(deliver))
             }
-            <span class="kw">_</span> = <span class="ident">handler</span>.<span class="ident">recv</span>() =&gt; <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>),
+            <span class="kw">_ </span>= handler.recv() =&gt; <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>),
         }
     }
 
-    <span class="doccomment">/// Main loop listening to the primary&#39;s messages.</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">run</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">waiting</span> = <span class="ident">FuturesUnordered::new</span>();
+    <span class="doccomment">/// Main loop listening to the primary&#39;s messages.
+    </span><span class="kw">async fn </span>run(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="kw">let </span><span class="kw-2">mut </span>waiting = FuturesUnordered::new();
 
-        <span class="kw">let</span> <span class="ident">timer</span> = <span class="ident">sleep</span>(<span class="ident">Duration::from_millis</span>(<span class="ident">TIMER_RESOLUTION</span>));
-        <span class="macro">tokio::pin!</span>(<span class="ident">timer</span>);
+        <span class="kw">let </span>timer = sleep(Duration::from_millis(TIMER_RESOLUTION));
+        <span class="macro">tokio::pin!</span>(timer);
 
-        <span class="kw">loop</span> {
+        <span class="kw">loop </span>{
             <span class="macro">tokio::select!</span> {
-                <span class="comment">// Handle primary&#39;s messages.</span>
-                <span class="prelude-val">Some</span>(<span class="ident">message</span>) = <span class="self">self</span>.<span class="ident">rx_message</span>.<span class="ident">recv</span>() =&gt; <span class="kw">match</span> <span class="ident">message</span> {
-                    <span class="ident">PrimaryWorkerMessage::Synchronize</span>(<span class="ident">digests</span>, <span class="ident">target</span>) =&gt; {
-                        <span class="kw">let</span> <span class="ident">now</span> = <span class="ident">SystemTime::now</span>()
-                            .<span class="ident">duration_since</span>(<span class="ident">UNIX_EPOCH</span>)
-                            .<span class="ident">expect</span>(<span class="string">&quot;Failed to measure time&quot;</span>)
-                            .<span class="ident">as_millis</span>();
+                <span class="comment">// Handle primary&#39;s messages.
+                </span><span class="prelude-val">Some</span>(message) = <span class="self">self</span>.rx_message.recv() =&gt; <span class="kw">match </span>message {
+                    PrimaryWorkerMessage::Synchronize(digests, target) =&gt; {
+                        <span class="kw">let </span>now = SystemTime::now()
+                            .duration_since(UNIX_EPOCH)
+                            .expect(<span class="string">&quot;Failed to measure time&quot;</span>)
+                            .as_millis();
 
-                        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">missing</span> = <span class="ident">Vec::new</span>();
-                        <span class="kw">for</span> <span class="ident">digest</span> <span class="kw">in</span> <span class="ident">digests</span> {
-                            <span class="comment">// Ensure we do not send twice the same sync request.</span>
-                            <span class="kw">if</span> <span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">contains_key</span>(<span class="kw-2">&amp;</span><span class="ident">digest</span>) {
+                        <span class="kw">let </span><span class="kw-2">mut </span>missing = Vec::new();
+                        <span class="kw">for </span>digest <span class="kw">in </span>digests {
+                            <span class="comment">// Ensure we do not send twice the same sync request.
+                            </span><span class="kw">if </span><span class="self">self</span>.pending.contains_key(<span class="kw-2">&amp;</span>digest) {
                                 <span class="kw">continue</span>;
                             }
 
-                            <span class="comment">// Check if we received the batch in the meantime.</span>
-                            <span class="kw">match</span> <span class="self">self</span>.<span class="ident">store</span>.<span class="ident">read</span>(<span class="ident">digest</span>).<span class="kw">await</span> {
+                            <span class="comment">// Check if we received the batch in the meantime.
+                            </span><span class="kw">match </span><span class="self">self</span>.store.read(digest).<span class="kw">await </span>{
                                 <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>) =&gt; {
-                                    <span class="ident">missing</span>.<span class="ident">push</span>(<span class="ident">digest</span>);
+                                    missing.push(digest);
                                     <span class="macro">debug!</span>(<span class="string">&quot;Requesting sync for batch {digest}&quot;</span>);
                                 },
                                 <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="kw">_</span>)) =&gt; {
-                                    <span class="comment">// The batch arrived in the meantime: no need to request it.</span>
-                                },
-                                <span class="prelude-val">Err</span>(<span class="ident">e</span>) =&gt; {
+                                    <span class="comment">// The batch arrived in the meantime: no need to request it.
+                                </span>},
+                                <span class="prelude-val">Err</span>(e) =&gt; {
                                     <span class="macro">error!</span>(<span class="string">&quot;{e}&quot;</span>);
                                     <span class="kw">continue</span>;
                                 }
                             }
 
-                            <span class="comment">// Add the digest to the waiter.</span>
-                            <span class="kw">let</span> <span class="ident">deliver</span> = <span class="ident">digest</span>;
-                            <span class="kw">let</span> (<span class="ident">tx_cancel</span>, <span class="ident">rx_cancel</span>) = <span class="ident">mpsc::channel</span>(<span class="number">1</span>);
-                            <span class="kw">let</span> <span class="ident">fut</span> = <span class="ident"><span class="self">Self</span>::waiter</span>(<span class="ident">digest</span>, <span class="self">self</span>.<span class="ident">store</span>.<span class="ident">clone</span>(), <span class="ident">deliver</span>, <span class="ident">rx_cancel</span>);
-                            <span class="ident">waiting</span>.<span class="ident">push</span>(<span class="ident">fut</span>);
-                            <span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">insert</span>(<span class="ident">digest</span>, (<span class="self">self</span>.<span class="ident">round</span>, <span class="ident">tx_cancel</span>, <span class="ident">now</span>));
+                            <span class="comment">// Add the digest to the waiter.
+                            </span><span class="kw">let </span>deliver = digest;
+                            <span class="kw">let </span>(tx_cancel, rx_cancel) = mpsc::channel(<span class="number">1</span>);
+                            <span class="kw">let </span>fut = <span class="self">Self</span>::waiter(digest, <span class="self">self</span>.store.clone(), deliver, rx_cancel);
+                            waiting.push(fut);
+                            <span class="self">self</span>.pending.insert(digest, (<span class="self">self</span>.round, tx_cancel, now));
                         }
 
-                        <span class="comment">// Send sync request to a single node. If this fails, we will send it</span>
-                        <span class="comment">// to other nodes when a timer times out.</span>
-                        <span class="kw">let</span> <span class="ident">address</span> = <span class="kw">match</span> <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">load</span>().<span class="ident">worker</span>(<span class="kw-2">&amp;</span><span class="ident">target</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">id</span>) {
-                            <span class="prelude-val">Ok</span>(<span class="ident">address</span>) =&gt; <span class="ident">address</span>.<span class="ident">worker_to_worker</span>,
-                            <span class="prelude-val">Err</span>(<span class="ident">e</span>) =&gt; {
+                        <span class="comment">// Send sync request to a single node. If this fails, we will send it
+                        // to other nodes when a timer times out.
+                        </span><span class="kw">let </span>address = <span class="kw">match </span><span class="self">self</span>.committee.load().worker(<span class="kw-2">&amp;</span>target, <span class="kw-2">&amp;</span><span class="self">self</span>.id) {
+                            <span class="prelude-val">Ok</span>(address) =&gt; address.worker_to_worker,
+                            <span class="prelude-val">Err</span>(e) =&gt; {
                                 <span class="macro">error!</span>(<span class="string">&quot;The primary asked us to sync with an unknown node: {e}&quot;</span>);
                                 <span class="kw">continue</span>;
                             }
                         };
 
-                        <span class="macro">debug!</span>(<span class="string">&quot;Sending BatchRequest message to {} for missing batches {:?}&quot;</span>, <span class="ident">address</span>, <span class="ident">missing</span>.<span class="ident">clone</span>());
+                        <span class="macro">debug!</span>(<span class="string">&quot;Sending BatchRequest message to {} for missing batches {:?}&quot;</span>, address, missing.clone());
 
-                        <span class="kw">let</span> <span class="ident">message</span> = <span class="ident">WorkerMessage::BatchRequest</span>(<span class="ident">missing</span>, <span class="self">self</span>.<span class="ident">name</span>.<span class="ident">clone</span>());
-                        <span class="self">self</span>.<span class="ident">network</span>.<span class="ident">unreliable_send</span>(<span class="ident">address</span>, <span class="kw-2">&amp;</span><span class="ident">message</span>).<span class="kw">await</span>;
+                        <span class="kw">let </span>message = WorkerMessage::BatchRequest(missing, <span class="self">self</span>.name.clone());
+                        <span class="self">self</span>.network.unreliable_send(address, <span class="kw-2">&amp;</span>message).<span class="kw">await</span>;
                     },
-                    <span class="ident">PrimaryWorkerMessage::Cleanup</span>(<span class="ident">round</span>) =&gt; {
-                        <span class="comment">// Keep track of the primary&#39;s round number.</span>
-                        <span class="self">self</span>.<span class="ident">round</span> = <span class="ident">round</span>;
+                    PrimaryWorkerMessage::Cleanup(round) =&gt; {
+                        <span class="comment">// Keep track of the primary&#39;s round number.
+                        </span><span class="self">self</span>.round = round;
 
-                        <span class="comment">// Cleanup internal state.</span>
-                        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">round</span> &lt; <span class="self">self</span>.<span class="ident">gc_depth</span> {
+                        <span class="comment">// Cleanup internal state.
+                        </span><span class="kw">if </span><span class="self">self</span>.round &lt; <span class="self">self</span>.gc_depth {
                             <span class="kw">continue</span>;
                         }
 
-                        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">gc_round</span> = <span class="self">self</span>.<span class="ident">round</span> - <span class="self">self</span>.<span class="ident">gc_depth</span>;
-                        <span class="kw">for</span> (<span class="ident">r</span>, <span class="ident">handler</span>, <span class="kw">_</span>) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">values</span>() {
-                            <span class="kw">if</span> <span class="ident">r</span> &lt;= <span class="kw-2">&amp;</span><span class="ident">gc_round</span> {
-                                <span class="kw">let</span> <span class="kw">_</span> = <span class="ident">handler</span>.<span class="ident">send</span>(()).<span class="kw">await</span>;
+                        <span class="kw">let </span><span class="kw-2">mut </span>gc_round = <span class="self">self</span>.round - <span class="self">self</span>.gc_depth;
+                        <span class="kw">for </span>(r, handler, <span class="kw">_</span>) <span class="kw">in </span><span class="self">self</span>.pending.values() {
+                            <span class="kw">if </span>r &lt;= <span class="kw-2">&amp;</span>gc_round {
+                                <span class="kw">let _ </span>= handler.send(()).<span class="kw">await</span>;
                             }
                         }
-                        <span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">retain</span>(|<span class="kw">_</span>, (<span class="ident">r</span>, <span class="kw">_</span>, <span class="kw">_</span>)| <span class="ident">r</span> &gt; <span class="kw-2">&amp;mut</span> <span class="ident">gc_round</span>);
+                        <span class="self">self</span>.pending.retain(|<span class="kw">_</span>, (r, <span class="kw">_</span>, <span class="kw">_</span>)| r &gt; <span class="kw-2">&amp;mut </span>gc_round);
                     },
-                    <span class="ident">PrimaryWorkerMessage::Reconfigure</span>(<span class="ident">message</span>) =&gt; {
-                        <span class="comment">// Reconfigure this task and update the shared committee.</span>
-                        <span class="kw">let</span> <span class="ident">shutdown</span> = <span class="kw">match</span> <span class="kw-2">&amp;</span><span class="ident">message</span> {
-                            <span class="ident">ReconfigureNotification::NewEpoch</span>(<span class="ident">new_committee</span>) =&gt; {
-                                <span class="self">self</span>.<span class="ident">network</span>.<span class="ident">cleanup</span>(<span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">load</span>().<span class="ident">network_diff</span>(<span class="ident">new_committee</span>));
-                                <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">swap</span>(<span class="ident">Arc::new</span>(<span class="ident">new_committee</span>.<span class="ident">clone</span>()));
+                    PrimaryWorkerMessage::Reconfigure(message) =&gt; {
+                        <span class="comment">// Reconfigure this task and update the shared committee.
+                        </span><span class="kw">let </span>shutdown = <span class="kw">match </span><span class="kw-2">&amp;</span>message {
+                            ReconfigureNotification::NewEpoch(new_committee) =&gt; {
+                                <span class="self">self</span>.network.cleanup(<span class="self">self</span>.committee.load().network_diff(new_committee));
+                                <span class="self">self</span>.committee.swap(Arc::new(new_committee.clone()));
 
-                                <span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">clear</span>();
-                                <span class="self">self</span>.<span class="ident">round</span> = <span class="number">0</span>;
-                                <span class="ident">waiting</span>.<span class="ident">clear</span>();
+                                <span class="self">self</span>.pending.clear();
+                                <span class="self">self</span>.round = <span class="number">0</span>;
+                                waiting.clear();
 
 
-                                <span class="bool-val">false</span>
-                            }
-                            <span class="ident">ReconfigureNotification::UpdateCommittee</span>(<span class="ident">new_committee</span>) =&gt; {
-                                <span class="self">self</span>.<span class="ident">network</span>.<span class="ident">cleanup</span>(<span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">load</span>().<span class="ident">network_diff</span>(<span class="ident">new_committee</span>));
-                                <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">swap</span>(<span class="ident">Arc::new</span>(<span class="ident">new_committee</span>.<span class="ident">clone</span>()));
+                                <span class="bool-val">false
+                            </span>}
+                            ReconfigureNotification::UpdateCommittee(new_committee) =&gt; {
+                                <span class="self">self</span>.network.cleanup(<span class="self">self</span>.committee.load().network_diff(new_committee));
+                                <span class="self">self</span>.committee.swap(Arc::new(new_committee.clone()));
 
-                                <span class="macro">tracing::debug!</span>(<span class="string">&quot;Committee updated to {}&quot;</span>, <span class="self">self</span>.<span class="ident">committee</span>);
-                                <span class="bool-val">false</span>
-                            }
-                            <span class="ident">ReconfigureNotification::Shutdown</span> =&gt; <span class="bool-val">true</span>
-                        };
+                                <span class="macro">tracing::debug!</span>(<span class="string">&quot;Committee updated to {}&quot;</span>, <span class="self">self</span>.committee);
+                                <span class="bool-val">false
+                            </span>}
+                            ReconfigureNotification::Shutdown =&gt; <span class="bool-val">true
+                        </span>};
 
-                        <span class="comment">// Notify all other tasks.</span>
-                        <span class="self">self</span>.<span class="ident">tx_reconfigure</span>.<span class="ident">send</span>(<span class="ident">message</span>).<span class="ident">expect</span>(<span class="string">&quot;All tasks dropped&quot;</span>);
+                        <span class="comment">// Notify all other tasks.
+                        </span><span class="self">self</span>.tx_reconfigure.send(message).expect(<span class="string">&quot;All tasks dropped&quot;</span>);
 
-                        <span class="comment">// Exit only when we are sure that all the other tasks received</span>
-                        <span class="comment">// the shutdown message.</span>
-                        <span class="kw">if</span> <span class="ident">shutdown</span> {
-                            <span class="self">self</span>.<span class="ident">tx_reconfigure</span>.<span class="ident">closed</span>().<span class="kw">await</span>;
+                        <span class="comment">// Exit only when we are sure that all the other tasks received
+                        // the shutdown message.
+                        </span><span class="kw">if </span>shutdown {
+                            <span class="self">self</span>.tx_reconfigure.closed().<span class="kw">await</span>;
                             <span class="kw">return</span>;
                         }
                     }
-                    <span class="ident">PrimaryWorkerMessage::RequestBatch</span>(<span class="ident">digest</span>) =&gt; {
-                        <span class="self">self</span>.<span class="ident">handle_request_batch</span>(<span class="ident">digest</span>).<span class="kw">await</span>;
+                    PrimaryWorkerMessage::RequestBatch(digest) =&gt; {
+                        <span class="self">self</span>.handle_request_batch(digest).<span class="kw">await</span>;
                     },
-                    <span class="ident">PrimaryWorkerMessage::DeleteBatches</span>(<span class="ident">digests</span>) =&gt; {
-                        <span class="self">self</span>.<span class="ident">handle_delete_batches</span>(<span class="ident">digests</span>).<span class="kw">await</span>;
+                    PrimaryWorkerMessage::DeleteBatches(digests) =&gt; {
+                        <span class="self">self</span>.handle_delete_batches(digests).<span class="kw">await</span>;
                     }
                 },
 
-                <span class="comment">// Stream out the futures of the `FuturesUnordered` that completed.</span>
-                <span class="prelude-val">Some</span>(<span class="ident">result</span>) = <span class="ident">waiting</span>.<span class="ident">next</span>() =&gt; <span class="kw">match</span> <span class="ident">result</span> {
-                    <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="ident">digest</span>)) =&gt; {
-                        <span class="comment">// We got the batch, remove it from the pending list.</span>
-                        <span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">remove</span>(<span class="kw-2">&amp;</span><span class="ident">digest</span>);
+                <span class="comment">// Stream out the futures of the `FuturesUnordered` that completed.
+                </span><span class="prelude-val">Some</span>(result) = waiting.next() =&gt; <span class="kw">match </span>result {
+                    <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(digest)) =&gt; {
+                        <span class="comment">// We got the batch, remove it from the pending list.
+                        </span><span class="self">self</span>.pending.remove(<span class="kw-2">&amp;</span>digest);
                     },
                     <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>) =&gt; {
-                        <span class="comment">// The sync request for this batch has been canceled.</span>
-                    },
-                    <span class="prelude-val">Err</span>(<span class="ident">e</span>) =&gt; <span class="macro">error!</span>(<span class="string">&quot;{e}&quot;</span>)
+                        <span class="comment">// The sync request for this batch has been canceled.
+                    </span>},
+                    <span class="prelude-val">Err</span>(e) =&gt; <span class="macro">error!</span>(<span class="string">&quot;{e}&quot;</span>)
                 },
 
-                <span class="comment">// Triggers on timer&#39;s expiration.</span>
-                () = <span class="kw-2">&amp;mut</span> <span class="ident">timer</span> =&gt; {
-                    <span class="comment">// We optimistically sent sync requests to a single node. If this timer triggers,</span>
-                    <span class="comment">// it means we were wrong to trust it. We are done waiting for a reply and we now</span>
-                    <span class="comment">// broadcast the request to a bunch of other nodes (selected at random).</span>
-                    <span class="kw">let</span> <span class="ident">now</span> = <span class="ident">SystemTime::now</span>()
-                        .<span class="ident">duration_since</span>(<span class="ident">UNIX_EPOCH</span>)
-                        .<span class="ident">expect</span>(<span class="string">&quot;Failed to measure time&quot;</span>)
-                        .<span class="ident">as_millis</span>();
+                <span class="comment">// Triggers on timer&#39;s expiration.
+                </span>() = <span class="kw-2">&amp;mut </span>timer =&gt; {
+                    <span class="comment">// We optimistically sent sync requests to a single node. If this timer triggers,
+                    // it means we were wrong to trust it. We are done waiting for a reply and we now
+                    // broadcast the request to a bunch of other nodes (selected at random).
+                    </span><span class="kw">let </span>now = SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .expect(<span class="string">&quot;Failed to measure time&quot;</span>)
+                        .as_millis();
 
-                    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">retry</span> = <span class="ident">Vec::new</span>();
-                    <span class="kw">for</span> (<span class="ident">digest</span>, (<span class="kw">_</span>, <span class="kw">_</span>, <span class="ident">timestamp</span>)) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">iter_mut</span>() {
-                        <span class="kw">if</span> <span class="kw-2">*</span><span class="ident">timestamp</span> + <span class="self">self</span>.<span class="ident">sync_retry_delay</span>.<span class="ident">as_millis</span>() &lt; <span class="ident">now</span> {
+                    <span class="kw">let </span><span class="kw-2">mut </span>retry = Vec::new();
+                    <span class="kw">for </span>(digest, (<span class="kw">_</span>, <span class="kw">_</span>, timestamp)) <span class="kw">in </span><span class="self">self</span>.pending.iter_mut() {
+                        <span class="kw">if </span><span class="kw-2">*</span>timestamp + <span class="self">self</span>.sync_retry_delay.as_millis() &lt; now {
                             <span class="macro">debug!</span>(<span class="string">&quot;Requesting sync for batch {digest} (retry)&quot;</span>);
-                            <span class="ident">retry</span>.<span class="ident">push</span>(<span class="kw-2">*</span><span class="ident">digest</span>);
-                            <span class="comment">// reset the time at which this request was last issued</span>
-                            <span class="kw-2">*</span><span class="ident">timestamp</span> = <span class="ident">now</span>;
+                            retry.push(<span class="kw-2">*</span>digest);
+                            <span class="comment">// reset the time at which this request was last issued
+                            </span><span class="kw-2">*</span>timestamp = now;
                         }
                     }
-                    <span class="kw">if</span> !<span class="ident">retry</span>.<span class="ident">is_empty</span>() {
-                        <span class="kw">let</span> <span class="ident">addresses</span> = <span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">load</span>()
-                            .<span class="ident">others_workers</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">name</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">id</span>)
-                            .<span class="ident">into_iter</span>()
-                            .<span class="ident">map</span>(|(<span class="kw">_</span>, <span class="ident">address</span>)| <span class="ident">address</span>.<span class="ident">worker_to_worker</span>)
-                            .<span class="ident">collect</span>();
-                        <span class="kw">let</span> <span class="ident">message</span> = <span class="ident">WorkerMessage::BatchRequest</span>(<span class="ident">retry</span>, <span class="self">self</span>.<span class="ident">name</span>.<span class="ident">clone</span>());
-                        <span class="self">self</span>.<span class="ident">network</span>
-                            .<span class="ident">lucky_broadcast</span>(<span class="ident">addresses</span>, <span class="kw-2">&amp;</span><span class="ident">message</span>, <span class="self">self</span>.<span class="ident">sync_retry_nodes</span>)
+                    <span class="kw">if </span>!retry.is_empty() {
+                        <span class="kw">let </span>addresses = <span class="self">self</span>.committee.load()
+                            .others_workers(<span class="kw-2">&amp;</span><span class="self">self</span>.name, <span class="kw-2">&amp;</span><span class="self">self</span>.id)
+                            .into_iter()
+                            .map(|(<span class="kw">_</span>, address)| address.worker_to_worker)
+                            .collect();
+                        <span class="kw">let </span>message = WorkerMessage::BatchRequest(retry, <span class="self">self</span>.name.clone());
+                        <span class="self">self</span>.network
+                            .lucky_broadcast(addresses, <span class="kw-2">&amp;</span>message, <span class="self">self</span>.sync_retry_nodes)
                             .<span class="kw">await</span>;
                     }
 
-                    <span class="comment">// Reschedule the timer.</span>
-                    <span class="ident">timer</span>.<span class="ident">as_mut</span>().<span class="ident">reset</span>(<span class="ident">Instant::now</span>() + <span class="ident">Duration::from_millis</span>(<span class="ident">TIMER_RESOLUTION</span>));
+                    <span class="comment">// Reschedule the timer.
+                    </span>timer.as_mut().reset(Instant::now() + Duration::from_millis(TIMER_RESOLUTION));
 
-                    <span class="comment">// Report list of pending elements</span>
-                    <span class="self">self</span>.<span class="ident">metrics</span>.<span class="ident">pending_elements_worker_synchronizer</span>
-                    .<span class="ident">with_label_values</span>(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">load</span>().<span class="ident">epoch</span>.<span class="ident">to_string</span>()])
-                    .<span class="ident">set</span>(<span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">i64</span>);
+                    <span class="comment">// Report list of pending elements
+                    </span><span class="self">self</span>.metrics.pending_elements_worker_synchronizer
+                    .with_label_values(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="self">self</span>.committee.load().epoch.to_string()])
+                    .set(<span class="self">self</span>.pending.len() <span class="kw">as </span>i64);
                 },
             }
         }
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">handle_request_batch</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">digest</span>: <span class="ident">BatchDigest</span>) {
-        <span class="kw">let</span> <span class="ident">message</span> = <span class="kw">match</span> <span class="self">self</span>.<span class="ident">store</span>.<span class="ident">read</span>(<span class="ident">digest</span>).<span class="kw">await</span> {
-            <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="ident">batch_serialised</span>)) =&gt; {
-                <span class="kw">let</span> <span class="ident">batch</span> = <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="kw-2">&amp;</span><span class="ident">batch_serialised</span>).<span class="ident">unwrap</span>() {
-                    <span class="ident">WorkerMessage::Batch</span>(<span class="ident">batch</span>) =&gt; <span class="ident">batch</span>,
-                    <span class="kw">_</span> =&gt; {
+    <span class="kw">async fn </span>handle_request_batch(<span class="kw-2">&amp;mut </span><span class="self">self</span>, digest: BatchDigest) {
+        <span class="kw">let </span>message = <span class="kw">match </span><span class="self">self</span>.store.read(digest).<span class="kw">await </span>{
+            <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(batch_serialised)) =&gt; {
+                <span class="kw">let </span>batch = <span class="kw">match </span>bincode::deserialize(<span class="kw-2">&amp;</span>batch_serialised).unwrap() {
+                    WorkerMessage::Batch(batch) =&gt; batch,
+                    <span class="kw">_ </span>=&gt; {
                         <span class="macro">panic!</span>(<span class="string">&quot;Wrong type has been stored!&quot;</span>);
                     }
                 };
-                <span class="ident">WorkerPrimaryMessage::RequestedBatch</span>(<span class="ident">digest</span>, <span class="ident">batch</span>)
+                WorkerPrimaryMessage::RequestedBatch(digest, batch)
             }
-            <span class="kw">_</span> =&gt; <span class="ident">WorkerPrimaryMessage::Error</span>(<span class="ident">WorkerPrimaryError::RequestedBatchNotFound</span>(<span class="ident">digest</span>)),
+            <span class="kw">_ </span>=&gt; WorkerPrimaryMessage::Error(WorkerPrimaryError::RequestedBatchNotFound(digest)),
         };
 
-        <span class="self">self</span>.<span class="ident">tx_primary</span>
-            .<span class="ident">send</span>(<span class="ident">message</span>)
-            .<span class="kw">await</span>
-            .<span class="ident">expect</span>(<span class="string">&quot;Failed to send message to primary channel&quot;</span>);
+        <span class="self">self</span>.tx_primary
+            .send(message)
+            .<span class="kw">await
+            </span>.expect(<span class="string">&quot;Failed to send message to primary channel&quot;</span>);
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">handle_delete_batches</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">digests</span>: <span class="ident">Vec</span>&lt;<span class="ident">BatchDigest</span>&gt;) {
-        <span class="kw">let</span> <span class="ident">message</span> = <span class="kw">match</span> <span class="self">self</span>.<span class="ident">store</span>.<span class="ident">remove_all</span>(<span class="ident">digests</span>.<span class="ident">clone</span>()).<span class="kw">await</span> {
-            <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; <span class="ident">WorkerPrimaryMessage::DeletedBatches</span>(<span class="ident">digests</span>),
-            <span class="prelude-val">Err</span>(<span class="ident">err</span>) =&gt; {
+    <span class="kw">async fn </span>handle_delete_batches(<span class="kw-2">&amp;mut </span><span class="self">self</span>, digests: Vec&lt;BatchDigest&gt;) {
+        <span class="kw">let </span>message = <span class="kw">match </span><span class="self">self</span>.store.remove_all(digests.clone()).<span class="kw">await </span>{
+            <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; WorkerPrimaryMessage::DeletedBatches(digests),
+            <span class="prelude-val">Err</span>(err) =&gt; {
                 <span class="macro">error!</span>(<span class="string">&quot;{err}&quot;</span>);
-                <span class="ident">WorkerPrimaryMessage::Error</span>(<span class="ident">WorkerPrimaryError::ErrorWhileDeletingBatches</span>(
-                    <span class="ident">digests</span>.<span class="ident">clone</span>(),
+                WorkerPrimaryMessage::Error(WorkerPrimaryError::ErrorWhileDeletingBatches(
+                    digests.clone(),
                 ))
             }
         };
 
-        <span class="self">self</span>.<span class="ident">tx_primary</span>
-            .<span class="ident">send</span>(<span class="ident">message</span>)
-            .<span class="kw">await</span>
-            .<span class="ident">expect</span>(<span class="string">&quot;Failed to send message to primary channel&quot;</span>);
+        <span class="self">self</span>.tx_primary
+            .send(message)
+            .<span class="kw">await
+            </span>.expect(<span class="string">&quot;Failed to send message to primary channel&quot;</span>);
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (801821d15 2022-08-14)" ></div></body></html>

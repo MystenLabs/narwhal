@@ -637,362 +637,362 @@
 <span id="637">637</span>
 <span id="638">638</span>
 <span id="639">639</span>
-</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
-<span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">utils</span>, <span class="ident">PayloadToken</span>};
-<span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">Committee</span>, <span class="ident">WorkerId</span>};
-<span class="kw">use</span> <span class="ident">consensus::dag</span>::{<span class="ident">Dag</span>, <span class="ident">ValidatorDagError</span>};
-<span class="kw">use</span> <span class="ident">crypto</span>::{<span class="ident">Digest</span>, <span class="ident">Hash</span>, <span class="ident">PublicKey</span>};
-<span class="kw">use</span> <span class="ident">futures</span>::{
-    <span class="ident">future</span>::{<span class="ident">join_all</span>, <span class="ident">try_join_all</span>, <span class="ident">BoxFuture</span>},
-    <span class="ident">stream</span>::{<span class="ident">futures_unordered::FuturesUnordered</span>, <span class="ident">StreamExt</span> <span class="kw">as</span> <span class="kw">_</span>},
-    <span class="ident">FutureExt</span>,
+</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+</span><span class="kw">use crate</span>::{utils, PayloadToken};
+<span class="kw">use </span>config::{Committee, WorkerId};
+<span class="kw">use </span>consensus::dag::{Dag, ValidatorDagError};
+<span class="kw">use </span>crypto::{Digest, Hash, PublicKey};
+<span class="kw">use </span>futures::{
+    future::{join_all, try_join_all, BoxFuture},
+    stream::{futures_unordered::FuturesUnordered, StreamExt <span class="kw">as _</span>},
+    FutureExt,
 };
-<span class="kw">use</span> <span class="ident">itertools::Either</span>;
-<span class="kw">use</span> <span class="ident">network</span>::{<span class="ident">PrimaryToWorkerNetwork</span>, <span class="ident">UnreliableNetwork</span>};
-<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">collections::HashMap</span>, <span class="ident">sync::Arc</span>, <span class="ident">time::Duration</span>};
-<span class="kw">use</span> <span class="ident">store</span>::{<span class="ident">rocks::TypedStoreError</span>, <span class="ident">Store</span>};
-<span class="kw">use</span> <span class="ident">tokio</span>::{
-    <span class="ident">sync</span>::{<span class="ident">mpsc</span>, <span class="ident">oneshot</span>, <span class="ident">watch</span>},
-    <span class="ident">task::JoinHandle</span>,
-    <span class="ident">time::timeout</span>,
+<span class="kw">use </span>itertools::Either;
+<span class="kw">use </span>network::{PrimaryToWorkerNetwork, UnreliableNetwork};
+<span class="kw">use </span>std::{collections::HashMap, sync::Arc, time::Duration};
+<span class="kw">use </span>store::{rocks::TypedStoreError, Store};
+<span class="kw">use </span>tokio::{
+    sync::{mpsc, oneshot, watch},
+    task::JoinHandle,
+    time::timeout,
 };
-<span class="kw">use</span> <span class="ident">tracing</span>::{<span class="ident">debug</span>, <span class="ident">error</span>, <span class="ident">info</span>, <span class="ident">instrument</span>, <span class="ident">warn</span>};
-<span class="kw">use</span> <span class="ident">types</span>::{
-    <span class="ident">metered_channel</span>::{<span class="ident">Receiver</span>, <span class="ident">Sender</span>},
-    <span class="ident">BatchDigest</span>, <span class="ident">BlockRemoverError</span>, <span class="ident">BlockRemoverErrorKind</span>, <span class="ident">BlockRemoverResult</span>, <span class="ident">Certificate</span>,
-    <span class="ident">CertificateDigest</span>, <span class="ident">Header</span>, <span class="ident">HeaderDigest</span>, <span class="ident">PrimaryWorkerMessage</span>, <span class="ident">ReconfigureNotification</span>,
+<span class="kw">use </span>tracing::{debug, error, info, instrument, warn};
+<span class="kw">use </span>types::{
+    metered_channel::{Receiver, Sender},
+    BatchDigest, BlockRemoverError, BlockRemoverErrorKind, BlockRemoverResult, Certificate,
+    CertificateDigest, Header, HeaderDigest, PrimaryWorkerMessage, ReconfigureNotification,
 };
 
-<span class="kw">const</span> <span class="ident">BATCH_DELETE_TIMEOUT</span>: <span class="ident">Duration</span> = <span class="ident">Duration::from_secs</span>(<span class="number">2</span>);
+<span class="kw">const </span>BATCH_DELETE_TIMEOUT: Duration = Duration::from_secs(<span class="number">2</span>);
 
-<span class="kw">type</span> <span class="ident">RequestKey</span> = <span class="ident">Vec</span>&lt;<span class="ident">u8</span>&gt;;
+<span class="kw">type </span>RequestKey = Vec&lt;u8&gt;;
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="attribute">#[<span class="ident">path</span> = <span class="string">&quot;tests/block_remover_tests.rs&quot;</span>]</span>
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">block_remover_tests</span>;
+<span class="attribute">#[cfg(test)]</span>
+<span class="attribute">#[path = <span class="string">&quot;tests/block_remover_tests.rs&quot;</span>]</span>
+<span class="kw">pub mod </span>block_remover_tests;
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">BlockRemoverCommand</span> {
-    <span class="ident">RemoveBlocks</span> {
-        <span class="comment">// the block ids to remove</span>
-        <span class="ident">ids</span>: <span class="ident">Vec</span>&lt;<span class="ident">CertificateDigest</span>&gt;,
-        <span class="comment">// the channel to communicate the results</span>
-        <span class="ident">sender</span>: <span class="ident">mpsc::Sender</span>&lt;<span class="ident">BlockRemoverResult</span>&lt;<span class="ident">RemoveBlocksResponse</span>&gt;&gt;,
+<span class="attribute">#[derive(Debug)]</span>
+<span class="kw">pub enum </span>BlockRemoverCommand {
+    RemoveBlocks {
+        <span class="comment">// the block ids to remove
+        </span>ids: Vec&lt;CertificateDigest&gt;,
+        <span class="comment">// the channel to communicate the results
+        </span>sender: mpsc::Sender&lt;BlockRemoverResult&lt;RemoveBlocksResponse&gt;&gt;,
     },
 }
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">RemoveBlocksResponse</span> {
-    <span class="comment">// the block ids removed</span>
-    <span class="ident">ids</span>: <span class="ident">Vec</span>&lt;<span class="ident">CertificateDigest</span>&gt;,
+<span class="attribute">#[derive(Clone, Debug)]</span>
+<span class="kw">pub struct </span>RemoveBlocksResponse {
+    <span class="comment">// the block ids removed
+    </span>ids: Vec&lt;CertificateDigest&gt;,
 }
 
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">DeleteBatchResult</span> = <span class="prelude-ty">Result</span>&lt;<span class="ident">DeleteBatchMessage</span>, <span class="ident">DeleteBatchMessage</span>&gt;;
+<span class="kw">pub type </span>DeleteBatchResult = <span class="prelude-ty">Result</span>&lt;DeleteBatchMessage, DeleteBatchMessage&gt;;
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Default</span>, <span class="ident">Debug</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">DeleteBatchMessage</span> {
-    <span class="kw">pub</span> <span class="ident">ids</span>: <span class="ident">Vec</span>&lt;<span class="ident">BatchDigest</span>&gt;,
+<span class="attribute">#[derive(Clone, Default, Debug)]</span>
+<span class="kw">pub struct </span>DeleteBatchMessage {
+    <span class="kw">pub </span>ids: Vec&lt;BatchDigest&gt;,
 }
 
-<span class="doccomment">/// BlockRemover is responsible for removing blocks identified by</span>
-<span class="doccomment">/// their certificate id (digest) from across our system. On high level</span>
-<span class="doccomment">/// It will make sure that the DAG is updated, internal storage where</span>
-<span class="doccomment">/// there certificates and headers are stored, and the corresponding</span>
-<span class="doccomment">/// batches as well.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// # Example</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// Basic setup of the BlockRemover</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// This example shows the basic setup of the BlockRemover module. It showcases</span>
-<span class="doccomment">/// the necessary components that have to be used (e.x channels, datastore etc)</span>
-<span class="doccomment">/// and how a request (command) should be issued to delete a list of blocks and receive</span>
-<span class="doccomment">/// the result of it.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// ```rust</span>
-<span class="doccomment">/// # use store::{reopen, rocks, rocks::DBMap, Store};</span>
-<span class="doccomment">/// # use network::PrimaryToWorkerNetwork;</span>
-<span class="doccomment">/// # use tokio::sync::{mpsc::{channel}, watch};</span>
-<span class="doccomment">/// # use arc_swap::ArcSwap;</span>
-<span class="doccomment">/// # use crypto::Hash;</span>
-<span class="doccomment">/// # use std::env::temp_dir;</span>
-<span class="doccomment">/// # use crypto::Digest;</span>
-<span class="doccomment">/// # use crypto::ed25519::Ed25519PublicKey;</span>
-<span class="doccomment">/// # use config::Committee;</span>
-<span class="doccomment">/// # use consensus::dag::Dag;</span>
-<span class="doccomment">/// # use futures::future::join_all;</span>
-<span class="doccomment">/// # use std::collections::BTreeMap;</span>
-<span class="doccomment">/// # use std::sync::Arc;</span>
-<span class="doccomment">/// # use types::ReconfigureNotification;</span>
-<span class="doccomment">/// # use config::WorkerId;</span>
-<span class="doccomment">/// # use tempfile::tempdir;</span>
-<span class="doccomment">/// # use primary::{BlockRemover, BlockRemoverCommand, DeleteBatchMessage, PayloadToken};</span>
-<span class="doccomment">/// # use test_utils::test_channel;</span>
-<span class="doccomment">/// # use types::{BatchDigest, Certificate, CertificateDigest, HeaderDigest, Header};</span>
-<span class="doccomment">/// # use prometheus::Registry;</span>
-<span class="doccomment">/// # use consensus::metrics::ConsensusMetrics;</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// #[tokio::main(flavor = &quot;current_thread&quot;)]</span>
-<span class="doccomment">/// # async fn main() {</span>
-<span class="doccomment">///     const CERTIFICATES_CF: &amp;str = &quot;certificates&quot;;</span>
-<span class="doccomment">///     const HEADERS_CF: &amp;str = &quot;headers&quot;;</span>
-<span class="doccomment">///     const PAYLOAD_CF: &amp;str = &quot;payload&quot;;</span>
-<span class="doccomment">///</span>
-<span class="doccomment">///     let temp_dir = tempdir().expect(&quot;Failed to open temporary directory&quot;).into_path();</span>
-<span class="doccomment">///</span>
-<span class="doccomment">///     // Basic setup: datastore, channels &amp; BlockWaiter</span>
-<span class="doccomment">///     let rocksdb = rocks::open_cf(temp_dir, None, &amp;[CERTIFICATES_CF, HEADERS_CF, PAYLOAD_CF])</span>
-<span class="doccomment">///         .expect(&quot;Failed creating database&quot;);</span>
-<span class="doccomment">///</span>
-<span class="doccomment">///     let (certificate_map, headers_map, payload_map) = reopen!(&amp;rocksdb,</span>
-<span class="doccomment">///             CERTIFICATES_CF;&lt;CertificateDigest, Certificate&gt;,</span>
-<span class="doccomment">///             HEADERS_CF;&lt;HeaderDigest, Header&gt;,</span>
-<span class="doccomment">///             PAYLOAD_CF;&lt;(BatchDigest, WorkerId), PayloadToken&gt;);</span>
-<span class="doccomment">///     let certificate_store = Store::new(certificate_map);</span>
-<span class="doccomment">///     let headers_store = Store::new(headers_map);</span>
-<span class="doccomment">///     let payload_store = Store::new(payload_map);</span>
-<span class="doccomment">///</span>
-<span class="doccomment">///     let (tx_commands, rx_commands) = test_utils::test_channel!(1);</span>
-<span class="doccomment">///     let (tx_delete_batches, rx_delete_batches) = test_utils::test_channel!(1);</span>
-<span class="doccomment">///     let (tx_removed_certificates, _rx_removed_certificates) = test_utils::test_channel!(1);</span>
-<span class="doccomment">///     let (tx_delete_block_result, mut rx_delete_block_result) = channel(1);</span>
-<span class="doccomment">///</span>
-<span class="doccomment">///     let name = Ed25519PublicKey::default();</span>
-<span class="doccomment">///     let committee = Committee{ epoch: 0, authorities: BTreeMap::new() };</span>
-<span class="doccomment">///     let (_tx_reconfigure, rx_reconfigure) = watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));</span>
-<span class="doccomment">///     let consensus_metrics = Arc::new(ConsensusMetrics::new(&amp;Registry::new()));</span>
-<span class="doccomment">///     // A dag with genesis for the committee</span>
-<span class="doccomment">///     let (tx_new_certificates, rx_new_certificates) = test_utils::test_channel!(1);</span>
-<span class="doccomment">///     let dag = Arc::new(Dag::new(&amp;committee, rx_new_certificates, consensus_metrics).1);</span>
-<span class="doccomment">///     // Populate genesis in the Dag</span>
-<span class="doccomment">///     join_all(</span>
-<span class="doccomment">///       Certificate::genesis(&amp;committee)</span>
-<span class="doccomment">///       .iter()</span>
-<span class="doccomment">///       .map(|cert| dag.insert(cert.clone())),</span>
-<span class="doccomment">///     )</span>
-<span class="doccomment">///     .await;</span>
-<span class="doccomment">///</span>
-<span class="doccomment">///     BlockRemover::spawn(</span>
-<span class="doccomment">///         name,</span>
-<span class="doccomment">///         committee,</span>
-<span class="doccomment">///         certificate_store.clone(),</span>
-<span class="doccomment">///         headers_store.clone(),</span>
-<span class="doccomment">///         payload_store.clone(),</span>
-<span class="doccomment">///         Some(dag),</span>
-<span class="doccomment">///         PrimaryToWorkerNetwork::default(),</span>
-<span class="doccomment">///         rx_reconfigure,</span>
-<span class="doccomment">///         rx_commands,</span>
-<span class="doccomment">///         rx_delete_batches,</span>
-<span class="doccomment">///         tx_removed_certificates,</span>
-<span class="doccomment">///     );</span>
-<span class="doccomment">///</span>
-<span class="doccomment">///     // A dummy certificate</span>
-<span class="doccomment">///     let certificate = Certificate::default();</span>
-<span class="doccomment">///</span>
-<span class="doccomment">///     // Send a command to receive a block</span>
-<span class="doccomment">///     tx_commands</span>
-<span class="doccomment">///         .send(BlockRemoverCommand::RemoveBlocks {</span>
-<span class="doccomment">///             ids: vec![certificate.clone().digest()],</span>
-<span class="doccomment">///             sender: tx_delete_block_result,</span>
-<span class="doccomment">///         })</span>
-<span class="doccomment">///         .await;</span>
-<span class="doccomment">///</span>
-<span class="doccomment">///     // Dummy - we expect to receive the deleted batches responses via another component</span>
-<span class="doccomment">///     // and get fed via the tx_delete_batches channel.</span>
-<span class="doccomment">///     tx_delete_batches.send(Ok(DeleteBatchMessage{ ids: vec![BatchDigest::default()] })).await;</span>
-<span class="doccomment">///</span>
-<span class="doccomment">///     // Wait to receive the blocks delete output to the provided sender channel</span>
-<span class="doccomment">///     match rx_delete_block_result.recv().await {</span>
-<span class="doccomment">///         Some(Ok(result)) =&gt; {</span>
-<span class="doccomment">///             println!(&quot;Successfully received a delete blocks response&quot;);</span>
-<span class="doccomment">///         }</span>
-<span class="doccomment">///         Some(Err(err)) =&gt; {</span>
-<span class="doccomment">///             println!(&quot;Received an error {:?}&quot;, err);</span>
-<span class="doccomment">///         }</span>
-<span class="doccomment">///         _ =&gt; {</span>
-<span class="doccomment">///             println!(&quot;Nothing received&quot;);</span>
-<span class="doccomment">///         }</span>
-<span class="doccomment">///     }</span>
-<span class="doccomment">/// # }</span>
-<span class="doccomment">/// ```</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BlockRemover</span> {
-    <span class="doccomment">/// The public key of this primary.</span>
-    <span class="ident">name</span>: <span class="ident">PublicKey</span>,
+<span class="doccomment">/// BlockRemover is responsible for removing blocks identified by
+/// their certificate id (digest) from across our system. On high level
+/// It will make sure that the DAG is updated, internal storage where
+/// there certificates and headers are stored, and the corresponding
+/// batches as well.
+///
+/// # Example
+///
+/// Basic setup of the BlockRemover
+///
+/// This example shows the basic setup of the BlockRemover module. It showcases
+/// the necessary components that have to be used (e.x channels, datastore etc)
+/// and how a request (command) should be issued to delete a list of blocks and receive
+/// the result of it.
+///
+/// ```rust
+/// # use store::{reopen, rocks, rocks::DBMap, Store};
+/// # use network::PrimaryToWorkerNetwork;
+/// # use tokio::sync::{mpsc::{channel}, watch};
+/// # use arc_swap::ArcSwap;
+/// # use crypto::Hash;
+/// # use std::env::temp_dir;
+/// # use crypto::Digest;
+/// # use crypto::ed25519::Ed25519PublicKey;
+/// # use config::Committee;
+/// # use consensus::dag::Dag;
+/// # use futures::future::join_all;
+/// # use std::collections::BTreeMap;
+/// # use std::sync::Arc;
+/// # use types::ReconfigureNotification;
+/// # use config::WorkerId;
+/// # use tempfile::tempdir;
+/// # use primary::{BlockRemover, BlockRemoverCommand, DeleteBatchMessage, PayloadToken};
+/// # use test_utils::test_channel;
+/// # use types::{BatchDigest, Certificate, CertificateDigest, HeaderDigest, Header};
+/// # use prometheus::Registry;
+/// # use consensus::metrics::ConsensusMetrics;
+///
+/// #[tokio::main(flavor = &quot;current_thread&quot;)]
+/// # async fn main() {
+///     const CERTIFICATES_CF: &amp;str = &quot;certificates&quot;;
+///     const HEADERS_CF: &amp;str = &quot;headers&quot;;
+///     const PAYLOAD_CF: &amp;str = &quot;payload&quot;;
+///
+///     let temp_dir = tempdir().expect(&quot;Failed to open temporary directory&quot;).into_path();
+///
+///     // Basic setup: datastore, channels &amp; BlockWaiter
+///     let rocksdb = rocks::open_cf(temp_dir, None, &amp;[CERTIFICATES_CF, HEADERS_CF, PAYLOAD_CF])
+///         .expect(&quot;Failed creating database&quot;);
+///
+///     let (certificate_map, headers_map, payload_map) = reopen!(&amp;rocksdb,
+///             CERTIFICATES_CF;&lt;CertificateDigest, Certificate&gt;,
+///             HEADERS_CF;&lt;HeaderDigest, Header&gt;,
+///             PAYLOAD_CF;&lt;(BatchDigest, WorkerId), PayloadToken&gt;);
+///     let certificate_store = Store::new(certificate_map);
+///     let headers_store = Store::new(headers_map);
+///     let payload_store = Store::new(payload_map);
+///
+///     let (tx_commands, rx_commands) = test_utils::test_channel!(1);
+///     let (tx_delete_batches, rx_delete_batches) = test_utils::test_channel!(1);
+///     let (tx_removed_certificates, _rx_removed_certificates) = test_utils::test_channel!(1);
+///     let (tx_delete_block_result, mut rx_delete_block_result) = channel(1);
+///
+///     let name = Ed25519PublicKey::default();
+///     let committee = Committee{ epoch: 0, authorities: BTreeMap::new() };
+///     let (_tx_reconfigure, rx_reconfigure) = watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));
+///     let consensus_metrics = Arc::new(ConsensusMetrics::new(&amp;Registry::new()));
+///     // A dag with genesis for the committee
+///     let (tx_new_certificates, rx_new_certificates) = test_utils::test_channel!(1);
+///     let dag = Arc::new(Dag::new(&amp;committee, rx_new_certificates, consensus_metrics).1);
+///     // Populate genesis in the Dag
+///     join_all(
+///       Certificate::genesis(&amp;committee)
+///       .iter()
+///       .map(|cert| dag.insert(cert.clone())),
+///     )
+///     .await;
+///
+///     BlockRemover::spawn(
+///         name,
+///         committee,
+///         certificate_store.clone(),
+///         headers_store.clone(),
+///         payload_store.clone(),
+///         Some(dag),
+///         PrimaryToWorkerNetwork::default(),
+///         rx_reconfigure,
+///         rx_commands,
+///         rx_delete_batches,
+///         tx_removed_certificates,
+///     );
+///
+///     // A dummy certificate
+///     let certificate = Certificate::default();
+///
+///     // Send a command to receive a block
+///     tx_commands
+///         .send(BlockRemoverCommand::RemoveBlocks {
+///             ids: vec![certificate.clone().digest()],
+///             sender: tx_delete_block_result,
+///         })
+///         .await;
+///
+///     // Dummy - we expect to receive the deleted batches responses via another component
+///     // and get fed via the tx_delete_batches channel.
+///     tx_delete_batches.send(Ok(DeleteBatchMessage{ ids: vec![BatchDigest::default()] })).await;
+///
+///     // Wait to receive the blocks delete output to the provided sender channel
+///     match rx_delete_block_result.recv().await {
+///         Some(Ok(result)) =&gt; {
+///             println!(&quot;Successfully received a delete blocks response&quot;);
+///         }
+///         Some(Err(err)) =&gt; {
+///             println!(&quot;Received an error {:?}&quot;, err);
+///         }
+///         _ =&gt; {
+///             println!(&quot;Nothing received&quot;);
+///         }
+///     }
+/// # }
+/// ```
+</span><span class="kw">pub struct </span>BlockRemover {
+    <span class="doccomment">/// The public key of this primary.
+    </span>name: PublicKey,
 
-    <span class="doccomment">/// The committee information.</span>
-    <span class="ident">committee</span>: <span class="ident">Committee</span>,
+    <span class="doccomment">/// The committee information.
+    </span>committee: Committee,
 
-    <span class="doccomment">/// Storage that keeps the Certificates by their digest id.</span>
-    <span class="ident">certificate_store</span>: <span class="ident">Store</span>&lt;<span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span>&gt;,
+    <span class="doccomment">/// Storage that keeps the Certificates by their digest id.
+    </span>certificate_store: Store&lt;CertificateDigest, Certificate&gt;,
 
-    <span class="doccomment">/// Storage that keeps the headers by their digest id</span>
-    <span class="ident">header_store</span>: <span class="ident">Store</span>&lt;<span class="ident">HeaderDigest</span>, <span class="ident">Header</span>&gt;,
+    <span class="doccomment">/// Storage that keeps the headers by their digest id
+    </span>header_store: Store&lt;HeaderDigest, Header&gt;,
 
-    <span class="doccomment">/// The persistent storage for payload markers from workers.</span>
-    <span class="ident">payload_store</span>: <span class="ident">Store</span>&lt;(<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>), <span class="ident">PayloadToken</span>&gt;,
+    <span class="doccomment">/// The persistent storage for payload markers from workers.
+    </span>payload_store: Store&lt;(BatchDigest, WorkerId), PayloadToken&gt;,
 
-    <span class="doccomment">/// The Dag structure for managing the stored certificates</span>
-    <span class="ident">dag</span>: <span class="prelude-ty">Option</span>&lt;<span class="ident">Arc</span>&lt;<span class="ident">Dag</span>&gt;&gt;,
+    <span class="doccomment">/// The Dag structure for managing the stored certificates
+    </span>dag: <span class="prelude-ty">Option</span>&lt;Arc&lt;Dag&gt;&gt;,
 
-    <span class="doccomment">/// Network driver allowing to send messages.</span>
-    <span class="ident">worker_network</span>: <span class="ident">PrimaryToWorkerNetwork</span>,
+    <span class="doccomment">/// Network driver allowing to send messages.
+    </span>worker_network: PrimaryToWorkerNetwork,
 
-    <span class="doccomment">/// Watch channel to reconfigure the committee.</span>
-    <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span>&lt;<span class="ident">ReconfigureNotification</span>&gt;,
+    <span class="doccomment">/// Watch channel to reconfigure the committee.
+    </span>rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;,
 
-    <span class="doccomment">/// Receives the commands to execute against</span>
-    <span class="ident">rx_commands</span>: <span class="ident">Receiver</span>&lt;<span class="ident">BlockRemoverCommand</span>&gt;,
+    <span class="doccomment">/// Receives the commands to execute against
+    </span>rx_commands: Receiver&lt;BlockRemoverCommand&gt;,
 
-    <span class="doccomment">/// Checks whether a pending request already exists</span>
-    <span class="ident">pending_removal_requests</span>: <span class="ident">HashMap</span>&lt;<span class="ident">RequestKey</span>, <span class="ident">Vec</span>&lt;<span class="ident">Certificate</span>&gt;&gt;,
+    <span class="doccomment">/// Checks whether a pending request already exists
+    </span>pending_removal_requests: HashMap&lt;RequestKey, Vec&lt;Certificate&gt;&gt;,
 
-    <span class="doccomment">/// Holds the senders that are pending to be notified for</span>
-    <span class="doccomment">/// a removal request.</span>
-    <span class="ident">map_tx_removal_results</span>:
-        <span class="ident">HashMap</span>&lt;<span class="ident">RequestKey</span>, <span class="ident">Vec</span>&lt;<span class="ident">mpsc::Sender</span>&lt;<span class="ident">BlockRemoverResult</span>&lt;<span class="ident">RemoveBlocksResponse</span>&gt;&gt;&gt;&gt;,
+    <span class="doccomment">/// Holds the senders that are pending to be notified for
+    /// a removal request.
+    </span>map_tx_removal_results:
+        HashMap&lt;RequestKey, Vec&lt;mpsc::Sender&lt;BlockRemoverResult&lt;RemoveBlocksResponse&gt;&gt;&gt;&gt;,
 
-    <span class="ident">map_tx_worker_removal_results</span>: <span class="ident">HashMap</span>&lt;<span class="ident">RequestKey</span>, <span class="ident">oneshot::Sender</span>&lt;<span class="ident">DeleteBatchResult</span>&gt;&gt;,
+    map_tx_worker_removal_results: HashMap&lt;RequestKey, oneshot::Sender&lt;DeleteBatchResult&gt;&gt;,
 
-    <span class="comment">// TODO: Change to a oneshot channel instead of an mpsc channel</span>
-    <span class="doccomment">/// Receives all the responses to the requests to delete a batch.</span>
-    <span class="ident">rx_delete_batches</span>: <span class="ident">Receiver</span>&lt;<span class="ident">DeleteBatchResult</span>&gt;,
+    <span class="comment">// TODO: Change to a oneshot channel instead of an mpsc channel
+    </span><span class="doccomment">/// Receives all the responses to the requests to delete a batch.
+    </span>rx_delete_batches: Receiver&lt;DeleteBatchResult&gt;,
 
-    <span class="doccomment">/// Outputs all the successfully deleted certificates</span>
-    <span class="ident">tx_removed_certificates</span>: <span class="ident">Sender</span>&lt;<span class="ident">Certificate</span>&gt;,
+    <span class="doccomment">/// Outputs all the successfully deleted certificates
+    </span>tx_removed_certificates: Sender&lt;Certificate&gt;,
 }
 
-<span class="kw">impl</span> <span class="ident">BlockRemover</span> {
-    <span class="attribute">#[<span class="ident">must_use</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span>(
-        <span class="ident">name</span>: <span class="ident">PublicKey</span>,
-        <span class="ident">committee</span>: <span class="ident">Committee</span>,
-        <span class="ident">certificate_store</span>: <span class="ident">Store</span>&lt;<span class="ident">CertificateDigest</span>, <span class="ident">Certificate</span>&gt;,
-        <span class="ident">header_store</span>: <span class="ident">Store</span>&lt;<span class="ident">HeaderDigest</span>, <span class="ident">Header</span>&gt;,
-        <span class="ident">payload_store</span>: <span class="ident">Store</span>&lt;(<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>), <span class="ident">PayloadToken</span>&gt;,
-        <span class="ident">dag</span>: <span class="prelude-ty">Option</span>&lt;<span class="ident">Arc</span>&lt;<span class="ident">Dag</span>&gt;&gt;,
-        <span class="ident">worker_network</span>: <span class="ident">PrimaryToWorkerNetwork</span>,
-        <span class="ident">rx_reconfigure</span>: <span class="ident">watch::Receiver</span>&lt;<span class="ident">ReconfigureNotification</span>&gt;,
-        <span class="ident">rx_commands</span>: <span class="ident">Receiver</span>&lt;<span class="ident">BlockRemoverCommand</span>&gt;,
-        <span class="ident">rx_delete_batches</span>: <span class="ident">Receiver</span>&lt;<span class="ident">DeleteBatchResult</span>&gt;,
-        <span class="ident">removed_certificates</span>: <span class="ident">Sender</span>&lt;<span class="ident">Certificate</span>&gt;,
-    ) -&gt; <span class="ident">JoinHandle</span>&lt;()&gt; {
-        <span class="ident">tokio::spawn</span>(<span class="kw">async</span> <span class="kw">move</span> {
-            <span class="self">Self</span> {
-                <span class="ident">name</span>,
-                <span class="ident">committee</span>,
-                <span class="ident">certificate_store</span>,
-                <span class="ident">header_store</span>,
-                <span class="ident">payload_store</span>,
-                <span class="ident">dag</span>,
-                <span class="ident">worker_network</span>,
-                <span class="ident">rx_reconfigure</span>,
-                <span class="ident">rx_commands</span>,
-                <span class="ident">pending_removal_requests</span>: <span class="ident">HashMap::new</span>(),
-                <span class="ident">map_tx_removal_results</span>: <span class="ident">HashMap::new</span>(),
-                <span class="ident">map_tx_worker_removal_results</span>: <span class="ident">HashMap::new</span>(),
-                <span class="ident">rx_delete_batches</span>,
-                <span class="ident">tx_removed_certificates</span>: <span class="ident">removed_certificates</span>,
+<span class="kw">impl </span>BlockRemover {
+    <span class="attribute">#[must_use]</span>
+    <span class="kw">pub fn </span>spawn(
+        name: PublicKey,
+        committee: Committee,
+        certificate_store: Store&lt;CertificateDigest, Certificate&gt;,
+        header_store: Store&lt;HeaderDigest, Header&gt;,
+        payload_store: Store&lt;(BatchDigest, WorkerId), PayloadToken&gt;,
+        dag: <span class="prelude-ty">Option</span>&lt;Arc&lt;Dag&gt;&gt;,
+        worker_network: PrimaryToWorkerNetwork,
+        rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;,
+        rx_commands: Receiver&lt;BlockRemoverCommand&gt;,
+        rx_delete_batches: Receiver&lt;DeleteBatchResult&gt;,
+        removed_certificates: Sender&lt;Certificate&gt;,
+    ) -&gt; JoinHandle&lt;()&gt; {
+        tokio::spawn(<span class="kw">async move </span>{
+            <span class="self">Self </span>{
+                name,
+                committee,
+                certificate_store,
+                header_store,
+                payload_store,
+                dag,
+                worker_network,
+                rx_reconfigure,
+                rx_commands,
+                pending_removal_requests: HashMap::new(),
+                map_tx_removal_results: HashMap::new(),
+                map_tx_worker_removal_results: HashMap::new(),
+                rx_delete_batches,
+                tx_removed_certificates: removed_certificates,
             }
-            .<span class="ident">run</span>()
+            .run()
             .<span class="kw">await</span>;
         })
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">run</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">waiting</span> = <span class="ident">FuturesUnordered::new</span>();
+    <span class="kw">async fn </span>run(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="kw">let </span><span class="kw-2">mut </span>waiting = FuturesUnordered::new();
 
         <span class="macro">info!</span>(
             <span class="string">&quot;BlockRemover on node {} has started successfully.&quot;</span>,
-            <span class="self">self</span>.<span class="ident">name</span>
+            <span class="self">self</span>.name
         );
-        <span class="kw">loop</span> {
+        <span class="kw">loop </span>{
             <span class="macro">tokio::select!</span> {
-                <span class="prelude-val">Some</span>(<span class="ident">command</span>) = <span class="self">self</span>.<span class="ident">rx_commands</span>.<span class="ident">recv</span>() =&gt; {
-                    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">fut</span>) = <span class="self">self</span>.<span class="ident">handle_command</span>(<span class="ident">command</span>).<span class="kw">await</span> {
-                        <span class="ident">waiting</span>.<span class="ident">push</span>(<span class="ident">fut</span>);
+                <span class="prelude-val">Some</span>(command) = <span class="self">self</span>.rx_commands.recv() =&gt; {
+                    <span class="kw">if let </span><span class="prelude-val">Some</span>(fut) = <span class="self">self</span>.handle_command(command).<span class="kw">await </span>{
+                        waiting.push(fut);
                     }
                 },
-                <span class="prelude-val">Some</span>(<span class="ident">batch_result</span>) = <span class="self">self</span>.<span class="ident">rx_delete_batches</span>.<span class="ident">recv</span>() =&gt; {
-                    <span class="self">self</span>.<span class="ident">handle_delete_batch_result</span>(<span class="ident">batch_result</span>).<span class="kw">await</span>;
+                <span class="prelude-val">Some</span>(batch_result) = <span class="self">self</span>.rx_delete_batches.recv() =&gt; {
+                    <span class="self">self</span>.handle_delete_batch_result(batch_result).<span class="kw">await</span>;
                 },
-                <span class="prelude-val">Some</span>(<span class="ident">result</span>) = <span class="ident">waiting</span>.<span class="ident">next</span>() =&gt; {
-                    <span class="self">self</span>.<span class="ident">handle_remove_waiting_result</span>(<span class="ident">result</span>).<span class="kw">await</span>;
+                <span class="prelude-val">Some</span>(result) = waiting.next() =&gt; {
+                    <span class="self">self</span>.handle_remove_waiting_result(result).<span class="kw">await</span>;
                 },
-                <span class="ident">result</span> = <span class="self">self</span>.<span class="ident">rx_reconfigure</span>.<span class="ident">changed</span>() =&gt; {
-                    <span class="ident">result</span>.<span class="ident">expect</span>(<span class="string">&quot;Committee channel dropped&quot;</span>);
-                    <span class="kw">let</span> <span class="ident">message</span> = <span class="self">self</span>.<span class="ident">rx_reconfigure</span>.<span class="ident">borrow</span>().<span class="ident">clone</span>();
-                    <span class="kw">match</span> <span class="ident">message</span> {
-                        <span class="ident">ReconfigureNotification::NewEpoch</span>(<span class="ident">new_committee</span>)=&gt; {
-                            <span class="self">self</span>.<span class="ident">worker_network</span>.<span class="ident">cleanup</span>(<span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">network_diff</span>(<span class="kw-2">&amp;</span><span class="ident">new_committee</span>));
-                            <span class="self">self</span>.<span class="ident">committee</span> = <span class="ident">new_committee</span>;
+                result = <span class="self">self</span>.rx_reconfigure.changed() =&gt; {
+                    result.expect(<span class="string">&quot;Committee channel dropped&quot;</span>);
+                    <span class="kw">let </span>message = <span class="self">self</span>.rx_reconfigure.borrow().clone();
+                    <span class="kw">match </span>message {
+                        ReconfigureNotification::NewEpoch(new_committee)=&gt; {
+                            <span class="self">self</span>.worker_network.cleanup(<span class="self">self</span>.committee.network_diff(<span class="kw-2">&amp;</span>new_committee));
+                            <span class="self">self</span>.committee = new_committee;
                         }
-                        <span class="ident">ReconfigureNotification::UpdateCommittee</span>(<span class="ident">new_committee</span>)=&gt; {
-                            <span class="self">self</span>.<span class="ident">worker_network</span>.<span class="ident">cleanup</span>(<span class="self">self</span>.<span class="ident">committee</span>.<span class="ident">network_diff</span>(<span class="kw-2">&amp;</span><span class="ident">new_committee</span>));
-                            <span class="self">self</span>.<span class="ident">committee</span> = <span class="ident">new_committee</span>;
+                        ReconfigureNotification::UpdateCommittee(new_committee)=&gt; {
+                            <span class="self">self</span>.worker_network.cleanup(<span class="self">self</span>.committee.network_diff(<span class="kw-2">&amp;</span>new_committee));
+                            <span class="self">self</span>.committee = new_committee;
                         }
-                        <span class="ident">ReconfigureNotification::Shutdown</span> =&gt; <span class="kw">return</span>
-                    }
-                    <span class="macro">tracing::debug!</span>(<span class="string">&quot;Committee updated to {}&quot;</span>, <span class="self">self</span>.<span class="ident">committee</span>);
+                        ReconfigureNotification::Shutdown =&gt; <span class="kw">return
+                    </span>}
+                    <span class="macro">tracing::debug!</span>(<span class="string">&quot;Committee updated to {}&quot;</span>, <span class="self">self</span>.committee);
                 }
             }
         }
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">handle_remove_waiting_result</span>(
-        <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
-        <span class="ident">result</span>: <span class="ident">BlockRemoverResult</span>&lt;<span class="ident">RemoveBlocksResponse</span>&gt;,
+    <span class="kw">async fn </span>handle_remove_waiting_result(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        result: BlockRemoverResult&lt;RemoveBlocksResponse&gt;,
     ) {
-        <span class="kw">let</span> <span class="ident">block_ids</span> = <span class="ident">result</span>.<span class="ident">clone</span>().<span class="ident">map_or_else</span>(|<span class="ident">e</span>| <span class="ident">e</span>.<span class="ident">ids</span>, |<span class="ident">r</span>| <span class="ident">r</span>.<span class="ident">ids</span>);
-        <span class="kw">let</span> <span class="ident">key</span> = <span class="ident"><span class="self">Self</span>::construct_blocks_request_key</span>(<span class="kw-2">&amp;</span><span class="ident">block_ids</span>);
+        <span class="kw">let </span>block_ids = result.clone().map_or_else(|e| e.ids, |r| r.ids);
+        <span class="kw">let </span>key = <span class="self">Self</span>::construct_blocks_request_key(<span class="kw-2">&amp;</span>block_ids);
 
-        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">map_tx_removal_results</span>.<span class="ident">remove</span>(<span class="kw-2">&amp;</span><span class="ident">key</span>) {
-            <span class="prelude-val">None</span> =&gt; {
+        <span class="kw">match </span><span class="self">self</span>.map_tx_removal_results.remove(<span class="kw-2">&amp;</span>key) {
+            <span class="prelude-val">None </span>=&gt; {
                 <span class="macro">error!</span>(
                     <span class="string">&quot;We should expect to have a channel to send the results for key {:?}&quot;</span>,
-                    <span class="ident">key</span>
+                    key
                 );
             }
-            <span class="prelude-val">Some</span>(<span class="ident">senders</span>) =&gt; {
-                <span class="kw">let</span> <span class="ident">cleanup_successful</span> = <span class="kw">match</span> <span class="self">self</span>.<span class="ident">pending_removal_requests</span>.<span class="ident">remove</span>(<span class="kw-2">&amp;</span><span class="ident">key</span>) {
-                    <span class="prelude-val">None</span> =&gt; {
-                        <span class="macro">error!</span>(<span class="string">&quot;Expected to find pending request for this key {:?}&quot;</span>, <span class="kw-2">&amp;</span><span class="ident">key</span>);
+            <span class="prelude-val">Some</span>(senders) =&gt; {
+                <span class="kw">let </span>cleanup_successful = <span class="kw">match </span><span class="self">self</span>.pending_removal_requests.remove(<span class="kw-2">&amp;</span>key) {
+                    <span class="prelude-val">None </span>=&gt; {
+                        <span class="macro">error!</span>(<span class="string">&quot;Expected to find pending request for this key {:?}&quot;</span>, <span class="kw-2">&amp;</span>key);
                         <span class="prelude-val">Err</span>(())
                     }
-                    <span class="prelude-val">Some</span>(<span class="ident">certificates</span>) =&gt; {
-                        <span class="kw">let</span> <span class="ident">batches_by_worker</span> =
-                            <span class="ident">utils::map_certificate_batches_by_worker</span>(<span class="ident">certificates</span>.<span class="ident">as_slice</span>());
-                        <span class="comment">// Clean up any possible pending result channel (e.x in case of a timeout channels are not cleaned up)</span>
-                        <span class="comment">// So we ensure that we &quot;unlock&quot; the pending request and give the opportunity</span>
-                        <span class="comment">// a request to re-execute if the downstream clean up operations fail.</span>
-                        <span class="kw">for</span> <span class="ident">batch_ids</span> <span class="kw">in</span> <span class="ident">batches_by_worker</span>.<span class="ident">values</span>() {
-                            <span class="kw">let</span> <span class="ident">request_key</span> = <span class="ident"><span class="self">Self</span>::construct_batches_request_key</span>(<span class="ident">batch_ids</span>);
+                    <span class="prelude-val">Some</span>(certificates) =&gt; {
+                        <span class="kw">let </span>batches_by_worker =
+                            utils::map_certificate_batches_by_worker(certificates.as_slice());
+                        <span class="comment">// Clean up any possible pending result channel (e.x in case of a timeout channels are not cleaned up)
+                        // So we ensure that we &quot;unlock&quot; the pending request and give the opportunity
+                        // a request to re-execute if the downstream clean up operations fail.
+                        </span><span class="kw">for </span>batch_ids <span class="kw">in </span>batches_by_worker.values() {
+                            <span class="kw">let </span>request_key = <span class="self">Self</span>::construct_batches_request_key(batch_ids);
 
-                            <span class="self">self</span>.<span class="ident">map_tx_worker_removal_results</span>.<span class="ident">remove</span>(<span class="kw-2">&amp;</span><span class="ident">request_key</span>);
+                            <span class="self">self</span>.map_tx_worker_removal_results.remove(<span class="kw-2">&amp;</span>request_key);
                         }
 
-                        <span class="comment">// Do the further clean up only if the result is successful</span>
-                        <span class="kw">if</span> <span class="ident">result</span>.<span class="ident">is_ok</span>() {
-                            <span class="self">self</span>.<span class="ident">cleanup_internal_state</span>(<span class="ident">certificates</span>, <span class="ident">batches_by_worker</span>)
-                                .<span class="kw">await</span>
-                                .<span class="ident">map_err</span>(|<span class="ident">_err</span>| ())
-                        } <span class="kw">else</span> {
+                        <span class="comment">// Do the further clean up only if the result is successful
+                        </span><span class="kw">if </span>result.is_ok() {
+                            <span class="self">self</span>.cleanup_internal_state(certificates, batches_by_worker)
+                                .<span class="kw">await
+                                </span>.map_err(|_err| ())
+                        } <span class="kw">else </span>{
                             <span class="prelude-val">Ok</span>(())
                         }
                     }
                 };
 
-                <span class="comment">// if the clean up is successful we want to send the result</span>
-                <span class="comment">// whatever this is. Otherwise, we are sending back an error</span>
-                <span class="comment">// response.</span>
-                <span class="kw">if</span> <span class="ident">cleanup_successful</span>.<span class="ident">is_ok</span>() {
-                    <span class="ident"><span class="self">Self</span>::unreliable_broadcast</span>(<span class="ident">senders</span>, <span class="ident">result</span>).<span class="kw">await</span>;
-                } <span class="kw">else</span> {
-                    <span class="ident"><span class="self">Self</span>::unreliable_broadcast</span>(
-                        <span class="ident">senders</span>,
-                        <span class="prelude-val">Err</span>(<span class="ident">BlockRemoverError</span> {
-                            <span class="ident">ids</span>: <span class="ident">block_ids</span>,
-                            <span class="ident">error</span>: <span class="ident">BlockRemoverErrorKind::Failed</span>,
+                <span class="comment">// if the clean up is successful we want to send the result
+                // whatever this is. Otherwise, we are sending back an error
+                // response.
+                </span><span class="kw">if </span>cleanup_successful.is_ok() {
+                    <span class="self">Self</span>::unreliable_broadcast(senders, result).<span class="kw">await</span>;
+                } <span class="kw">else </span>{
+                    <span class="self">Self</span>::unreliable_broadcast(
+                        senders,
+                        <span class="prelude-val">Err</span>(BlockRemoverError {
+                            ids: block_ids,
+                            error: BlockRemoverErrorKind::Failed,
                         }),
                     )
                     .<span class="kw">await</span>;
@@ -1001,280 +1001,280 @@
         }
     }
 
-    <span class="doccomment">/// Helper method to broadcast the result_to_send to all the senders.</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">unreliable_broadcast</span>(
-        <span class="ident">senders</span>: <span class="ident">Vec</span>&lt;<span class="ident">mpsc::Sender</span>&lt;<span class="ident">BlockRemoverResult</span>&lt;<span class="ident">RemoveBlocksResponse</span>&gt;&gt;&gt;,
-        <span class="ident">result_to_send</span>: <span class="ident">BlockRemoverResult</span>&lt;<span class="ident">RemoveBlocksResponse</span>&gt;,
+    <span class="doccomment">/// Helper method to broadcast the result_to_send to all the senders.
+    </span><span class="kw">async fn </span>unreliable_broadcast(
+        senders: Vec&lt;mpsc::Sender&lt;BlockRemoverResult&lt;RemoveBlocksResponse&gt;&gt;&gt;,
+        result_to_send: BlockRemoverResult&lt;RemoveBlocksResponse&gt;,
     ) {
-        <span class="kw">let</span> <span class="ident">futures</span>: <span class="ident">Vec</span>&lt;<span class="kw">_</span>&gt; = <span class="ident">senders</span>
-            .<span class="ident">iter</span>()
-            .<span class="ident">map</span>(|<span class="ident">s</span>| <span class="ident">s</span>.<span class="ident">send</span>(<span class="ident">result_to_send</span>.<span class="ident">clone</span>()))
-            .<span class="ident">collect</span>();
+        <span class="kw">let </span>futures: Vec&lt;<span class="kw">_</span>&gt; = senders
+            .iter()
+            .map(|s| s.send(result_to_send.clone()))
+            .collect();
 
-        <span class="kw">for</span> <span class="ident">r</span> <span class="kw">in</span> <span class="ident">join_all</span>(<span class="ident">futures</span>).<span class="kw">await</span> {
-            <span class="kw">if</span> <span class="ident">r</span>.<span class="ident">is_err</span>() {
-                <span class="macro">error!</span>(<span class="string">&quot;Couldn&#39;t send message to channel [{:?}]&quot;</span>, <span class="ident">r</span>.<span class="ident">err</span>().<span class="ident">unwrap</span>());
+        <span class="kw">for </span>r <span class="kw">in </span>join_all(futures).<span class="kw">await </span>{
+            <span class="kw">if </span>r.is_err() {
+                <span class="macro">error!</span>(<span class="string">&quot;Couldn&#39;t send message to channel [{:?}]&quot;</span>, r.err().unwrap());
             }
         }
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">cleanup_internal_state</span>(
-        <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
-        <span class="ident">certificates</span>: <span class="ident">Vec</span>&lt;<span class="ident">Certificate</span>&gt;,
-        <span class="ident">batches_by_worker</span>: <span class="ident">HashMap</span>&lt;<span class="ident">WorkerId</span>, <span class="ident">Vec</span>&lt;<span class="ident">BatchDigest</span>&gt;&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">Either</span>&lt;<span class="ident">TypedStoreError</span>, <span class="ident">ValidatorDagError</span>&gt;&gt; {
-        <span class="kw">let</span> <span class="ident">header_ids</span>: <span class="ident">Vec</span>&lt;<span class="ident">HeaderDigest</span>&gt; = <span class="ident">certificates</span>.<span class="ident">iter</span>().<span class="ident">map</span>(|<span class="ident">c</span>| <span class="ident">c</span>.<span class="ident">header</span>.<span class="ident">id</span>).<span class="ident">collect</span>();
+    <span class="kw">async fn </span>cleanup_internal_state(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        certificates: Vec&lt;Certificate&gt;,
+        batches_by_worker: HashMap&lt;WorkerId, Vec&lt;BatchDigest&gt;&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), Either&lt;TypedStoreError, ValidatorDagError&gt;&gt; {
+        <span class="kw">let </span>header_ids: Vec&lt;HeaderDigest&gt; = certificates.iter().map(|c| c.header.id).collect();
 
-        <span class="self">self</span>.<span class="ident">header_store</span>
-            .<span class="ident">remove_all</span>(<span class="ident">header_ids</span>)
-            .<span class="kw">await</span>
-            .<span class="ident">map_err</span>(<span class="ident">Either::Left</span>)<span class="question-mark">?</span>;
+        <span class="self">self</span>.header_store
+            .remove_all(header_ids)
+            .<span class="kw">await
+            </span>.map_err(Either::Left)<span class="question-mark">?</span>;
 
-        <span class="comment">// delete batch from the payload store as well</span>
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">batches_to_cleanup</span>: <span class="ident">Vec</span>&lt;(<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>)&gt; = <span class="ident">Vec::new</span>();
-        <span class="kw">for</span> (<span class="ident">worker_id</span>, <span class="ident">batch_ids</span>) <span class="kw">in</span> <span class="ident">batches_by_worker</span> {
-            <span class="ident">batch_ids</span>.<span class="ident">into_iter</span>().<span class="ident">for_each</span>(|<span class="ident">d</span>| {
-                <span class="ident">batches_to_cleanup</span>.<span class="ident">push</span>((<span class="ident">d</span>, <span class="ident">worker_id</span>));
+        <span class="comment">// delete batch from the payload store as well
+        </span><span class="kw">let </span><span class="kw-2">mut </span>batches_to_cleanup: Vec&lt;(BatchDigest, WorkerId)&gt; = Vec::new();
+        <span class="kw">for </span>(worker_id, batch_ids) <span class="kw">in </span>batches_by_worker {
+            batch_ids.into_iter().for_each(|d| {
+                batches_to_cleanup.push((d, worker_id));
             })
         }
-        <span class="self">self</span>.<span class="ident">payload_store</span>
-            .<span class="ident">remove_all</span>(<span class="ident">batches_to_cleanup</span>)
-            .<span class="kw">await</span>
-            .<span class="ident">map_err</span>(<span class="ident">Either::Left</span>)<span class="question-mark">?</span>;
+        <span class="self">self</span>.payload_store
+            .remove_all(batches_to_cleanup)
+            .<span class="kw">await
+            </span>.map_err(Either::Left)<span class="question-mark">?</span>;
 
-        <span class="comment">// NOTE: delete certificates in the end since if we need to repeat the request</span>
-        <span class="comment">// we want to be able to find them in storage.</span>
-        <span class="kw">let</span> <span class="ident">certificate_ids</span>: <span class="ident">Vec</span>&lt;<span class="ident">CertificateDigest</span>&gt; =
-            <span class="ident">certificates</span>.<span class="ident">as_slice</span>().<span class="ident">iter</span>().<span class="ident">map</span>(|<span class="ident">c</span>| <span class="ident">c</span>.<span class="ident">digest</span>()).<span class="ident">collect</span>();
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dag</span>) = <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">dag</span> {
-            <span class="ident">dag</span>.<span class="ident">remove</span>(<span class="kw-2">&amp;</span><span class="ident">certificate_ids</span>).<span class="kw">await</span>.<span class="ident">map_err</span>(<span class="ident">Either::Right</span>)<span class="question-mark">?</span>
+        <span class="comment">// NOTE: delete certificates in the end since if we need to repeat the request
+        // we want to be able to find them in storage.
+        </span><span class="kw">let </span>certificate_ids: Vec&lt;CertificateDigest&gt; =
+            certificates.as_slice().iter().map(|c| c.digest()).collect();
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(dag) = <span class="kw-2">&amp;</span><span class="self">self</span>.dag {
+            dag.remove(<span class="kw-2">&amp;</span>certificate_ids).<span class="kw">await</span>.map_err(Either::Right)<span class="question-mark">?
+        </span>}
+
+        <span class="self">self</span>.certificate_store
+            .remove_all(certificate_ids)
+            .<span class="kw">await
+            </span>.map_err(Either::Left)<span class="question-mark">?</span>;
+
+        <span class="comment">// Now output all the removed certificates
+        </span><span class="kw">for </span>certificate <span class="kw">in </span>certificates.clone() {
+            <span class="self">self</span>.tx_removed_certificates
+                .send(certificate.clone())
+                .<span class="kw">await
+                </span>.expect(<span class="string">&quot;Couldn&#39;t forward removed certificates to channel&quot;</span>);
         }
 
-        <span class="self">self</span>.<span class="ident">certificate_store</span>
-            .<span class="ident">remove_all</span>(<span class="ident">certificate_ids</span>)
-            .<span class="kw">await</span>
-            .<span class="ident">map_err</span>(<span class="ident">Either::Left</span>)<span class="question-mark">?</span>;
-
-        <span class="comment">// Now output all the removed certificates</span>
-        <span class="kw">for</span> <span class="ident">certificate</span> <span class="kw">in</span> <span class="ident">certificates</span>.<span class="ident">clone</span>() {
-            <span class="self">self</span>.<span class="ident">tx_removed_certificates</span>
-                .<span class="ident">send</span>(<span class="ident">certificate</span>.<span class="ident">clone</span>())
-                .<span class="kw">await</span>
-                .<span class="ident">expect</span>(<span class="string">&quot;Couldn&#39;t forward removed certificates to channel&quot;</span>);
-        }
-
-        <span class="macro">debug!</span>(<span class="string">&quot;Successfully cleaned up certificates: {:?}&quot;</span>, <span class="ident">certificates</span>);
+        <span class="macro">debug!</span>(<span class="string">&quot;Successfully cleaned up certificates: {:?}&quot;</span>, certificates);
 
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">handle_delete_batch_result</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">batch_result</span>: <span class="ident">DeleteBatchResult</span>) {
-        <span class="kw">let</span> <span class="ident">ids</span> = <span class="ident">batch_result</span>.<span class="ident">clone</span>().<span class="ident">map_or_else</span>(|<span class="ident">e</span>| <span class="ident">e</span>.<span class="ident">ids</span>, |<span class="ident">r</span>| <span class="ident">r</span>.<span class="ident">ids</span>);
-        <span class="kw">let</span> <span class="ident">key</span> = <span class="ident"><span class="self">Self</span>::construct_batches_request_key</span>(<span class="kw-2">&amp;</span><span class="ident">ids</span>);
+    <span class="kw">async fn </span>handle_delete_batch_result(<span class="kw-2">&amp;mut </span><span class="self">self</span>, batch_result: DeleteBatchResult) {
+        <span class="kw">let </span>ids = batch_result.clone().map_or_else(|e| e.ids, |r| r.ids);
+        <span class="kw">let </span>key = <span class="self">Self</span>::construct_batches_request_key(<span class="kw-2">&amp;</span>ids);
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">sender</span>) = <span class="self">self</span>.<span class="ident">map_tx_worker_removal_results</span>.<span class="ident">remove</span>(<span class="kw-2">&amp;</span><span class="ident">key</span>) {
-            <span class="ident">sender</span>
-                .<span class="ident">send</span>(<span class="ident">batch_result</span>)
-                .<span class="ident">expect</span>(<span class="string">&quot;couldn&#39;t send delete batch result to channel&quot;</span>);
-        } <span class="kw">else</span> {
-            <span class="macro">error!</span>(<span class="string">&quot;no pending delete request has been found for key {:?}&quot;</span>, <span class="ident">key</span>);
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(sender) = <span class="self">self</span>.map_tx_worker_removal_results.remove(<span class="kw-2">&amp;</span>key) {
+            sender
+                .send(batch_result)
+                .expect(<span class="string">&quot;couldn&#39;t send delete batch result to channel&quot;</span>);
+        } <span class="kw">else </span>{
+            <span class="macro">error!</span>(<span class="string">&quot;no pending delete request has been found for key {:?}&quot;</span>, key);
         }
     }
 
-    <span class="attribute">#[<span class="ident">instrument</span>(<span class="ident">level</span> = <span class="string">&quot;debug&quot;</span>, <span class="ident">skip_all</span>)]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">handle_command</span>&lt;<span class="lifetime">&#39;a</span>&gt;(
-        <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
-        <span class="ident">command</span>: <span class="ident">BlockRemoverCommand</span>,
-    ) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="ident">BoxFuture</span>&lt;<span class="lifetime">&#39;a</span>, <span class="ident">BlockRemoverResult</span>&lt;<span class="ident">RemoveBlocksResponse</span>&gt;&gt;&gt; {
-        <span class="kw">match</span> <span class="ident">command</span> {
-            <span class="ident">BlockRemoverCommand::RemoveBlocks</span> { <span class="ident">ids</span>, <span class="ident">sender</span> } =&gt; {
-                <span class="comment">// check whether we have a similar request pending</span>
-                <span class="comment">// to make the check easy we sort the digests in asc order,</span>
-                <span class="comment">// and then we merge all the bytes to form a key</span>
-                <span class="kw">let</span> <span class="ident">key</span> = <span class="ident"><span class="self">Self</span>::construct_blocks_request_key</span>(<span class="kw-2">&amp;</span><span class="ident">ids</span>);
+    <span class="attribute">#[instrument(level = <span class="string">&quot;debug&quot;</span>, skip_all)]</span>
+    <span class="kw">async fn </span>handle_command&lt;<span class="lifetime">&#39;a</span>&gt;(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        command: BlockRemoverCommand,
+    ) -&gt; <span class="prelude-ty">Option</span>&lt;BoxFuture&lt;<span class="lifetime">&#39;a</span>, BlockRemoverResult&lt;RemoveBlocksResponse&gt;&gt;&gt; {
+        <span class="kw">match </span>command {
+            BlockRemoverCommand::RemoveBlocks { ids, sender } =&gt; {
+                <span class="comment">// check whether we have a similar request pending
+                // to make the check easy we sort the digests in asc order,
+                // and then we merge all the bytes to form a key
+                </span><span class="kw">let </span>key = <span class="self">Self</span>::construct_blocks_request_key(<span class="kw-2">&amp;</span>ids);
 
-                <span class="kw">if</span> <span class="self">self</span>.<span class="ident">pending_removal_requests</span>.<span class="ident">contains_key</span>(<span class="kw-2">&amp;</span><span class="ident">key</span>) {
-                    <span class="comment">// request already pending, nothing to do, just add the sender to the list</span>
-                    <span class="comment">// of pending to be notified ones.</span>
-                    <span class="self">self</span>.<span class="ident">map_tx_removal_results</span>
-                        .<span class="ident">entry</span>(<span class="ident">key</span>)
-                        .<span class="ident">or_insert_with</span>(<span class="ident">Vec::new</span>)
-                        .<span class="ident">push</span>(<span class="ident">sender</span>);
+                <span class="kw">if </span><span class="self">self</span>.pending_removal_requests.contains_key(<span class="kw-2">&amp;</span>key) {
+                    <span class="comment">// request already pending, nothing to do, just add the sender to the list
+                    // of pending to be notified ones.
+                    </span><span class="self">self</span>.map_tx_removal_results
+                        .entry(key)
+                        .or_insert_with(Vec::new)
+                        .push(sender);
 
                     <span class="macro">debug!</span>(<span class="string">&quot;Removal blocks has an already pending request for the provided ids&quot;</span>);
-                    <span class="kw">return</span> <span class="prelude-val">None</span>;
+                    <span class="kw">return </span><span class="prelude-val">None</span>;
                 }
 
-                <span class="comment">// find the blocks in certificates store</span>
-                <span class="kw">match</span> <span class="self">self</span>.<span class="ident">certificate_store</span>.<span class="ident">read_all</span>(<span class="ident">ids</span>.<span class="ident">clone</span>()).<span class="kw">await</span> {
-                    <span class="prelude-val">Ok</span>(<span class="ident">certificates</span>) =&gt; {
-                        <span class="kw">let</span> <span class="ident">non_found_certificates</span>: <span class="ident">Vec</span>&lt;(<span class="prelude-ty">Option</span>&lt;<span class="ident">Certificate</span>&gt;, <span class="ident">CertificateDigest</span>)&gt; =
-                            <span class="ident">certificates</span>
-                                .<span class="ident">clone</span>()
-                                .<span class="ident">into_iter</span>()
-                                .<span class="ident">zip</span>(<span class="ident">ids</span>.<span class="ident">clone</span>())
-                                .<span class="ident">filter</span>(|(<span class="ident">c</span>, <span class="ident">_digest</span>)| <span class="ident">c</span>.<span class="ident">is_none</span>())
-                                .<span class="ident">collect</span>();
+                <span class="comment">// find the blocks in certificates store
+                </span><span class="kw">match </span><span class="self">self</span>.certificate_store.read_all(ids.clone()).<span class="kw">await </span>{
+                    <span class="prelude-val">Ok</span>(certificates) =&gt; {
+                        <span class="kw">let </span>non_found_certificates: Vec&lt;(<span class="prelude-ty">Option</span>&lt;Certificate&gt;, CertificateDigest)&gt; =
+                            certificates
+                                .clone()
+                                .into_iter()
+                                .zip(ids.clone())
+                                .filter(|(c, _digest)| c.is_none())
+                                .collect();
 
-                        <span class="kw">if</span> !<span class="ident">non_found_certificates</span>.<span class="ident">is_empty</span>() {
-                            <span class="kw">let</span> <span class="ident">c</span>: <span class="ident">Vec</span>&lt;<span class="ident">CertificateDigest</span>&gt; = <span class="ident">non_found_certificates</span>
-                                .<span class="ident">into_iter</span>()
-                                .<span class="ident">map</span>(|(<span class="ident">_c</span>, <span class="ident">d</span>)| <span class="ident">d</span>)
-                                .<span class="ident">collect</span>();
-                            <span class="macro">warn!</span>(<span class="string">&quot;Some certificates are missing, will ignore them {:?}&quot;</span>, <span class="ident">c</span>);
+                        <span class="kw">if </span>!non_found_certificates.is_empty() {
+                            <span class="kw">let </span>c: Vec&lt;CertificateDigest&gt; = non_found_certificates
+                                .into_iter()
+                                .map(|(_c, d)| d)
+                                .collect();
+                            <span class="macro">warn!</span>(<span class="string">&quot;Some certificates are missing, will ignore them {:?}&quot;</span>, c);
                         }
 
-                        <span class="comment">// ensure that we store only the found certificates</span>
-                        <span class="kw">let</span> <span class="ident">found_certificates</span>: <span class="ident">Vec</span>&lt;<span class="ident">Certificate</span>&gt; =
-                            <span class="ident">certificates</span>.<span class="ident">into_iter</span>().<span class="ident">flatten</span>().<span class="ident">collect</span>();
+                        <span class="comment">// ensure that we store only the found certificates
+                        </span><span class="kw">let </span>found_certificates: Vec&lt;Certificate&gt; =
+                            certificates.into_iter().flatten().collect();
 
-                        <span class="kw">let</span> <span class="ident">receivers</span> = <span class="self">self</span>
-                            .<span class="ident">send_delete_requests_to_workers</span>(<span class="ident">found_certificates</span>.<span class="ident">clone</span>())
+                        <span class="kw">let </span>receivers = <span class="self">self
+                            </span>.send_delete_requests_to_workers(found_certificates.clone())
                             .<span class="kw">await</span>;
 
-                        <span class="comment">// now spin up a waiter</span>
-                        <span class="kw">let</span> <span class="ident">fut</span> = <span class="ident"><span class="self">Self</span>::wait_for_responses</span>(<span class="ident">ids</span>, <span class="ident">receivers</span>);
+                        <span class="comment">// now spin up a waiter
+                        </span><span class="kw">let </span>fut = <span class="self">Self</span>::wait_for_responses(ids, receivers);
 
-                        <span class="comment">// add the certificates on the pending map</span>
-                        <span class="self">self</span>.<span class="ident">pending_removal_requests</span>
-                            .<span class="ident">insert</span>(<span class="ident">key</span>.<span class="ident">clone</span>(), <span class="ident">found_certificates</span>);
+                        <span class="comment">// add the certificates on the pending map
+                        </span><span class="self">self</span>.pending_removal_requests
+                            .insert(key.clone(), found_certificates);
 
-                        <span class="comment">// add the sender to the pending map</span>
-                        <span class="self">self</span>.<span class="ident">map_tx_removal_results</span>
-                            .<span class="ident">entry</span>(<span class="ident">key</span>)
-                            .<span class="ident">or_insert_with</span>(<span class="ident">Vec::new</span>)
-                            .<span class="ident">push</span>(<span class="ident">sender</span>);
+                        <span class="comment">// add the sender to the pending map
+                        </span><span class="self">self</span>.map_tx_removal_results
+                            .entry(key)
+                            .or_insert_with(Vec::new)
+                            .push(sender);
 
-                        <span class="kw">return</span> <span class="prelude-val">Some</span>(<span class="ident">fut</span>.<span class="ident">boxed</span>());
+                        <span class="kw">return </span><span class="prelude-val">Some</span>(fut.boxed());
                     }
-                    <span class="prelude-val">Err</span>(<span class="ident">err</span>) =&gt; {
-                        <span class="macro">error!</span>(<span class="string">&quot;Error while reading certificate {:?}&quot;</span>, <span class="ident">err</span>);
+                    <span class="prelude-val">Err</span>(err) =&gt; {
+                        <span class="macro">error!</span>(<span class="string">&quot;Error while reading certificate {:?}&quot;</span>, err);
 
-                        <span class="ident">sender</span>
-                            .<span class="ident">send</span>(<span class="prelude-val">Err</span>(<span class="ident">BlockRemoverError</span> {
-                                <span class="ident">ids</span>,
-                                <span class="ident">error</span>: <span class="ident">BlockRemoverErrorKind::Failed</span>,
+                        sender
+                            .send(<span class="prelude-val">Err</span>(BlockRemoverError {
+                                ids,
+                                error: BlockRemoverErrorKind::Failed,
                             }))
-                            .<span class="kw">await</span>
-                            .<span class="ident">expect</span>(<span class="string">&quot;Couldn&#39;t send error to channel&quot;</span>);
+                            .<span class="kw">await
+                            </span>.expect(<span class="string">&quot;Couldn&#39;t send error to channel&quot;</span>);
                     }
                 }
             }
         }
 
-        <span class="prelude-val">None</span>
-    }
+        <span class="prelude-val">None
+    </span>}
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">send_delete_requests_to_workers</span>(
-        <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
-        <span class="ident">certificates</span>: <span class="ident">Vec</span>&lt;<span class="ident">Certificate</span>&gt;,
-    ) -&gt; <span class="ident">Vec</span>&lt;(<span class="ident">RequestKey</span>, <span class="ident">oneshot::Receiver</span>&lt;<span class="ident">DeleteBatchResult</span>&gt;)&gt; {
-        <span class="comment">// For each certificate, batch the requests by worker</span>
-        <span class="comment">// and send the requests</span>
-        <span class="kw">let</span> <span class="ident">batches_by_worker</span> = <span class="ident">utils::map_certificate_batches_by_worker</span>(<span class="ident">certificates</span>.<span class="ident">as_slice</span>());
+    <span class="kw">async fn </span>send_delete_requests_to_workers(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        certificates: Vec&lt;Certificate&gt;,
+    ) -&gt; Vec&lt;(RequestKey, oneshot::Receiver&lt;DeleteBatchResult&gt;)&gt; {
+        <span class="comment">// For each certificate, batch the requests by worker
+        // and send the requests
+        </span><span class="kw">let </span>batches_by_worker = utils::map_certificate_batches_by_worker(certificates.as_slice());
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">receivers</span>: <span class="ident">Vec</span>&lt;(<span class="ident">RequestKey</span>, <span class="ident">oneshot::Receiver</span>&lt;<span class="ident">DeleteBatchResult</span>&gt;)&gt; = <span class="ident">Vec::new</span>();
+        <span class="kw">let </span><span class="kw-2">mut </span>receivers: Vec&lt;(RequestKey, oneshot::Receiver&lt;DeleteBatchResult&gt;)&gt; = Vec::new();
 
-        <span class="comment">// now send the requests</span>
-        <span class="kw">for</span> (<span class="ident">worker_id</span>, <span class="ident">batch_ids</span>) <span class="kw">in</span> <span class="ident">batches_by_worker</span> {
-            <span class="comment">// send the batches to each worker id</span>
-            <span class="kw">let</span> <span class="ident">worker_address</span> = <span class="self">self</span>
-                .<span class="ident">committee</span>
-                .<span class="ident">worker</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">name</span>, <span class="kw-2">&amp;</span><span class="ident">worker_id</span>)
-                .<span class="ident">expect</span>(<span class="string">&quot;Worker id not found&quot;</span>)
-                .<span class="ident">primary_to_worker</span>;
+        <span class="comment">// now send the requests
+        </span><span class="kw">for </span>(worker_id, batch_ids) <span class="kw">in </span>batches_by_worker {
+            <span class="comment">// send the batches to each worker id
+            </span><span class="kw">let </span>worker_address = <span class="self">self
+                </span>.committee
+                .worker(<span class="kw-2">&amp;</span><span class="self">self</span>.name, <span class="kw-2">&amp;</span>worker_id)
+                .expect(<span class="string">&quot;Worker id not found&quot;</span>)
+                .primary_to_worker;
 
-            <span class="kw">let</span> <span class="ident">message</span> = <span class="ident">PrimaryWorkerMessage::DeleteBatches</span>(<span class="ident">batch_ids</span>.<span class="ident">clone</span>());
+            <span class="kw">let </span>message = PrimaryWorkerMessage::DeleteBatches(batch_ids.clone());
 
-            <span class="comment">// send the request</span>
-            <span class="self">self</span>.<span class="ident">worker_network</span>
-                .<span class="ident">unreliable_send</span>(<span class="ident">worker_address</span>.<span class="ident">clone</span>(), <span class="kw-2">&amp;</span><span class="ident">message</span>)
+            <span class="comment">// send the request
+            </span><span class="self">self</span>.worker_network
+                .unreliable_send(worker_address.clone(), <span class="kw-2">&amp;</span>message)
                 .<span class="kw">await</span>;
 
             <span class="macro">debug!</span>(
                 <span class="string">&quot;Sending DeleteBatches request for batch ids {:?} to worker {}&quot;</span>,
-                <span class="ident">batch_ids</span>.<span class="ident">clone</span>(),
-                <span class="ident">worker_address</span>
+                batch_ids.clone(),
+                worker_address
             );
 
-            <span class="comment">// create a key based on the provided batch ids and use it as a request</span>
-            <span class="comment">// key to identify the channel to forward the response once the delete</span>
-            <span class="comment">// response is received.</span>
-            <span class="kw">let</span> <span class="ident">worker_request_key</span> = <span class="ident"><span class="self">Self</span>::construct_batches_request_key</span>(<span class="kw-2">&amp;</span><span class="ident">batch_ids</span>);
+            <span class="comment">// create a key based on the provided batch ids and use it as a request
+            // key to identify the channel to forward the response once the delete
+            // response is received.
+            </span><span class="kw">let </span>worker_request_key = <span class="self">Self</span>::construct_batches_request_key(<span class="kw-2">&amp;</span>batch_ids);
 
-            <span class="kw">let</span> (<span class="ident">tx</span>, <span class="ident">rx</span>) = <span class="ident">oneshot::channel</span>();
-            <span class="ident">receivers</span>.<span class="ident">push</span>((<span class="ident">worker_request_key</span>.<span class="ident">clone</span>(), <span class="ident">rx</span>));
+            <span class="kw">let </span>(tx, rx) = oneshot::channel();
+            receivers.push((worker_request_key.clone(), rx));
 
-            <span class="self">self</span>.<span class="ident">map_tx_worker_removal_results</span>
-                .<span class="ident">insert</span>(<span class="ident">worker_request_key</span>, <span class="ident">tx</span>);
+            <span class="self">self</span>.map_tx_worker_removal_results
+                .insert(worker_request_key, tx);
         }
 
-        <span class="ident">receivers</span>
+        receivers
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">wait_for_responses</span>(
-        <span class="ident">block_ids</span>: <span class="ident">Vec</span>&lt;<span class="ident">CertificateDigest</span>&gt;,
-        <span class="ident">receivers</span>: <span class="ident">Vec</span>&lt;(<span class="ident">RequestKey</span>, <span class="ident">oneshot::Receiver</span>&lt;<span class="ident">DeleteBatchResult</span>&gt;)&gt;,
-    ) -&gt; <span class="ident">BlockRemoverResult</span>&lt;<span class="ident">RemoveBlocksResponse</span>&gt; {
-        <span class="kw">let</span> <span class="ident">waiting</span>: <span class="ident">Vec</span>&lt;<span class="kw">_</span>&gt; = <span class="ident">receivers</span>
-            .<span class="ident">into_iter</span>()
-            .<span class="ident">map</span>(|<span class="ident">p</span>| <span class="ident"><span class="self">Self</span>::wait_for_delete_response</span>(<span class="ident">p</span>.<span class="number">0</span>, <span class="ident">p</span>.<span class="number">1</span>))
-            .<span class="ident">collect</span>();
+    <span class="kw">async fn </span>wait_for_responses(
+        block_ids: Vec&lt;CertificateDigest&gt;,
+        receivers: Vec&lt;(RequestKey, oneshot::Receiver&lt;DeleteBatchResult&gt;)&gt;,
+    ) -&gt; BlockRemoverResult&lt;RemoveBlocksResponse&gt; {
+        <span class="kw">let </span>waiting: Vec&lt;<span class="kw">_</span>&gt; = receivers
+            .into_iter()
+            .map(|p| <span class="self">Self</span>::wait_for_delete_response(p.<span class="number">0</span>, p.<span class="number">1</span>))
+            .collect();
 
-        <span class="kw">let</span> <span class="ident">result</span> = <span class="ident">try_join_all</span>(<span class="ident">waiting</span>).<span class="kw">await</span>;
-        <span class="kw">if</span> <span class="ident">result</span>.<span class="ident">as_ref</span>().<span class="ident">is_ok</span>() {
-            <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">RemoveBlocksResponse</span> { <span class="ident">ids</span>: <span class="ident">block_ids</span> });
+        <span class="kw">let </span>result = try_join_all(waiting).<span class="kw">await</span>;
+        <span class="kw">if </span>result.as_ref().is_ok() {
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(RemoveBlocksResponse { ids: block_ids });
         }
 
-        <span class="prelude-val">Err</span>(<span class="ident">BlockRemoverError</span> {
-            <span class="ident">ids</span>: <span class="ident">block_ids</span>,
-            <span class="ident">error</span>: <span class="ident">result</span>.<span class="ident">err</span>().<span class="ident">unwrap</span>(),
+        <span class="prelude-val">Err</span>(BlockRemoverError {
+            ids: block_ids,
+            error: result.err().unwrap(),
         })
     }
 
-    <span class="comment">// this method waits to receive the result to a DeleteBatchRequest. We only care to report</span>
-    <span class="comment">// a successful delete or not. It returns true if the batches have been successfully deleted,</span>
-    <span class="comment">// otherwise false in any other case.</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">wait_for_delete_response</span>(
-        <span class="ident">request_key</span>: <span class="ident">RequestKey</span>,
-        <span class="ident">rx</span>: <span class="ident">oneshot::Receiver</span>&lt;<span class="ident">DeleteBatchResult</span>&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">RequestKey</span>, <span class="ident">BlockRemoverErrorKind</span>&gt; {
-        <span class="kw">match</span> <span class="ident">timeout</span>(<span class="ident">BATCH_DELETE_TIMEOUT</span>, <span class="ident">rx</span>).<span class="kw">await</span> {
-            <span class="prelude-val">Ok</span>(<span class="prelude-val">Ok</span>(<span class="kw">_</span>)) =&gt; <span class="prelude-val">Ok</span>(<span class="ident">request_key</span>),
-            <span class="prelude-val">Ok</span>(<span class="prelude-val">Err</span>(<span class="kw">_</span>)) =&gt; <span class="prelude-val">Err</span>(<span class="ident">BlockRemoverErrorKind::Failed</span>),
-            <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="prelude-val">Err</span>(<span class="ident">BlockRemoverErrorKind::Timeout</span>),
+    <span class="comment">// this method waits to receive the result to a DeleteBatchRequest. We only care to report
+    // a successful delete or not. It returns true if the batches have been successfully deleted,
+    // otherwise false in any other case.
+    </span><span class="kw">async fn </span>wait_for_delete_response(
+        request_key: RequestKey,
+        rx: oneshot::Receiver&lt;DeleteBatchResult&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;RequestKey, BlockRemoverErrorKind&gt; {
+        <span class="kw">match </span>timeout(BATCH_DELETE_TIMEOUT, rx).<span class="kw">await </span>{
+            <span class="prelude-val">Ok</span>(<span class="prelude-val">Ok</span>(<span class="kw">_</span>)) =&gt; <span class="prelude-val">Ok</span>(request_key),
+            <span class="prelude-val">Ok</span>(<span class="prelude-val">Err</span>(<span class="kw">_</span>)) =&gt; <span class="prelude-val">Err</span>(BlockRemoverErrorKind::Failed),
+            <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="prelude-val">Err</span>(BlockRemoverErrorKind::Timeout),
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">construct_blocks_request_key</span>(<span class="ident">ids</span>: <span class="kw-2">&amp;</span>[<span class="ident">CertificateDigest</span>]) -&gt; <span class="ident">RequestKey</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ids_cloned</span> = <span class="ident">ids</span>.<span class="ident">to_vec</span>();
-        <span class="ident">ids_cloned</span>.<span class="ident">sort</span>();
+    <span class="kw">fn </span>construct_blocks_request_key(ids: <span class="kw-2">&amp;</span>[CertificateDigest]) -&gt; RequestKey {
+        <span class="kw">let </span><span class="kw-2">mut </span>ids_cloned = ids.to_vec();
+        ids_cloned.sort();
 
-        <span class="comment">// TODO: find a better way to construct request keys</span>
-        <span class="comment">// Issue: https://github.com/MystenLabs/narwhal/issues/94</span>
+        <span class="comment">// TODO: find a better way to construct request keys
+        // Issue: https://github.com/MystenLabs/narwhal/issues/94
 
-        <span class="kw">let</span> <span class="ident">result</span>: <span class="ident">RequestKey</span> = <span class="ident">ids_cloned</span>
-            .<span class="ident">into_iter</span>()
-            .<span class="ident">flat_map</span>(|<span class="ident">d</span>| <span class="ident">Digest::from</span>(<span class="ident">d</span>).<span class="ident">to_vec</span>())
-            .<span class="ident">collect</span>();
+        </span><span class="kw">let </span>result: RequestKey = ids_cloned
+            .into_iter()
+            .flat_map(|d| Digest::from(d).to_vec())
+            .collect();
 
-        <span class="ident">result</span>
+        result
     }
 
-    <span class="kw">fn</span> <span class="ident">construct_batches_request_key</span>(<span class="ident">ids</span>: <span class="kw-2">&amp;</span>[<span class="ident">BatchDigest</span>]) -&gt; <span class="ident">RequestKey</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ids_cloned</span> = <span class="ident">ids</span>.<span class="ident">to_vec</span>();
-        <span class="ident">ids_cloned</span>.<span class="ident">sort</span>();
+    <span class="kw">fn </span>construct_batches_request_key(ids: <span class="kw-2">&amp;</span>[BatchDigest]) -&gt; RequestKey {
+        <span class="kw">let </span><span class="kw-2">mut </span>ids_cloned = ids.to_vec();
+        ids_cloned.sort();
 
-        <span class="comment">// TODO: find a better way to construct request keys</span>
-        <span class="comment">// Issue: https://github.com/MystenLabs/narwhal/issues/94</span>
+        <span class="comment">// TODO: find a better way to construct request keys
+        // Issue: https://github.com/MystenLabs/narwhal/issues/94
 
-        <span class="kw">let</span> <span class="ident">result</span>: <span class="ident">RequestKey</span> = <span class="ident">ids_cloned</span>
-            .<span class="ident">into_iter</span>()
-            .<span class="ident">flat_map</span>(|<span class="ident">d</span>| <span class="ident">Digest::from</span>(<span class="ident">d</span>).<span class="ident">to_vec</span>())
-            .<span class="ident">collect</span>();
+        </span><span class="kw">let </span>result: RequestKey = ids_cloned
+            .into_iter()
+            .flat_map(|d| Digest::from(d).to_vec())
+            .collect();
 
-        <span class="ident">result</span>
+        result
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (801821d15 2022-08-14)" ></div></body></html>

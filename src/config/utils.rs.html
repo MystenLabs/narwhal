@@ -31,38 +31,38 @@
 <span id="31">31</span>
 <span id="32">32</span>
 <span id="33">33</span>
-</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
-<span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
+</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
 
-<span class="kw">use</span> <span class="ident">std::net</span>::{<span class="ident">TcpListener</span>, <span class="ident">TcpStream</span>};
+</span><span class="kw">use </span>std::net::{TcpListener, TcpStream};
 
-<span class="doccomment">/// Return an ephemeral, available port. On unix systems, the port returned will be in the</span>
-<span class="doccomment">/// TIME_WAIT state ensuring that the OS won&#39;t hand out this port for some grace period.</span>
-<span class="doccomment">/// Callers should be able to bind to this port given they use SO_REUSEADDR.</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_available_port</span>() -&gt; <span class="ident">u16</span> {
-    <span class="kw">const</span> <span class="ident">MAX_PORT_RETRIES</span>: <span class="ident">u32</span> = <span class="number">1000</span>;
+<span class="doccomment">/// Return an ephemeral, available port. On unix systems, the port returned will be in the
+/// TIME_WAIT state ensuring that the OS won&#39;t hand out this port for some grace period.
+/// Callers should be able to bind to this port given they use SO_REUSEADDR.
+</span><span class="kw">pub fn </span>get_available_port() -&gt; u16 {
+    <span class="kw">const </span>MAX_PORT_RETRIES: u32 = <span class="number">1000</span>;
 
-    <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">MAX_PORT_RETRIES</span> {
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">port</span>) = <span class="ident">get_ephemeral_port</span>() {
-            <span class="kw">return</span> <span class="ident">port</span>;
+    <span class="kw">for _ in </span><span class="number">0</span>..MAX_PORT_RETRIES {
+        <span class="kw">if let </span><span class="prelude-val">Ok</span>(port) = get_ephemeral_port() {
+            <span class="kw">return </span>port;
         }
     }
 
     <span class="macro">panic!</span>(<span class="string">&quot;Error: could not find an available port&quot;</span>);
 }
 
-<span class="kw">fn</span> <span class="ident">get_ephemeral_port</span>() -&gt; <span class="ident">::std::io::Result</span>&lt;<span class="ident">u16</span>&gt; {
-    <span class="comment">// Request a random available port from the OS</span>
-    <span class="kw">let</span> <span class="ident">listener</span> = <span class="ident">TcpListener::bind</span>((<span class="string">&quot;localhost&quot;</span>, <span class="number">0</span>))<span class="question-mark">?</span>;
-    <span class="kw">let</span> <span class="ident">addr</span> = <span class="ident">listener</span>.<span class="ident">local_addr</span>()<span class="question-mark">?</span>;
+<span class="kw">fn </span>get_ephemeral_port() -&gt; ::std::io::Result&lt;u16&gt; {
+    <span class="comment">// Request a random available port from the OS
+    </span><span class="kw">let </span>listener = TcpListener::bind((<span class="string">&quot;localhost&quot;</span>, <span class="number">0</span>))<span class="question-mark">?</span>;
+    <span class="kw">let </span>addr = listener.local_addr()<span class="question-mark">?</span>;
 
-    <span class="comment">// Create and accept a connection (which we&#39;ll promptly drop) in order to force the port</span>
-    <span class="comment">// into the TIME_WAIT state, ensuring that the port will be reserved from some limited</span>
-    <span class="comment">// amount of time (roughly 60s on some Linux systems)</span>
-    <span class="kw">let</span> <span class="ident">_sender</span> = <span class="ident">TcpStream::connect</span>(<span class="ident">addr</span>)<span class="question-mark">?</span>;
-    <span class="kw">let</span> <span class="ident">_incoming</span> = <span class="ident">listener</span>.<span class="ident">accept</span>()<span class="question-mark">?</span>;
+    <span class="comment">// Create and accept a connection (which we&#39;ll promptly drop) in order to force the port
+    // into the TIME_WAIT state, ensuring that the port will be reserved from some limited
+    // amount of time (roughly 60s on some Linux systems)
+    </span><span class="kw">let </span>_sender = TcpStream::connect(addr)<span class="question-mark">?</span>;
+    <span class="kw">let </span>_incoming = listener.accept()<span class="question-mark">?</span>;
 
-    <span class="prelude-val">Ok</span>(<span class="ident">addr</span>.<span class="ident">port</span>())
+    <span class="prelude-val">Ok</span>(addr.port())
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="config" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="config" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (801821d15 2022-08-14)" ></div></body></html>

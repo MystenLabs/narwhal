@@ -69,76 +69,76 @@
 <span id="69">69</span>
 <span id="70">70</span>
 <span id="71">71</span>
-</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
-<span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
-<span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">HeaderDigest</span>, <span class="ident">Round</span>};
-<span class="kw">use</span> <span class="ident">config::Epoch</span>;
-<span class="kw">use</span> <span class="ident">crypto::Digest</span>;
-<span class="kw">use</span> <span class="ident">store::StoreError</span>;
-<span class="kw">use</span> <span class="ident">thiserror::Error</span>;
+</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
+// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+</span><span class="kw">use crate</span>::{HeaderDigest, Round};
+<span class="kw">use </span>config::Epoch;
+<span class="kw">use </span>crypto::Digest;
+<span class="kw">use </span>store::StoreError;
+<span class="kw">use </span>thiserror::Error;
 
-<span class="attribute">#[<span class="ident">macro_export</span>]</span>
-<span class="macro">macro_rules!</span> <span class="ident">bail</span> {
-    (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">e</span>:<span class="ident">expr</span>) =&gt; {
-        <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">e</span>);
+<span class="attribute">#[macro_export]</span>
+<span class="macro">macro_rules!</span> bail {
+    (<span class="macro-nonterminal">$e</span>:expr) =&gt; {
+        <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro-nonterminal">$e</span>);
     };
 }
 
-<span class="attribute">#[<span class="ident">macro_export</span>(<span class="ident">local_inner_macros</span>)]</span>
-<span class="macro">macro_rules!</span> <span class="ident">ensure</span> {
-    (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">cond</span>:<span class="ident">expr</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">e</span>:<span class="ident">expr</span>) =&gt; {
-        <span class="kw">if</span> !(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">cond</span>) {
-            <span class="macro">bail!</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">e</span>);
+<span class="attribute">#[macro_export(local_inner_macros)]</span>
+<span class="macro">macro_rules!</span> ensure {
+    (<span class="macro-nonterminal">$cond</span>:expr, <span class="macro-nonterminal">$e</span>:expr) =&gt; {
+        <span class="kw">if </span>!(<span class="macro-nonterminal">$cond</span>) {
+            <span class="macro">bail!</span>(<span class="macro-nonterminal">$e</span>);
         }
     };
 }
 
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">DagResult</span>&lt;<span class="ident">T</span>&gt; = <span class="prelude-ty">Result</span>&lt;<span class="ident">T</span>, <span class="ident">DagError</span>&gt;;
+<span class="kw">pub type </span>DagResult&lt;T&gt; = <span class="prelude-ty">Result</span>&lt;T, DagError&gt;;
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Error</span>)]</span>
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">DagError</span> {
-    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Invalid signature&quot;</span>)]</span>
-    <span class="ident">InvalidSignature</span>(<span class="attribute">#[<span class="ident">from</span>]</span> <span class="ident">signature::Error</span>),
+<span class="attribute">#[derive(Debug, Error)]</span>
+<span class="kw">pub enum </span>DagError {
+    <span class="attribute">#[error(<span class="string">&quot;Invalid signature&quot;</span>)]</span>
+    InvalidSignature(<span class="attribute">#[from]</span> signature::Error),
 
-    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Storage failure: {0}&quot;</span>)]</span>
-    <span class="ident">StoreError</span>(<span class="attribute">#[<span class="ident">from</span>]</span> <span class="ident">StoreError</span>),
+    <span class="attribute">#[error(<span class="string">&quot;Storage failure: {0}&quot;</span>)]</span>
+    StoreError(<span class="attribute">#[from]</span> StoreError),
 
-    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Serialization error: {0}&quot;</span>)]</span>
-    <span class="ident">SerializationError</span>(<span class="attribute">#[<span class="ident">from</span>]</span> <span class="ident">Box</span>&lt;<span class="ident">bincode::ErrorKind</span>&gt;),
+    <span class="attribute">#[error(<span class="string">&quot;Serialization error: {0}&quot;</span>)]</span>
+    SerializationError(<span class="attribute">#[from]</span> Box&lt;bincode::ErrorKind&gt;),
 
-    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Invalid header id&quot;</span>)]</span>
-    <span class="ident">InvalidHeaderId</span>,
+    <span class="attribute">#[error(<span class="string">&quot;Invalid header id&quot;</span>)]</span>
+    InvalidHeaderId,
 
-    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Malformed header {0}&quot;</span>)]</span>
-    <span class="ident">MalformedHeader</span>(<span class="ident">HeaderDigest</span>),
+    <span class="attribute">#[error(<span class="string">&quot;Malformed header {0}&quot;</span>)]</span>
+    MalformedHeader(HeaderDigest),
 
-    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Received message from unknown authority {0}&quot;</span>)]</span>
-    <span class="ident">UnknownAuthority</span>(<span class="ident">String</span>),
+    <span class="attribute">#[error(<span class="string">&quot;Received message from unknown authority {0}&quot;</span>)]</span>
+    UnknownAuthority(String),
 
-    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Authority {0} appears in quorum more than once&quot;</span>)]</span>
-    <span class="ident">AuthorityReuse</span>(<span class="ident">String</span>),
+    <span class="attribute">#[error(<span class="string">&quot;Authority {0} appears in quorum more than once&quot;</span>)]</span>
+    AuthorityReuse(String),
 
-    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Received unexpected vote fo header {0}&quot;</span>)]</span>
-    <span class="ident">UnexpectedVote</span>(<span class="ident">HeaderDigest</span>),
+    <span class="attribute">#[error(<span class="string">&quot;Received unexpected vote fo header {0}&quot;</span>)]</span>
+    UnexpectedVote(HeaderDigest),
 
-    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Received certificate without a quorum&quot;</span>)]</span>
-    <span class="ident">CertificateRequiresQuorum</span>,
+    <span class="attribute">#[error(<span class="string">&quot;Received certificate without a quorum&quot;</span>)]</span>
+    CertificateRequiresQuorum,
 
-    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Parents of header {0} are not a quorum&quot;</span>)]</span>
-    <span class="ident">HeaderRequiresQuorum</span>(<span class="ident">HeaderDigest</span>),
+    <span class="attribute">#[error(<span class="string">&quot;Parents of header {0} are not a quorum&quot;</span>)]</span>
+    HeaderRequiresQuorum(HeaderDigest),
 
-    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Message {0} (round {1}) too old for GC round {2}&quot;</span>)]</span>
-    <span class="ident">TooOld</span>(<span class="ident">Digest</span>, <span class="ident">Round</span>, <span class="ident">Round</span>),
+    <span class="attribute">#[error(<span class="string">&quot;Message {0} (round {1}) too old for GC round {2}&quot;</span>)]</span>
+    TooOld(Digest, Round, Round),
 
-    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Vote {0} (round {1}) too old for round {2}&quot;</span>)]</span>
-    <span class="ident">VoteTooOld</span>(<span class="ident">Digest</span>, <span class="ident">Round</span>, <span class="ident">Round</span>),
+    <span class="attribute">#[error(<span class="string">&quot;Vote {0} (round {1}) too old for round {2}&quot;</span>)]</span>
+    VoteTooOld(Digest, Round, Round),
 
-    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Invalid epoch (expected {expected}, received {received})&quot;</span>)]</span>
-    <span class="ident">InvalidEpoch</span> { <span class="ident">expected</span>: <span class="ident">Epoch</span>, <span class="ident">received</span>: <span class="ident">Epoch</span> },
+    <span class="attribute">#[error(<span class="string">&quot;Invalid epoch (expected {expected}, received {received})&quot;</span>)]</span>
+    InvalidEpoch { expected: Epoch, received: Epoch },
 
-    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;System shutting down&quot;</span>)]</span>
-    <span class="ident">ShuttingDown</span>,
+    <span class="attribute">#[error(<span class="string">&quot;System shutting down&quot;</span>)]</span>
+    ShuttingDown,
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (801821d15 2022-08-14)" ></div></body></html>

@@ -104,111 +104,111 @@
 <span id="104">104</span>
 <span id="105">105</span>
 <span id="106">106</span>
-</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
-<span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="kw">mod</span> <span class="ident">narwhal</span> {
-    <span class="attribute">#![<span class="ident">cfg_attr</span>(<span class="ident">beta</span>, <span class="ident">allow</span>(<span class="ident">clippy::derive_partial_eq_without_eq</span>))]</span>
+</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+</span><span class="kw">mod </span>narwhal {
+    <span class="attribute">#![cfg_attr(beta, allow(clippy::derive_partial_eq_without_eq))]</span>
     <span class="macro">tonic::include_proto!</span>(<span class="string">&quot;narwhal&quot;</span>);
 }
 
-<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">array::TryFromSliceError</span>, <span class="ident">ops::Deref</span>};
+<span class="kw">use </span>std::{array::TryFromSliceError, ops::Deref};
 
-<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">BlockError</span>, <span class="ident">BlockErrorKind</span>, <span class="ident">CertificateDigest</span>, <span class="ident">Transaction</span>};
-<span class="kw">use</span> <span class="ident">bytes::Bytes</span>;
-<span class="kw">use</span> <span class="ident">crypto::PublicKey</span>;
+<span class="kw">use crate</span>::{BlockError, BlockErrorKind, CertificateDigest, Transaction};
+<span class="kw">use </span>bytes::Bytes;
+<span class="kw">use </span>crypto::PublicKey;
 
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">narwhal</span>::{
-    <span class="ident">collection_error::CollectionErrorType</span>,
-    <span class="ident">collection_retrieval_result::RetrievalResult</span>,
-    <span class="ident">configuration_client::ConfigurationClient</span>,
-    <span class="ident">configuration_server</span>::{<span class="ident">Configuration</span>, <span class="ident">ConfigurationServer</span>},
-    <span class="ident">primary_to_primary_client::PrimaryToPrimaryClient</span>,
-    <span class="ident">primary_to_primary_server</span>::{<span class="ident">PrimaryToPrimary</span>, <span class="ident">PrimaryToPrimaryServer</span>},
-    <span class="ident">primary_to_worker_client::PrimaryToWorkerClient</span>,
-    <span class="ident">primary_to_worker_server</span>::{<span class="ident">PrimaryToWorker</span>, <span class="ident">PrimaryToWorkerServer</span>},
-    <span class="ident">proposer_client::ProposerClient</span>,
-    <span class="ident">proposer_server</span>::{<span class="ident">Proposer</span>, <span class="ident">ProposerServer</span>},
-    <span class="ident">transactions_client::TransactionsClient</span>,
-    <span class="ident">transactions_server</span>::{<span class="ident">Transactions</span>, <span class="ident">TransactionsServer</span>},
-    <span class="ident">validator_client::ValidatorClient</span>,
-    <span class="ident">validator_server</span>::{<span class="ident">Validator</span>, <span class="ident">ValidatorServer</span>},
-    <span class="ident">worker_to_primary_client::WorkerToPrimaryClient</span>,
-    <span class="ident">worker_to_primary_server</span>::{<span class="ident">WorkerToPrimary</span>, <span class="ident">WorkerToPrimaryServer</span>},
-    <span class="ident">worker_to_worker_client::WorkerToWorkerClient</span>,
-    <span class="ident">worker_to_worker_server</span>::{<span class="ident">WorkerToWorker</span>, <span class="ident">WorkerToWorkerServer</span>},
-    <span class="ident">BincodeEncodedPayload</span>, <span class="ident">CertificateDigest</span> <span class="kw">as</span> <span class="ident">CertificateDigestProto</span>, <span class="ident">Collection</span>,
-    <span class="ident">CollectionError</span>, <span class="ident">CollectionRetrievalResult</span>, <span class="ident">Empty</span>, <span class="ident">GetCollectionsRequest</span>,
-    <span class="ident">GetCollectionsResponse</span>, <span class="ident">GetPrimaryAddressResponse</span>, <span class="ident">MultiAddr</span> <span class="kw">as</span> <span class="ident">MultiAddrProto</span>,
-    <span class="ident">NewEpochRequest</span>, <span class="ident">NewNetworkInfoRequest</span>, <span class="ident">NodeReadCausalRequest</span>, <span class="ident">NodeReadCausalResponse</span>,
-    <span class="ident">PrimaryAddresses</span> <span class="kw">as</span> <span class="ident">PrimaryAddressesProto</span>, <span class="ident">PublicKey</span> <span class="kw">as</span> <span class="ident">PublicKeyProto</span>, <span class="ident">ReadCausalRequest</span>,
-    <span class="ident">ReadCausalResponse</span>, <span class="ident">RemoveCollectionsRequest</span>, <span class="ident">RoundsRequest</span>, <span class="ident">RoundsResponse</span>,
-    <span class="ident">Transaction</span> <span class="kw">as</span> <span class="ident">TransactionProto</span>, <span class="ident">ValidatorData</span>,
+<span class="kw">pub use </span>narwhal::{
+    collection_error::CollectionErrorType,
+    collection_retrieval_result::RetrievalResult,
+    configuration_client::ConfigurationClient,
+    configuration_server::{Configuration, ConfigurationServer},
+    primary_to_primary_client::PrimaryToPrimaryClient,
+    primary_to_primary_server::{PrimaryToPrimary, PrimaryToPrimaryServer},
+    primary_to_worker_client::PrimaryToWorkerClient,
+    primary_to_worker_server::{PrimaryToWorker, PrimaryToWorkerServer},
+    proposer_client::ProposerClient,
+    proposer_server::{Proposer, ProposerServer},
+    transactions_client::TransactionsClient,
+    transactions_server::{Transactions, TransactionsServer},
+    validator_client::ValidatorClient,
+    validator_server::{Validator, ValidatorServer},
+    worker_to_primary_client::WorkerToPrimaryClient,
+    worker_to_primary_server::{WorkerToPrimary, WorkerToPrimaryServer},
+    worker_to_worker_client::WorkerToWorkerClient,
+    worker_to_worker_server::{WorkerToWorker, WorkerToWorkerServer},
+    BincodeEncodedPayload, CertificateDigest <span class="kw">as </span>CertificateDigestProto, Collection,
+    CollectionError, CollectionRetrievalResult, Empty, GetCollectionsRequest,
+    GetCollectionsResponse, GetPrimaryAddressResponse, MultiAddr <span class="kw">as </span>MultiAddrProto,
+    NewEpochRequest, NewNetworkInfoRequest, NodeReadCausalRequest, NodeReadCausalResponse,
+    PrimaryAddresses <span class="kw">as </span>PrimaryAddressesProto, PublicKey <span class="kw">as </span>PublicKeyProto, ReadCausalRequest,
+    ReadCausalResponse, RemoveCollectionsRequest, RoundsRequest, RoundsResponse,
+    Transaction <span class="kw">as </span>TransactionProto, ValidatorData,
 };
 
-<span class="kw">impl</span> <span class="ident">From</span>&lt;<span class="ident">PublicKey</span>&gt; <span class="kw">for</span> <span class="ident">PublicKeyProto</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">pub_key</span>: <span class="ident">PublicKey</span>) -&gt; <span class="self">Self</span> {
-        <span class="ident">PublicKeyProto</span> {
-            <span class="ident">bytes</span>: <span class="ident">Bytes::from</span>(<span class="ident">pub_key</span>.<span class="ident">as_ref</span>().<span class="ident">to_vec</span>()),
+<span class="kw">impl </span>From&lt;PublicKey&gt; <span class="kw">for </span>PublicKeyProto {
+    <span class="kw">fn </span>from(pub_key: PublicKey) -&gt; <span class="self">Self </span>{
+        PublicKeyProto {
+            bytes: Bytes::from(pub_key.as_ref().to_vec()),
         }
     }
 }
 
-<span class="kw">impl</span> <span class="ident">From</span>&lt;<span class="ident">Transaction</span>&gt; <span class="kw">for</span> <span class="ident">TransactionProto</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">transaction</span>: <span class="ident">Transaction</span>) -&gt; <span class="self">Self</span> {
-        <span class="ident">TransactionProto</span> {
-            <span class="ident">transaction</span>: <span class="ident">Bytes::from</span>(<span class="ident">transaction</span>),
+<span class="kw">impl </span>From&lt;Transaction&gt; <span class="kw">for </span>TransactionProto {
+    <span class="kw">fn </span>from(transaction: Transaction) -&gt; <span class="self">Self </span>{
+        TransactionProto {
+            transaction: Bytes::from(transaction),
         }
     }
 }
 
-<span class="kw">impl</span> <span class="ident">From</span>&lt;<span class="ident">TransactionProto</span>&gt; <span class="kw">for</span> <span class="ident">Transaction</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">transaction</span>: <span class="ident">TransactionProto</span>) -&gt; <span class="self">Self</span> {
-        <span class="ident">transaction</span>.<span class="ident">transaction</span>.<span class="ident">to_vec</span>()
+<span class="kw">impl </span>From&lt;TransactionProto&gt; <span class="kw">for </span>Transaction {
+    <span class="kw">fn </span>from(transaction: TransactionProto) -&gt; <span class="self">Self </span>{
+        transaction.transaction.to_vec()
     }
 }
 
-<span class="kw">impl</span> <span class="ident">From</span>&lt;<span class="ident">BlockError</span>&gt; <span class="kw">for</span> <span class="ident">CollectionError</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">error</span>: <span class="ident">BlockError</span>) -&gt; <span class="self">Self</span> {
-        <span class="ident">CollectionError</span> {
-            <span class="ident">id</span>: <span class="prelude-val">Some</span>(<span class="ident">error</span>.<span class="ident">id</span>.<span class="ident">into</span>()),
-            <span class="ident">error</span>: <span class="ident">CollectionErrorType::from</span>(<span class="ident">error</span>.<span class="ident">error</span>).<span class="ident">into</span>(),
+<span class="kw">impl </span>From&lt;BlockError&gt; <span class="kw">for </span>CollectionError {
+    <span class="kw">fn </span>from(error: BlockError) -&gt; <span class="self">Self </span>{
+        CollectionError {
+            id: <span class="prelude-val">Some</span>(error.id.into()),
+            error: CollectionErrorType::from(error.error).into(),
         }
     }
 }
 
-<span class="kw">impl</span> <span class="ident">From</span>&lt;<span class="ident">BlockErrorKind</span>&gt; <span class="kw">for</span> <span class="ident">CollectionErrorType</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">error_type</span>: <span class="ident">BlockErrorKind</span>) -&gt; <span class="self">Self</span> {
-        <span class="kw">match</span> <span class="ident">error_type</span> {
-            <span class="ident">BlockErrorKind::BlockNotFound</span> =&gt; <span class="ident">CollectionErrorType::CollectionNotFound</span>,
-            <span class="ident">BlockErrorKind::BatchTimeout</span> =&gt; <span class="ident">CollectionErrorType::CollectionTimeout</span>,
-            <span class="ident">BlockErrorKind::BatchError</span> =&gt; <span class="ident">CollectionErrorType::CollectionError</span>,
+<span class="kw">impl </span>From&lt;BlockErrorKind&gt; <span class="kw">for </span>CollectionErrorType {
+    <span class="kw">fn </span>from(error_type: BlockErrorKind) -&gt; <span class="self">Self </span>{
+        <span class="kw">match </span>error_type {
+            BlockErrorKind::BlockNotFound =&gt; CollectionErrorType::CollectionNotFound,
+            BlockErrorKind::BatchTimeout =&gt; CollectionErrorType::CollectionTimeout,
+            BlockErrorKind::BatchError =&gt; CollectionErrorType::CollectionError,
         }
     }
 }
 
-<span class="kw">impl</span> <span class="ident">TryFrom</span>&lt;<span class="ident">CertificateDigestProto</span>&gt; <span class="kw">for</span> <span class="ident">CertificateDigest</span> {
-    <span class="kw">type</span> <span class="ident">Error</span> = <span class="ident">TryFromSliceError</span>;
+<span class="kw">impl </span>TryFrom&lt;CertificateDigestProto&gt; <span class="kw">for </span>CertificateDigest {
+    <span class="kw">type </span>Error = TryFromSliceError;
 
-    <span class="kw">fn</span> <span class="ident">try_from</span>(<span class="ident">digest</span>: <span class="ident">CertificateDigestProto</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="ident"><span class="self">Self</span>::Error</span>&gt; {
-        <span class="prelude-val">Ok</span>(<span class="ident">CertificateDigest::new</span>(<span class="ident">digest</span>.<span class="ident">digest</span>.<span class="ident">deref</span>().<span class="ident">try_into</span>()<span class="question-mark">?</span>))
+    <span class="kw">fn </span>try_from(digest: CertificateDigestProto) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="self">Self</span>::Error&gt; {
+        <span class="prelude-val">Ok</span>(CertificateDigest::new(digest.digest.deref().try_into()<span class="question-mark">?</span>))
     }
 }
 
-<span class="kw">impl</span> <span class="ident">BincodeEncodedPayload</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">deserialize</span>&lt;<span class="ident">T</span>: <span class="ident">serde::de::DeserializeOwned</span>&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">T</span>, <span class="ident">bincode::Error</span>&gt; {
-        <span class="ident">bincode::deserialize</span>(<span class="self">self</span>.<span class="ident">payload</span>.<span class="ident">as_ref</span>())
+<span class="kw">impl </span>BincodeEncodedPayload {
+    <span class="kw">pub fn </span>deserialize&lt;T: serde::de::DeserializeOwned&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;T, bincode::Error&gt; {
+        bincode::deserialize(<span class="self">self</span>.payload.as_ref())
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">try_from</span>&lt;<span class="ident">T</span>: <span class="ident">serde::Serialize</span>&gt;(<span class="ident">value</span>: <span class="kw-2">&amp;</span><span class="ident">T</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="ident">bincode::Error</span>&gt; {
-        <span class="kw">let</span> <span class="ident">payload</span> = <span class="ident">bincode::serialize</span>(<span class="ident">value</span>)<span class="question-mark">?</span>.<span class="ident">into</span>();
-        <span class="prelude-val">Ok</span>(<span class="self">Self</span> { <span class="ident">payload</span> })
+    <span class="kw">pub fn </span>try_from&lt;T: serde::Serialize&gt;(value: <span class="kw-2">&amp;</span>T) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, bincode::Error&gt; {
+        <span class="kw">let </span>payload = bincode::serialize(value)<span class="question-mark">?</span>.into();
+        <span class="prelude-val">Ok</span>(<span class="self">Self </span>{ payload })
     }
 }
 
-<span class="kw">impl</span> <span class="ident">From</span>&lt;<span class="ident">Bytes</span>&gt; <span class="kw">for</span> <span class="ident">BincodeEncodedPayload</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">payload</span>: <span class="ident">Bytes</span>) -&gt; <span class="self">Self</span> {
-        <span class="self">Self</span> { <span class="ident">payload</span> }
+<span class="kw">impl </span>From&lt;Bytes&gt; <span class="kw">for </span>BincodeEncodedPayload {
+    <span class="kw">fn </span>from(payload: Bytes) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{ payload }
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (801821d15 2022-08-14)" ></div></body></html>

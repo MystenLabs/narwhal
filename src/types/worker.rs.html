@@ -70,77 +70,77 @@
 <span id="70">70</span>
 <span id="71">71</span>
 <span id="72">72</span>
-</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
-<span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
+</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
 
-<span class="kw">use</span> <span class="ident">blake2::digest::Update</span>;
-<span class="kw">use</span> <span class="ident">crypto::PublicKey</span>;
-<span class="kw">use</span> <span class="ident">serde</span>::{<span class="ident">Deserialize</span>, <span class="ident">Serialize</span>};
-<span class="kw">use</span> <span class="ident">thiserror::Error</span>;
+</span><span class="kw">use </span>blake2::digest::Update;
+<span class="kw">use </span>crypto::PublicKey;
+<span class="kw">use </span>serde::{Deserialize, Serialize};
+<span class="kw">use </span>thiserror::Error;
 
-<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">Batch</span>, <span class="ident">BatchDigest</span>};
+<span class="kw">use crate</span>::{Batch, BatchDigest};
 
-<span class="doccomment">/// The message exchanged between workers.</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>)]</span>
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">WorkerMessage</span> {
-    <span class="doccomment">/// Used by workers to send a new batch or to reply to a batch request.</span>
-    <span class="ident">Batch</span>(<span class="ident">Batch</span>),
-    <span class="doccomment">/// Used by workers to request batches.</span>
-    <span class="ident">BatchRequest</span>(<span class="ident">Vec</span>&lt;<span class="ident">BatchDigest</span>&gt;, <span class="comment">/* origin */</span> <span class="ident">PublicKey</span>),
+<span class="doccomment">/// The message exchanged between workers.
+</span><span class="attribute">#[derive(Debug, Serialize, Deserialize)]</span>
+<span class="kw">pub enum </span>WorkerMessage {
+    <span class="doccomment">/// Used by workers to send a new batch or to reply to a batch request.
+    </span>Batch(Batch),
+    <span class="doccomment">/// Used by workers to request batches.
+    </span>BatchRequest(Vec&lt;BatchDigest&gt;, <span class="comment">/* origin */ </span>PublicKey),
 }
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ClientBatchRequest</span>(<span class="kw">pub</span> <span class="ident">Vec</span>&lt;<span class="ident">BatchDigest</span>&gt;);
+<span class="attribute">#[derive(Debug, Serialize, Deserialize)]</span>
+<span class="kw">pub struct </span>ClientBatchRequest(<span class="kw">pub </span>Vec&lt;BatchDigest&gt;);
 
-<span class="doccomment">/// Indicates a serialized `WorkerMessage::Batch` message.</span>
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">SerializedBatchMessage</span> = <span class="ident">Vec</span>&lt;<span class="ident">u8</span>&gt;;
+<span class="doccomment">/// Indicates a serialized `WorkerMessage::Batch` message.
+</span><span class="kw">pub type </span>SerializedBatchMessage = Vec&lt;u8&gt;;
 
-<span class="doccomment">/// Hashes a serialized batch message without deserializing it into a batch.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// See the test `test_batch_and_serialized`, which guarantees that the output of this</span>
-<span class="doccomment">/// function remains the same as the [`Hash::digest`] result you would get from [`Batch`].</span>
-<span class="doccomment">/// See also the micro-benchmark `batch_digest`, which checks the performance of this is</span>
-<span class="doccomment">/// identical to hashing a serialized batch.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// TODO: remove the expects in the below, making this return a `Result` and correspondingly</span>
-<span class="doccomment">/// doing error management at the callers. See #268</span>
-<span class="doccomment">/// TODO: update batch hashing to reflect hashing fixed sequences of transactions, see #87.</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">serialized_batch_digest</span>&lt;<span class="ident">K</span>: <span class="ident">AsRef</span>&lt;[<span class="ident">u8</span>]&gt;&gt;(<span class="ident">sbm</span>: <span class="ident">K</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">BatchDigest</span>, <span class="ident">DigestError</span>&gt; {
-    <span class="kw">let</span> <span class="ident">sbm</span> = <span class="ident">sbm</span>.<span class="ident">as_ref</span>();
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">offset</span> = <span class="number">4</span>; <span class="comment">// skip the enum variant selector</span>
-    <span class="kw">let</span> <span class="ident">num_transactions</span> = <span class="ident">u64::from_le_bytes</span>(
-        <span class="ident">sbm</span>[<span class="ident">offset</span>..<span class="ident">offset</span> + <span class="number">8</span>]
-            .<span class="ident">try_into</span>()
-            .<span class="ident">map_err</span>(|<span class="kw">_</span>| <span class="ident">DigestError::InvalidArgumentError</span>(<span class="ident">offset</span>))<span class="question-mark">?</span>,
+<span class="doccomment">/// Hashes a serialized batch message without deserializing it into a batch.
+///
+/// See the test `test_batch_and_serialized`, which guarantees that the output of this
+/// function remains the same as the [`Hash::digest`] result you would get from [`Batch`].
+/// See also the micro-benchmark `batch_digest`, which checks the performance of this is
+/// identical to hashing a serialized batch.
+///
+/// TODO: remove the expects in the below, making this return a `Result` and correspondingly
+/// doing error management at the callers. See #268
+/// TODO: update batch hashing to reflect hashing fixed sequences of transactions, see #87.
+</span><span class="kw">pub fn </span>serialized_batch_digest&lt;K: AsRef&lt;[u8]&gt;&gt;(sbm: K) -&gt; <span class="prelude-ty">Result</span>&lt;BatchDigest, DigestError&gt; {
+    <span class="kw">let </span>sbm = sbm.as_ref();
+    <span class="kw">let </span><span class="kw-2">mut </span>offset = <span class="number">4</span>; <span class="comment">// skip the enum variant selector
+    </span><span class="kw">let </span>num_transactions = u64::from_le_bytes(
+        sbm[offset..offset + <span class="number">8</span>]
+            .try_into()
+            .map_err(|<span class="kw">_</span>| DigestError::InvalidArgumentError(offset))<span class="question-mark">?</span>,
     );
-    <span class="ident">offset</span> += <span class="number">8</span>;
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">transactions</span> = <span class="ident">Vec::new</span>();
-    <span class="kw">for</span> <span class="ident">_i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">num_transactions</span> {
-        <span class="kw">let</span> (<span class="ident">tx_ref</span>, <span class="ident">new_offset</span>) = <span class="ident">read_one_transaction</span>(<span class="ident">sbm</span>, <span class="ident">offset</span>)<span class="question-mark">?</span>;
-        <span class="ident">transactions</span>.<span class="ident">push</span>(<span class="ident">tx_ref</span>);
-        <span class="ident">offset</span> = <span class="ident">new_offset</span>;
+    offset += <span class="number">8</span>;
+    <span class="kw">let </span><span class="kw-2">mut </span>transactions = Vec::new();
+    <span class="kw">for </span>_i <span class="kw">in </span><span class="number">0</span>..num_transactions {
+        <span class="kw">let </span>(tx_ref, new_offset) = read_one_transaction(sbm, offset)<span class="question-mark">?</span>;
+        transactions.push(tx_ref);
+        offset = new_offset;
     }
-    <span class="prelude-val">Ok</span>(<span class="ident">BatchDigest::new</span>(<span class="ident">crypto::blake2b_256</span>(|<span class="ident">hasher</span>| {
-        <span class="ident">transactions</span>.<span class="ident">iter</span>().<span class="ident">for_each</span>(|<span class="ident">tx</span>| <span class="ident">hasher</span>.<span class="ident">update</span>(<span class="ident">tx</span>))
+    <span class="prelude-val">Ok</span>(BatchDigest::new(crypto::blake2b_256(|hasher| {
+        transactions.iter().for_each(|tx| hasher.update(tx))
     })))
 }
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Error</span>)]</span>
-<span class="attribute">#[<span class="ident">non_exhaustive</span>]</span>
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">DigestError</span> {
-    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Invalid argument: invalid byte at {0}&quot;</span>)]</span>
-    <span class="ident">InvalidArgumentError</span>(<span class="ident">usize</span>),
+<span class="attribute">#[derive(Debug, Error)]</span>
+<span class="attribute">#[non_exhaustive]</span>
+<span class="kw">pub enum </span>DigestError {
+    <span class="attribute">#[error(<span class="string">&quot;Invalid argument: invalid byte at {0}&quot;</span>)]</span>
+    InvalidArgumentError(usize),
 }
 
-<span class="kw">fn</span> <span class="ident">read_one_transaction</span>(<span class="ident">sbm</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">offset</span>: <span class="ident">usize</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(<span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">usize</span>), <span class="ident">DigestError</span>&gt; {
-    <span class="kw">let</span> <span class="ident">length</span> = <span class="ident">u64::from_le_bytes</span>(
-        <span class="ident">sbm</span>[<span class="ident">offset</span>..<span class="ident">offset</span> + <span class="number">8</span>]
-            .<span class="ident">try_into</span>()
-            .<span class="ident">map_err</span>(|<span class="kw">_</span>| <span class="ident">DigestError::InvalidArgumentError</span>(<span class="ident">offset</span>))<span class="question-mark">?</span>,
+<span class="kw">fn </span>read_one_transaction(sbm: <span class="kw-2">&amp;</span>[u8], offset: usize) -&gt; <span class="prelude-ty">Result</span>&lt;(<span class="kw-2">&amp;</span>[u8], usize), DigestError&gt; {
+    <span class="kw">let </span>length = u64::from_le_bytes(
+        sbm[offset..offset + <span class="number">8</span>]
+            .try_into()
+            .map_err(|<span class="kw">_</span>| DigestError::InvalidArgumentError(offset))<span class="question-mark">?</span>,
     );
-    <span class="kw">let</span> <span class="ident">length</span> = <span class="ident">usize::try_from</span>(<span class="ident">length</span>).<span class="ident">map_err</span>(|<span class="kw">_</span>| <span class="ident">DigestError::InvalidArgumentError</span>(<span class="ident">offset</span>))<span class="question-mark">?</span>;
-    <span class="kw">let</span> <span class="ident">end</span> = <span class="ident">offset</span> + <span class="number">8</span> + <span class="ident">length</span>;
-    <span class="prelude-val">Ok</span>((<span class="kw-2">&amp;</span><span class="ident">sbm</span>[<span class="ident">offset</span> + <span class="number">8</span>..<span class="ident">end</span>], <span class="ident">end</span>))
+    <span class="kw">let </span>length = usize::try_from(length).map_err(|<span class="kw">_</span>| DigestError::InvalidArgumentError(offset))<span class="question-mark">?</span>;
+    <span class="kw">let </span>end = offset + <span class="number">8 </span>+ length;
+    <span class="prelude-val">Ok</span>((<span class="kw-2">&amp;</span>sbm[offset + <span class="number">8</span>..end], end))
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (801821d15 2022-08-14)" ></div></body></html>

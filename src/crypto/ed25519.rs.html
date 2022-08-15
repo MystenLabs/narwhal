@@ -454,461 +454,461 @@
 <span id="454">454</span>
 <span id="455">455</span>
 <span id="456">456</span>
-</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
-<span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="kw">use</span> <span class="ident">base64ct</span>::{<span class="ident">Base64</span>, <span class="ident">Encoding</span>};
-<span class="kw">use</span> <span class="ident">ed25519_consensus</span>::{<span class="ident">batch</span>, <span class="ident">VerificationKeyBytes</span>};
-<span class="kw">use</span> <span class="ident">once_cell::sync::OnceCell</span>;
-<span class="kw">use</span> <span class="ident">serde</span>::{<span class="ident">de</span>, <span class="ident">Deserialize</span>, <span class="ident">Serialize</span>};
-<span class="kw">use</span> <span class="ident">signature</span>::{<span class="ident">rand_core::OsRng</span>, <span class="ident">Signature</span>, <span class="ident">Signer</span>, <span class="ident">Verifier</span>};
-<span class="kw">use</span> <span class="ident">std</span>::{
-    <span class="ident">fmt</span>::{<span class="self">self</span>, <span class="ident">Display</span>},
-    <span class="ident">str::FromStr</span>,
+</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+</span><span class="kw">use </span>base64ct::{Base64, Encoding};
+<span class="kw">use </span>ed25519_consensus::{batch, VerificationKeyBytes};
+<span class="kw">use </span>once_cell::sync::OnceCell;
+<span class="kw">use </span>serde::{de, Deserialize, Serialize};
+<span class="kw">use </span>signature::{rand_core::OsRng, Signature, Signer, Verifier};
+<span class="kw">use </span>std::{
+    fmt::{<span class="self">self</span>, Display},
+    str::FromStr,
 };
 
-<span class="kw">use</span> <span class="kw">crate</span>::{
-    <span class="ident">pubkey_bytes::PublicKeyBytes</span>,
-    <span class="ident">serde_helpers::keypair_decode_base64</span>,
-    <span class="ident">traits</span>::{
-        <span class="ident">AggregateAuthenticator</span>, <span class="ident">Authenticator</span>, <span class="ident">EncodeDecodeBase64</span>, <span class="ident">KeyPair</span>, <span class="ident">SigningKey</span>,
-        <span class="ident">ToFromBytes</span>, <span class="ident">VerifyingKey</span>,
+<span class="kw">use crate</span>::{
+    pubkey_bytes::PublicKeyBytes,
+    serde_helpers::keypair_decode_base64,
+    traits::{
+        AggregateAuthenticator, Authenticator, EncodeDecodeBase64, KeyPair, SigningKey,
+        ToFromBytes, VerifyingKey,
     },
 };
 
-<span class="kw">pub</span> <span class="kw">const</span> <span class="ident">ED25519_PRIVATE_KEY_LENGTH</span>: <span class="ident">usize</span> = <span class="number">32</span>;
-<span class="kw">pub</span> <span class="kw">const</span> <span class="ident">ED25519_PUBLIC_KEY_LENGTH</span>: <span class="ident">usize</span> = <span class="number">32</span>;
-<span class="kw">pub</span> <span class="kw">const</span> <span class="ident">ED25519_SIGNATURE_LENGTH</span>: <span class="ident">usize</span> = <span class="number">64</span>;
+<span class="kw">pub const </span>ED25519_PRIVATE_KEY_LENGTH: usize = <span class="number">32</span>;
+<span class="kw">pub const </span>ED25519_PUBLIC_KEY_LENGTH: usize = <span class="number">32</span>;
+<span class="kw">pub const </span>ED25519_SIGNATURE_LENGTH: usize = <span class="number">64</span>;
 
-<span class="doccomment">///</span>
-<span class="doccomment">/// Define Structs</span>
-<span class="doccomment">///</span>
+<span class="doccomment">///
+/// Define Structs
+///
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Ed25519PublicKey</span>(<span class="kw">pub</span> <span class="ident">ed25519_consensus::VerificationKey</span>);
+</span><span class="attribute">#[derive(Debug, Clone, PartialEq, Eq)]</span>
+<span class="kw">pub struct </span>Ed25519PublicKey(<span class="kw">pub </span>ed25519_consensus::VerificationKey);
 
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">Ed25519PublicKeyBytes</span> = <span class="ident">PublicKeyBytes</span>&lt;<span class="ident">Ed25519PublicKey</span>, { <span class="ident">Ed25519PublicKey::LENGTH</span> }&gt;;
+<span class="kw">pub type </span>Ed25519PublicKeyBytes = PublicKeyBytes&lt;Ed25519PublicKey, { Ed25519PublicKey::LENGTH }&gt;;
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Ed25519PrivateKey</span>(<span class="kw">pub</span> <span class="ident">ed25519_consensus::SigningKey</span>);
+<span class="attribute">#[derive(Debug)]</span>
+<span class="kw">pub struct </span>Ed25519PrivateKey(<span class="kw">pub </span>ed25519_consensus::SigningKey);
 
-<span class="comment">// There is a strong requirement for this specific impl. in Fab benchmarks</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>)]</span>
-<span class="attribute">#[<span class="ident">serde</span>(<span class="ident">tag</span> = <span class="string">&quot;type&quot;</span>)]</span> <span class="comment">// necessary so as not to deser under a != type</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Ed25519KeyPair</span> {
-    <span class="ident">name</span>: <span class="ident">Ed25519PublicKey</span>,
-    <span class="ident">secret</span>: <span class="ident">Ed25519PrivateKey</span>,
+<span class="comment">// There is a strong requirement for this specific impl. in Fab benchmarks
+</span><span class="attribute">#[derive(Debug, Serialize, Deserialize)]</span>
+<span class="attribute">#[serde(tag = <span class="string">&quot;type&quot;</span>)]</span> <span class="comment">// necessary so as not to deser under a != type
+</span><span class="kw">pub struct </span>Ed25519KeyPair {
+    name: Ed25519PublicKey,
+    secret: Ed25519PrivateKey,
 }
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Ed25519Signature</span> {
-    <span class="kw">pub</span> <span class="ident">sig</span>: <span class="ident">ed25519_consensus::Signature</span>,
-    <span class="kw">pub</span> <span class="ident">bytes</span>: <span class="ident">OnceCell</span>&lt;[<span class="ident">u8</span>; <span class="ident">ED25519_SIGNATURE_LENGTH</span>]&gt;,
+<span class="attribute">#[derive(Debug, Clone, PartialEq, Eq)]</span>
+<span class="kw">pub struct </span>Ed25519Signature {
+    <span class="kw">pub </span>sig: ed25519_consensus::Signature,
+    <span class="kw">pub </span>bytes: OnceCell&lt;[u8; ED25519_SIGNATURE_LENGTH]&gt;,
 }
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>, <span class="ident">Default</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Ed25519AggregateSignature</span>(<span class="kw">pub</span> <span class="ident">Vec</span>&lt;<span class="ident">ed25519_consensus::Signature</span>&gt;);
+<span class="attribute">#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]</span>
+<span class="kw">pub struct </span>Ed25519AggregateSignature(<span class="kw">pub </span>Vec&lt;ed25519_consensus::Signature&gt;);
 
-<span class="doccomment">///</span>
-<span class="doccomment">/// Implement VerifyingKey</span>
-<span class="doccomment">///</span>
+<span class="doccomment">///
+/// Implement VerifyingKey
+///
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; <span class="ident">From</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">Ed25519PrivateKey</span>&gt; <span class="kw">for</span> <span class="ident">Ed25519PublicKey</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">secret</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">Ed25519PrivateKey</span>) -&gt; <span class="self">Self</span> {
-        <span class="ident">Ed25519PublicKey</span>(<span class="ident">secret</span>.<span class="number">0</span>.<span class="ident">verification_key</span>())
+</span><span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; From&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Ed25519PrivateKey&gt; <span class="kw">for </span>Ed25519PublicKey {
+    <span class="kw">fn </span>from(secret: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Ed25519PrivateKey) -&gt; <span class="self">Self </span>{
+        Ed25519PublicKey(secret.<span class="number">0</span>.verification_key())
     }
 }
 
-<span class="kw">impl</span> <span class="ident">VerifyingKey</span> <span class="kw">for</span> <span class="ident">Ed25519PublicKey</span> {
-    <span class="kw">type</span> <span class="ident">PrivKey</span> = <span class="ident">Ed25519PrivateKey</span>;
-    <span class="kw">type</span> <span class="ident">Sig</span> = <span class="ident">Ed25519Signature</span>;
-    <span class="kw">const</span> <span class="ident">LENGTH</span>: <span class="ident">usize</span> = <span class="ident">ED25519_PUBLIC_KEY_LENGTH</span>;
+<span class="kw">impl </span>VerifyingKey <span class="kw">for </span>Ed25519PublicKey {
+    <span class="kw">type </span>PrivKey = Ed25519PrivateKey;
+    <span class="kw">type </span>Sig = Ed25519Signature;
+    <span class="kw">const </span>LENGTH: usize = ED25519_PUBLIC_KEY_LENGTH;
 
-    <span class="kw">fn</span> <span class="ident">verify_batch</span>(<span class="ident">msg</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">pks</span>: <span class="kw-2">&amp;</span>[<span class="self">Self</span>], <span class="ident">sigs</span>: <span class="kw-2">&amp;</span>[<span class="ident"><span class="self">Self</span>::Sig</span>]) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">signature::Error</span>&gt; {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">batch</span> = <span class="ident">batch::Verifier::new</span>();
+    <span class="kw">fn </span>verify_batch(msg: <span class="kw-2">&amp;</span>[u8], pks: <span class="kw-2">&amp;</span>[<span class="self">Self</span>], sigs: <span class="kw-2">&amp;</span>[<span class="self">Self</span>::Sig]) -&gt; <span class="prelude-ty">Result</span>&lt;(), signature::Error&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>batch = batch::Verifier::new();
 
-        <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">sigs</span>.<span class="ident">len</span>() {
-            <span class="kw">let</span> <span class="ident">vk_bytes</span> = <span class="ident">VerificationKeyBytes::try_from</span>(<span class="ident">pks</span>[<span class="ident">i</span>].<span class="ident">as_ref</span>()).<span class="ident">unwrap</span>();
-            <span class="ident">batch</span>.<span class="ident">queue</span>((<span class="ident">vk_bytes</span>, <span class="ident">sigs</span>[<span class="ident">i</span>].<span class="ident">sig</span>, <span class="ident">msg</span>))
+        <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..sigs.len() {
+            <span class="kw">let </span>vk_bytes = VerificationKeyBytes::try_from(pks[i].as_ref()).unwrap();
+            batch.queue((vk_bytes, sigs[i].sig, msg))
         }
-        <span class="ident">batch</span>
-            .<span class="ident">verify</span>(<span class="kw-2">&amp;mut</span> <span class="ident">OsRng</span>)
-            .<span class="ident">map_err</span>(|<span class="kw">_</span>| <span class="ident">signature::Error::new</span>())
+        batch
+            .verify(<span class="kw-2">&amp;mut </span>OsRng)
+            .map_err(|<span class="kw">_</span>| signature::Error::new())
     }
 }
 
-<span class="kw">impl</span> <span class="ident">Verifier</span>&lt;<span class="ident">Ed25519Signature</span>&gt; <span class="kw">for</span> <span class="ident">Ed25519PublicKey</span> {
-    <span class="comment">// Compliant to ZIP215: https://zips.z.cash/protocol/protocol.pdf#concreteed25519</span>
-    <span class="kw">fn</span> <span class="ident">verify</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">msg</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">signature</span>: <span class="kw-2">&amp;</span><span class="ident">Ed25519Signature</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">signature::Error</span>&gt; {
-        <span class="self">self</span>.<span class="number">0</span>
-            .<span class="ident">verify</span>(<span class="kw-2">&amp;</span><span class="ident">signature</span>.<span class="ident">sig</span>, <span class="ident">msg</span>)
-            .<span class="ident">map_err</span>(|<span class="kw">_</span>| <span class="ident">signature::Error::new</span>())
+<span class="kw">impl </span>Verifier&lt;Ed25519Signature&gt; <span class="kw">for </span>Ed25519PublicKey {
+    <span class="comment">// Compliant to ZIP215: https://zips.z.cash/protocol/protocol.pdf#concreteed25519
+    </span><span class="kw">fn </span>verify(<span class="kw-2">&amp;</span><span class="self">self</span>, msg: <span class="kw-2">&amp;</span>[u8], signature: <span class="kw-2">&amp;</span>Ed25519Signature) -&gt; <span class="prelude-ty">Result</span>&lt;(), signature::Error&gt; {
+        <span class="self">self</span>.<span class="number">0
+            </span>.verify(<span class="kw-2">&amp;</span>signature.sig, msg)
+            .map_err(|<span class="kw">_</span>| signature::Error::new())
     }
 }
 
-<span class="kw">impl</span> <span class="ident">ToFromBytes</span> <span class="kw">for</span> <span class="ident">Ed25519PublicKey</span> {
-    <span class="kw">fn</span> <span class="ident">from_bytes</span>(<span class="ident">bytes</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="ident">signature::Error</span>&gt; {
-        <span class="ident">ed25519_consensus::VerificationKey::try_from</span>(<span class="ident">bytes</span>)
-            .<span class="ident">map</span>(<span class="ident">Ed25519PublicKey</span>)
-            .<span class="ident">map_err</span>(|<span class="kw">_</span>| <span class="ident">signature::Error::new</span>())
+<span class="kw">impl </span>ToFromBytes <span class="kw">for </span>Ed25519PublicKey {
+    <span class="kw">fn </span>from_bytes(bytes: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, signature::Error&gt; {
+        ed25519_consensus::VerificationKey::try_from(bytes)
+            .map(Ed25519PublicKey)
+            .map_err(|<span class="kw">_</span>| signature::Error::new())
     }
 }
 
-<span class="kw">impl</span> <span class="ident">AsRef</span>&lt;[<span class="ident">u8</span>]&gt; <span class="kw">for</span> <span class="ident">Ed25519PublicKey</span> {
-    <span class="kw">fn</span> <span class="ident">as_ref</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] {
-        <span class="self">self</span>.<span class="number">0</span>.<span class="ident">as_ref</span>()
+<span class="kw">impl </span>AsRef&lt;[u8]&gt; <span class="kw">for </span>Ed25519PublicKey {
+    <span class="kw">fn </span>as_ref(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[u8] {
+        <span class="self">self</span>.<span class="number">0</span>.as_ref()
     }
 }
 
-<span class="kw">impl</span> <span class="ident">Default</span> <span class="kw">for</span> <span class="ident">Ed25519PublicKey</span> {
-    <span class="kw">fn</span> <span class="ident">default</span>() -&gt; <span class="self">Self</span> {
-        <span class="ident">Ed25519PublicKey::from_bytes</span>(<span class="kw-2">&amp;</span>[<span class="number">0u8</span>; <span class="number">32</span>]).<span class="ident">unwrap</span>()
+<span class="kw">impl </span>Default <span class="kw">for </span>Ed25519PublicKey {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        Ed25519PublicKey::from_bytes(<span class="kw-2">&amp;</span>[<span class="number">0u8</span>; <span class="number">32</span>]).unwrap()
     }
 }
 
-<span class="kw">impl</span> <span class="ident">Display</span> <span class="kw">for</span> <span class="ident">Ed25519PublicKey</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">fmt::Formatter</span>&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">fmt::Error</span>&gt; {
-        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">Base64::encode_string</span>(<span class="self">self</span>.<span class="number">0</span>.<span class="ident">as_bytes</span>()))
+<span class="kw">impl </span>Display <span class="kw">for </span>Ed25519PublicKey {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), fmt::Error&gt; {
+        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, Base64::encode_string(<span class="self">self</span>.<span class="number">0</span>.as_bytes()))
     }
 }
 
-<span class="doccomment">/// Missing in ed25519_consensus</span>
-<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy::derive_hash_xor_eq</span>)]</span> <span class="comment">// ed25519_consensus&#39;s PartialEq is compatible</span>
-<span class="kw">impl</span> <span class="ident">std::hash::Hash</span> <span class="kw">for</span> <span class="ident">Ed25519PublicKey</span> {
-    <span class="kw">fn</span> <span class="ident">hash</span>&lt;<span class="ident">H</span>: <span class="ident">std::hash::Hasher</span>&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">state</span>: <span class="kw-2">&amp;mut</span> <span class="ident">H</span>) {
-        <span class="self">self</span>.<span class="number">0</span>.<span class="ident">as_bytes</span>().<span class="ident">hash</span>(<span class="ident">state</span>);
+<span class="doccomment">/// Missing in ed25519_consensus
+</span><span class="attribute">#[allow(clippy::derive_hash_xor_eq)]</span> <span class="comment">// ed25519_consensus&#39;s PartialEq is compatible
+</span><span class="kw">impl </span>std::hash::Hash <span class="kw">for </span>Ed25519PublicKey {
+    <span class="kw">fn </span>hash&lt;H: std::hash::Hasher&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, state: <span class="kw-2">&amp;mut </span>H) {
+        <span class="self">self</span>.<span class="number">0</span>.as_bytes().hash(state);
     }
 }
 
-<span class="kw">impl</span> <span class="ident">PartialOrd</span> <span class="kw">for</span> <span class="ident">Ed25519PublicKey</span> {
-    <span class="kw">fn</span> <span class="ident">partial_cmp</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="ident">std::cmp::Ordering</span>&gt; {
-        <span class="self">self</span>.<span class="number">0</span>.<span class="ident">as_bytes</span>().<span class="ident">partial_cmp</span>(<span class="ident">other</span>.<span class="number">0</span>.<span class="ident">as_bytes</span>())
+<span class="kw">impl </span>PartialOrd <span class="kw">for </span>Ed25519PublicKey {
+    <span class="kw">fn </span>partial_cmp(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;std::cmp::Ordering&gt; {
+        <span class="self">self</span>.<span class="number">0</span>.as_bytes().partial_cmp(other.<span class="number">0</span>.as_bytes())
     }
 }
 
-<span class="kw">impl</span> <span class="ident">Ord</span> <span class="kw">for</span> <span class="ident">Ed25519PublicKey</span> {
-    <span class="kw">fn</span> <span class="ident">cmp</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="ident">std::cmp::Ordering</span> {
-        <span class="self">self</span>.<span class="number">0</span>.<span class="ident">as_bytes</span>().<span class="ident">cmp</span>(<span class="ident">other</span>.<span class="number">0</span>.<span class="ident">as_bytes</span>())
+<span class="kw">impl </span>Ord <span class="kw">for </span>Ed25519PublicKey {
+    <span class="kw">fn </span>cmp(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; std::cmp::Ordering {
+        <span class="self">self</span>.<span class="number">0</span>.as_bytes().cmp(other.<span class="number">0</span>.as_bytes())
     }
 }
 
-<span class="comment">// There is a strong requirement for this specific impl. in Fab benchmarks</span>
-<span class="kw">impl</span> <span class="ident">Serialize</span> <span class="kw">for</span> <span class="ident">Ed25519PublicKey</span> {
-    <span class="kw">fn</span> <span class="ident">serialize</span>&lt;<span class="ident">S</span>&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">serializer</span>: <span class="ident">S</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">S::Ok</span>, <span class="ident">S::Error</span>&gt;
-    <span class="kw">where</span>
-        <span class="ident">S</span>: <span class="ident">serde::Serializer</span>,
+<span class="comment">// There is a strong requirement for this specific impl. in Fab benchmarks
+</span><span class="kw">impl </span>Serialize <span class="kw">for </span>Ed25519PublicKey {
+    <span class="kw">fn </span>serialize&lt;S&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, serializer: S) -&gt; <span class="prelude-ty">Result</span>&lt;S::Ok, S::Error&gt;
+    <span class="kw">where
+        </span>S: serde::Serializer,
     {
-        <span class="kw">let</span> <span class="ident">str</span> = <span class="self">self</span>.<span class="ident">encode_base64</span>();
-        <span class="ident">serializer</span>.<span class="ident">serialize_newtype_struct</span>(<span class="string">&quot;Ed25519PublicKey&quot;</span>, <span class="kw-2">&amp;</span><span class="ident">str</span>)
+        <span class="kw">let </span>str = <span class="self">self</span>.encode_base64();
+        serializer.serialize_newtype_struct(<span class="string">&quot;Ed25519PublicKey&quot;</span>, <span class="kw-2">&amp;</span>str)
     }
 }
 
-<span class="comment">// There is a strong requirement for this specific impl. in Fab benchmarks</span>
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;de</span>&gt; <span class="ident">Deserialize</span>&lt;<span class="lifetime">&#39;de</span>&gt; <span class="kw">for</span> <span class="ident">Ed25519PublicKey</span> {
-    <span class="kw">fn</span> <span class="ident">deserialize</span>&lt;<span class="ident">D</span>&gt;(<span class="ident">deserializer</span>: <span class="ident">D</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="ident">D::Error</span>&gt;
-    <span class="kw">where</span>
-        <span class="ident">D</span>: <span class="ident">de::Deserializer</span>&lt;<span class="lifetime">&#39;de</span>&gt;,
+<span class="comment">// There is a strong requirement for this specific impl. in Fab benchmarks
+</span><span class="kw">impl</span>&lt;<span class="lifetime">&#39;de</span>&gt; Deserialize&lt;<span class="lifetime">&#39;de</span>&gt; <span class="kw">for </span>Ed25519PublicKey {
+    <span class="kw">fn </span>deserialize&lt;D&gt;(deserializer: D) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, D::Error&gt;
+    <span class="kw">where
+        </span>D: de::Deserializer&lt;<span class="lifetime">&#39;de</span>&gt;,
     {
-        <span class="kw">let</span> <span class="ident">s</span> = <span class="ident">String::deserialize</span>(<span class="ident">deserializer</span>)<span class="question-mark">?</span>;
-        <span class="kw">let</span> <span class="ident">value</span> = <span class="ident"><span class="self">Self</span>::decode_base64</span>(<span class="kw-2">&amp;</span><span class="ident">s</span>).<span class="ident">map_err</span>(|<span class="ident">e</span>| <span class="ident">de::Error::custom</span>(<span class="ident">e</span>.<span class="ident">to_string</span>()))<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(<span class="ident">value</span>)
+        <span class="kw">let </span>s = String::deserialize(deserializer)<span class="question-mark">?</span>;
+        <span class="kw">let </span>value = <span class="self">Self</span>::decode_base64(<span class="kw-2">&amp;</span>s).map_err(|e| de::Error::custom(e.to_string()))<span class="question-mark">?</span>;
+        <span class="prelude-val">Ok</span>(value)
     }
 }
 
-<span class="doccomment">///</span>
-<span class="doccomment">/// Implement SigningKey</span>
-<span class="doccomment">///</span>
+<span class="doccomment">///
+/// Implement SigningKey
+///
 
-<span class="kw">impl</span> <span class="ident">SigningKey</span> <span class="kw">for</span> <span class="ident">Ed25519PrivateKey</span> {
-    <span class="kw">type</span> <span class="ident">PubKey</span> = <span class="ident">Ed25519PublicKey</span>;
-    <span class="kw">type</span> <span class="ident">Sig</span> = <span class="ident">Ed25519Signature</span>;
-    <span class="kw">const</span> <span class="ident">LENGTH</span>: <span class="ident">usize</span> = <span class="ident">ED25519_PRIVATE_KEY_LENGTH</span>;
+</span><span class="kw">impl </span>SigningKey <span class="kw">for </span>Ed25519PrivateKey {
+    <span class="kw">type </span>PubKey = Ed25519PublicKey;
+    <span class="kw">type </span>Sig = Ed25519Signature;
+    <span class="kw">const </span>LENGTH: usize = ED25519_PRIVATE_KEY_LENGTH;
 }
 
-<span class="kw">impl</span> <span class="ident">ToFromBytes</span> <span class="kw">for</span> <span class="ident">Ed25519PrivateKey</span> {
-    <span class="kw">fn</span> <span class="ident">from_bytes</span>(<span class="ident">bytes</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="ident">signature::Error</span>&gt; {
-        <span class="ident">ed25519_consensus::SigningKey::try_from</span>(<span class="ident">bytes</span>)
-            .<span class="ident">map</span>(<span class="ident">Ed25519PrivateKey</span>)
-            .<span class="ident">map_err</span>(|<span class="kw">_</span>| <span class="ident">signature::Error::new</span>())
+<span class="kw">impl </span>ToFromBytes <span class="kw">for </span>Ed25519PrivateKey {
+    <span class="kw">fn </span>from_bytes(bytes: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, signature::Error&gt; {
+        ed25519_consensus::SigningKey::try_from(bytes)
+            .map(Ed25519PrivateKey)
+            .map_err(|<span class="kw">_</span>| signature::Error::new())
     }
 }
 
-<span class="comment">// There is a strong requirement for this specific impl. in Fab benchmarks</span>
-<span class="kw">impl</span> <span class="ident">Serialize</span> <span class="kw">for</span> <span class="ident">Ed25519PrivateKey</span> {
-    <span class="kw">fn</span> <span class="ident">serialize</span>&lt;<span class="ident">S</span>&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">serializer</span>: <span class="ident">S</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">S::Ok</span>, <span class="ident">S::Error</span>&gt;
-    <span class="kw">where</span>
-        <span class="ident">S</span>: <span class="ident">serde::Serializer</span>,
+<span class="comment">// There is a strong requirement for this specific impl. in Fab benchmarks
+</span><span class="kw">impl </span>Serialize <span class="kw">for </span>Ed25519PrivateKey {
+    <span class="kw">fn </span>serialize&lt;S&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, serializer: S) -&gt; <span class="prelude-ty">Result</span>&lt;S::Ok, S::Error&gt;
+    <span class="kw">where
+        </span>S: serde::Serializer,
     {
-        <span class="kw">let</span> <span class="ident">str</span> = <span class="self">self</span>.<span class="ident">encode_base64</span>();
-        <span class="ident">serializer</span>.<span class="ident">serialize_newtype_struct</span>(<span class="string">&quot;Ed25519PublicKey&quot;</span>, <span class="kw-2">&amp;</span><span class="ident">str</span>)
+        <span class="kw">let </span>str = <span class="self">self</span>.encode_base64();
+        serializer.serialize_newtype_struct(<span class="string">&quot;Ed25519PublicKey&quot;</span>, <span class="kw-2">&amp;</span>str)
     }
 }
 
-<span class="comment">// There is a strong requirement for this specific impl. in Fab benchmarks</span>
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;de</span>&gt; <span class="ident">Deserialize</span>&lt;<span class="lifetime">&#39;de</span>&gt; <span class="kw">for</span> <span class="ident">Ed25519PrivateKey</span> {
-    <span class="kw">fn</span> <span class="ident">deserialize</span>&lt;<span class="ident">D</span>&gt;(<span class="ident">deserializer</span>: <span class="ident">D</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="ident">D::Error</span>&gt;
-    <span class="kw">where</span>
-        <span class="ident">D</span>: <span class="ident">de::Deserializer</span>&lt;<span class="lifetime">&#39;de</span>&gt;,
+<span class="comment">// There is a strong requirement for this specific impl. in Fab benchmarks
+</span><span class="kw">impl</span>&lt;<span class="lifetime">&#39;de</span>&gt; Deserialize&lt;<span class="lifetime">&#39;de</span>&gt; <span class="kw">for </span>Ed25519PrivateKey {
+    <span class="kw">fn </span>deserialize&lt;D&gt;(deserializer: D) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, D::Error&gt;
+    <span class="kw">where
+        </span>D: de::Deserializer&lt;<span class="lifetime">&#39;de</span>&gt;,
     {
-        <span class="kw">let</span> <span class="ident">s</span> = <span class="ident">String::deserialize</span>(<span class="ident">deserializer</span>)<span class="question-mark">?</span>;
-        <span class="kw">let</span> <span class="ident">value</span> = <span class="ident"><span class="self">Self</span>::decode_base64</span>(<span class="kw-2">&amp;</span><span class="ident">s</span>).<span class="ident">map_err</span>(|<span class="ident">e</span>| <span class="ident">de::Error::custom</span>(<span class="ident">e</span>.<span class="ident">to_string</span>()))<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(<span class="ident">value</span>)
+        <span class="kw">let </span>s = String::deserialize(deserializer)<span class="question-mark">?</span>;
+        <span class="kw">let </span>value = <span class="self">Self</span>::decode_base64(<span class="kw-2">&amp;</span>s).map_err(|e| de::Error::custom(e.to_string()))<span class="question-mark">?</span>;
+        <span class="prelude-val">Ok</span>(value)
     }
 }
 
-<span class="doccomment">///</span>
-<span class="doccomment">/// Implement Authenticator</span>
-<span class="doccomment">///</span>
+<span class="doccomment">///
+/// Implement Authenticator
+///
 
-<span class="kw">impl</span> <span class="ident">Authenticator</span> <span class="kw">for</span> <span class="ident">Ed25519Signature</span> {
-    <span class="kw">type</span> <span class="ident">PubKey</span> = <span class="ident">Ed25519PublicKey</span>;
-    <span class="kw">type</span> <span class="ident">PrivKey</span> = <span class="ident">Ed25519PrivateKey</span>;
-    <span class="kw">const</span> <span class="ident">LENGTH</span>: <span class="ident">usize</span> = <span class="ident">ED25519_SIGNATURE_LENGTH</span>;
+</span><span class="kw">impl </span>Authenticator <span class="kw">for </span>Ed25519Signature {
+    <span class="kw">type </span>PubKey = Ed25519PublicKey;
+    <span class="kw">type </span>PrivKey = Ed25519PrivateKey;
+    <span class="kw">const </span>LENGTH: usize = ED25519_SIGNATURE_LENGTH;
 }
 
-<span class="kw">impl</span> <span class="ident">AsRef</span>&lt;[<span class="ident">u8</span>]&gt; <span class="kw">for</span> <span class="ident">Ed25519PrivateKey</span> {
-    <span class="kw">fn</span> <span class="ident">as_ref</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] {
-        <span class="self">self</span>.<span class="number">0</span>.<span class="ident">as_ref</span>()
+<span class="kw">impl </span>AsRef&lt;[u8]&gt; <span class="kw">for </span>Ed25519PrivateKey {
+    <span class="kw">fn </span>as_ref(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[u8] {
+        <span class="self">self</span>.<span class="number">0</span>.as_ref()
     }
 }
 
-<span class="kw">impl</span> <span class="ident">Signature</span> <span class="kw">for</span> <span class="ident">Ed25519Signature</span> {
-    <span class="kw">fn</span> <span class="ident">from_bytes</span>(<span class="ident">bytes</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="ident">signature::Error</span>&gt; {
-        <span class="ident">ed25519_consensus::Signature::try_from</span>(<span class="ident">bytes</span>)
-            .<span class="ident">map</span>(|<span class="ident">sig</span>| <span class="ident">Ed25519Signature</span> {
-                <span class="ident">sig</span>,
-                <span class="ident">bytes</span>: <span class="ident">OnceCell::new</span>(),
+<span class="kw">impl </span>Signature <span class="kw">for </span>Ed25519Signature {
+    <span class="kw">fn </span>from_bytes(bytes: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, signature::Error&gt; {
+        ed25519_consensus::Signature::try_from(bytes)
+            .map(|sig| Ed25519Signature {
+                sig,
+                bytes: OnceCell::new(),
             })
-            .<span class="ident">map_err</span>(|<span class="kw">_</span>| <span class="ident">signature::Error::new</span>())
+            .map_err(|<span class="kw">_</span>| signature::Error::new())
     }
 }
 
-<span class="kw">impl</span> <span class="ident">AsRef</span>&lt;[<span class="ident">u8</span>]&gt; <span class="kw">for</span> <span class="ident">Ed25519Signature</span> {
-    <span class="kw">fn</span> <span class="ident">as_ref</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] {
-        <span class="self">self</span>.<span class="ident">bytes</span>
-            .<span class="ident">get_or_try_init</span>::&lt;<span class="kw">_</span>, <span class="ident">eyre::Report</span>&gt;(|| <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">sig</span>.<span class="ident">to_bytes</span>()))
-            .<span class="ident">expect</span>(<span class="string">&quot;OnceCell invariant violated&quot;</span>)
+<span class="kw">impl </span>AsRef&lt;[u8]&gt; <span class="kw">for </span>Ed25519Signature {
+    <span class="kw">fn </span>as_ref(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[u8] {
+        <span class="self">self</span>.bytes
+            .get_or_try_init::&lt;<span class="kw">_</span>, eyre::Report&gt;(|| <span class="prelude-val">Ok</span>(<span class="self">self</span>.sig.to_bytes()))
+            .expect(<span class="string">&quot;OnceCell invariant violated&quot;</span>)
     }
 }
 
-<span class="kw">impl</span> <span class="ident">Display</span> <span class="kw">for</span> <span class="ident">Ed25519Signature</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">fmt::Formatter</span>&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">fmt::Error</span>&gt; {
-        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">Base64::encode_string</span>(<span class="self">self</span>.<span class="ident">as_ref</span>()))
+<span class="kw">impl </span>Display <span class="kw">for </span>Ed25519Signature {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), fmt::Error&gt; {
+        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, Base64::encode_string(<span class="self">self</span>.as_ref()))
     }
 }
 
-<span class="kw">impl</span> <span class="ident">Default</span> <span class="kw">for</span> <span class="ident">Ed25519Signature</span> {
-    <span class="kw">fn</span> <span class="ident">default</span>() -&gt; <span class="self">Self</span> {
-        &lt;<span class="ident">Ed25519Signature</span> <span class="kw">as</span> <span class="ident">Signature</span>&gt;<span class="ident">::from_bytes</span>(<span class="kw-2">&amp;</span>[<span class="number">1u8</span>; <span class="ident">ED25519_SIGNATURE_LENGTH</span>]).<span class="ident">unwrap</span>()
+<span class="kw">impl </span>Default <span class="kw">for </span>Ed25519Signature {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        &lt;Ed25519Signature <span class="kw">as </span>Signature&gt;::from_bytes(<span class="kw-2">&amp;</span>[<span class="number">1u8</span>; ED25519_SIGNATURE_LENGTH]).unwrap()
     }
 }
 
-<span class="kw">impl</span> <span class="ident">Serialize</span> <span class="kw">for</span> <span class="ident">Ed25519Signature</span> {
-    <span class="kw">fn</span> <span class="ident">serialize</span>&lt;<span class="ident">S</span>&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">serializer</span>: <span class="ident">S</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">S::Ok</span>, <span class="ident">S::Error</span>&gt;
-    <span class="kw">where</span>
-        <span class="ident">S</span>: <span class="ident">serde::Serializer</span>,
+<span class="kw">impl </span>Serialize <span class="kw">for </span>Ed25519Signature {
+    <span class="kw">fn </span>serialize&lt;S&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, serializer: S) -&gt; <span class="prelude-ty">Result</span>&lt;S::Ok, S::Error&gt;
+    <span class="kw">where
+        </span>S: serde::Serializer,
     {
-        <span class="kw">if</span> <span class="ident">serializer</span>.<span class="ident">is_human_readable</span>() {
-            <span class="ident">base64ct::Base64::encode_string</span>(<span class="self">self</span>.<span class="ident">as_ref</span>()).<span class="ident">serialize</span>(<span class="ident">serializer</span>)
-        } <span class="kw">else</span> {
-            <span class="self">self</span>.<span class="ident">as_ref</span>().<span class="ident">serialize</span>(<span class="ident">serializer</span>)
+        <span class="kw">if </span>serializer.is_human_readable() {
+            base64ct::Base64::encode_string(<span class="self">self</span>.as_ref()).serialize(serializer)
+        } <span class="kw">else </span>{
+            <span class="self">self</span>.as_ref().serialize(serializer)
         }
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;de</span>&gt; <span class="ident">Deserialize</span>&lt;<span class="lifetime">&#39;de</span>&gt; <span class="kw">for</span> <span class="ident">Ed25519Signature</span> {
-    <span class="kw">fn</span> <span class="ident">deserialize</span>&lt;<span class="ident">D</span>&gt;(<span class="ident">deserializer</span>: <span class="ident">D</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="ident">D::Error</span>&gt;
-    <span class="kw">where</span>
-        <span class="ident">D</span>: <span class="ident">serde::Deserializer</span>&lt;<span class="lifetime">&#39;de</span>&gt;,
+<span class="kw">impl</span>&lt;<span class="lifetime">&#39;de</span>&gt; Deserialize&lt;<span class="lifetime">&#39;de</span>&gt; <span class="kw">for </span>Ed25519Signature {
+    <span class="kw">fn </span>deserialize&lt;D&gt;(deserializer: D) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, D::Error&gt;
+    <span class="kw">where
+        </span>D: serde::Deserializer&lt;<span class="lifetime">&#39;de</span>&gt;,
     {
-        <span class="kw">let</span> <span class="ident">bytes</span> = <span class="kw">if</span> <span class="ident">deserializer</span>.<span class="ident">is_human_readable</span>() {
-            <span class="kw">let</span> <span class="ident">s</span> = <span class="ident">String::deserialize</span>(<span class="ident">deserializer</span>)<span class="question-mark">?</span>;
-            <span class="ident">base64ct::Base64::decode_vec</span>(<span class="kw-2">&amp;</span><span class="ident">s</span>).<span class="ident">map_err</span>(|<span class="ident">e</span>| <span class="ident">de::Error::custom</span>(<span class="ident">e</span>.<span class="ident">to_string</span>()))<span class="question-mark">?</span>
-        } <span class="kw">else</span> {
-            <span class="ident">Vec::deserialize</span>(<span class="ident">deserializer</span>)<span class="question-mark">?</span>
-        };
-        &lt;<span class="ident">Ed25519Signature</span> <span class="kw">as</span> <span class="ident">signature::Signature</span>&gt;<span class="ident">::from_bytes</span>(<span class="kw-2">&amp;</span><span class="ident">bytes</span>)
-            .<span class="ident">map_err</span>(|<span class="ident">e</span>| <span class="ident">de::Error::custom</span>(<span class="ident">e</span>.<span class="ident">to_string</span>()))
+        <span class="kw">let </span>bytes = <span class="kw">if </span>deserializer.is_human_readable() {
+            <span class="kw">let </span>s = String::deserialize(deserializer)<span class="question-mark">?</span>;
+            base64ct::Base64::decode_vec(<span class="kw-2">&amp;</span>s).map_err(|e| de::Error::custom(e.to_string()))<span class="question-mark">?
+        </span>} <span class="kw">else </span>{
+            Vec::deserialize(deserializer)<span class="question-mark">?
+        </span>};
+        &lt;Ed25519Signature <span class="kw">as </span>signature::Signature&gt;::from_bytes(<span class="kw-2">&amp;</span>bytes)
+            .map_err(|e| de::Error::custom(e.to_string()))
     }
 }
 
-<span class="doccomment">///</span>
-<span class="doccomment">/// Implement AggregateAuthenticator</span>
-<span class="doccomment">///</span>
+<span class="doccomment">///
+/// Implement AggregateAuthenticator
+///
 
-<span class="kw">impl</span> <span class="ident">Display</span> <span class="kw">for</span> <span class="ident">Ed25519AggregateSignature</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">fmt::Formatter</span>&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">fmt::Error</span>&gt; {
+</span><span class="kw">impl </span>Display <span class="kw">for </span>Ed25519AggregateSignature {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), fmt::Error&gt; {
         <span class="macro">write!</span>(
-            <span class="ident">f</span>,
+            f,
             <span class="string">&quot;{:?}&quot;</span>,
-            <span class="self">self</span>.<span class="number">0</span>
-                .<span class="ident">iter</span>()
-                .<span class="ident">map</span>(|<span class="ident">x</span>| <span class="ident">Base64::encode_string</span>(<span class="kw-2">&amp;</span><span class="ident">x</span>.<span class="ident">to_bytes</span>()))
-                .<span class="ident">collect</span>::&lt;<span class="ident">Vec</span>&lt;<span class="kw">_</span>&gt;&gt;()
+            <span class="self">self</span>.<span class="number">0
+                </span>.iter()
+                .map(|x| Base64::encode_string(<span class="kw-2">&amp;</span>x.to_bytes()))
+                .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;()
         )
     }
 }
 
-<span class="kw">impl</span> <span class="ident">AggregateAuthenticator</span> <span class="kw">for</span> <span class="ident">Ed25519AggregateSignature</span> {
-    <span class="kw">type</span> <span class="ident">Sig</span> = <span class="ident">Ed25519Signature</span>;
-    <span class="kw">type</span> <span class="ident">PrivKey</span> = <span class="ident">Ed25519PrivateKey</span>;
-    <span class="kw">type</span> <span class="ident">PubKey</span> = <span class="ident">Ed25519PublicKey</span>;
+<span class="kw">impl </span>AggregateAuthenticator <span class="kw">for </span>Ed25519AggregateSignature {
+    <span class="kw">type </span>Sig = Ed25519Signature;
+    <span class="kw">type </span>PrivKey = Ed25519PrivateKey;
+    <span class="kw">type </span>PubKey = Ed25519PublicKey;
 
-    <span class="doccomment">/// Parse a key from its byte representation</span>
-    <span class="kw">fn</span> <span class="ident">aggregate</span>(<span class="ident">signatures</span>: <span class="ident">Vec</span>&lt;<span class="ident"><span class="self">Self</span>::Sig</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="ident">signature::Error</span>&gt; {
-        <span class="prelude-val">Ok</span>(<span class="self">Self</span>(<span class="ident">signatures</span>.<span class="ident">iter</span>().<span class="ident">map</span>(|<span class="ident">s</span>| <span class="ident">s</span>.<span class="ident">sig</span>).<span class="ident">collect</span>()))
+    <span class="doccomment">/// Parse a key from its byte representation
+    </span><span class="kw">fn </span>aggregate(signatures: Vec&lt;<span class="self">Self</span>::Sig&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, signature::Error&gt; {
+        <span class="prelude-val">Ok</span>(<span class="self">Self</span>(signatures.iter().map(|s| s.sig).collect()))
     }
 
-    <span class="kw">fn</span> <span class="ident">add_signature</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">signature</span>: <span class="ident"><span class="self">Self</span>::Sig</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">signature::Error</span>&gt; {
-        <span class="self">self</span>.<span class="number">0</span>.<span class="ident">push</span>(<span class="ident">signature</span>.<span class="ident">sig</span>);
+    <span class="kw">fn </span>add_signature(<span class="kw-2">&amp;mut </span><span class="self">self</span>, signature: <span class="self">Self</span>::Sig) -&gt; <span class="prelude-ty">Result</span>&lt;(), signature::Error&gt; {
+        <span class="self">self</span>.<span class="number">0</span>.push(signature.sig);
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">fn</span> <span class="ident">add_aggregate</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">signature</span>: <span class="self">Self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">signature::Error</span>&gt; {
-        <span class="self">self</span>.<span class="number">0</span>.<span class="ident">append</span>(<span class="kw-2">&amp;mut</span> <span class="ident">signature</span>.<span class="number">0</span>);
+    <span class="kw">fn </span>add_aggregate(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw-2">mut </span>signature: <span class="self">Self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(), signature::Error&gt; {
+        <span class="self">self</span>.<span class="number">0</span>.append(<span class="kw-2">&amp;mut </span>signature.<span class="number">0</span>);
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">fn</span> <span class="ident">verify</span>(
+    <span class="kw">fn </span>verify(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">pks</span>: <span class="kw-2">&amp;</span>[&lt;<span class="ident"><span class="self">Self</span>::Sig</span> <span class="kw">as</span> <span class="ident">Authenticator</span>&gt;<span class="ident">::PubKey</span>],
-        <span class="ident">message</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">signature::Error</span>&gt; {
-        <span class="kw">if</span> <span class="ident">pks</span>.<span class="ident">len</span>() != <span class="self">self</span>.<span class="number">0</span>.<span class="ident">len</span>() {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">signature::Error::new</span>());
+        pks: <span class="kw-2">&amp;</span>[&lt;<span class="self">Self</span>::Sig <span class="kw">as </span>Authenticator&gt;::PubKey],
+        message: <span class="kw-2">&amp;</span>[u8],
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), signature::Error&gt; {
+        <span class="kw">if </span>pks.len() != <span class="self">self</span>.<span class="number">0</span>.len() {
+            <span class="kw">return </span><span class="prelude-val">Err</span>(signature::Error::new());
         }
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">batch</span> = <span class="ident">batch::Verifier::new</span>();
+        <span class="kw">let </span><span class="kw-2">mut </span>batch = batch::Verifier::new();
 
-        <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">pk</span>) <span class="kw">in</span> <span class="ident">pks</span>.<span class="ident">iter</span>().<span class="ident">enumerate</span>() {
-            <span class="kw">let</span> <span class="ident">vk_bytes</span> = <span class="ident">VerificationKeyBytes::try_from</span>(<span class="ident">pk</span>.<span class="number">0</span>).<span class="ident">unwrap</span>();
-            <span class="ident">batch</span>.<span class="ident">queue</span>((<span class="ident">vk_bytes</span>, <span class="self">self</span>.<span class="number">0</span>[<span class="ident">i</span>], <span class="ident">message</span>));
+        <span class="kw">for </span>(i, pk) <span class="kw">in </span>pks.iter().enumerate() {
+            <span class="kw">let </span>vk_bytes = VerificationKeyBytes::try_from(pk.<span class="number">0</span>).unwrap();
+            batch.queue((vk_bytes, <span class="self">self</span>.<span class="number">0</span>[i], message));
         }
 
-        <span class="ident">batch</span>.<span class="ident">verify</span>(<span class="ident">OsRng</span>).<span class="ident">map_err</span>(|<span class="kw">_</span>| <span class="ident">signature::Error::new</span>())
+        batch.verify(OsRng).map_err(|<span class="kw">_</span>| signature::Error::new())
     }
 
-    <span class="kw">fn</span> <span class="ident">batch_verify</span>(
-        <span class="ident">sigs</span>: <span class="kw-2">&amp;</span>[<span class="self">Self</span>],
-        <span class="ident">pks</span>: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>[<span class="ident"><span class="self">Self</span>::PubKey</span>]],
-        <span class="ident">messages</span>: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>[<span class="ident">u8</span>]],
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">signature::Error</span>&gt; {
-        <span class="kw">if</span> <span class="ident">pks</span>.<span class="ident">len</span>() != <span class="ident">messages</span>.<span class="ident">len</span>() || <span class="ident">messages</span>.<span class="ident">len</span>() != <span class="ident">sigs</span>.<span class="ident">len</span>() {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">signature::Error::new</span>());
+    <span class="kw">fn </span>batch_verify(
+        sigs: <span class="kw-2">&amp;</span>[<span class="self">Self</span>],
+        pks: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>[<span class="self">Self</span>::PubKey]],
+        messages: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>[u8]],
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), signature::Error&gt; {
+        <span class="kw">if </span>pks.len() != messages.len() || messages.len() != sigs.len() {
+            <span class="kw">return </span><span class="prelude-val">Err</span>(signature::Error::new());
         }
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">batch</span> = <span class="ident">batch::Verifier::new</span>();
+        <span class="kw">let </span><span class="kw-2">mut </span>batch = batch::Verifier::new();
 
-        <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">pks</span>.<span class="ident">len</span>() {
-            <span class="kw">if</span> <span class="ident">pks</span>[<span class="ident">i</span>].<span class="ident">len</span>() != <span class="ident">sigs</span>[<span class="ident">i</span>].<span class="number">0</span>.<span class="ident">len</span>() {
-                <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">signature::Error::new</span>());
+        <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..pks.len() {
+            <span class="kw">if </span>pks[i].len() != sigs[i].<span class="number">0</span>.len() {
+                <span class="kw">return </span><span class="prelude-val">Err</span>(signature::Error::new());
             }
-            <span class="kw">for</span> <span class="ident">j</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">pks</span>[<span class="ident">i</span>].<span class="ident">len</span>() {
-                <span class="kw">let</span> <span class="ident">vk_bytes</span> = <span class="ident">VerificationKeyBytes::from</span>(<span class="ident">pks</span>[<span class="ident">i</span>][<span class="ident">j</span>].<span class="number">0</span>);
-                <span class="ident">batch</span>.<span class="ident">queue</span>((<span class="ident">vk_bytes</span>, <span class="ident">sigs</span>[<span class="ident">i</span>].<span class="number">0</span>[<span class="ident">j</span>], <span class="ident">messages</span>[<span class="ident">i</span>]));
+            <span class="kw">for </span>j <span class="kw">in </span><span class="number">0</span>..pks[i].len() {
+                <span class="kw">let </span>vk_bytes = VerificationKeyBytes::from(pks[i][j].<span class="number">0</span>);
+                batch.queue((vk_bytes, sigs[i].<span class="number">0</span>[j], messages[i]));
             }
         }
-        <span class="ident">batch</span>.<span class="ident">verify</span>(<span class="ident">OsRng</span>).<span class="ident">map_err</span>(|<span class="kw">_</span>| <span class="ident">signature::Error::new</span>())
+        batch.verify(OsRng).map_err(|<span class="kw">_</span>| signature::Error::new())
     }
 }
 
-<span class="doccomment">///</span>
-<span class="doccomment">/// Implement KeyPair</span>
-<span class="doccomment">///</span>
+<span class="doccomment">///
+/// Implement KeyPair
+///
 
-<span class="kw">impl</span> <span class="ident">From</span>&lt;<span class="ident">Ed25519PrivateKey</span>&gt; <span class="kw">for</span> <span class="ident">Ed25519KeyPair</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">secret</span>: <span class="ident">Ed25519PrivateKey</span>) -&gt; <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="ident">name</span> = <span class="ident">Ed25519PublicKey::from</span>(<span class="kw-2">&amp;</span><span class="ident">secret</span>);
-        <span class="ident">Ed25519KeyPair</span> { <span class="ident">name</span>, <span class="ident">secret</span> }
+</span><span class="kw">impl </span>From&lt;Ed25519PrivateKey&gt; <span class="kw">for </span>Ed25519KeyPair {
+    <span class="kw">fn </span>from(secret: Ed25519PrivateKey) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>name = Ed25519PublicKey::from(<span class="kw-2">&amp;</span>secret);
+        Ed25519KeyPair { name, secret }
     }
 }
 
-<span class="kw">impl</span> <span class="ident">EncodeDecodeBase64</span> <span class="kw">for</span> <span class="ident">Ed25519KeyPair</span> {
-    <span class="kw">fn</span> <span class="ident">decode_base64</span>(<span class="ident">value</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="ident">eyre::Report</span>&gt; {
-        <span class="ident">keypair_decode_base64</span>(<span class="ident">value</span>)
+<span class="kw">impl </span>EncodeDecodeBase64 <span class="kw">for </span>Ed25519KeyPair {
+    <span class="kw">fn </span>decode_base64(value: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, eyre::Report&gt; {
+        keypair_decode_base64(value)
     }
 
-    <span class="kw">fn</span> <span class="ident">encode_base64</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">String</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">bytes</span>: <span class="ident">Vec</span>&lt;<span class="ident">u8</span>&gt; = <span class="ident">Vec::new</span>();
-        <span class="ident">bytes</span>.<span class="ident">extend_from_slice</span>(<span class="self">self</span>.<span class="ident">secret</span>.<span class="ident">as_ref</span>());
-        <span class="ident">bytes</span>.<span class="ident">extend_from_slice</span>(<span class="self">self</span>.<span class="ident">name</span>.<span class="ident">as_ref</span>());
-        <span class="ident">base64ct::Base64::encode_string</span>(<span class="kw-2">&amp;</span><span class="ident">bytes</span>[..])
+    <span class="kw">fn </span>encode_base64(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; String {
+        <span class="kw">let </span><span class="kw-2">mut </span>bytes: Vec&lt;u8&gt; = Vec::new();
+        bytes.extend_from_slice(<span class="self">self</span>.secret.as_ref());
+        bytes.extend_from_slice(<span class="self">self</span>.name.as_ref());
+        base64ct::Base64::encode_string(<span class="kw-2">&amp;</span>bytes[..])
     }
 }
 
-<span class="kw">impl</span> <span class="ident">KeyPair</span> <span class="kw">for</span> <span class="ident">Ed25519KeyPair</span> {
-    <span class="kw">type</span> <span class="ident">PubKey</span> = <span class="ident">Ed25519PublicKey</span>;
-    <span class="kw">type</span> <span class="ident">PrivKey</span> = <span class="ident">Ed25519PrivateKey</span>;
-    <span class="kw">type</span> <span class="ident">Sig</span> = <span class="ident">Ed25519Signature</span>;
+<span class="kw">impl </span>KeyPair <span class="kw">for </span>Ed25519KeyPair {
+    <span class="kw">type </span>PubKey = Ed25519PublicKey;
+    <span class="kw">type </span>PrivKey = Ed25519PrivateKey;
+    <span class="kw">type </span>Sig = Ed25519Signature;
 
-    <span class="kw">fn</span> <span class="ident">public</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;_</span> <span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;_</span> <span class="ident"><span class="self">Self</span>::PubKey</span> {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">name</span>
+    <span class="kw">fn </span>public(<span class="kw-2">&amp;</span><span class="lifetime">&#39;_ </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;_ </span><span class="self">Self</span>::PubKey {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.name
     }
 
-    <span class="kw">fn</span> <span class="ident">private</span>(<span class="self">self</span>) -&gt; <span class="ident"><span class="self">Self</span>::PrivKey</span> {
-        <span class="self">self</span>.<span class="ident">secret</span>
+    <span class="kw">fn </span>private(<span class="self">self</span>) -&gt; <span class="self">Self</span>::PrivKey {
+        <span class="self">self</span>.secret
     }
 
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> = <span class="string">&quot;copy_key&quot;</span>)]</span>
-    <span class="kw">fn</span> <span class="ident">copy</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="self">Self</span> {
-        <span class="self">Self</span> {
-            <span class="ident">name</span>: <span class="ident">Ed25519PublicKey::from_bytes</span>(<span class="self">self</span>.<span class="ident">name</span>.<span class="ident">as_ref</span>()).<span class="ident">unwrap</span>(),
-            <span class="ident">secret</span>: <span class="ident">Ed25519PrivateKey::from_bytes</span>(<span class="self">self</span>.<span class="ident">secret</span>.<span class="ident">as_ref</span>()).<span class="ident">unwrap</span>(),
+    <span class="attribute">#[cfg(feature = <span class="string">&quot;copy_key&quot;</span>)]</span>
+    <span class="kw">fn </span>copy(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            name: Ed25519PublicKey::from_bytes(<span class="self">self</span>.name.as_ref()).unwrap(),
+            secret: Ed25519PrivateKey::from_bytes(<span class="self">self</span>.secret.as_ref()).unwrap(),
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">generate</span>&lt;<span class="ident">R</span>: <span class="ident">rand::CryptoRng</span> + <span class="ident">rand::RngCore</span>&gt;(<span class="ident">rng</span>: <span class="kw-2">&amp;mut</span> <span class="ident">R</span>) -&gt; <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="ident">kp</span> = <span class="ident">ed25519_consensus::SigningKey::new</span>(<span class="ident">rng</span>);
-        <span class="ident">Ed25519KeyPair</span> {
-            <span class="ident">name</span>: <span class="ident">Ed25519PublicKey</span>(<span class="ident">kp</span>.<span class="ident">verification_key</span>()),
-            <span class="ident">secret</span>: <span class="ident">Ed25519PrivateKey</span>(<span class="ident">kp</span>),
-        }
-    }
-}
-
-<span class="kw">impl</span> <span class="ident">FromStr</span> <span class="kw">for</span> <span class="ident">Ed25519KeyPair</span> {
-    <span class="kw">type</span> <span class="prelude-val">Err</span> = <span class="ident">eyre::Report</span>;
-
-    <span class="kw">fn</span> <span class="ident">from_str</span>(<span class="ident">s</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="ident"><span class="self">Self</span>::Err</span>&gt; {
-        <span class="kw">let</span> <span class="ident">kp</span> = <span class="ident"><span class="self">Self</span>::decode_base64</span>(<span class="ident">s</span>).<span class="ident">map_err</span>(|<span class="ident">e</span>| <span class="macro">eyre::eyre!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">e</span>.<span class="ident">to_string</span>()))<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(<span class="ident">kp</span>)
-    }
-}
-
-<span class="kw">impl</span> <span class="ident">From</span>&lt;<span class="ident">ed25519_consensus::SigningKey</span>&gt; <span class="kw">for</span> <span class="ident">Ed25519KeyPair</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">kp</span>: <span class="ident">ed25519_consensus::SigningKey</span>) -&gt; <span class="self">Self</span> {
-        <span class="ident">Ed25519KeyPair</span> {
-            <span class="ident">name</span>: <span class="ident">Ed25519PublicKey</span>(<span class="ident">kp</span>.<span class="ident">verification_key</span>()),
-            <span class="ident">secret</span>: <span class="ident">Ed25519PrivateKey</span>(<span class="ident">kp</span>),
+    <span class="kw">fn </span>generate&lt;R: rand::CryptoRng + rand::RngCore&gt;(rng: <span class="kw-2">&amp;mut </span>R) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>kp = ed25519_consensus::SigningKey::new(rng);
+        Ed25519KeyPair {
+            name: Ed25519PublicKey(kp.verification_key()),
+            secret: Ed25519PrivateKey(kp),
         }
     }
 }
 
-<span class="kw">impl</span> <span class="ident">Signer</span>&lt;<span class="ident">Ed25519Signature</span>&gt; <span class="kw">for</span> <span class="ident">Ed25519KeyPair</span> {
-    <span class="kw">fn</span> <span class="ident">try_sign</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">msg</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">Ed25519Signature</span>, <span class="ident">signature::Error</span>&gt; {
-        <span class="prelude-val">Ok</span>(<span class="ident">Ed25519Signature</span> {
-            <span class="ident">sig</span>: <span class="self">self</span>.<span class="ident">secret</span>.<span class="number">0</span>.<span class="ident">sign</span>(<span class="ident">msg</span>),
-            <span class="ident">bytes</span>: <span class="ident">OnceCell::new</span>(),
+<span class="kw">impl </span>FromStr <span class="kw">for </span>Ed25519KeyPair {
+    <span class="kw">type </span><span class="prelude-val">Err </span>= eyre::Report;
+
+    <span class="kw">fn </span>from_str(s: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="self">Self</span>::Err&gt; {
+        <span class="kw">let </span>kp = <span class="self">Self</span>::decode_base64(s).map_err(|e| <span class="macro">eyre::eyre!</span>(<span class="string">&quot;{}&quot;</span>, e.to_string()))<span class="question-mark">?</span>;
+        <span class="prelude-val">Ok</span>(kp)
+    }
+}
+
+<span class="kw">impl </span>From&lt;ed25519_consensus::SigningKey&gt; <span class="kw">for </span>Ed25519KeyPair {
+    <span class="kw">fn </span>from(kp: ed25519_consensus::SigningKey) -&gt; <span class="self">Self </span>{
+        Ed25519KeyPair {
+            name: Ed25519PublicKey(kp.verification_key()),
+            secret: Ed25519PrivateKey(kp),
+        }
+    }
+}
+
+<span class="kw">impl </span>Signer&lt;Ed25519Signature&gt; <span class="kw">for </span>Ed25519KeyPair {
+    <span class="kw">fn </span>try_sign(<span class="kw-2">&amp;</span><span class="self">self</span>, msg: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;Ed25519Signature, signature::Error&gt; {
+        <span class="prelude-val">Ok</span>(Ed25519Signature {
+            sig: <span class="self">self</span>.secret.<span class="number">0</span>.sign(msg),
+            bytes: OnceCell::new(),
         })
     }
 }
 
-<span class="doccomment">///</span>
-<span class="doccomment">/// Implement VerifyingKeyBytes</span>
-<span class="doccomment">///</span>
+<span class="doccomment">///
+/// Implement VerifyingKeyBytes
+///
 
-<span class="kw">impl</span> <span class="ident">TryFrom</span>&lt;<span class="ident">Ed25519PublicKeyBytes</span>&gt; <span class="kw">for</span> <span class="ident">Ed25519PublicKey</span> {
-    <span class="kw">type</span> <span class="ident">Error</span> = <span class="ident">signature::Error</span>;
+</span><span class="kw">impl </span>TryFrom&lt;Ed25519PublicKeyBytes&gt; <span class="kw">for </span>Ed25519PublicKey {
+    <span class="kw">type </span>Error = signature::Error;
 
-    <span class="kw">fn</span> <span class="ident">try_from</span>(<span class="ident">bytes</span>: <span class="ident">Ed25519PublicKeyBytes</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">Ed25519PublicKey</span>, <span class="ident"><span class="self">Self</span>::Error</span>&gt; {
-        <span class="ident">VerificationKeyBytes::try_from</span>(<span class="ident">bytes</span>.<span class="ident">as_ref</span>())
-            .<span class="ident">and_then</span>(<span class="ident">ed25519_consensus::VerificationKey::try_from</span>)
-            .<span class="ident">map</span>(<span class="ident">Ed25519PublicKey</span>)
-            .<span class="ident">map_err</span>(|<span class="kw">_</span>| <span class="ident">signature::Error::new</span>())
+    <span class="kw">fn </span>try_from(bytes: Ed25519PublicKeyBytes) -&gt; <span class="prelude-ty">Result</span>&lt;Ed25519PublicKey, <span class="self">Self</span>::Error&gt; {
+        VerificationKeyBytes::try_from(bytes.as_ref())
+            .and_then(ed25519_consensus::VerificationKey::try_from)
+            .map(Ed25519PublicKey)
+            .map_err(|<span class="kw">_</span>| signature::Error::new())
     }
 }
 
-<span class="kw">impl</span> <span class="ident">From</span>&lt;<span class="kw-2">&amp;</span><span class="ident">Ed25519PublicKey</span>&gt; <span class="kw">for</span> <span class="ident">Ed25519PublicKeyBytes</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">pk</span>: <span class="kw-2">&amp;</span><span class="ident">Ed25519PublicKey</span>) -&gt; <span class="self">Self</span> {
-        <span class="ident">Ed25519PublicKeyBytes::new</span>(<span class="ident">pk</span>.<span class="number">0</span>.<span class="ident">to_bytes</span>())
+<span class="kw">impl </span>From&lt;<span class="kw-2">&amp;</span>Ed25519PublicKey&gt; <span class="kw">for </span>Ed25519PublicKeyBytes {
+    <span class="kw">fn </span>from(pk: <span class="kw-2">&amp;</span>Ed25519PublicKey) -&gt; <span class="self">Self </span>{
+        Ed25519PublicKeyBytes::new(pk.<span class="number">0</span>.to_bytes())
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="crypto" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="crypto" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (801821d15 2022-08-14)" ></div></body></html>

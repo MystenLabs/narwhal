@@ -661,668 +661,668 @@
 <span id="661">661</span>
 <span id="662">662</span>
 <span id="663">663</span>
-</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
-<span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
-<span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="kw">use</span> <span class="kw">crate</span>::{
-    <span class="ident">error</span>::{<span class="ident">DagError</span>, <span class="ident">DagResult</span>},
-    <span class="ident">CertificateDigestProto</span>,
+</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
+// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+</span><span class="kw">use crate</span>::{
+    error::{DagError, DagResult},
+    CertificateDigestProto,
 };
-<span class="kw">use</span> <span class="ident">blake2</span>::{<span class="ident">digest::Update</span>, <span class="ident">VarBlake2b</span>};
-<span class="kw">use</span> <span class="ident">bytes::Bytes</span>;
-<span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">Committee</span>, <span class="ident">Epoch</span>, <span class="ident">WorkerId</span>, <span class="ident">WorkerInfo</span>};
-<span class="kw">use</span> <span class="ident">crypto</span>::{
-    <span class="ident">traits</span>::{<span class="ident">EncodeDecodeBase64</span>, <span class="ident">Signer</span>, <span class="ident">VerifyingKey</span>},
-    <span class="ident">Digest</span>, <span class="ident">Hash</span>, <span class="ident">PublicKey</span>, <span class="ident">Signature</span>, <span class="ident">SignatureService</span>, <span class="ident">Verifier</span>, <span class="ident">DIGEST_LEN</span>,
+<span class="kw">use </span>blake2::{digest::Update, VarBlake2b};
+<span class="kw">use </span>bytes::Bytes;
+<span class="kw">use </span>config::{Committee, Epoch, WorkerId, WorkerInfo};
+<span class="kw">use </span>crypto::{
+    traits::{EncodeDecodeBase64, Signer, VerifyingKey},
+    Digest, Hash, PublicKey, Signature, SignatureService, Verifier, DIGEST_LEN,
 };
-<span class="kw">use</span> <span class="ident">dag::node_dag::Affiliated</span>;
-<span class="kw">use</span> <span class="ident">derive_builder::Builder</span>;
-<span class="kw">use</span> <span class="ident">indexmap::IndexMap</span>;
-<span class="kw">use</span> <span class="ident">proptest_derive::Arbitrary</span>;
-<span class="kw">use</span> <span class="ident">serde</span>::{<span class="ident">Deserialize</span>, <span class="ident">Serialize</span>};
-<span class="kw">use</span> <span class="ident">std</span>::{
-    <span class="ident">collections</span>::{<span class="ident">BTreeSet</span>, <span class="ident">HashMap</span>, <span class="ident">HashSet</span>},
-    <span class="ident">fmt</span>,
-    <span class="ident">fmt::Formatter</span>,
+<span class="kw">use </span>dag::node_dag::Affiliated;
+<span class="kw">use </span>derive_builder::Builder;
+<span class="kw">use </span>indexmap::IndexMap;
+<span class="kw">use </span>proptest_derive::Arbitrary;
+<span class="kw">use </span>serde::{Deserialize, Serialize};
+<span class="kw">use </span>std::{
+    collections::{BTreeSet, HashMap, HashSet},
+    fmt,
+    fmt::Formatter,
 };
 
-<span class="doccomment">/// The round number.</span>
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">Round</span> = <span class="ident">u64</span>;
+<span class="doccomment">/// The round number.
+</span><span class="kw">pub type </span>Round = u64;
 
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">Transaction</span> = <span class="ident">Vec</span>&lt;<span class="ident">u8</span>&gt;;
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>, <span class="ident">Default</span>, <span class="ident">Debug</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>, <span class="ident">Arbitrary</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Batch</span>(<span class="kw">pub</span> <span class="ident">Vec</span>&lt;<span class="ident">Transaction</span>&gt;);
+<span class="kw">pub type </span>Transaction = Vec&lt;u8&gt;;
+<span class="attribute">#[derive(Clone, Serialize, Deserialize, Default, Debug, PartialEq, Eq, Arbitrary)]</span>
+<span class="kw">pub struct </span>Batch(<span class="kw">pub </span>Vec&lt;Transaction&gt;);
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Copy</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>, <span class="ident">Default</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>, <span class="ident">Hash</span>, <span class="ident">PartialOrd</span>, <span class="ident">Ord</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BatchDigest</span>(<span class="kw">pub</span> [<span class="ident">u8</span>; <span class="ident">crypto::DIGEST_LEN</span>]);
+<span class="attribute">#[derive(Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]</span>
+<span class="kw">pub struct </span>BatchDigest(<span class="kw">pub </span>[u8; crypto::DIGEST_LEN]);
 
-<span class="kw">impl</span> <span class="ident">fmt::Debug</span> <span class="kw">for</span> <span class="ident">BatchDigest</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">fmt::Formatter</span>&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">fmt::Error</span>&gt; {
-        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">base64::encode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>))
+<span class="kw">impl </span>fmt::Debug <span class="kw">for </span>BatchDigest {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), fmt::Error&gt; {
+        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, base64::encode(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>))
     }
 }
 
-<span class="kw">impl</span> <span class="ident">fmt::Display</span> <span class="kw">for</span> <span class="ident">BatchDigest</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">fmt::Formatter</span>&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">fmt::Error</span>&gt; {
-        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">base64::encode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>).<span class="ident">get</span>(<span class="number">0</span>..<span class="number">16</span>).<span class="ident">unwrap</span>())
+<span class="kw">impl </span>fmt::Display <span class="kw">for </span>BatchDigest {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), fmt::Error&gt; {
+        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, base64::encode(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>).get(<span class="number">0</span>..<span class="number">16</span>).unwrap())
     }
 }
 
-<span class="kw">impl</span> <span class="ident">From</span>&lt;<span class="ident">BatchDigest</span>&gt; <span class="kw">for</span> <span class="ident">Digest</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">digest</span>: <span class="ident">BatchDigest</span>) -&gt; <span class="self">Self</span> {
-        <span class="ident">Digest::new</span>(<span class="ident">digest</span>.<span class="number">0</span>)
+<span class="kw">impl </span>From&lt;BatchDigest&gt; <span class="kw">for </span>Digest {
+    <span class="kw">fn </span>from(digest: BatchDigest) -&gt; <span class="self">Self </span>{
+        Digest::new(digest.<span class="number">0</span>)
     }
 }
 
-<span class="kw">impl</span> <span class="ident">BatchDigest</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">val</span>: [<span class="ident">u8</span>; <span class="ident">DIGEST_LEN</span>]) -&gt; <span class="ident">BatchDigest</span> {
-        <span class="ident">BatchDigest</span>(<span class="ident">val</span>)
+<span class="kw">impl </span>BatchDigest {
+    <span class="kw">pub fn </span>new(val: [u8; DIGEST_LEN]) -&gt; BatchDigest {
+        BatchDigest(val)
     }
 }
 
-<span class="kw">impl</span> <span class="ident">Hash</span> <span class="kw">for</span> <span class="ident">Batch</span> {
-    <span class="kw">type</span> <span class="ident">TypedDigest</span> = <span class="ident">BatchDigest</span>;
+<span class="kw">impl </span>Hash <span class="kw">for </span>Batch {
+    <span class="kw">type </span>TypedDigest = BatchDigest;
 
-    <span class="kw">fn</span> <span class="ident">digest</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident"><span class="self">Self</span>::TypedDigest</span> {
-        <span class="ident">BatchDigest::new</span>(<span class="ident">crypto::blake2b_256</span>(|<span class="ident">hasher</span>| {
-            <span class="self">self</span>.<span class="number">0</span>.<span class="ident">iter</span>().<span class="ident">for_each</span>(|<span class="ident">tx</span>| <span class="ident">hasher</span>.<span class="ident">update</span>(<span class="ident">tx</span>))
+    <span class="kw">fn </span>digest(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="self">Self</span>::TypedDigest {
+        BatchDigest::new(crypto::blake2b_256(|hasher| {
+            <span class="self">self</span>.<span class="number">0</span>.iter().for_each(|tx| hasher.update(tx))
         }))
     }
 }
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>, <span class="ident">Default</span>, <span class="ident">Builder</span>)]</span>
-<span class="attribute">#[<span class="ident">builder</span>(<span class="ident">pattern</span> = <span class="string">&quot;owned&quot;</span>, <span class="ident">build_fn</span>(<span class="ident">skip</span>))]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Header</span> {
-    <span class="kw">pub</span> <span class="ident">author</span>: <span class="ident">PublicKey</span>,
-    <span class="kw">pub</span> <span class="ident">round</span>: <span class="ident">Round</span>,
-    <span class="kw">pub</span> <span class="ident">epoch</span>: <span class="ident">Epoch</span>,
-    <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">with</span> = <span class="string">&quot;indexmap::serde_seq&quot;</span>)]</span>
-    <span class="kw">pub</span> <span class="ident">payload</span>: <span class="ident">IndexMap</span>&lt;<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>&gt;,
-    <span class="kw">pub</span> <span class="ident">parents</span>: <span class="ident">BTreeSet</span>&lt;<span class="ident">CertificateDigest</span>&gt;,
-    <span class="kw">pub</span> <span class="ident">id</span>: <span class="ident">HeaderDigest</span>,
-    <span class="kw">pub</span> <span class="ident">signature</span>: <span class="ident">Signature</span>,
+<span class="attribute">#[derive(Clone, Serialize, Deserialize, Default, Builder)]</span>
+<span class="attribute">#[builder(pattern = <span class="string">&quot;owned&quot;</span>, build_fn(skip))]</span>
+<span class="kw">pub struct </span>Header {
+    <span class="kw">pub </span>author: PublicKey,
+    <span class="kw">pub </span>round: Round,
+    <span class="kw">pub </span>epoch: Epoch,
+    <span class="attribute">#[serde(with = <span class="string">&quot;indexmap::serde_seq&quot;</span>)]</span>
+    <span class="kw">pub </span>payload: IndexMap&lt;BatchDigest, WorkerId&gt;,
+    <span class="kw">pub </span>parents: BTreeSet&lt;CertificateDigest&gt;,
+    <span class="kw">pub </span>id: HeaderDigest,
+    <span class="kw">pub </span>signature: Signature,
 }
 
-<span class="kw">impl</span> <span class="ident">HeaderBuilder</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">build</span>&lt;<span class="ident">F</span>&gt;(<span class="self">self</span>, <span class="ident">signer</span>: <span class="kw-2">&amp;</span><span class="ident">F</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="ident">Header</span>, <span class="ident">crypto::traits::Error</span>&gt;
-    <span class="kw">where</span>
-        <span class="ident">F</span>: <span class="ident">Signer</span>&lt;<span class="ident">Signature</span>&gt;,
+<span class="kw">impl </span>HeaderBuilder {
+    <span class="kw">pub fn </span>build&lt;F&gt;(<span class="self">self</span>, signer: <span class="kw-2">&amp;</span>F) -&gt; <span class="prelude-ty">Result</span>&lt;Header, crypto::traits::Error&gt;
+    <span class="kw">where
+        </span>F: Signer&lt;Signature&gt;,
     {
-        <span class="kw">let</span> <span class="ident">h</span> = <span class="ident">Header</span> {
-            <span class="ident">author</span>: <span class="self">self</span>.<span class="ident">author</span>.<span class="ident">unwrap</span>(),
-            <span class="ident">round</span>: <span class="self">self</span>.<span class="ident">round</span>.<span class="ident">unwrap</span>(),
-            <span class="ident">epoch</span>: <span class="self">self</span>.<span class="ident">epoch</span>.<span class="ident">unwrap</span>(),
-            <span class="ident">payload</span>: <span class="self">self</span>.<span class="ident">payload</span>.<span class="ident">unwrap</span>(),
-            <span class="ident">parents</span>: <span class="self">self</span>.<span class="ident">parents</span>.<span class="ident">unwrap</span>(),
-            <span class="ident">id</span>: <span class="ident">HeaderDigest::default</span>(),
-            <span class="ident">signature</span>: <span class="ident">Signature::default</span>(),
+        <span class="kw">let </span>h = Header {
+            author: <span class="self">self</span>.author.unwrap(),
+            round: <span class="self">self</span>.round.unwrap(),
+            epoch: <span class="self">self</span>.epoch.unwrap(),
+            payload: <span class="self">self</span>.payload.unwrap(),
+            parents: <span class="self">self</span>.parents.unwrap(),
+            id: HeaderDigest::default(),
+            signature: Signature::default(),
         };
 
-        <span class="prelude-val">Ok</span>(<span class="ident">Header</span> {
-            <span class="ident">id</span>: <span class="ident">h</span>.<span class="ident">digest</span>(),
-            <span class="ident">signature</span>: <span class="ident">signer</span>.<span class="ident">try_sign</span>(<span class="ident">Digest::from</span>(<span class="ident">h</span>.<span class="ident">digest</span>()).<span class="ident">as_ref</span>())<span class="question-mark">?</span>,
-            ..<span class="ident">h</span>
+        <span class="prelude-val">Ok</span>(Header {
+            id: h.digest(),
+            signature: signer.try_sign(Digest::from(h.digest()).as_ref())<span class="question-mark">?</span>,
+            ..h
         })
     }
 
-    <span class="comment">// helper method to set directly values to the payload</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">with_payload_batch</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">batch</span>: <span class="ident">Batch</span>, <span class="ident">worker_id</span>: <span class="ident">WorkerId</span>) -&gt; <span class="self">Self</span> {
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">payload</span>.<span class="ident">is_none</span>() {
-            <span class="self">self</span>.<span class="ident">payload</span> = <span class="prelude-val">Some</span>(<span class="ident">Default::default</span>());
+    <span class="comment">// helper method to set directly values to the payload
+    </span><span class="kw">pub fn </span>with_payload_batch(<span class="kw-2">mut </span><span class="self">self</span>, batch: Batch, worker_id: WorkerId) -&gt; <span class="self">Self </span>{
+        <span class="kw">if </span><span class="self">self</span>.payload.is_none() {
+            <span class="self">self</span>.payload = <span class="prelude-val">Some</span>(Default::default());
         }
-        <span class="kw">let</span> <span class="ident">payload</span> = <span class="self">self</span>.<span class="ident">payload</span>.<span class="ident">as_mut</span>().<span class="ident">unwrap</span>();
+        <span class="kw">let </span>payload = <span class="self">self</span>.payload.as_mut().unwrap();
 
-        <span class="ident">payload</span>.<span class="ident">insert</span>(<span class="ident">batch</span>.<span class="ident">digest</span>(), <span class="ident">worker_id</span>);
+        payload.insert(batch.digest(), worker_id);
 
-        <span class="self">self</span>
-    }
+        <span class="self">self
+    </span>}
 }
 
-<span class="kw">impl</span> <span class="ident">Header</span> {
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">new</span>(
-        <span class="ident">author</span>: <span class="ident">PublicKey</span>,
-        <span class="ident">round</span>: <span class="ident">Round</span>,
-        <span class="ident">epoch</span>: <span class="ident">Epoch</span>,
-        <span class="ident">payload</span>: <span class="ident">IndexMap</span>&lt;<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>&gt;,
-        <span class="ident">parents</span>: <span class="ident">BTreeSet</span>&lt;<span class="ident">CertificateDigest</span>&gt;,
-        <span class="ident">signature_service</span>: <span class="kw-2">&amp;mut</span> <span class="ident">SignatureService</span>&lt;<span class="ident">Signature</span>&gt;,
-    ) -&gt; <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="ident">header</span> = <span class="self">Self</span> {
-            <span class="ident">author</span>,
-            <span class="ident">round</span>,
-            <span class="ident">epoch</span>,
-            <span class="ident">payload</span>,
-            <span class="ident">parents</span>,
-            <span class="ident">id</span>: <span class="ident">HeaderDigest::default</span>(),
-            <span class="ident">signature</span>: <span class="ident">Signature::default</span>(),
+<span class="kw">impl </span>Header {
+    <span class="kw">pub async fn </span>new(
+        author: PublicKey,
+        round: Round,
+        epoch: Epoch,
+        payload: IndexMap&lt;BatchDigest, WorkerId&gt;,
+        parents: BTreeSet&lt;CertificateDigest&gt;,
+        signature_service: <span class="kw-2">&amp;mut </span>SignatureService&lt;Signature&gt;,
+    ) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>header = <span class="self">Self </span>{
+            author,
+            round,
+            epoch,
+            payload,
+            parents,
+            id: HeaderDigest::default(),
+            signature: Signature::default(),
         };
-        <span class="kw">let</span> <span class="ident">id</span> = <span class="ident">header</span>.<span class="ident">digest</span>();
-        <span class="kw">let</span> <span class="ident">signature</span> = <span class="ident">signature_service</span>.<span class="ident">request_signature</span>(<span class="ident">id</span>.<span class="ident">into</span>()).<span class="kw">await</span>;
-        <span class="self">Self</span> {
-            <span class="ident">id</span>,
-            <span class="ident">signature</span>,
-            ..<span class="ident">header</span>
+        <span class="kw">let </span>id = header.digest();
+        <span class="kw">let </span>signature = signature_service.request_signature(id.into()).<span class="kw">await</span>;
+        <span class="self">Self </span>{
+            id,
+            signature,
+            ..header
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">verify</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">committee</span>: <span class="kw-2">&amp;</span><span class="ident">Committee</span>) -&gt; <span class="ident">DagResult</span>&lt;()&gt; {
-        <span class="comment">// Ensure the header is from the correct epoch.</span>
-        <span class="macro">ensure!</span>(
-            <span class="self">self</span>.<span class="ident">epoch</span> == <span class="ident">committee</span>.<span class="ident">epoch</span>(),
-            <span class="ident">DagError::InvalidEpoch</span> {
-                <span class="ident">expected</span>: <span class="ident">committee</span>.<span class="ident">epoch</span>(),
-                <span class="ident">received</span>: <span class="self">self</span>.<span class="ident">epoch</span>
+    <span class="kw">pub fn </span>verify(<span class="kw-2">&amp;</span><span class="self">self</span>, committee: <span class="kw-2">&amp;</span>Committee) -&gt; DagResult&lt;()&gt; {
+        <span class="comment">// Ensure the header is from the correct epoch.
+        </span><span class="macro">ensure!</span>(
+            <span class="self">self</span>.epoch == committee.epoch(),
+            DagError::InvalidEpoch {
+                expected: committee.epoch(),
+                received: <span class="self">self</span>.epoch
             }
         );
 
-        <span class="comment">// Ensure the header id is well formed.</span>
-        <span class="macro">ensure!</span>(<span class="self">self</span>.<span class="ident">digest</span>() == <span class="self">self</span>.<span class="ident">id</span>, <span class="ident">DagError::InvalidHeaderId</span>);
+        <span class="comment">// Ensure the header id is well formed.
+        </span><span class="macro">ensure!</span>(<span class="self">self</span>.digest() == <span class="self">self</span>.id, DagError::InvalidHeaderId);
 
-        <span class="comment">// Ensure the authority has voting rights.</span>
-        <span class="kw">let</span> <span class="ident">voting_rights</span> = <span class="ident">committee</span>.<span class="ident">stake</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">author</span>);
+        <span class="comment">// Ensure the authority has voting rights.
+        </span><span class="kw">let </span>voting_rights = committee.stake(<span class="kw-2">&amp;</span><span class="self">self</span>.author);
         <span class="macro">ensure!</span>(
-            <span class="ident">voting_rights</span> &gt; <span class="number">0</span>,
-            <span class="ident">DagError::UnknownAuthority</span>(<span class="self">self</span>.<span class="ident">author</span>.<span class="ident">encode_base64</span>())
+            voting_rights &gt; <span class="number">0</span>,
+            DagError::UnknownAuthority(<span class="self">self</span>.author.encode_base64())
         );
 
-        <span class="comment">// Ensure all worker ids are correct.</span>
-        <span class="kw">for</span> <span class="ident">worker_id</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">payload</span>.<span class="ident">values</span>() {
-            <span class="ident">committee</span>
-                .<span class="ident">worker</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">author</span>, <span class="ident">worker_id</span>)
-                .<span class="ident">map_err</span>(|<span class="kw">_</span>| <span class="ident">DagError::MalformedHeader</span>(<span class="self">self</span>.<span class="ident">id</span>))<span class="question-mark">?</span>;
+        <span class="comment">// Ensure all worker ids are correct.
+        </span><span class="kw">for </span>worker_id <span class="kw">in </span><span class="self">self</span>.payload.values() {
+            committee
+                .worker(<span class="kw-2">&amp;</span><span class="self">self</span>.author, worker_id)
+                .map_err(|<span class="kw">_</span>| DagError::MalformedHeader(<span class="self">self</span>.id))<span class="question-mark">?</span>;
         }
 
-        <span class="comment">// Check the signature.</span>
-        <span class="kw">let</span> <span class="ident">id_digest</span>: <span class="ident">Digest</span> = <span class="ident">Digest::from</span>(<span class="self">self</span>.<span class="ident">id</span>);
-        <span class="self">self</span>.<span class="ident">author</span>
-            .<span class="ident">verify</span>(<span class="ident">id_digest</span>.<span class="ident">as_ref</span>(), <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">signature</span>)
-            .<span class="ident">map_err</span>(<span class="ident">DagError::from</span>)
+        <span class="comment">// Check the signature.
+        </span><span class="kw">let </span>id_digest: Digest = Digest::from(<span class="self">self</span>.id);
+        <span class="self">self</span>.author
+            .verify(id_digest.as_ref(), <span class="kw-2">&amp;</span><span class="self">self</span>.signature)
+            .map_err(DagError::from)
     }
 }
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Copy</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>, <span class="ident">Default</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>, <span class="ident">Hash</span>, <span class="ident">PartialOrd</span>, <span class="ident">Ord</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">HeaderDigest</span>([<span class="ident">u8</span>; <span class="ident">DIGEST_LEN</span>]);
+<span class="attribute">#[derive(Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]</span>
+<span class="kw">pub struct </span>HeaderDigest([u8; DIGEST_LEN]);
 
-<span class="kw">impl</span> <span class="ident">From</span>&lt;<span class="ident">HeaderDigest</span>&gt; <span class="kw">for</span> <span class="ident">Digest</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">hd</span>: <span class="ident">HeaderDigest</span>) -&gt; <span class="self">Self</span> {
-        <span class="ident">Digest::new</span>(<span class="ident">hd</span>.<span class="number">0</span>)
+<span class="kw">impl </span>From&lt;HeaderDigest&gt; <span class="kw">for </span>Digest {
+    <span class="kw">fn </span>from(hd: HeaderDigest) -&gt; <span class="self">Self </span>{
+        Digest::new(hd.<span class="number">0</span>)
     }
 }
 
-<span class="kw">impl</span> <span class="ident">fmt::Debug</span> <span class="kw">for</span> <span class="ident">HeaderDigest</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">fmt::Formatter</span>&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">fmt::Error</span>&gt; {
-        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">base64::encode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>))
+<span class="kw">impl </span>fmt::Debug <span class="kw">for </span>HeaderDigest {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), fmt::Error&gt; {
+        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, base64::encode(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>))
     }
 }
 
-<span class="kw">impl</span> <span class="ident">fmt::Display</span> <span class="kw">for</span> <span class="ident">HeaderDigest</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">fmt::Formatter</span>&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">fmt::Error</span>&gt; {
-        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">base64::encode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>).<span class="ident">get</span>(<span class="number">0</span>..<span class="number">16</span>).<span class="ident">unwrap</span>())
+<span class="kw">impl </span>fmt::Display <span class="kw">for </span>HeaderDigest {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), fmt::Error&gt; {
+        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, base64::encode(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>).get(<span class="number">0</span>..<span class="number">16</span>).unwrap())
     }
 }
 
-<span class="kw">impl</span> <span class="ident">Hash</span> <span class="kw">for</span> <span class="ident">Header</span> {
-    <span class="kw">type</span> <span class="ident">TypedDigest</span> = <span class="ident">HeaderDigest</span>;
+<span class="kw">impl </span>Hash <span class="kw">for </span>Header {
+    <span class="kw">type </span>TypedDigest = HeaderDigest;
 
-    <span class="kw">fn</span> <span class="ident">digest</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">HeaderDigest</span> {
-        <span class="kw">let</span> <span class="ident">hasher_update</span> = |<span class="ident">hasher</span>: <span class="kw-2">&amp;mut</span> <span class="ident">VarBlake2b</span>| {
-            <span class="ident">hasher</span>.<span class="ident">update</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">author</span>);
-            <span class="ident">hasher</span>.<span class="ident">update</span>(<span class="self">self</span>.<span class="ident">round</span>.<span class="ident">to_le_bytes</span>());
-            <span class="ident">hasher</span>.<span class="ident">update</span>(<span class="self">self</span>.<span class="ident">epoch</span>.<span class="ident">to_le_bytes</span>());
-            <span class="kw">for</span> (<span class="ident">x</span>, <span class="ident">y</span>) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">payload</span>.<span class="ident">iter</span>() {
-                <span class="ident">hasher</span>.<span class="ident">update</span>(<span class="ident">Digest::from</span>(<span class="kw-2">*</span><span class="ident">x</span>));
-                <span class="ident">hasher</span>.<span class="ident">update</span>(<span class="ident">y</span>.<span class="ident">to_le_bytes</span>());
+    <span class="kw">fn </span>digest(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; HeaderDigest {
+        <span class="kw">let </span>hasher_update = |hasher: <span class="kw-2">&amp;mut </span>VarBlake2b| {
+            hasher.update(<span class="kw-2">&amp;</span><span class="self">self</span>.author);
+            hasher.update(<span class="self">self</span>.round.to_le_bytes());
+            hasher.update(<span class="self">self</span>.epoch.to_le_bytes());
+            <span class="kw">for </span>(x, y) <span class="kw">in </span><span class="self">self</span>.payload.iter() {
+                hasher.update(Digest::from(<span class="kw-2">*</span>x));
+                hasher.update(y.to_le_bytes());
             }
-            <span class="kw">for</span> <span class="ident">x</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">parents</span>.<span class="ident">iter</span>() {
-                <span class="ident">hasher</span>.<span class="ident">update</span>(<span class="ident">Digest::from</span>(<span class="kw-2">*</span><span class="ident">x</span>))
+            <span class="kw">for </span>x <span class="kw">in </span><span class="self">self</span>.parents.iter() {
+                hasher.update(Digest::from(<span class="kw-2">*</span>x))
             }
         };
-        <span class="ident">HeaderDigest</span>(<span class="ident">crypto::blake2b_256</span>(<span class="ident">hasher_update</span>))
+        HeaderDigest(crypto::blake2b_256(hasher_update))
     }
 }
 
-<span class="kw">impl</span> <span class="ident">fmt::Debug</span> <span class="kw">for</span> <span class="ident">Header</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">fmt::Formatter</span>&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">fmt::Error</span>&gt; {
+<span class="kw">impl </span>fmt::Debug <span class="kw">for </span>Header {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), fmt::Error&gt; {
         <span class="macro">write!</span>(
-            <span class="ident">f</span>,
+            f,
             <span class="string">&quot;{}: B{}({}, E{}, {}B)&quot;</span>,
-            <span class="self">self</span>.<span class="ident">id</span>,
-            <span class="self">self</span>.<span class="ident">round</span>,
-            <span class="self">self</span>.<span class="ident">author</span>.<span class="ident">encode_base64</span>(),
-            <span class="self">self</span>.<span class="ident">epoch</span>,
-            <span class="self">self</span>.<span class="ident">payload</span>
-                .<span class="ident">keys</span>()
-                .<span class="ident">map</span>(|<span class="ident">x</span>| <span class="ident">Digest::from</span>(<span class="kw-2">*</span><span class="ident">x</span>).<span class="ident">size</span>())
-                .<span class="ident">sum</span>::&lt;<span class="ident">usize</span>&gt;(),
+            <span class="self">self</span>.id,
+            <span class="self">self</span>.round,
+            <span class="self">self</span>.author.encode_base64(),
+            <span class="self">self</span>.epoch,
+            <span class="self">self</span>.payload
+                .keys()
+                .map(|x| Digest::from(<span class="kw-2">*</span>x).size())
+                .sum::&lt;usize&gt;(),
         )
     }
 }
 
-<span class="kw">impl</span> <span class="ident">fmt::Display</span> <span class="kw">for</span> <span class="ident">Header</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">fmt::Formatter</span>&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">fmt::Error</span>&gt; {
-        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;B{}({})&quot;</span>, <span class="self">self</span>.<span class="ident">round</span>, <span class="self">self</span>.<span class="ident">author</span>.<span class="ident">encode_base64</span>())
+<span class="kw">impl </span>fmt::Display <span class="kw">for </span>Header {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), fmt::Error&gt; {
+        <span class="macro">write!</span>(f, <span class="string">&quot;B{}({})&quot;</span>, <span class="self">self</span>.round, <span class="self">self</span>.author.encode_base64())
     }
 }
 
-<span class="kw">impl</span> <span class="ident">PartialEq</span> <span class="kw">for</span> <span class="ident">Header</span> {
-    <span class="kw">fn</span> <span class="ident">eq</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="ident">bool</span> {
-        <span class="self">self</span>.<span class="ident">digest</span>() == <span class="ident">other</span>.<span class="ident">digest</span>()
+<span class="kw">impl </span>PartialEq <span class="kw">for </span>Header {
+    <span class="kw">fn </span>eq(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; bool {
+        <span class="self">self</span>.digest() == other.digest()
     }
 }
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Vote</span> {
-    <span class="kw">pub</span> <span class="ident">id</span>: <span class="ident">HeaderDigest</span>,
-    <span class="kw">pub</span> <span class="ident">round</span>: <span class="ident">Round</span>,
-    <span class="kw">pub</span> <span class="ident">epoch</span>: <span class="ident">Epoch</span>,
-    <span class="kw">pub</span> <span class="ident">origin</span>: <span class="ident">PublicKey</span>,
-    <span class="kw">pub</span> <span class="ident">author</span>: <span class="ident">PublicKey</span>,
-    <span class="kw">pub</span> <span class="ident">signature</span>: &lt;<span class="ident">PublicKey</span> <span class="kw">as</span> <span class="ident">VerifyingKey</span>&gt;<span class="ident">::Sig</span>,
+<span class="attribute">#[derive(Clone, Serialize, Deserialize)]</span>
+<span class="kw">pub struct </span>Vote {
+    <span class="kw">pub </span>id: HeaderDigest,
+    <span class="kw">pub </span>round: Round,
+    <span class="kw">pub </span>epoch: Epoch,
+    <span class="kw">pub </span>origin: PublicKey,
+    <span class="kw">pub </span>author: PublicKey,
+    <span class="kw">pub </span>signature: &lt;PublicKey <span class="kw">as </span>VerifyingKey&gt;::Sig,
 }
 
-<span class="kw">impl</span> <span class="ident">Vote</span> {
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">new</span>(
-        <span class="ident">header</span>: <span class="kw-2">&amp;</span><span class="ident">Header</span>,
-        <span class="ident">author</span>: <span class="kw-2">&amp;</span><span class="ident">PublicKey</span>,
-        <span class="ident">signature_service</span>: <span class="kw-2">&amp;mut</span> <span class="ident">SignatureService</span>&lt;<span class="ident">Signature</span>&gt;,
-    ) -&gt; <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="ident">vote</span> = <span class="self">Self</span> {
-            <span class="ident">id</span>: <span class="ident">header</span>.<span class="ident">id</span>,
-            <span class="ident">round</span>: <span class="ident">header</span>.<span class="ident">round</span>,
-            <span class="ident">epoch</span>: <span class="ident">header</span>.<span class="ident">epoch</span>,
-            <span class="ident">origin</span>: <span class="ident">header</span>.<span class="ident">author</span>.<span class="ident">clone</span>(),
-            <span class="ident">author</span>: <span class="ident">author</span>.<span class="ident">clone</span>(),
-            <span class="ident">signature</span>: <span class="ident">Signature::default</span>(),
+<span class="kw">impl </span>Vote {
+    <span class="kw">pub async fn </span>new(
+        header: <span class="kw-2">&amp;</span>Header,
+        author: <span class="kw-2">&amp;</span>PublicKey,
+        signature_service: <span class="kw-2">&amp;mut </span>SignatureService&lt;Signature&gt;,
+    ) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>vote = <span class="self">Self </span>{
+            id: header.id,
+            round: header.round,
+            epoch: header.epoch,
+            origin: header.author.clone(),
+            author: author.clone(),
+            signature: Signature::default(),
         };
-        <span class="kw">let</span> <span class="ident">signature</span> = <span class="ident">signature_service</span>
-            .<span class="ident">request_signature</span>(<span class="ident">vote</span>.<span class="ident">digest</span>().<span class="ident">into</span>())
+        <span class="kw">let </span>signature = signature_service
+            .request_signature(vote.digest().into())
             .<span class="kw">await</span>;
-        <span class="self">Self</span> { <span class="ident">signature</span>, ..<span class="ident">vote</span> }
+        <span class="self">Self </span>{ signature, ..vote }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">verify</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">committee</span>: <span class="kw-2">&amp;</span><span class="ident">Committee</span>) -&gt; <span class="ident">DagResult</span>&lt;()&gt; {
-        <span class="comment">// Ensure the header is from the correct epoch.</span>
-        <span class="macro">ensure!</span>(
-            <span class="self">self</span>.<span class="ident">epoch</span> == <span class="ident">committee</span>.<span class="ident">epoch</span>(),
-            <span class="ident">DagError::InvalidEpoch</span> {
-                <span class="ident">expected</span>: <span class="ident">committee</span>.<span class="ident">epoch</span>(),
-                <span class="ident">received</span>: <span class="self">self</span>.<span class="ident">epoch</span>
+    <span class="kw">pub fn </span>verify(<span class="kw-2">&amp;</span><span class="self">self</span>, committee: <span class="kw-2">&amp;</span>Committee) -&gt; DagResult&lt;()&gt; {
+        <span class="comment">// Ensure the header is from the correct epoch.
+        </span><span class="macro">ensure!</span>(
+            <span class="self">self</span>.epoch == committee.epoch(),
+            DagError::InvalidEpoch {
+                expected: committee.epoch(),
+                received: <span class="self">self</span>.epoch
             }
         );
 
-        <span class="comment">// Ensure the authority has voting rights.</span>
-        <span class="macro">ensure!</span>(
-            <span class="ident">committee</span>.<span class="ident">stake</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">author</span>) &gt; <span class="number">0</span>,
-            <span class="ident">DagError::UnknownAuthority</span>(<span class="self">self</span>.<span class="ident">author</span>.<span class="ident">encode_base64</span>())
+        <span class="comment">// Ensure the authority has voting rights.
+        </span><span class="macro">ensure!</span>(
+            committee.stake(<span class="kw-2">&amp;</span><span class="self">self</span>.author) &gt; <span class="number">0</span>,
+            DagError::UnknownAuthority(<span class="self">self</span>.author.encode_base64())
         );
 
-        <span class="comment">// Check the signature.</span>
-        <span class="kw">let</span> <span class="ident">vote_digest</span>: <span class="ident">Digest</span> = <span class="self">self</span>.<span class="ident">digest</span>().<span class="ident">into</span>();
-        <span class="self">self</span>.<span class="ident">author</span>
-            .<span class="ident">verify</span>(<span class="ident">vote_digest</span>.<span class="ident">as_ref</span>(), <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">signature</span>)
-            .<span class="ident">map_err</span>(<span class="ident">DagError::from</span>)
+        <span class="comment">// Check the signature.
+        </span><span class="kw">let </span>vote_digest: Digest = <span class="self">self</span>.digest().into();
+        <span class="self">self</span>.author
+            .verify(vote_digest.as_ref(), <span class="kw-2">&amp;</span><span class="self">self</span>.signature)
+            .map_err(DagError::from)
     }
 }
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>, <span class="ident">Default</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>, <span class="ident">Hash</span>, <span class="ident">PartialOrd</span>, <span class="ident">Ord</span>, <span class="ident">Copy</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">VoteDigest</span>([<span class="ident">u8</span>; <span class="ident">DIGEST_LEN</span>]);
+<span class="attribute">#[derive(Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Copy)]</span>
+<span class="kw">pub struct </span>VoteDigest([u8; DIGEST_LEN]);
 
-<span class="kw">impl</span> <span class="ident">From</span>&lt;<span class="ident">VoteDigest</span>&gt; <span class="kw">for</span> <span class="ident">Digest</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">hd</span>: <span class="ident">VoteDigest</span>) -&gt; <span class="self">Self</span> {
-        <span class="ident">Digest::new</span>(<span class="ident">hd</span>.<span class="number">0</span>)
-    }
-}
-
-<span class="kw">impl</span> <span class="ident">fmt::Debug</span> <span class="kw">for</span> <span class="ident">VoteDigest</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">fmt::Formatter</span>&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">fmt::Error</span>&gt; {
-        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">base64::encode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>))
+<span class="kw">impl </span>From&lt;VoteDigest&gt; <span class="kw">for </span>Digest {
+    <span class="kw">fn </span>from(hd: VoteDigest) -&gt; <span class="self">Self </span>{
+        Digest::new(hd.<span class="number">0</span>)
     }
 }
 
-<span class="kw">impl</span> <span class="ident">fmt::Display</span> <span class="kw">for</span> <span class="ident">VoteDigest</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">fmt::Formatter</span>&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">fmt::Error</span>&gt; {
-        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">base64::encode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>).<span class="ident">get</span>(<span class="number">0</span>..<span class="number">16</span>).<span class="ident">unwrap</span>())
+<span class="kw">impl </span>fmt::Debug <span class="kw">for </span>VoteDigest {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), fmt::Error&gt; {
+        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, base64::encode(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>))
     }
 }
 
-<span class="kw">impl</span> <span class="ident">Hash</span> <span class="kw">for</span> <span class="ident">Vote</span> {
-    <span class="kw">type</span> <span class="ident">TypedDigest</span> = <span class="ident">VoteDigest</span>;
+<span class="kw">impl </span>fmt::Display <span class="kw">for </span>VoteDigest {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), fmt::Error&gt; {
+        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, base64::encode(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>).get(<span class="number">0</span>..<span class="number">16</span>).unwrap())
+    }
+}
 
-    <span class="kw">fn</span> <span class="ident">digest</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">VoteDigest</span> {
-        <span class="kw">let</span> <span class="ident">hasher_update</span> = |<span class="ident">hasher</span>: <span class="kw-2">&amp;mut</span> <span class="ident">VarBlake2b</span>| {
-            <span class="ident">hasher</span>.<span class="ident">update</span>(<span class="ident">Digest::from</span>(<span class="self">self</span>.<span class="ident">id</span>));
-            <span class="ident">hasher</span>.<span class="ident">update</span>(<span class="self">self</span>.<span class="ident">round</span>.<span class="ident">to_le_bytes</span>());
-            <span class="ident">hasher</span>.<span class="ident">update</span>(<span class="self">self</span>.<span class="ident">epoch</span>.<span class="ident">to_le_bytes</span>());
-            <span class="ident">hasher</span>.<span class="ident">update</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">origin</span>);
+<span class="kw">impl </span>Hash <span class="kw">for </span>Vote {
+    <span class="kw">type </span>TypedDigest = VoteDigest;
+
+    <span class="kw">fn </span>digest(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; VoteDigest {
+        <span class="kw">let </span>hasher_update = |hasher: <span class="kw-2">&amp;mut </span>VarBlake2b| {
+            hasher.update(Digest::from(<span class="self">self</span>.id));
+            hasher.update(<span class="self">self</span>.round.to_le_bytes());
+            hasher.update(<span class="self">self</span>.epoch.to_le_bytes());
+            hasher.update(<span class="kw-2">&amp;</span><span class="self">self</span>.origin);
         };
 
-        <span class="ident">VoteDigest</span>(<span class="ident">crypto::blake2b_256</span>(<span class="ident">hasher_update</span>))
+        VoteDigest(crypto::blake2b_256(hasher_update))
     }
 }
 
-<span class="kw">impl</span> <span class="ident">fmt::Debug</span> <span class="kw">for</span> <span class="ident">Vote</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">fmt::Formatter</span>&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">fmt::Error</span>&gt; {
+<span class="kw">impl </span>fmt::Debug <span class="kw">for </span>Vote {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), fmt::Error&gt; {
         <span class="macro">write!</span>(
-            <span class="ident">f</span>,
+            f,
             <span class="string">&quot;{}: V{}({}, {}, E{})&quot;</span>,
-            <span class="self">self</span>.<span class="ident">digest</span>(),
-            <span class="self">self</span>.<span class="ident">round</span>,
-            <span class="self">self</span>.<span class="ident">author</span>.<span class="ident">encode_base64</span>(),
-            <span class="self">self</span>.<span class="ident">id</span>,
-            <span class="self">self</span>.<span class="ident">epoch</span>
+            <span class="self">self</span>.digest(),
+            <span class="self">self</span>.round,
+            <span class="self">self</span>.author.encode_base64(),
+            <span class="self">self</span>.id,
+            <span class="self">self</span>.epoch
         )
     }
 }
 
-<span class="kw">impl</span> <span class="ident">PartialEq</span> <span class="kw">for</span> <span class="ident">Vote</span> {
-    <span class="kw">fn</span> <span class="ident">eq</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="ident">bool</span> {
-        <span class="self">self</span>.<span class="ident">digest</span>() == <span class="ident">other</span>.<span class="ident">digest</span>()
+<span class="kw">impl </span>PartialEq <span class="kw">for </span>Vote {
+    <span class="kw">fn </span>eq(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; bool {
+        <span class="self">self</span>.digest() == other.digest()
     }
 }
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>, <span class="ident">Default</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Certificate</span> {
-    <span class="kw">pub</span> <span class="ident">header</span>: <span class="ident">Header</span>,
-    <span class="kw">pub</span> <span class="ident">votes</span>: <span class="ident">Vec</span>&lt;(<span class="ident">PublicKey</span>, &lt;<span class="ident">PublicKey</span> <span class="kw">as</span> <span class="ident">VerifyingKey</span>&gt;<span class="ident">::Sig</span>)&gt;,
+<span class="attribute">#[derive(Clone, Serialize, Deserialize, Default)]</span>
+<span class="kw">pub struct </span>Certificate {
+    <span class="kw">pub </span>header: Header,
+    <span class="kw">pub </span>votes: Vec&lt;(PublicKey, &lt;PublicKey <span class="kw">as </span>VerifyingKey&gt;::Sig)&gt;,
 }
 
-<span class="kw">impl</span> <span class="ident">Certificate</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">genesis</span>(<span class="ident">committee</span>: <span class="kw-2">&amp;</span><span class="ident">Committee</span>) -&gt; <span class="ident">Vec</span>&lt;<span class="self">Self</span>&gt; {
-        <span class="ident">committee</span>
-            .<span class="ident">authorities</span>
-            .<span class="ident">keys</span>()
-            .<span class="ident">map</span>(|<span class="ident">name</span>| <span class="self">Self</span> {
-                <span class="ident">header</span>: <span class="ident">Header</span> {
-                    <span class="ident">author</span>: <span class="ident">name</span>.<span class="ident">clone</span>(),
-                    <span class="ident">epoch</span>: <span class="ident">committee</span>.<span class="ident">epoch</span>(),
-                    ..<span class="ident">Header::default</span>()
+<span class="kw">impl </span>Certificate {
+    <span class="kw">pub fn </span>genesis(committee: <span class="kw-2">&amp;</span>Committee) -&gt; Vec&lt;<span class="self">Self</span>&gt; {
+        committee
+            .authorities
+            .keys()
+            .map(|name| <span class="self">Self </span>{
+                header: Header {
+                    author: name.clone(),
+                    epoch: committee.epoch(),
+                    ..Header::default()
                 },
-                ..<span class="ident"><span class="self">Self</span>::default</span>()
+                ..<span class="self">Self</span>::default()
             })
-            .<span class="ident">collect</span>()
+            .collect()
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">verify</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">committee</span>: <span class="kw-2">&amp;</span><span class="ident">Committee</span>) -&gt; <span class="ident">DagResult</span>&lt;()&gt; {
-        <span class="comment">// Ensure the header is from the correct epoch.</span>
-        <span class="macro">ensure!</span>(
-            <span class="self">self</span>.<span class="ident">epoch</span>() == <span class="ident">committee</span>.<span class="ident">epoch</span>(),
-            <span class="ident">DagError::InvalidEpoch</span> {
-                <span class="ident">expected</span>: <span class="ident">committee</span>.<span class="ident">epoch</span>(),
-                <span class="ident">received</span>: <span class="self">self</span>.<span class="ident">epoch</span>()
+    <span class="kw">pub fn </span>verify(<span class="kw-2">&amp;</span><span class="self">self</span>, committee: <span class="kw-2">&amp;</span>Committee) -&gt; DagResult&lt;()&gt; {
+        <span class="comment">// Ensure the header is from the correct epoch.
+        </span><span class="macro">ensure!</span>(
+            <span class="self">self</span>.epoch() == committee.epoch(),
+            DagError::InvalidEpoch {
+                expected: committee.epoch(),
+                received: <span class="self">self</span>.epoch()
             }
         );
 
-        <span class="comment">// Genesis certificates are always valid.</span>
-        <span class="kw">if</span> <span class="ident"><span class="self">Self</span>::genesis</span>(<span class="ident">committee</span>).<span class="ident">contains</span>(<span class="self">self</span>) {
-            <span class="kw">return</span> <span class="prelude-val">Ok</span>(());
+        <span class="comment">// Genesis certificates are always valid.
+        </span><span class="kw">if </span><span class="self">Self</span>::genesis(committee).contains(<span class="self">self</span>) {
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
         }
 
-        <span class="comment">// Check the embedded header.</span>
-        <span class="self">self</span>.<span class="ident">header</span>.<span class="ident">verify</span>(<span class="ident">committee</span>)<span class="question-mark">?</span>;
+        <span class="comment">// Check the embedded header.
+        </span><span class="self">self</span>.header.verify(committee)<span class="question-mark">?</span>;
 
-        <span class="comment">// Ensure the certificate has a quorum.</span>
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">weight</span> = <span class="number">0</span>;
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">used</span> = <span class="ident">HashSet::new</span>();
-        <span class="kw">for</span> (<span class="ident">name</span>, <span class="kw">_</span>) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">votes</span>.<span class="ident">iter</span>() {
+        <span class="comment">// Ensure the certificate has a quorum.
+        </span><span class="kw">let </span><span class="kw-2">mut </span>weight = <span class="number">0</span>;
+        <span class="kw">let </span><span class="kw-2">mut </span>used = HashSet::new();
+        <span class="kw">for </span>(name, <span class="kw">_</span>) <span class="kw">in </span><span class="self">self</span>.votes.iter() {
             <span class="macro">ensure!</span>(
-                !<span class="ident">used</span>.<span class="ident">contains</span>(<span class="ident">name</span>),
-                <span class="ident">DagError::AuthorityReuse</span>(<span class="ident">name</span>.<span class="ident">encode_base64</span>())
+                !used.contains(name),
+                DagError::AuthorityReuse(name.encode_base64())
             );
-            <span class="kw">let</span> <span class="ident">voting_rights</span> = <span class="ident">committee</span>.<span class="ident">stake</span>(<span class="ident">name</span>);
+            <span class="kw">let </span>voting_rights = committee.stake(name);
             <span class="macro">ensure!</span>(
-                <span class="ident">voting_rights</span> &gt; <span class="number">0</span>,
-                <span class="ident">DagError::UnknownAuthority</span>(<span class="ident">name</span>.<span class="ident">encode_base64</span>())
+                voting_rights &gt; <span class="number">0</span>,
+                DagError::UnknownAuthority(name.encode_base64())
             );
-            <span class="ident">used</span>.<span class="ident">insert</span>(<span class="ident">name</span>.<span class="ident">clone</span>());
-            <span class="ident">weight</span> += <span class="ident">voting_rights</span>;
+            used.insert(name.clone());
+            weight += voting_rights;
         }
         <span class="macro">ensure!</span>(
-            <span class="ident">weight</span> &gt;= <span class="ident">committee</span>.<span class="ident">quorum_threshold</span>(),
-            <span class="ident">DagError::CertificateRequiresQuorum</span>
+            weight &gt;= committee.quorum_threshold(),
+            DagError::CertificateRequiresQuorum
         );
-        <span class="kw">let</span> (<span class="ident">pks</span>, <span class="ident">sigs</span>): (<span class="ident">Vec</span>&lt;<span class="ident">PublicKey</span>&gt;, <span class="ident">Vec</span>&lt;<span class="ident">Signature</span>&gt;) = <span class="self">self</span>.<span class="ident">votes</span>.<span class="ident">iter</span>().<span class="ident">cloned</span>().<span class="ident">unzip</span>();
-        <span class="comment">// Verify the signatures</span>
-        <span class="kw">let</span> <span class="ident">certificate_digest</span>: <span class="ident">Digest</span> = <span class="ident">Digest::from</span>(<span class="self">self</span>.<span class="ident">digest</span>());
-        <span class="ident">PublicKey::verify_batch</span>(<span class="ident">certificate_digest</span>.<span class="ident">as_ref</span>(), <span class="kw-2">&amp;</span><span class="ident">pks</span>, <span class="kw-2">&amp;</span><span class="ident">sigs</span>).<span class="ident">map_err</span>(<span class="ident">DagError::from</span>)
+        <span class="kw">let </span>(pks, sigs): (Vec&lt;PublicKey&gt;, Vec&lt;Signature&gt;) = <span class="self">self</span>.votes.iter().cloned().unzip();
+        <span class="comment">// Verify the signatures
+        </span><span class="kw">let </span>certificate_digest: Digest = Digest::from(<span class="self">self</span>.digest());
+        PublicKey::verify_batch(certificate_digest.as_ref(), <span class="kw-2">&amp;</span>pks, <span class="kw-2">&amp;</span>sigs).map_err(DagError::from)
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">round</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Round</span> {
-        <span class="self">self</span>.<span class="ident">header</span>.<span class="ident">round</span>
+    <span class="kw">pub fn </span>round(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Round {
+        <span class="self">self</span>.header.round
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">epoch</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Epoch</span> {
-        <span class="self">self</span>.<span class="ident">header</span>.<span class="ident">epoch</span>
+    <span class="kw">pub fn </span>epoch(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Epoch {
+        <span class="self">self</span>.header.epoch
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">origin</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">PublicKey</span> {
-        <span class="self">self</span>.<span class="ident">header</span>.<span class="ident">author</span>.<span class="ident">clone</span>()
+    <span class="kw">pub fn </span>origin(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; PublicKey {
+        <span class="self">self</span>.header.author.clone()
     }
 }
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Copy</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>, <span class="ident">Default</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>, <span class="ident">Hash</span>, <span class="ident">PartialOrd</span>, <span class="ident">Ord</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">CertificateDigest</span>([<span class="ident">u8</span>; <span class="ident">DIGEST_LEN</span>]);
+<span class="attribute">#[derive(Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]</span>
+<span class="kw">pub struct </span>CertificateDigest([u8; DIGEST_LEN]);
 
-<span class="kw">impl</span> <span class="ident">CertificateDigest</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">digest</span>: [<span class="ident">u8</span>; <span class="ident">DIGEST_LEN</span>]) -&gt; <span class="ident">CertificateDigest</span> {
-        <span class="ident">CertificateDigest</span>(<span class="ident">digest</span>)
+<span class="kw">impl </span>CertificateDigest {
+    <span class="kw">pub fn </span>new(digest: [u8; DIGEST_LEN]) -&gt; CertificateDigest {
+        CertificateDigest(digest)
     }
 }
 
-<span class="kw">impl</span> <span class="ident">From</span>&lt;<span class="ident">CertificateDigest</span>&gt; <span class="kw">for</span> <span class="ident">Digest</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">hd</span>: <span class="ident">CertificateDigest</span>) -&gt; <span class="self">Self</span> {
-        <span class="ident">Digest::new</span>(<span class="ident">hd</span>.<span class="number">0</span>)
+<span class="kw">impl </span>From&lt;CertificateDigest&gt; <span class="kw">for </span>Digest {
+    <span class="kw">fn </span>from(hd: CertificateDigest) -&gt; <span class="self">Self </span>{
+        Digest::new(hd.<span class="number">0</span>)
     }
 }
-<span class="kw">impl</span> <span class="ident">From</span>&lt;<span class="ident">CertificateDigest</span>&gt; <span class="kw">for</span> <span class="ident">CertificateDigestProto</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">hd</span>: <span class="ident">CertificateDigest</span>) -&gt; <span class="self">Self</span> {
-        <span class="ident">CertificateDigestProto</span> {
-            <span class="ident">digest</span>: <span class="ident">Bytes::from</span>(<span class="ident">hd</span>.<span class="number">0</span>.<span class="ident">to_vec</span>()),
+<span class="kw">impl </span>From&lt;CertificateDigest&gt; <span class="kw">for </span>CertificateDigestProto {
+    <span class="kw">fn </span>from(hd: CertificateDigest) -&gt; <span class="self">Self </span>{
+        CertificateDigestProto {
+            digest: Bytes::from(hd.<span class="number">0</span>.to_vec()),
         }
     }
 }
 
-<span class="kw">impl</span> <span class="ident">fmt::Debug</span> <span class="kw">for</span> <span class="ident">CertificateDigest</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">fmt::Formatter</span>&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">fmt::Error</span>&gt; {
-        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">base64::encode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>))
+<span class="kw">impl </span>fmt::Debug <span class="kw">for </span>CertificateDigest {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), fmt::Error&gt; {
+        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, base64::encode(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>))
     }
 }
 
-<span class="kw">impl</span> <span class="ident">fmt::Display</span> <span class="kw">for</span> <span class="ident">CertificateDigest</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">fmt::Formatter</span>&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">fmt::Error</span>&gt; {
-        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">base64::encode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>).<span class="ident">get</span>(<span class="number">0</span>..<span class="number">16</span>).<span class="ident">unwrap</span>())
+<span class="kw">impl </span>fmt::Display <span class="kw">for </span>CertificateDigest {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), fmt::Error&gt; {
+        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, base64::encode(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>).get(<span class="number">0</span>..<span class="number">16</span>).unwrap())
     }
 }
 
-<span class="kw">impl</span> <span class="ident">Hash</span> <span class="kw">for</span> <span class="ident">Certificate</span> {
-    <span class="kw">type</span> <span class="ident">TypedDigest</span> = <span class="ident">CertificateDigest</span>;
+<span class="kw">impl </span>Hash <span class="kw">for </span>Certificate {
+    <span class="kw">type </span>TypedDigest = CertificateDigest;
 
-    <span class="kw">fn</span> <span class="ident">digest</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">CertificateDigest</span> {
-        <span class="kw">let</span> <span class="ident">hasher_update</span> = |<span class="ident">hasher</span>: <span class="kw-2">&amp;mut</span> <span class="ident">VarBlake2b</span>| {
-            <span class="ident">hasher</span>.<span class="ident">update</span>(<span class="ident">Digest::from</span>(<span class="self">self</span>.<span class="ident">header</span>.<span class="ident">id</span>));
-            <span class="ident">hasher</span>.<span class="ident">update</span>(<span class="self">self</span>.<span class="ident">round</span>().<span class="ident">to_le_bytes</span>());
-            <span class="ident">hasher</span>.<span class="ident">update</span>(<span class="self">self</span>.<span class="ident">epoch</span>().<span class="ident">to_le_bytes</span>());
-            <span class="ident">hasher</span>.<span class="ident">update</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">origin</span>());
+    <span class="kw">fn </span>digest(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; CertificateDigest {
+        <span class="kw">let </span>hasher_update = |hasher: <span class="kw-2">&amp;mut </span>VarBlake2b| {
+            hasher.update(Digest::from(<span class="self">self</span>.header.id));
+            hasher.update(<span class="self">self</span>.round().to_le_bytes());
+            hasher.update(<span class="self">self</span>.epoch().to_le_bytes());
+            hasher.update(<span class="kw-2">&amp;</span><span class="self">self</span>.origin());
         };
 
-        <span class="ident">CertificateDigest</span>(<span class="ident">crypto::blake2b_256</span>(<span class="ident">hasher_update</span>))
+        CertificateDigest(crypto::blake2b_256(hasher_update))
     }
 }
 
-<span class="kw">impl</span> <span class="ident">fmt::Debug</span> <span class="kw">for</span> <span class="ident">Certificate</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">fmt::Formatter</span>&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="ident">fmt::Error</span>&gt; {
+<span class="kw">impl </span>fmt::Debug <span class="kw">for </span>Certificate {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), fmt::Error&gt; {
         <span class="macro">write!</span>(
-            <span class="ident">f</span>,
+            f,
             <span class="string">&quot;{}: C{}({}, {}, E{})&quot;</span>,
-            <span class="self">self</span>.<span class="ident">digest</span>(),
-            <span class="self">self</span>.<span class="ident">round</span>(),
-            <span class="self">self</span>.<span class="ident">origin</span>().<span class="ident">encode_base64</span>(),
-            <span class="self">self</span>.<span class="ident">header</span>.<span class="ident">id</span>,
-            <span class="self">self</span>.<span class="ident">epoch</span>()
+            <span class="self">self</span>.digest(),
+            <span class="self">self</span>.round(),
+            <span class="self">self</span>.origin().encode_base64(),
+            <span class="self">self</span>.header.id,
+            <span class="self">self</span>.epoch()
         )
     }
 }
 
-<span class="kw">impl</span> <span class="ident">PartialEq</span> <span class="kw">for</span> <span class="ident">Certificate</span> {
-    <span class="kw">fn</span> <span class="ident">eq</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="ident">bool</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ret</span> = <span class="self">self</span>.<span class="ident">header</span>.<span class="ident">id</span> == <span class="ident">other</span>.<span class="ident">header</span>.<span class="ident">id</span>;
-        <span class="ident">ret</span> &amp;= <span class="self">self</span>.<span class="ident">round</span>() == <span class="ident">other</span>.<span class="ident">round</span>();
-        <span class="ident">ret</span> &amp;= <span class="self">self</span>.<span class="ident">epoch</span>() == <span class="ident">other</span>.<span class="ident">epoch</span>();
-        <span class="ident">ret</span> &amp;= <span class="self">self</span>.<span class="ident">origin</span>() == <span class="ident">other</span>.<span class="ident">origin</span>();
-        <span class="ident">ret</span>
+<span class="kw">impl </span>PartialEq <span class="kw">for </span>Certificate {
+    <span class="kw">fn </span>eq(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; bool {
+        <span class="kw">let </span><span class="kw-2">mut </span>ret = <span class="self">self</span>.header.id == other.header.id;
+        ret &amp;= <span class="self">self</span>.round() == other.round();
+        ret &amp;= <span class="self">self</span>.epoch() == other.epoch();
+        ret &amp;= <span class="self">self</span>.origin() == other.origin();
+        ret
     }
 }
 
-<span class="kw">impl</span> <span class="ident">Affiliated</span> <span class="kw">for</span> <span class="ident">Certificate</span> {
-    <span class="kw">fn</span> <span class="ident">parents</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Vec</span>&lt;&lt;<span class="self">Self</span> <span class="kw">as</span> <span class="ident">crypto::Hash</span>&gt;<span class="ident">::TypedDigest</span>&gt; {
-        <span class="self">self</span>.<span class="ident">header</span>.<span class="ident">parents</span>.<span class="ident">iter</span>().<span class="ident">cloned</span>().<span class="ident">collect</span>()
+<span class="kw">impl </span>Affiliated <span class="kw">for </span>Certificate {
+    <span class="kw">fn </span>parents(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;&lt;<span class="self">Self </span><span class="kw">as </span>crypto::Hash&gt;::TypedDigest&gt; {
+        <span class="self">self</span>.header.parents.iter().cloned().collect()
     }
 
-    <span class="comment">// This makes the genesis certificate and empty blocks compressible,</span>
-    <span class="comment">// so that they will never be reported by a DAG walk</span>
-    <span class="comment">// (`read_causal`, `node_read_causal`).</span>
-    <span class="kw">fn</span> <span class="ident">compressible</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">bool</span> {
-        <span class="self">self</span>.<span class="ident">header</span>.<span class="ident">payload</span>.<span class="ident">is_empty</span>()
+    <span class="comment">// This makes the genesis certificate and empty blocks compressible,
+    // so that they will never be reported by a DAG walk
+    // (`read_causal`, `node_read_causal`).
+    </span><span class="kw">fn </span>compressible(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="self">self</span>.header.payload.is_empty()
     }
 }
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>)]</span>
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">PrimaryMessage</span> {
-    <span class="ident">Header</span>(<span class="ident">Header</span>),
-    <span class="ident">Vote</span>(<span class="ident">Vote</span>),
-    <span class="ident">Certificate</span>(<span class="ident">Certificate</span>),
-    <span class="ident">CertificatesRequest</span>(<span class="ident">Vec</span>&lt;<span class="ident">CertificateDigest</span>&gt;, <span class="comment">/* requestor */</span> <span class="ident">PublicKey</span>),
+<span class="attribute">#[derive(Debug, Serialize, Deserialize)]</span>
+<span class="kw">pub enum </span>PrimaryMessage {
+    Header(Header),
+    Vote(Vote),
+    Certificate(Certificate),
+    CertificatesRequest(Vec&lt;CertificateDigest&gt;, <span class="comment">/* requestor */ </span>PublicKey),
 
-    <span class="ident">CertificatesBatchRequest</span> {
-        <span class="ident">certificate_ids</span>: <span class="ident">Vec</span>&lt;<span class="ident">CertificateDigest</span>&gt;,
-        <span class="ident">requestor</span>: <span class="ident">PublicKey</span>,
+    CertificatesBatchRequest {
+        certificate_ids: Vec&lt;CertificateDigest&gt;,
+        requestor: PublicKey,
     },
-    <span class="ident">CertificatesBatchResponse</span> {
-        <span class="ident">certificates</span>: <span class="ident">Vec</span>&lt;(<span class="ident">CertificateDigest</span>, <span class="prelude-ty">Option</span>&lt;<span class="ident">Certificate</span>&gt;)&gt;,
-        <span class="ident">from</span>: <span class="ident">PublicKey</span>,
-    },
-
-    <span class="ident">PayloadAvailabilityRequest</span> {
-        <span class="ident">certificate_ids</span>: <span class="ident">Vec</span>&lt;<span class="ident">CertificateDigest</span>&gt;,
-        <span class="ident">requestor</span>: <span class="ident">PublicKey</span>,
+    CertificatesBatchResponse {
+        certificates: Vec&lt;(CertificateDigest, <span class="prelude-ty">Option</span>&lt;Certificate&gt;)&gt;,
+        from: PublicKey,
     },
 
-    <span class="ident">PayloadAvailabilityResponse</span> {
-        <span class="ident">payload_availability</span>: <span class="ident">Vec</span>&lt;(<span class="ident">CertificateDigest</span>, <span class="ident">bool</span>)&gt;,
-        <span class="ident">from</span>: <span class="ident">PublicKey</span>,
+    PayloadAvailabilityRequest {
+        certificate_ids: Vec&lt;CertificateDigest&gt;,
+        requestor: PublicKey,
+    },
+
+    PayloadAvailabilityResponse {
+        payload_availability: Vec&lt;(CertificateDigest, bool)&gt;,
+        from: PublicKey,
     },
 }
 
-<span class="doccomment">/// Message to reconfigure worker tasks. This message must be sent by a trusted source.</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>)]</span>
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">ReconfigureNotification</span> {
-    <span class="doccomment">/// Indicate the committee has changed. This happens at epoch change.</span>
-    <span class="ident">NewEpoch</span>(<span class="ident">Committee</span>),
-    <span class="doccomment">/// Update some network information of the committee.</span>
-    <span class="ident">UpdateCommittee</span>(<span class="ident">Committee</span>),
-    <span class="doccomment">/// Indicate a shutdown.</span>
-    <span class="ident">Shutdown</span>,
+<span class="doccomment">/// Message to reconfigure worker tasks. This message must be sent by a trusted source.
+</span><span class="attribute">#[derive(Clone, Debug, Serialize, Deserialize)]</span>
+<span class="kw">pub enum </span>ReconfigureNotification {
+    <span class="doccomment">/// Indicate the committee has changed. This happens at epoch change.
+    </span>NewEpoch(Committee),
+    <span class="doccomment">/// Update some network information of the committee.
+    </span>UpdateCommittee(Committee),
+    <span class="doccomment">/// Indicate a shutdown.
+    </span>Shutdown,
 }
 
-<span class="doccomment">/// The messages sent by the primary to its workers.</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>)]</span>
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">PrimaryWorkerMessage</span> {
-    <span class="doccomment">/// The primary indicates that the worker need to sync the target missing batches.</span>
-    <span class="ident">Synchronize</span>(<span class="ident">Vec</span>&lt;<span class="ident">BatchDigest</span>&gt;, <span class="comment">/* target */</span> <span class="ident">PublicKey</span>),
-    <span class="doccomment">/// The primary indicates a round update.</span>
-    <span class="ident">Cleanup</span>(<span class="ident">Round</span>),
-    <span class="doccomment">/// Reconfigure the worker.</span>
-    <span class="ident">Reconfigure</span>(<span class="ident">ReconfigureNotification</span>),
-    <span class="doccomment">/// The primary requests a batch from the worker</span>
-    <span class="ident">RequestBatch</span>(<span class="ident">BatchDigest</span>),
-    <span class="doccomment">/// Delete the batches, dictated from the provided vector of digest, from the worker node</span>
-    <span class="ident">DeleteBatches</span>(<span class="ident">Vec</span>&lt;<span class="ident">BatchDigest</span>&gt;),
+<span class="doccomment">/// The messages sent by the primary to its workers.
+</span><span class="attribute">#[derive(Debug, Serialize, Deserialize)]</span>
+<span class="kw">pub enum </span>PrimaryWorkerMessage {
+    <span class="doccomment">/// The primary indicates that the worker need to sync the target missing batches.
+    </span>Synchronize(Vec&lt;BatchDigest&gt;, <span class="comment">/* target */ </span>PublicKey),
+    <span class="doccomment">/// The primary indicates a round update.
+    </span>Cleanup(Round),
+    <span class="doccomment">/// Reconfigure the worker.
+    </span>Reconfigure(ReconfigureNotification),
+    <span class="doccomment">/// The primary requests a batch from the worker
+    </span>RequestBatch(BatchDigest),
+    <span class="doccomment">/// Delete the batches, dictated from the provided vector of digest, from the worker node
+    </span>DeleteBatches(Vec&lt;BatchDigest&gt;),
 }
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Default</span>, <span class="ident">Debug</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BatchMessage</span> {
-    <span class="comment">// TODO: revisit including the id here [see #188]</span>
-    <span class="kw">pub</span> <span class="ident">id</span>: <span class="ident">BatchDigest</span>,
-    <span class="kw">pub</span> <span class="ident">transactions</span>: <span class="ident">Batch</span>,
+<span class="attribute">#[derive(Clone, Default, Debug, Eq, PartialEq)]</span>
+<span class="kw">pub struct </span>BatchMessage {
+    <span class="comment">// TODO: revisit including the id here [see #188]
+    </span><span class="kw">pub </span>id: BatchDigest,
+    <span class="kw">pub </span>transactions: Batch,
 }
 
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">BlockRemoverResult</span>&lt;<span class="ident">T</span>&gt; = <span class="prelude-ty">Result</span>&lt;<span class="ident">T</span>, <span class="ident">BlockRemoverError</span>&gt;;
+<span class="kw">pub type </span>BlockRemoverResult&lt;T&gt; = <span class="prelude-ty">Result</span>&lt;T, BlockRemoverError&gt;;
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BlockRemoverError</span> {
-    <span class="kw">pub</span> <span class="ident">ids</span>: <span class="ident">Vec</span>&lt;<span class="ident">CertificateDigest</span>&gt;,
-    <span class="kw">pub</span> <span class="ident">error</span>: <span class="ident">BlockRemoverErrorKind</span>,
+<span class="attribute">#[derive(Clone, Debug)]</span>
+<span class="kw">pub struct </span>BlockRemoverError {
+    <span class="kw">pub </span>ids: Vec&lt;CertificateDigest&gt;,
+    <span class="kw">pub </span>error: BlockRemoverErrorKind,
 }
 
-<span class="comment">// TODO: refactor BlockError &amp; BlockRemoverError to be one type shared by get/remove collections.</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>)]</span>
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">BlockRemoverErrorKind</span> {
-    <span class="ident">Timeout</span>,
-    <span class="ident">Failed</span>,
-    <span class="ident">StorageFailure</span>,
+<span class="comment">// TODO: refactor BlockError &amp; BlockRemoverError to be one type shared by get/remove collections.
+</span><span class="attribute">#[derive(Clone, Debug, Eq, PartialEq)]</span>
+<span class="kw">pub enum </span>BlockRemoverErrorKind {
+    Timeout,
+    Failed,
+    StorageFailure,
 }
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>)]</span>
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">BlockErrorKind</span> {
-    <span class="ident">BlockNotFound</span>,
-    <span class="ident">BatchTimeout</span>,
-    <span class="ident">BatchError</span>,
+<span class="attribute">#[derive(Debug, Clone, Eq, PartialEq)]</span>
+<span class="kw">pub enum </span>BlockErrorKind {
+    BlockNotFound,
+    BatchTimeout,
+    BatchError,
 }
 
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">BlockResult</span>&lt;<span class="ident">T</span>&gt; = <span class="prelude-ty">Result</span>&lt;<span class="ident">T</span>, <span class="ident">BlockError</span>&gt;;
+<span class="kw">pub type </span>BlockResult&lt;T&gt; = <span class="prelude-ty">Result</span>&lt;T, BlockError&gt;;
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BlockError</span> {
-    <span class="kw">pub</span> <span class="ident">id</span>: <span class="ident">CertificateDigest</span>,
-    <span class="kw">pub</span> <span class="ident">error</span>: <span class="ident">BlockErrorKind</span>,
+<span class="attribute">#[derive(Debug, Clone, Eq, PartialEq)]</span>
+<span class="kw">pub struct </span>BlockError {
+    <span class="kw">pub </span>id: CertificateDigest,
+    <span class="kw">pub </span>error: BlockErrorKind,
 }
 
-<span class="kw">impl</span>&lt;<span class="ident">T</span>&gt; <span class="ident">From</span>&lt;<span class="ident">BlockError</span>&gt; <span class="kw">for</span> <span class="ident">BlockResult</span>&lt;<span class="ident">T</span>&gt; {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">error</span>: <span class="ident">BlockError</span>) -&gt; <span class="self">Self</span> {
-        <span class="ident">BlockResult::Err</span>(<span class="ident">error</span>)
+<span class="kw">impl</span>&lt;T&gt; From&lt;BlockError&gt; <span class="kw">for </span>BlockResult&lt;T&gt; {
+    <span class="kw">fn </span>from(error: BlockError) -&gt; <span class="self">Self </span>{
+        BlockResult::Err(error)
     }
 }
 
-<span class="kw">impl</span> <span class="ident">fmt::Display</span> <span class="kw">for</span> <span class="ident">BlockError</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Formatter</span>&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="ident">fmt::Result</span> {
-        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;block id: {}, error type: {}&quot;</span>, <span class="self">self</span>.<span class="ident">id</span>, <span class="self">self</span>.<span class="ident">error</span>)
+<span class="kw">impl </span>fmt::Display <span class="kw">for </span>BlockError {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; fmt::Result {
+        <span class="macro">write!</span>(f, <span class="string">&quot;block id: {}, error type: {}&quot;</span>, <span class="self">self</span>.id, <span class="self">self</span>.error)
     }
 }
 
-<span class="kw">impl</span> <span class="ident">fmt::Display</span> <span class="kw">for</span> <span class="ident">BlockErrorKind</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Formatter</span>&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="ident">fmt::Result</span> {
-        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{:?}&quot;</span>, <span class="self">self</span>)
+<span class="kw">impl </span>fmt::Display <span class="kw">for </span>BlockErrorKind {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; fmt::Result {
+        <span class="macro">write!</span>(f, <span class="string">&quot;{:?}&quot;</span>, <span class="self">self</span>)
     }
 }
 
-<span class="doccomment">/// The messages sent by the workers to their primary.</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>)]</span>
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">WorkerPrimaryMessage</span> {
-    <span class="doccomment">/// The worker indicates it sealed a new batch.</span>
-    <span class="ident">OurBatch</span>(<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>),
-    <span class="doccomment">/// The worker indicates it received a batch&#39;s digest from another authority.</span>
-    <span class="ident">OthersBatch</span>(<span class="ident">BatchDigest</span>, <span class="ident">WorkerId</span>),
-    <span class="doccomment">/// The worker sends a requested batch</span>
-    <span class="ident">RequestedBatch</span>(<span class="ident">BatchDigest</span>, <span class="ident">Batch</span>),
-    <span class="doccomment">/// When batches are successfully deleted, this message is sent dictating the</span>
-    <span class="doccomment">/// batches that have been deleted from the worker.</span>
-    <span class="ident">DeletedBatches</span>(<span class="ident">Vec</span>&lt;<span class="ident">BatchDigest</span>&gt;),
-    <span class="doccomment">/// An error has been returned by worker</span>
-    <span class="ident">Error</span>(<span class="ident">WorkerPrimaryError</span>),
-    <span class="doccomment">/// Reconfiguration message sent by the executor (usually upon epoch change).</span>
-    <span class="ident">Reconfigure</span>(<span class="ident">ReconfigureNotification</span>),
+<span class="doccomment">/// The messages sent by the workers to their primary.
+</span><span class="attribute">#[derive(Debug, Serialize, Deserialize)]</span>
+<span class="kw">pub enum </span>WorkerPrimaryMessage {
+    <span class="doccomment">/// The worker indicates it sealed a new batch.
+    </span>OurBatch(BatchDigest, WorkerId),
+    <span class="doccomment">/// The worker indicates it received a batch&#39;s digest from another authority.
+    </span>OthersBatch(BatchDigest, WorkerId),
+    <span class="doccomment">/// The worker sends a requested batch
+    </span>RequestedBatch(BatchDigest, Batch),
+    <span class="doccomment">/// When batches are successfully deleted, this message is sent dictating the
+    /// batches that have been deleted from the worker.
+    </span>DeletedBatches(Vec&lt;BatchDigest&gt;),
+    <span class="doccomment">/// An error has been returned by worker
+    </span>Error(WorkerPrimaryError),
+    <span class="doccomment">/// Reconfiguration message sent by the executor (usually upon epoch change).
+    </span>Reconfigure(ReconfigureNotification),
 }
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>, <span class="ident">thiserror::Error</span>, <span class="ident">Clone</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>)]</span>
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">WorkerPrimaryError</span> {
-    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Batch with id {0} has not been found&quot;</span>)]</span>
-    <span class="ident">RequestedBatchNotFound</span>(<span class="ident">BatchDigest</span>),
+<span class="attribute">#[derive(Debug, Serialize, Deserialize, thiserror::Error, Clone, Eq, PartialEq)]</span>
+<span class="kw">pub enum </span>WorkerPrimaryError {
+    <span class="attribute">#[error(<span class="string">&quot;Batch with id {0} has not been found&quot;</span>)]</span>
+    RequestedBatchNotFound(BatchDigest),
 
-    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;An error occurred while deleting batches. None deleted&quot;</span>)]</span>
-    <span class="ident">ErrorWhileDeletingBatches</span>(<span class="ident">Vec</span>&lt;<span class="ident">BatchDigest</span>&gt;),
+    <span class="attribute">#[error(<span class="string">&quot;An error occurred while deleting batches. None deleted&quot;</span>)]</span>
+    ErrorWhileDeletingBatches(Vec&lt;BatchDigest&gt;),
 }
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>, <span class="ident">Debug</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">WorkerInfoResponse</span> {
-    <span class="doccomment">/// Map of workers&#39; id and their network addresses.</span>
-    <span class="kw">pub</span> <span class="ident">workers</span>: <span class="ident">HashMap</span>&lt;<span class="ident">WorkerId</span>, <span class="ident">WorkerInfo</span>&gt;,
+<span class="attribute">#[derive(Clone, Serialize, Deserialize, Eq, PartialEq, Debug)]</span>
+<span class="kw">pub struct </span>WorkerInfoResponse {
+    <span class="doccomment">/// Map of workers&#39; id and their network addresses.
+    </span><span class="kw">pub </span>workers: HashMap&lt;WorkerId, WorkerInfo&gt;,
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (801821d15 2022-08-14)" ></div></body></html>

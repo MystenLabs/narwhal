@@ -58,65 +58,65 @@
 <span id="58">58</span>
 <span id="59">59</span>
 <span id="60">60</span>
-</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates</span>
-<span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.</span>
-<span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
-<span class="attribute">#![<span class="ident">warn</span>(
-    <span class="ident">future_incompatible</span>,
-    <span class="ident">nonstandard_style</span>,
-    <span class="ident">rust_2018_idioms</span>,
-    <span class="ident">rust_2021_compatibility</span>
+</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
+// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+</span><span class="attribute">#![warn(
+    future_incompatible,
+    nonstandard_style,
+    rust_2018_idioms,
+    rust_2021_compatibility
 )]</span>
-<span class="attribute">#![<span class="ident">allow</span>(<span class="ident">clippy::async_yields_async</span>)]</span>
+<span class="attribute">#![allow(clippy::async_yields_async)]</span>
 
-<span class="kw">mod</span> <span class="ident">bounded_executor</span>;
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">metrics</span>;
-<span class="kw">mod</span> <span class="ident">primary</span>;
-<span class="kw">mod</span> <span class="ident">retry</span>;
-<span class="kw">mod</span> <span class="ident">traits</span>;
-<span class="kw">mod</span> <span class="ident">worker</span>;
+<span class="kw">mod </span>bounded_executor;
+<span class="kw">pub mod </span>metrics;
+<span class="kw">mod </span>primary;
+<span class="kw">mod </span>retry;
+<span class="kw">mod </span>traits;
+<span class="kw">mod </span>worker;
 
-<span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::{
-    <span class="ident">bounded_executor::BoundedExecutor</span>,
-    <span class="ident">primary</span>::{<span class="ident">PrimaryNetwork</span>, <span class="ident">PrimaryToWorkerNetwork</span>},
-    <span class="ident">retry::RetryConfig</span>,
-    <span class="ident">traits</span>::{<span class="ident">LuckyNetwork</span>, <span class="ident">ReliableNetwork</span>, <span class="ident">UnreliableNetwork</span>},
-    <span class="ident">worker</span>::{<span class="ident">WorkerNetwork</span>, <span class="ident">WorkerToPrimaryNetwork</span>},
+<span class="kw">pub use crate</span>::{
+    bounded_executor::BoundedExecutor,
+    primary::{PrimaryNetwork, PrimaryToWorkerNetwork},
+    retry::RetryConfig,
+    traits::{LuckyNetwork, ReliableNetwork, UnreliableNetwork},
+    worker::{WorkerNetwork, WorkerToPrimaryNetwork},
 };
 
-<span class="comment">// the result of our network messages</span>
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">MessageResult</span> = <span class="prelude-ty">Result</span>&lt;<span class="ident">tonic::Response</span>&lt;<span class="ident">types::Empty</span>&gt;, <span class="ident">eyre::Report</span>&gt;;
+<span class="comment">// the result of our network messages
+</span><span class="kw">pub type </span>MessageResult = <span class="prelude-ty">Result</span>&lt;tonic::Response&lt;types::Empty&gt;, eyre::Report&gt;;
 
-<span class="doccomment">/// This adapter will make a [`tokio::task::JoinHandle`] abort its handled task when the handle is dropped.</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
-<span class="attribute">#[<span class="ident">must_use</span>]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">CancelOnDropHandler</span>&lt;<span class="ident">T</span>&gt;(<span class="ident">tokio::task::JoinHandle</span>&lt;<span class="ident">T</span>&gt;);
+<span class="doccomment">/// This adapter will make a [`tokio::task::JoinHandle`] abort its handled task when the handle is dropped.
+</span><span class="attribute">#[derive(Debug)]</span>
+<span class="attribute">#[must_use]</span>
+<span class="kw">pub struct </span>CancelOnDropHandler&lt;T&gt;(tokio::task::JoinHandle&lt;T&gt;);
 
-<span class="kw">impl</span>&lt;<span class="ident">T</span>&gt; <span class="ident">Drop</span> <span class="kw">for</span> <span class="ident">CancelOnDropHandler</span>&lt;<span class="ident">T</span>&gt; {
-    <span class="kw">fn</span> <span class="ident">drop</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
-        <span class="self">self</span>.<span class="number">0</span>.<span class="ident">abort</span>();
+<span class="kw">impl</span>&lt;T&gt; Drop <span class="kw">for </span>CancelOnDropHandler&lt;T&gt; {
+    <span class="kw">fn </span>drop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="self">self</span>.<span class="number">0</span>.abort();
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="ident">T</span>&gt; <span class="ident">std::future::Future</span> <span class="kw">for</span> <span class="ident">CancelOnDropHandler</span>&lt;<span class="ident">T</span>&gt; {
-    <span class="kw">type</span> <span class="ident">Output</span> = <span class="ident">T</span>;
+<span class="kw">impl</span>&lt;T&gt; std::future::Future <span class="kw">for </span>CancelOnDropHandler&lt;T&gt; {
+    <span class="kw">type </span>Output = T;
 
-    <span class="kw">fn</span> <span class="ident">poll</span>(
-        <span class="kw-2">mut</span> <span class="self">self</span>: <span class="ident">std::pin::Pin</span>&lt;<span class="kw-2">&amp;mut</span> <span class="self">Self</span>&gt;,
-        <span class="ident">cx</span>: <span class="kw-2">&amp;mut</span> <span class="ident">std::task::Context</span>&lt;<span class="lifetime">&#39;_</span>&gt;,
-    ) -&gt; <span class="ident">std::task::Poll</span>&lt;<span class="ident"><span class="self">Self</span>::Output</span>&gt; {
-        <span class="kw">use</span> <span class="ident">futures::future::FutureExt</span>;
-        <span class="comment">// If the task panics just propagate it up</span>
-        <span class="self">self</span>.<span class="number">0</span>.<span class="ident">poll_unpin</span>(<span class="ident">cx</span>).<span class="ident">map</span>(<span class="ident">Result::unwrap</span>)
+    <span class="kw">fn </span>poll(
+        <span class="kw-2">mut </span><span class="self">self</span>: std::pin::Pin&lt;<span class="kw-2">&amp;mut </span><span class="self">Self</span>&gt;,
+        cx: <span class="kw-2">&amp;mut </span>std::task::Context&lt;<span class="lifetime">&#39;_</span>&gt;,
+    ) -&gt; std::task::Poll&lt;<span class="self">Self</span>::Output&gt; {
+        <span class="kw">use </span>futures::future::FutureExt;
+        <span class="comment">// If the task panics just propagate it up
+        </span><span class="self">self</span>.<span class="number">0</span>.poll_unpin(cx).map(Result::unwrap)
     }
 }
 
-<span class="comment">// This is the maximum number of network tasks that we will create for sending messages. It is a</span>
-<span class="comment">// limit per network struct - PrimaryNetwork, PrimaryToWorkerNetwork, and WorkerNetwork each have</span>
-<span class="comment">// their own limit.</span>
-<span class="comment">//</span>
-<span class="comment">// The exact number here probably isn&#39;t important, the key things is that it should be finite so</span>
-<span class="comment">// that we don&#39;t create unbounded numbers of tasks.</span>
-<span class="kw">pub</span> <span class="kw">const</span> <span class="ident">MAX_TASK_CONCURRENCY</span>: <span class="ident">usize</span> = <span class="number">200</span>;
+<span class="comment">// This is the maximum number of network tasks that we will create for sending messages. It is a
+// limit per network struct - PrimaryNetwork, PrimaryToWorkerNetwork, and WorkerNetwork each have
+// their own limit.
+//
+// The exact number here probably isn&#39;t important, the key things is that it should be finite so
+// that we don&#39;t create unbounded numbers of tasks.
+</span><span class="kw">pub const </span>MAX_TASK_CONCURRENCY: usize = <span class="number">500</span>;
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="network" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (f22819bcc 2022-08-12)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="network" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (801821d15 2022-08-14)" ></div></body></html>
