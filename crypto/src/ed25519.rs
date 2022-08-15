@@ -54,6 +54,7 @@ pub struct Ed25519KeyPair {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ed25519Signature {
     pub sig: ed25519_consensus::Signature,
+    // Helps implementing AsRef<[u8]>.
     pub bytes: OnceCell<[u8; ED25519_SIGNATURE_LENGTH]>,
 }
 
@@ -254,6 +255,16 @@ impl Default for Ed25519Signature {
     }
 }
 
+// Notes for Serialize and Deserialize implementations of Ed25519Signature:
+// - Since `bytes` field contains serialized `sig` field, it can be used directly for ser/de of
+//   the Ed25519Signature struct.
+// - The `serialize_struct()` function and deserialization visitor add complexity, but they are necessary for
+//   Ed25519Signature ser/de to work with `serde_reflection`.
+//   `serde_reflection` works poorly [with aliases and nameless types](https://docs.rs/serde-reflection/latest/serde_reflection/index.html#unsupported-idioms).
+// - Serialization output and deserialization input support human readable (base64) and non-readable (binary) formats
+//   separately (supported for other schemes since #460). Different struct field names ("base64" vs "raw") are used
+//   to disambiguate the formats.
+// These notes may help if Ed25519Signature needs to change the struct layout, or its ser/de implementation.
 impl Serialize for Ed25519Signature {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -267,7 +278,7 @@ impl Serialize for Ed25519Signature {
                 &base64ct::Base64::encode_string(self.as_ref()),
             )?;
         } else {
-            state.serialize_field(RAW_FIELD_NAME, &Bytes::new(self.as_ref()))?;
+            state.serialize_field(RAW_FIELD_NAME, Bytes::new(self.as_ref()))?;
         }
         state.end()
     }
