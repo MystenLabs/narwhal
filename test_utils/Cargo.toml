@@ -13,7 +13,7 @@ bincode = "1.3.3"
 blake2 = "0.9"
 bytes = "1.2.1"
 derive_builder = "0.11.2"
-futures = "0.3.21"
+futures = "0.3.23"
 indexmap = { version = "1.9.1", features = ["serde"] }
 itertools = "0.10.3"
 multiaddr = "0.14.0"
