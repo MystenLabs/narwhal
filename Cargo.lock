@@ -761,6 +761,7 @@ dependencies = [
  "bincode",
  "blake2",
  "bytes",
+ "cfg-if 1.0.0",
  "config",
  "criterion",
  "crypto",
