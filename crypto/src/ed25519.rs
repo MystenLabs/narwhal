@@ -438,13 +438,15 @@ impl AggregateAuthenticator for Ed25519AggregateSignature {
         }
         let mut batch = batch::Verifier::new();
 
-        for i in 0..pks.len() {
-            if pks[i].len() != sigs[i].0.len() {
+        let mut pk_iter = pks.into_iter();
+        for i in 0..sigs.len() {
+            let pk_list = &pk_iter.next().unwrap().map(|x| &x.0).collect::<Vec<_>>()[..];
+            if pk_list.len() != sigs[i].0.len() {
                 return Err(signature::Error::new());
             }
-            for j in 0..pks[i].len() {
-                let vk_bytes = VerificationKeyBytes::from(pks[i][j].0);
-                batch.queue((vk_bytes, sigs[i].0[j], messages[i]));
+            for (&pk, sig) in pk_list.iter().zip(&sigs[i].0) {
+                let vk_bytes = VerificationKeyBytes::from(*pk);
+                batch.queue((vk_bytes, *sig, messages[i]));
             }
         }
         batch.verify(OsRng).map_err(|_| signature::Error::new())

@@ -16,7 +16,6 @@ use std::{
     collections::{BTreeMap, HashMap, HashSet},
     fs::{self, OpenOptions},
     io::{BufWriter, Write as _},
-    ops::Deref,
     sync::Arc,
     time::Duration,
 };
