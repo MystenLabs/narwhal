@@ -99,11 +99,10 @@ fn test_serde_signatures_human_readable() {
     let kp = keys().pop().unwrap();
     let message: &[u8] = b"Hello, world!";
     let signature = kp.sign(message);
-
     let serialized = serde_json::to_string(&signature).unwrap();
     assert_eq!(
         format!(
-            r#"{{"base64":"{}"}}"#,
+            "\"{}\"",
             base64ct::Base64::encode_string(&signature.sig.to_bytes())
         ),
         serialized
@@ -435,6 +434,7 @@ fn test_serialize_deserialize_aggregate_signatures() {
         .unzip();
 
     let sig = Ed25519AggregateSignature::aggregate(signatures).unwrap();
+    println!("csig: {:?}", sig);
     let serialized = bincode::serialize(&sig).unwrap();
     let deserialized: Ed25519AggregateSignature = bincode::deserialize(&serialized).unwrap();
     assert_eq!(deserialized.0, sig.0);

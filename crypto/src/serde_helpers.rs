@@ -9,6 +9,7 @@ use serde::{
     Deserialize, Serialize,
 };
 use serde_with::{Bytes, DeserializeAs, SerializeAs};
+use signature::Signature;
 use std::fmt::Debug;
 
 use crate::traits::{KeyPair, SigningKey, ToFromBytes, VerifyingKey};
@@ -66,4 +67,40 @@ pub fn keypair_decode_base64<T: KeyPair>(value: &str) -> Result<T, eyre::Report>
         return Err(eyre::eyre!("Invalid keypair"));
     }
     Ok(kp)
+}
+
+pub struct Ed25519Signature;
+
+impl SerializeAs<ed25519_consensus::Signature> for Ed25519Signature {
+    fn serialize_as<S>(
+        source: &ed25519_consensus::Signature,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        if serializer.is_human_readable() {
+            // Serialise to Base64 encoded String
+            base64ct::Base64::encode_string(source.to_bytes().as_ref()).serialize(serializer)
+        } else {
+            // Serialise to Bytes
+            Bytes::serialize_as(&source.to_bytes(), serializer)
+        }
+    }
+}
+
+impl<'de> DeserializeAs<'de, ed25519_consensus::Signature> for Ed25519Signature {
+    fn deserialize_as<D>(deserializer: D) -> Result<ed25519_consensus::Signature, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let bytes = if deserializer.is_human_readable() {
+            let s = String::deserialize(deserializer)?;
+            base64ct::Base64::decode_vec(&s).map_err(to_custom_error::<'de, D, _>)?
+        } else {
+            Bytes::deserialize_as(deserializer)?
+        };
+        ed25519_consensus::Signature::try_from(bytes.as_slice())
+            .map_err(to_custom_error::<'de, D, _>)
+    }
 }
