@@ -8,13 +8,17 @@
 //! concurrently when spawned through this executor, defined by the initial
 //! `capacity`.
 
-use futures::{future::Future, FutureExt};
+use futures::{
+    future::{BoxFuture, Future},
+    FutureExt, StreamExt,
+};
 use std::sync::Arc;
 use tokio::{
     runtime::Handle,
-    sync::{OwnedSemaphorePermit, Semaphore},
+    sync::{mpsc, OwnedSemaphorePermit, Semaphore},
     task::JoinHandle,
 };
+use tokio_util::time::DelayQueue;
 
 use tracing::debug;
 
@@ -166,6 +170,8 @@ impl BoundedExecutor {
 
             let executor = move || {
                 let semaphore = semaphore.clone();
+                // TODO(erwan): chain the `Fut` to subsume the `Result<T, E>` into an
+                // `OpaqueResult`
                 BoundedExecutor::run_on_semaphore(semaphore, f())
             };
 
@@ -185,6 +191,80 @@ impl BoundedExecutor {
             ret
         })
         .await
+    }
+}
+
+// TODO(erwan): compare backoff crates
+type Backoff = ();
+
+/// The output of a faillible computation, similar to a `Result<T, E>` but using unit variants.
+// Subsuming a `OpaqueResult` for a `Result` enables us to save a heap allocation
+// when submitting computations to the scheduler.
+enum OpaqueResult {
+    Ok,
+    Err,
+}
+
+/// A `Future` task that can fail.
+type FaillibleFuture = BoxFuture<'static, OpaqueResult>;
+
+/// A job to schedule or execute.
+/// Wraps a `FaillibleFuture` factory and a `Backoff` context specific to that computation.
+// TODO(erwan): investigate #![feature(type_alias_impl_trait)]
+type Job = (
+    Box<dyn FnMut() -> FaillibleFuture + Send + 'static>,
+    Backoff,
+);
+
+/// A scheduler which manages spawning retry tasks on the `BoundedExecutor`.
+struct RetryManager {
+    /// A queue of jobs eligible for execution.
+    execution_queue: DelayQueue<Job>,
+    /// A sink of failed jobs going to the scheduler.
+    tx_new_jobs: Arc<mpsc::Sender<Job>>,
+    /// A stream of failed jobs that need scheduling.
+    rx_new_jobs: mpsc::Receiver<Job>,
+}
+
+impl RetryManager {
+    async fn run(mut self, executor: BoundedExecutor) {
+        loop {
+            tokio::select! {
+                 // Pull jobs that are ready for execution, and forward them to the executor if
+                 // resources can be acquired (semaphore permit).
+                 // TODO(erwan): gating branch.
+                 job_ready = self.execution_queue.next() => {
+                         let (mut f, backoff) = job_ready.unwrap().into_inner();
+                         let tx_scheduler = self.tx_new_jobs.clone();
+
+                         let task = f();
+                         let retry_task = task.map(move |result| async move {
+                               match result {
+                                   OpaqueResult::Ok => (),
+                                   OpaqueResult::Err => {
+                                       // let backoff = backoff.tick();
+                                       let job = (f, backoff);
+                                       tx_scheduler.send(job).await;
+                                  }
+                               }
+                                  result
+                         }).flatten();  // We can do a simple closure too
+
+
+                         // TODO(erwan): see discussion in issue #567 -  a blocking spawn on the
+                         // semaphore might be acceptable provided that we obtain a permit to run 
+                         // prior to branching. 
+                         executor.spawn(retry_task).await;
+                 },
+                 // Pull jobs that need scheduling, and schedule them for execution.
+                 new_job = self.rx_new_jobs.recv() => {
+                           let (f, backoff) = new_job.unwrap();
+                           // let cooldown_time = backoff.time();
+                           let cooldown_time = unimplemented!();
+                           self.execution_queue.insert((f, backoff), cooldown_time);
+                        },
+            }
+        }
     }
 }
 
