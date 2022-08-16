@@ -512,7 +512,6 @@
 <span id="512">512</span>
 <span id="513">513</span>
 <span id="514">514</span>
-<span id="515">515</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
@@ -584,7 +583,6 @@
     DagInvariantViolation(<span class="attribute">#[from]</span> dag::node_dag::NodeDagError),
 }
 
-<span class="attribute">#[allow(clippy::large_enum_variant)]</span>
 <span class="kw">enum </span>DagCommand {
     Insert(
         Box&lt;Certificate&gt;,

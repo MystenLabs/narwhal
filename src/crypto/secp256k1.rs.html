@@ -437,6 +437,8 @@
 <span id="437">437</span>
 <span id="438">438</span>
 <span id="439">439</span>
+<span id="440">440</span>
+<span id="441">441</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use crate</span>::{
@@ -449,6 +451,7 @@
 <span class="kw">use </span>rust_secp256k1::{
     constants,
     ecdsa::{RecoverableSignature, RecoveryId},
+    rand::rngs::OsRng,
     Message, PublicKey, Secp256k1, SecretKey,
 };
 <span class="kw">use </span>serde::{de, Deserialize, Serialize};
@@ -789,9 +792,10 @@
         <span class="self">self</span>.secret
     }
 
-    <span class="kw">fn </span>generate&lt;R: rand::CryptoRng + rand::RngCore&gt;(rng: <span class="kw-2">&amp;mut </span>R) -&gt; <span class="self">Self </span>{
+    <span class="kw">fn </span>generate&lt;R: rand::CryptoRng + rand::RngCore&gt;(_rng: <span class="kw-2">&amp;mut </span>R) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>secp = Secp256k1::new();
-        <span class="kw">let </span>(privkey, pubkey) = secp.generate_keypair(rng);
+        <span class="comment">// TODO: use param rng instead of generate a fresh OsRng when rand is upgraded to match. https://github.com/MystenLabs/narwhal/issues/544
+        </span><span class="kw">let </span>(privkey, pubkey) = secp.generate_keypair(<span class="kw-2">&amp;mut </span>OsRng);
 
         Secp256k1KeyPair {
             name: Secp256k1PublicKey {

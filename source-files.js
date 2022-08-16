@@ -1,7 +1,7 @@
 var sourcesIndex = JSON.parse('{\
 "config":["",[],["duration_format.rs","lib.rs","utils.rs"]],\
 "consensus":["",[],["bullshark.rs","consensus.rs","dag.rs","lib.rs","metrics.rs","tusk.rs","utils.rs"]],\
-"crypto":["",[],["bls12381.rs","bulletproofs.rs","ed25519.rs","hkdf.rs","lib.rs","pubkey_bytes.rs","secp256k1.rs","serde_helpers.rs","traits.rs"]],\
+"crypto":["",[],["bls12381.rs","ed25519.rs","hkdf.rs","lib.rs","pubkey_bytes.rs","secp256k1.rs","serde_helpers.rs","traits.rs"]],\
 "dag":["",[],["bft.rs","lib.rs","node_dag.rs"]],\
 "demo_client":["",[],["demo_client.rs"]],\
 "executor":["",[],["core.rs","errors.rs","lib.rs","metrics.rs","state.rs","subscriber.rs"]],\

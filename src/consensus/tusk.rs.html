@@ -452,7 +452,7 @@
     <span class="attribute">#[test]</span>
     <span class="kw">fn </span>state_limits_test() {
         <span class="kw">let </span>gc_depth = <span class="number">12</span>;
-        <span class="kw">let </span>rounds: Round = rand::thread_rng().gen_range(<span class="number">10</span>..<span class="number">100</span>);
+        <span class="kw">let </span>rounds: Round = rand::thread_rng().gen_range(<span class="number">10</span>, <span class="number">100</span>);
 
         <span class="comment">// process certificates for rounds, check we don&#39;t grow the dag too much
         </span><span class="kw">let </span>keys: Vec&lt;<span class="kw">_</span>&gt; = test_utils::keys(<span class="prelude-val">None</span>)
@@ -499,7 +499,7 @@
     <span class="attribute">#[test]</span>
     <span class="kw">fn </span>imperfect_state_limits_test() {
         <span class="kw">let </span>gc_depth = <span class="number">12</span>;
-        <span class="kw">let </span>rounds: Round = rand::thread_rng().gen_range(<span class="number">10</span>..<span class="number">100</span>);
+        <span class="kw">let </span>rounds: Round = rand::thread_rng().gen_range(<span class="number">10</span>, <span class="number">100</span>);
 
         <span class="comment">// process certificates for rounds, check we don&#39;t grow the dag too much
         </span><span class="kw">let </span>keys: Vec&lt;<span class="kw">_</span>&gt; = test_utils::keys(<span class="prelude-val">None</span>)

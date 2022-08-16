@@ -625,16 +625,6 @@
 <span id="625">625</span>
 <span id="626">626</span>
 <span id="627">627</span>
-<span id="628">628</span>
-<span id="629">629</span>
-<span id="630">630</span>
-<span id="631">631</span>
-<span id="632">632</span>
-<span id="633">633</span>
-<span id="634">634</span>
-<span id="635">635</span>
-<span id="636">636</span>
-<span id="637">637</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
@@ -656,7 +646,6 @@
     pubkey_bytes::PublicKeyBytes,
     serde_helpers::{keypair_decode_base64, BlsSignature},
 };
-<span class="kw">use </span>eyre::eyre;
 <span class="kw">use </span>serde::{
     de::{<span class="self">self</span>},
     Deserialize, Serialize,
@@ -828,19 +817,10 @@
 
     <span class="kw">const </span>LENGTH: usize = BLS_PUBLIC_KEY_LENGTH;
 
-    <span class="kw">fn </span>verify_batch_empty_fail(
-        msg: <span class="kw-2">&amp;</span>[u8],
-        pks: <span class="kw-2">&amp;</span>[<span class="self">Self</span>],
-        sigs: <span class="kw-2">&amp;</span>[<span class="self">Self</span>::Sig],
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), eyre::Report&gt; {
+    <span class="kw">fn </span>verify_batch(msg: <span class="kw-2">&amp;</span>[u8], pks: <span class="kw-2">&amp;</span>[<span class="self">Self</span>], sigs: <span class="kw-2">&amp;</span>[<span class="self">Self</span>::Sig]) -&gt; <span class="prelude-ty">Result</span>&lt;(), signature::Error&gt; {
         <span class="kw">let </span>num_sigs = sigs.len();
-        <span class="kw">if </span>sigs.is_empty() {
-            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">eyre!</span>(<span class="string">&quot;Critical Error! This behavious can signal something dangerous, and that someone may be trying to bypass signature verification through providing empty batches.&quot;</span>));
-        }
-        <span class="kw">if </span>sigs.len() != pks.len() {
-            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">eyre!</span>(
-                <span class="string">&quot;Mismatch between number of signatures and public keys provided&quot;
-            </span>));
+        <span class="kw">if </span>pks.len() != num_sigs {
+            <span class="kw">return </span><span class="prelude-val">Err</span>(signature::Error::new());
         }
         <span class="kw">let </span><span class="kw-2">mut </span>rands: Vec&lt;blst_scalar&gt; = Vec::with_capacity(num_sigs);
         <span class="kw">let </span><span class="kw-2">mut </span>rng = OsRng;
@@ -875,7 +855,7 @@
         <span class="kw">if </span>result == BLST_ERROR::BLST_SUCCESS {
             <span class="prelude-val">Ok</span>(())
         } <span class="kw">else </span>{
-            <span class="prelude-val">Err</span>(<span class="macro">eyre!</span>(<span class="string">&quot;Verification failed!&quot;</span>))
+            <span class="prelude-val">Err</span>(signature::Error::new())
         }
     }
 }
