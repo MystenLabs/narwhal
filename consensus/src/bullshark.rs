@@ -149,15 +149,18 @@ impl Bullshark {
     ) -> Option<&'a (CertificateDigest, Certificate)> {
         // Note: this function is often called with even rounds only. While we do not aim at random selection
         // yet (see issue #10), repeated calls to this function should still pick from the whole roster of leaders.
-        #[cfg(not(test))]
-        let seed = round;
-        #[cfg(test)]
-        let seed = 0;
 
-        // Elect the leader in a stake-weighted choice seeded by the round
-        let leader = committee.leader(seed);
+        cfg_if::cfg_if! {
+            if #[cfg(test)] {
+                // consensus tests rely on returning the same leader.
+                let leader = committee.authorities.iter().next().expect("Empty authorities table!").0;
+            } else {
+                // Elect the leader in a stake-weighted choice seeded by the round
+                let leader = &committee.leader(round);
+            }
+        }
 
         // Return its certificate and the certificate's digest.
-        dag.get(&round).and_then(|x| x.get(&leader))
+        dag.get(&round).and_then(|x| x.get(leader))
     }
 }
