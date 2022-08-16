@@ -7,7 +7,7 @@ use fastcrypto::traits::KeyPair;
 use prometheus::Registry;
 use test_utils::{
     certificate, fixture_batch_with_transactions, header, headers, keys, pure_committee_from_keys,
-    votes, worker_cache_from_keys, PrimaryToPrimaryMockServer,
+    shared_worker_cache_from_keys, votes, worker_cache_from_keys, PrimaryToPrimaryMockServer,
 };
 use types::{Header, Vote};
 
@@ -15,7 +15,7 @@ use types::{Header, Vote};
 async fn process_header() {
     let mut keys = keys(None);
     let committee = pure_committee_from_keys(&keys);
-    let worker_cache = worker_cache_from_keys(&keys);
+    let worker_cache = shared_worker_cache_from_keys(&keys);
     let _ = keys.pop().unwrap(); // Skip the header' author.
     let kp = keys.pop().unwrap();
     let name = kp.public().clone();
@@ -63,7 +63,7 @@ async fn process_header() {
     let _core_handle = Core::spawn(
         name,
         committee.clone(),
-        worker_cache.clone(),
+        worker_cache,
         header_store.clone(),
         certificates_store.clone(),
         synchronizer,
@@ -111,7 +111,7 @@ async fn process_header() {
 async fn process_header_missing_parent() {
     let mut k = keys(None);
     let committee = pure_committee_from_keys(&k);
-    let worker_cache = worker_cache_from_keys(&k);
+    let worker_cache = shared_worker_cache_from_keys(&k);
     let kp = k.pop().unwrap();
     let name = kp.public().clone();
     let signature_service = SignatureService::new(kp);
@@ -147,7 +147,7 @@ async fn process_header_missing_parent() {
     let _core_handle = Core::spawn(
         name.clone(),
         committee.clone(),
-        worker_cache.clone(),
+        worker_cache,
         header_store.clone(),
         certificates_store.clone(),
         synchronizer,
@@ -191,7 +191,7 @@ async fn process_header_missing_parent() {
 async fn process_header_missing_payload() {
     let mut k = keys(None);
     let committee = pure_committee_from_keys(&k);
-    let worker_cache = worker_cache_from_keys(&k);
+    let worker_cache = shared_worker_cache_from_keys(&k);
     let kp = k.pop().unwrap();
     let name = kp.public().clone();
     let signature_service = SignatureService::new(kp);
@@ -227,7 +227,7 @@ async fn process_header_missing_payload() {
     let _core_handle = Core::spawn(
         name.clone(),
         committee.clone(),
-        worker_cache.clone(),
+        worker_cache,
         header_store.clone(),
         certificates_store.clone(),
         synchronizer,
@@ -281,7 +281,7 @@ async fn process_header_missing_payload() {
 async fn process_votes() {
     let mut k = keys(None);
     let committee = pure_committee_from_keys(&k);
-    let worker_cache = worker_cache_from_keys(&k);
+    let worker_cache = shared_worker_cache_from_keys(&k);
     let kp = k.pop().unwrap();
     let name = kp.public().clone();
     let signature_service = SignatureService::new(kp);
@@ -318,7 +318,7 @@ async fn process_votes() {
     let _core_handle = Core::spawn(
         name.clone(),
         committee.clone(),
-        worker_cache.clone(),
+        worker_cache,
         header_store.clone(),
         certificates_store.clone(),
         synchronizer,
@@ -379,7 +379,7 @@ async fn process_votes() {
 async fn process_certificates() {
     let mut k = keys(None);
     let committee = pure_committee_from_keys(&k);
-    let worker_cache = worker_cache_from_keys(&k);
+    let worker_cache = shared_worker_cache_from_keys(&k);
     let kp = k.pop().unwrap();
     let name = kp.public().clone();
     let signature_service = SignatureService::new(kp);
@@ -416,7 +416,7 @@ async fn process_certificates() {
     let _core_handle = Core::spawn(
         name,
         committee.clone(),
-        worker_cache.clone(),
+        worker_cache,
         header_store.clone(),
         certificates_store.clone(),
         synchronizer,
@@ -484,7 +484,7 @@ async fn process_certificates() {
 async fn shutdown_core() {
     let mut keys = keys(None);
     let committee = pure_committee_from_keys(&keys);
-    let worker_cache = worker_cache_from_keys(&keys);
+    let worker_cache = shared_worker_cache_from_keys(&keys);
     let _ = keys.pop().unwrap(); // Skip the header' author.
     let kp = keys.pop().unwrap();
     let name = kp.public().clone();
@@ -520,7 +520,7 @@ async fn shutdown_core() {
     let handle = Core::spawn(
         name,
         committee.clone(),
-        worker_cache.clone(),
+        worker_cache,
         header_store,
         certificates_store,
         synchronizer,
@@ -548,7 +548,7 @@ async fn shutdown_core() {
 async fn reconfigure_core() {
     let mut keys_0 = keys(None);
     let committee = pure_committee_from_keys(&keys_0);
-    let worker_cache = worker_cache_from_keys(&keys_0);
+    let worker_cache = shared_worker_cache_from_keys(&keys_0);
     let _ = keys_0.pop().unwrap(); // Skip the header' author.
     let kp = keys_0.pop().unwrap();
     let name = kp.public().clone();
@@ -558,6 +558,7 @@ async fn reconfigure_core() {
     let keys_1 = keys(None);
     let mut new_committee = pure_committee_from_keys(&keys_1);
     new_committee.epoch = 1;
+    // TODO(ajkoshy) Remove or use worker_cache
     let mut new_worker_cache = worker_cache_from_keys(&keys_1);
     new_worker_cache.epoch = 1;
 
@@ -603,7 +604,7 @@ async fn reconfigure_core() {
     let _core_handle = Core::spawn(
         name,
         committee.clone(),
-        worker_cache.clone(),
+        worker_cache,
         header_store.clone(),
         certificates_store.clone(),
         synchronizer,

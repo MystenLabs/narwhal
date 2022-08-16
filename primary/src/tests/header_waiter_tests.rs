@@ -11,14 +11,14 @@ use fastcrypto::Hash;
 use network::{PrimaryNetwork, PrimaryToWorkerNetwork};
 use prometheus::Registry;
 use std::{sync::Arc, time::Duration};
-use test_utils::{fixture_header_with_payload, resolve_name_and_committee_and_worker_cache};
+use test_utils::{fixture_header_with_payload, resolve_name_committee_and_worker_cache};
 use tokio::{sync::watch, time::timeout};
 use types::{BatchDigest, ReconfigureNotification, Round};
 
 #[tokio::test]
 async fn successfully_synchronize_batches() {
     // GIVEN
-    let (name, committee, worker_cache) = resolve_name_and_committee_and_worker_cache();
+    let (name, committee, worker_cache) = resolve_name_committee_and_worker_cache();
     let (_, certificate_store, payload_store) = create_db_stores();
     let gc_depth: Round = 1;
     let (_tx_reconfigure, rx_reconfigure) =
@@ -67,6 +67,7 @@ async fn successfully_synchronize_batches() {
 
     // AND spin up a worker node that primary owns
     let worker_address = worker_cache
+        .load()
         .worker(&name, &worker_id)
         .unwrap()
         .primary_to_worker;

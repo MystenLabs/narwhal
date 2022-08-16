@@ -245,7 +245,7 @@ impl Worker {
             self.name.clone(),
             self.id,
             (*(*(*self.committee).load()).clone()).clone(),
-            (*(*(*self.worker_cache).load()).clone()).clone(),
+            self.worker_cache.clone(),
             tx_reconfigure.subscribe(),
             /* rx_message */ rx_quorum_waiter,
             /* tx_batch */ tx_client_processor,
@@ -320,7 +320,7 @@ impl Worker {
         let helper_handle = Helper::spawn(
             self.id,
             (*(*(*self.committee).load()).clone()).clone(),
-            (*(*(*self.worker_cache).load()).clone()).clone(),
+            self.worker_cache.clone(),
             self.store.clone(),
             tx_reconfigure.subscribe(),
             /* rx_worker_request */ rx_worker_helper,

@@ -104,15 +104,6 @@ ReconfigureNotification:
           TYPENAME: Committee
     2:
       Shutdown: UNIT
-WorkerCache:
-  STRUCT:
-    - workers:
-        MAP:
-          KEY:
-            TYPENAME: Ed25519PublicKey
-          VALUE:
-            TYPENAME: WorkerIndex
-    - epoch: U64
 WorkerIndex:
   NEWTYPESTRUCT:
     MAP:

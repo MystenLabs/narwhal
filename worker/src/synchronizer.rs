@@ -2,13 +2,13 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use crate::metrics::WorkerMetrics;
-use config::{SharedCommittee, SharedWorkerCache, WorkerId};
+use config::{SharedCommittee, SharedWorkerCache, WorkerCache, WorkerId, WorkerIndex};
 use crypto::PublicKey;
 use futures::stream::{futures_unordered::FuturesUnordered, StreamExt as _};
 use network::{LuckyNetwork, UnreliableNetwork, WorkerNetwork};
 use primary::PrimaryWorkerMessage;
 use std::{
-    collections::HashMap,
+    collections::{BTreeMap, HashMap},
     sync::Arc,
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -208,8 +208,18 @@ impl Synchronizer {
                         // Reconfigure this task and update the shared committee.
                         let shutdown = match &message {
                             ReconfigureNotification::NewEpoch(new_committee) => {
-                                self.network.cleanup(self.committee.load().network_diff(new_committee));
+                                self.network.cleanup(self.worker_cache.load().network_diff(new_committee.keys()));
                                 self.committee.swap(Arc::new(new_committee.clone()));
+
+                                // Update the worker cache.
+                                self.worker_cache.swap(Arc::new(WorkerCache {
+                                    epoch: new_committee.epoch,
+                                    workers: new_committee.keys().iter().map(|key|
+                                        (
+                                            (*key).clone(),
+                                            self.worker_cache.load().workers.get(key).unwrap_or(&WorkerIndex(BTreeMap::new())).clone()
+                                        )).collect(),
+                                }));
 
                                 self.pending.clear();
                                 self.round = 0;
@@ -219,8 +229,18 @@ impl Synchronizer {
                                 false
                             }
                             ReconfigureNotification::UpdateCommittee(new_committee) => {
-                                self.network.cleanup(self.committee.load().network_diff(new_committee));
+                                self.network.cleanup(self.worker_cache.load().network_diff(new_committee.keys()));
                                 self.committee.swap(Arc::new(new_committee.clone()));
+
+                                // Update the worker cache.
+                                self.worker_cache.swap(Arc::new(WorkerCache {
+                                    epoch: new_committee.epoch,
+                                    workers: new_committee.keys().iter().map(|key|
+                                        (
+                                            (*key).clone(),
+                                            self.worker_cache.load().workers.get(key).unwrap_or(&WorkerIndex(BTreeMap::new())).clone()
+                                        )).collect(),
+                                }));
 
                                 tracing::debug!("Committee updated to {}", self.committee);
                                 false

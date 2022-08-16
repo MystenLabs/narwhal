@@ -1,9 +1,10 @@
+use arc_swap::ArcSwap;
 // Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use config::{
-    utils::get_available_port, Authority, Committee, Epoch, PrimaryAddresses, WorkerCache,
-    WorkerId, WorkerIndex, WorkerInfo,
+    utils::get_available_port, Authority, Committee, Epoch, PrimaryAddresses, SharedWorkerCache,
+    WorkerCache, WorkerId, WorkerIndex, WorkerInfo,
 };
 use crypto::PublicKey;
 use crypto::{KeyPair, Signature};
@@ -155,8 +156,12 @@ pub fn make_authority() -> Authority {
 }
 
 // Fixture
-pub fn worker_cache(rng_seed: impl Into<Option<u64>>) -> WorkerCache {
-    worker_cache_from_keys(&keys(rng_seed))
+pub fn shared_worker_cache(rng_seed: impl Into<Option<u64>>) -> SharedWorkerCache {
+    shared_worker_cache_from_keys(&keys(rng_seed))
+}
+
+pub fn shared_worker_cache_from_keys(keys: &[KeyPair]) -> SharedWorkerCache {
+    Arc::new(ArcSwap::from_pointee(worker_cache_from_keys(keys)))
 }
 
 pub fn worker_cache_from_keys(keys: &[KeyPair]) -> WorkerCache {
@@ -638,10 +643,10 @@ impl WorkerToWorker for WorkerToWorkerMockServer {
 }
 
 // helper method to get a name and a committee + worker_cache.
-pub fn resolve_name_and_committee_and_worker_cache() -> (PublicKey, Committee, WorkerCache) {
+pub fn resolve_name_committee_and_worker_cache() -> (PublicKey, Committee, SharedWorkerCache) {
     let mut keys = keys(None);
     let committee = pure_committee_from_keys(&keys);
-    let worker_cache = worker_cache_from_keys(&keys);
+    let worker_cache = shared_worker_cache_from_keys(&keys);
     let _ = keys.pop().unwrap(); // Skip the header' author.
     let kp = keys.pop().unwrap();
     let name = kp.public().clone();

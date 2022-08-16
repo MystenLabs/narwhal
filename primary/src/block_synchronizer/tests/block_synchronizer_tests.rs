@@ -21,7 +21,7 @@ use std::{
 };
 use test_utils::{
     certificate, fixture_batch_with_transactions, fixture_header_builder, keys,
-    resolve_name_and_committee_and_worker_cache, PrimaryToPrimaryMockServer,
+    resolve_name_committee_and_worker_cache, PrimaryToPrimaryMockServer,
 };
 use tokio::{
     sync::{mpsc, watch},
@@ -40,7 +40,7 @@ async fn test_successful_headers_synchronization() {
     let (_, certificate_store, payload_store) = create_db_stores();
 
     // AND the necessary keys
-    let (name, committee, worker_cache) = resolve_name_and_committee_and_worker_cache();
+    let (name, committee, worker_cache) = resolve_name_committee_and_worker_cache();
 
     let (_tx_reconfigure, rx_reconfigure) =
         watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));
@@ -197,7 +197,7 @@ async fn test_successful_payload_synchronization() {
     let (_, certificate_store, payload_store) = create_db_stores();
 
     // AND the necessary keys
-    let (name, committee, worker_cache) = resolve_name_and_committee_and_worker_cache();
+    let (name, committee, worker_cache) = resolve_name_committee_and_worker_cache();
 
     let (_tx_reconfigure, rx_reconfigure) =
         watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));
@@ -262,11 +262,11 @@ async fn test_successful_payload_synchronization() {
     let mut workers = vec![
         (
             worker_id_0,
-            worker_cache.worker(&name, &worker_id_0).unwrap(),
+            worker_cache.load().worker(&name, &worker_id_0).unwrap(),
         ),
         (
             worker_id_1,
-            worker_cache.worker(&name, &worker_id_1).unwrap(),
+            worker_cache.load().worker(&name, &worker_id_1).unwrap(),
         ),
     ];
 
@@ -395,7 +395,7 @@ async fn test_successful_payload_synchronization() {
 async fn test_multiple_overlapping_requests() {
     // GIVEN
     let (_, certificate_store, payload_store) = create_db_stores();
-    let (name, committee, worker_cache) = resolve_name_and_committee_and_worker_cache();
+    let (name, committee, worker_cache) = resolve_name_committee_and_worker_cache();
 
     let (_, rx_reconfigure) = watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));
     let (_, rx_commands) = test_utils::test_channel!(10);
@@ -513,7 +513,7 @@ async fn test_timeout_while_waiting_for_certificates() {
     let (_, certificate_store, payload_store) = create_db_stores();
 
     // AND the necessary keys
-    let (name, committee, worker_cache) = resolve_name_and_committee_and_worker_cache();
+    let (name, committee, worker_cache) = resolve_name_committee_and_worker_cache();
     let key = keys(None).pop().unwrap();
 
     let (_tx_reconfigure, rx_reconfigure) =
@@ -605,7 +605,7 @@ async fn test_reply_with_certificates_already_in_storage() {
     let (_, certificate_store, payload_store) = create_db_stores();
 
     // AND the necessary keys
-    let (name, committee, worker_cache) = resolve_name_and_committee_and_worker_cache();
+    let (name, committee, worker_cache) = resolve_name_committee_and_worker_cache();
     let key = keys(None).pop().unwrap();
 
     let (_, rx_reconfigure) = watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));
@@ -699,7 +699,7 @@ async fn test_reply_with_payload_already_in_storage() {
     let (_, certificate_store, payload_store) = create_db_stores();
 
     // AND the necessary keys
-    let (name, committee, worker_cache) = resolve_name_and_committee_and_worker_cache();
+    let (name, committee, worker_cache) = resolve_name_committee_and_worker_cache();
     let key = keys(None).pop().unwrap();
 
     let (_, rx_reconfigure) = watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));
@@ -797,7 +797,7 @@ async fn test_reply_with_payload_already_in_storage_for_own_certificates() {
     let (_, certificate_store, payload_store) = create_db_stores();
 
     // AND the necessary keys
-    let (_, committee, worker_cache) = resolve_name_and_committee_and_worker_cache();
+    let (_, committee, worker_cache) = resolve_name_committee_and_worker_cache();
     let key = keys(None).pop().unwrap();
 
     // AND make sure the key used for our "own" primary is the one that will

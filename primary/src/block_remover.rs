@@ -1,7 +1,7 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use crate::{utils, PayloadToken};
-use config::{Committee, WorkerCache, WorkerId};
+use config::{Committee, SharedWorkerCache, WorkerId};
 use consensus::dag::{Dag, ValidatorDagError};
 use crypto::PublicKey;
 use fastcrypto::{Digest, Hash};
@@ -122,7 +122,7 @@ pub struct DeleteBatchMessage {
 ///
 ///     let name = Ed25519PublicKey::default();
 ///     let committee = Committee{ epoch: 0, authorities: BTreeMap::new() };
-///     let worker_cache = WorkerCache { epoch: 0, workers: BTreeMap::new() };
+///     let worker_cache = Arc::new(ArcSwap::from_pointee(WorkerCache{ epoch: 0, workers: BTreeMap::new() }));
 ///     let (_tx_reconfigure, rx_reconfigure) = watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));
 ///     let consensus_metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
 ///     // A dag with genesis for the committee
@@ -188,7 +188,7 @@ pub struct BlockRemover {
     committee: Committee,
 
     /// The worker information cache.
-    worker_cache: WorkerCache,
+    worker_cache: SharedWorkerCache,
 
     /// Storage that keeps the Certificates by their digest id.
     certificate_store: Store<CertificateDigest, Certificate>,
@@ -234,7 +234,7 @@ impl BlockRemover {
     pub fn spawn(
         name: PublicKey,
         committee: Committee,
-        worker_cache: WorkerCache,
+        worker_cache: SharedWorkerCache,
         certificate_store: Store<CertificateDigest, Certificate>,
         header_store: Store<HeaderDigest, Header>,
         payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,
@@ -549,6 +549,7 @@ impl BlockRemover {
             // send the batches to each worker id
             let worker_address = self
                 .worker_cache
+                .load()
                 .worker(&self.name, &worker_id)
                 .expect("Worker id not found")
                 .primary_to_worker;

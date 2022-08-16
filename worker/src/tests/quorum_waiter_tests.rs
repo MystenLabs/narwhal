@@ -3,13 +3,13 @@
 // SPDX-License-Identifier: Apache-2.0
 use super::*;
 use crate::worker::WorkerMessage;
-use test_utils::{batch, resolve_name_and_committee_and_worker_cache, WorkerToWorkerMockServer};
+use test_utils::{batch, resolve_name_committee_and_worker_cache, WorkerToWorkerMockServer};
 
 #[tokio::test]
 async fn wait_for_quorum() {
     let (tx_message, rx_message) = test_utils::test_channel!(1);
     let (tx_batch, mut rx_batch) = test_utils::test_channel!(1);
-    let (myself, committee, worker_cache) = resolve_name_and_committee_and_worker_cache();
+    let (myself, committee, worker_cache) = resolve_name_committee_and_worker_cache();
 
     let (_tx_reconfiguration, rx_reconfiguration) =
         watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));
@@ -35,7 +35,7 @@ async fn wait_for_quorum() {
     let mut names = Vec::new();
     let mut addresses = Vec::new();
     let mut listener_handles = Vec::new();
-    for (name, address) in worker_cache.others_workers(&myself, /* id */ &0) {
+    for (name, address) in worker_cache.load().others_workers(&myself, /* id */ &0) {
         let address = address.worker_to_worker;
         let handle = WorkerToWorkerMockServer::spawn(address.clone());
         names.push(name);

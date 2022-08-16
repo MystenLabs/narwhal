@@ -3,7 +3,7 @@
 
 use config::Export;
 use std::time::{Duration, Instant};
-use test_utils::{keys, pure_committee_from_keys, temp_dir, worker_cache_from_keys};
+use test_utils::{keys, pure_committee_from_keys, shared_worker_cache_from_keys, temp_dir};
 
 const TEST_DURATION: Duration = Duration::from_secs(3);
 
@@ -22,7 +22,7 @@ fn test_primary_no_consensus() {
     let committee_file_path = format!("{config_path}/smoke_test_committee.json");
     committee.export(&committee_file_path).unwrap();
 
-    let worker_cache = worker_cache_from_keys(&keys);
+    let worker_cache = shared_worker_cache_from_keys(&keys);
     let workers_file_path = format!("{config_path}/smoke_test_workers.json");
     worker_cache.export(&workers_file_path).unwrap();
 
@@ -78,7 +78,7 @@ fn test_primary_with_consensus() {
     let committee_file_path = format!("{config_path}/smoke_test_committee.json");
     committee.export(&committee_file_path).unwrap();
 
-    let worker_cache = worker_cache_from_keys(&keys);
+    let worker_cache = shared_worker_cache_from_keys(&keys);
     let workers_file_path = format!("{config_path}/smoke_test_workers.json");
     worker_cache.export(&workers_file_path).unwrap();
 

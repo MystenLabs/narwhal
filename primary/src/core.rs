@@ -8,7 +8,7 @@ use crate::{
     synchronizer::Synchronizer,
 };
 use async_recursion::async_recursion;
-use config::{Committee, Epoch, WorkerCache};
+use config::{Committee, Epoch, SharedWorkerCache};
 use crypto::PublicKey;
 use crypto::Signature;
 use fastcrypto::{Hash as _, SignatureService};
@@ -38,7 +38,7 @@ pub struct Core {
     /// The committee information.
     committee: Committee,
     /// The worker information cache.
-    worker_cache: WorkerCache,
+    worker_cache: SharedWorkerCache,
     /// The persistent storage keyed to headers.
     header_store: Store<HeaderDigest, Header>,
     /// The persistent storage keyed to certificates.
@@ -93,7 +93,7 @@ impl Core {
     pub fn spawn(
         name: PublicKey,
         committee: Committee,
-        worker_cache: WorkerCache,
+        worker_cache: SharedWorkerCache,
         header_store: Store<HeaderDigest, Header>,
         certificate_store: Store<CertificateDigest, Certificate>,
         synchronizer: Synchronizer,
@@ -462,7 +462,7 @@ impl Core {
         );
 
         // Verify the header's signature.
-        header.verify(&self.committee, &self.worker_cache)?;
+        header.verify(&self.committee, self.worker_cache.clone())?;
 
         // TODO [issue #672]: Prevent bad nodes from sending junk headers with high round numbers.
 
@@ -519,7 +519,7 @@ impl Core {
 
         // Verify the certificate (and the embedded header).
         certificate
-            .verify(&self.committee, &self.worker_cache)
+            .verify(&self.committee, self.worker_cache.clone())
             .map_err(DagError::from)
     }
 

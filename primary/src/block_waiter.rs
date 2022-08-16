@@ -1,7 +1,7 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use crate::block_synchronizer::handler::Handler;
-use config::{Committee, WorkerCache};
+use config::{Committee, SharedWorkerCache};
 use crypto::PublicKey;
 use fastcrypto::{Digest, Hash};
 use futures::{
@@ -161,7 +161,7 @@ type RequestKey = Vec<u8>;
 ///
 ///     let name = Ed25519PublicKey::default();
 ///     let committee = Committee{ epoch: 0, authorities: BTreeMap::new() };
-///     let worker_cache = WorkerCache{ epoch: 0, workers: BTreeMap::new() };
+///     let worker_cache = Arc::new(ArcSwap::from_pointee(WorkerCache{ epoch: 0, workers: BTreeMap::new() }));
 ///     let (_tx_reconfigure, rx_reconfigure) = watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));
 ///
 ///     // A dummy certificate
@@ -211,7 +211,7 @@ pub struct BlockWaiter<SynchronizerHandler: Handler + Send + Sync + 'static> {
     committee: Committee,
 
     /// The worker information cache.
-    worker_cache: WorkerCache,
+    worker_cache: SharedWorkerCache,
 
     /// Receive all the requests to get a block
     rx_commands: Receiver<BlockCommand>,
@@ -264,7 +264,7 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> BlockWaiter<Synchroni
     pub fn spawn(
         name: PublicKey,
         committee: Committee,
-        worker_cache: WorkerCache,
+        worker_cache: SharedWorkerCache,
         rx_reconfigure: watch::Receiver<ReconfigureNotification>,
         rx_commands: Receiver<BlockCommand>,
         batch_receiver: Receiver<BatchResult>,
@@ -754,6 +754,7 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> BlockWaiter<Synchroni
 
                 let worker_address = self
                     .worker_cache
+                    .load()
                     .worker(&self.name, &worker_id)
                     .expect("Worker id not found")
                     .primary_to_worker;

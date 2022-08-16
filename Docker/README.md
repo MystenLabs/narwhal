@@ -175,7 +175,7 @@ from the database and log data. This is useful to preserve the state between mul
 
 
 ```
-# arguments for script are {num_primary} & {num_worker} in that order
+# arguments for script are {num_primary} & {num_worker_per_primary} in that order
 
 ./gen.validators.sh 6 1
 

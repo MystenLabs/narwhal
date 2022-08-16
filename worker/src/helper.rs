@@ -2,7 +2,7 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use bytes::Bytes;
-use config::{Committee, WorkerCache, WorkerId};
+use config::{Committee, SharedWorkerCache, WorkerId};
 use crypto::PublicKey;
 use network::{UnreliableNetwork, WorkerNetwork};
 use store::Store;
@@ -26,7 +26,7 @@ pub struct Helper {
     /// The committee information.
     committee: Committee,
     /// The worker information cache.
-    worker_cache: WorkerCache,
+    worker_cache: SharedWorkerCache,
     /// The persistent storage.
     store: Store<BatchDigest, SerializedBatchMessage>,
     /// Receive reconfiguration updates.
@@ -44,7 +44,7 @@ impl Helper {
     pub fn spawn(
         id: WorkerId,
         committee: Committee,
-        worker_cache: WorkerCache,
+        worker_cache: SharedWorkerCache,
         store: Store<BatchDigest, SerializedBatchMessage>,
         rx_reconfigure: watch::Receiver<ReconfigureNotification>,
         rx_worker_request: Receiver<(Vec<BatchDigest>, PublicKey)>,
@@ -74,7 +74,7 @@ impl Helper {
                 // Handle requests from other workers.
                 Some((digests, origin)) = self.rx_worker_request.recv() => {
                     // get the requestors address.
-                    let address = match self.worker_cache.worker(&origin, &self.id) {
+                    let address = match self.worker_cache.load().worker(&origin, &self.id) {
                         Ok(x) => x.worker_to_worker,
                         Err(e) => {
                             warn!("Unexpected batch request: {e}");

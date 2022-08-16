@@ -15,7 +15,7 @@ use multiaddr::Multiaddr;
 use rand::{rngs::StdRng, seq::SliceRandom, SeedableRng};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{
-    collections::{BTreeMap, HashMap, HashSet},
+    collections::{BTreeMap, HashSet},
     fs::{self, OpenOptions},
     io::{BufWriter, Write as _},
     ops::Deref,
@@ -36,6 +36,9 @@ pub type Epoch = u64;
 pub enum ConfigError {
     #[error("Node {0} is not in the committee")]
     NotInCommittee(String),
+
+    #[error("Node {0} is not in the worker cache")]
+    NotInWorkerCache(String),
 
     #[error("Unknown worker id {0}")]
     UnknownWorker(WorkerId),
@@ -306,7 +309,7 @@ pub struct WorkerInfo {
 pub type SharedWorkerCache = Arc<ArcSwap<WorkerCache>>;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
-pub struct WorkerIndex(pub HashMap<WorkerId, WorkerInfo>);
+pub struct WorkerIndex(pub BTreeMap<WorkerId, WorkerInfo>);
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct WorkerCache {
@@ -356,13 +359,13 @@ impl WorkerCache {
             .find(|(name, _)| *name == to)
             .map(|(_, authority)| authority)
             .ok_or_else(|| {
-                ConfigError::NotInCommittee(ToString::to_string(&(*to).encode_base64()))
+                ConfigError::NotInWorkerCache(ToString::to_string(&(*to).encode_base64()))
             })?
             .0
             .iter()
             .find(|(worker_id, _)| worker_id == &id)
             .map(|(_, worker)| worker.clone())
-            .ok_or_else(|| ConfigError::NotInCommittee((*to).encode_base64()))
+            .ok_or_else(|| ConfigError::NotInWorkerCache((*to).encode_base64()))
     }
 
     /// Returns the addresses of all our workers.
@@ -372,7 +375,7 @@ impl WorkerCache {
             .iter()
             .find(|(name, _)| *name == myself)
             .map(|(_, authority)| authority)
-            .ok_or_else(|| ConfigError::NotInCommittee((*myself).encode_base64()))?
+            .ok_or_else(|| ConfigError::NotInWorkerCache((*myself).encode_base64()))?
             .0
             .values()
             .cloned()
@@ -400,11 +403,14 @@ impl WorkerCache {
             .collect()
     }
 
-    /// Return all the network addresses in the worker cache.
-    fn get_all_network_addresses(&self) -> HashSet<&Multiaddr> {
+    /// Return the network addresses that are present in the current worker cache
+    /// that are from a primary key that are no longer in the committee. Current
+    /// committee keys provided as an argument.
+    pub fn network_diff(&self, keys: Vec<&PublicKey>) -> HashSet<&Multiaddr> {
         self.workers
-            .values()
-            .flat_map(|authority| {
+            .iter()
+            .filter(|(name, _)| !keys.contains(name))
+            .flat_map(|(_, authority)| {
                 authority
                     .0
                     .values()
@@ -422,15 +428,6 @@ impl WorkerCache {
                             .map(|address| &address.primary_to_worker),
                     )
             })
-            .collect()
-    }
-
-    /// Return the network addresses that are present in the current worker cache
-    /// but that are absent from the new worker cache (provided as argument).
-    pub fn network_diff<'a>(&'a self, other: &'a Self) -> HashSet<&Multiaddr> {
-        self.get_all_network_addresses()
-            .difference(&other.get_all_network_addresses())
-            .cloned()
             .collect()
     }
 }
@@ -479,6 +476,11 @@ impl Committee {
     /// Returns the current epoch.
     pub fn epoch(&self) -> Epoch {
         self.epoch
+    }
+
+    /// Returns the keys in the committee
+    pub fn keys(&self) -> Vec<&PublicKey> {
+        self.authorities.keys().clone().collect::<Vec<&PublicKey>>()
     }
 
     /// Returns the number of authorities.

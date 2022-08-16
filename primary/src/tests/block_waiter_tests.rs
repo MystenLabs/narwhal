@@ -7,6 +7,7 @@ use crate::{
     },
     BlockCommand, BlockWaiter, PrimaryWorkerMessage,
 };
+
 use bincode::deserialize;
 use fastcrypto::Hash;
 use mockall::*;
@@ -14,7 +15,7 @@ use network::PrimaryToWorkerNetwork;
 use std::{collections::HashMap, sync::Arc};
 use test_utils::{
     certificate, fixture_batch_with_transactions, fixture_header_builder,
-    fixture_header_with_payload, keys, resolve_name_and_committee_and_worker_cache,
+    fixture_header_with_payload, keys, resolve_name_committee_and_worker_cache,
     PrimaryToWorkerMockServer,
 };
 use tokio::{
@@ -30,7 +31,7 @@ use types::{
 #[tokio::test]
 async fn test_successfully_retrieve_block() {
     // GIVEN
-    let (name, committee, worker_cache) = resolve_name_and_committee_and_worker_cache();
+    let (name, committee, worker_cache) = resolve_name_committee_and_worker_cache();
 
     // AND store certificate
     let header = fixture_header_with_payload(2);
@@ -59,6 +60,7 @@ async fn test_successfully_retrieve_block() {
     // AND spin up a worker node
     let worker_id = 0;
     let worker_address = worker_cache
+        .load()
         .worker(&name, &worker_id)
         .unwrap()
         .primary_to_worker;
@@ -86,7 +88,7 @@ async fn test_successfully_retrieve_block() {
     let _waiter_handler = BlockWaiter::spawn(
         name.clone(),
         committee.clone(),
-        worker_cache.clone(),
+        worker_cache,
         rx_reconfigure,
         rx_commands,
         rx_batch_messages,
@@ -136,7 +138,7 @@ async fn test_successfully_retrieve_block() {
 #[tokio::test]
 async fn test_successfully_retrieve_multiple_blocks() {
     // GIVEN
-    let (name, committee, worker_cache) = resolve_name_and_committee_and_worker_cache();
+    let (name, committee, worker_cache) = resolve_name_committee_and_worker_cache();
 
     let key = keys(None).pop().unwrap();
     let mut block_ids = Vec::new();
@@ -261,6 +263,7 @@ async fn test_successfully_retrieve_multiple_blocks() {
 
     // AND spin up a worker node
     let worker_address = worker_cache
+        .load()
         .worker(&name, &worker_id)
         .unwrap()
         .primary_to_worker;
@@ -295,7 +298,7 @@ async fn test_successfully_retrieve_multiple_blocks() {
     let _waiter_handler = BlockWaiter::spawn(
         name.clone(),
         committee.clone(),
-        worker_cache.clone(),
+        worker_cache,
         rx_reconfigure,
         rx_commands,
         rx_batch_messages,
@@ -337,7 +340,7 @@ async fn test_successfully_retrieve_multiple_blocks() {
 #[tokio::test]
 async fn test_one_pending_request_for_block_at_time() {
     // GIVEN
-    let (name, committee, worker_cache) = resolve_name_and_committee_and_worker_cache();
+    let (name, committee, worker_cache) = resolve_name_committee_and_worker_cache();
 
     // AND store certificate
     let header = fixture_header_with_payload(2);
@@ -371,7 +374,7 @@ async fn test_one_pending_request_for_block_at_time() {
     let mut waiter = BlockWaiter {
         name: name.clone(),
         committee: committee.clone(),
-        worker_cache: worker_cache.clone(),
+        worker_cache,
         rx_commands,
         pending_get_block: HashMap::new(),
         worker_network: PrimaryToWorkerNetwork::default(),
@@ -415,7 +418,7 @@ async fn test_one_pending_request_for_block_at_time() {
 #[tokio::test]
 async fn test_unlocking_pending_get_block_request_after_response() {
     // GIVEN
-    let (name, committee, worker_cache) = resolve_name_and_committee_and_worker_cache();
+    let (name, committee, worker_cache) = resolve_name_committee_and_worker_cache();
 
     // AND store certificate
     let header = fixture_header_with_payload(2);
@@ -444,7 +447,7 @@ async fn test_unlocking_pending_get_block_request_after_response() {
     let mut waiter = BlockWaiter {
         name: name.clone(),
         committee: committee.clone(),
-        worker_cache: worker_cache.clone(),
+        worker_cache,
         rx_commands,
         pending_get_block: HashMap::new(),
         worker_network: PrimaryToWorkerNetwork::default(),
@@ -484,7 +487,7 @@ async fn test_unlocking_pending_get_block_request_after_response() {
 #[tokio::test]
 async fn test_batch_timeout() {
     // GIVEN
-    let (name, committee, worker_cache) = resolve_name_and_committee_and_worker_cache();
+    let (name, committee, worker_cache) = resolve_name_committee_and_worker_cache();
 
     // AND store certificate
     let header = fixture_header_with_payload(2);
@@ -515,7 +518,7 @@ async fn test_batch_timeout() {
     let _waiter_handle = BlockWaiter::spawn(
         name.clone(),
         committee.clone(),
-        worker_cache.clone(),
+        worker_cache,
         rx_reconfigure,
         rx_commands,
         rx_batch_messages,
@@ -554,7 +557,7 @@ async fn test_batch_timeout() {
 #[tokio::test]
 async fn test_return_error_when_certificate_is_missing() {
     // GIVEN
-    let (name, committee, worker_cache) = resolve_name_and_committee_and_worker_cache();
+    let (name, committee, worker_cache) = resolve_name_committee_and_worker_cache();
 
     // AND create a certificate but don't store it
     let certificate = Certificate::default();
@@ -578,7 +581,7 @@ async fn test_return_error_when_certificate_is_missing() {
     let _waiter_handle = BlockWaiter::spawn(
         name.clone(),
         committee.clone(),
-        worker_cache.clone(),
+        worker_cache,
         rx_reconfigure,
         rx_commands,
         rx_batch_messages,
@@ -617,7 +620,7 @@ async fn test_return_error_when_certificate_is_missing() {
 #[tokio::test]
 async fn test_return_error_when_certificate_is_missing_when_get_blocks() {
     // GIVEN
-    let (name, committee, worker_cache) = resolve_name_and_committee_and_worker_cache();
+    let (name, committee, worker_cache) = resolve_name_committee_and_worker_cache();
 
     // AND create a certificate but don't store it
     let certificate = Certificate::default();
@@ -649,7 +652,7 @@ async fn test_return_error_when_certificate_is_missing_when_get_blocks() {
     let _waiter_handle = BlockWaiter::spawn(
         name.clone(),
         committee.clone(),
-        worker_cache.clone(),
+        worker_cache,
         rx_reconfigure,
         rx_commands,
         rx_batch_messages,

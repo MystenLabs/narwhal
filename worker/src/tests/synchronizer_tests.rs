@@ -7,7 +7,7 @@ use fastcrypto::traits::KeyPair;
 use prometheus::Registry;
 use test_utils::{
     batch, batch_digest, batches, keys, open_batch_store, pure_committee_from_keys,
-    resolve_name_and_committee_and_worker_cache, serialize_batch_message, worker_cache_from_keys,
+    resolve_name_committee_and_worker_cache, serialize_batch_message, worker_cache_from_keys,
     WorkerToWorkerMockServer,
 };
 use tokio::time::timeout;
@@ -71,7 +71,7 @@ async fn test_successful_request_batch() {
     let (tx_message, rx_message) = test_utils::test_channel!(1);
     let (tx_primary, mut rx_primary) = test_utils::test_channel!(1);
 
-    let (name, committee, worker_cache) = resolve_name_and_committee_and_worker_cache();
+    let (name, committee, worker_cache) = resolve_name_committee_and_worker_cache();
     let id = 0;
 
     let (tx_reconfiguration, _rx_reconfiguration) =
@@ -87,7 +87,7 @@ async fn test_successful_request_batch() {
         name.clone(),
         id,
         Arc::new(ArcSwap::from_pointee(committee.clone())),
-        Arc::new(ArcSwap::from_pointee(worker_cache.clone())),
+        worker_cache,
         store.clone(),
         /* gc_depth */ 50, // Not used in this test.
         /* sync_retry_delay */
@@ -133,7 +133,7 @@ async fn test_request_batch_not_found() {
     let (tx_message, rx_message) = test_utils::test_channel!(1);
     let (tx_primary, mut rx_primary) = test_utils::test_channel!(1);
 
-    let (name, committee, worker_cache) = resolve_name_and_committee_and_worker_cache();
+    let (name, committee, worker_cache) = resolve_name_committee_and_worker_cache();
     let id = 0;
 
     let (tx_reconfiguration, _rx_reconfiguration) =
@@ -149,7 +149,7 @@ async fn test_request_batch_not_found() {
         name.clone(),
         id,
         Arc::new(ArcSwap::from_pointee(committee.clone())),
-        Arc::new(ArcSwap::from_pointee(worker_cache.clone())),
+        worker_cache,
         store.clone(),
         /* gc_depth */ 50, // Not used in this test.
         /* sync_retry_delay */
@@ -194,7 +194,7 @@ async fn test_successful_batch_delete() {
     let (tx_message, rx_message) = test_utils::test_channel!(1);
     let (tx_primary, mut rx_primary) = test_utils::test_channel!(1);
 
-    let (name, committee, worker_cache) = resolve_name_and_committee_and_worker_cache();
+    let (name, committee, worker_cache) = resolve_name_committee_and_worker_cache();
     let id = 0;
 
     let (tx_reconfiguration, _rx_reconfiguration) =
@@ -210,7 +210,7 @@ async fn test_successful_batch_delete() {
         name.clone(),
         id,
         Arc::new(ArcSwap::from_pointee(committee.clone())),
-        Arc::new(ArcSwap::from_pointee(worker_cache.clone())),
+        worker_cache,
         store.clone(),
         /* gc_depth */ 50, // Not used in this test.
         /* sync_retry_delay */

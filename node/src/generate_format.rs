@@ -1,6 +1,6 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use config::{Authority, Committee, Epoch, PrimaryAddresses, WorkerCache, WorkerIndex, WorkerInfo};
+use config::{Authority, Committee, Epoch, PrimaryAddresses, WorkerIndex, WorkerInfo};
 use crypto::KeyPair;
 use fastcrypto::{
     traits::{KeyPair as _, Signer},
@@ -81,34 +81,21 @@ fn get_registry() -> Result<Registry> {
     tracer.trace_value(&mut samples, &header)?;
     tracer.trace_value(&mut samples, &certificate)?;
 
-    let worker_cache = WorkerCache {
-        epoch: Epoch::default(),
-        workers: keys
-            .iter()
-            .enumerate()
-            .map(|(i, kp)| {
-                let workers = vec![(
-                    0,
-                    WorkerInfo {
-                        primary_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", 300 + i)
-                            .parse()
-                            .unwrap(),
-                        transactions: format!("/ip4/127.0.0.1/tcp/{}/http", 400 + i)
-                            .parse()
-                            .unwrap(),
-                        worker_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", 500 + i)
-                            .parse()
-                            .unwrap(),
-                    },
-                )]
-                .into_iter()
-                .collect();
-                (kp.public().clone(), WorkerIndex(workers))
-            })
-            .collect(),
-    };
-
-    tracer.trace_value(&mut samples, &worker_cache)?;
+    // WorkerIndex & WorkerInfo will be present in a protocol message once dynamic
+    // worker integration is complete.
+    let worker_index = WorkerIndex(
+        vec![(
+            0,
+            WorkerInfo {
+                primary_to_worker: "/ip4/127.0.0.1/tcp/300/http".to_string().parse().unwrap(),
+                transactions: "/ip4/127.0.0.1/tcp/400/http".to_string().parse().unwrap(),
+                worker_to_worker: "/ip4/127.0.0.1/tcp/500/http".to_string().parse().unwrap(),
+            },
+        )]
+        .into_iter()
+        .collect(),
+    );
+    tracer.trace_value(&mut samples, &worker_index)?;
 
     let cleanup = PrimaryWorkerMessage::Cleanup(1u64);
     let request_batch = PrimaryWorkerMessage::RequestBatch(BatchDigest([0u8; 32]));

@@ -8,6 +8,7 @@ use crate::{
     common::create_db_stores,
     PrimaryWorkerMessage,
 };
+
 use bincode::deserialize;
 use config::{Committee, WorkerId};
 use consensus::{dag::Dag, metrics::ConsensusMetrics};
@@ -21,7 +22,7 @@ use prometheus::Registry;
 use std::{borrow::Borrow, collections::HashMap, sync::Arc, time::Duration};
 use test_utils::{
     certificate, fixture_batch_with_transactions, fixture_header_builder, keys,
-    resolve_name_and_committee_and_worker_cache, PrimaryToWorkerMockServer,
+    resolve_name_committee_and_worker_cache, PrimaryToWorkerMockServer,
 };
 use tokio::{
     sync::{
@@ -44,7 +45,7 @@ async fn test_successful_blocks_delete() {
     let (tx_delete_batches, rx_delete_batches) = test_utils::test_channel!(10);
 
     // AND the necessary keys
-    let (name, committee, worker_cache) = resolve_name_and_committee_and_worker_cache();
+    let (name, committee, worker_cache) = resolve_name_committee_and_worker_cache();
     let (_tx_reconfigure, rx_reconfigure) =
         watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));
     // AND a Dag with genesis populated
@@ -128,6 +129,8 @@ async fn test_successful_blocks_delete() {
     // AND bootstrap the workers
     for (worker_id, batch_digests) in worker_batches.clone() {
         let worker_address = worker_cache
+            .clone()
+            .load()
             .worker(&name, &worker_id)
             .unwrap()
             .primary_to_worker;
@@ -209,7 +212,7 @@ async fn test_timeout() {
     let (tx_removed_certificates, _rx_removed_certificates) = test_utils::test_channel!(10);
 
     // AND the necessary keys
-    let (name, committee, worker_cache) = resolve_name_and_committee_and_worker_cache();
+    let (name, committee, worker_cache) = resolve_name_committee_and_worker_cache();
     let (_tx_reconfigure, rx_reconfigure) =
         watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));
     // AND a Dag with genesis populated
@@ -220,7 +223,7 @@ async fn test_timeout() {
     let _remover_handler = BlockRemover::spawn(
         name.clone(),
         committee.clone(),
-        worker_cache.clone(),
+        worker_cache,
         certificate_store.clone(),
         header_store.clone(),
         payload_store.clone(),
@@ -347,7 +350,7 @@ async fn test_unlocking_pending_requests() {
     let (tx_removed_certificates, _rx_removed_certificates) = test_utils::test_channel!(10);
 
     // AND the necessary keys
-    let (name, committee, worker_cache) = resolve_name_and_committee_and_worker_cache();
+    let (name, committee, worker_cache) = resolve_name_committee_and_worker_cache();
     let (_, rx_reconfigure) = watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));
 
     // AND a Dag with genesis populated
@@ -358,7 +361,7 @@ async fn test_unlocking_pending_requests() {
     let mut remover = BlockRemover {
         name,
         committee: committee.clone(),
-        worker_cache: worker_cache.clone(),
+        worker_cache,
         certificate_store: certificate_store.clone(),
         header_store: header_store.clone(),
         payload_store: payload_store.clone(),

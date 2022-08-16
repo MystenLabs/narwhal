@@ -13,7 +13,8 @@ use network::{PrimaryNetwork, PrimaryToWorkerNetwork};
 use prometheus::Registry;
 use std::{collections::BTreeSet, sync::Arc, time::Duration};
 use test_utils::{
-    certificate, fixture_headers_round, keys, pure_committee_from_keys, worker_cache_from_keys,
+    certificate, fixture_headers_round, keys, pure_committee_from_keys,
+    shared_worker_cache_from_keys,
 };
 use tokio::sync::watch;
 use types::{Certificate, PrimaryMessage, ReconfigureNotification, Round};
@@ -22,7 +23,7 @@ use types::{Certificate, PrimaryMessage, ReconfigureNotification, Round};
 async fn process_certificate_missing_parents_in_reverse() {
     let mut k = keys(None);
     let committee = pure_committee_from_keys(&k);
-    let worker_cache = worker_cache_from_keys(&k);
+    let worker_cache = shared_worker_cache_from_keys(&k);
     let kp = k.pop().unwrap();
     let name = kp.public().clone();
     let signature_service = SignatureService::new(kp);
@@ -102,7 +103,7 @@ async fn process_certificate_missing_parents_in_reverse() {
     let _core_handle = Core::spawn(
         name.clone(),
         committee.clone(),
-        worker_cache.clone(),
+        worker_cache,
         header_store.clone(),
         certificates_store.clone(),
         synchronizer,
@@ -169,7 +170,7 @@ async fn process_certificate_missing_parents_in_reverse() {
 async fn process_certificate_check_gc_fires() {
     let mut k = keys(None);
     let committee = pure_committee_from_keys(&k);
-    let worker_cache = worker_cache_from_keys(&k);
+    let worker_cache = shared_worker_cache_from_keys(&k);
     let kp = k.pop().unwrap();
     let name = kp.public().clone();
     let signature_service = SignatureService::new(kp);

@@ -4,7 +4,7 @@
 use super::*;
 use store::rocks;
 use test_utils::{
-    batch, digest_batch, resolve_name_and_committee_and_worker_cache, serialize_batch_message,
+    batch, digest_batch, resolve_name_committee_and_worker_cache, serialize_batch_message,
     temp_dir, WorkerToWorkerMockServer,
 };
 use tokio::sync::mpsc::channel;
@@ -14,7 +14,7 @@ use types::BatchDigest;
 async fn worker_batch_reply() {
     let (tx_worker_request, rx_worker_request) = test_utils::test_channel!(1);
     let (_tx_client_request, rx_client_request) = test_utils::test_channel!(1);
-    let (requestor, committee, worker_cache) = resolve_name_and_committee_and_worker_cache();
+    let (requestor, committee, worker_cache) = resolve_name_committee_and_worker_cache();
     let id = 0;
     let (_tx_reconfiguration, rx_reconfiguration) =
         watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));
@@ -48,6 +48,7 @@ async fn worker_batch_reply() {
 
     // Spawn a listener to receive the batch reply.
     let address = worker_cache
+        .load()
         .worker(&requestor, &id)
         .unwrap()
         .worker_to_worker;
@@ -67,7 +68,7 @@ async fn client_batch_reply() {
     let (_tx_worker_request, rx_worker_request) = test_utils::test_channel!(1);
     let (tx_client_request, rx_client_request) = test_utils::test_channel!(1);
     let id = 0;
-    let (_, committee, worker_cache) = resolve_name_and_committee_and_worker_cache();
+    let (_, committee, worker_cache) = resolve_name_committee_and_worker_cache();
     let (_tx_reconfiguration, rx_reconfiguration) =
         watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));
 

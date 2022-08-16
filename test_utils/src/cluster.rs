@@ -1,8 +1,8 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crate::{keys, pure_committee_from_keys, temp_dir, worker_cache_from_keys};
+use crate::{keys, pure_committee_from_keys, shared_worker_cache_from_keys, temp_dir};
 use arc_swap::ArcSwap;
-use config::{Committee, Parameters, SharedCommittee, SharedWorkerCache, WorkerCache, WorkerId};
+use config::{Committee, Parameters, SharedCommittee, SharedWorkerCache, WorkerId};
 use crypto::KeyPair;
 use crypto::PublicKey;
 use executor::{SerializedTransaction, SingleExecutor, SubscriberResult, DEFAULT_CHANNEL_SIZE};
@@ -42,6 +42,8 @@ impl Cluster {
     /// the committee structure, but none of them will be started.
     /// If an `input_committee` is provided then this will be used, otherwise the default
     /// will be used instead.
+    /// If an `input_shared_worker_cache` is provided then this will be used,
+    /// otherwise the default will be used instead.
     /// When the `internal_consensus_enabled` is true then the standard internal
     /// consensus engine will be enabled. If false, then the internal consensus will
     /// be disabled and the gRPC server will be enabled to manage the Collections & the
@@ -49,14 +51,14 @@ impl Cluster {
     pub fn new(
         parameters: Option<Parameters>,
         input_committee: Option<Committee>,
-        input_worker_cache: Option<WorkerCache>,
+        input_shared_worker_cache: Option<SharedWorkerCache>,
         internal_consensus_enabled: bool,
     ) -> Self {
         let k = keys(None);
         let c = input_committee.unwrap_or_else(|| pure_committee_from_keys(&k));
-        let wc = input_worker_cache.unwrap_or_else(|| worker_cache_from_keys(&k));
+        let shared_worker_cache =
+            input_shared_worker_cache.unwrap_or_else(|| shared_worker_cache_from_keys(&k));
         let shared_committee = Arc::new(ArcSwap::from_pointee(c));
-        let shared_worker_cache = Arc::new(ArcSwap::from_pointee(wc));
         let params = parameters.unwrap_or_else(Self::parameters);
 
         info!("###### Creating new cluster ######");

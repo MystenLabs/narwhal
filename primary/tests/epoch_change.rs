@@ -10,7 +10,7 @@ use primary::{NetworkModel, Primary, CHANNEL_CAPACITY};
 use prometheus::Registry;
 use std::{collections::BTreeMap, sync::Arc};
 use test_utils::{
-    keys, make_authority, pure_committee_from_keys, temp_dir, worker_cache_from_keys,
+    keys, make_authority, pure_committee_from_keys, shared_worker_cache_from_keys, temp_dir,
 };
 use tokio::sync::watch;
 use types::{ReconfigureNotification, WorkerPrimaryMessage};
@@ -26,7 +26,7 @@ async fn test_simple_epoch_change() {
     // The configuration of epoch 0.
     let keys_0 = keys(None);
     let committee_0 = pure_committee_from_keys(&keys_0);
-    let worker_cache_0 = worker_cache_from_keys(&keys_0);
+    let worker_cache_0 = shared_worker_cache_from_keys(&keys_0);
 
     // Spawn the committee of epoch 0.
     let mut rx_channels = Vec::new();
@@ -53,7 +53,7 @@ async fn test_simple_epoch_change() {
             name,
             signer,
             Arc::new(ArcSwap::from_pointee(committee_0.clone())),
-            Arc::new(ArcSwap::from_pointee(worker_cache_0.clone())),
+            worker_cache_0.clone(),
             parameters.clone(),
             store.header_store.clone(),
             store.certificate_store.clone(),
@@ -140,7 +140,7 @@ async fn test_partial_committee_change() {
             .map(|(kp, authority)| (kp.public().clone(), authority))
             .collect(),
     };
-    let worker_cache_0 = worker_cache_from_keys(&keys_0);
+    let worker_cache_0 = shared_worker_cache_from_keys(&keys_0);
 
     // Spawn the committee of epoch 0.
     let mut epoch_0_rx_channels = Vec::new();
@@ -166,7 +166,7 @@ async fn test_partial_committee_change() {
             name,
             signer,
             Arc::new(ArcSwap::from_pointee(committee_0.clone())),
-            Arc::new(ArcSwap::from_pointee(worker_cache_0.clone())),
+            worker_cache_0.clone(),
             parameters.clone(),
             store.header_store.clone(),
             store.certificate_store.clone(),
@@ -227,7 +227,7 @@ async fn test_partial_committee_change() {
         epoch: Epoch::default() + 1,
         authorities: authorities_1,
     };
-    let worker_cache_1 = worker_cache_from_keys(&committee_keys);
+    let worker_cache_1 = shared_worker_cache_from_keys(&committee_keys);
 
     // Spawn the committee of epoch 1 (only the node not already booted).
     let mut epoch_1_rx_channels = Vec::new();
@@ -254,7 +254,7 @@ async fn test_partial_committee_change() {
             name,
             signer,
             Arc::new(ArcSwap::from_pointee(committee_1.clone())),
-            Arc::new(ArcSwap::from_pointee(worker_cache_1.clone())),
+            worker_cache_1.clone(),
             parameters.clone(),
             store.header_store.clone(),
             store.certificate_store.clone(),
@@ -310,7 +310,7 @@ async fn test_restart_with_new_committee_change() {
     // The configuration of epoch 0.
     let keys_0 = keys(None);
     let committee_0 = pure_committee_from_keys(&keys_0);
-    let worker_cache_0 = worker_cache_from_keys(&keys_0);
+    let worker_cache_0 = shared_worker_cache_from_keys(&keys_0);
 
     // Spawn the committee of epoch 0.
     let mut rx_channels = Vec::new();
@@ -338,7 +338,7 @@ async fn test_restart_with_new_committee_change() {
             name,
             signer,
             Arc::new(ArcSwap::new(Arc::new(committee_0.clone()))),
-            Arc::new(ArcSwap::new(Arc::new(worker_cache_0.clone()))),
+            worker_cache_0.clone(),
             parameters.clone(),
             store.header_store.clone(),
             store.certificate_store.clone(),
@@ -390,7 +390,8 @@ async fn test_restart_with_new_committee_change() {
     for epoch in 1..=3 {
         let mut new_committee = committee_0.clone();
         new_committee.epoch = epoch;
-        let mut new_worker_cache = worker_cache_0.clone();
+        let old_worker_cache = &mut worker_cache_0.clone().load().clone();
+        let mut new_worker_cache = Arc::make_mut(old_worker_cache);
         new_worker_cache.epoch = epoch;
 
         let mut rx_channels = Vec::new();
@@ -478,7 +479,7 @@ async fn test_simple_committee_update() {
     // The configuration of epoch 0.
     let keys_0 = keys(None);
     let committee_0 = pure_committee_from_keys(&keys_0);
-    let worker_cache_0 = worker_cache_from_keys(&keys_0);
+    let worker_cache_0 = shared_worker_cache_from_keys(&keys_0);
 
     // Spawn the committee of epoch 0.
     let mut rx_channels = Vec::new();
@@ -505,7 +506,7 @@ async fn test_simple_committee_update() {
             name,
             signer,
             Arc::new(ArcSwap::from_pointee(committee_0.clone())),
-            Arc::new(ArcSwap::from_pointee(worker_cache_0.clone())),
+            worker_cache_0.clone(),
             parameters.clone(),
             store.header_store.clone(),
             store.certificate_store.clone(),
