@@ -552,6 +552,9 @@
 <span id="552">552</span>
 <span id="553">553</span>
 <span id="554">554</span>
+<span id="555">555</span>
+<span id="556">556</span>
+<span id="557">557</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span>base64ct::{Base64, Encoding};
@@ -564,6 +567,7 @@
     Deserialize, Serialize,
 };
 <span class="kw">use </span>serde_bytes::{ByteBuf, Bytes};
+<span class="kw">use </span>serde_with::serde_as;
 <span class="kw">use </span>signature::{rand_core::OsRng, Signature, Signer, Verifier};
 <span class="kw">use </span>std::{
     fmt::{<span class="self">self</span>, Display},
@@ -572,7 +576,7 @@
 
 <span class="kw">use crate</span>::{
     pubkey_bytes::PublicKeyBytes,
-    serde_helpers::keypair_decode_base64,
+    serde_helpers::{keypair_decode_base64, Ed25519Signature <span class="kw">as </span>Ed25519Sig},
     traits::{
         AggregateAuthenticator, Authenticator, EncodeDecodeBase64, KeyPair, SigningKey,
         ToFromBytes, VerifyingKey,
@@ -613,9 +617,11 @@
     </span><span class="kw">pub </span>bytes: OnceCell&lt;[u8; ED25519_SIGNATURE_LENGTH]&gt;,
 }
 
+<span class="attribute">#[serde_as]</span>
 <span class="attribute">#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]</span>
-<span class="kw">pub struct </span>Ed25519AggregateSignature(<span class="kw">pub </span>Vec&lt;ed25519_consensus::Signature&gt;);
-
+<span class="kw">pub struct </span>Ed25519AggregateSignature(
+    <span class="attribute">#[serde_as(<span class="kw">as </span>= <span class="string">&quot;Vec&lt;Ed25519Sig&gt;&quot;</span>)]</span> <span class="kw">pub </span>Vec&lt;ed25519_consensus::Signature&gt;,
+);
 <span class="doccomment">///
 /// Implement VerifyingKey
 ///
