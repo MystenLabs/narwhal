@@ -93,6 +93,8 @@ pub struct PrimaryChannelMetrics {
     pub tx_committed_certificates: IntGauge,
     /// occupancy of the channel from the `primary::Core` to the `Consensus`
     pub tx_new_certificates: IntGauge,
+    /// occupancy of the internal channel in the `primary::Core` to recover headers
+    pub tx_recovery_headers: IntGauge,
 }
 
 impl PrimaryChannelMetrics {
@@ -207,6 +209,11 @@ impl PrimaryChannelMetrics {
             tx_reconfigure: register_int_gauge_with_registry!(
                 "tx_reconfigure",
                 "occupancy of the channel from the reconfigure notification to most components.",
+                registry
+            ).unwrap(),
+            tx_recovery_headers: register_int_gauge_with_registry!(
+                "tx_recovery_headers",
+                "occupancy of the internal channel in the `primary::Core` to recover headers",
                 registry
             ).unwrap(),
             tx_committed_certificates: register_int_gauge_with_registry!(
