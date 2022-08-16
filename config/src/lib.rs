@@ -7,6 +7,7 @@
     rust_2018_idioms,
     rust_2021_compatibility
 )]
+#![allow(clippy::mutable_key_type)]
 
 use arc_swap::ArcSwap;
 use crypto::{traits::EncodeDecodeBase64, PublicKey};
@@ -320,6 +321,7 @@ pub struct Authority {
 
 pub type SharedCommittee = Arc<ArcSwap<Committee>>;
 
+#[allow(clippy::mutable_key_type)]
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Committee {
     /// The authorities of epoch.
@@ -491,6 +493,7 @@ impl Committee {
     /// Update the networking information of some of the primaries. The arguments are a full vector of
     /// authorities which Public key and Stake must match the one stored in the current Committee. Any discrepancy
     /// will generate no update and return a vector of errors.
+    #[allow(clippy::mutable_key_type)]
     pub fn update_primary_network_info(
         &mut self,
         mut new_info: BTreeMap<PublicKey, (Stake, PrimaryAddresses)>,
@@ -511,6 +514,7 @@ impl Committee {
         let res = table
             .iter()
             .fold(Ok(BTreeMap::new()), |acc, (pk, authority)| {
+                #[allow(mutable-key-type)]
                 if let Some((stake, addresses)) = new_info.remove(pk) {
                     if stake == authority.stake {
                         match acc {
