@@ -72,7 +72,7 @@ impl WorkerNetwork {
     where
         I: IntoIterator<Item = &'a Multiaddr>,
     {
-        // TODO(ajkoshy): Add protection for primary owned worker addresses.
+        // TODO: Add protection for primary owned worker addresses.
         for address in to_remove {
             self.clients.remove(address);
         }

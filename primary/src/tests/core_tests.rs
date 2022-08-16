@@ -7,7 +7,7 @@ use fastcrypto::traits::KeyPair;
 use prometheus::Registry;
 use test_utils::{
     certificate, fixture_batch_with_transactions, header, headers, keys, pure_committee_from_keys,
-    shared_worker_cache_from_keys, votes, worker_cache_from_keys, PrimaryToPrimaryMockServer,
+    shared_worker_cache_from_keys, votes, PrimaryToPrimaryMockServer,
 };
 use types::{Header, Vote};
 
@@ -558,9 +558,6 @@ async fn reconfigure_core() {
     let keys_1 = keys(None);
     let mut new_committee = pure_committee_from_keys(&keys_1);
     new_committee.epoch = 1;
-    // TODO(ajkoshy) Remove or use worker_cache
-    let mut new_worker_cache = worker_cache_from_keys(&keys_1);
-    new_worker_cache.epoch = 1;
 
     // All the channels to interface with the core.
     let (tx_reconfigure, rx_reconfigure) =
