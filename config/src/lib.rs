@@ -379,7 +379,7 @@ impl Committee {
     }
 
     /// Returns a leader node as a weighted choice seeded by the provided integer
-    pub fn leader(&self, seed: usize) -> PublicKey {
+    pub fn leader(&self, seed: u64) -> PublicKey {
         let mut seed_bytes = [0u8; 32];
         seed_bytes[32 - 8..].copy_from_slice(&seed.to_le_bytes());
         let mut rng = StdRng::from_seed(seed_bytes);

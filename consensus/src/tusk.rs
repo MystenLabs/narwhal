@@ -154,7 +154,7 @@ impl Tusk {
         // Note: this function is often called with even rounds only. While we do not aim at random selection
         // yet (see issue #10), repeated calls to this function should still pick from the whole roster of leaders.
         #[cfg(not(test))]
-        let coin = round as usize;
+        let coin = round;
         #[cfg(test)]
         let coin = 0;
 

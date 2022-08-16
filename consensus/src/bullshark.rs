@@ -155,7 +155,7 @@ impl Bullshark {
         let seed = 0;
 
         // Elect the leader in a stake-weighted choice seeded by the round
-        let leader = committee.leader(seed as usize);
+        let leader = committee.leader(seed);
 
         // Return its certificate and the certificate's digest.
         dag.get(&round).and_then(|x| x.get(&leader))
