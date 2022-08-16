@@ -1,7 +1,7 @@
-use arc_swap::ArcSwap;
 // Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
+use arc_swap::ArcSwap;
 use config::{
     utils::get_available_port, Authority, Committee, Epoch, PrimaryAddresses, SharedWorkerCache,
     WorkerCache, WorkerId, WorkerIndex, WorkerInfo,
