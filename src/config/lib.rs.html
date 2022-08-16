@@ -603,6 +603,17 @@
 <span id="603">603</span>
 <span id="604">604</span>
 <span id="605">605</span>
+<span id="606">606</span>
+<span id="607">607</span>
+<span id="608">608</span>
+<span id="609">609</span>
+<span id="610">610</span>
+<span id="611">611</span>
+<span id="612">612</span>
+<span id="613">613</span>
+<span id="614">614</span>
+<span id="615">615</span>
+<span id="616">616</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -616,6 +627,7 @@
 <span class="kw">use </span>arc_swap::ArcSwap;
 <span class="kw">use </span>crypto::{traits::EncodeDecodeBase64, PublicKey};
 <span class="kw">use </span>multiaddr::Multiaddr;
+<span class="kw">use </span>rand::{rngs::StdRng, seq::SliceRandom, SeedableRng};
 <span class="kw">use </span>serde::{de::DeserializeOwned, Deserialize, Serialize};
 <span class="kw">use </span>std::{
     collections::{BTreeMap, HashMap, HashSet},
@@ -982,11 +994,21 @@
         (total_votes + <span class="number">2</span>) / <span class="number">3
     </span>}
 
-    <span class="doccomment">/// Returns a leader node in a round-robin fashion.
-    </span><span class="kw">pub fn </span>leader(<span class="kw-2">&amp;</span><span class="self">self</span>, seed: usize) -&gt; PublicKey {
-        <span class="kw">let </span><span class="kw-2">mut </span>keys: Vec&lt;<span class="kw">_</span>&gt; = <span class="self">self</span>.authorities.keys().cloned().collect();
-        keys.sort();
-        keys[seed % <span class="self">self</span>.size()].clone()
+    <span class="doccomment">/// Returns a leader node as a weighted choice seeded by the provided integer
+    </span><span class="kw">pub fn </span>leader(<span class="kw-2">&amp;</span><span class="self">self</span>, seed: u64) -&gt; PublicKey {
+        <span class="kw">let </span><span class="kw-2">mut </span>seed_bytes = [<span class="number">0u8</span>; <span class="number">32</span>];
+        seed_bytes[<span class="number">32 </span>- <span class="number">8</span>..].copy_from_slice(<span class="kw-2">&amp;</span>seed.to_le_bytes());
+        <span class="kw">let </span><span class="kw-2">mut </span>rng = StdRng::from_seed(seed_bytes);
+        <span class="kw">let </span>choices = <span class="self">self
+            </span>.authorities
+            .iter()
+            .map(|(name, authority)| (name, authority.stake <span class="kw">as </span>f32))
+            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+        choices
+            .choose_weighted(<span class="kw-2">&amp;mut </span>rng, |item| item.<span class="number">1</span>)
+            .expect(<span class="string">&quot;Weighted choice error: stake values incorrect!&quot;</span>)
+            .<span class="number">0
+            </span>.clone()
     }
 
     <span class="doccomment">/// Returns the primary addresses of the target primary.
