@@ -73,10 +73,15 @@ pub mod serde_helpers;
 // Beware: if you change those aliases to point to another scheme implementation, you will have
 // to change all four aliases to point to concrete types that work with each other. Failure to do
 // so will result in a ton of compilation errors, and worse: it will not make sense!
-pub type PublicKey = ed25519::Ed25519PublicKey;
-pub type Signature = ed25519::Ed25519Signature;
-pub type PrivateKey = ed25519::Ed25519PrivateKey;
-pub type KeyPair = ed25519::Ed25519KeyPair;
+// pub type PublicKey = ed25519::Ed25519PublicKey;
+// pub type Signature = ed25519::Ed25519Signature;
+// pub type PrivateKey = ed25519::Ed25519PrivateKey;
+// pub type KeyPair = ed25519::Ed25519KeyPair;
+
+pub type PublicKey = bls12381::BLS12381PublicKey;
+pub type Signature = bls12381::BLS12381Signature;
+pub type PrivateKey = bls12381::BLS12381PrivateKey;
+pub type KeyPair = bls12381::BLS12381KeyPair;
 ////////////////////////////////////////////////////////////////////////
 
 pub const DIGEST_LEN: usize = 32;
