@@ -26,4 +26,4 @@ For example, observe that in the blst library:</p>
     <span class="kw">let </span>my_keypair = hkdf_generate_from_ikm::&lt;Sha3_256, BLS12381KeyPair&gt;(ikm, salt, <span class="prelude-val">Some</span>(domain)).unwrap();
     <span class="kw">let </span>native_sk = blst::min_sig::SecretKey::key_gen_v4_5(ikm, salt, domain).unwrap();
     <span class="macro">assert_ne!</span>(native_sk.to_bytes(), my_keypair.private().as_bytes());</code></pre></div>
-</div></details></section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="crypto" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (40336865f 2022-08-15)" ></div></body></html>
+</div></details></section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="crypto" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (86c6ebee8 2022-08-16)" ></div></body></html>

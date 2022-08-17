@@ -171,6 +171,13 @@
 <span id="171">171</span>
 <span id="172">172</span>
 <span id="173">173</span>
+<span id="174">174</span>
+<span id="175">175</span>
+<span id="176">176</span>
+<span id="177">177</span>
+<span id="178">178</span>
+<span id="179">179</span>
+<span id="180">180</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -216,12 +223,19 @@
 <span class="attribute">#[path = <span class="string">&quot;tests/bls12381_tests.rs&quot;</span>]</span>
 <span class="kw">pub mod </span>bls12381_tests;
 
+<span class="attribute">#[cfg(test)]</span>
+<span class="attribute">#[path = <span class="string">&quot;tests/bulletproofs_tests.rs&quot;</span>]</span>
+<span class="kw">pub mod </span>bulletproofs_tests;
+
 <span class="comment">// Signing traits
 </span><span class="kw">pub mod </span>traits;
 <span class="comment">// Key scheme implementations
 </span><span class="kw">pub mod </span>bls12381;
 <span class="kw">pub mod </span>ed25519;
 <span class="kw">pub mod </span>secp256k1;
+
+<span class="kw">pub mod </span>bulletproofs;
+
 <span class="comment">// Other tooling
 </span><span class="kw">pub mod </span>hkdf;
 <span class="kw">pub mod </span>pubkey_bytes;
@@ -345,4 +359,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="crypto" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (40336865f 2022-08-15)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="crypto" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (86c6ebee8 2022-08-16)" ></div></body></html>

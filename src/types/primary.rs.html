@@ -661,6 +661,8 @@
 <span id="661">661</span>
 <span id="662">662</span>
 <span id="663">663</span>
+<span id="664">664</span>
+<span id="665">665</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -1082,7 +1084,9 @@
         <span class="kw">let </span>(pks, sigs): (Vec&lt;PublicKey&gt;, Vec&lt;Signature&gt;) = <span class="self">self</span>.votes.iter().cloned().unzip();
         <span class="comment">// Verify the signatures
         </span><span class="kw">let </span>certificate_digest: Digest = Digest::from(<span class="self">self</span>.digest());
-        PublicKey::verify_batch(certificate_digest.as_ref(), <span class="kw-2">&amp;</span>pks, <span class="kw-2">&amp;</span>sigs).map_err(DagError::from)
+        PublicKey::verify_batch_empty_fail(certificate_digest.as_ref(), <span class="kw-2">&amp;</span>pks, <span class="kw-2">&amp;</span>sigs)
+            .map_err(|<span class="kw">_</span>| signature::Error::new())
+            .map_err(DagError::from)
     }
 
     <span class="kw">pub fn </span>round(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Round {
@@ -1325,4 +1329,4 @@
     </span><span class="kw">pub </span>workers: HashMap&lt;WorkerId, WorkerInfo&gt;,
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (40336865f 2022-08-15)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (86c6ebee8 2022-08-16)" ></div></body></html>
