@@ -31,7 +31,7 @@ axum = "0.5.15"
 
 config = { path = "../config" }
 consensus = { path = "../consensus" }
-crypto = { git = "https://github.com/MystenLabs/fastcrypto", rev = "ded6f91c9c19594a3eaeaa9a487d42a39965569e", package = "fastcrypto" }
+crypto = { git = "https://github.com/MystenLabs/fastcrypto", rev = "0d0d1208e7d6b91c25febec13ce3683414a7e03f", package = "fastcrypto" }
 executor = { path = "../executor" }
 network = { path = "../network" }
 primary = { path = "../primary" }
