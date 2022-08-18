@@ -22,7 +22,7 @@ tonic = { version = "0.7.2", features = ["tls"] }
 tracing = "0.1.36"
 types = { path = "../types" }
 
-mysten-network = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "8d090689be14078f2ca41c356e7bbc0af21f73ab" }
+mysten-network = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "87494e36d96869d62dcae0a4cd0193ef8957145b" }
 serde = "1.0.143"
 workspace-hack = { version = "0.1", path = "../workspace-hack" }
 eyre = "0.6.8"

@@ -2271,7 +2271,7 @@ checksum = "e5ce46fe64a9d73be07dcbe690a38ce1b293be448fd8ce1e6c1b8062c9f72c6a"
 [[package]]
 name = "mysten-network"
 version = "0.1.0"
-source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=8d090689be14078f2ca41c356e7bbc0af21f73ab#8d090689be14078f2ca41c356e7bbc0af21f73ab"
+source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=87494e36d96869d62dcae0a4cd0193ef8957145b#87494e36d96869d62dcae0a4cd0193ef8957145b"
 dependencies = [
  "bincode",
  "bytes",
@@ -2340,6 +2340,7 @@ dependencies = [
  "config",
  "consensus",
  "crypto",
+ "dashmap",
  "dhat",
  "ed25519-dalek",
  "executor",
@@ -3852,7 +3853,7 @@ checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 [[package]]
 name = "telemetry-subscribers"
 version = "0.1.0"
-source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=8d090689be14078f2ca41c356e7bbc0af21f73ab#8d090689be14078f2ca41c356e7bbc0af21f73ab"
+source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=87494e36d96869d62dcae0a4cd0193ef8957145b#87494e36d96869d62dcae0a4cd0193ef8957145b"
 dependencies = [
  "crossterm",
  "once_cell",
@@ -4422,7 +4423,7 @@ checksum = "59547bce71d9c38b83d9c0e92b6066c4253371f15005def0c30d9657f50c7642"
 [[package]]
 name = "typed-store"
 version = "0.1.0"
-source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=8d090689be14078f2ca41c356e7bbc0af21f73ab#8d090689be14078f2ca41c356e7bbc0af21f73ab"
+source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=87494e36d96869d62dcae0a4cd0193ef8957145b#87494e36d96869d62dcae0a4cd0193ef8957145b"
 dependencies = [
  "bincode",
  "collectable",

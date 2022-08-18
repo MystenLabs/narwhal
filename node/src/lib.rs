@@ -31,6 +31,7 @@ use types::{
 };
 use worker::{metrics::initialise_metrics, Worker};
 
+mod certificate_store;
 pub mod execution_state;
 pub mod metrics;
 pub mod restarter;
