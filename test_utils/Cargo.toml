@@ -29,7 +29,7 @@ tracing = "0.1.36"
 task-group = "0.2.2"
 
 config = { path = "../config" }
-crypto = { path = "../crypto", features = ["copy_key"] }
+crypto = { git = "https://github.com/MystenLabs/fastcrypto", rev = "ded6f91c9c19594a3eaeaa9a487d42a39965569e", package = "fastcrypto", features = ["copy_key"] }
 executor = { path = "../executor" }
 node = { path = "../node" }
 primary = { path = "../primary" }
