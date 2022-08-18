@@ -224,9 +224,11 @@ mod tests {
             futs.push(future::ready(Result::<usize, bool>::Ok(i))).await
         }
         for i in 0..10 {
-            futs.try_next().await.unwrap();
+            assert!(futs.try_next().await.unwrap().is_some());
             assert_eq!(futs.push_semaphore.available_permits(), i + 1)
         }
+        assert!(futs.try_next().await.unwrap().is_none());
+        assert_eq!(futs.push_semaphore.available_permits(), cap)
     }
 
     #[tokio::test]
@@ -249,8 +251,10 @@ mod tests {
             futs.push(future::ready(Result::<usize, bool>::Ok(i))).await
         }
         for i in 0..10 {
-            futs.try_next().await.unwrap();
+            assert!(futs.try_next().await.unwrap().is_some());
             assert_eq!(futs.push_semaphore.available_permits(), i + 1)
         }
+        assert!(futs.try_next().await.unwrap().is_none());
+        assert_eq!(futs.push_semaphore.available_permits(), cap)
     }
 }
