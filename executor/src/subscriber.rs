@@ -7,7 +7,6 @@ use crate::{
 use backoff::{Error, ExponentialBackoff};
 use consensus::ConsensusOutput;
 use crypto::Hash;
-use futures::{stream::FuturesOrdered, TryStreamExt};
 use primary::BlockCommand;
 use std::time::Duration;
 use store::Store;
@@ -16,7 +15,10 @@ use tokio::{
     task::JoinHandle,
 };
 use tracing::error;
-use types::{metered_channel, Batch, BatchDigest, ReconfigureNotification};
+use types::{
+    bounded_future_queue::BoundedFuturesOrdered, metered_channel, Batch, BatchDigest,
+    ReconfigureNotification,
+};
 
 #[cfg(test)]
 #[path = "tests/subscriber_tests.rs"]
@@ -44,6 +46,9 @@ pub struct Subscriber {
 }
 
 impl Subscriber {
+    /// Returns the max amount of pending consensus messages we should expect.
+    const MAX_PENDING_CONSENSUS_MESSAGES: usize = 2000;
+
     /// Spawn a new subscriber in a new tokio task.
     #[must_use]
     pub fn spawn(
@@ -85,13 +90,14 @@ impl Subscriber {
         // mater if we somehow managed to fetch the batches from a later
         // certificate. Unless the earlier certificate's payload has been
         // fetched, no later certificate will be delivered.
-        let mut waiting = FuturesOrdered::new();
+        let mut waiting =
+            BoundedFuturesOrdered::with_capacity(Self::MAX_PENDING_CONSENSUS_MESSAGES);
 
         // Listen to sequenced consensus message and process them.
         loop {
             tokio::select! {
                 // Receive the ordered sequence of consensus messages from a consensus node.
-                Some(message) = self.rx_consensus.recv() => {
+                Some(message) = self.rx_consensus.recv(), if waiting.available_permits() > 0 => {
                     // Fetch the certificate's payload from the workers. This is done via the
                     // block_waiter component. If the batches are not available in the workers then
                     // block_waiter will do its best to sync from the other peers. Once all batches
@@ -101,7 +107,7 @@ impl Subscriber {
                         self.store.clone(),
                         self.tx_get_block_commands.clone(),
                         message);
-                    waiting.push_back(future);
+                    waiting.push(future).await;
                 },
 
                 // Receive here consensus messages for which we have downloaded all transactions data.
