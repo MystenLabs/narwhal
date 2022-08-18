@@ -133,9 +133,6 @@ impl Executor {
         // Return the handle.
         info!("Consensus subscriber successfully started");
 
-        Ok(vec![
-            subscriber_handle,
-            executor_handle,
-        ])
+        Ok(vec![subscriber_handle, executor_handle])
     }
 }
