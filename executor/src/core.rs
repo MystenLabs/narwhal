@@ -110,21 +110,19 @@ where
 
     /// Execute a single certificate.
     async fn execute_certificate(&mut self, message: &ConsensusOutput) -> SubscriberResult<()> {
-        // Skip the certificate if it contains no transactions.
         if message.certificate.header.payload.is_empty() {
-            self.execution_indices.skip_certificate();
-            return Ok(());
-        }
-
-        // Execute every batch in the certificate.
-        let total_batches = message.certificate.header.payload.len();
-        for (index, digest) in message.certificate.header.payload.keys().enumerate() {
-            // Skip batches that we already executed (after crash-recovery).
-            if self
-                .execution_indices
-                .check_next_batch_index(index as SequenceNumber)
-            {
-                self.execute_batch(message, *digest, total_batches).await?;
+            self.execute_empty_certificate(message).await?;
+        } else {
+            // Execute every batch in the certificate.
+            let total_batches = message.certificate.header.payload.len();
+            for (index, digest) in message.certificate.header.payload.keys().enumerate() {
+                // Skip batches that we already executed (after crash-recovery).
+                if self
+                    .execution_indices
+                    .check_next_batch_index(index as SequenceNumber)
+                {
+                    self.execute_batch(message, *digest, total_batches).await?;
+                }
             }
         }
         Ok(())
@@ -242,5 +240,29 @@ where
             )
             .await
             .map_err(SubscriberError::from)
+    }
+
+    /// Inform the executor about an empty certificate.
+    async fn execute_empty_certificate(
+        &mut self,
+        consensus_output: &ConsensusOutput,
+    ) -> SubscriberResult<()> {
+        self.execution_indices.skip_certificate();
+
+        let result = self
+            .execution_state
+            .handle_consensus_without_transactions(consensus_output)
+            .await
+            .map_err(SubscriberError::from);
+
+        // Same error handling as in `execute_batch`.
+        match result {
+            Ok(_) => Ok(()),
+            Err(error @ SubscriberError::ClientExecutionError(_)) => {
+                debug!("{error}");
+                Ok(())
+            }
+            Err(error) => bail!(error),
+        }
     }
 }

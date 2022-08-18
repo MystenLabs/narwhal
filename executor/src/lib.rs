@@ -67,12 +67,33 @@ pub trait ExecutionState {
     /// Execute the transaction and atomically persist the consensus index. This function
     /// returns an execution outcome that will be output by the executor channel. It may
     /// also return a new committee to reconfigure the system.
+    ///
+    /// The executor can detect the end of the transactions that belong to the same certificate
+    /// by looking comparing `execution_indices.next_certificate_index` to `consensus_output.consensus_index`.
     async fn handle_consensus_transaction(
         &self,
         consensus_output: &ConsensusOutput,
         execution_indices: ExecutionIndices,
         transaction: Self::Transaction,
     ) -> Result<Self::Outcome, Self::Error>;
+
+    /// Let the executor know that there was a certificate which contained no batches,
+    /// in case it wants to do something deterministic based on the passage of time,
+    /// as indicated by the rounds increasing in the certificate.
+    ///
+    /// This method doesn't get the `ExecutionIndices` because of backwards compatibility:
+    /// an implementation might ingore empty certificates by not implementing this method,
+    /// in which case we would not know if it persisted the indices.
+    ///
+    /// But ideally this method should also be allowed to return a new committee
+    /// to reconfigure the system.
+    #[allow(unused_variables)]
+    async fn handle_consensus_without_transactions(
+        &self,
+        consensus_output: &ConsensusOutput,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
 
     /// Simple guardrail ensuring there is a single instance using the state
     /// to call `handle_consensus_transaction`. Many instances may read the state,
@@ -84,6 +105,7 @@ pub trait ExecutionState {
     fn release_consensus_write_lock(&self);
 
     /// Load the last consensus index from storage.
+    /// It *must* return index that was last passed to `handle_consensus_transaction`.
     async fn load_execution_indices(&self) -> Result<ExecutionIndices, Self::Error>;
 }
 
