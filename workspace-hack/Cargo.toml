@@ -171,7 +171,7 @@ mio = { version = "0.8", features = ["net", "os-ext", "os-poll"] }
 mockall = { version = "0.11", default-features = false }
 multiaddr = { version = "0.14", features = ["url"] }
 multihash = { version = "0.16", default-features = false, features = ["alloc", "derive", "identity", "multihash-derive", "multihash-impl", "std"] }
-mysten-network = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "8d090689be14078f2ca41c356e7bbc0af21f73ab", default-features = false }
+mysten-network = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "87494e36d96869d62dcae0a4cd0193ef8957145b", default-features = false }
 normalize-line-endings = { version = "0.3", default-features = false }
 num-bigint = { version = "0.4", default-features = false }
 num-integer = { version = "0.1", default-features = false, features = ["i128"] }
@@ -265,7 +265,7 @@ subtle = { version = "2", default-features = false, features = ["i128"] }
 subtle-ng = { version = "2", default-features = false, features = ["std"] }
 sync_wrapper = { version = "0.1", default-features = false }
 tap = { version = "1", default-features = false }
-telemetry-subscribers = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "8d090689be14078f2ca41c356e7bbc0af21f73ab", features = ["chrome", "jaeger", "opentelemetry", "opentelemetry-jaeger", "tracing-chrome", "tracing-opentelemetry"] }
+telemetry-subscribers = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "87494e36d96869d62dcae0a4cd0193ef8957145b", features = ["chrome", "jaeger", "opentelemetry", "opentelemetry-jaeger", "tracing-chrome", "tracing-opentelemetry"] }
 tempfile = { version = "3", default-features = false }
 termcolor = { version = "1", default-features = false }
 terminal_size = { version = "0.1", default-features = false }
@@ -304,7 +304,7 @@ tracing-subscriber-6f8ce4dd05d13bba = { package = "tracing-subscriber", version 
 tracing-subscriber-468e82937335b1c9 = { package = "tracing-subscriber", version = "0.3", features = ["alloc", "ansi", "ansi_term", "env-filter", "fmt", "matchers", "once_cell", "regex", "registry", "sharded-slab", "smallvec", "std", "thread_local", "time", "tracing", "tracing-log"] }
 tracing-test = { version = "0.2", default-features = false }
 try-lock = { version = "0.2", default-features = false }
-typed-store = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "8d090689be14078f2ca41c356e7bbc0af21f73ab", default-features = false }
+typed-store = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "87494e36d96869d62dcae0a4cd0193ef8957145b", default-features = false }
 typenum = { version = "1", default-features = false }
 unicode-bidi = { version = "0.3", features = ["hardcoded-data", "std"] }
 unicode-normalization = { version = "0.1", features = ["std"] }

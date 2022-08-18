@@ -1,0 +1,24 @@
+[package]
+name = "storage"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+authors = ["Mysten Labs <build@mystenlabs.com>"]
+publish = false
+
+[dependencies]
+dashmap = "5.3.4"
+futures = "0.3.23"
+store = { git = "https://github.com/mystenlabs/mysten-infra.git", package = "typed-store", rev = "87494e36d96869d62dcae0a4cd0193ef8957145b" }
+thiserror = "1.0.32"
+tokio = { version = "1.20.1", features = ["sync", "rt", "macros"] }
+tokio-util = { version = "0.7.3", features = ["codec"] }
+tonic = { version = "0.7.2", features = ["tls"] }
+tracing = "0.1.36"
+types = { path = "../types" }
+crypto = { path = "../crypto" }
+
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
+
+[dev-dependencies]
+test_utils = { path = "../test_utils" }
