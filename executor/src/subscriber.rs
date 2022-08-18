@@ -1,14 +1,14 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use crate::{
-    errors::SubscriberResult, try_fut_and_permit, SubscriberError,
+    errors::SubscriberResult, metrics::ExecutorMetrics, try_fut_and_permit, SubscriberError,
     SubscriberError::PayloadRetrieveError,
 };
 use backoff::{Error, ExponentialBackoff};
 use consensus::ConsensusOutput;
 use crypto::Hash;
 use primary::BlockCommand;
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 use store::Store;
 use tokio::{
     sync::{oneshot, watch},
@@ -43,6 +43,8 @@ pub struct Subscriber {
     // When asking for a certificate's payload we want to retry until we succeed, unless
     // some irrecoverable error occurs. For that reason a backoff policy is defined
     get_block_retry_policy: ExponentialBackoff,
+    /// The metrics handler
+    metrics: Arc<ExecutorMetrics>,
 }
 
 impl Subscriber {
@@ -57,6 +59,7 @@ impl Subscriber {
         rx_reconfigure: watch::Receiver<ReconfigureNotification>,
         rx_consensus: metered_channel::Receiver<ConsensusOutput>,
         tx_executor: metered_channel::Sender<ConsensusOutput>,
+        metrics: Arc<ExecutorMetrics>,
     ) -> JoinHandle<()> {
         let get_block_retry_policy = ExponentialBackoff {
             initial_interval: Duration::from_millis(500),
@@ -75,6 +78,7 @@ impl Subscriber {
                 tx_executor,
                 tx_get_block_commands,
                 get_block_retry_policy,
+                metrics,
             }
             .run()
             .await
@@ -124,6 +128,10 @@ impl Subscriber {
                     }
                 }
             }
+
+            self.metrics
+                .waiting_elements_subscriber
+                .set(waiting.len() as i64);
         }
     }
 
