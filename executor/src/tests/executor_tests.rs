@@ -80,10 +80,10 @@ async fn execute_empty_certificate() {
 
     // Feed empty certificates to the executor.
     let empty_certificates = 2;
-    for _ in 0..empty_certificates {
+    for i in 0..empty_certificates {
         let message = ConsensusOutput {
             certificate: Certificate::default(),
-            consensus_index: SequenceNumber::default(),
+            consensus_index: i,
         };
         tx_executor.send(message).await.unwrap();
     }
@@ -112,6 +112,7 @@ async fn execute_empty_certificate() {
         next_transaction_index: 0,
     };
     assert_eq!(execution_state.get_execution_indices().await, expected);
+    assert_eq!(execution_state.get_last_empty_index().await, 1);
 }
 
 #[tokio::test]
