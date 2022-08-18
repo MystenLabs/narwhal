@@ -8,21 +8,23 @@
 //! concurrently when spawned through this executor, defined by the initial
 //! `capacity`.
 
+use backoff::future::Retry;
 use futures::{
-    future::{BoxFuture, Future},
+    future::{join, BoxFuture, Future},
     FutureExt, StreamExt,
 };
-use std::sync::Arc;
+use std::{ops::Deref, sync::Arc};
 use tokio::{
     runtime::Handle,
     sync::{mpsc, OwnedSemaphorePermit, Semaphore},
     task::JoinHandle,
 };
 use tokio_util::time::DelayQueue;
-
 use tracing::debug;
 
 use thiserror::Error;
+
+use crate::{try_fut_and_acquire, CancelOnDropHandler};
 
 #[derive(Error)]
 pub enum BoundedExecutionError<F>
@@ -47,26 +49,70 @@ where
     }
 }
 
-#[derive(Clone, Debug)]
 pub struct BoundedExecutor {
-    semaphore: Arc<Semaphore>,
-    executor: Handle,
+    inner: Arc<InternalBoundedExecutor>,
+    scheduler_handle: CancelOnDropHandler<()>,
 }
 
 impl BoundedExecutor {
-    /// Create a new `BoundedExecutor` from an existing tokio [`Handle`]
-    /// with a maximum concurrent task capacity of `capacity`.
     pub fn new(capacity: usize, executor: Handle) -> Self {
         let semaphore = Arc::new(Semaphore::new(capacity));
+        let retry_manager = RetryManager::new(capacity, semaphore.clone());
+        let tx_retry_manager = retry_manager.inbound_channel();
+
+        let bounded_executor =
+            InternalBoundedExecutor::new(executor.clone(), semaphore, tx_retry_manager);
+
+        let bounded_executor = Arc::new(bounded_executor);
+
+        // Consumes the `RetryManager` into a scheduling task
+        let scheduler_handle =
+            executor.spawn(retry_manager.run_scheduler(bounded_executor.clone()));
+
+        Self {
+            inner: bounded_executor,
+            scheduler_handle: CancelOnDropHandler(scheduler_handle),
+        }
+    }
+}
+
+impl Deref for BoundedExecutor {
+    type Target = InternalBoundedExecutor;
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+// TODO(erwan): deriving Debug is ok, but Clone might be a footgun for the clients.
+pub struct InternalBoundedExecutor {
+    semaphore: Arc<Semaphore>,
+    executor: Handle,
+    // Outbound channel to the retry manager task
+    tx_retry_manager: Arc<mpsc::Sender<Job>>,
+}
+
+impl InternalBoundedExecutor {
+    /// Create a new `BoundedExecutor` from an existing tokio [`Handle`]
+    /// with a maximum concurrent task capacity of `capacity`.
+    pub fn new(
+        executor: Handle,
+        semaphore: Arc<Semaphore>,
+        tx_retry_manager: Arc<mpsc::Sender<Job>>,
+    ) -> Self {
         Self {
             semaphore,
             executor,
+            tx_retry_manager,
         }
+    }
+
+    pub fn semaphore(&self) -> Arc<Semaphore> {
+        self.semaphore.clone()
     }
 
     // Acquires a permit with the semaphore, first gracefully,
     // then queuing after logging that we're out of capacity.
-    async fn acquire_permit(semaphore: Arc<Semaphore>) -> OwnedSemaphorePermit {
+    pub async fn acquire_permit(semaphore: Arc<Semaphore>) -> OwnedSemaphorePermit {
         match semaphore.clone().try_acquire_owned() {
             Ok(p) => p,
             Err(_) => {
@@ -172,7 +218,7 @@ impl BoundedExecutor {
                 let semaphore = semaphore.clone();
                 // TODO(erwan): chain the `Fut` to subsume the `Result<T, E>` into an
                 // `OpaqueResult`
-                BoundedExecutor::run_on_semaphore(semaphore, f())
+                InternalBoundedExecutor::run_on_semaphore(semaphore, f())
             };
 
             retry_config.retry(executor)
@@ -194,30 +240,9 @@ impl BoundedExecutor {
     }
 }
 
-// TODO(erwan): compare backoff crates
-type Backoff = ();
-
-/// The output of a faillible computation, similar to a `Result<T, E>` but using unit variants.
-// Subsuming a `OpaqueResult` for a `Result` enables us to save a heap allocation
-// when submitting computations to the scheduler.
-enum OpaqueResult {
-    Ok,
-    Err,
-}
-
-/// A `Future` task that can fail.
-type FaillibleFuture = BoxFuture<'static, OpaqueResult>;
-
-/// A job to schedule or execute.
-/// Wraps a `FaillibleFuture` factory and a `Backoff` context specific to that computation.
-// TODO(erwan): investigate #![feature(type_alias_impl_trait)]
-type Job = (
-    Box<dyn FnMut() -> FaillibleFuture + Send + 'static>,
-    Backoff,
-);
-
-/// A scheduler which manages spawning retry tasks on the `BoundedExecutor`.
 struct RetryManager {
+    /// Bounded execution semaphore.
+    semaphore: Arc<Semaphore>,
     /// A queue of jobs eligible for execution.
     execution_queue: DelayQueue<Job>,
     /// A sink of failed jobs going to the scheduler.
@@ -227,23 +252,40 @@ struct RetryManager {
 }
 
 impl RetryManager {
-    async fn run(mut self, executor: BoundedExecutor) {
+    pub fn new(capacity: usize, semaphore: Arc<Semaphore>) -> Self {
+        let (tx, rx) = mpsc::channel(1);
+        Self {
+            // TODO(erwan): scaling factor for capacity?
+            execution_queue: DelayQueue::with_capacity(capacity),
+            tx_new_jobs: Arc::new(tx),
+            rx_new_jobs: rx,
+            semaphore,
+        }
+    }
+
+    pub fn inbound_channel(&self) -> Arc<mpsc::Sender<Job>> {
+        self.tx_new_jobs.clone()
+    }
+
+    /// A scheduler which manages spawning retry tasks on the `BoundedExecutor`.
+    async fn run_scheduler(mut self, executor: Arc<InternalBoundedExecutor>) {
         loop {
             tokio::select! {
                  // Pull jobs that are ready for execution, and forward them to the executor if
                  // resources can be acquired (semaphore permit).
                  // TODO(erwan): gating branch.
-                 job_ready = self.execution_queue.next() => {
-                         let (mut f, backoff) = job_ready.unwrap().into_inner();
+                job_ready = self.execution_queue.next() => {
+                         let (mut task_factory, backoff) = job_ready.unwrap().into_inner();
                          let tx_scheduler = self.tx_new_jobs.clone();
 
-                         let task = f();
+                         let task = task_factory();
                          let retry_task = task.map(move |result| async move {
+                             let _ = (&task_factory, &backoff, &tx_scheduler); // ugly
                                match result {
                                    OpaqueResult::Ok => (),
                                    OpaqueResult::Err => {
-                                       // let backoff = backoff.tick();
-                                       let job = (f, backoff);
+                                       let backoff = todo!(); // tick
+                                       let job = (task_factory, backoff);
                                        tx_scheduler.send(job).await;
                                   }
                                }
@@ -252,21 +294,44 @@ impl RetryManager {
 
 
                          // TODO(erwan): see discussion in issue #567 -  a blocking spawn on the
-                         // semaphore might be acceptable provided that we obtain a permit to run 
-                         // prior to branching. 
-                         executor.spawn(retry_task).await;
+                         // semaphore might be acceptable provided that we obtain a permit to run
+                         // prior to branching.
+                         // TODO(erwan): with semaphore logic.
+                         let permit = InternalBoundedExecutor::acquire_permit(self.semaphore.clone()).await;
+                         executor.spawn_with_permit(retry_task, permit).await;
                  },
                  // Pull jobs that need scheduling, and schedule them for execution.
                  new_job = self.rx_new_jobs.recv() => {
                            let (f, backoff) = new_job.unwrap();
-                           // let cooldown_time = backoff.time();
-                           let cooldown_time = unimplemented!();
+                           let cooldown_time = todo!();
                            self.execution_queue.insert((f, backoff), cooldown_time);
                         },
             }
         }
     }
 }
+
+// TODO(erwan): compare backoff crates
+type Backoff = ();
+
+/// The output of a faillible computation, similar to a `Result<T, E>` but using unit variants.
+// Subsuming a `OpaqueResult` for a `Result` enables us to save a heap allocation
+// when submitting computations to the scheduler.
+pub enum OpaqueResult {
+    Ok,
+    Err,
+}
+
+/// A `Future` task that can fail and return an opaque `Err`.
+pub type FaillibleFuture = BoxFuture<'static, OpaqueResult>;
+
+/// A job to schedule or execute.
+/// It wraps a `FaillibleFuture` factory and a `Backoff` context specific to that computation.
+// TODO(erwan): investigate #![feature(type_alias_impl_trait)]
+pub type Job = (
+    Box<dyn FnMut() -> FaillibleFuture + Send + 'static>,
+    Backoff,
+);
 
 #[cfg(test)]
 mod test {
