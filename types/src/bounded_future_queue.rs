@@ -75,6 +75,16 @@ impl<T: Future> BoundedFuturesUnordered<T> {
     pub fn available_permits(&self) -> usize {
         self.push_semaphore.available_permits()
     }
+
+    /// Report the length of the queue
+    pub fn len(&self) -> usize {
+        self.queue.len()
+    }
+
+    /// Report if  the queue is empty
+    pub fn is_empty(&self) -> bool {
+        self.queue.is_empty()
+    }
 }
 
 impl<U, V, T: Future<Output = Result<U, V>>> BoundedFuturesUnordered<T> {
@@ -145,6 +155,16 @@ impl<T: Future> BoundedFuturesOrdered<T> {
     /// Report the available permits
     pub fn available_permits(&self) -> usize {
         self.push_semaphore.available_permits()
+    }
+
+    /// Report the length of the queue
+    pub fn len(&self) -> usize {
+        self.queue.len()
+    }
+
+    /// Report if  the queue is empty
+    pub fn is_empty(&self) -> bool {
+        self.queue.is_empty()
     }
 }
 

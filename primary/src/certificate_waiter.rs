@@ -211,14 +211,18 @@ impl CertificateWaiter {
                 }
             }
 
-            self.update_metrics();
+            self.update_metrics(waiting.len());
         }
     }
 
-    fn update_metrics(&self) {
+    fn update_metrics(&self, waiting_len: usize) {
         self.metrics
             .pending_elements_certificate_waiter
             .with_label_values(&[&self.committee.epoch.to_string()])
             .set(self.pending.len() as i64);
+        self.metrics
+            .waiting_elements_certificate_waiter
+            .with_label_values(&[&self.committee.epoch.to_string()])
+            .set(waiting_len as i64);
     }
 }
