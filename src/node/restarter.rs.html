@@ -163,7 +163,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>name = keypair.public().clone();
         <span class="kw">let </span><span class="kw-2">mut </span>committee = committee.clone();
 
-        <span class="kw">let </span><span class="kw-2">mut </span>task_managers = Vec::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>handles = Vec::new();
         <span class="kw">let </span><span class="kw-2">mut </span>primary_network = WorkerToPrimaryNetwork::default();
         <span class="kw">let </span><span class="kw-2">mut </span>worker_network = PrimaryToWorkerNetwork::default();
 
@@ -177,7 +177,7 @@
             <span class="kw">let </span>store = NodeStorage::reopen(store_path);
 
             <span class="comment">// Restart the relevant components.
-            </span><span class="kw">let </span>primary = Node::spawn_primary(
+            </span><span class="kw">let </span>primary_handles = Node::spawn_primary(
                 keypair,
                 Arc::new(ArcSwap::new(Arc::new(committee.clone()))),
                 <span class="kw-2">&amp;</span>store,
@@ -190,7 +190,7 @@
             .<span class="kw">await
             </span>.unwrap();
 
-            <span class="kw">let </span>workers = Node::spawn_workers(
+            <span class="kw">let </span>worker_handles = Node::spawn_workers(
                 name.clone(),
                 <span class="comment">/* worker_ids */ </span><span class="macro">vec!</span>[<span class="number">0</span>],
                 Arc::new(ArcSwap::new(Arc::new(committee.clone()))),
@@ -199,8 +199,8 @@
                 registry,
             );
 
-            task_managers.push(primary);
-            task_managers.push(workers);
+            handles.extend(primary_handles);
+            handles.extend(worker_handles);
 
             <span class="comment">// Wait for a committee change.
             </span><span class="kw">let </span>(new_keypair, new_committee) = <span class="kw">match </span>rx_reconfigure.recv().<span class="kw">await </span>{
@@ -239,7 +239,7 @@
             </span>worker_network.cleanup(committee.network_diff(<span class="kw-2">&amp;</span>new_committee));
 
             <span class="comment">// Wait for the components to shut down.
-            </span>join_all(task_managers.drain(..)).<span class="kw">await</span>;
+            </span>join_all(handles.drain(..)).<span class="kw">await</span>;
             <span class="macro">tracing::debug!</span>(<span class="string">&quot;All tasks successfully exited&quot;</span>);
 
             <span class="comment">// Give it an extra second in case the last task to exit is a network server. The OS
@@ -255,4 +255,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="node" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (86c6ebee8 2022-08-16)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="node" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (9c20b2a8c 2022-08-17)" ></div></body></html>

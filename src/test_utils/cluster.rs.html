@@ -757,10 +757,14 @@
 <span id="757">757</span>
 <span id="758">758</span>
 <span id="759">759</span>
+<span id="760">760</span>
+<span id="761">761</span>
+<span id="762">762</span>
+<span id="763">763</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use crate</span>::{committee, keys, temp_dir};
-<span class="kw">use </span>arc_swap::{ArcSwap, ArcSwapOption};
+<span class="kw">use </span>arc_swap::ArcSwap;
 <span class="kw">use </span>config::{Committee, Parameters, SharedCommittee, WorkerId};
 <span class="kw">use </span>crypto::{traits::KeyPair <span class="kw">as _</span>, KeyPair, PublicKey};
 <span class="kw">use </span>executor::{SerializedTransaction, SubscriberResult, DEFAULT_CHANNEL_SIZE};
@@ -773,10 +777,9 @@
 };
 <span class="kw">use </span>prometheus::{proto::Metric, Registry};
 <span class="kw">use </span>std::{cell::RefCell, collections::HashMap, path::PathBuf, rc::Rc, sync::Arc, time::Duration};
-<span class="kw">use </span>task_group::TaskManager;
 <span class="kw">use </span>tokio::{
     sync::{broadcast::Sender, mpsc::channel, RwLock},
-    task::{JoinError, JoinHandle},
+    task::JoinHandle,
 };
 <span class="kw">use </span>tonic::transport::Channel;
 <span class="kw">use </span>tracing::info;
@@ -1030,7 +1033,6 @@
     committee: SharedCommittee,
     parameters: Parameters,
     handlers: Rc&lt;RefCell&lt;Vec&lt;JoinHandle&lt;()&gt;&gt;&gt;&gt;,
-    primary: Rc&lt;RefCell&lt;<span class="prelude-ty">Option</span>&lt;TaskManager&lt;JoinError&gt;&gt;&gt;&gt;,
     internal_consensus_enabled: bool,
 }
 
@@ -1054,7 +1056,6 @@
             committee,
             parameters,
             handlers: Rc::new(RefCell::new(Vec::new())),
-            primary: Rc::new(RefCell::new(<span class="prelude-val">None</span>)),
             internal_consensus_enabled,
         }
     }
@@ -1094,20 +1095,18 @@
 
         <span class="comment">// Primary node
         </span><span class="kw">let </span>primary_store: NodeStorage = NodeStorage::reopen(store_path.clone());
-        <span class="self">self</span>.primary.replace(<span class="prelude-val">Some</span>(
-            Node::spawn_primary(
-                <span class="self">self</span>.key_pair.copy(),
-                <span class="self">self</span>.committee.clone(),
-                <span class="kw-2">&amp;</span>primary_store,
-                <span class="self">self</span>.parameters.clone(),
-                <span class="comment">/* consensus */ </span><span class="self">self</span>.internal_consensus_enabled,
-                <span class="comment">/* execution_state */ </span>Arc::new(SimpleExecutionState::default()),
-                tx_transaction_confirmation,
-                <span class="kw-2">&amp;</span>registry,
-            )
-            .<span class="kw">await
-            </span>.unwrap(),
-        ));
+        <span class="kw">let </span><span class="kw-2">mut </span>primary_handlers = Node::spawn_primary(
+            <span class="self">self</span>.key_pair.copy(),
+            <span class="self">self</span>.committee.clone(),
+            <span class="kw-2">&amp;</span>primary_store,
+            <span class="self">self</span>.parameters.clone(),
+            <span class="comment">/* consensus */ </span><span class="self">self</span>.internal_consensus_enabled,
+            <span class="comment">/* execution_state */ </span>Arc::new(SimpleExecutionState::default()),
+            tx_transaction_confirmation,
+            <span class="kw-2">&amp;</span>registry,
+        )
+        .<span class="kw">await
+        </span>.unwrap();
 
         <span class="kw">let </span>(tx, <span class="kw">_</span>) = tokio::sync::broadcast::channel(DEFAULT_CHANNEL_SIZE);
         <span class="kw">let </span>transactions_sender = tx.clone();
@@ -1122,8 +1121,12 @@
                 <span class="kw">let _ </span>= transactions_sender.send(t);
             }
         });
-        <span class="self">self</span>.handlers.replace(<span class="macro">vec!</span>[h]);
 
+        <span class="comment">// add the tasks&#39;s handle to the primary&#39;s handle so can be shutdown
+        // with the others.
+        </span>primary_handlers.push(h);
+
+        <span class="self">self</span>.handlers.replace(primary_handlers);
         <span class="self">self</span>.store_path = store_path;
         <span class="self">self</span>.registry = registry;
         <span class="self">self</span>.tx_transaction_confirmation = tx;
@@ -1131,16 +1134,18 @@
 
     <span class="kw">fn </span>stop(<span class="kw-2">&amp;</span><span class="self">self</span>) {
         <span class="self">self</span>.handlers.borrow().iter().for_each(|h| h.abort());
-        <span class="self">self</span>.primary.replace(<span class="prelude-val">None</span>);
         <span class="macro">info!</span>(<span class="string">&quot;Aborted primary node for id {}&quot;</span>, <span class="self">self</span>.id);
     }
 
-    <span class="doccomment">/// Returns whether the primary is still running, by checking if the TaskManager
-    /// and task handles exist and at least one of them is not finished.
+    <span class="doccomment">/// This method returns whether the node is still running or not. We
+    /// iterate over all the handlers and check whether there is still any
+    /// that is not finished. If we find at least one, then we report the
+    /// node as still running.
     </span><span class="kw">pub fn </span>is_running(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="kw">if </span><span class="self">self</span>.primary.borrow().is_none() || <span class="self">self</span>.handlers.borrow().is_empty() {
+        <span class="kw">if </span><span class="self">self</span>.handlers.borrow().is_empty() {
             <span class="kw">return </span><span class="bool-val">false</span>;
         }
+
         <span class="self">self</span>.handlers.borrow().iter().any(|h| !h.is_finished())
     }
 }
@@ -1154,7 +1159,7 @@
     committee: SharedCommittee,
     parameters: Parameters,
     store_path: PathBuf,
-    worker: Arc&lt;ArcSwapOption&lt;TaskManager&lt;JoinError&gt;&gt;&gt;,
+    handlers: Arc&lt;ArcSwap&lt;Vec&lt;JoinHandle&lt;()&gt;&gt;&gt;&gt;,
 }
 
 <span class="kw">impl </span>WorkerNodeDetails {
@@ -1173,7 +1178,7 @@
             transactions_address,
             committee,
             parameters,
-            worker: Arc::new(ArcSwapOption::from(<span class="prelude-val">None</span>)),
+            handlers: Arc::new(ArcSwap::from_pointee(Vec::new())),
         }
     }
 
@@ -1196,28 +1201,31 @@
         };
 
         <span class="kw">let </span>worker_store = NodeStorage::reopen(store_path.clone());
-        <span class="self">self</span>.worker.store(<span class="prelude-val">Some</span>(Arc::new(Node::spawn_workers(
+        <span class="kw">let </span>worker_handlers = Node::spawn_workers(
             <span class="self">self</span>.name.clone(),
             <span class="macro">vec!</span>[<span class="self">self</span>.id],
             <span class="self">self</span>.committee.clone(),
             <span class="kw-2">&amp;</span>worker_store,
             <span class="self">self</span>.parameters.clone(),
             <span class="kw-2">&amp;</span>registry,
-        ))));
+        );
 
+        <span class="self">self</span>.handlers.swap(Arc::new(worker_handlers));
         <span class="self">self</span>.store_path = store_path;
         <span class="self">self</span>.registry = registry;
     }
 
     <span class="kw">fn </span>stop(<span class="kw-2">&amp;</span><span class="self">self</span>) {
-        <span class="self">self</span>.worker.store(<span class="prelude-val">None</span>);
+        <span class="self">self</span>.handlers.load().iter().for_each(|h| h.abort());
         <span class="macro">info!</span>(<span class="string">&quot;Aborted worker node for id {}&quot;</span>, <span class="self">self</span>.id);
     }
 
-    <span class="doccomment">/// Returns whether the worker is still running, by checking if the
-    /// TaskManager for worker tasks exists.
+    <span class="doccomment">/// This method returns whether the node is still running or not. We
+    /// iterate over all the handlers and check whether there is still any
+    /// that is not finished. If we find at least one, then we report the
+    /// node as still running.
     </span><span class="kw">pub fn </span>is_running(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="self">self</span>.worker.load().is_some()
+        <span class="self">self</span>.handlers.load().iter().any(|h| !h.is_finished())
     }
 }
 
@@ -1517,4 +1525,4 @@
     </span>}
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="test_utils" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (86c6ebee8 2022-08-16)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="test_utils" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (9c20b2a8c 2022-08-17)" ></div></body></html>

@@ -357,17 +357,6 @@
 <span id="357">357</span>
 <span id="358">358</span>
 <span id="359">359</span>
-<span id="360">360</span>
-<span id="361">361</span>
-<span id="362">362</span>
-<span id="363">363</span>
-<span id="364">364</span>
-<span id="365">365</span>
-<span id="366">366</span>
-<span id="367">367</span>
-<span id="368">368</span>
-<span id="369">369</span>
-<span id="370">370</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span>config::{Parameters, SharedCommittee, WorkerId};
@@ -390,10 +379,9 @@
     rocks::{open_cf, DBMap},
     Store,
 };
-<span class="kw">use </span>task_group::{TaskGroup, TaskManager};
 <span class="kw">use </span>tokio::{
     sync::{mpsc::Sender, watch},
-    task::{JoinError, JoinHandle},
+    task::JoinHandle,
 };
 <span class="kw">use </span>tracing::debug;
 <span class="kw">use </span>types::{
@@ -508,7 +496,7 @@
         </span>tx_confirmation: Sender&lt;ExecutorOutput&lt;State&gt;&gt;,
         <span class="comment">// A prometheus exporter Registry to use for the metrics
         </span>registry: <span class="kw-2">&amp;</span>Registry,
-    ) -&gt; SubscriberResult&lt;TaskManager&lt;JoinError&gt;&gt;
+    ) -&gt; SubscriberResult&lt;Vec&lt;JoinHandle&lt;()&gt;&gt;&gt;
     <span class="kw">where
         </span>State: ExecutionState + Send + Sync + <span class="lifetime">&#39;static</span>,
         State::Outcome: Send + <span class="lifetime">&#39;static</span>,
@@ -552,7 +540,7 @@
             <span class="kw">let </span>consensus_metrics = Arc::new(ConsensusMetrics::new(registry));
             <span class="kw">let </span>(handle, dag) = Dag::new(<span class="kw-2">&amp;</span>committee.load(), rx_new_certificates, consensus_metrics);
 
-            handles.push((<span class="string">&quot;dag&quot;</span>, handle));
+            handles.push(handle);
 
             (<span class="prelude-val">Some</span>(Arc::new(dag)), NetworkModel::Asynchronous)
         } <span class="kw">else </span>{
@@ -626,13 +614,7 @@
             });
         }
 
-        <span class="kw">let </span>(task_group, task_manager) = TaskGroup::new();
-        <span class="kw">for </span>(name, handle) <span class="kw">in </span>handles {
-            <span class="comment">// The tasks will be awaited with the `task_manager`, so the task handles / futures can be dropped.
-            </span><span class="kw">let _ </span>= task_group.spawn(name, handle);
-        }
-
-        <span class="prelude-val">Ok</span>(task_manager)
+        <span class="prelude-val">Ok</span>(handles)
     }
 
     <span class="doccomment">/// Spawn the consensus core and the client executing transactions.
@@ -650,7 +632,7 @@
         )&gt;,
         tx_get_block_commands: metered_channel::Sender&lt;BlockCommand&gt;,
         registry: <span class="kw-2">&amp;</span>Registry,
-    ) -&gt; SubscriberResult&lt;Vec&lt;(<span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str, JoinHandle&lt;()&gt;)&gt;&gt;
+    ) -&gt; SubscriberResult&lt;Vec&lt;JoinHandle&lt;()&gt;&gt;&gt;
     <span class="kw">where
         </span>PublicKey: VerifyingKey,
         State: ExecutionState + Send + Sync + <span class="lifetime">&#39;static</span>,
@@ -663,15 +645,13 @@
         <span class="kw">let </span>(tx_sequence, rx_sequence) =
             metered_channel::channel(<span class="self">Self</span>::CHANNEL_CAPACITY, <span class="kw-2">&amp;</span>channel_metrics.tx_sequence);
 
-        <span class="kw">let </span><span class="kw-2">mut </span>handles = Vec::new();
-
         <span class="comment">// Spawn the consensus core who only sequences transactions.
         </span><span class="kw">let </span>ordering_engine = Bullshark::new(
             (<span class="kw-2">**</span>committee.load()).clone(),
             store.consensus_store.clone(),
             parameters.gc_depth,
         );
-        <span class="kw">let </span>consensus_handle = Consensus::spawn(
+        <span class="kw">let </span>consensus_handles = Consensus::spawn(
             (<span class="kw-2">**</span>committee.load()).clone(),
             store.consensus_store.clone(),
             store.certificate_store.clone(),
@@ -683,7 +663,6 @@
             consensus_metrics.clone(),
             parameters.gc_depth,
         );
-        handles.push((<span class="string">&quot;consensus&quot;</span>, consensus_handle));
 
         <span class="comment">// Spawn the client executing the transactions. It can also synchronize with the
         // subscriber handler if it missed some transactions.
@@ -697,9 +676,11 @@
             registry,
         )
         .<span class="kw">await</span><span class="question-mark">?</span>;
-        handles.extend(executor_handles);
 
-        <span class="prelude-val">Ok</span>(handles)
+        <span class="prelude-val">Ok</span>(executor_handles
+            .into_iter()
+            .chain(std::iter::once(consensus_handles))
+            .collect())
     }
 
     <span class="doccomment">/// Spawn a specified number of workers.
@@ -716,10 +697,11 @@
         </span>parameters: Parameters,
         <span class="comment">// The prometheus metrics Registry
         </span>registry: <span class="kw-2">&amp;</span>Registry,
-    ) -&gt; TaskManager&lt;JoinError&gt; {
+    ) -&gt; Vec&lt;JoinHandle&lt;()&gt;&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>handles = Vec::new();
+
         <span class="kw">let </span>metrics = initialise_metrics(registry);
 
-        <span class="kw">let </span>(task_group, task_manager) = TaskGroup::new();
         <span class="kw">for </span>id <span class="kw">in </span>ids {
             <span class="kw">let </span>worker_handles = Worker::spawn(
                 name.clone(),
@@ -729,14 +711,10 @@
                 store.batch_store.clone(),
                 metrics.clone(),
             );
-            <span class="comment">// TODO(narwhal/727): propagate worker task names.
-            </span><span class="kw">for </span>(i, h) <span class="kw">in </span>worker_handles.into_iter().enumerate() {
-                <span class="kw">let _ </span>= task_group.spawn(<span class="macro">format!</span>(<span class="string">&quot;worker_{}_{}&quot;</span>, id, i), h);
-            }
+            handles.extend(worker_handles);
         }
-
-        task_manager
+        handles
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="node" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (86c6ebee8 2022-08-16)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="node" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (9c20b2a8c 2022-08-17)" ></div></body></html>

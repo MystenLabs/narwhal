@@ -785,7 +785,7 @@
         tx_reconfigure: watch::Sender&lt;ReconfigureNotification&gt;,
         tx_committed_certificates: Sender&lt;Certificate&gt;,
         registry: <span class="kw-2">&amp;</span>Registry,
-    ) -&gt; Vec&lt;(<span class="kw-2">&amp;</span>str, JoinHandle&lt;()&gt;)&gt; {
+    ) -&gt; Vec&lt;JoinHandle&lt;()&gt;&gt; {
         <span class="comment">// Write the parameters to the logs.
         </span>parameters.tracing();
 
@@ -1153,22 +1153,22 @@
         );
 
         <span class="kw">let </span><span class="kw-2">mut </span>handles = <span class="macro">vec!</span>[
-            (<span class="string">&quot;primary_receiver&quot;</span>, primary_receiver_handle),
-            (<span class="string">&quot;worker_receiver&quot;</span>, worker_receiver_handle),
-            (<span class="string">&quot;core&quot;</span>, core_handle),
-            (<span class="string">&quot;payload_receiver&quot;</span>, payload_receiver_handle),
-            (<span class="string">&quot;block_synchronizer&quot;</span>, block_synchronizer_handle),
-            (<span class="string">&quot;block_waiter&quot;</span>, block_waiter_handle),
-            (<span class="string">&quot;block_remover&quot;</span>, block_remover_handle),
-            (<span class="string">&quot;header_waiter&quot;</span>, header_waiter_handle),
-            (<span class="string">&quot;certificate_waiter&quot;</span>, certificate_waiter_handle),
-            (<span class="string">&quot;proposer&quot;</span>, proposer_handle),
-            (<span class="string">&quot;helper&quot;</span>, helper_handle),
-            (<span class="string">&quot;state_handler&quot;</span>, state_handler_handle),
+            primary_receiver_handle,
+            worker_receiver_handle,
+            core_handle,
+            payload_receiver_handle,
+            block_synchronizer_handle,
+            block_waiter_handle,
+            block_remover_handle,
+            header_waiter_handle,
+            certificate_waiter_handle,
+            proposer_handle,
+            helper_handle,
+            state_handler_handle,
         ];
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(h) = consensus_api_handle {
-            handles.push((<span class="string">&quot;consensus_api&quot;</span>, h));
+            handles.push(h);
         }
 
         handles
@@ -1411,4 +1411,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (86c6ebee8 2022-08-16)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (9c20b2a8c 2022-08-17)" ></div></body></html>

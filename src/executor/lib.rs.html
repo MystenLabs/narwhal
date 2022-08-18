@@ -136,9 +136,6 @@
 <span id="136">136</span>
 <span id="137">137</span>
 <span id="138">138</span>
-<span id="139">139</span>
-<span id="140">140</span>
-<span id="141">141</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">mod </span>core;
@@ -236,7 +233,7 @@
         tx_output: Sender&lt;ExecutorOutput&lt;State&gt;&gt;,
         tx_get_block_commands: metered_channel::Sender&lt;BlockCommand&gt;,
         registry: <span class="kw-2">&amp;</span>Registry,
-    ) -&gt; SubscriberResult&lt;Vec&lt;(<span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str, JoinHandle&lt;()&gt;)&gt;&gt;
+    ) -&gt; SubscriberResult&lt;Vec&lt;JoinHandle&lt;()&gt;&gt;&gt;
     <span class="kw">where
         </span>State: ExecutionState + Send + Sync + <span class="lifetime">&#39;static</span>,
         State::Outcome: Send + <span class="lifetime">&#39;static</span>,
@@ -274,11 +271,8 @@
         <span class="comment">// Return the handle.
         </span><span class="macro">info!</span>(<span class="string">&quot;Consensus subscriber successfully started&quot;</span>);
 
-        <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[
-            (<span class="string">&quot;executor_subscriber&quot;</span>, subscriber_handle),
-            (<span class="string">&quot;executor&quot;</span>, executor_handle),
-        ])
+        <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[subscriber_handle, executor_handle])
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="executor" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (86c6ebee8 2022-08-16)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="executor" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (9c20b2a8c 2022-08-17)" ></div></body></html>
