@@ -26,7 +26,6 @@ tokio = { version = "1.20.1", features = ["sync", "rt", "macros"] }
 tokio-util = { version = "0.7.3", features = ["codec"] }
 tonic = "0.7.2"
 tracing = "0.1.36"
-task-group = "0.2.2"
 
 config = { path = "../config" }
 crypto = { path = "../crypto", features = ["copy_key"] }
