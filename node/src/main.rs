@@ -12,7 +12,7 @@ use arc_swap::ArcSwap;
 use clap::{crate_name, crate_version, App, AppSettings, ArgMatches, SubCommand};
 use config::{Committee, Import, Parameters, WorkerId};
 use crypto::{generate_production_keypair, traits::KeyPair as _, KeyPair};
-use executor::{SerializedTransaction, SubscriberResult};
+use executor::{ExecutionState, SingleExecutor, SubscriberResult};
 use eyre::Context;
 use futures::future::join_all;
 use node::{
@@ -167,8 +167,11 @@ async fn run(matches: &ArgMatches<'_>) -> Result<(), eyre::Report> {
                 &store,
                 parameters.clone(),
                 /* consensus */ !sub_matches.is_present("consensus-disabled"),
-                /* execution_state */ Arc::new(SimpleExecutionState::default()),
-                tx_transaction_confirmation,
+                /* execution_state */
+                Arc::new(SingleExecutor::new(
+                    SimpleExecutionState::default(),
+                    tx_transaction_confirmation,
+                )),
                 &registry,
             )
             .await?
@@ -216,7 +219,12 @@ async fn run(matches: &ArgMatches<'_>) -> Result<(), eyre::Report> {
 }
 
 /// Receives an ordered list of certificates and apply any application-specific logic.
-async fn analyze(mut rx_output: Receiver<(SubscriberResult<Vec<u8>>, SerializedTransaction)>) {
+async fn analyze(
+    mut rx_output: Receiver<(
+        SubscriberResult<Vec<u8>>,
+        <SimpleExecutionState as ExecutionState>::Transaction,
+    )>,
+) {
     while let Some(_message) = rx_output.recv().await {
         // NOTE: Notify the user that its transaction has been processed.
     }
