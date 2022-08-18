@@ -95,7 +95,7 @@ impl Executor {
         tx_output: Sender<ExecutorOutput<State>>,
         tx_get_block_commands: metered_channel::Sender<BlockCommand>,
         registry: &Registry,
-    ) -> SubscriberResult<Vec<(&'static str, JoinHandle<()>)>>
+    ) -> SubscriberResult<Vec<JoinHandle<()>>>
     where
         State: ExecutionState + Send + Sync + 'static,
         State::Outcome: Send + 'static,
@@ -134,8 +134,8 @@ impl Executor {
         info!("Consensus subscriber successfully started");
 
         Ok(vec![
-            ("executor_subscriber", subscriber_handle),
-            ("executor", executor_handle),
+            subscriber_handle,
+            executor_handle,
         ])
     }
 }
