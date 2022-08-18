@@ -395,8 +395,6 @@
 <span id="395">395</span>
 <span id="396">396</span>
 <span id="397">397</span>
-<span id="398">398</span>
-<span id="399">399</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -406,10 +404,7 @@
 };
 <span class="kw">use </span>config::{Committee, WorkerId};
 <span class="kw">use </span>crypto::PublicKey;
-<span class="kw">use </span>futures::{
-    future::{try_join_all, BoxFuture},
-    stream::{futures_unordered::FuturesUnordered, StreamExt <span class="kw">as _</span>},
-};
+<span class="kw">use </span>futures::future::{try_join_all, BoxFuture};
 <span class="kw">use </span>network::{LuckyNetwork, PrimaryNetwork, PrimaryToWorkerNetwork, UnreliableNetwork};
 <span class="kw">use </span>serde::{de::DeserializeOwned, Serialize};
 <span class="kw">use </span>std::{
@@ -423,12 +418,13 @@
     task::JoinHandle,
     time::{sleep, Duration, Instant},
 };
-<span class="kw">use </span>tracing::{debug, error, info};
+<span class="kw">use </span>tracing::{debug, info};
 <span class="kw">use </span>types::{
+    bounded_future_queue::BoundedFuturesUnordered,
     error::{DagError, DagResult},
     metered_channel::{Receiver, Sender},
-    BatchDigest, Certificate, CertificateDigest, Header, HeaderDigest, ReconfigureNotification,
-    Round,
+    try_fut_and_permit, BatchDigest, Certificate, CertificateDigest, Header, HeaderDigest,
+    ReconfigureNotification, Round,
 };
 
 <span class="attribute">#[cfg(test)]</span>
@@ -489,6 +485,12 @@
 }
 
 <span class="kw">impl </span>HeaderWaiter {
+    <span class="doccomment">/// Returns the max amount of pending certificates x pending parents messages we should expect. In the worst case of causal completion,
+    /// this can be `self.gc_depth` x `self.committee.len()` for each
+    </span><span class="kw">pub fn </span>max_pending_header_waiter_requests(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
+        <span class="self">self</span>.gc_depth <span class="kw">as </span>usize * <span class="self">self</span>.committee.size() * <span class="number">4
+    </span>}
+
     <span class="attribute">#[must_use]</span>
     <span class="kw">pub fn </span>spawn(
         name: PublicKey,
@@ -531,20 +533,6 @@
         })
     }
 
-    <span class="doccomment">/// Update the committee and cleanup internal state.
-    </span><span class="kw">fn </span>change_epoch(<span class="kw-2">&amp;mut </span><span class="self">self</span>, committee: Committee) {
-        <span class="self">self</span>.primary_network
-            .cleanup(<span class="self">self</span>.committee.network_diff(<span class="kw-2">&amp;</span>committee));
-        <span class="self">self</span>.worker_network
-            .cleanup(<span class="self">self</span>.committee.network_diff(<span class="kw-2">&amp;</span>committee));
-
-        <span class="self">self</span>.committee = committee;
-
-        <span class="self">self</span>.pending.clear();
-        <span class="self">self</span>.batch_requests.clear();
-        <span class="self">self</span>.parent_requests.clear();
-    }
-
     <span class="doccomment">/// Helper function. It waits for particular data to become available in the storage
     /// and then delivers the specified header.
     </span><span class="kw">async fn </span>waiter&lt;T, V&gt;(
@@ -568,7 +556,8 @@
 
     <span class="doccomment">/// Main loop listening to the `Synchronizer` messages.
     </span><span class="kw">async fn </span>run(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="kw">let </span><span class="kw-2">mut </span>waiting: FuturesUnordered&lt;BoxFuture&lt;<span class="lifetime">&#39;_</span>, <span class="kw">_</span>&gt;&gt; = FuturesUnordered::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>waiting: BoundedFuturesUnordered&lt;BoxFuture&lt;<span class="lifetime">&#39;_</span>, <span class="kw">_</span>&gt;&gt; =
+            BoundedFuturesUnordered::with_capacity(<span class="self">self</span>.max_pending_header_waiter_requests());
 
         <span class="kw">let </span>timer = sleep(Duration::from_millis(TIMER_RESOLUTION));
         <span class="macro">tokio::pin!</span>(timer);
@@ -581,7 +570,7 @@
             <span class="kw">let </span><span class="kw-2">mut </span>attempt_garbage_collection = <span class="bool-val">false</span>;
 
             <span class="macro">tokio::select!</span> {
-                <span class="prelude-val">Some</span>(message) = <span class="self">self</span>.rx_synchronizer.recv() =&gt; {
+                <span class="prelude-val">Some</span>(message) = <span class="self">self</span>.rx_synchronizer.recv(), <span class="kw">if </span>waiting.available_permits() &gt; <span class="number">0 </span>=&gt; {
                     <span class="kw">match </span>message {
                         WaiterMessage::SyncBatches(missing, header) =&gt; {
                             <span class="macro">debug!</span>(<span class="string">&quot;Synching the payload of {header}&quot;</span>);
@@ -603,7 +592,7 @@
                             <span class="self">self</span>.pending.insert(header_id, (round, tx_cancel));
                             <span class="kw">let </span>fut = <span class="self">Self</span>::waiter(wait_for, <span class="self">self</span>.payload_store.clone(), header, rx_cancel);
                             <span class="comment">// pointer-size allocation, bounded by the # of blocks (may eventually go away, see rust RFC #1909)
-                            </span>waiting.push(Box::pin(fut));
+                            </span>waiting.push(Box::pin(fut)).<span class="kw">await</span>;
 
                             <span class="comment">// Ensure we didn&#39;t already send a sync request for these parents.
                             </span><span class="kw">let </span><span class="kw-2">mut </span>requires_sync = HashMap::new();
@@ -643,7 +632,7 @@
                             <span class="self">self</span>.pending.insert(header_id, (round, tx_cancel));
                             <span class="kw">let </span>fut = <span class="self">Self</span>::waiter(wait_for, <span class="self">self</span>.certificate_store.clone(), header, rx_cancel);
                             <span class="comment">// pointer-size allocation, bounded by the # of blocks (may eventually go away, see rust RFC #1909)
-                            </span>waiting.push(Box::pin(fut));
+                            </span>waiting.push(Box::pin(fut)).<span class="kw">await</span>;
 
                             <span class="comment">// Ensure we didn&#39;t already sent a sync request for these parents.
                             // Optimistically send the sync request to the node that created the certificate.
@@ -670,9 +659,9 @@
                         }
                     }
                 },
-
-                <span class="prelude-val">Some</span>(result) = waiting.next() =&gt; <span class="kw">match </span>result {
-                    <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(header)) =&gt; {
+                <span class="comment">// we poll the availability of a slot to send the result to the core simultaneously
+                </span>(<span class="prelude-val">Some</span>(result), permit) = <span class="macro">try_fut_and_permit!</span>(waiting.try_next(), <span class="self">self</span>.tx_core) =&gt; <span class="kw">match </span>result {
+                    <span class="prelude-val">Some</span>(header) =&gt; {
                         <span class="kw">let _ </span>= <span class="self">self</span>.pending.remove(<span class="kw-2">&amp;</span>header.id);
                         <span class="kw">for </span>x <span class="kw">in </span>header.payload.keys() {
                             <span class="kw">let _ </span>= <span class="self">self</span>.batch_requests.remove(x);
@@ -680,17 +669,11 @@
                         <span class="kw">for </span>x <span class="kw">in </span><span class="kw-2">&amp;</span>header.parents {
                             <span class="kw">let _ </span>= <span class="self">self</span>.parent_requests.remove(x);
                         }
-                        <span class="kw">if </span><span class="self">self</span>.tx_core.send(header).<span class="kw">await</span>.is_err() {
-                           <span class="macro">debug!</span>(<span class="string">&quot;{}&quot;</span>, DagError::ShuttingDown)
-                        }
+                        permit.send(header);
                     },
-                    <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>) =&gt; {
+                    <span class="prelude-val">None </span>=&gt; {
                         <span class="comment">// This request has been canceled.
                     </span>},
-                    <span class="prelude-val">Err</span>(e) =&gt; {
-                        <span class="macro">error!</span>(<span class="string">&quot;{e}&quot;</span>);
-                        <span class="macro">panic!</span>(<span class="string">&quot;Storage failure: killing node.&quot;</span>);
-                    }
                 },
 
                 () = <span class="kw-2">&amp;mut </span>timer =&gt; {
@@ -731,7 +714,15 @@
                     <span class="kw">let </span>message = <span class="self">self</span>.rx_reconfigure.borrow().clone();
                     <span class="kw">match </span>message {
                         ReconfigureNotification::NewEpoch(new_committee) =&gt; {
-                            <span class="self">self</span>.change_epoch(new_committee);
+                            <span class="comment">// Update the committee and cleanup internal state.
+                            </span><span class="self">self</span>.primary_network.cleanup(<span class="self">self</span>.committee.network_diff(<span class="kw-2">&amp;</span>new_committee));
+                            <span class="self">self</span>.worker_network.cleanup(<span class="self">self</span>.committee.network_diff(<span class="kw-2">&amp;</span>new_committee));
+
+                            <span class="self">self</span>.committee = new_committee;
+
+                            <span class="self">self</span>.pending.clear();
+                            <span class="self">self</span>.batch_requests.clear();
+                            <span class="self">self</span>.parent_requests.clear();
                         },
                         ReconfigureNotification::UpdateCommittee(new_committee) =&gt; {
                             <span class="self">self</span>.primary_network.cleanup(<span class="self">self</span>.committee.network_diff(<span class="kw-2">&amp;</span>new_committee));
@@ -793,6 +784,11 @@
                 .parent_requests_header_waiter
                 .with_label_values(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="self">self</span>.committee.epoch.to_string()])
                 .set(<span class="self">self</span>.parent_requests.len() <span class="kw">as </span>i64);
+
+            <span class="self">self</span>.metrics
+                .waiting_elements_header_waiter
+                .with_label_values(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="self">self</span>.committee.epoch.to_string()])
+                .set(waiting.len() <span class="kw">as </span>i64);
         }
     }
 }

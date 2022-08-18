@@ -26,6 +26,14 @@
 <span id="26">26</span>
 <span id="27">27</span>
 <span id="28">28</span>
+<span id="29">29</span>
+<span id="30">30</span>
+<span id="31">31</span>
+<span id="32">32</span>
+<span id="33">33</span>
+<span id="34">34</span>
+<span id="35">35</span>
+<span id="36">36</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span>prometheus::{default_registry, register_int_gauge_with_registry, IntGauge, Registry};
@@ -34,6 +42,8 @@
 <span class="kw">pub struct </span>ExecutorMetrics {
     <span class="doccomment">/// occupancy of the channel from the `Subscriber` to `Core`
     </span><span class="kw">pub </span>tx_executor: IntGauge,
+    <span class="doccomment">/// Number of elements in the waiting (ready-to-deliver) list of subscriber
+    </span><span class="kw">pub </span>waiting_elements_subscriber: IntGauge,
 }
 
 <span class="kw">impl </span>ExecutorMetrics {
@@ -42,6 +52,12 @@
             tx_executor: <span class="macro">register_int_gauge_with_registry!</span>(
                 <span class="string">&quot;tx_executor&quot;</span>,
                 <span class="string">&quot;occupancy of the channel from the `Subscriber` to `Core`&quot;</span>,
+                registry
+            )
+            .unwrap(),
+            waiting_elements_subscriber: <span class="macro">register_int_gauge_with_registry!</span>(
+                <span class="string">&quot;waiting_elements_subscriber&quot;</span>,
+                <span class="string">&quot;Number of waiting elements in the subscriber&quot;</span>,
                 registry
             )
             .unwrap(),

@@ -172,22 +172,41 @@
 <span id="172">172</span>
 <span id="173">173</span>
 <span id="174">174</span>
+<span id="175">175</span>
+<span id="176">176</span>
+<span id="177">177</span>
+<span id="178">178</span>
+<span id="179">179</span>
+<span id="180">180</span>
+<span id="181">181</span>
+<span id="182">182</span>
+<span id="183">183</span>
+<span id="184">184</span>
+<span id="185">185</span>
+<span id="186">186</span>
+<span id="187">187</span>
+<span id="188">188</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-</span><span class="kw">use crate</span>::{errors::SubscriberResult, SubscriberError, SubscriberError::PayloadRetrieveError};
+</span><span class="kw">use crate</span>::{
+    errors::SubscriberResult, metrics::ExecutorMetrics, try_fut_and_permit, SubscriberError,
+    SubscriberError::PayloadRetrieveError,
+};
 <span class="kw">use </span>backoff::{Error, ExponentialBackoff};
 <span class="kw">use </span>consensus::ConsensusOutput;
 <span class="kw">use </span>crypto::Hash;
-<span class="kw">use </span>futures::stream::{FuturesOrdered, StreamExt};
 <span class="kw">use </span>primary::BlockCommand;
-<span class="kw">use </span>std::time::Duration;
+<span class="kw">use </span>std::{sync::Arc, time::Duration};
 <span class="kw">use </span>store::Store;
 <span class="kw">use </span>tokio::{
     sync::{oneshot, watch},
     task::JoinHandle,
 };
-<span class="kw">use </span>tracing::{debug, error};
-<span class="kw">use </span>types::{metered_channel, Batch, BatchDigest, ReconfigureNotification};
+<span class="kw">use </span>tracing::error;
+<span class="kw">use </span>types::{
+    bounded_future_queue::BoundedFuturesOrdered, metered_channel, Batch, BatchDigest,
+    ReconfigureNotification,
+};
 
 <span class="attribute">#[cfg(test)]</span>
 <span class="attribute">#[path = <span class="string">&quot;tests/subscriber_tests.rs&quot;</span>]</span>
@@ -212,9 +231,14 @@
     <span class="comment">// When asking for a certificate&#39;s payload we want to retry until we succeed, unless
     // some irrecoverable error occurs. For that reason a backoff policy is defined
     </span>get_block_retry_policy: ExponentialBackoff,
+    <span class="doccomment">/// The metrics handler
+    </span>metrics: Arc&lt;ExecutorMetrics&gt;,
 }
 
 <span class="kw">impl </span>Subscriber {
+    <span class="doccomment">/// Returns the max amount of pending consensus messages we should expect.
+    </span><span class="kw">const </span>MAX_PENDING_CONSENSUS_MESSAGES: usize = <span class="number">2000</span>;
+
     <span class="doccomment">/// Spawn a new subscriber in a new tokio task.
     </span><span class="attribute">#[must_use]</span>
     <span class="kw">pub fn </span>spawn(
@@ -223,6 +247,7 @@
         rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;,
         rx_consensus: metered_channel::Receiver&lt;ConsensusOutput&gt;,
         tx_executor: metered_channel::Sender&lt;ConsensusOutput&gt;,
+        metrics: Arc&lt;ExecutorMetrics&gt;,
     ) -&gt; JoinHandle&lt;()&gt; {
         <span class="kw">let </span>get_block_retry_policy = ExponentialBackoff {
             initial_interval: Duration::from_millis(<span class="number">500</span>),
@@ -241,6 +266,7 @@
                 tx_executor,
                 tx_get_block_commands,
                 get_block_retry_policy,
+                metrics,
             }
             .run()
             .<span class="kw">await
@@ -256,13 +282,14 @@
         // mater if we somehow managed to fetch the batches from a later
         // certificate. Unless the earlier certificate&#39;s payload has been
         // fetched, no later certificate will be delivered.
-        </span><span class="kw">let </span><span class="kw-2">mut </span>waiting = FuturesOrdered::new();
+        </span><span class="kw">let </span><span class="kw-2">mut </span>waiting =
+            BoundedFuturesOrdered::with_capacity(<span class="self">Self</span>::MAX_PENDING_CONSENSUS_MESSAGES);
 
         <span class="comment">// Listen to sequenced consensus message and process them.
         </span><span class="kw">loop </span>{
             <span class="macro">tokio::select!</span> {
                 <span class="comment">// Receive the ordered sequence of consensus messages from a consensus node.
-                </span><span class="prelude-val">Some</span>(message) = <span class="self">self</span>.rx_consensus.recv() =&gt; {
+                </span><span class="prelude-val">Some</span>(message) = <span class="self">self</span>.rx_consensus.recv(), <span class="kw">if </span>waiting.available_permits() &gt; <span class="number">0 </span>=&gt; {
                     <span class="comment">// Fetch the certificate&#39;s payload from the workers. This is done via the
                     // block_waiter component. If the batches are not available in the workers then
                     // block_waiter will do its best to sync from the other peers. Once all batches
@@ -272,15 +299,12 @@
                         <span class="self">self</span>.store.clone(),
                         <span class="self">self</span>.tx_get_block_commands.clone(),
                         message);
-                    waiting.push_back(future);
+                    waiting.push(future).<span class="kw">await</span>;
                 },
 
                 <span class="comment">// Receive here consensus messages for which we have downloaded all transactions data.
-                </span><span class="prelude-val">Some</span>(message) = waiting.next() =&gt; {
-                    <span class="kw">if </span><span class="self">self</span>.tx_executor.send(message<span class="question-mark">?</span>).<span class="kw">await</span>.is_err() {
-                        <span class="macro">debug!</span>(<span class="string">&quot;Executor core is shutting down&quot;</span>);
-                        <span class="kw">return </span><span class="prelude-val">Ok</span>(());
-                    }
+                </span>(<span class="prelude-val">Some</span>(message), permit) = <span class="macro">try_fut_and_permit!</span>(waiting.try_next(), <span class="self">self</span>.tx_executor) =&gt; {
+                    permit.send(message)
                 },
 
                 <span class="comment">// Check whether the committee changed.
@@ -292,6 +316,10 @@
                     }
                 }
             }
+
+            <span class="self">self</span>.metrics
+                .waiting_elements_subscriber
+                .set(waiting.len() <span class="kw">as </span>i64);
         }
     }
 

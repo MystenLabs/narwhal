@@ -136,6 +136,10 @@
 <span id="136">136</span>
 <span id="137">137</span>
 <span id="138">138</span>
+<span id="139">139</span>
+<span id="140">140</span>
+<span id="141">141</span>
+<span id="142">142</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">mod </span>core;
@@ -250,6 +254,9 @@
             SubscriberError::OnlyOneConsensusClientPermitted
         );
 
+        <span class="comment">// We expect this will ultimately be needed in the `Core` as well as the `Subscriber`.
+        </span><span class="kw">let </span>arc_metrics = Arc::new(metrics);
+
         <span class="comment">// Spawn the subscriber.
         </span><span class="kw">let </span>subscriber_handle = Subscriber::spawn(
             store.clone(),
@@ -257,6 +264,7 @@
             tx_reconfigure.subscribe(),
             rx_consensus,
             tx_executor,
+            arc_metrics,
         );
 
         <span class="comment">// Spawn the executor&#39;s core.
