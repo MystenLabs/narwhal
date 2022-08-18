@@ -10,8 +10,8 @@ publish = false
 async-trait = "0.1.57"
 backoff = { version = "0.4.0", features = ["tokio"] }
 bytes = "1.2.1"
-crypto = { path = "../crypto" }
-futures = "0.3.21"
+crypto = { git = "https://github.com/MystenLabs/fastcrypto", rev = "ded6f91c9c19594a3eaeaa9a487d42a39965569e", package = "fastcrypto" }
+futures = "0.3.23"
 multiaddr = "0.14.0"
 prometheus = "0.13.1"
 rand = { version = "0.8.5", features = ["small_rng"] }
@@ -22,8 +22,8 @@ tonic = { version = "0.7.2", features = ["tls"] }
 tracing = "0.1.36"
 types = { path = "../types" }
 
-mysten-network = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "d965a5a795dcdb4d1c7964acf556bc249fdc58aa" }
-serde = "1.0.142"
+mysten-network = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "8d090689be14078f2ca41c356e7bbc0af21f73ab" }
+serde = "1.0.143"
 workspace-hack = { version = "0.1", path = "../workspace-hack" }
 eyre = "0.6.8"
 

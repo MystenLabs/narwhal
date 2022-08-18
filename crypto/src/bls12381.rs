@@ -13,11 +13,13 @@ use blst::min_sig as blst;
 
 use once_cell::sync::OnceCell;
 use rand::{rngs::OsRng, RngCore};
+use zeroize::Zeroize;
 
 use crate::{
     pubkey_bytes::PublicKeyBytes,
     serde_helpers::{keypair_decode_base64, BlsSignature},
 };
+use eyre::eyre;
 use serde::{
     de::{self},
     Deserialize, Serialize,
@@ -189,10 +191,19 @@ impl VerifyingKey for BLS12381PublicKey {
 
     const LENGTH: usize = BLS_PUBLIC_KEY_LENGTH;
 
-    fn verify_batch(msg: &[u8], pks: &[Self], sigs: &[Self::Sig]) -> Result<(), signature::Error> {
+    fn verify_batch_empty_fail(
+        msg: &[u8],
+        pks: &[Self],
+        sigs: &[Self::Sig],
+    ) -> Result<(), eyre::Report> {
         let num_sigs = sigs.len();
-        if pks.len() != num_sigs {
-            return Err(signature::Error::new());
+        if sigs.is_empty() {
+            return Err(eyre!("Critical Error! This behavious can signal something dangerous, and that someone may be trying to bypass signature verification through providing empty batches."));
+        }
+        if sigs.len() != pks.len() {
+            return Err(eyre!(
+                "Mismatch between number of signatures and public keys provided"
+            ));
         }
         let mut rands: Vec<blst_scalar> = Vec::with_capacity(num_sigs);
         let mut rng = OsRng;
@@ -227,7 +238,7 @@ impl VerifyingKey for BLS12381PublicKey {
         if result == BLST_ERROR::BLST_SUCCESS {
             Ok(())
         } else {
-            Err(signature::Error::new())
+            Err(eyre!("Verification failed!"))
         }
     }
 }
@@ -390,7 +401,7 @@ impl KeyPair for BLS12381KeyPair {
     type PrivKey = BLS12381PrivateKey;
     type Sig = BLS12381Signature;
 
-    #[cfg(feature = "copy_key")]
+    #[cfg(any(test, feature = "copy_key"))]
     fn copy(&self) -> Self {
         BLS12381KeyPair {
             name: self.name.clone(),
@@ -403,7 +414,7 @@ impl KeyPair for BLS12381KeyPair {
     }
 
     fn private(self) -> Self::PrivKey {
-        self.secret
+        BLS12381PrivateKey::from_bytes(self.secret.as_ref()).unwrap()
     }
 
     fn generate<R: rand::CryptoRng + rand::RngCore>(rng: &mut R) -> Self {
@@ -593,5 +604,34 @@ impl TryFrom<BLS12381PublicKeyBytes> for BLS12381PublicKey {
 impl From<&BLS12381PublicKey> for BLS12381PublicKeyBytes {
     fn from(pk: &BLS12381PublicKey) -> BLS12381PublicKeyBytes {
         BLS12381PublicKeyBytes::from_bytes(pk.as_ref()).unwrap()
+    }
+}
+
+impl zeroize::Zeroize for BLS12381PrivateKey {
+    fn zeroize(&mut self) {
+        self.bytes.take().zeroize();
+        self.privkey.zeroize();
+    }
+}
+
+impl zeroize::ZeroizeOnDrop for BLS12381PrivateKey {}
+
+impl Drop for BLS12381PrivateKey {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
+
+impl zeroize::Zeroize for BLS12381KeyPair {
+    fn zeroize(&mut self) {
+        self.secret.zeroize()
+    }
+}
+
+impl zeroize::ZeroizeOnDrop for BLS12381KeyPair {}
+
+impl Drop for BLS12381KeyPair {
+    fn drop(&mut self) {
+        self.zeroize();
     }
 }

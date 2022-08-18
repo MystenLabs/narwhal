@@ -2,8 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 use base64ct::{Base64, Encoding};
 use ed25519_consensus::{batch, VerificationKeyBytes};
+use eyre::eyre;
 use once_cell::sync::OnceCell;
-use serde::{de, Deserialize, Serialize};
+use serde::{
+    de::{self, MapAccess, SeqAccess, Visitor},
+    ser::SerializeStruct,
+    Deserialize, Serialize,
+};
+use serde_bytes::{ByteBuf, Bytes};
+use serde_with::serde_as;
 use signature::{rand_core::OsRng, Signature, Signer, Verifier};
 use std::{
     fmt::{self, Display},
@@ -12,7 +19,7 @@ use std::{
 
 use crate::{
     pubkey_bytes::PublicKeyBytes,
-    serde_helpers::keypair_decode_base64,
+    serde_helpers::{keypair_decode_base64, Ed25519Signature as Ed25519Sig},
     traits::{
         AggregateAuthenticator, Authenticator, EncodeDecodeBase64, KeyPair, SigningKey,
         ToFromBytes, VerifyingKey,
@@ -22,6 +29,9 @@ use crate::{
 pub const ED25519_PRIVATE_KEY_LENGTH: usize = 32;
 pub const ED25519_PUBLIC_KEY_LENGTH: usize = 32;
 pub const ED25519_SIGNATURE_LENGTH: usize = 64;
+
+const BASE64_FIELD_NAME: &str = "base64";
+const RAW_FIELD_NAME: &str = "raw";
 
 ///
 /// Define Structs
@@ -46,12 +56,15 @@ pub struct Ed25519KeyPair {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ed25519Signature {
     pub sig: ed25519_consensus::Signature,
+    // Helps implementing AsRef<[u8]>.
     pub bytes: OnceCell<[u8; ED25519_SIGNATURE_LENGTH]>,
 }
 
+#[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
-pub struct Ed25519AggregateSignature(pub Vec<ed25519_consensus::Signature>);
-
+pub struct Ed25519AggregateSignature(
+    #[serde_as(as = "Vec<Ed25519Sig>")] pub Vec<ed25519_consensus::Signature>,
+);
 ///
 /// Implement VerifyingKey
 ///
@@ -67,7 +80,20 @@ impl VerifyingKey for Ed25519PublicKey {
     type Sig = Ed25519Signature;
     const LENGTH: usize = ED25519_PUBLIC_KEY_LENGTH;
 
-    fn verify_batch(msg: &[u8], pks: &[Self], sigs: &[Self::Sig]) -> Result<(), signature::Error> {
+    fn verify_batch_empty_fail(
+        msg: &[u8],
+        pks: &[Self],
+        sigs: &[Self::Sig],
+    ) -> Result<(), eyre::Report> {
+        if sigs.is_empty() {
+            return Err(eyre!("Critical Error! This behavious can signal something dangerous, and that someone may be trying to bypass signature verification through providing empty batches."));
+        }
+        if sigs.len() != pks.len() {
+            return Err(eyre!(
+                "Mismatch between number of signatures and public keys provided"
+            ));
+        }
+
         let mut batch = batch::Verifier::new();
 
         for i in 0..sigs.len() {
@@ -76,7 +102,7 @@ impl VerifyingKey for Ed25519PublicKey {
         }
         batch
             .verify(&mut OsRng)
-            .map_err(|_| signature::Error::new())
+            .map_err(|_| eyre!("Signature verification failed"))
     }
 }
 
@@ -246,16 +272,32 @@ impl Default for Ed25519Signature {
     }
 }
 
+// Notes for Serialize and Deserialize implementations of Ed25519Signature:
+// - Since `bytes` field contains serialized `sig` field, it can be used directly for ser/de of
+//   the Ed25519Signature struct.
+// - The `serialize_struct()` function and deserialization visitor add complexity, but they are necessary for
+//   Ed25519Signature ser/de to work with `serde_reflection`.
+//   `serde_reflection` works poorly [with aliases and nameless types](https://docs.rs/serde-reflection/latest/serde_reflection/index.html#unsupported-idioms).
+// - Serialization output and deserialization input support human readable (base64) and non-readable (binary) formats
+//   separately (supported for other schemes since #460). Different struct field names ("base64" vs "raw") are used
+//   to disambiguate the formats.
+// These notes may help if Ed25519Signature needs to change the struct layout, or its ser/de implementation.
 impl Serialize for Ed25519Signature {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
-        if serializer.is_human_readable() {
-            base64ct::Base64::encode_string(self.as_ref()).serialize(serializer)
+        let readable = serializer.is_human_readable();
+        let mut state = serializer.serialize_struct("Ed25519Signature", 1)?;
+        if readable {
+            state.serialize_field(
+                BASE64_FIELD_NAME,
+                &base64ct::Base64::encode_string(self.as_ref()),
+            )?;
         } else {
-            self.as_ref().serialize(serializer)
+            state.serialize_field(RAW_FIELD_NAME, Bytes::new(self.as_ref()))?;
         }
+        state.end()
     }
 }
 
@@ -264,14 +306,73 @@ impl<'de> Deserialize<'de> for Ed25519Signature {
     where
         D: serde::Deserializer<'de>,
     {
-        let bytes = if deserializer.is_human_readable() {
-            let s = String::deserialize(deserializer)?;
-            base64ct::Base64::decode_vec(&s).map_err(|e| de::Error::custom(e.to_string()))?
+        struct Ed25519SignatureVisitor {
+            readable: bool,
+        }
+
+        impl<'de> Visitor<'de> for Ed25519SignatureVisitor {
+            type Value = Ed25519Signature;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+                formatter.write_str("struct Ed25519Signature")
+            }
+
+            fn visit_seq<V>(self, mut seq: V) -> Result<Ed25519Signature, V::Error>
+            where
+                V: SeqAccess<'de>,
+            {
+                if self.readable {
+                    let s = seq
+                        .next_element::<String>()?
+                        .ok_or_else(|| de::Error::missing_field(BASE64_FIELD_NAME))?;
+                    Ed25519Signature::decode_base64(&s)
+                        .map_err(|e| de::Error::custom(e.to_string()))
+                } else {
+                    let b = seq
+                        .next_element::<ByteBuf>()?
+                        .ok_or_else(|| de::Error::missing_field(RAW_FIELD_NAME))?;
+                    <Ed25519Signature as Signature>::from_bytes(&b)
+                        .map_err(|e| de::Error::custom(e.to_string()))
+                }
+            }
+
+            fn visit_map<V>(self, mut map: V) -> Result<Ed25519Signature, V::Error>
+            where
+                V: MapAccess<'de>,
+            {
+                if self.readable {
+                    let entry = map
+                        .next_entry::<&str, String>()?
+                        .ok_or_else(|| de::Error::missing_field(BASE64_FIELD_NAME))?;
+                    if entry.0 != BASE64_FIELD_NAME {
+                        return Err(de::Error::unknown_field(entry.0, &[BASE64_FIELD_NAME]));
+                    }
+                    Ed25519Signature::decode_base64(&entry.1)
+                        .map_err(|e| de::Error::custom(e.to_string()))
+                } else {
+                    let entry = map
+                        .next_entry::<&str, &[u8]>()?
+                        .ok_or_else(|| de::Error::missing_field(RAW_FIELD_NAME))?;
+                    if entry.0 != RAW_FIELD_NAME {
+                        return Err(de::Error::unknown_field(entry.0, &[RAW_FIELD_NAME]));
+                    }
+                    <Ed25519Signature as Signature>::from_bytes(entry.1)
+                        .map_err(|e| de::Error::custom(e.to_string()))
+                }
+            }
+        }
+
+        let readable = deserializer.is_human_readable();
+        let fields: &[&str; 1] = if readable {
+            &[BASE64_FIELD_NAME]
         } else {
-            Vec::deserialize(deserializer)?
+            &[RAW_FIELD_NAME]
         };
-        <Ed25519Signature as signature::Signature>::from_bytes(&bytes)
-            .map_err(|e| de::Error::custom(e.to_string()))
+        deserializer.deserialize_struct(
+            "Ed25519Signature",
+            fields,
+            Ed25519SignatureVisitor { readable },
+        )
     }
 }
 
@@ -341,6 +442,9 @@ impl AggregateAuthenticator for Ed25519AggregateSignature {
         let mut batch = batch::Verifier::new();
 
         for i in 0..pks.len() {
+            if pks[i].len() != sigs[i].0.len() {
+                return Err(signature::Error::new());
+            }
             for j in 0..pks[i].len() {
                 let vk_bytes = VerificationKeyBytes::from(pks[i][j].0);
                 batch.queue((vk_bytes, sigs[i].0[j], messages[i]));
@@ -387,7 +491,7 @@ impl KeyPair for Ed25519KeyPair {
         self.secret
     }
 
-    #[cfg(feature = "copy_key")]
+    #[cfg(any(test, feature = "copy_key"))]
     fn copy(&self) -> Self {
         Self {
             name: Ed25519PublicKey::from_bytes(self.name.as_ref()).unwrap(),

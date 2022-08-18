@@ -20,7 +20,7 @@ use tokio::{
 };
 use tonic::transport::Channel;
 use tracing::info;
-use types::{ConfigurationClient, ProposerClient};
+use types::{ConfigurationClient, ProposerClient, TransactionsClient};
 
 #[cfg(test)]
 #[path = "tests/cluster_tests.rs"]
@@ -342,10 +342,10 @@ impl PrimaryNodeDetails {
             self.parameters.clone(),
             /* consensus */ self.internal_consensus_enabled,
             /* execution_state */
-            Arc::new(SingleExecutor::new(
-                SimpleExecutionState::default(),
+            SingleExecutor::new(
+                Arc::new(SimpleExecutionState::default()),
                 tx_transaction_confirmation,
-            )),
+            ),
             &registry,
         )
         .await
@@ -704,6 +704,29 @@ impl AuthorityDetails {
             .unwrap();
 
         ProposerClient::new(channel)
+    }
+
+    /// This method returns a new client to send transactions to the dictated
+    /// worker identified by the `worker_id`. If the worker_id is not found then
+    /// a panic is raised.
+    pub async fn new_transactions_client(
+        &self,
+        worker_id: &WorkerId,
+    ) -> TransactionsClient<Channel> {
+        let internal = self.internal.read().await;
+
+        let config = mysten_network::config::Config::new();
+        let channel = config
+            .connect_lazy(
+                &internal
+                    .workers
+                    .get(worker_id)
+                    .unwrap()
+                    .transactions_address,
+            )
+            .unwrap();
+
+        TransactionsClient::new(channel)
     }
 
     /// Creates a new configuration client that connects to the corresponding client.

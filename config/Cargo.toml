@@ -7,14 +7,16 @@ edition = "2021"
 
 [dependencies]
 multiaddr = "0.14.0"
-serde = { version = "1.0.142", features = ["derive"] }
+serde = { version = "1.0.143", features = ["derive"] }
 serde_json = "1.0.83"
 thiserror = "1.0.32"
 tracing = "0.1.36"
 arc-swap = { version = "1.5.1", features = ["serde"] }
 
-crypto = { path = "../crypto" }
+crypto = { git = "https://github.com/MystenLabs/fastcrypto", rev = "ded6f91c9c19594a3eaeaa9a487d42a39965569e", package = "fastcrypto" }
+
 workspace-hack = { version = "0.1", path = "../workspace-hack" }
+rand = "0.8.5"
 
 [dev-dependencies]
 insta = "1.17.2"

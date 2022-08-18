@@ -168,10 +168,10 @@ async fn run(matches: &ArgMatches<'_>) -> Result<(), eyre::Report> {
                 parameters.clone(),
                 /* consensus */ !sub_matches.is_present("consensus-disabled"),
                 /* execution_state */
-                Arc::new(SingleExecutor::new(
-                    SimpleExecutionState::default(),
+                SingleExecutor::new(
+                    Arc::new(SimpleExecutionState::default()),
                     tx_transaction_confirmation,
-                )),
+                ),
                 &registry,
             )
             .await?

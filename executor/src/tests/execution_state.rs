@@ -20,7 +20,6 @@ pub const MALFORMED_TRANSACTION: <TestState as ExecutionState>::Transaction = 40
 pub const KILLER_TRANSACTION: <TestState as ExecutionState>::Transaction = 500;
 
 /// A dumb execution state for testing.
-#[derive(Clone)]
 pub struct TestState {
     indices_store: Store<u64, ExecutionIndices>,
 }

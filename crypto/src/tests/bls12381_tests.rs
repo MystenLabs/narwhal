@@ -7,7 +7,9 @@ use crate::{
         BLS12381PublicKeyBytes, BLS12381Signature,
     },
     hkdf::hkdf_generate_from_ikm,
-    traits::{AggregateAuthenticator, EncodeDecodeBase64, KeyPair, ToFromBytes, VerifyingKey},
+    traits::{
+        AggregateAuthenticator, EncodeDecodeBase64, KeyPair, SigningKey, ToFromBytes, VerifyingKey,
+    },
 };
 use rand::{rngs::StdRng, SeedableRng as _};
 use sha3::Sha3_256;
@@ -82,8 +84,7 @@ fn verify_invalid_signature() {
     assert!(kp.public().verify(&digest.0, &signature).is_err());
 }
 
-#[test]
-fn verify_valid_batch() {
+fn signature_test_inputs() -> (Vec<u8>, Vec<BLS12381PublicKey>, Vec<BLS12381Signature>) {
     // Make signatures.
     let message: &[u8] = b"Hello, world!";
     let digest = message.digest();
@@ -96,100 +97,60 @@ fn verify_valid_batch() {
         })
         .unzip();
 
-    // Verify the batch.
-    let res = BLS12381PublicKey::verify_batch(&digest.0, &pubkeys, &signatures);
+    (digest.to_vec(), pubkeys, signatures)
+}
+
+#[test]
+fn verify_valid_batch() {
+    let (digest, pubkeys, signatures) = signature_test_inputs();
+
+    let res = BLS12381PublicKey::verify_batch_empty_fail(&digest[..], &pubkeys, &signatures);
     assert!(res.is_ok(), "{:?}", res);
 }
 
 #[test]
 fn verify_invalid_batch() {
-    // Make signatures.
-    let message: &[u8] = b"Hello, world!";
-    let digest = message.digest();
-    let (pubkeys, mut signatures): (Vec<BLS12381PublicKey>, Vec<BLS12381Signature>) = keys()
-        .into_iter()
-        .take(3)
-        .map(|kp| {
-            let sig = kp.sign(&digest.0);
-            (kp.public().clone(), sig)
-        })
-        .unzip();
-
+    let (digest, pubkeys, mut signatures) = signature_test_inputs();
     // mangle one signature
     signatures[0] = BLS12381Signature::default();
 
-    // Verify the batch.
-    let res = BLS12381PublicKey::verify_batch(&digest.0, &pubkeys, &signatures);
+    let res = BLS12381PublicKey::verify_batch_empty_fail(&digest, &pubkeys, &signatures);
     assert!(res.is_err(), "{:?}", res);
 }
 
 #[test]
-fn verify_valid_aggregate_signature() {
-    // Make signatures.
-    let message: &[u8] = b"Hello, world!";
-    let digest = message.digest();
-    let (pubkeys, signatures): (Vec<BLS12381PublicKey>, Vec<BLS12381Signature>) = keys()
-        .into_iter()
-        .take(3)
-        .map(|kp| {
-            let sig = kp.sign(&digest.0);
-            (kp.public().clone(), sig)
-        })
-        .unzip();
+fn verify_empty_batch() {
+    let (digest, _, _) = signature_test_inputs();
 
-    let aggregated_signature = BLS12381AggregateSignature::aggregate(signatures).unwrap();
-
-    // // Verify the batch.
-    let res = aggregated_signature.verify(&pubkeys[..], &digest.0);
-    assert!(res.is_ok(), "{:?}", res);
-}
-
-#[test]
-fn verify_invalid_aggregate_signature_length_mismatch() {
-    // Make signatures.
-    let message: &[u8] = b"Hello, world!";
-    let digest = message.digest();
-    let (pubkeys, signatures): (Vec<BLS12381PublicKey>, Vec<BLS12381Signature>) = keys()
-        .into_iter()
-        .take(3)
-        .map(|kp| {
-            let sig = kp.sign(&digest.0);
-            (kp.public().clone(), sig)
-        })
-        .unzip();
-
-    let aggregated_signature = BLS12381AggregateSignature::aggregate(signatures).unwrap();
-
-    // // Verify the batch.
-    let res = aggregated_signature.verify(&pubkeys[..2], &digest.0);
+    let res = BLS12381PublicKey::verify_batch_empty_fail(&digest[..], &[], &[]);
     assert!(res.is_err(), "{:?}", res);
 }
 
 #[test]
-fn verify_invalid_aggregate_signature_public_key_switch() {
-    // Make signatures.
-    let message: &[u8] = b"Hello, world!";
-    let digest = message.digest();
-    let (mut pubkeys, signatures): (Vec<BLS12381PublicKey>, Vec<BLS12381Signature>) = keys()
-        .into_iter()
-        .take(3)
-        .map(|kp| {
-            let sig = kp.sign(&digest.0);
-            (kp.public().clone(), sig)
-        })
-        .unzip();
+fn verify_batch_missing_public_keys() {
+    let (digest, pubkeys, signatures) = signature_test_inputs();
 
-    let aggregated_signature = BLS12381AggregateSignature::aggregate(signatures).unwrap();
+    // missing leading public keys
+    let res = BLS12381PublicKey::verify_batch_empty_fail(&digest, &pubkeys[1..], &signatures);
+    assert!(res.is_err(), "{:?}", res);
 
-    pubkeys[0] = keys()[3].public().clone();
-
-    // // Verify the batch.
-    let res = aggregated_signature.verify(&pubkeys[..], &digest.0);
+    // missing trailing public keys
+    let res = BLS12381PublicKey::verify_batch_empty_fail(
+        &digest,
+        &pubkeys[..pubkeys.len() - 1],
+        &signatures,
+    );
     assert!(res.is_err(), "{:?}", res);
 }
 
-#[test]
-fn verify_batch_aggregate_signature() {
+fn verify_batch_aggregate_signature_inputs() -> (
+    Vec<u8>,
+    Vec<u8>,
+    Vec<BLS12381PublicKey>,
+    Vec<BLS12381PublicKey>,
+    BLS12381AggregateSignature,
+    BLS12381AggregateSignature,
+) {
     // Make signatures.
     let message1: &[u8] = b"Hello, world!";
     let digest1 = message1.digest();
@@ -204,7 +165,7 @@ fn verify_batch_aggregate_signature() {
     let aggregated_signature1 = BLS12381AggregateSignature::aggregate(signatures1).unwrap();
 
     // Make signatures.
-    let message2: &[u8] = b"Hello, world!";
+    let message2: &[u8] = b"Hello, worl!";
     let digest2 = message2.digest();
     let (pubkeys2, signatures2): (Vec<BLS12381PublicKey>, Vec<BLS12381Signature>) = keys()
         .into_iter()
@@ -216,62 +177,81 @@ fn verify_batch_aggregate_signature() {
         .unzip();
 
     let aggregated_signature2 = BLS12381AggregateSignature::aggregate(signatures2).unwrap();
+    (
+        digest1.to_vec(),
+        digest2.to_vec(),
+        pubkeys1,
+        pubkeys2,
+        aggregated_signature1,
+        aggregated_signature2,
+    )
+}
+
+#[test]
+fn verify_batch_aggregate_signature() {
+    let (digest1, digest2, pubkeys1, pubkeys2, aggregated_signature1, aggregated_signature2) =
+        verify_batch_aggregate_signature_inputs();
 
     assert!(BLS12381AggregateSignature::batch_verify(
         &[aggregated_signature1, aggregated_signature2],
         &[&pubkeys1[..], &pubkeys2[..]],
-        &[&digest1.0[..], &digest2.0[..]]
+        &[&digest1[..], &digest2[..]]
     )
     .is_ok());
 }
 
 #[test]
-fn verify_batch_aggregate_signature_length_mismatch() {
-    // Make signatures.
-    let message1: &[u8] = b"Hello, world!";
-    let digest1 = message1.digest();
-    let (pubkeys1, signatures1): (Vec<BLS12381PublicKey>, Vec<BLS12381Signature>) = keys()
-        .into_iter()
-        .take(3)
-        .map(|kp| {
-            let sig = kp.sign(&digest1.0);
-            (kp.public().clone(), sig)
-        })
-        .unzip();
-    let aggregated_signature1 = BLS12381AggregateSignature::aggregate(signatures1).unwrap();
+fn verify_batch_missing_parameters_length_mismatch() {
+    let (digest1, digest2, pubkeys1, pubkeys2, aggregated_signature1, aggregated_signature2) =
+        verify_batch_aggregate_signature_inputs();
 
-    // Make signatures.
-    let message2: &[u8] = b"Hello, world!";
-    let digest2 = message2.digest();
-    let (pubkeys2, signatures2): (Vec<BLS12381PublicKey>, Vec<BLS12381Signature>) = keys()
-        .into_iter()
-        .take(2)
-        .map(|kp| {
-            let sig = kp.sign(&digest2.0);
-            (kp.public().clone(), sig)
-        })
-        .unzip();
-
-    let aggregated_signature2 = BLS12381AggregateSignature::aggregate(signatures2).unwrap();
-
+    // Fewer pubkeys than signatures
     assert!(BLS12381AggregateSignature::batch_verify(
         &[aggregated_signature1.clone(), aggregated_signature2.clone()],
         &[&pubkeys1[..]],
-        &[&digest1.0[..], &digest2.0[..]]
+        &[&digest1[..], &digest2[..]]
+    )
+    .is_err());
+    assert!(BLS12381AggregateSignature::batch_verify(
+        &[aggregated_signature1.clone(), aggregated_signature2.clone()],
+        &[&pubkeys1[..]],
+        &[&digest1[..]]
     )
     .is_err());
 
+    // Fewer messages than signatures
+    assert!(BLS12381AggregateSignature::batch_verify(
+        &[aggregated_signature1.clone(), aggregated_signature2.clone()],
+        &[&pubkeys1[..], &pubkeys2[..]],
+        &[&digest1[..]]
+    )
+    .is_err());
+    assert!(BLS12381AggregateSignature::batch_verify(
+        &[aggregated_signature1, aggregated_signature2],
+        &[&pubkeys1[..]],
+        &[&digest1[..]]
+    )
+    .is_err());
+}
+
+#[test]
+fn verify_batch_missing_keys_in_batch() {
+    let (digest1, digest2, pubkeys1, pubkeys2, aggregated_signature1, aggregated_signature2) =
+        verify_batch_aggregate_signature_inputs();
+
+    // Pubkeys missing at the end
     assert!(BLS12381AggregateSignature::batch_verify(
         &[aggregated_signature1.clone(), aggregated_signature2.clone()],
         &[&pubkeys1[..], &pubkeys2[1..]],
-        &[&digest1.0[..], &digest2.0[..]]
+        &[&digest1[..], &digest2[..]]
     )
     .is_err());
 
+    // Pubkeys missing at the start
     assert!(BLS12381AggregateSignature::batch_verify(
         &[aggregated_signature1, aggregated_signature2],
-        &[&pubkeys1[..], &pubkeys2[..]],
-        &[&digest2.0[..]]
+        &[&pubkeys1[..], &pubkeys2[..pubkeys2.len() - 1]],
+        &[&digest1[..], &digest2[..]]
     )
     .is_err());
 }
@@ -399,4 +379,40 @@ async fn signature_service() {
 
     // Verify the signature we received.
     assert!(pk.verify(digest.as_ref(), &signature).is_ok());
+}
+
+// Checks if the private keys zeroed out
+#[test]
+fn test_sk_zeroization_on_drop() {
+    let ptr: *const u8;
+    let bytes_ptr: *const u8;
+
+    let mut sk_bytes = Vec::new();
+
+    {
+        let mut rng = StdRng::from_seed([9; 32]);
+        let kp = BLS12381KeyPair::generate(&mut rng);
+        let sk = kp.private();
+        sk_bytes.extend_from_slice(sk.as_ref());
+
+        ptr = std::ptr::addr_of!(sk.privkey) as *const u8;
+        bytes_ptr = &sk.as_ref()[0] as *const u8;
+
+        let sk_memory: &[u8] =
+            unsafe { ::std::slice::from_raw_parts(bytes_ptr, BLS12381PrivateKey::LENGTH) };
+        // Assert that this is equal to sk_bytes before deletion
+        assert_eq!(sk_memory, &sk_bytes[..]);
+    }
+
+    // Check that self.privkey is zeroized
+    unsafe {
+        for i in 0..BLS12381PrivateKey::LENGTH {
+            assert!(*ptr.add(i) == 0);
+        }
+    }
+
+    // Check that self.bytes is zeroized
+    let sk_memory: &[u8] =
+        unsafe { ::std::slice::from_raw_parts(bytes_ptr, BLS12381PrivateKey::LENGTH) };
+    assert_ne!(sk_memory, &sk_bytes[..]);
 }

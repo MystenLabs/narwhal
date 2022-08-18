@@ -24,6 +24,7 @@ impl NodeRestarter {
         execution_state: Arc<State>,
         parameters: Parameters,
         mut rx_reconfigure: Receiver<(KeyPair, Committee)>,
+        registry: &Registry,
     ) where
         State: BatchExecutionState + Send + Sync + 'static,
         State::Error: Debug,
@@ -53,7 +54,7 @@ impl NodeRestarter {
                 parameters.clone(),
                 /* consensus */ true,
                 execution_state.clone(),
-                &Registry::new(),
+                registry,
             )
             .await
             .unwrap();
@@ -64,7 +65,7 @@ impl NodeRestarter {
                 Arc::new(ArcSwap::new(Arc::new(committee.clone()))),
                 &store,
                 parameters.clone(),
-                &Registry::new(),
+                registry,
             );
 
             handles.extend(primary_handles);

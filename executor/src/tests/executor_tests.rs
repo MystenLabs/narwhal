@@ -22,10 +22,10 @@ async fn execute_transactions() {
 
     // Spawn the executor.
     let store = test_store();
-    let execution_state = TestState::default();
+    let execution_state = Arc::new(TestState::default());
     let _core_handle = Core::spawn(
         store.clone(),
-        Arc::new(SingleExecutor::new(execution_state.clone(), tx_output)),
+        SingleExecutor::new(execution_state.clone(), tx_output),
         rx_reconfigure,
         /* rx_subscriber */ rx_executor,
     );
@@ -68,10 +68,10 @@ async fn execute_empty_certificate() {
 
     // Spawn the executor.
     let store = test_store();
-    let execution_state = TestState::default();
+    let execution_state = Arc::new(TestState::default());
     let _core_handle = Core::spawn(
         store.clone(),
-        Arc::new(SingleExecutor::new(execution_state.clone(), tx_output)),
+        SingleExecutor::new(execution_state.clone(), tx_output),
         rx_reconfigure,
         /* rx_subscriber */ rx_executor,
     );
@@ -123,10 +123,10 @@ async fn execute_malformed_transactions() {
 
     // Spawn the executor.
     let store = test_store();
-    let execution_state = TestState::default();
+    let execution_state = Arc::new(TestState::default());
     let _core_handle = Core::spawn(
         store.clone(),
-        Arc::new(SingleExecutor::new(execution_state.clone(), tx_output)),
+        SingleExecutor::new(execution_state.clone(), tx_output),
         rx_reconfigure,
         /* rx_subscriber */ rx_executor,
     );
@@ -184,10 +184,10 @@ async fn internal_error_execution() {
 
     // Spawn the executor.
     let store = test_store();
-    let execution_state = TestState::default();
+    let execution_state = Arc::new(TestState::default());
     let _core_hanlde = Core::spawn(
         store.clone(),
-        Arc::new(SingleExecutor::new(execution_state.clone(), tx_output)),
+        SingleExecutor::new(execution_state.clone(), tx_output),
         rx_reconfigure,
         /* rx_subscriber */ rx_executor,
     );
@@ -235,10 +235,10 @@ async fn crash_recovery() {
 
     // Spawn the executor.
     let store = test_store();
-    let execution_state = TestState::default();
+    let execution_state = Arc::new(TestState::default());
     let _core_handle = Core::spawn(
         store.clone(),
-        Arc::new(SingleExecutor::new(execution_state.clone(), tx_output)),
+        SingleExecutor::new(execution_state.clone(), tx_output),
         rx_reconfigure,
         /* rx_subscriber */ rx_executor,
     );
@@ -292,7 +292,7 @@ async fn crash_recovery() {
 
     let _core_handle = Core::spawn(
         store.clone(),
-        Arc::new(SingleExecutor::new(execution_state.clone(), tx_output)),
+        SingleExecutor::new(execution_state.clone(), tx_output),
         rx_reconfigure,
         /* rx_subscriber */ rx_executor,
     );

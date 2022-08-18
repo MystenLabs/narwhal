@@ -16,11 +16,7 @@ use tokio::{
     task::JoinHandle,
 };
 use tracing::debug;
-use types::{
-    metered_channel, Batch, BatchDigest, ReconfigureNotification, SequenceNumber,
-    SerializedBatchMessage,
-};
-use worker::WorkerMessage;
+use types::{metered_channel, Batch, BatchDigest, ReconfigureNotification, SequenceNumber};
 
 #[cfg(test)]
 #[path = "tests/executor_tests.rs"]
@@ -32,7 +28,7 @@ pub mod executor_tests;
 /// not processes twice the same transaction (despite crash-recovery).
 pub struct Core<State: ExecutionState> {
     /// The temporary storage holding all transactions' data (that may be too big to hold in memory).
-    store: Store<BatchDigest, SerializedBatchMessage>,
+    store: Store<BatchDigest, Batch>,
     /// The (global) state to perform execution.
     execution_state: Arc<State>,
     /// Receive reconfiguration updates.
@@ -55,7 +51,7 @@ where
     /// Spawn a new executor in a dedicated tokio task.
     #[must_use]
     pub fn spawn(
-        store: Store<BatchDigest, SerializedBatchMessage>,
+        store: Store<BatchDigest, Batch>,
         execution_state: Arc<State>,
         rx_reconfigure: watch::Receiver<ReconfigureNotification>,
         rx_subscriber: metered_channel::Receiver<ConsensusOutput>,
@@ -142,8 +138,8 @@ where
         batch_digest: &BatchDigest,
     ) -> SubscriberResult<Vec<State::Transaction>> {
         // The store should now hold all transaction data referenced by the input certificate.
-        let batch = match self.store.read(*batch_digest).await? {
-            Some(x) => x,
+        let transactions = match self.store.read(*batch_digest).await? {
+            Some(x) => x.0,
             None => {
                 // If two certificates contain the exact same batch (eg. by the actions of a Byzantine
                 // consensus node), some correct client may already have deleted the batch from their
@@ -153,12 +149,6 @@ where
                 debug!("Duplicate batch {batch_digest}");
                 return Ok(Vec::new());
             }
-        };
-
-        // Deserialize the consensus workers' batch message to retrieve a list of transactions.
-        let transactions = match bincode::deserialize(&batch)? {
-            WorkerMessage::Batch(Batch(x)) => x,
-            _ => bail!(SubscriberError::UnexpectedProtocolMessage),
         };
 
         // The consensus simply orders bytes, so we first need to deserialize the transaction.
@@ -187,7 +177,7 @@ where
     State: SingleExecutionState,
 {
     /// The (global) state to perform execution.
-    execution_state: State,
+    execution_state: Arc<State>,
     /// The indices ensuring we do not execute twice the same transaction.
     execution_indices: Mutex<ExecutionIndices>,
     /// Outputs executed transactions.
@@ -264,12 +254,12 @@ where
     State::Error: Clone,
     State::Outcome: Sync + Send + 'static,
 {
-    pub fn new(execution_state: State, tx_output: Sender<ExecutorOutput<State>>) -> Self {
-        Self {
+    pub fn new(execution_state: Arc<State>, tx_output: Sender<ExecutorOutput<State>>) -> Arc<Self> {
+        Arc::new(Self {
             execution_state,
             execution_indices: Mutex::new(ExecutionIndices::default()),
             tx_output,
-        }
+        })
     }
 
     /// Execute a single batch of transactions.

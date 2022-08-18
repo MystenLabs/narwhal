@@ -27,9 +27,9 @@ env:
   RUST_BACKTRACE: short
 
 jobs:
-  ignored:
-    name: Run long-running tests
-    runs-on: ubuntu-latest
+  end-to-end-tests:
+    name: Run long-running end-to-end tests
+    runs-on: ubuntu-ghcloud
     steps:
       - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1
@@ -39,15 +39,18 @@ jobs:
       - uses: bmwill/rust-cache@v1 # Fork of 'Swatinem/rust-cache' which allows caching additional paths
         with:
           path: ~/.cargo/registry/src/**/librocksdb-sys-*
-      - name: cargo test
+      # We run only the integration tests that are ignored under the primary package.
+      # These are considered the end-to-end "slow" tests for us
+      - name: cargo nextest
         run: |
-          cargo nextest run --profile ci --run-ignored ignored-only
+          cargo nextest run -E 'kind(test) + package(primary)' --profile ignored --run-ignored ignored-only
 
   beta:
     name: Run test on the beta channel
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-ghcloud
     steps:
       - uses: actions/checkout@v3
+      - uses: taiki-e/install-action@nextest
       - name: Install beta toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -58,14 +61,17 @@ jobs:
       - name: cargo clippy
         run: cargo xclippy -D warnings
       - name: cargo test
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --features celo
+        run: |
+          cargo nextest run --features celo --profile ci
+      - name: Doctests
+        run: |
+          cargo test --doc --features celo
+      # Ensure there are no uncommitted changes in the repo after running tests
+      - run: scripts/changed-files.sh
 
   release:
     name: build release binaries
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-ghcloud
     steps:
       - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1
@@ -76,7 +82,7 @@ jobs:
           args: --all-targets --features celo --release --profile=release
 
   cargo-udeps:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-ghcloud
     steps:
       - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1
