@@ -35,6 +35,9 @@ impl<T: Future> std::fmt::Debug for BoundedFuturesUnordered<T> {
     }
 }
 
+unsafe impl<T: Future> Sync for BoundedFuturesUnordered<T> {}
+unsafe impl<T: Future> Send for BoundedFuturesUnordered<T> {}
+
 // We expect to grow this facade over time
 impl<T: Future> BoundedFuturesUnordered<T> {
     pub fn with_capacity(capacity: usize) -> Self {
@@ -69,7 +72,7 @@ impl<T: Future> BoundedFuturesUnordered<T> {
     }
 
     /// Report the available permits
-    pub fn available_permits(&mut self) -> usize {
+    pub fn available_permits(&self) -> usize {
         self.push_semaphore.available_permits()
     }
 }
@@ -118,6 +121,9 @@ impl<T: Future> std::fmt::Debug for BoundedFuturesOrdered<T> {
     }
 }
 
+unsafe impl<T: Future> Sync for BoundedFuturesOrdered<T> {}
+unsafe impl<T: Future> Send for BoundedFuturesOrdered<T> {}
+
 // We expect to grow this facade over time
 impl<T: Future> BoundedFuturesOrdered<T> {
     pub fn with_capacity(capacity: usize) -> Self {
@@ -137,7 +143,7 @@ impl<T: Future> BoundedFuturesOrdered<T> {
     }
 
     /// Report the available permits
-    pub fn available_permits(&mut self) -> usize {
+    pub fn available_permits(&self) -> usize {
         self.push_semaphore.available_permits()
     }
 }

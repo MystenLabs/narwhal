@@ -7,11 +7,7 @@ use crate::{
 };
 use config::{Committee, WorkerId};
 use crypto::PublicKey;
-use futures::{
-    future::{try_join_all, BoxFuture},
-    stream::futures_unordered::FuturesUnordered,
-    TryStreamExt,
-};
+use futures::future::{try_join_all, BoxFuture};
 use network::{LuckyNetwork, PrimaryNetwork, PrimaryToWorkerNetwork, UnreliableNetwork};
 use serde::{de::DeserializeOwned, Serialize};
 use std::{
@@ -27,6 +23,7 @@ use tokio::{
 };
 use tracing::{debug, info};
 use types::{
+    bounded_future_queue::BoundedFuturesUnordered,
     error::{DagError, DagResult},
     metered_channel::{Receiver, Sender},
     try_fut_and_permit, BatchDigest, Certificate, CertificateDigest, Header, HeaderDigest,
@@ -91,6 +88,12 @@ pub struct HeaderWaiter {
 }
 
 impl HeaderWaiter {
+    /// Returns the max amount of pending certificates x pending parents messages we should expect. In the worst case of causal completion,
+    /// this can be `self.gc_depth` x `self.committee.len()` for each
+    pub fn max_pending_header_waiter_requests(&self) -> usize {
+        self.gc_depth as usize * self.committee.size() * 4
+    }
+
     #[must_use]
     pub fn spawn(
         name: PublicKey,
@@ -156,7 +159,8 @@ impl HeaderWaiter {
 
     /// Main loop listening to the `Synchronizer` messages.
     async fn run(&mut self) {
-        let mut waiting: FuturesUnordered<BoxFuture<'_, _>> = FuturesUnordered::new();
+        let mut waiting: BoundedFuturesUnordered<BoxFuture<'_, _>> =
+            BoundedFuturesUnordered::with_capacity(self.max_pending_header_waiter_requests());
 
         let timer = sleep(Duration::from_millis(TIMER_RESOLUTION));
         tokio::pin!(timer);
@@ -169,7 +173,7 @@ impl HeaderWaiter {
             let mut attempt_garbage_collection = false;
 
             tokio::select! {
-                Some(message) = self.rx_synchronizer.recv() => {
+                Some(message) = self.rx_synchronizer.recv(), if waiting.available_permits() > 0 => {
                     match message {
                         WaiterMessage::SyncBatches(missing, header) => {
                             debug!("Synching the payload of {header}");
@@ -191,7 +195,7 @@ impl HeaderWaiter {
                             self.pending.insert(header_id, (round, tx_cancel));
                             let fut = Self::waiter(wait_for, self.payload_store.clone(), header, rx_cancel);
                             // pointer-size allocation, bounded by the # of blocks (may eventually go away, see rust RFC #1909)
-                            waiting.push(Box::pin(fut));
+                            waiting.push(Box::pin(fut)).await;
 
                             // Ensure we didn't already send a sync request for these parents.
                             let mut requires_sync = HashMap::new();
@@ -231,7 +235,7 @@ impl HeaderWaiter {
                             self.pending.insert(header_id, (round, tx_cancel));
                             let fut = Self::waiter(wait_for, self.certificate_store.clone(), header, rx_cancel);
                             // pointer-size allocation, bounded by the # of blocks (may eventually go away, see rust RFC #1909)
-                            waiting.push(Box::pin(fut));
+                            waiting.push(Box::pin(fut)).await;
 
                             // Ensure we didn't already sent a sync request for these parents.
                             // Optimistically send the sync request to the node that created the certificate.

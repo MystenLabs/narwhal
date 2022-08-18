@@ -4,7 +4,7 @@
 use crate::metrics::PrimaryMetrics;
 use config::Committee;
 use dashmap::DashMap;
-use futures::{future::try_join_all, stream::futures_unordered::FuturesUnordered, TryStreamExt};
+use futures::future::try_join_all;
 use once_cell::sync::OnceCell;
 use std::sync::Arc;
 use store::Store;
@@ -15,6 +15,7 @@ use tokio::{
 };
 use tracing::info;
 use types::{
+    bounded_future_queue::BoundedFuturesUnordered,
     error::{DagError, DagResult},
     metered_channel::{Receiver, Sender},
     try_fut_and_permit, Certificate, CertificateDigest, HeaderDigest, ReconfigureNotification,
@@ -56,6 +57,12 @@ pub struct CertificateWaiter {
 }
 
 impl CertificateWaiter {
+    /// Returns the max amount of pending certificates we should expect. In the worst case of causal completion,
+    /// this can be `self.gc_depth` x `self.committee.len()`
+    pub fn max_pending_certificates(&self) -> usize {
+        self.gc_depth as usize * self.committee.size() * 2
+    }
+
     #[must_use]
     pub fn spawn(
         committee: Committee,
@@ -104,7 +111,7 @@ impl CertificateWaiter {
     }
 
     async fn run(&mut self) {
-        let mut waiting = FuturesUnordered::new();
+        let mut waiting = BoundedFuturesUnordered::with_capacity(self.max_pending_certificates());
         let timer = sleep(Duration::from_millis(GC_RESOLUTION));
         tokio::pin!(timer);
         let mut attempt_garbage_collection;
@@ -115,7 +122,8 @@ impl CertificateWaiter {
             attempt_garbage_collection = false;
 
             tokio::select! {
-                Some(certificate) = self.rx_synchronizer.recv() => {
+                // We only accept new elements if we have "room" for them
+                Some(certificate) = self.rx_synchronizer.recv(), if waiting.available_permits() > 0 => {
                     if certificate.epoch() < self.committee.epoch() {
                         continue;
                     }
@@ -138,7 +146,7 @@ impl CertificateWaiter {
                     };
                     self.pending.insert(header_id, (certificate.round(), once_cancel));
                     let fut = Self::waiter(wait_for, &self.store, certificate, rx_cancel);
-                    waiting.push(fut);
+                    waiting.push(fut).await;
                 }
                 // we poll the availability of a slot to send the result to the core simultaneously
                 (Some(certificate), permit) = try_fut_and_permit!(waiting.try_next(), self.tx_core) => {
