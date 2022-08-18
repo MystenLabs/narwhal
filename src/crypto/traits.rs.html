@@ -351,7 +351,7 @@
     <span class="kw">fn </span>public(<span class="kw-2">&amp;</span><span class="lifetime">&#39;_ </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;_ </span><span class="self">Self</span>::PubKey;
     <span class="kw">fn </span>private(<span class="self">self</span>) -&gt; <span class="self">Self</span>::PrivKey;
 
-    <span class="attribute">#[cfg(feature = <span class="string">&quot;copy_key&quot;</span>)]</span>
+    <span class="attribute">#[cfg(any(test, feature = <span class="string">&quot;copy_key&quot;</span>))]</span>
     <span class="kw">fn </span>copy(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="self">Self</span>;
 
     <span class="kw">fn </span>generate&lt;R: CryptoRng + RngCore&gt;(rng: <span class="kw-2">&amp;mut </span>R) -&gt; <span class="self">Self</span>;

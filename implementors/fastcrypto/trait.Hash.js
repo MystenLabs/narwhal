@@ -1,0 +1,3 @@
+(function() {var implementors = {
+"types":[["impl Hash for <a class=\"struct\" href=\"types/struct.Batch.html\" title=\"struct types::Batch\">Batch</a>"],["impl Hash for <a class=\"struct\" href=\"types/struct.Header.html\" title=\"struct types::Header\">Header</a>"],["impl Hash for <a class=\"struct\" href=\"types/struct.Vote.html\" title=\"struct types::Vote\">Vote</a>"],["impl Hash for <a class=\"struct\" href=\"types/struct.Certificate.html\" title=\"struct types::Certificate\">Certificate</a>"]]
+};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
