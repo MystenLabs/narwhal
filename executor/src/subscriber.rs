@@ -1,10 +1,13 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crate::{errors::SubscriberResult, SubscriberError, SubscriberError::PayloadRetrieveError};
+use crate::{
+    errors::SubscriberResult, try_fut_and_permit, SubscriberError,
+    SubscriberError::PayloadRetrieveError,
+};
 use backoff::{Error, ExponentialBackoff};
 use consensus::ConsensusOutput;
 use crypto::Hash;
-use futures::stream::{FuturesOrdered, StreamExt};
+use futures::{stream::FuturesOrdered, TryStreamExt};
 use primary::BlockCommand;
 use std::time::Duration;
 use store::Store;
@@ -12,7 +15,7 @@ use tokio::{
     sync::{oneshot, watch},
     task::JoinHandle,
 };
-use tracing::{debug, error};
+use tracing::error;
 use types::{metered_channel, Batch, BatchDigest, ReconfigureNotification};
 
 #[cfg(test)]
@@ -102,11 +105,8 @@ impl Subscriber {
                 },
 
                 // Receive here consensus messages for which we have downloaded all transactions data.
-                Some(message) = waiting.next() => {
-                    if self.tx_executor.send(message?).await.is_err() {
-                        debug!("Executor core is shutting down");
-                        return Ok(());
-                    }
+                (Some(message), permit) = try_fut_and_permit!(waiting.try_next(), self.tx_executor) => {
+                    permit.send(message)
                 },
 
                 // Check whether the committee changed.
