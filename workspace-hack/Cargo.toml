@@ -101,7 +101,7 @@ either = { version = "1", features = ["use_std"] }
 elliptic-curve = { version = "0.12", default-features = false, features = ["alloc", "arithmetic", "digest", "ff", "group", "hazmat", "pkcs8", "sec1", "std"] }
 env_logger = { version = "0.9", features = ["atty", "humantime", "regex", "termcolor"] }
 eyre = { version = "0.6", features = ["auto-install", "track-caller"] }
-fastcrypto = { git = "https://github.com/MystenLabs/fastcrypto", rev = "a9e58305dc463c40b9d357730203406214909f04", features = ["copy_key"] }
+fastcrypto = { git = "https://github.com/MystenLabs/fastcrypto", rev = "574fb8fa17926666131b21c03cfbeb16ff9fd894", features = ["copy_key"] }
 fastrand = { version = "1", default-features = false }
 fdlimit = { version = "0.2", default-features = false }
 ff = { version = "0.12", default-features = false }

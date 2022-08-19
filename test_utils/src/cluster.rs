@@ -3,8 +3,10 @@
 use crate::{committee, keys, temp_dir};
 use arc_swap::ArcSwap;
 use config::{Committee, Parameters, SharedCommittee, WorkerId};
-use crypto::{traits::KeyPair as _, KeyPair, PublicKey};
+use crypto::KeyPair;
+use crypto::PublicKey;
 use executor::{SerializedTransaction, SingleExecutor, SubscriberResult, DEFAULT_CHANNEL_SIZE};
+use fastcrypto::traits::KeyPair as _;
 use itertools::Itertools;
 use multiaddr::Multiaddr;
 use node::{

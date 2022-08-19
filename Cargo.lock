@@ -739,6 +739,7 @@ name = "config"
 version = "0.1.0"
 dependencies = [
  "arc-swap",
+ "crypto",
  "fastcrypto",
  "insta",
  "multiaddr",
@@ -764,6 +765,7 @@ dependencies = [
  "cfg-if 1.0.0",
  "config",
  "criterion",
+ "crypto",
  "dag",
  "fastcrypto",
  "futures",
@@ -984,6 +986,7 @@ dependencies = [
  "digest 0.10.3",
  "ed25519-consensus",
  "eyre",
+ "fastcrypto",
  "hex",
  "hex-literal",
  "hkdf",
@@ -1403,7 +1406,7 @@ dependencies = [
 [[package]]
 name = "fastcrypto"
 version = "0.1.0"
-source = "git+https://github.com/MystenLabs/fastcrypto?rev=a9e58305dc463c40b9d357730203406214909f04#a9e58305dc463c40b9d357730203406214909f04"
+source = "git+https://github.com/MystenLabs/fastcrypto?rev=574fb8fa17926666131b21c03cfbeb16ff9fd894#574fb8fa17926666131b21c03cfbeb16ff9fd894"
 dependencies = [
  "base64ct",
  "blake2",
@@ -2315,6 +2318,7 @@ dependencies = [
  "clap 2.34.0",
  "config",
  "consensus",
+ "crypto",
  "dhat",
  "executor",
  "eyre",
@@ -2806,6 +2810,7 @@ dependencies = [
  "bytes",
  "config",
  "consensus",
+ "crypto",
  "dashmap",
  "derive_builder",
  "dhat",
@@ -3891,6 +3896,7 @@ dependencies = [
  "blake2",
  "bytes",
  "config",
+ "crypto",
  "derive_builder",
  "executor",
  "fastcrypto",
@@ -4428,6 +4434,7 @@ dependencies = [
  "bytes",
  "config",
  "criterion",
+ "crypto",
  "dag",
  "derive_builder",
  "fastcrypto",
@@ -4769,6 +4776,7 @@ dependencies = [
  "blake2",
  "bytes",
  "config",
+ "crypto",
  "fastcrypto",
  "futures",
  "multiaddr",
