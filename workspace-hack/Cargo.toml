@@ -84,7 +84,6 @@ crypto-common = { version = "0.1", default-features = false, features = ["std"] 
 crypto-mac = { version = "0.8", default-features = false, features = ["std"] }
 csv = { version = "1", default-features = false }
 csv-core = { version = "0.1" }
-curve25519-dalek = { version = "3", default-features = false, features = ["alloc", "std", "u64_backend"] }
 curve25519-dalek-ng = { version = "4", features = ["alloc", "serde", "std", "u64_backend"] }
 dashmap = { version = "5", default-features = false }
 data-encoding = { version = "2", features = ["alloc", "std"] }
@@ -97,14 +96,12 @@ digest-93f6ce9d446188ac = { package = "digest", version = "0.10", features = ["a
 digest-274715c4dabd11b0 = { package = "digest", version = "0.9", default-features = false, features = ["alloc", "std"] }
 downcast = { version = "0.11", features = ["std"] }
 ecdsa = { version = "0.14", default-features = false, features = ["alloc", "arithmetic", "der", "digest", "hazmat", "pkcs8", "rfc6979", "sign", "std", "verify"] }
-ed25519 = { version = "1", default-features = false, features = ["serde", "std"] }
 ed25519-consensus = { version = "2", features = ["serde", "std", "thiserror"] }
-ed25519-dalek = { version = "1", features = ["batch", "merlin", "rand", "serde", "serde_bytes", "serde_crate", "std", "u64_backend"] }
 either = { version = "1", features = ["use_std"] }
 elliptic-curve = { version = "0.12", default-features = false, features = ["alloc", "arithmetic", "digest", "ff", "group", "hazmat", "pkcs8", "sec1", "std"] }
 env_logger = { version = "0.9", features = ["atty", "humantime", "regex", "termcolor"] }
 eyre = { version = "0.6", features = ["auto-install", "track-caller"] }
-fastcrypto = { git = "https://github.com/MystenLabs/fastcrypto", rev = "ded6f91c9c19594a3eaeaa9a487d42a39965569e", features = ["copy_key"] }
+fastcrypto = { git = "https://github.com/MystenLabs/fastcrypto", rev = "a9e58305dc463c40b9d357730203406214909f04", features = ["copy_key"] }
 fastrand = { version = "1", default-features = false }
 fdlimit = { version = "0.2", default-features = false }
 ff = { version = "0.12", default-features = false }
@@ -167,8 +164,7 @@ matches = { version = "0.1", default-features = false }
 matchit = { version = "0.5" }
 memchr = { version = "2", features = ["std"] }
 memoffset = { version = "0.6" }
-merlin-f595c2ba2a3f28df = { package = "merlin", version = "2", default-features = false }
-merlin-7b89eefb6aaa9bf3 = { package = "merlin", version = "3", features = ["std"] }
+merlin = { version = "3", features = ["std"] }
 mime = { version = "0.3", default-features = false }
 miniz_oxide = { version = "0.5", default-features = false }
 mio = { version = "0.8", features = ["net", "os-ext", "os-poll"] }
@@ -251,7 +247,7 @@ serde_urlencoded = { version = "0.7", default-features = false }
 serde_with = { version = "2", features = ["alloc", "macros", "std"] }
 serde_yaml = { version = "0.8", default-features = false }
 sha2-93f6ce9d446188ac = { package = "sha2", version = "0.10", default-features = false }
-sha2-274715c4dabd11b0 = { package = "sha2", version = "0.9", default-features = false, features = ["std"] }
+sha2-274715c4dabd11b0 = { package = "sha2", version = "0.9", default-features = false }
 sha3-93f6ce9d446188ac = { package = "sha3", version = "0.10", features = ["std"] }
 sha3-274715c4dabd11b0 = { package = "sha3", version = "0.9", default-features = false }
 sharded-slab = { version = "0.1", default-features = false }
@@ -265,7 +261,7 @@ static_assertions = { version = "1", default-features = false }
 strsim-93f6ce9d446188ac = { package = "strsim", version = "0.10", default-features = false }
 strsim-c38e5c1d305a1b54 = { package = "strsim", version = "0.8", default-features = false }
 structopt = { version = "0.3" }
-subtle = { version = "2", default-features = false, features = ["i128", "std"] }
+subtle = { version = "2", default-features = false, features = ["i128"] }
 subtle-ng = { version = "2", default-features = false, features = ["std"] }
 sync_wrapper = { version = "0.1", default-features = false }
 tap = { version = "1", default-features = false }

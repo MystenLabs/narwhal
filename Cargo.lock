@@ -565,7 +565,7 @@ dependencies = [
  "clear_on_drop",
  "curve25519-dalek-ng",
  "digest 0.9.0",
- "merlin 3.0.0",
+ "merlin",
  "rand 0.8.5",
  "rand_core 0.6.3",
  "serde",
@@ -765,7 +765,6 @@ dependencies = [
  "config",
  "criterion",
  "dag",
- "ed25519-dalek",
  "fastcrypto",
  "futures",
  "indexmap",
@@ -989,7 +988,7 @@ dependencies = [
  "hex-literal",
  "hkdf",
  "k256",
- "merlin 3.0.0",
+ "merlin",
  "once_cell",
  "proptest",
  "proptest-derive",
@@ -1070,19 +1069,6 @@ checksum = "f877be4f7c9f246b183111634f75baa039715e3f46ce860677d3b19a69fb229c"
 dependencies = [
  "quote 1.0.20",
  "syn 1.0.98",
-]
-
-[[package]]
-name = "curve25519-dalek"
-version = "3.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b9fdf9972b2bd6af2d913799d9ebc165ea4d2e65878e329d9c6b372c4491b61"
-dependencies = [
- "byteorder",
- "digest 0.9.0",
- "rand_core 0.5.1",
- "subtle",
- "zeroize",
 ]
 
 [[package]]
@@ -1311,16 +1297,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ed25519"
-version = "1.5.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e9c280362032ea4203659fc489832d0204ef09f247a0506f170dafcac08c369"
-dependencies = [
- "serde",
- "signature",
-]
-
-[[package]]
 name = "ed25519-consensus"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1332,22 +1308,6 @@ dependencies = [
  "serde",
  "sha2 0.9.9",
  "thiserror",
- "zeroize",
-]
-
-[[package]]
-name = "ed25519-dalek"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c762bae6dcaf24c4c84667b8579785430908723d5c889f469d76a41d59cc7a9d"
-dependencies = [
- "curve25519-dalek",
- "ed25519",
- "merlin 2.0.1",
- "rand 0.7.3",
- "serde",
- "serde_bytes",
- "sha2 0.9.9",
  "zeroize",
 ]
 
@@ -1443,7 +1403,7 @@ dependencies = [
 [[package]]
 name = "fastcrypto"
 version = "0.1.0"
-source = "git+https://github.com/MystenLabs/fastcrypto?rev=ded6f91c9c19594a3eaeaa9a487d42a39965569e#ded6f91c9c19594a3eaeaa9a487d42a39965569e"
+source = "git+https://github.com/MystenLabs/fastcrypto?rev=a9e58305dc463c40b9d357730203406214909f04#a9e58305dc463c40b9d357730203406214909f04"
 dependencies = [
  "base64ct",
  "blake2",
@@ -1455,7 +1415,7 @@ dependencies = [
  "eyre",
  "hex",
  "hkdf",
- "merlin 3.0.0",
+ "merlin",
  "once_cell",
  "rand 0.8.5",
  "readonly",
@@ -2165,18 +2125,6 @@ dependencies = [
 
 [[package]]
 name = "merlin"
-version = "2.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4e261cf0f8b3c42ded9f7d2bb59dea03aa52bc8a1cbc7482f9fc3fd1229d3b42"
-dependencies = [
- "byteorder",
- "keccak",
- "rand_core 0.5.1",
- "zeroize",
-]
-
-[[package]]
-name = "merlin"
 version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "58c38e2799fc0978b65dfff8023ec7843e2330bb462f19198840b34b6582397d"
@@ -2368,7 +2316,6 @@ dependencies = [
  "config",
  "consensus",
  "dhat",
- "ed25519-dalek",
  "executor",
  "eyre",
  "fastcrypto",
@@ -4931,7 +4878,6 @@ dependencies = [
  "crypto-mac",
  "csv",
  "csv-core",
- "curve25519-dalek",
  "curve25519-dalek-ng",
  "darling",
  "darling_core",
@@ -4950,9 +4896,7 @@ dependencies = [
  "digest 0.9.0",
  "downcast",
  "ecdsa",
- "ed25519",
  "ed25519-consensus",
- "ed25519-dalek",
  "either",
  "elliptic-curve",
  "env_logger",
@@ -5030,8 +4974,7 @@ dependencies = [
  "matchit",
  "memchr",
  "memoffset",
- "merlin 2.0.1",
- "merlin 3.0.0",
+ "merlin",
  "mime",
  "minimal-lexical",
  "miniz_oxide",
