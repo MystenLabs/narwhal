@@ -4,9 +4,11 @@
 use config::{
     utils::get_available_port, Authority, Committee, Epoch, PrimaryAddresses, WorkerId, WorkerInfo,
 };
-use crypto::{
+use crypto::PublicKey;
+use crypto::{KeyPair, Signature};
+use fastcrypto::{
     traits::{KeyPair as _, Signer as _},
-    Digest, Hash as _, KeyPair, PublicKey, Signature,
+    Digest, Hash as _,
 };
 use futures::Stream;
 use indexmap::IndexMap;
