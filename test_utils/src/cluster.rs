@@ -4,7 +4,7 @@ use crate::{committee, keys, temp_dir};
 use arc_swap::ArcSwap;
 use config::{Committee, Parameters, SharedCommittee, WorkerId};
 use crypto::{traits::KeyPair as _, KeyPair, PublicKey};
-use executor::{SerializedTransaction, SubscriberResult, DEFAULT_CHANNEL_SIZE};
+use executor::{SerializedTransaction, SingleExecutor, SubscriberResult, DEFAULT_CHANNEL_SIZE};
 use itertools::Itertools;
 use multiaddr::Multiaddr;
 use node::{
@@ -338,8 +338,11 @@ impl PrimaryNodeDetails {
             &primary_store,
             self.parameters.clone(),
             /* consensus */ self.internal_consensus_enabled,
-            /* execution_state */ Arc::new(SimpleExecutionState::default()),
-            tx_transaction_confirmation,
+            /* execution_state */
+            SingleExecutor::new(
+                Arc::new(SimpleExecutionState::default()),
+                tx_transaction_confirmation,
+            ),
             &registry,
         )
         .await
