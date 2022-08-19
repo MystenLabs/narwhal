@@ -13,7 +13,7 @@ use futures::{
 use std::{ops::Deref, sync::Arc};
 use tokio::{
     runtime::Handle,
-    sync::{mpsc, OwnedSemaphorePermit, Semaphore},
+    sync::{mpsc, oneshot, OwnedSemaphorePermit, Semaphore},
     task::JoinHandle,
 };
 use tokio_util::time::DelayQueue;
@@ -219,7 +219,22 @@ impl InternalBoundedExecutor {
         //      -> a custom Future that polls a hashtable: JobId -> ComputationResult (Failed |
         //      Retrying | Done(Result))
         // fix rust 2018 ambiguities
-        let mut task = f();
+        let (tx_callback, rx_callback) = oneshot::channel::<T>(); // extending to support Result<T, E>
+                                                                  // later
+        let mut task = f().then(|result| async move {
+            match result {
+                Ok(res) => {
+                    tx_callback.send(res);
+                }
+                Err(e) => {
+                    let job = (Box::new(f), backoff);
+                    tx_retry_manager.send(job).await;
+                }
+            }
+        });
+
+        let result_fut = async move { rx_callback.await };
+
         todo!()
     }
 
@@ -272,27 +287,25 @@ impl RetryManager {
                  // resources can be acquired (semaphore permit).
                  // TODO(erwan): gating branch.
                 job_ready = self.execution_queue.next() => {
-                         let (mut task_factory, backoff) = job_ready.unwrap().into_inner();
+                         let (mut task_factory, backoff, tx_callback) = job_ready.unwrap().into_inner();
                          let tx_scheduler = self.tx_new_jobs.clone();
-
                          let task = task_factory();
-                         let retry_task = task.map(move |result| async move {
-                             let _ = (&task_factory, &backoff, &tx_scheduler); // ugly
-                               match result {
-                                   OpaqueResult::Ok => (),
-                                   OpaqueResult::Err => {
-                                       let backoff = todo!(); // tick
-                                       let job = (task_factory, backoff);
-                                       tx_scheduler.send(job).await;
-                                  }
-                               }
-                                  result
-                         }).flatten();  // We can do a simple closure too
 
+                         let retry_task = task.then(|result| async move {
+                             match result {
+                                 Ok(res) => {
+                                     // TODO(erwan): reason about edge-cases
+                                     // e.g. receiver dropped
+                                     tx_callback.send(res)
+                                 },
+                                 Err(_) => {
+                                     let backoff = backoff.tick();
+                                     let job = (task_factory, backoff, tx_callback);
+                                     self.tx_retry_manager.send(job)
+                                 }
+                             }
+                         });
 
-                         // TODO(erwan): see discussion in issue #567 -  a blocking spawn on the
-                         // semaphore might be acceptable provided that we obtain a permit to run
-                         // prior to branching.
                          // TODO(erwan): with semaphore logic.
                          let permit = InternalBoundedExecutor::acquire_permit(self.semaphore.clone()).await;
                          executor.spawn_with_permit(retry_task, permit).await;
@@ -311,6 +324,10 @@ impl RetryManager {
 // TODO(erwan): compare backoff crates
 pub struct Backoff {}
 
+impl Backoff {
+    pub fn tick(&self) {}
+}
+
 /// The output of a faillible computation, similar to a `Result<T, E>` but using unit variants.
 // Subsuming a `OpaqueResult` for a `Result` enables us to save a heap allocation
 // when submitting computations to the scheduler; might not work for surfacing results
@@ -319,8 +336,10 @@ pub enum OpaqueResult {
     Err,
 }
 
-/// A `Future` task that can fail and return an opaque `Err`.
-pub type FaillibleFuture = BoxFuture<'static, OpaqueResult>;
+type Value = dyn Send + 'static;
+
+/// A `Future` task that can fail`.
+pub type FaillibleFuture = BoxFuture<'static, Value>;
 
 /// A job to schedule or execute.
 /// It wraps a `FaillibleFuture` factory and a `Backoff` context specific to that computation.
@@ -328,6 +347,7 @@ pub type FaillibleFuture = BoxFuture<'static, OpaqueResult>;
 pub type Job = (
     Box<dyn FnMut() -> FaillibleFuture + Send + 'static>,
     Backoff,
+    oneshot::Sender<Value>,
 );
 
 #[cfg(test)]
