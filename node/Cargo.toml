@@ -45,7 +45,7 @@ eyre = "0.6.8"
 hex = "0.4.3"
 pretty_assertions = "1.2.1"
 serde-reflection = "0.3.6"
-serde_yaml = "0.8.26"
+serde_yaml = "0.9.9"
 structopt = "0.3.26"
 test_utils = { path = "../test_utils" }
 
