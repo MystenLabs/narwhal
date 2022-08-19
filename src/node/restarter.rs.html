@@ -123,21 +123,18 @@
 <span id="123">123</span>
 <span id="124">124</span>
 <span id="125">125</span>
-<span id="126">126</span>
-<span id="127">127</span>
-<span id="128">128</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use crate</span>::{Node, NodeStorage};
 <span class="kw">use </span>arc_swap::ArcSwap;
 <span class="kw">use </span>config::{Committee, Parameters};
 <span class="kw">use </span>crypto::{traits::KeyPair <span class="kw">as _</span>, KeyPair};
-<span class="kw">use </span>executor::{ExecutionState, ExecutorOutput};
+<span class="kw">use </span>executor::BatchExecutionState;
 <span class="kw">use </span>futures::future::join_all;
 <span class="kw">use </span>network::{PrimaryToWorkerNetwork, ReliableNetwork, UnreliableNetwork, WorkerToPrimaryNetwork};
 <span class="kw">use </span>prometheus::Registry;
 <span class="kw">use </span>std::{fmt::Debug, path::PathBuf, sync::Arc};
-<span class="kw">use </span>tokio::sync::mpsc::{Receiver, Sender};
+<span class="kw">use </span>tokio::sync::mpsc::Receiver;
 <span class="kw">use </span>types::{PrimaryWorkerMessage, ReconfigureNotification, WorkerPrimaryMessage};
 
 <span class="comment">// Module to start a node (primary, workers and default consensus), keep it running, and restarting it
@@ -152,11 +149,9 @@
         execution_state: Arc&lt;State&gt;,
         parameters: Parameters,
         <span class="kw-2">mut </span>rx_reconfigure: Receiver&lt;(KeyPair, Committee)&gt;,
-        tx_output: Sender&lt;ExecutorOutput&lt;State&gt;&gt;,
         registry: <span class="kw-2">&amp;</span>Registry,
     ) <span class="kw">where
-        </span>State: ExecutionState + Send + Sync + <span class="lifetime">&#39;static</span>,
-        State::Outcome: Send + <span class="lifetime">&#39;static</span>,
+        </span>State: BatchExecutionState + Send + Sync + <span class="lifetime">&#39;static</span>,
         State::Error: Debug,
     {
         <span class="kw">let </span><span class="kw-2">mut </span>keypair = keypair;
@@ -184,7 +179,6 @@
                 parameters.clone(),
                 <span class="comment">/* consensus */ </span><span class="bool-val">true</span>,
                 execution_state.clone(),
-                tx_output.clone(),
                 registry,
             )
             .<span class="kw">await

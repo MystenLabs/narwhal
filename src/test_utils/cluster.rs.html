@@ -761,13 +761,16 @@
 <span id="761">761</span>
 <span id="762">762</span>
 <span id="763">763</span>
+<span id="764">764</span>
+<span id="765">765</span>
+<span id="766">766</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use crate</span>::{committee, keys, temp_dir};
 <span class="kw">use </span>arc_swap::ArcSwap;
 <span class="kw">use </span>config::{Committee, Parameters, SharedCommittee, WorkerId};
 <span class="kw">use </span>crypto::{traits::KeyPair <span class="kw">as _</span>, KeyPair, PublicKey};
-<span class="kw">use </span>executor::{SerializedTransaction, SubscriberResult, DEFAULT_CHANNEL_SIZE};
+<span class="kw">use </span>executor::{SerializedTransaction, SingleExecutor, SubscriberResult, DEFAULT_CHANNEL_SIZE};
 <span class="kw">use </span>itertools::Itertools;
 <span class="kw">use </span>multiaddr::Multiaddr;
 <span class="kw">use </span>node::{
@@ -1101,8 +1104,11 @@
             <span class="kw-2">&amp;</span>primary_store,
             <span class="self">self</span>.parameters.clone(),
             <span class="comment">/* consensus */ </span><span class="self">self</span>.internal_consensus_enabled,
-            <span class="comment">/* execution_state */ </span>Arc::new(SimpleExecutionState::default()),
-            tx_transaction_confirmation,
+            <span class="comment">/* execution_state */
+            </span>SingleExecutor::new(
+                Arc::new(SimpleExecutionState::default()),
+                tx_transaction_confirmation,
+            ),
             <span class="kw-2">&amp;</span>registry,
         )
         .<span class="kw">await
