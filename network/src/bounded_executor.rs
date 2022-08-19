@@ -1,5 +1,4 @@
-// Copyright (c) The Diem Core Contributors
-// Copyright (c) 2022, Mysten Labs, Inc.
+// Copyright (c) The Diem Core Contributors Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
 #![forbid(unsafe_code)]
@@ -7,8 +6,6 @@
 //! A bounded tokio [`Handle`]. Only a bounded number of tasks can run
 //! concurrently when spawned through this executor, defined by the initial
 //! `capacity`.
-
-use backoff::future::Retry;
 use futures::{
     future::{join, BoxFuture, Future},
     FutureExt, StreamExt,
@@ -83,7 +80,6 @@ impl Deref for BoundedExecutor {
     }
 }
 
-// TODO(erwan): deriving Debug is ok, but Clone might be a footgun for the clients.
 pub struct InternalBoundedExecutor {
     semaphore: Arc<Semaphore>,
     executor: Handle,
@@ -156,7 +152,6 @@ impl InternalBoundedExecutor {
             Err(_) => Err(BoundedExecutionError::Full(f)),
         }
     }
-
     #[must_use]
     fn spawn_with_permit<F>(
         &self,
@@ -202,7 +197,7 @@ impl InternalBoundedExecutor {
     #[must_use]
     pub(crate) fn spawn_with_retries<F, Fut, T, E>(
         &self,
-        retry_config: crate::RetryConfig,
+        _retry_config: crate::RetryConfig,
         mut f: F,
     ) -> JoinHandle<Result<T, E>>
     where
@@ -211,19 +206,21 @@ impl InternalBoundedExecutor {
         T: Send + 'static,
         E: Send + 'static,
     {
-        let retrier = {
-            let semaphore = self.semaphore.clone();
+        let task = f();
+        let tx_retry_manager = self.tx_retry_manager.clone();
+        let backoff = Backoff {};
 
-            let executor = move || {
-                let semaphore = semaphore.clone();
-                // TODO(erwan): chain the `Fut` to subsume the `Result<T, E>` into an
-                // `OpaqueResult`
-                InternalBoundedExecutor::run_on_semaphore(semaphore, f())
-            };
-
-            retry_config.retry(executor)
-        };
-        self.executor.spawn(retrier)
+        // TODO(erwan): Closure helpers. Focusing on the flow of execution before simplifying it.
+        // 1. retry on failure
+        // 2. once engaged in the retry pipeline, use thin `OpaqueResult` enum
+        // 3. transmit job to scheduler for retry.
+        // 4. need to figure out how to surface results:
+        //      -> a task polling a oneshot channel?
+        //      -> a custom Future that polls a hashtable: JobId -> ComputationResult (Failed |
+        //      Retrying | Done(Result))
+        // fix rust 2018 ambiguities
+        let mut task = f();
+        todo!()
     }
 
     // Equips a future with a final step that drops the held semaphore permit
@@ -312,11 +309,11 @@ impl RetryManager {
 }
 
 // TODO(erwan): compare backoff crates
-type Backoff = ();
+pub struct Backoff {}
 
 /// The output of a faillible computation, similar to a `Result<T, E>` but using unit variants.
 // Subsuming a `OpaqueResult` for a `Result` enables us to save a heap allocation
-// when submitting computations to the scheduler.
+// when submitting computations to the scheduler; might not work for surfacing results
 pub enum OpaqueResult {
     Ok,
     Err,
