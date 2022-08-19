@@ -343,7 +343,6 @@
 <span id="343">343</span>
 <span id="344">344</span>
 <span id="345">345</span>
-<span id="346">346</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span>config::{Parameters, SharedCommittee, WorkerId};
@@ -353,11 +352,10 @@
     metrics::{ChannelMetrics, ConsensusMetrics},
     Consensus,
 };
-<span class="kw">use </span>crypto::{
-    traits::{KeyPair <span class="kw">as _</span>, VerifyingKey},
-    KeyPair, PublicKey,
-};
+<span class="kw">use </span>crypto::KeyPair;
+<span class="kw">use </span>crypto::PublicKey;
 <span class="kw">use </span>executor::{BatchExecutionState, Executor, SubscriberResult};
+<span class="kw">use </span>fastcrypto::traits::{KeyPair <span class="kw">as _</span>, VerifyingKey};
 <span class="kw">use </span>primary::{BlockCommand, NetworkModel, PayloadToken, Primary, PrimaryChannelMetrics};
 <span class="kw">use </span>prometheus::{IntGauge, Registry};
 <span class="kw">use </span>std::{fmt::Debug, sync::Arc};
@@ -545,7 +543,7 @@
         // Put name of primary in heap profile to distinguish diff primaries
         </span><span class="attribute">#[cfg(feature = <span class="string">&quot;dhat-heap&quot;</span>)]</span>
         <span class="kw">let </span>profiler = {
-            <span class="kw">use </span>crypto::traits::EncodeDecodeBase64;
+            <span class="kw">use </span>fastcrypto::traits::EncodeDecodeBase64;
             <span class="kw">use </span>std::path::Path;
 
             <span class="kw">let </span>heap_file = <span class="macro">format!</span>(<span class="string">&quot;dhat-heap-{}.json&quot;</span>, name.encode_base64());

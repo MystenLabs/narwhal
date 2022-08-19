@@ -513,12 +513,14 @@
 <span id="513">513</span>
 <span id="514">514</span>
 <span id="515">515</span>
+<span id="516">516</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
 </span><span class="kw">use </span>config::Committee;
-<span class="kw">use </span>crypto::{Hash, PublicKey};
+<span class="kw">use </span>crypto::PublicKey;
 <span class="kw">use </span>dag::node_dag::{NodeDag, NodeDagError};
+<span class="kw">use </span>fastcrypto::Hash;
 <span class="kw">use </span>std::{
     borrow::Borrow,
     collections::{BTreeMap, HashMap, HashSet, VecDeque},

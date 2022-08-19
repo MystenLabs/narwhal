@@ -143,11 +143,13 @@
 <span id="143">143</span>
 <span id="144">144</span>
 <span id="145">145</span>
+<span id="146">146</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span>blake2::digest::Update;
 <span class="kw">use </span>config::Committee;
-<span class="kw">use </span>crypto::{Digest, Hash, PublicKey};
+<span class="kw">use </span>crypto::PublicKey;
+<span class="kw">use </span>fastcrypto::{Digest, Hash};
 <span class="kw">use </span>std::fmt::{Display, Formatter};
 <span class="kw">use </span>thiserror::Error;
 <span class="kw">use </span>tracing::{error, warn};
@@ -156,12 +158,12 @@
 <span class="comment">// RequestID helps us identify an incoming request and
 // all the consequent network requests associated with it.
 </span><span class="attribute">#[derive(Clone, Debug, Copy, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]</span>
-<span class="kw">pub struct </span>RequestID(<span class="kw">pub </span>[u8; crypto::DIGEST_LEN]);
+<span class="kw">pub struct </span>RequestID(<span class="kw">pub </span>[u8; fastcrypto::DIGEST_LEN]);
 
 <span class="kw">impl </span>RequestID {
     <span class="comment">// Create a request key (deterministically) from arbitrary data.
     </span><span class="kw">pub fn </span>new(data: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="self">Self </span>{
-        RequestID(crypto::blake2b_256(|hasher| hasher.update(data)))
+        RequestID(fastcrypto::blake2b_256(|hasher| hasher.update(data)))
     }
 }
 

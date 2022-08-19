@@ -835,11 +835,13 @@
 <span id="835">835</span>
 <span id="836">836</span>
 <span id="837">837</span>
+<span id="838">838</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span><span class="kw">crate</span>::block_synchronizer::handler::Handler;
 <span class="kw">use </span>config::Committee;
-<span class="kw">use </span>crypto::{Digest, Hash, PublicKey};
+<span class="kw">use </span>crypto::PublicKey;
+<span class="kw">use </span>fastcrypto::{Digest, Hash};
 <span class="kw">use </span>futures::{
     future::{try_join_all, BoxFuture},
     stream::{futures_unordered::FuturesUnordered, StreamExt <span class="kw">as _</span>},
@@ -953,9 +955,9 @@
 /// ```rust
 /// # use tokio::sync::{mpsc::{channel}, watch, oneshot};
 /// # use arc_swap::ArcSwap;
-/// # use crypto::Hash;
+/// # use fastcrypto::Hash;
 /// # use std::env::temp_dir;
-/// # use crypto::ed25519::Ed25519PublicKey;
+/// # use fastcrypto::ed25519::Ed25519PublicKey;
 /// # use config::Committee;
 /// # use std::collections::BTreeMap;
 /// # use types::Certificate;
@@ -964,7 +966,7 @@
 /// # use mockall::*;
 /// # use test_utils::test_channel;
 /// # use types::ReconfigureNotification;
-/// # use crypto::traits::VerifyingKey;
+/// # use fastcrypto::traits::VerifyingKey;
 /// # use async_trait::async_trait;
 /// # use std::sync::Arc;
 /// # use network::PrimaryToWorkerNetwork;

@@ -704,6 +704,8 @@
 <span id="704">704</span>
 <span id="705">705</span>
 <span id="706">706</span>
+<span id="707">707</span>
+<span id="708">708</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -727,9 +729,11 @@
 <span class="kw">use </span>async_trait::async_trait;
 <span class="kw">use </span>config::{Parameters, SharedCommittee, WorkerId, WorkerInfo};
 <span class="kw">use </span>consensus::dag::Dag;
-<span class="kw">use </span>crypto::{
+<span class="kw">use </span>crypto::PublicKey;
+<span class="kw">use </span>crypto::Signature;
+<span class="kw">use </span>fastcrypto::{
     traits::{EncodeDecodeBase64, Signer},
-    PublicKey, Signature, SignatureService,
+    SignatureService,
 };
 <span class="kw">use </span>multiaddr::{Multiaddr, Protocol};
 <span class="kw">use </span>network::{metrics::Metrics, PrimaryNetwork, PrimaryToWorkerNetwork};

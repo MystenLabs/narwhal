@@ -123,13 +123,15 @@
 <span id="123">123</span>
 <span id="124">124</span>
 <span id="125">125</span>
+<span id="126">126</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use crate</span>::{Node, NodeStorage};
 <span class="kw">use </span>arc_swap::ArcSwap;
 <span class="kw">use </span>config::{Committee, Parameters};
-<span class="kw">use </span>crypto::{traits::KeyPair <span class="kw">as _</span>, KeyPair};
+<span class="kw">use </span>crypto::KeyPair;
 <span class="kw">use </span>executor::BatchExecutionState;
+<span class="kw">use </span>fastcrypto::traits::KeyPair <span class="kw">as _</span>;
 <span class="kw">use </span>futures::future::join_all;
 <span class="kw">use </span>network::{PrimaryToWorkerNetwork, ReliableNetwork, UnreliableNetwork, WorkerToPrimaryNetwork};
 <span class="kw">use </span>prometheus::Registry;

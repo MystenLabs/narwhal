@@ -862,15 +862,19 @@
 <span id="862">862</span>
 <span id="863">863</span>
 <span id="864">864</span>
+<span id="865">865</span>
+<span id="866">866</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span>config::{
     utils::get_available_port, Authority, Committee, Epoch, PrimaryAddresses, WorkerId, WorkerInfo,
 };
-<span class="kw">use </span>crypto::{
+<span class="kw">use </span>crypto::PublicKey;
+<span class="kw">use </span>crypto::{KeyPair, Signature};
+<span class="kw">use </span>fastcrypto::{
     traits::{KeyPair <span class="kw">as _</span>, Signer <span class="kw">as _</span>},
-    Digest, Hash <span class="kw">as _</span>, KeyPair, PublicKey, Signature,
+    Digest, Hash <span class="kw">as _</span>,
 };
 <span class="kw">use </span>futures::Stream;
 <span class="kw">use </span>indexmap::IndexMap;

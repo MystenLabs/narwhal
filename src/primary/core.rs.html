@@ -655,6 +655,8 @@
 <span id="655">655</span>
 <span id="656">656</span>
 <span id="657">657</span>
+<span id="658">658</span>
+<span id="659">659</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -666,7 +668,9 @@
 };
 <span class="kw">use </span>async_recursion::async_recursion;
 <span class="kw">use </span>config::{Committee, Epoch};
-<span class="kw">use </span>crypto::{Hash <span class="kw">as _</span>, PublicKey, Signature, SignatureService};
+<span class="kw">use </span>crypto::PublicKey;
+<span class="kw">use </span>crypto::Signature;
+<span class="kw">use </span>fastcrypto::{Hash <span class="kw">as _</span>, SignatureService};
 <span class="kw">use </span>network::{CancelOnDropHandler, MessageResult, PrimaryNetwork, ReliableNetwork};
 <span class="kw">use </span>std::{
     collections::{HashMap, HashSet},

@@ -614,6 +614,7 @@
 <span id="614">614</span>
 <span id="615">615</span>
 <span id="616">616</span>
+<span id="617">617</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -625,7 +626,8 @@
 )]</span>
 
 <span class="kw">use </span>arc_swap::ArcSwap;
-<span class="kw">use </span>crypto::{traits::EncodeDecodeBase64, PublicKey};
+<span class="kw">use </span>crypto::PublicKey;
+<span class="kw">use </span>fastcrypto::traits::EncodeDecodeBase64;
 <span class="kw">use </span>multiaddr::Multiaddr;
 <span class="kw">use </span>rand::{rngs::StdRng, seq::SliceRandom, SeedableRng};
 <span class="kw">use </span>serde::{de::DeserializeOwned, Deserialize, Serialize};

@@ -174,13 +174,15 @@
 <span id="174">174</span>
 <span id="175">175</span>
 <span id="176">176</span>
+<span id="177">177</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use crate</span>::{header_waiter::WaiterMessage, primary::PayloadToken};
 <span class="kw">use </span>config::{Committee, WorkerId};
 <span class="kw">use </span>consensus::dag::Dag;
-<span class="kw">use </span>crypto::{Hash <span class="kw">as _</span>, PublicKey};
+<span class="kw">use </span>crypto::PublicKey;
+<span class="kw">use </span>fastcrypto::Hash <span class="kw">as _</span>;
 <span class="kw">use </span>std::{collections::HashMap, sync::Arc};
 <span class="kw">use </span>store::Store;
 <span class="kw">use </span>types::{

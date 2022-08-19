@@ -275,7 +275,7 @@
     utils, ConsensusOutput, SequenceNumber,
 };
 <span class="kw">use </span>config::{Committee, Stake};
-<span class="kw">use </span>crypto::{traits::EncodeDecodeBase64, Hash};
+<span class="kw">use </span>fastcrypto::{traits::EncodeDecodeBase64, Hash};
 <span class="kw">use </span>std::{collections::HashMap, sync::Arc};
 <span class="kw">use </span>tracing::debug;
 <span class="kw">use </span>types::{Certificate, CertificateDigest, ConsensusStore, Round, StoreResult};
@@ -442,7 +442,7 @@
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
     <span class="kw">use </span><span class="kw">crate</span>::metrics::ConsensusMetrics;
     <span class="kw">use </span>arc_swap::ArcSwap;
-    <span class="kw">use </span>crypto::traits::KeyPair;
+    <span class="kw">use </span>fastcrypto::traits::KeyPair;
     <span class="kw">use </span>prometheus::Registry;
     <span class="kw">use </span>rand::Rng;
     <span class="kw">use </span>std::collections::BTreeSet;

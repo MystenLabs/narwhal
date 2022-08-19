@@ -1,3 +1,0 @@
-(function() {var implementors = {
-"crypto":[["impl ZeroizeOnDrop for <a class=\"struct\" href=\"crypto/bls12381/struct.BLS12381PrivateKey.html\" title=\"struct crypto::bls12381::BLS12381PrivateKey\">BLS12381PrivateKey</a>"],["impl ZeroizeOnDrop for <a class=\"struct\" href=\"crypto/bls12381/struct.BLS12381KeyPair.html\" title=\"struct crypto::bls12381::BLS12381KeyPair\">BLS12381KeyPair</a>"]]
-};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
