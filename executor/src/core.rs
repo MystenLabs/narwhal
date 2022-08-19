@@ -157,15 +157,20 @@ where
         // bytes to the consensus.
         let transactions = transactions
             .into_iter()
-            .map(
-                |serialized| match bincode::deserialize::<State::Transaction>(&serialized) {
-                    Ok(x) => Ok(x),
-                    Err(e) => Err(SubscriberError::ClientExecutionError(format!(
-                        "Failed to deserialize transaction: {e}"
-                    ))),
-                },
-            )
-            .collect::<Result<Vec<_>, _>>()?;
+            .filter_map(|serialized| {
+                match bincode::deserialize::<State::Transaction>(&serialized) {
+                    Ok(x) => Some(x),
+                    Err(e) => {
+                        let error = SubscriberError::ClientExecutionError(format!(
+                            "Failed to deserialize transaction: {e}"
+                        ));
+                        // Log the error. There is always a chance that the fault lies with our deserialization.
+                        debug!("{error}");
+                        None
+                    }
+                }
+            })
+            .collect::<Vec<_>>();
 
         Ok(transactions)
     }
