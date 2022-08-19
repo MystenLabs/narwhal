@@ -16,29 +16,16 @@ publish = false
 [dependencies]
 addr2line = { version = "0.17", default-features = false }
 adler = { version = "1", default-features = false }
-ahash = { version = "0.7", default-features = false }
 aho-corasick = { version = "0.7", features = ["std"] }
 ansi_term = { version = "0.12", default-features = false }
 arc-swap = { version = "1", default-features = false, features = ["serde"] }
-ark-bls12-377 = { version = "0.3", features = ["base_field", "curve", "scalar_field", "std"] }
-ark-crypto-primitives = { version = "0.3", features = ["parallel", "rayon", "std"] }
-ark-ec = { version = "0.3", features = ["parallel", "rayon", "std"] }
-ark-ed-on-bw6-761 = { version = "0.3" }
-ark-ed-on-cp6-782 = { version = "0.3", default-features = false }
-ark-ff = { version = "0.3", features = ["parallel", "rayon", "std"] }
-ark-relations = { version = "0.3", default-features = false, features = ["std", "tracing-subscriber"] }
-ark-serialize = { version = "0.3", features = ["ark-serialize-derive", "derive", "std"] }
-ark-snark = { version = "0.3", default-features = false }
-ark-std = { version = "0.3", features = ["parallel", "rayon", "std"] }
 arrayref = { version = "0.3", default-features = false }
-arrayvec = { version = "0.7", default-features = false }
 async-stream = { version = "0.3", default-features = false }
 atty = { version = "0.2", default-features = false }
 axum = { version = "0.5", features = ["form", "http1", "json", "matched-path", "original-uri", "query", "serde_json", "serde_urlencoded", "tower-log"] }
 axum-core = { version = "0.2", default-features = false }
 backoff = { version = "0.4", features = ["futures", "futures-core", "pin-project-lite", "tokio", "tokio_1"] }
 backtrace = { version = "0.3", features = ["std"] }
-base16ct = { version = "0.1", default-features = false, features = ["alloc"] }
 base64 = { version = "0.13", features = ["std"] }
 base64ct = { version = "1", default-features = false, features = ["alloc"] }
 bincode = { version = "1", default-features = false }
@@ -47,11 +34,9 @@ bit-vec = { version = "0.6", default-features = false, features = ["std"] }
 bitcoin_hashes = { version = "0.11", default-features = false }
 bitflags = { version = "1" }
 blake2 = { version = "0.9", features = ["std"] }
-blake2s_simd = { version = "1", features = ["std"] }
 block-buffer-93f6ce9d446188ac = { package = "block-buffer", version = "0.10", default-features = false }
 block-buffer-274715c4dabd11b0 = { package = "block-buffer", version = "0.9", default-features = false, features = ["block-padding"] }
 block-padding = { version = "0.2", default-features = false }
-bls-crypto = { git = "https://github.com/huitseeker/celo-bls-snark-rs", branch = "updates-2", features = ["compat"] }
 blst = { version = "0.3" }
 bs58 = { version = "0.4", features = ["alloc", "std"] }
 bstr = { version = "0.2", features = ["lazy_static", "regex-automata", "serde", "serde1", "serde1-nostd", "std", "unicode"] }
@@ -61,14 +46,10 @@ bytes = { version = "1", features = ["std"] }
 cast = { version = "0.3", default-features = false }
 cfg-if-c65f7effa3be6d31 = { package = "cfg-if", version = "0.1", default-features = false }
 cfg-if-dff4ba8e3ae991db = { package = "cfg-if", version = "1", default-features = false }
-clap-f595c2ba2a3f28df = { package = "clap", version = "2", features = ["ansi_term", "atty", "color", "strsim", "suggestions", "vec_map"] }
-clap-7b89eefb6aaa9bf3 = { package = "clap", version = "3", features = ["atty", "color", "std", "strsim", "suggestions", "termcolor"] }
-clap_lex = { version = "0.2", default-features = false }
+clap = { version = "2", features = ["ansi_term", "atty", "color", "strsim", "suggestions", "vec_map"] }
 clear_on_drop = { version = "0.2", default-features = false }
 collectable = { version = "0.0.2", default-features = false }
 console = { version = "0.15", default-features = false }
-const-oid = { version = "0.9", default-features = false }
-constant_time_eq = { version = "0.1", default-features = false }
 core2 = { version = "0.4", default-features = false, features = ["alloc"] }
 criterion = { version = "0.3", features = ["cargo_bench_support"] }
 criterion-plot = { version = "0.4", default-features = false }
@@ -79,7 +60,6 @@ crossbeam-epoch = { version = "0.9", default-features = false, features = ["allo
 crossbeam-queue = { version = "0.3", default-features = false, features = ["alloc", "std"] }
 crossbeam-utils = { version = "0.8", features = ["lazy_static", "std"] }
 crossterm = { version = "0.25", features = ["bracketed-paste"] }
-crypto-bigint = { version = "0.4", default-features = false, features = ["generic-array", "rand_core", "zeroize"] }
 crypto-common = { version = "0.1", default-features = false, features = ["std"] }
 crypto-mac = { version = "0.8", default-features = false, features = ["std"] }
 csv = { version = "1", default-features = false }
@@ -88,7 +68,6 @@ curve25519-dalek = { version = "3", default-features = false, features = ["alloc
 curve25519-dalek-ng = { version = "4", features = ["alloc", "serde", "std", "u64_backend"] }
 dashmap = { version = "5", default-features = false }
 data-encoding = { version = "2", features = ["alloc", "std"] }
-der = { version = "0.6", default-features = false, features = ["alloc", "const-oid", "oid", "zeroize"] }
 derive_builder = { version = "0.11", features = ["std"] }
 dhat = { version = "0.3", default-features = false }
 diff = { version = "0.1", default-features = false }
@@ -96,18 +75,14 @@ difflib = { version = "0.4", default-features = false }
 digest-93f6ce9d446188ac = { package = "digest", version = "0.10", features = ["alloc", "block-buffer", "core-api", "mac", "std", "subtle"] }
 digest-274715c4dabd11b0 = { package = "digest", version = "0.9", default-features = false, features = ["alloc", "std"] }
 downcast = { version = "0.11", features = ["std"] }
-ecdsa = { version = "0.14", default-features = false, features = ["alloc", "arithmetic", "der", "digest", "hazmat", "pkcs8", "rfc6979", "sign", "std", "verify"] }
 ed25519 = { version = "1", default-features = false, features = ["serde", "std"] }
 ed25519-consensus = { version = "2", features = ["serde", "std", "thiserror"] }
 ed25519-dalek = { version = "1", features = ["batch", "merlin", "rand", "serde", "serde_bytes", "serde_crate", "std", "u64_backend"] }
 either = { version = "1", features = ["use_std"] }
-elliptic-curve = { version = "0.12", default-features = false, features = ["alloc", "arithmetic", "digest", "ff", "group", "hazmat", "pkcs8", "sec1", "std"] }
-env_logger = { version = "0.9", features = ["atty", "humantime", "regex", "termcolor"] }
 eyre = { version = "0.6", features = ["auto-install", "track-caller"] }
-fastcrypto = { git = "https://github.com/MystenLabs/fastcrypto", rev = "ded6f91c9c19594a3eaeaa9a487d42a39965569e", features = ["copy_key"] }
+fastcrypto = { git = "https://github.com/MystenLabs/fastcrypto", rev = "0d0d1208e7d6b91c25febec13ce3683414a7e03f", features = ["copy_key"] }
 fastrand = { version = "1", default-features = false }
 fdlimit = { version = "0.2", default-features = false }
-ff = { version = "0.12", default-features = false }
 float-cmp = { version = "0.9", features = ["num-traits", "ratio"] }
 fnv = { version = "1", features = ["std"] }
 form_urlencoded = { version = "1", default-features = false }
@@ -125,20 +100,18 @@ gethostname = { version = "0.2", default-features = false }
 getrandom-c65f7effa3be6d31 = { package = "getrandom", version = "0.1", default-features = false, features = ["std"] }
 getrandom-6f8ce4dd05d13bba = { package = "getrandom", version = "0.2", default-features = false, features = ["std"] }
 gimli = { version = "0.26", default-features = false, features = ["read", "read-core"] }
-group = { version = "0.12", default-features = false }
 h2 = { version = "0.3", default-features = false }
 half = { version = "1", default-features = false }
-hashbrown = { version = "0.12", features = ["ahash", "inline-more", "raw"] }
+hashbrown = { version = "0.12", default-features = false, features = ["raw"] }
 hdrhistogram = { version = "7", default-features = false }
 hex = { version = "0.4", features = ["alloc", "std"] }
 hkdf = { version = "0.12", default-features = false, features = ["std"] }
-hmac = { version = "0.12", default-features = false, features = ["reset", "std"] }
+hmac = { version = "0.12", default-features = false, features = ["std"] }
 http = { version = "0.2", default-features = false }
 http-body = { version = "0.4", default-features = false }
 http-range-header = { version = "0.3", default-features = false }
 httparse = { version = "1", features = ["std"] }
 httpdate = { version = "1", default-features = false }
-humantime = { version = "2", default-features = false }
 hyper = { version = "0.14", features = ["client", "full", "h2", "http1", "http2", "runtime", "server", "socket2", "stream", "tcp"] }
 hyper-timeout = { version = "0.4", default-features = false }
 idna = { version = "0.2", default-features = false }
@@ -151,7 +124,6 @@ itertools = { version = "0.10", features = ["use_alloc", "use_std"] }
 itoa-9fbad63c4bcf4a8f = { package = "itoa", version = "0.4", features = ["std"] }
 itoa-dff4ba8e3ae991db = { package = "itoa", version = "1", default-features = false }
 json = { version = "0.12", default-features = false }
-k256 = { version = "0.11", features = ["arithmetic", "digest", "ecdsa", "ecdsa-core", "keccak256", "pkcs8", "schnorr", "sha2", "sha256", "sha3", "std"] }
 keccak = { version = "0.1", default-features = false }
 lazy_static = { version = "1", default-features = false }
 libc = { version = "0.2", features = ["std"] }
@@ -160,7 +132,6 @@ libz-sys = { version = "1", default-features = false, features = ["static"] }
 linked-hash-map = { version = "0.5", default-features = false }
 lock_api = { version = "0.4", default-features = false }
 log = { version = "0.4", default-features = false, features = ["std"] }
-lru = { version = "0.7", features = ["hashbrown"] }
 match_opt = { version = "0.1", default-features = false }
 matchers = { version = "0.1", default-features = false }
 matches = { version = "0.1", default-features = false }
@@ -177,9 +148,7 @@ multiaddr = { version = "0.14", features = ["url"] }
 multihash = { version = "0.16", default-features = false, features = ["alloc", "derive", "identity", "multihash-derive", "multihash-impl", "std"] }
 mysten-network = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "8d090689be14078f2ca41c356e7bbc0af21f73ab", default-features = false }
 normalize-line-endings = { version = "0.3", default-features = false }
-num-bigint = { version = "0.4", default-features = false }
-num-integer = { version = "0.1", default-features = false, features = ["i128"] }
-num-traits = { version = "0.2", features = ["i128", "std"] }
+num-traits = { version = "0.2", features = ["std"] }
 num_cpus = { version = "1", default-features = false }
 object = { version = "0.29", default-features = false, features = ["archive", "coff", "elf", "macho", "pe", "read_core", "unaligned"] }
 once_cell = { version = "1", features = ["alloc", "race", "std"] }
@@ -189,7 +158,6 @@ opentelemetry = { version = "0.17", features = ["async-trait", "crossbeam-channe
 opentelemetry-jaeger = { version = "0.16", features = ["rt-tokio", "tokio"] }
 opentelemetry-semantic-conventions = { version = "0.9", default-features = false }
 ordered-float = { version = "1", features = ["std"] }
-os_str_bytes = { version = "6", default-features = false, features = ["raw_os_str"] }
 parking_lot-a6292c17cd707f01 = { package = "parking_lot", version = "0.11" }
 parking_lot-5ef9efb8ec2df382 = { package = "parking_lot", version = "0.12" }
 parking_lot_core-c38e5c1d305a1b54 = { package = "parking_lot_core", version = "0.8", default-features = false }
@@ -198,7 +166,6 @@ percent-encoding = { version = "2", default-features = false }
 pin-project = { version = "1", default-features = false }
 pin-project-lite = { version = "0.2", default-features = false }
 pin-utils = { version = "0.1", default-features = false }
-pkcs8 = { version = "0.9", default-features = false, features = ["alloc"] }
 plotters = { version = "0.3", default-features = false, features = ["area_series", "line_series", "plotters-svg", "svg_backend"] }
 plotters-backend = { version = "0.3", default-features = false }
 plotters-svg = { version = "0.3", default-features = false }
@@ -214,9 +181,9 @@ prost = { version = "0.10", features = ["prost-derive", "std"] }
 protobuf = { version = "2", default-features = false }
 quick-error-dff4ba8e3ae991db = { package = "quick-error", version = "1", default-features = false }
 quick-error-f595c2ba2a3f28df = { package = "quick-error", version = "2", default-features = false }
-rand-ca01ad9e24f5d932 = { package = "rand", version = "0.7", features = ["alloc", "getrandom", "getrandom_package", "libc", "std"] }
+rand-ca01ad9e24f5d932 = { package = "rand", version = "0.7", default-features = false, features = ["alloc", "getrandom", "getrandom_package", "libc", "std"] }
 rand-c38e5c1d305a1b54 = { package = "rand", version = "0.8", features = ["alloc", "getrandom", "libc", "rand_chacha", "small_rng", "std", "std_rng"] }
-rand_chacha = { version = "0.3", features = ["std"] }
+rand_chacha = { version = "0.3", default-features = false, features = ["std"] }
 rand_core-d8f496e17d97b5cb = { package = "rand_core", version = "0.5", default-features = false, features = ["alloc", "getrandom", "std"] }
 rand_core-3b31131e45eafb45 = { package = "rand_core", version = "0.6", default-features = false, features = ["alloc", "getrandom", "std"] }
 rand_xorshift = { version = "0.3", default-features = false }
@@ -226,7 +193,6 @@ regex = { version = "1", features = ["aho-corasick", "memchr", "perf", "perf-cac
 regex-automata = { version = "0.1", features = ["regex-syntax", "std"] }
 regex-syntax = { version = "0.6", features = ["unicode", "unicode-age", "unicode-bool", "unicode-case", "unicode-gencat", "unicode-perl", "unicode-script", "unicode-segment"] }
 remove_dir_all = { version = "0.5", default-features = false }
-rfc6979 = { version = "0.3", default-features = false }
 ring = { version = "0.16", features = ["alloc", "dev_urandom_fallback", "once_cell"] }
 rocksdb = { version = "0.19", default-features = false, features = ["lz4", "multi-threaded-cf", "snappy", "zlib", "zstd"] }
 rustc-demangle = { version = "0.1", default-features = false }
@@ -238,7 +204,6 @@ ryu = { version = "1", default-features = false }
 same-file = { version = "1", default-features = false }
 scopeguard = { version = "1", default-features = false }
 sct = { version = "0.7", default-features = false }
-sec1 = { version = "0.3", features = ["alloc", "base16ct", "der", "generic-array", "pkcs8", "point", "subtle", "zeroize"] }
 secp256k1 = { version = "0.24", features = ["alloc", "bitcoin_hashes", "global-context", "rand", "rand-std", "recovery", "std"] }
 secp256k1-sys = { version = "0.6", default-features = false, features = ["alloc", "recovery", "std"] }
 serde = { version = "1", features = ["alloc", "derive", "rc", "serde_derive", "std"] }
@@ -250,32 +215,26 @@ serde_test = { version = "1", default-features = false }
 serde_urlencoded = { version = "0.7", default-features = false }
 serde_with = { version = "2", features = ["alloc", "macros", "std"] }
 serde_yaml = { version = "0.8", default-features = false }
-sha2-93f6ce9d446188ac = { package = "sha2", version = "0.10", default-features = false }
-sha2-274715c4dabd11b0 = { package = "sha2", version = "0.9", default-features = false, features = ["std"] }
-sha3-93f6ce9d446188ac = { package = "sha3", version = "0.10", features = ["std"] }
-sha3-274715c4dabd11b0 = { package = "sha3", version = "0.9", default-features = false }
+sha2 = { version = "0.9", default-features = false, features = ["std"] }
+sha3 = { version = "0.9", default-features = false }
 sharded-slab = { version = "0.1", default-features = false }
-signature = { version = "1", features = ["digest", "digest-preview", "rand-preview", "rand_core", "std"] }
+signature = { version = "1", features = ["rand-preview"] }
 similar = { version = "2", features = ["inline", "text"] }
 slab = { version = "0.4", features = ["std"] }
 smallvec = { version = "1", default-features = false }
 socket2 = { version = "0.4", default-features = false, features = ["all"] }
-spki = { version = "0.6", default-features = false, features = ["alloc", "base64ct"] }
 static_assertions = { version = "1", default-features = false }
-strsim-93f6ce9d446188ac = { package = "strsim", version = "0.10", default-features = false }
 strsim-c38e5c1d305a1b54 = { package = "strsim", version = "0.8", default-features = false }
 structopt = { version = "0.3" }
-subtle = { version = "2", default-features = false, features = ["i128", "std"] }
+subtle = { version = "2", default-features = false, features = ["std"] }
 subtle-ng = { version = "2", default-features = false, features = ["std"] }
 sync_wrapper = { version = "0.1", default-features = false }
 tap = { version = "1", default-features = false }
 telemetry-subscribers = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "8d090689be14078f2ca41c356e7bbc0af21f73ab", features = ["chrome", "jaeger", "opentelemetry", "opentelemetry-jaeger", "tracing-chrome", "tracing-opentelemetry"] }
 tempfile = { version = "3", default-features = false }
-termcolor = { version = "1", default-features = false }
 terminal_size = { version = "0.1", default-features = false }
 termtree = { version = "0.2", default-features = false }
-textwrap-a6292c17cd707f01 = { package = "textwrap", version = "0.11", default-features = false }
-textwrap-3575ec1268b04181 = { package = "textwrap", version = "0.15", default-features = false }
+textwrap = { version = "0.11", default-features = false }
 thiserror = { version = "1", default-features = false }
 thousands = { version = "0.2", default-features = false }
 thread_local = { version = "1", default-features = false }
@@ -304,8 +263,7 @@ tracing-core = { version = "0.1", features = ["once_cell", "std"] }
 tracing-futures = { version = "0.2", features = ["pin-project", "std", "std-future"] }
 tracing-log = { version = "0.1", features = ["log-tracer", "std", "trace-logger"] }
 tracing-opentelemetry = { version = "0.17", features = ["tracing-log"] }
-tracing-subscriber-6f8ce4dd05d13bba = { package = "tracing-subscriber", version = "0.2", default-features = false }
-tracing-subscriber-468e82937335b1c9 = { package = "tracing-subscriber", version = "0.3", features = ["alloc", "ansi", "ansi_term", "env-filter", "fmt", "matchers", "once_cell", "regex", "registry", "sharded-slab", "smallvec", "std", "thread_local", "time", "tracing", "tracing-log"] }
+tracing-subscriber = { version = "0.3", features = ["alloc", "ansi", "ansi_term", "env-filter", "fmt", "matchers", "once_cell", "regex", "registry", "sharded-slab", "smallvec", "std", "thread_local", "time", "tracing", "tracing-log"] }
 tracing-test = { version = "0.2", default-features = false }
 try-lock = { version = "0.2", default-features = false }
 typed-store = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "8d090689be14078f2ca41c356e7bbc0af21f73ab", default-features = false }
@@ -327,9 +285,6 @@ zstd-sys = { version = "2", features = ["legacy", "zdict_builder"] }
 
 [build-dependencies]
 anyhow = { version = "1", features = ["std"] }
-ark-ff-asm = { version = "0.3", default-features = false }
-ark-ff-macros = { version = "0.3", default-features = false }
-ark-serialize-derive = { version = "0.3", default-features = false }
 async-recursion = { version = "1", default-features = false }
 async-stream-impl = { version = "0.3", default-features = false }
 async-trait = { version = "0.1", default-features = false }
@@ -346,7 +301,6 @@ cmake = { version = "0.1", default-features = false }
 darling = { version = "0.14", features = ["suggestions"] }
 darling_core = { version = "0.14", default-features = false, features = ["strsim", "suggestions"] }
 darling_macro = { version = "0.14", default-features = false }
-derivative = { version = "2", default-features = false, features = ["use_core"] }
 derive_builder_core = { version = "0.11", default-features = false }
 derive_builder_macro = { version = "0.11", default-features = false }
 either = { version = "1", features = ["use_std"] }
@@ -355,10 +309,9 @@ fixedbitset = { version = "0.4", default-features = false }
 fnv = { version = "1", features = ["std"] }
 futures-macro = { version = "0.3", default-features = false }
 glob = { version = "0.3", default-features = false }
-hashbrown = { version = "0.12", features = ["ahash", "inline-more", "raw"] }
+hashbrown = { version = "0.12", default-features = false, features = ["raw"] }
 heck-468e82937335b1c9 = { package = "heck", version = "0.3", default-features = false }
 heck-9fbad63c4bcf4a8f = { package = "heck", version = "0.4" }
-hex-literal = { version = "0.3", default-features = false }
 ident_case = { version = "1", default-features = false }
 indexmap = { version = "1", default-features = false, features = ["serde", "std"] }
 itertools = { version = "0.10", features = ["use_alloc", "use_std"] }
@@ -374,12 +327,7 @@ mockall_derive = { version = "0.11", default-features = false }
 multihash-derive = { version = "0.8", default-features = false, features = ["std"] }
 multimap = { version = "0.8", default-features = false }
 nom = { version = "7", default-features = false, features = ["alloc", "std"] }
-num-bigint = { version = "0.4", default-features = false }
-num-integer = { version = "0.1", default-features = false, features = ["i128"] }
-num-traits = { version = "0.2", features = ["i128", "std"] }
-paste = { version = "1", default-features = false }
 peeking_take_while = { version = "0.1", default-features = false }
-pest = { version = "2", features = ["std", "thiserror"] }
 petgraph = { version = "0.6", default-features = false }
 pin-project-internal = { version = "1", default-features = false }
 pkg-config = { version = "0.3", default-features = false }
@@ -403,13 +351,10 @@ regex = { version = "1", features = ["aho-corasick", "memchr", "perf", "perf-cac
 regex-syntax = { version = "0.6", features = ["unicode", "unicode-age", "unicode-bool", "unicode-case", "unicode-gencat", "unicode-perl", "unicode-script", "unicode-segment"] }
 remove_dir_all = { version = "0.5", default-features = false }
 rustc-hash = { version = "1", features = ["std"] }
-rustc_version-6f8ce4dd05d13bba = { package = "rustc_version", version = "0.2", default-features = false }
-rustc_version-468e82937335b1c9 = { package = "rustc_version", version = "0.3", default-features = false }
+rustc_version = { version = "0.2", default-features = false }
 rustversion = { version = "1", default-features = false }
-semver-a6292c17cd707f01 = { package = "semver", version = "0.11" }
-semver-274715c4dabd11b0 = { package = "semver", version = "0.9" }
-semver-parser-93f6ce9d446188ac = { package = "semver-parser", version = "0.10", default-features = false }
-semver-parser-ca01ad9e24f5d932 = { package = "semver-parser", version = "0.7", default-features = false }
+semver = { version = "0.9" }
+semver-parser = { version = "0.7", default-features = false }
 serde = { version = "1", features = ["alloc", "derive", "rc", "serde_derive", "std"] }
 serde_derive = { version = "1" }
 serde_with_macros = { version = "2", default-features = false }
@@ -427,7 +372,6 @@ toml = { version = "0.5" }
 tonic-build = { version = "0.7", features = ["prost", "prost-build", "transport"] }
 tracing-attributes = { version = "0.1", default-features = false }
 tracing-test-macro = { version = "0.2", default-features = false }
-ucd-trie = { version = "0.1", default-features = false, features = ["std"] }
 unicode-ident = { version = "1", default-features = false }
 unicode-segmentation = { version = "1", default-features = false }
 unicode-xid-c65f7effa3be6d31 = { package = "unicode-xid", version = "0.1" }
