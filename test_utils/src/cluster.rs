@@ -4,7 +4,7 @@ use crate::{committee, keys, temp_dir};
 use arc_swap::ArcSwap;
 use config::{Committee, Parameters, SharedCommittee, WorkerId};
 use crypto::{traits::KeyPair as _, KeyPair, PublicKey};
-use executor::{ExecutionState, SingleExecutor, SubscriberResult, DEFAULT_CHANNEL_SIZE};
+use executor::{SerializedTransaction, SingleExecutor, SubscriberResult, DEFAULT_CHANNEL_SIZE};
 use itertools::Itertools;
 use multiaddr::Multiaddr;
 use node::{
@@ -264,10 +264,7 @@ impl Cluster {
 pub struct PrimaryNodeDetails {
     pub id: usize,
     pub key_pair: Arc<KeyPair>,
-    pub tx_transaction_confirmation: Sender<(
-        SubscriberResult<Vec<u8>>,
-        <SimpleExecutionState as ExecutionState>::Transaction,
-    )>,
+    pub tx_transaction_confirmation: Sender<(SubscriberResult<Vec<u8>>, SerializedTransaction)>,
     registry: Registry,
     store_path: PathBuf,
     committee: SharedCommittee,

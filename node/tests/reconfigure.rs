@@ -47,7 +47,6 @@ impl SimpleExecutionState {
 
 #[async_trait::async_trait]
 impl ExecutionState for SimpleExecutionState {
-    type Transaction = u64;
     type Error = SimpleExecutionError;
 
     fn ask_consensus_write_lock(&self) -> bool {
@@ -59,6 +58,7 @@ impl ExecutionState for SimpleExecutionState {
 
 #[async_trait::async_trait]
 impl SingleExecutionState for SimpleExecutionState {
+    type Transaction = u64;
     type Outcome = u64;
 
     async fn handle_consensus_transaction(

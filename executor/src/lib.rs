@@ -44,9 +44,6 @@ pub type SerializedTransactionDigest = u64;
 
 #[async_trait]
 pub trait ExecutionState {
-    /// The type of the transaction to process.
-    type Transaction: DeserializeOwned + Send + Debug;
-
     /// The error type to return in case something went wrong during execution.
     type Error: ExecutionStateError;
 
@@ -78,13 +75,16 @@ pub trait BatchExecutionState: ExecutionState {
     async fn handle_consensus(
         &self,
         consensus_output: &ConsensusOutput,
-        transaction_batches: Vec<Vec<Self::Transaction>>,
+        transaction_batches: Vec<Vec<SerializedTransaction>>,
     ) -> Result<(), Self::Error>;
 }
 
 /// Execution state that executes a single transaction at a time.
 #[async_trait]
 pub trait SingleExecutionState: ExecutionState {
+    /// The type of the transaction to process.
+    type Transaction: DeserializeOwned + Send + Debug;
+
     /// The execution outcome to output.
     type Outcome;
 
@@ -107,7 +107,7 @@ pub trait SingleExecutionState: ExecutionState {
 /// The output of the executor.
 pub type ExecutorOutput<State> = (
     SubscriberResult<<State as SingleExecutionState>::Outcome>,
-    <State as ExecutionState>::Transaction,
+    SerializedTransaction,
 );
 
 /// A client subscribing to the consensus output and executing every transaction.

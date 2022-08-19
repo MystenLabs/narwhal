@@ -10,7 +10,6 @@ pub struct SimpleExecutionState;
 
 #[async_trait]
 impl ExecutionState for SimpleExecutionState {
-    type Transaction = String;
     type Error = SimpleExecutionError;
 
     fn ask_consensus_write_lock(&self) -> bool {
@@ -22,6 +21,7 @@ impl ExecutionState for SimpleExecutionState {
 
 #[async_trait]
 impl SingleExecutionState for SimpleExecutionState {
+    type Transaction = String;
     type Outcome = Vec<u8>;
 
     async fn handle_consensus_transaction(

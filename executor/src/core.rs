@@ -4,7 +4,8 @@ use crate::{
     bail,
     errors::{SubscriberError, SubscriberResult},
     state::ExecutionIndices,
-    BatchExecutionState, ExecutionState, ExecutorOutput, SingleExecutionState,
+    BatchExecutionState, ExecutionState, ExecutorOutput, SerializedTransaction,
+    SingleExecutionState,
 };
 use async_trait::async_trait;
 use consensus::ConsensusOutput;
@@ -136,7 +137,7 @@ where
     async fn collect_batch(
         &mut self,
         batch_digest: &BatchDigest,
-    ) -> SubscriberResult<Vec<State::Transaction>> {
+    ) -> SubscriberResult<Vec<SerializedTransaction>> {
         // The store should now hold all transaction data referenced by the input certificate.
         let transactions = match self.store.read(*batch_digest).await? {
             Some(x) => x.0,
@@ -150,27 +151,6 @@ where
                 return Ok(Vec::new());
             }
         };
-
-        // The consensus simply orders bytes, so we first need to deserialize the transaction.
-        // If the deserialization fail it is safe to ignore the transaction since all correct
-        // clients will do the same. Remember that a bad authority or client may input random
-        // bytes to the consensus.
-        let transactions = transactions
-            .into_iter()
-            .filter_map(|serialized| {
-                match bincode::deserialize::<State::Transaction>(&serialized) {
-                    Ok(x) => Some(x),
-                    Err(e) => {
-                        let error = SubscriberError::ClientExecutionError(format!(
-                            "Failed to deserialize transaction: {e}"
-                        ));
-                        // Log the error. There is always a chance that the fault lies with our deserialization.
-                        debug!("{error}");
-                        None
-                    }
-                }
-            })
-            .collect::<Vec<_>>();
 
         Ok(transactions)
     }
@@ -196,7 +176,6 @@ where
     State::Outcome: Sync + Send + 'static,
     State::Error: Sync + Send + 'static,
 {
-    type Transaction = State::Transaction;
     type Error = State::Error;
 
     fn ask_consensus_write_lock(&self) -> bool {
@@ -214,7 +193,6 @@ where
     State: SingleExecutionState + Sync + Send + 'static,
     State::Outcome: Sync + Send + 'static,
     State::Error: Clone + Sync + Send + 'static,
-    State::Transaction: Clone + Send + Sync + 'static,
 {
     async fn load_next_certificate_index(&self) -> Result<SequenceNumber, Self::Error> {
         let indices = self.execution_state.load_execution_indices().await?;
@@ -226,7 +204,7 @@ where
     async fn handle_consensus(
         &self,
         consensus_output: &ConsensusOutput,
-        transaction_batches: Vec<Vec<State::Transaction>>,
+        transaction_batches: Vec<Vec<SerializedTransaction>>,
     ) -> Result<(), Self::Error> {
         let mut execution_indices = self.execution_indices.lock().await;
 
@@ -255,7 +233,6 @@ where
 impl<State> SingleExecutor<State>
 where
     State: SingleExecutionState,
-    State::Transaction: Clone,
     State::Error: Clone,
     State::Outcome: Sync + Send + 'static,
 {
@@ -272,7 +249,7 @@ where
         &self,
         execution_indices: &mut ExecutionIndices,
         consensus_output: &ConsensusOutput,
-        transactions: Vec<State::Transaction>,
+        transactions: Vec<SerializedTransaction>,
         total_batches: usize,
     ) -> Result<(), State::Error> {
         if transactions.is_empty() {
@@ -286,43 +263,14 @@ where
             // Skip transactions that we already executed (after crash-recovery).
             if execution_indices.check_next_transaction_index(index as SequenceNumber) {
                 // Execute the transaction
-                let result = self
-                    .execute_transaction(
-                        execution_indices,
-                        consensus_output,
-                        transaction.clone(),
-                        total_transactions,
-                        total_batches,
-                    )
-                    .await;
-
-                let (fatal, outcome) = match result {
-                    Ok(outcome) => (None, Ok(outcome)),
-                    Err(error) => match SubscriberError::from(error.clone()) {
-                        // We may want to log the errors that are the user's fault (i.e., that are neither
-                        // our fault or the fault of consensus) for debug purposes. It is safe to continue
-                        // by ignoring those transactions since all honest subscribers will do the same.
-                        e @ SubscriberError::ClientExecutionError(_) => {
-                            debug!("{e}");
-                            (None, Err(e))
-                        }
-                        // We must take special care to errors that are our fault, such as storage errors.
-                        // We may be the only authority experiencing it, and thus cannot continue to process
-                        // transactions until the problem is fixed.
-                        e => (Some(error), Err(e)),
-                    },
-                };
-
-                // Output the result (eg. to notify the end-user);
-                let output = (outcome, transaction);
-                if self.tx_output.send(output).await.is_err() {
-                    debug!("No users listening for transaction execution");
-                }
-
-                // Bail if a fatal error occurred.
-                if let Some(e) = fatal {
-                    bail!(e);
-                }
+                self.execute_transaction(
+                    execution_indices,
+                    consensus_output,
+                    transaction,
+                    total_batches,
+                    total_transactions,
+                )
+                .await?;
             }
         }
         Ok(())
@@ -333,18 +281,64 @@ where
         &self,
         execution_indices: &mut ExecutionIndices,
         consensus_output: &ConsensusOutput,
-        transaction: State::Transaction,
-        total_transactions: usize,
+        serialized: SerializedTransaction,
         total_batches: usize,
-    ) -> Result<State::Outcome, State::Error> {
+        total_transactions: usize,
+    ) -> Result<(), State::Error> {
         // Compute the next expected indices. Those will be persisted upon transaction execution
         // and are only used for crash-recovery.
         execution_indices.next(total_batches, total_transactions);
 
-        // Execute the transaction. Note that the executor will need to choose whether to discard
-        // transactions from previous epochs by itself.
-        self.execution_state
-            .handle_consensus_transaction(consensus_output, execution_indices.clone(), transaction)
-            .await
+        // The consensus simply orders bytes, so we first need to deserialize the transaction.
+        // If the deserialization fail it is safe to ignore the transaction since all correct
+        // clients will do the same. Remember that a bad authority or client may input random
+        // bytes to the consensus.
+        let (result, outcome) = match bincode::deserialize::<State::Transaction>(&serialized) {
+            Err(e) => {
+                let error = SubscriberError::ClientExecutionError(format!(
+                    "Failed to deserialize transaction: {e}"
+                ));
+                // There is always a chance that the fault lies with our deserialization.
+                debug!("{error}");
+                (Ok(()), Err(error))
+            }
+            Ok(transaction) => {
+                // Execute the transaction. Note that the executor will need to choose whether to discard
+                // transactions from previous epochs by itself.
+                let result = self
+                    .execution_state
+                    .handle_consensus_transaction(
+                        consensus_output,
+                        execution_indices.clone(),
+                        transaction,
+                    )
+                    .await;
+
+                match result {
+                    Ok(outcome) => (Ok(()), Ok(outcome)),
+                    Err(error) => match SubscriberError::from(error.clone()) {
+                        // We may want to log the errors that are the user's fault (i.e., that are neither
+                        // our fault or the fault of consensus) for debug purposes. It is safe to continue
+                        // by ignoring those transactions since all honest subscribers will do the same.
+                        non_fatal @ SubscriberError::ClientExecutionError(_) => {
+                            debug!("{non_fatal}");
+                            (Ok(()), Err(non_fatal))
+                        }
+                        // We must take special care to errors that are our fault, such as storage errors.
+                        // We may be the only authority experiencing it, and thus cannot continue to process
+                        // transactions until the problem is fixed.
+                        fatal => (Err(error), Err(fatal)),
+                    },
+                }
+            }
+        };
+
+        // Output the result (eg. to notify the end-user);
+        let output = (outcome, serialized);
+        if self.tx_output.send(output).await.is_err() {
+            debug!("No users listening for transaction execution");
+        }
+
+        result
     }
 }

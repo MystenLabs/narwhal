@@ -12,7 +12,7 @@ use arc_swap::ArcSwap;
 use clap::{crate_name, crate_version, App, AppSettings, ArgMatches, SubCommand};
 use config::{Committee, Import, Parameters, WorkerId};
 use crypto::{generate_production_keypair, traits::KeyPair as _, KeyPair};
-use executor::{ExecutionState, SingleExecutor, SubscriberResult};
+use executor::{SerializedTransaction, SingleExecutor, SubscriberResult};
 use eyre::Context;
 use futures::future::join_all;
 use node::{
@@ -219,12 +219,7 @@ async fn run(matches: &ArgMatches<'_>) -> Result<(), eyre::Report> {
 }
 
 /// Receives an ordered list of certificates and apply any application-specific logic.
-async fn analyze(
-    mut rx_output: Receiver<(
-        SubscriberResult<Vec<u8>>,
-        <SimpleExecutionState as ExecutionState>::Transaction,
-    )>,
-) {
+async fn analyze(mut rx_output: Receiver<(SubscriberResult<Vec<u8>>, SerializedTransaction)>) {
     while let Some(_message) = rx_output.recv().await {
         // NOTE: Notify the user that its transaction has been processed.
     }

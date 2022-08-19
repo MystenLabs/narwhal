@@ -14,10 +14,10 @@ use store::{
 use thiserror::Error;
 
 /// A malformed transaction.
-pub const MALFORMED_TRANSACTION: <TestState as ExecutionState>::Transaction = 400;
+pub const MALFORMED_TRANSACTION: <TestState as SingleExecutionState>::Transaction = 400;
 
 /// A special transaction that makes the executor engine crash.
-pub const KILLER_TRANSACTION: <TestState as ExecutionState>::Transaction = 500;
+pub const KILLER_TRANSACTION: <TestState as SingleExecutionState>::Transaction = 500;
 
 /// A dumb execution state for testing.
 pub struct TestState {
@@ -38,7 +38,6 @@ impl Default for TestState {
 
 #[async_trait]
 impl ExecutionState for TestState {
-    type Transaction = u64;
     type Error = TestStateError;
 
     fn ask_consensus_write_lock(&self) -> bool {
@@ -50,6 +49,7 @@ impl ExecutionState for TestState {
 
 #[async_trait]
 impl SingleExecutionState for TestState {
+    type Transaction = u64;
     type Outcome = Vec<u8>;
 
     async fn handle_consensus_transaction(
