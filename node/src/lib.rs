@@ -5,7 +5,7 @@ use consensus::{
     bullshark::Bullshark,
     dag::Dag,
     metrics::{ChannelMetrics, ConsensusMetrics},
-    Consensus, ConsensusOutput,
+    recover_consensus_state, Consensus, ConsensusOutput,
 };
 
 use crypto::{KeyPair, NetworkKeyPair, PublicKey};
@@ -328,17 +328,26 @@ impl Node {
             store.consensus_store.clone(),
             parameters.gc_depth,
         );
+
+        let state = recover_consensus_state(
+            &**committee.load(),
+            &store.consensus_store,
+            store.certificate_store.clone(),
+            consensus_metrics.clone(),
+            parameters.gc_depth,
+        )
+        .await;
+
         let consensus_handles = Consensus::spawn(
             (**committee.load()).clone(),
+            state,
             store.consensus_store.clone(),
-            store.certificate_store.clone(),
             tx_reconfigure.subscribe(),
             /* rx_primary */ rx_new_certificates,
             /* tx_primary */ tx_feedback,
             /* tx_output */ tx_sequence,
             ordering_engine,
             consensus_metrics.clone(),
-            parameters.gc_depth,
         );
 
         // Spawn the client executing the transactions. It can also synchronize with the

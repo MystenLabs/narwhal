@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use super::*;
 
-use crate::{metrics::ConsensusMetrics, Consensus};
+use crate::{metrics::ConsensusMetrics, recover_consensus_state, Consensus};
 use crypto::PublicKey;
 #[allow(unused_imports)]
 use fastcrypto::traits::KeyPair;
@@ -88,17 +88,20 @@ async fn commit_one() {
     let gc_depth = 50;
     let bullshark = Bullshark::new(committee.clone(), store.clone(), gc_depth);
     let metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
+
+    let consensus_state =
+        recover_consensus_state(&committee, &*store, cert_store, metrics.clone(), gc_depth).await;
+
     let _consensus_handle = Consensus::spawn(
         committee,
+        consensus_state,
         store,
-        cert_store,
         rx_reconfigure,
         rx_waiter,
         tx_primary,
         tx_output,
         bullshark,
         metrics,
-        gc_depth,
     );
     tokio::spawn(async move { while rx_primary.recv().await.is_some() {} });
 
@@ -151,17 +154,19 @@ async fn dead_node() {
     let bullshark = Bullshark::new(committee.clone(), store.clone(), gc_depth);
     let metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
 
+    let consensus_state =
+        recover_consensus_state(&committee, &*store, cert_store, metrics.clone(), gc_depth).await;
+
     let _consensus_handle = Consensus::spawn(
         committee,
+        consensus_state,
         store,
-        cert_store,
         rx_reconfigure,
         rx_waiter,
         tx_primary,
         tx_output,
         bullshark,
         metrics,
-        gc_depth,
     );
     tokio::spawn(async move { while rx_primary.recv().await.is_some() {} });
 
@@ -264,17 +269,19 @@ async fn not_enough_support() {
     let bullshark = Bullshark::new(committee.clone(), store.clone(), gc_depth);
     let metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
 
+    let consensus_state =
+        recover_consensus_state(&committee, &*store, cert_store, metrics.clone(), gc_depth).await;
+
     let _consensus_handle = Consensus::spawn(
         committee,
+        consensus_state,
         store,
-        cert_store,
         rx_reconfigure,
         rx_waiter,
         tx_primary,
         tx_output,
         bullshark,
         metrics,
-        gc_depth,
     );
     tokio::spawn(async move { while rx_primary.recv().await.is_some() {} });
 
@@ -347,17 +354,19 @@ async fn missing_leader() {
     let bullshark = Bullshark::new(committee.clone(), store.clone(), gc_depth);
     let metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
 
+    let consensus_state =
+        recover_consensus_state(&committee, &*store, cert_store, metrics.clone(), gc_depth).await;
+
     let _consensus_handle = Consensus::spawn(
         committee,
+        consensus_state,
         store,
-        cert_store,
         rx_reconfigure,
         rx_waiter,
         tx_primary,
         tx_output,
         bullshark,
         metrics,
-        gc_depth,
     );
     tokio::spawn(async move { while rx_primary.recv().await.is_some() {} });
 
@@ -405,17 +414,20 @@ async fn epoch_change() {
     let gc_depth = 50;
     let bullshark = Bullshark::new(committee.clone(), store.clone(), gc_depth);
     let metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
+
+    let consensus_state =
+        recover_consensus_state(&committee, &*store, cert_store, metrics.clone(), gc_depth).await;
+
     let _consensus_handle = Consensus::spawn(
         committee.clone(),
+        consensus_state,
         store,
-        cert_store,
         rx_reconfigure,
         rx_waiter,
         tx_primary,
         tx_output,
         bullshark,
         metrics,
-        gc_depth,
     );
     tokio::spawn(async move { while rx_primary.recv().await.is_some() {} });
 
@@ -494,17 +506,20 @@ async fn restart_with_new_committee() {
         let metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
         let bullshark = Bullshark::new(committee.clone(), store.clone(), gc_depth);
 
+        let consensus_state =
+            recover_consensus_state(&committee, &*store, cert_store, metrics.clone(), gc_depth)
+                .await;
+
         let handle = Consensus::spawn(
             committee.clone(),
+            consensus_state,
             store,
-            cert_store,
             rx_reconfigure,
             rx_waiter,
             tx_primary,
             tx_output,
             bullshark,
             metrics.clone(),
-            gc_depth,
         );
         tokio::spawn(async move { while rx_primary.recv().await.is_some() {} });
 
