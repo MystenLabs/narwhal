@@ -34,7 +34,7 @@ use tokio::{
     task::JoinHandle,
 };
 use tracing::info;
-use types::{BatchDigest, SerializedBatchMessage};
+use types::{BatchDigest, Certificate, CertificateDigest, ConsensusStore, SerializedBatchMessage};
 
 /// Default inter-task channel size.
 pub const DEFAULT_CHANNEL_SIZE: usize = 1_000;
@@ -82,7 +82,9 @@ impl Executor {
     pub async fn spawn<State, PublicKey>(
         name: PublicKey,
         committee: SharedCommittee<PublicKey>,
-        store: Store<BatchDigest, SerializedBatchMessage>,
+        batch_store: Store<BatchDigest, SerializedBatchMessage>,
+        consensus_store: Arc<ConsensusStore<PublicKey>>,
+        certificate_store: Store<CertificateDigest, Certificate<PublicKey>>,
         execution_state: Arc<State>,
         rx_consensus: Receiver<ConsensusOutput<PublicKey>>,
         tx_consensus: Sender<ConsensusSyncRequest>,
@@ -105,9 +107,30 @@ impl Executor {
         let execution_indices = execution_state.load_execution_indices().await?;
         let next_consensus_index = execution_indices.next_certificate_index;
 
+        // Check for any certs that have been sent by consensus but were not processed by the executor.
+        let consensus_max_seq = consensus_store.read_last_consensus_index().unwrap(); // todo If this returns an error, do we want to panic?
+
+        let mut restored_consensus_output = Vec::new();
+        if next_consensus_index < consensus_max_seq {
+            for seq in next_consensus_index..consensus_max_seq {
+                let missing = consensus_store
+                    .read_sequenced_certificates(&(seq..=seq))
+                    .unwrap();
+                for cert_digest in missing.iter().flatten() {
+                    if let Some(cert) = certificate_store.read(*cert_digest).await.unwrap() {
+                        // Save the missing sequence / cert pair as ConsensusOutput to re-send to the executor.
+                        restored_consensus_output.push(ConsensusOutput {
+                            certificate: cert,
+                            consensus_index: seq,
+                        })
+                    }
+                }
+            }
+        }
+
         // Spawn the subscriber.
         let subscriber_handle = Subscriber::<PublicKey>::spawn(
-            store.clone(),
+            batch_store.clone(),
             rx_consensus,
             tx_consensus,
             tx_batch_loader,
@@ -117,10 +140,11 @@ impl Executor {
 
         // Spawn the executor's core.
         let executor_handle = Core::<State, PublicKey>::spawn(
-            store.clone(),
+            batch_store.clone(),
             execution_state,
             /* rx_subscriber */ rx_executor,
             tx_output,
+            restored_consensus_output,
         );
 
         // Spawn the batch loader.
@@ -135,7 +159,8 @@ impl Executor {
             .iter()
             .map(|(id, x)| (*id, x.worker_to_worker.clone()))
             .collect();
-        let batch_loader_handle = BatchLoader::spawn(store, rx_batch_loader, worker_addresses);
+        let batch_loader_handle =
+            BatchLoader::spawn(batch_store, rx_batch_loader, worker_addresses);
 
         // Return the handle.
         info!("Consensus subscriber successfully started");

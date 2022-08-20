@@ -229,6 +229,8 @@ impl Node {
             name,
             committee,
             store.batch_store.clone(),
+            store.consensus_store.clone(),
+            store.certificate_store.clone(),
             execution_state,
             /* rx_consensus */ rx_consensus_to_client,
             /* tx_consensus */ tx_client_to_consensus,

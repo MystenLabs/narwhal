@@ -56,6 +56,7 @@ where
         execution_state: Arc<State>,
         rx_subscriber: Receiver<ConsensusOutput<PublicKey>>,
         tx_output: Sender<(SubscriberResult<Vec<u8>>, SerializedTransaction)>,
+        restored_messages: Vec<ConsensusOutput<PublicKey>>,
     ) -> JoinHandle<()> {
         tokio::spawn(async move {
             let execution_indices = execution_state
@@ -69,14 +70,21 @@ where
                 tx_output,
                 execution_indices,
             }
-            .run()
+            .run(restored_messages)
             .await
             .unwrap();
         })
     }
 
     /// Main loop listening to new certificates and execute them.
-    async fn run(&mut self) -> SubscriberResult<()> {
+    async fn run(
+        &mut self,
+        restored_messages: Vec<ConsensusOutput<PublicKey>>,
+    ) -> SubscriberResult<()> {
+        // Process any messages that were restored after a restart.
+        for message in restored_messages {
+            self.execute_certificate(&message).await?
+        }
         while let Some(message) = self.rx_subscriber.recv().await {
             // Execute all transactions associated with the consensus output message. This function
             // also persist the necessary data to enable crash-recovery.

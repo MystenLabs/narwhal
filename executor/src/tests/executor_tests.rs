@@ -23,6 +23,7 @@ async fn execute_transactions() {
         execution_state.clone(),
         /* rx_subscriber */ rx_executor,
         tx_output,
+        vec![],
     );
 
     // Feed certificates to the mock sequencer and add the transaction data to storage (as if
@@ -65,6 +66,7 @@ async fn execute_empty_certificate() {
         execution_state.clone(),
         /* rx_subscriber */ rx_executor,
         tx_output,
+        vec![],
     );
 
     // Feed empty certificates to the executor.
@@ -116,6 +118,7 @@ async fn execute_malformed_transactions() {
         execution_state.clone(),
         /* rx_subscriber */ rx_executor,
         tx_output,
+        vec![],
     );
 
     // Feed a malformed transaction to the mock sequencer
@@ -173,6 +176,7 @@ async fn internal_error_execution() {
         execution_state.clone(),
         /* rx_subscriber */ rx_executor,
         tx_output,
+        vec![],
     );
 
     // Feed a 'killer' transaction to the executor. This is a special test transaction that
@@ -220,6 +224,7 @@ async fn crash_recovery() {
         execution_state.clone(),
         /* rx_subscriber */ rx_executor,
         tx_output,
+        vec![],
     );
 
     // Feed two certificates with good transactions to the executor.
@@ -273,6 +278,7 @@ async fn crash_recovery() {
         execution_state.clone(),
         /* rx_subscriber */ rx_executor,
         tx_output,
+        vec![],
     );
 
     // Feed two certificates with good transactions to the executor.
