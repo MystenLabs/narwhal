@@ -110,7 +110,7 @@ impl Executor {
         // Check for any certs that have been sent by consensus but were not processed by the executor.
         let consensus_max_seq = consensus_store.read_last_consensus_index().unwrap(); // todo If this returns an error, do we want to panic?
 
-        let mut restored_consensus_output = Vec::new();
+        let mut restored_consensus_output = Vec::new(); // todo: does this need to be strictly ordered?
         if next_consensus_index < consensus_max_seq {
             for seq in next_consensus_index..consensus_max_seq {
                 let missing = consensus_store

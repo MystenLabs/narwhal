@@ -128,7 +128,11 @@ where
         total_batches: usize,
     ) -> SubscriberResult<()> {
         // The store should now hold all transaction data referenced by the input certificate.
-        let batch = match self.store.read(batch_digest).await? {
+        let temp = self.store.read(batch_digest).await;
+        if temp.is_err() {
+            let _ = 8;
+        }
+        let batch = match temp? {
             Some(x) => x,
             None => {
                 // If two certificates contain the exact same batch (eg. by the actions of a Byzantine

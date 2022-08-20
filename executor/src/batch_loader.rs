@@ -35,7 +35,7 @@ pub struct BatchLoader<PublicKey: VerifyingKey> {
 }
 
 impl<PublicKey: VerifyingKey> BatchLoader<PublicKey> {
-    /// Spawn a new batch loaded in a dedicated tokio task.
+    /// Spawn a new batch loader in a dedicated tokio task.
     pub fn spawn(
         store: Store<BatchDigest, SerializedBatchMessage>,
         rx_input: Receiver<ConsensusOutput<PublicKey>>,
