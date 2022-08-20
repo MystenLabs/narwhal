@@ -19,13 +19,14 @@ use std::{
 };
 use storage::CertificateStore;
 use store::Store;
+use tap::{Tap, TapFallible};
 use tokio::{sync::watch, task::JoinHandle};
 use tracing::{debug, error, info, instrument, warn};
 use types::{
     ensure,
     error::{DagError, DagResult},
     metered_channel::{Receiver, Sender},
-    Certificate, Header, HeaderDigest, ReconfigureNotification, Round, Vote,
+    Certificate, CertificateDigest, Header, HeaderDigest, ReconfigureNotification, Round, Vote,
 };
 
 #[cfg(test)]
@@ -138,9 +139,79 @@ impl Core {
                 cancel_handlers: HashMap::with_capacity(2 * gc_depth as usize),
                 metrics,
             }
+            .recover()
+            .await
             .run()
             .await;
         })
+    }
+
+    #[instrument(level = "info", skip_all)]
+    pub async fn recover(mut self) -> Self {
+        info!("Start recovering process. Will not process any message until finished.");
+
+        let now = Instant::now();
+
+        // Fetch the certificates that are higher or equal than the last_commit_round
+        let last_commit_round = *self.rx_consensus_round_updates.borrow();
+
+        let certificates_after_gc_round = self
+            .certificate_store
+            .after_round(last_commit_round)
+            .tap_err(|e| error!("Rocksdb error in recovery: {e}"))
+            .expect("Fatal recovery error");
+
+        info!(
+            "Total certificates loaded: {} in {} seconds",
+            certificates_after_gc_round.len(),
+            now.elapsed().as_secs_f32()
+        );
+
+        // Recover certificates from last round
+        self.recover_last_round_certificates(
+            &certificates_after_gc_round
+                .into_iter()
+                .map(|c| (c.digest(), c))
+                .collect(),
+        )
+        .await
+        .unwrap();
+
+        self
+    }
+
+    #[instrument(level = "info", skip_all)]
+    async fn recover_last_round_certificates(
+        &mut self,
+        certificates: &HashMap<CertificateDigest, Certificate>,
+    ) -> DagResult<()> {
+        // Find the last round
+        let last_round = certificates
+            .iter()
+            .max_by(|a, b| a.1.round().cmp(&b.1.round()))
+            .map(|(_k, v)| v.round())
+            .unwrap_or_else(|| 0)
+            .tap(|r| info!("Detected last round to recover certificates: {r}"));
+
+        // Fetch the certificates only from the last round
+        let last_certificates = certificates
+            .iter()
+            .filter_map(|(_, certificate)| {
+                if certificate.round() == last_round {
+                    Some(certificate)
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<&Certificate>>()
+            .tap(|c| info!("Number of certificates to repopulate: {}", c.len()));
+
+        // Just reprocess them to populate any internal structure
+        for certificate in last_certificates {
+            self.append_certificate_in_aggregator(certificate).await?
+        }
+
+        Ok(())
     }
 
     #[instrument(level = "debug", skip_all)]
@@ -406,6 +477,25 @@ impl Core {
             .with_label_values(&[&certificate.epoch().to_string(), certificate_source])
             .inc();
 
+        // Append the certificate to the aggregator of the
+        // corresponding round.
+        self.append_certificate_in_aggregator(&certificate).await?;
+
+        // Send it to the consensus layer.
+        let id = certificate.header.id;
+        if let Err(e) = self.tx_consensus.send(certificate).await {
+            warn!(
+                "Failed to deliver certificate {} to the consensus: {}",
+                id, e
+            );
+        }
+        Ok(())
+    }
+
+    async fn append_certificate_in_aggregator(
+        &mut self,
+        certificate: &Certificate,
+    ) -> DagResult<()> {
         // Check if we have enough certificates to enter a new dag round and propose a header.
         if let Some(parents) = self
             .certificates_aggregators
@@ -430,14 +520,6 @@ impl Core {
             );
         }
 
-        // Send it to the consensus layer.
-        let id = certificate.header.id;
-        if let Err(e) = self.tx_consensus.send(certificate).await {
-            warn!(
-                "Failed to deliver certificate {} to the consensus: {}",
-                id, e
-            );
-        }
         Ok(())
     }
 

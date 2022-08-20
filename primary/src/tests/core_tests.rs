@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 // Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -710,4 +712,123 @@ async fn reconfigure_core() {
     // Ensure the header is correctly stored.
     let stored = header_store.read(header.id).await.unwrap();
     assert_eq!(stored, Some(header));
+}
+
+#[tokio::test]
+async fn recover_should_retrieve_last_round_certificates() {
+    let fixture = CommitteeFixture::builder().randomize_ports(true).build();
+    let committee = fixture.committee();
+    let worker_cache = fixture.shared_worker_cache();
+    let primary = fixture.authorities().next().unwrap();
+    let network_key = primary.network_keypair().copy().private().0.to_bytes();
+    let name = primary.public_key();
+    let signature_service = SignatureService::new(primary.keypair().copy());
+
+    let (_tx_reconfigure, rx_reconfigure) =
+        watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));
+    let (tx_sync_headers, _rx_sync_headers) = test_utils::test_channel!(1);
+    let (tx_sync_certificates, _rx_sync_certificates) = test_utils::test_channel!(1);
+    let (_tx_primary_messages, rx_primary_messages) = test_utils::test_channel!(1);
+    let (_tx_headers_loopback, rx_headers_loopback) = test_utils::test_channel!(1);
+    let (_tx_certificates_loopback, rx_certificates_loopback) = test_utils::test_channel!(1);
+    let (_tx_headers, rx_headers) = test_utils::test_channel!(1);
+    let (tx_consensus, _rx_consensus) = test_utils::test_channel!(1);
+    let (tx_parents, mut rx_parents) = test_utils::test_channel!(10);
+
+    // We are starting from consensus round 2 so we can test the recovery
+    // from last_commit_round - gc_depth ( 2 - 1 = 1)
+    let (_tx_consensus_round_updates, rx_consensus_round_updates) = watch::channel(2u64);
+
+    // We configure depth (1)
+    let gc_depth = 1;
+
+    // Create test stores.
+    let (header_store, certificates_store, payload_store) = create_db_stores();
+
+    // Assume our system had already processed a few certificates and those have been populated
+    // in our storage.
+    // Ensure the certificates are stored.
+    let mut current_round: Vec<_> = Certificate::genesis(&committee)
+        .into_iter()
+        .map(|cert| cert.header)
+        .collect();
+    let mut last_round_certificates = HashSet::new();
+    let rounds = 3;
+    for i in 0..rounds {
+        let parents: BTreeSet<_> = current_round
+            .iter()
+            .map(|header| fixture.certificate(header).digest())
+            .collect();
+        (_, current_round) = fixture.headers_round(i, &parents);
+
+        let current_round_certs: Vec<Certificate> = current_round
+            .iter()
+            .map(|h| fixture.certificate(h))
+            .collect();
+
+        // store them in both main and secondary index
+        certificates_store
+            .write_all(current_round_certs.clone())
+            .unwrap();
+
+        if i == rounds - 1 {
+            last_round_certificates = current_round_certs
+                .into_iter()
+                .map(|c| c.digest())
+                .collect();
+        }
+    }
+
+    // Make a synchronizer for the core.
+    let synchronizer = Synchronizer::new(
+        name.clone(),
+        &committee,
+        certificates_store.clone(),
+        payload_store.clone(),
+        /* tx_header_waiter */ tx_sync_headers,
+        /* tx_certificate_waiter */ tx_sync_certificates,
+        None,
+    );
+
+    let metrics = Arc::new(PrimaryMetrics::new(&Registry::new()));
+
+    let own_address = network::multiaddr_to_address(&committee.primary(&name).unwrap()).unwrap();
+    let network = anemo::Network::bind(own_address)
+        .server_name("narwhal")
+        .private_key(network_key)
+        .start(anemo::Router::new())
+        .unwrap();
+
+    // Spawn the core.
+    let _core_handle = Core::spawn(
+        name,
+        committee,
+        worker_cache,
+        header_store.clone(),
+        certificates_store.clone(),
+        synchronizer,
+        signature_service,
+        rx_consensus_round_updates,
+        /* gc_depth */ gc_depth,
+        rx_reconfigure,
+        /* rx_primaries */ rx_primary_messages,
+        /* rx_header_waiter */ rx_headers_loopback,
+        /* rx_certificate_waiter */ rx_certificates_loopback,
+        /* rx_proposer */ rx_headers,
+        tx_consensus,
+        /* tx_proposer */ tx_parents,
+        metrics.clone(),
+        P2pNetwork::new(network),
+    );
+
+    // THEN ensures we send to the proposer the last parents
+    let (received_certificates, round, epoch) = rx_parents.recv().await.unwrap();
+
+    assert_eq!(received_certificates.len(), 3);
+    assert_eq!(round, 3);
+    assert_eq!(epoch, 0);
+
+    for certificate in received_certificates {
+        assert!(last_round_certificates.contains(&certificate.digest()));
+    }
 }
