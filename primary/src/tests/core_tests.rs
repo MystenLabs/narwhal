@@ -97,6 +97,7 @@ async fn process_header() {
         /* rx_proposer */ rx_headers,
         tx_consensus,
         /* tx_proposer */ tx_parents,
+        None,
         metrics.clone(),
         P2pNetwork::new(network),
     );
@@ -188,6 +189,7 @@ async fn process_header_missing_parent() {
         /* rx_proposer */ rx_headers,
         tx_consensus,
         /* tx_proposer */ tx_parents,
+        None,
         metrics.clone(),
         P2pNetwork::new(network),
     );
@@ -275,6 +277,7 @@ async fn process_header_missing_payload() {
         /* rx_proposer */ rx_headers,
         tx_consensus,
         /* tx_proposer */ tx_parents,
+        None,
         metrics.clone(),
         P2pNetwork::new(network),
     );
@@ -373,6 +376,7 @@ async fn process_votes() {
         /* rx_proposer */ rx_headers,
         tx_consensus,
         /* tx_proposer */ tx_parents,
+        None,
         metrics.clone(),
         P2pNetwork::new(network),
     );
@@ -481,6 +485,7 @@ async fn process_certificates() {
         /* rx_proposer */ rx_headers,
         tx_consensus,
         /* tx_proposer */ tx_parents,
+        None,
         metrics.clone(),
         P2pNetwork::new(network),
     );
@@ -597,6 +602,7 @@ async fn shutdown_core() {
         /* rx_proposer */ rx_headers,
         tx_consensus,
         /* tx_proposer */ tx_parents,
+        None,
         Arc::new(PrimaryMetrics::new(&Registry::new())),
         P2pNetwork::new(network),
     );
@@ -691,6 +697,7 @@ async fn reconfigure_core() {
         /* rx_proposer */ rx_headers,
         tx_consensus,
         /* tx_proposer */ tx_parents,
+        None,
         Arc::new(PrimaryMetrics::new(&Registry::new())),
         P2pNetwork::new(network),
     );
@@ -817,6 +824,7 @@ async fn recover_should_retrieve_last_round_certificates() {
         /* rx_proposer */ rx_headers,
         tx_consensus,
         /* tx_proposer */ tx_parents,
+        None,
         metrics.clone(),
         P2pNetwork::new(network),
     );

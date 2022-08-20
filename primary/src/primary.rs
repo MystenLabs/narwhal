@@ -22,7 +22,7 @@ use crate::{
 use anemo::{types::PeerInfo, PeerId};
 use async_trait::async_trait;
 use config::{Parameters, SharedCommittee, SharedWorkerCache, WorkerId, WorkerInfo};
-use consensus::dag::Dag;
+use consensus::{consensus::ConsensusState, dag::Dag};
 use crypto::{KeyPair, NetworkKeyPair, PublicKey};
 use fastcrypto::{
     traits::{EncodeDecodeBase64, KeyPair as _},
@@ -80,6 +80,7 @@ impl Primary {
         rx_get_block_commands: Receiver<BlockCommand>,
         dag: Option<Arc<Dag>>,
         network_model: NetworkModel,
+        consensus_initial_state: Option<ConsensusState>,
         tx_reconfigure: watch::Sender<ReconfigureNotification>,
         tx_committed_certificates: Sender<Certificate>,
         registry: &Registry,
@@ -258,6 +259,7 @@ impl Primary {
             /* rx_proposer */ rx_headers,
             tx_consensus,
             /* tx_proposer */ tx_parents,
+            consensus_initial_state,
             node_metrics.clone(),
             core_primary_network,
         );

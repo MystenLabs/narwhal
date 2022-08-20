@@ -25,6 +25,7 @@ use types::{
 pub type Dag = HashMap<Round, HashMap<PublicKey, (CertificateDigest, Certificate)>>;
 
 /// The state that needs to be persisted for crash-recovery.
+#[derive(Clone)]
 pub struct ConsensusState {
     /// The last committed round.
     pub last_committed_round: Round,

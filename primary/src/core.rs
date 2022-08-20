@@ -4,11 +4,11 @@
 use crate::{
     aggregators::{CertificatesAggregator, VotesAggregator},
     metrics::PrimaryMetrics,
-    primary::PrimaryMessage,
     synchronizer::Synchronizer,
 };
 use async_recursion::async_recursion;
 use config::{Committee, Epoch, SharedWorkerCache};
+use consensus::consensus::ConsensusState;
 use crypto::{PublicKey, Signature};
 use fastcrypto::{Hash as _, SignatureService};
 use network::{CancelOnDropHandler, P2pNetwork, ReliableNetwork2};
@@ -26,7 +26,8 @@ use types::{
     ensure,
     error::{DagError, DagResult},
     metered_channel::{Receiver, Sender},
-    Certificate, CertificateDigest, Header, HeaderDigest, ReconfigureNotification, Round, Vote,
+    Certificate, CertificateDigest, Header, HeaderDigest, PrimaryMessage, ReconfigureNotification,
+    Round, Vote,
 };
 
 #[cfg(test)]
@@ -108,6 +109,7 @@ impl Core {
         rx_proposer: Receiver<Header>,
         tx_consensus: Sender<Certificate>,
         tx_proposer: Sender<(Vec<Certificate>, Round, Epoch)>,
+        consensus_initial_state: Option<ConsensusState>,
         metrics: Arc<PrimaryMetrics>,
         primary_network: P2pNetwork,
     ) -> JoinHandle<()> {
@@ -139,7 +141,7 @@ impl Core {
                 cancel_handlers: HashMap::with_capacity(2 * gc_depth as usize),
                 metrics,
             }
-            .recover()
+            .recover(consensus_initial_state)
             .await
             .run()
             .await;
@@ -147,7 +149,7 @@ impl Core {
     }
 
     #[instrument(level = "info", skip_all)]
-    pub async fn recover(mut self) -> Self {
+    pub async fn recover(mut self, opt_consensus_state: Option<ConsensusState>) -> Self {
         info!("Start recovering process. Will not process any message until finished.");
 
         let now = Instant::now();
@@ -155,16 +157,29 @@ impl Core {
         // Fetch the certificates that are higher or equal than the last_commit_round
         // We need that as an indication to filter the certificates after a certain
         // point that we are confident that we have reached in the past. Then we can
-        // detect the last. This will get refactored to optimise further as common
-        // requirements exist in Consensus as well
-        // TODO https://github.com/MystenLabs/narwhal/issues/813
-        let last_commit_round = *self.rx_consensus_round_updates.borrow();
+        // detect the last.
+        let certificates_after_gc_round = if let Some(consensus_state) = opt_consensus_state {
+            let last_commit_round = consensus_state.last_committed_round;
 
-        let certificates_after_gc_round = self
-            .certificate_store
-            .after_round(last_commit_round)
-            .tap_err(|e| error!("Rocksdb error in recovery: {e}"))
-            .expect("Fatal recovery error");
+            consensus_state
+                .dag
+                .into_iter()
+                .filter(|(round, _)| *round >= last_commit_round)
+                .flat_map(|(_, cert_map)| cert_map.into_values())
+                .collect::<HashMap<_, _>>()
+        } else {
+            // no `consensus_state` -> we recover what we can from the DB
+            // TODO: test the scenario of a recovery in external consensus mode more thoroughly
+            let last_commit_round = *self.rx_consensus_round_updates.borrow();
+
+            self.certificate_store
+                .after_round(last_commit_round)
+                .tap_err(|e| error!("Rocksdb error in recovery: {e}"))
+                .expect("Fatal recovery error")
+                .into_iter()
+                .map(|c| (c.digest(), c))
+                .collect()
+        };
 
         info!(
             "Total certificates loaded: {} in {} seconds",
@@ -173,14 +188,9 @@ impl Core {
         );
 
         // Recover certificates from last round
-        self.recover_last_round_certificates(
-            &certificates_after_gc_round
-                .into_iter()
-                .map(|c| (c.digest(), c))
-                .collect(),
-        )
-        .await
-        .unwrap();
+        self.recover_last_round_certificates(&certificates_after_gc_round)
+            .await
+            .unwrap();
 
         self
     }

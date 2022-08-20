@@ -3,6 +3,7 @@
 use config::{Parameters, SharedCommittee, SharedWorkerCache, WorkerId};
 use consensus::{
     bullshark::Bullshark,
+    consensus::ConsensusState,
     dag::Dag,
     metrics::{ChannelMetrics, ConsensusMetrics},
     recover_consensus_state, Consensus, ConsensusOutput,
@@ -188,15 +189,23 @@ impl Node {
         let name = keypair.public().clone();
         let mut handles = Vec::new();
 
-        let (dag, network_model) = if !internal_consensus {
-            debug!("Consensus is disabled: the primary will run w/o Tusk");
-            let consensus_metrics = Arc::new(ConsensusMetrics::new(registry));
-            let (handle, dag) = Dag::new(&committee.load(), rx_new_certificates, consensus_metrics);
-
-            handles.push(handle);
-
-            (Some(Arc::new(dag)), NetworkModel::Asynchronous)
+        let consensus_metrics = Arc::new(ConsensusMetrics::new(registry));
+        let consensus_state = if internal_consensus {
+            Some(
+                recover_consensus_state(
+                    &**committee.load(),
+                    &store.consensus_store,
+                    store.certificate_store.clone(),
+                    consensus_metrics.clone(),
+                    parameters.gc_depth,
+                )
+                .await,
+            )
         } else {
+            None
+        };
+
+        let (dag, network_model) = if let Some(ref state) = consensus_state {
             let consensus_handles = Self::spawn_consensus(
                 committee.clone(),
                 store,
@@ -208,10 +217,20 @@ impl Node {
                 tx_confirmation,
                 tx_get_block_commands.clone(),
                 registry,
+                // TODO: figure out how to avoid a clone here
+                state.clone(),
+                consensus_metrics,
             )
             .await?;
             handles.extend(consensus_handles);
+
             (None, NetworkModel::PartiallySynchronous)
+        } else {
+            debug!("Consensus is disabled: the primary will run w/o Tusk");
+            let (handle, dag) = Dag::new(&committee.load(), rx_new_certificates, consensus_metrics);
+            handles.push(handle);
+
+            (Some(Arc::new(dag)), NetworkModel::Asynchronous)
         };
 
         // Inject memory profiling here if we build with dhat-heap feature flag
@@ -246,10 +265,12 @@ impl Node {
             rx_get_block_commands,
             /* dag */ dag,
             network_model,
+            consensus_state,
             tx_reconfigure,
             tx_consensus,
             registry,
         );
+
         handles.extend(primary_handles);
 
         // Let's spin off a separate thread that waits a while then dumps the profile,
@@ -287,6 +308,8 @@ impl Node {
         )>,
         tx_get_block_commands: metered_channel::Sender<BlockCommand>,
         registry: &Registry,
+        state: ConsensusState,
+        consensus_metrics: Arc<ConsensusMetrics>,
     ) -> SubscriberResult<Vec<JoinHandle<()>>>
     where
         PublicKey: VerifyingKey,
@@ -294,7 +317,6 @@ impl Node {
         State::Outcome: Send + 'static,
         State::Error: Debug,
     {
-        let consensus_metrics = Arc::new(ConsensusMetrics::new(registry));
         let channel_metrics = ChannelMetrics::new(registry);
 
         let (tx_sequence, rx_sequence) =
@@ -328,15 +350,6 @@ impl Node {
             store.consensus_store.clone(),
             parameters.gc_depth,
         );
-
-        let state = recover_consensus_state(
-            &**committee.load(),
-            &store.consensus_store,
-            store.certificate_store.clone(),
-            consensus_metrics.clone(),
-            parameters.gc_depth,
-        )
-        .await;
 
         let consensus_handles = Consensus::spawn(
             (**committee.load()).clone(),

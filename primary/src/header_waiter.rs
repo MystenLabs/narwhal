@@ -1,10 +1,7 @@
 // Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crate::{
-    metrics::PrimaryMetrics,
-    primary::{PayloadToken, PrimaryMessage, PrimaryWorkerMessage},
-};
+use crate::{metrics::PrimaryMetrics, PayloadToken};
 use config::{Committee, SharedWorkerCache, WorkerId};
 use crypto::PublicKey;
 use futures::future::{try_join_all, BoxFuture};
@@ -29,8 +26,8 @@ use types::{
     bounded_future_queue::BoundedFuturesUnordered,
     error::{DagError, DagResult},
     metered_channel::{Receiver, Sender},
-    try_fut_and_permit, BatchDigest, CertificateDigest, Header, HeaderDigest,
-    ReconfigureNotification, Round,
+    try_fut_and_permit, BatchDigest, CertificateDigest, Header, HeaderDigest, PrimaryMessage,
+    PrimaryWorkerMessage, ReconfigureNotification, Round,
 };
 
 #[cfg(test)]

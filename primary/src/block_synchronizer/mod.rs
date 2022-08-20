@@ -6,7 +6,6 @@ use crate::{
         responses::{CertificatesResponse, PayloadAvailabilityResponse, RequestID},
         PendingIdentifier::{Header, Payload},
     },
-    primary::PrimaryMessage,
     utils, PayloadToken, CHANNEL_CAPACITY,
 };
 use config::{BlockSynchronizerParameters, Committee, SharedWorkerCache, WorkerId};
@@ -36,8 +35,8 @@ use tokio::{
 };
 use tracing::{debug, error, info, instrument, trace, warn};
 use types::{
-    metered_channel, BatchDigest, Certificate, CertificateDigest, PrimaryWorkerMessage,
-    ReconfigureNotification,
+    metered_channel, BatchDigest, Certificate, CertificateDigest, PrimaryMessage,
+    PrimaryWorkerMessage, ReconfigureNotification,
 };
 
 #[cfg(test)]
