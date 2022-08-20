@@ -14,11 +14,11 @@ use futures::Stream;
 use indexmap::IndexMap;
 use multiaddr::Multiaddr;
 use rand::{rngs::StdRng, Rng, SeedableRng as _};
+use std::sync::Arc;
 use std::{
     collections::{BTreeSet, VecDeque},
     ops::RangeInclusive,
     pin::Pin,
-    sync::Arc,
 };
 use store::{reopen, rocks, rocks::DBMap, Store};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
@@ -913,4 +913,19 @@ pub fn mock_signed_certificate(
         cert.votes.push((pk.clone(), sig))
     }
     (cert.digest(), cert)
+}
+
+pub fn make_certificate_store(
+    store_path: &std::path::Path,
+) -> Store<CertificateDigest, Certificate> {
+    const CERTIFICATES_CF: &str = "certificates";
+
+    let rocksdb =
+        rocks::open_cf(store_path, None, &[CERTIFICATES_CF]).expect("Failed creating database");
+
+    let certificate_map = reopen!(&rocksdb,
+        CERTIFICATES_CF;<CertificateDigest, Certificate>
+    );
+
+    Store::new(certificate_map)
 }

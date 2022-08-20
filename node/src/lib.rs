@@ -5,11 +5,16 @@ use consensus::{
     bullshark::Bullshark,
     dag::Dag,
     metrics::{ChannelMetrics, ConsensusMetrics},
-    Consensus,
+    Consensus, ConsensusOutput,
 };
+
 use crypto::{KeyPair, PublicKey};
-use executor::{ExecutionState, Executor, ExecutorOutput, SerializedTransaction, SubscriberResult};
+use executor::{
+    get_restored_consensus_output, ExecutionState, Executor, ExecutorOutput, SerializedTransaction,
+    SubscriberResult,
+};
 use fastcrypto::traits::{KeyPair as _, VerifyingKey};
+use itertools::Itertools;
 use primary::{BlockCommand, NetworkModel, PayloadToken, Primary, PrimaryChannelMetrics};
 use prometheus::{IntGauge, Registry};
 use std::{fmt::Debug, sync::Arc};
@@ -292,6 +297,17 @@ impl Node {
         let (tx_sequence, rx_sequence) =
             metered_channel::channel(Self::CHANNEL_CAPACITY, &channel_metrics.tx_sequence);
 
+        // Check for any certs that have been sent by consensus but were not processed by the executor.
+        let restored_consensus_output = get_restored_consensus_output(
+            store.consensus_store.clone(),
+            store.certificate_store.clone(),
+            execution_state.clone(),
+        )
+        .await?
+        .into_iter()
+        .sorted_by(|a, b| a.consensus_index.cmp(&b.consensus_index))
+        .collect::<Vec<ConsensusOutput>>();
+
         // Spawn the consensus core who only sequences transactions.
         let ordering_engine = Bullshark::new(
             (**committee.load()).clone(),
@@ -321,6 +337,7 @@ impl Node {
             /* tx_output */ tx_confirmation,
             tx_get_block_commands,
             registry,
+            restored_consensus_output,
         )
         .await?;
 
