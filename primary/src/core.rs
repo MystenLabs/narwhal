@@ -153,6 +153,11 @@ impl Core {
         let now = Instant::now();
 
         // Fetch the certificates that are higher or equal than the last_commit_round
+        // We need that as an indication to filter the certificates after a certain
+        // point that we are confident that we have reached in the past. Then we can
+        // detect the last. This will get refactored to optimise further as common
+        // requirements exist in Consensus as well
+        // TODO https://github.com/MystenLabs/narwhal/issues/813
         let last_commit_round = *self.rx_consensus_round_updates.borrow();
 
         let certificates_after_gc_round = self
