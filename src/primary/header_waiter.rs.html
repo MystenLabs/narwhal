@@ -391,10 +391,6 @@
 <span id="391">391</span>
 <span id="392">392</span>
 <span id="393">393</span>
-<span id="394">394</span>
-<span id="395">395</span>
-<span id="396">396</span>
-<span id="397">397</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -659,24 +655,20 @@
                         }
                     }
                 },
-                <span class="comment">// we poll the availability of a slot to send the result to the core simultaneously
-                </span>(<span class="prelude-val">Some</span>(result), permit) = <span class="macro">try_fut_and_permit!</span>(waiting.try_next(), <span class="self">self</span>.tx_core) =&gt; <span class="kw">match </span>result {
-                    <span class="prelude-val">Some</span>(header) =&gt; {
-                        <span class="kw">let _ </span>= <span class="self">self</span>.pending.remove(<span class="kw-2">&amp;</span>header.id);
-                        <span class="kw">for </span>x <span class="kw">in </span>header.payload.keys() {
-                            <span class="kw">let _ </span>= <span class="self">self</span>.batch_requests.remove(x);
-                        }
-                        <span class="kw">for </span>x <span class="kw">in </span><span class="kw-2">&amp;</span>header.parents {
-                            <span class="kw">let _ </span>= <span class="self">self</span>.parent_requests.remove(x);
-                        }
-                        permit.send(header);
-                    },
-                    <span class="prelude-val">None </span>=&gt; {
-                        <span class="comment">// This request has been canceled.
-                    </span>},
-                },
 
-                () = <span class="kw-2">&amp;mut </span>timer =&gt; {
+                <span class="comment">// we poll the availability of a slot to send the result to the core simultaneously
+                </span>(<span class="prelude-val">Some</span>(result), permit) = <span class="macro">try_fut_and_permit!</span>(waiting.try_next(), <span class="self">self</span>.tx_core) =&gt; <span class="kw">if let </span><span class="prelude-val">Some</span>(header) = result {
+                    <span class="kw">let _ </span>= <span class="self">self</span>.pending.remove(<span class="kw-2">&amp;</span>header.id);
+                    <span class="kw">for </span>x <span class="kw">in </span>header.payload.keys() {
+                        <span class="kw">let _ </span>= <span class="self">self</span>.batch_requests.remove(x);
+                    }
+                    <span class="kw">for </span>x <span class="kw">in </span><span class="kw-2">&amp;</span>header.parents {
+                        <span class="kw">let _ </span>= <span class="self">self</span>.parent_requests.remove(x);
+                    }
+                    permit.send(header);
+                },  <span class="comment">// This request has been canceled when result is None.
+
+                </span>() = <span class="kw-2">&amp;mut </span>timer =&gt; {
                     <span class="comment">// We optimistically sent sync requests to a single node. If this timer triggers,
                     // it means we were wrong to trust it. We are done waiting for a reply and we now
                     // broadcast the request to all nodes.

@@ -293,7 +293,7 @@
                     <span class="comment">// Fetch the certificate&#39;s payload from the workers. This is done via the
                     // block_waiter component. If the batches are not available in the workers then
                     // block_waiter will do its best to sync from the other peers. Once all batches
-                    // are available, we forward the certificate o the Executor Core.
+                    // are available, we forward the certificate to the Executor Core.
                     </span><span class="kw">let </span>future = <span class="self">Self</span>::wait_on_payload(
                         <span class="self">self</span>.get_block_retry_policy.clone(),
                         <span class="self">self</span>.store.clone(),
