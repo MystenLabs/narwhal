@@ -71,6 +71,73 @@ async fn synchronize() {
 }
 
 #[tokio::test]
+async fn synchronize_when_batch_exists() {
+    let (tx_message, rx_message) = test_utils::test_channel!(1);
+    let (tx_primary, mut rx_primary) = test_utils::test_channel!(1);
+
+    let mut keys = keys(None);
+    let name = keys.pop().unwrap().public().clone();
+    let id = 0;
+
+    let committee = committee(None);
+    let (tx_reconfiguration, _rx_reconfiguration) =
+        watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));
+
+    // Create a new test store.
+    let store = open_batch_store();
+
+    let metrics = Arc::new(WorkerMetrics::new(&Registry::new()));
+
+    // Spawn a `Synchronizer` instance.
+    let _synchronizer_handle = Synchronizer::spawn(
+        name.clone(),
+        id,
+        Arc::new(ArcSwap::from_pointee(committee.clone())),
+        store.clone(),
+        /* gc_depth */ 50, // Not used in this test.
+        /* sync_retry_delay */
+        Duration::from_millis(1_000_000), // Ensure it is not triggered.
+        /* sync_retry_nodes */ 3, // Not used in this test.
+        rx_message,
+        tx_reconfiguration,
+        tx_primary,
+        metrics,
+        WorkerNetwork::default(),
+    );
+
+    // Spawn a listener to receive our batch requests.
+    let target = keys.pop().unwrap().public().clone();
+    let address = committee.worker(&target, &id).unwrap().worker_to_worker;
+    let batch_id = batch_digest();
+    let missing = vec![batch_id];
+
+    // now store the batch
+    let payload = vec![10u8];
+    store.write(batch_id, payload).await;
+
+    let mut handle = WorkerToWorkerMockServer::spawn(address);
+
+    // Send a sync request.
+    let message = PrimaryWorkerMessage::Synchronize(missing, target);
+    tx_message.send(message).await.unwrap();
+
+    // Ensure the target does NOT receive the sync request - we practically timeout waiting.
+    let result = timeout(Duration::from_secs(1), handle.recv()).await;
+    assert!(result.is_err());
+
+    // Now ensure that the batch is forwarded directly to primary
+    let result_batch_message: WorkerPrimaryMessage = rx_primary.recv().await.unwrap();
+
+    match result_batch_message {
+        WorkerPrimaryMessage::OthersBatch(result_digest, worker_id) => {
+            assert_eq!(result_digest, batch_id, "Batch id mismatch");
+            assert_eq!(worker_id, id, "Worker id mismatch");
+        }
+        _ => panic!("Unexpected message received!"),
+    }
+}
+
+#[tokio::test]
 async fn test_successful_request_batch() {
     let (tx_message, rx_message) = test_utils::test_channel!(1);
     let (tx_primary, mut rx_primary) = test_utils::test_channel!(1);
