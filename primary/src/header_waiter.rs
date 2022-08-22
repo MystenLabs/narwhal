@@ -262,6 +262,7 @@ impl HeaderWaiter {
                         }
                     }
                 },
+
                 // we poll the availability of a slot to send the result to the core simultaneously
                 (Some(result), permit) = try_fut_and_permit!(waiting.try_next(), self.tx_core) => if let Some(header) = result {
                     let _ = self.pending.remove(&header.id);
@@ -272,7 +273,7 @@ impl HeaderWaiter {
                         let _ = self.parent_requests.remove(x);
                     }
                     permit.send(header);
-                },
+                },  // This request has been canceled when result is None.
 
                 () = &mut timer => {
                     // We optimistically sent sync requests to a single node. If this timer triggers,
