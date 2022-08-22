@@ -373,7 +373,7 @@ dependencies = [
  "cc",
  "cfg-if 1.0.0",
  "libc",
- "miniz_oxide",
+ "miniz_oxide 0.5.3",
  "object",
  "rustc-demangle",
 ]
@@ -1316,9 +1316,9 @@ dependencies = [
 
 [[package]]
 name = "either"
-version = "1.7.0"
+version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f107b87b6afc2a64fd13cac55fe06d6c8859f12d4b14cbcdd2c67d0976781be"
+checksum = "90e5c1c8368803113bf0c9584fc495a58b86dc8a29edbf8fe877d21d9507e797"
 
 [[package]]
 name = "elliptic-curve"
@@ -2155,6 +2155,15 @@ name = "miniz_oxide"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6f5c75688da582b8ffc1f1799e9db273f32133c49e048f614d22ec3256773ccc"
+dependencies = [
+ "adler",
+]
+
+[[package]]
+name = "miniz_oxide"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "11dbbb6231ce58357b3015f2039c7989358397ac3afb4abb8e48fa8c500b5157"
 dependencies = [
  "adler",
 ]
@@ -4984,7 +4993,7 @@ dependencies = [
  "merlin",
  "mime",
  "minimal-lexical",
- "miniz_oxide",
+ "miniz_oxide 0.6.0",
  "mio",
  "mockall",
  "mockall_derive",

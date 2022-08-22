@@ -166,7 +166,7 @@ memchr = { version = "2", features = ["std"] }
 memoffset = { version = "0.6" }
 merlin = { version = "3", features = ["std"] }
 mime = { version = "0.3", default-features = false }
-miniz_oxide = { version = "0.5", default-features = false }
+miniz_oxide = { version = "0.6", default-features = false }
 mio = { version = "0.8", features = ["net", "os-ext", "os-poll"] }
 mockall = { version = "0.11", default-features = false }
 multiaddr = { version = "0.14", features = ["url"] }
