@@ -170,8 +170,8 @@
 }
 
 <span class="kw">impl </span>StateHandler {
-    <span class="attribute">#[must_use]</span>
-    <span class="kw">pub fn </span>spawn(
+    <span class="attribute">#[must_use]
+    </span><span class="kw">pub fn </span>spawn(
         name: PublicKey,
         committee: SharedCommittee,
         rx_consensus: Receiver&lt;Certificate&gt;,
@@ -227,7 +227,7 @@
             <span class="self">self</span>.name
         );
         <span class="kw">loop </span>{
-            <span class="macro">tokio::select!</span> {
+            <span class="macro">tokio::select! </span>{
                 <span class="prelude-val">Some</span>(certificate) = <span class="self">self</span>.rx_consensus.recv() =&gt; {
                     <span class="self">self</span>.handle_sequenced(certificate).<span class="kw">await</span>;
                 },
@@ -277,4 +277,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

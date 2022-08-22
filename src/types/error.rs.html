@@ -99,15 +99,15 @@
 <span class="kw">use </span>store::StoreError;
 <span class="kw">use </span>thiserror::Error;
 
-<span class="attribute">#[macro_export]</span>
-<span class="macro">macro_rules!</span> bail {
+<span class="attribute">#[macro_export]
+</span><span class="macro">macro_rules! </span>bail {
     (<span class="macro-nonterminal">$e</span>:expr) =&gt; {
         <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro-nonterminal">$e</span>);
     };
 }
 
-<span class="attribute">#[macro_export(local_inner_macros)]</span>
-<span class="macro">macro_rules!</span> ensure {
+<span class="attribute">#[macro_export(local_inner_macros)]
+</span><span class="macro">macro_rules! </span>ensure {
     (<span class="macro-nonterminal">$cond</span>:expr, <span class="macro-nonterminal">$e</span>:expr) =&gt; {
         <span class="kw">if </span>!(<span class="macro-nonterminal">$cond</span>) {
             <span class="macro">bail!</span>(<span class="macro-nonterminal">$e</span>);
@@ -115,8 +115,8 @@
     };
 }
 
-<span class="attribute">#[macro_export]</span>
-<span class="macro">macro_rules!</span> try_fut_and_permit {
+<span class="attribute">#[macro_export]
+</span><span class="macro">macro_rules! </span>try_fut_and_permit {
     (<span class="macro-nonterminal">$fut</span>:expr, <span class="macro-nonterminal">$sender</span>:expr) =&gt; {
         futures::future::TryFutureExt::unwrap_or_else(
             futures::future::try_join(
@@ -135,52 +135,52 @@
 
 <span class="kw">pub type </span>DagResult&lt;T&gt; = <span class="prelude-ty">Result</span>&lt;T, DagError&gt;;
 
-<span class="attribute">#[derive(Debug, Error)]</span>
-<span class="kw">pub enum </span>DagError {
-    <span class="attribute">#[error(<span class="string">&quot;Channel {0} has closed unexpectedly&quot;</span>)]</span>
-    ClosedChannel(String),
+<span class="attribute">#[derive(Debug, Error)]
+</span><span class="kw">pub enum </span>DagError {
+    <span class="attribute">#[error(<span class="string">&quot;Channel {0} has closed unexpectedly&quot;</span>)]
+    </span>ClosedChannel(String),
 
-    <span class="attribute">#[error(<span class="string">&quot;Invalid signature&quot;</span>)]</span>
-    InvalidSignature(<span class="attribute">#[from]</span> signature::Error),
+    <span class="attribute">#[error(<span class="string">&quot;Invalid signature&quot;</span>)]
+    </span>InvalidSignature(<span class="attribute">#[from] </span>signature::Error),
 
-    <span class="attribute">#[error(<span class="string">&quot;Storage failure: {0}&quot;</span>)]</span>
-    StoreError(<span class="attribute">#[from]</span> StoreError),
+    <span class="attribute">#[error(<span class="string">&quot;Storage failure: {0}&quot;</span>)]
+    </span>StoreError(<span class="attribute">#[from] </span>StoreError),
 
-    <span class="attribute">#[error(<span class="string">&quot;Serialization error: {0}&quot;</span>)]</span>
-    SerializationError(<span class="attribute">#[from]</span> Box&lt;bincode::ErrorKind&gt;),
+    <span class="attribute">#[error(<span class="string">&quot;Serialization error: {0}&quot;</span>)]
+    </span>SerializationError(<span class="attribute">#[from] </span>Box&lt;bincode::ErrorKind&gt;),
 
-    <span class="attribute">#[error(<span class="string">&quot;Invalid header id&quot;</span>)]</span>
-    InvalidHeaderId,
+    <span class="attribute">#[error(<span class="string">&quot;Invalid header id&quot;</span>)]
+    </span>InvalidHeaderId,
 
-    <span class="attribute">#[error(<span class="string">&quot;Malformed header {0}&quot;</span>)]</span>
-    MalformedHeader(HeaderDigest),
+    <span class="attribute">#[error(<span class="string">&quot;Malformed header {0}&quot;</span>)]
+    </span>MalformedHeader(HeaderDigest),
 
-    <span class="attribute">#[error(<span class="string">&quot;Received message from unknown authority {0}&quot;</span>)]</span>
-    UnknownAuthority(String),
+    <span class="attribute">#[error(<span class="string">&quot;Received message from unknown authority {0}&quot;</span>)]
+    </span>UnknownAuthority(String),
 
-    <span class="attribute">#[error(<span class="string">&quot;Authority {0} appears in quorum more than once&quot;</span>)]</span>
-    AuthorityReuse(String),
+    <span class="attribute">#[error(<span class="string">&quot;Authority {0} appears in quorum more than once&quot;</span>)]
+    </span>AuthorityReuse(String),
 
-    <span class="attribute">#[error(<span class="string">&quot;Received unexpected vote fo header {0}&quot;</span>)]</span>
-    UnexpectedVote(HeaderDigest),
+    <span class="attribute">#[error(<span class="string">&quot;Received unexpected vote fo header {0}&quot;</span>)]
+    </span>UnexpectedVote(HeaderDigest),
 
-    <span class="attribute">#[error(<span class="string">&quot;Received certificate without a quorum&quot;</span>)]</span>
-    CertificateRequiresQuorum,
+    <span class="attribute">#[error(<span class="string">&quot;Received certificate without a quorum&quot;</span>)]
+    </span>CertificateRequiresQuorum,
 
-    <span class="attribute">#[error(<span class="string">&quot;Parents of header {0} are not a quorum&quot;</span>)]</span>
-    HeaderRequiresQuorum(HeaderDigest),
+    <span class="attribute">#[error(<span class="string">&quot;Parents of header {0} are not a quorum&quot;</span>)]
+    </span>HeaderRequiresQuorum(HeaderDigest),
 
-    <span class="attribute">#[error(<span class="string">&quot;Message {0} (round {1}) too old for GC round {2}&quot;</span>)]</span>
-    TooOld(Digest, Round, Round),
+    <span class="attribute">#[error(<span class="string">&quot;Message {0} (round {1}) too old for GC round {2}&quot;</span>)]
+    </span>TooOld(Digest, Round, Round),
 
-    <span class="attribute">#[error(<span class="string">&quot;Vote {0} (round {1}) too old for round {2}&quot;</span>)]</span>
-    VoteTooOld(Digest, Round, Round),
+    <span class="attribute">#[error(<span class="string">&quot;Vote {0} (round {1}) too old for round {2}&quot;</span>)]
+    </span>VoteTooOld(Digest, Round, Round),
 
-    <span class="attribute">#[error(<span class="string">&quot;Invalid epoch (expected {expected}, received {received})&quot;</span>)]</span>
-    InvalidEpoch { expected: Epoch, received: Epoch },
+    <span class="attribute">#[error(<span class="string">&quot;Invalid epoch (expected {expected}, received {received})&quot;</span>)]
+    </span>InvalidEpoch { expected: Epoch, received: Epoch },
 
-    <span class="attribute">#[error(<span class="string">&quot;System shutting down&quot;</span>)]</span>
-    ShuttingDown,
+    <span class="attribute">#[error(<span class="string">&quot;System shutting down&quot;</span>)]
+    </span>ShuttingDown,
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

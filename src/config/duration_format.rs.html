@@ -168,26 +168,26 @@
     <span class="macro">format!</span>(<span class="string">&quot;{}ms&quot;</span>, duration.as_millis()).serialize(serializer)
 }
 
-<span class="attribute">#[cfg(test)]</span>
-<span class="kw">mod </span>tests {
+<span class="attribute">#[cfg(test)]
+</span><span class="kw">mod </span>tests {
     <span class="kw">use </span><span class="kw">crate</span>::duration_format;
     <span class="kw">use </span>serde::{Deserialize, Serialize};
     <span class="kw">use </span>std::time::Duration;
 
-    <span class="attribute">#[derive(Debug, Deserialize, Serialize, Eq, PartialEq)]</span>
-    <span class="kw">struct </span>MockProperties {
-        <span class="attribute">#[serde(with = <span class="string">&quot;duration_format&quot;</span>)]</span>
-        property_1: Duration,
-        <span class="attribute">#[serde(with = <span class="string">&quot;duration_format&quot;</span>)]</span>
-        property_2: Duration,
-        <span class="attribute">#[serde(with = <span class="string">&quot;duration_format&quot;</span>)]</span>
-        property_3: Duration,
-        <span class="attribute">#[serde(with = <span class="string">&quot;duration_format&quot;</span>)]</span>
-        property_4: Duration,
+    <span class="attribute">#[derive(Debug, Deserialize, Serialize, Eq, PartialEq)]
+    </span><span class="kw">struct </span>MockProperties {
+        <span class="attribute">#[serde(with = <span class="string">&quot;duration_format&quot;</span>)]
+        </span>property_1: Duration,
+        <span class="attribute">#[serde(with = <span class="string">&quot;duration_format&quot;</span>)]
+        </span>property_2: Duration,
+        <span class="attribute">#[serde(with = <span class="string">&quot;duration_format&quot;</span>)]
+        </span>property_3: Duration,
+        <span class="attribute">#[serde(with = <span class="string">&quot;duration_format&quot;</span>)]
+        </span>property_4: Duration,
     }
 
-    <span class="attribute">#[test]</span>
-    <span class="kw">fn </span>parse_miliseconds_and_seconds() {
+    <span class="attribute">#[test]
+    </span><span class="kw">fn </span>parse_miliseconds_and_seconds() {
         <span class="comment">// GIVEN
         </span><span class="kw">let </span>input = <span class="string">r#&quot;{
              &quot;property_1&quot;: &quot;1_000ms&quot;,
@@ -207,8 +207,8 @@
         <span class="macro">assert_eq!</span>(result.property_4.as_secs(), <span class="number">5_000</span>);
     }
 
-    <span class="attribute">#[test]</span>
-    <span class="kw">fn </span>roundtrip() {
+    <span class="attribute">#[test]
+    </span><span class="kw">fn </span>roundtrip() {
         <span class="comment">// GIVEN
         </span><span class="kw">let </span>input = <span class="string">r#&quot;{
              &quot;property_1&quot;: &quot;1_000ms&quot;,
@@ -227,8 +227,8 @@
         <span class="macro">assert_eq!</span>(result, deserialized);
     }
 
-    <span class="attribute">#[test]</span>
-    <span class="kw">fn </span>parse_error() {
+    <span class="attribute">#[test]
+    </span><span class="kw">fn </span>parse_error() {
         <span class="comment">// GIVEN
         </span><span class="kw">let </span>input = <span class="string">r#&quot;{
              &quot;property_1&quot;: &quot;1000 ms&quot;,
@@ -243,4 +243,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="config" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="config" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

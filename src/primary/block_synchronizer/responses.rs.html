@@ -157,8 +157,8 @@
 
 <span class="comment">// RequestID helps us identify an incoming request and
 // all the consequent network requests associated with it.
-</span><span class="attribute">#[derive(Clone, Debug, Copy, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]</span>
-<span class="kw">pub struct </span>RequestID(<span class="kw">pub </span>[u8; fastcrypto::DIGEST_LEN]);
+</span><span class="attribute">#[derive(Clone, Debug, Copy, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
+</span><span class="kw">pub struct </span>RequestID(<span class="kw">pub </span>[u8; fastcrypto::DIGEST_LEN]);
 
 <span class="kw">impl </span>RequestID {
     <span class="comment">// Create a request key (deterministically) from arbitrary data.
@@ -195,8 +195,8 @@
     }
 }
 
-<span class="attribute">#[derive(Debug, Clone)]</span>
-<span class="kw">pub struct </span>PayloadAvailabilityResponse {
+<span class="attribute">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>PayloadAvailabilityResponse {
     <span class="kw">pub </span>block_ids: Vec&lt;(CertificateDigest, bool)&gt;,
     <span class="kw">pub </span>from: PublicKey,
 }
@@ -216,8 +216,8 @@
     }
 }
 
-<span class="attribute">#[derive(Debug, Clone)]</span>
-<span class="kw">pub struct </span>CertificatesResponse {
+<span class="attribute">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>CertificatesResponse {
     <span class="kw">pub </span>certificates: Vec&lt;(CertificateDigest, <span class="prelude-ty">Option</span>&lt;Certificate&gt;)&gt;,
     <span class="kw">pub </span>from: PublicKey,
 }
@@ -282,13 +282,13 @@
     }
 }
 
-<span class="attribute">#[derive(Debug, Error, Clone, PartialEq)]</span>
-<span class="kw">pub enum </span>CertificatesResponseError {
-    <span class="attribute">#[error(<span class="string">&quot;Found invalid certificates form peer {name} - potentially Byzantine.&quot;</span>)]</span>
-    ValidationError {
+<span class="attribute">#[derive(Debug, Error, Clone, PartialEq)]
+</span><span class="kw">pub enum </span>CertificatesResponseError {
+    <span class="attribute">#[error(<span class="string">&quot;Found invalid certificates form peer {name} - potentially Byzantine.&quot;</span>)]
+    </span>ValidationError {
         name: PublicKey,
         invalid_certificates: Vec&lt;Certificate&gt;,
     },
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

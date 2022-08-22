@@ -909,8 +909,8 @@
         .into_path()
 }
 
-<span class="attribute">#[macro_export]</span>
-<span class="macro">macro_rules!</span> test_channel {
+<span class="attribute">#[macro_export]
+</span><span class="macro">macro_rules! </span>test_channel {
     (<span class="macro-nonterminal">$e</span>:expr) =&gt; {
         types::metered_channel::channel(
             <span class="macro-nonterminal">$e</span>,
@@ -929,8 +929,8 @@
 // the replacement. If that gauge is a dummy gauge, such as the one above, the
 // initialization of the primary will panic (to protect the production code against
 // an erroneous mistake in editing this bootstrap logic).
-</span><span class="attribute">#[macro_export]</span>
-<span class="macro">macro_rules!</span> test_committed_certificates_channel {
+</span><span class="attribute">#[macro_export]
+</span><span class="macro">macro_rules! </span>test_committed_certificates_channel {
     (<span class="macro-nonterminal">$e</span>:expr) =&gt; {
         types::metered_channel::channel(
             <span class="macro-nonterminal">$e</span>,
@@ -943,8 +943,8 @@
     };
 }
 
-<span class="attribute">#[macro_export]</span>
-<span class="macro">macro_rules!</span> test_new_certificates_channel {
+<span class="attribute">#[macro_export]
+</span><span class="macro">macro_rules! </span>test_new_certificates_channel {
     (<span class="macro-nonterminal">$e</span>:expr) =&gt; {
         types::metered_channel::channel(
             <span class="macro-nonterminal">$e</span>,
@@ -957,8 +957,8 @@
     };
 }
 
-<span class="attribute">#[macro_export]</span>
-<span class="macro">macro_rules!</span> test_get_block_commands {
+<span class="attribute">#[macro_export]
+</span><span class="macro">macro_rules! </span>test_get_block_commands {
     (<span class="macro-nonterminal">$e</span>:expr) =&gt; {
         types::metered_channel::channel(
             <span class="macro-nonterminal">$e</span>,
@@ -1180,8 +1180,8 @@
     }
 }
 
-<span class="attribute">#[allow(dead_code)]</span>
-<span class="kw">pub fn </span>fixture_header() -&gt; Header {
+<span class="attribute">#[allow(dead_code)]
+</span><span class="kw">pub fn </span>fixture_header() -&gt; Header {
     <span class="kw">let </span>kp = keys(<span class="prelude-val">None</span>).pop().unwrap();
 
     fixture_header_builder().build(<span class="kw-2">&amp;</span>kp).unwrap()
@@ -1328,8 +1328,8 @@
     }
 }
 
-<span class="attribute">#[tonic::async_trait]</span>
-<span class="kw">impl </span>PrimaryToPrimary <span class="kw">for </span>PrimaryToPrimaryMockServer {
+<span class="attribute">#[tonic::async_trait]
+</span><span class="kw">impl </span>PrimaryToPrimary <span class="kw">for </span>PrimaryToPrimaryMockServer {
     <span class="kw">async fn </span>send_message(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         request: tonic::Request&lt;BincodeEncodedPayload&gt;,
@@ -1362,8 +1362,8 @@
     }
 }
 
-<span class="attribute">#[tonic::async_trait]</span>
-<span class="kw">impl </span>WorkerToPrimary <span class="kw">for </span>WorkerToPrimaryMockServer {
+<span class="attribute">#[tonic::async_trait]
+</span><span class="kw">impl </span>WorkerToPrimary <span class="kw">for </span>WorkerToPrimaryMockServer {
     <span class="kw">async fn </span>send_message(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         request: tonic::Request&lt;BincodeEncodedPayload&gt;,
@@ -1403,8 +1403,8 @@
     }
 }
 
-<span class="attribute">#[tonic::async_trait]</span>
-<span class="kw">impl </span>PrimaryToWorker <span class="kw">for </span>PrimaryToWorkerMockServer {
+<span class="attribute">#[tonic::async_trait]
+</span><span class="kw">impl </span>PrimaryToWorker <span class="kw">for </span>PrimaryToWorkerMockServer {
     <span class="kw">async fn </span>send_message(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         request: tonic::Request&lt;BincodeEncodedPayload&gt;,
@@ -1437,8 +1437,8 @@
     }
 }
 
-<span class="attribute">#[tonic::async_trait]</span>
-<span class="kw">impl </span>WorkerToWorker <span class="kw">for </span>WorkerToWorkerMockServer {
+<span class="attribute">#[tonic::async_trait]
+</span><span class="kw">impl </span>WorkerToWorker <span class="kw">for </span>WorkerToWorkerMockServer {
     <span class="kw">async fn </span>send_message(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         request: tonic::Request&lt;BincodeEncodedPayload&gt;,
@@ -1731,4 +1731,4 @@
     (cert.digest(), cert)
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="test_utils" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="test_utils" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

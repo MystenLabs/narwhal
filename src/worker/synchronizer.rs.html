@@ -361,9 +361,9 @@
     WorkerPrimaryError, WorkerPrimaryMessage,
 };
 
-<span class="attribute">#[cfg(test)]</span>
-<span class="attribute">#[path = <span class="string">&quot;tests/synchronizer_tests.rs&quot;</span>]</span>
-<span class="kw">pub mod </span>synchronizer_tests;
+<span class="attribute">#[cfg(test)]
+#[path = <span class="string">&quot;tests/synchronizer_tests.rs&quot;</span>]
+</span><span class="kw">pub mod </span>synchronizer_tests;
 
 <span class="doccomment">/// Resolution of the timer managing retrials of sync requests (in ms).
 </span><span class="kw">const </span>TIMER_RESOLUTION: u64 = <span class="number">1_000</span>;
@@ -404,8 +404,8 @@
 }
 
 <span class="kw">impl </span>Synchronizer {
-    <span class="attribute">#[must_use]</span>
-    <span class="kw">pub fn </span>spawn(
+    <span class="attribute">#[must_use]
+    </span><span class="kw">pub fn </span>spawn(
         name: PublicKey,
         id: WorkerId,
         committee: SharedCommittee,
@@ -449,7 +449,7 @@
         deliver: BatchDigest,
         <span class="kw-2">mut </span>handler: mpsc::Receiver&lt;()&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;BatchDigest&gt;, StoreError&gt; {
-        <span class="macro">tokio::select!</span> {
+        <span class="macro">tokio::select! </span>{
             result = store.notify_read(missing) =&gt; {
                 result.map(|<span class="kw">_</span>| <span class="prelude-val">Some</span>(deliver))
             }
@@ -465,7 +465,7 @@
         <span class="macro">tokio::pin!</span>(timer);
 
         <span class="kw">loop </span>{
-            <span class="macro">tokio::select!</span> {
+            <span class="macro">tokio::select! </span>{
                 <span class="comment">// Handle primary&#39;s messages.
                 </span><span class="prelude-val">Some</span>(message) = <span class="self">self</span>.rx_message.recv() =&gt; <span class="kw">match </span>message {
                     PrimaryWorkerMessage::Synchronize(digests, target) =&gt; {
@@ -671,4 +671,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

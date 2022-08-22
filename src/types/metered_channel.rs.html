@@ -240,7 +240,7 @@
 <span id="240">240</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-</span><span class="attribute">#![allow(dead_code)]</span> <span class="comment">// TODO: complete tests - This kinda sorta facades the whole tokio::mpsc::{Sender, Receiver}: without tests, this will be fragile to maintain.
+</span><span class="attribute">#![allow(dead_code)] </span><span class="comment">// TODO: complete tests - This kinda sorta facades the whole tokio::mpsc::{Sender, Receiver}: without tests, this will be fragile to maintain.
 </span><span class="kw">use </span>futures::{FutureExt, Stream};
 <span class="kw">use </span>prometheus::IntGauge;
 <span class="kw">use </span>std::task::{Context, Poll};
@@ -252,8 +252,8 @@
 
 <span class="doccomment">/// An [`mpsc::Sender`](tokio::sync::mpsc::Sender) with an [`IntGauge`]
 /// counting the number of currently queued items.
-</span><span class="attribute">#[derive(Debug)]</span>
-<span class="kw">pub struct </span>Sender&lt;T&gt; {
+</span><span class="attribute">#[derive(Debug)]
+</span><span class="kw">pub struct </span>Sender&lt;T&gt; {
     inner: mpsc::Sender&lt;T&gt;,
     gauge: IntGauge,
 }
@@ -269,8 +269,8 @@
 
 <span class="doccomment">/// An [`mpsc::Receiver`](tokio::sync::mpsc::Receiver) with an [`IntGauge`]
 /// counting the number of currently queued items.
-</span><span class="attribute">#[derive(Debug)]</span>
-<span class="kw">pub struct </span>Receiver&lt;T&gt; {
+</span><span class="attribute">#[derive(Debug)]
+</span><span class="kw">pub struct </span>Receiver&lt;T&gt; {
     inner: mpsc::Receiver&lt;T&gt;,
     gauge: IntGauge,
 }
@@ -405,8 +405,8 @@
 
 </span><span class="doccomment">/// A wrapper around [`crate::metered_channel::Receiver`] that implements [`Stream`].
 ///
-</span><span class="attribute">#[derive(Debug)]</span>
-<span class="kw">pub struct </span>ReceiverStream&lt;T&gt; {
+</span><span class="attribute">#[derive(Debug)]
+</span><span class="kw">pub struct </span>ReceiverStream&lt;T&gt; {
     inner: Receiver&lt;T&gt;,
 }
 
@@ -463,8 +463,8 @@
 </span><span class="comment">////////////////////////////////////////////////////////////////
 
 </span><span class="doccomment">/// Similar to `mpsc::channel`, `channel` creates a pair of `Sender` and `Receiver`
-</span><span class="attribute">#[track_caller]</span>
-<span class="kw">pub fn </span>channel&lt;T&gt;(size: usize, gauge: <span class="kw-2">&amp;</span>IntGauge) -&gt; (Sender&lt;T&gt;, Receiver&lt;T&gt;) {
+</span><span class="attribute">#[track_caller]
+</span><span class="kw">pub fn </span>channel&lt;T&gt;(size: usize, gauge: <span class="kw-2">&amp;</span>IntGauge) -&gt; (Sender&lt;T&gt;, Receiver&lt;T&gt;) {
     gauge.set(<span class="number">0</span>);
     <span class="kw">let </span>(sender, receiver) = mpsc::channel(size);
     (
@@ -479,4 +479,4 @@
     )
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

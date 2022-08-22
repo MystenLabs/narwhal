@@ -294,20 +294,20 @@
     metered_channel::Receiver, BatchDigest, Certificate, CertificateDigest, ReconfigureNotification,
 };
 
-<span class="attribute">#[cfg(test)]</span>
-<span class="attribute">#[path = <span class="string">&quot;tests/helper_tests.rs&quot;</span>]</span>
-<span class="kw">mod </span>helper_tests;
+<span class="attribute">#[cfg(test)]
+#[path = <span class="string">&quot;tests/helper_tests.rs&quot;</span>]
+</span><span class="kw">mod </span>helper_tests;
 
-<span class="attribute">#[derive(Debug, Error)]</span>
-<span class="kw">enum </span>HelperError {
-    <span class="attribute">#[error(<span class="string">&quot;Received message from unknown authority {0}&quot;</span>)]</span>
-    UnknownAuthority(String),
+<span class="attribute">#[derive(Debug, Error)]
+</span><span class="kw">enum </span>HelperError {
+    <span class="attribute">#[error(<span class="string">&quot;Received message from unknown authority {0}&quot;</span>)]
+    </span>UnknownAuthority(String),
 
-    <span class="attribute">#[error(<span class="string">&quot;Storage failure: {0}&quot;</span>)]</span>
-    StoreError(<span class="attribute">#[from]</span> StoreError),
+    <span class="attribute">#[error(<span class="string">&quot;Storage failure: {0}&quot;</span>)]
+    </span>StoreError(<span class="attribute">#[from] </span>StoreError),
 
-    <span class="attribute">#[error(<span class="string">&quot;Invalid request received: {0}&quot;</span>)]</span>
-    InvalidRequest(String),
+    <span class="attribute">#[error(<span class="string">&quot;Invalid request received: {0}&quot;</span>)]
+    </span>InvalidRequest(String),
 }
 
 <span class="doccomment">/// A task dedicated to help other authorities by replying to their certificate &amp;
@@ -330,8 +330,8 @@
 }
 
 <span class="kw">impl </span>Helper {
-    <span class="attribute">#[must_use]</span>
-    <span class="kw">pub fn </span>spawn(
+    <span class="attribute">#[must_use]
+    </span><span class="kw">pub fn </span>spawn(
         name: PublicKey,
         committee: Committee,
         certificate_store: Store&lt;CertificateDigest, Certificate&gt;,
@@ -361,7 +361,7 @@
             <span class="self">self</span>.name
         );
         <span class="kw">loop </span>{
-            <span class="macro">tokio::select!</span> {
+            <span class="macro">tokio::select! </span>{
                 <span class="prelude-val">Some</span>(request) = <span class="self">self</span>.rx_primaries.recv() =&gt; <span class="kw">match </span>request {
                     <span class="comment">// The CertificatesRequest will find any certificates that exist in
                     // the data source (dictated by the digests parameter). The results
@@ -419,8 +419,8 @@
     /// certificate &amp; batch data for each certificate digest in digests,
     /// and reports on each fully available item in the request in a
     /// PayloadAvailabilityResponse.
-    </span><span class="attribute">#[instrument(level=<span class="string">&quot;debug&quot;</span>, skip_all, fields(num_certificate_ids = digests.len()), err)]</span>
-    <span class="kw">async fn </span>process_payload_availability(
+    </span><span class="attribute">#[instrument(level=<span class="string">&quot;debug&quot;</span>, skip_all, fields(num_certificate_ids = digests.len()), err)]
+    </span><span class="kw">async fn </span>process_payload_availability(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         digests: Vec&lt;CertificateDigest&gt;,
         origin: PublicKey,
@@ -492,8 +492,8 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="attribute">#[instrument(level=<span class="string">&quot;debug&quot;</span>, skip_all, fields(num_certificate_ids = digests.len(), mode = batch_mode), err)]</span>
-    <span class="kw">async fn </span>process_certificates(
+    <span class="attribute">#[instrument(level=<span class="string">&quot;debug&quot;</span>, skip_all, fields(num_certificate_ids = digests.len(), mode = batch_mode), err)]
+    </span><span class="kw">async fn </span>process_certificates(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         digests: Vec&lt;CertificateDigest&gt;,
         origin: PublicKey,
@@ -559,4 +559,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

@@ -372,9 +372,9 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-</span><span class="attribute">#![forbid(unsafe_code)]</span>
+</span><span class="attribute">#![forbid(unsafe_code)]
 
-<span class="doccomment">//! A bounded tokio [`Handle`]. Only a bounded number of tasks can run
+</span><span class="doccomment">//! A bounded tokio [`Handle`]. Only a bounded number of tasks can run
 //! concurrently when spawned through this executor, defined by the initial
 //! `capacity`.
 
@@ -390,14 +390,14 @@
 
 <span class="kw">use </span>thiserror::Error;
 
-<span class="attribute">#[derive(Error)]</span>
-<span class="kw">pub enum </span>BoundedExecutionError&lt;F&gt;
+<span class="attribute">#[derive(Error)]
+</span><span class="kw">pub enum </span>BoundedExecutionError&lt;F&gt;
 <span class="kw">where
     </span>F: Future + Send + <span class="lifetime">&#39;static</span>,
     F::Output: Send + <span class="lifetime">&#39;static</span>,
 {
-    <span class="attribute">#[error(<span class="string">&quot;Concurrent execution limit reached&quot;</span>)]</span>
-    Full(F),
+    <span class="attribute">#[error(<span class="string">&quot;Concurrent execution limit reached&quot;</span>)]
+    </span>Full(F),
 }
 
 <span class="kw">impl</span>&lt;F&gt; std::fmt::Debug <span class="kw">for </span>BoundedExecutionError&lt;F&gt;
@@ -413,8 +413,8 @@
     }
 }
 
-<span class="attribute">#[derive(Clone, Debug)]</span>
-<span class="kw">pub struct </span>BoundedExecutor {
+<span class="attribute">#[derive(Clone, Debug)]
+</span><span class="kw">pub struct </span>BoundedExecutor {
     semaphore: Arc&lt;Semaphore&gt;,
     executor: Handle,
 }
@@ -477,8 +477,8 @@
         }
     }
 
-    <span class="attribute">#[must_use]</span>
-    <span class="kw">fn </span>spawn_with_permit&lt;F&gt;(
+    <span class="attribute">#[must_use]
+    </span><span class="kw">fn </span>spawn_with_permit&lt;F&gt;(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         f: F,
         spawn_permit: OwnedSemaphorePermit,
@@ -519,8 +519,8 @@
     /// TODO: this still spawns one task, unconditionally, per call.
     /// We would instead like to have one central task that drives all retries
     /// for the whole executor.
-    </span><span class="attribute">#[must_use]</span>
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>spawn_with_retries&lt;F, Fut, T, E&gt;(
+    </span><span class="attribute">#[must_use]
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>spawn_with_retries&lt;F, Fut, T, E&gt;(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         retry_config: <span class="kw">crate</span>::RetryConfig,
         <span class="kw-2">mut </span>f: F,
@@ -558,8 +558,8 @@
     </span>}
 }
 
-<span class="attribute">#[cfg(test)]</span>
-<span class="kw">mod </span>test {
+<span class="attribute">#[cfg(test)]
+</span><span class="kw">mod </span>test {
     <span class="kw">use </span><span class="kw">crate</span>::RetryConfig;
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
@@ -574,8 +574,8 @@
     };
     <span class="kw">use </span>tokio::{runtime::Runtime, time::sleep};
 
-    <span class="attribute">#[test]</span>
-    <span class="kw">fn </span>try_spawn_panicking() {
+    <span class="attribute">#[test]
+    </span><span class="kw">fn </span>try_spawn_panicking() {
         <span class="kw">let </span>rt = Runtime::new().unwrap();
         <span class="kw">let </span>executor = rt.handle().clone();
         <span class="kw">let </span>executor = BoundedExecutor::new(<span class="number">1</span>, executor);
@@ -598,8 +598,8 @@
         <span class="macro">panic!</span>();
     }
 
-    <span class="attribute">#[test]</span>
-    <span class="kw">fn </span>try_spawn() {
+    <span class="attribute">#[test]
+    </span><span class="kw">fn </span>try_spawn() {
         <span class="kw">let </span>rt = Runtime::new().unwrap();
         <span class="kw">let </span>executor = rt.handle().clone();
         <span class="kw">let </span>executor = BoundedExecutor::new(<span class="number">1</span>, executor);
@@ -637,8 +637,8 @@
     }
 
     <span class="comment">// ensure tasks spawned with retries do not hog the semaphore
-    </span><span class="attribute">#[test]</span>
-    <span class="kw">fn </span>test_spawn_with_semaphore() {
+    </span><span class="attribute">#[test]
+    </span><span class="kw">fn </span>test_spawn_with_semaphore() {
         <span class="comment">// beware: the timeout is here to witness a failure rather than a hung test in case the
         // executor does not work correctly.
         </span>panic_after(Duration::from_secs(<span class="number">10</span>), || {
@@ -694,8 +694,8 @@
 
     <span class="comment">// spawn NUM_TASKS futures on a BoundedExecutor, ensuring that no more than
     // MAX_WORKERS ever enter the critical section.
-    </span><span class="attribute">#[test]</span>
-    <span class="kw">fn </span>concurrent_bounded_executor() {
+    </span><span class="attribute">#[test]
+    </span><span class="kw">fn </span>concurrent_bounded_executor() {
         <span class="kw">const </span>MAX_WORKERS: u32 = <span class="number">20</span>;
         <span class="kw">const </span>NUM_TASKS: u32 = <span class="number">1000</span>;
         <span class="kw">static </span>WORKERS: AtomicU32 = AtomicU32::new(<span class="number">0</span>);
@@ -739,4 +739,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="network" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="network" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

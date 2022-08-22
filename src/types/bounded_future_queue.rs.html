@@ -460,14 +460,14 @@
     }
 }
 
-<span class="attribute">#[cfg(test)]</span>
-<span class="kw">mod </span>tests {
+<span class="attribute">#[cfg(test)]
+</span><span class="kw">mod </span>tests {
 
     <span class="kw">use super</span>::{BoundedFuturesOrdered, BoundedFuturesUnordered};
     <span class="kw">use </span>futures::{future, FutureExt};
 
-    <span class="attribute">#[tokio::test]</span>
-    <span class="kw">async fn </span>test_capacity_up() {
+    <span class="attribute">#[tokio::test]
+    </span><span class="kw">async fn </span>test_capacity_up() {
         <span class="kw">let </span>cap = <span class="number">10</span>;
         <span class="kw">let </span>futs = BoundedFuturesUnordered::with_capacity(cap);
         <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..cap {
@@ -477,8 +477,8 @@
         <span class="macro">assert!</span>(futs.push(future::ready(<span class="number">10</span>)).now_or_never().is_none());
     }
 
-    <span class="attribute">#[tokio::test]</span>
-    <span class="kw">async fn </span>test_reserve_up() {
+    <span class="attribute">#[tokio::test]
+    </span><span class="kw">async fn </span>test_reserve_up() {
         <span class="kw">let </span>cap = <span class="number">10</span>;
         <span class="kw">let </span>futs = BoundedFuturesUnordered::with_capacity(cap);
         <span class="kw">let </span><span class="kw-2">mut </span>permits = Vec::new();
@@ -495,8 +495,8 @@
         <span class="macro">assert_eq!</span>(futs.push_semaphore.available_permits(), <span class="number">9</span>);
     }
 
-    <span class="attribute">#[tokio::test]</span>
-    <span class="kw">async fn </span>test_reserve_down() {
+    <span class="attribute">#[tokio::test]
+    </span><span class="kw">async fn </span>test_reserve_down() {
         <span class="kw">let </span>cap = <span class="number">10</span>;
         <span class="kw">let </span>futs = BoundedFuturesUnordered::with_capacity(cap);
         <span class="kw">let </span><span class="kw-2">mut </span>permits = Vec::new();
@@ -515,8 +515,8 @@
         <span class="macro">assert_eq!</span>(futs.push_semaphore.available_permits(), <span class="number">9</span>);
     }
 
-    <span class="attribute">#[tokio::test]</span>
-    <span class="kw">async fn </span>test_capacity_down() {
+    <span class="attribute">#[tokio::test]
+    </span><span class="kw">async fn </span>test_capacity_down() {
         <span class="kw">let </span>cap = <span class="number">10</span>;
         <span class="kw">let </span><span class="kw-2">mut </span>futs = BoundedFuturesUnordered::with_capacity(cap);
 
@@ -531,8 +531,8 @@
         <span class="macro">assert_eq!</span>(futs.push_semaphore.available_permits(), cap)
     }
 
-    <span class="attribute">#[tokio::test]</span>
-    <span class="kw">async fn </span>test_capacity_up_ordered() {
+    <span class="attribute">#[tokio::test]
+    </span><span class="kw">async fn </span>test_capacity_up_ordered() {
         <span class="kw">let </span>cap = <span class="number">10</span>;
         <span class="kw">let </span><span class="kw-2">mut </span>futs = BoundedFuturesOrdered::with_capacity(cap);
         <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..cap {
@@ -542,8 +542,8 @@
         <span class="macro">assert!</span>(futs.push(future::ready(<span class="number">10</span>)).now_or_never().is_none());
     }
 
-    <span class="attribute">#[tokio::test]</span>
-    <span class="kw">async fn </span>test_capacity_down_ordered() {
+    <span class="attribute">#[tokio::test]
+    </span><span class="kw">async fn </span>test_capacity_down_ordered() {
         <span class="kw">let </span>cap = <span class="number">10</span>;
         <span class="kw">let </span><span class="kw-2">mut </span>futs = BoundedFuturesOrdered::with_capacity(cap);
 
@@ -559,4 +559,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

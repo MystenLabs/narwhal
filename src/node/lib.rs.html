@@ -541,8 +541,8 @@
 
         <span class="comment">// Inject memory profiling here if we build with dhat-heap feature flag
         // Put name of primary in heap profile to distinguish diff primaries
-        </span><span class="attribute">#[cfg(feature = <span class="string">&quot;dhat-heap&quot;</span>)]</span>
-        <span class="kw">let </span>profiler = {
+        </span><span class="attribute">#[cfg(feature = <span class="string">&quot;dhat-heap&quot;</span>)]
+        </span><span class="kw">let </span>profiler = {
             <span class="kw">use </span>fastcrypto::traits::EncodeDecodeBase64;
             <span class="kw">use </span>std::path::Path;
 
@@ -579,12 +579,12 @@
         // otherwise this function exits immediately and the profile is dumped way too soon.
         // See https://github.com/nnethercote/dhat-rs/issues/19 for a panic that happens,
         // but at least 2 primaries should complete and dump their profiles.
-        </span><span class="attribute">#[cfg(feature = <span class="string">&quot;dhat-heap&quot;</span>)]</span>
-        {
+        </span><span class="attribute">#[cfg(feature = <span class="string">&quot;dhat-heap&quot;</span>)]
+        </span>{
             <span class="kw">use </span>std::time::Duration;
 
-            <span class="attribute">#[allow(clippy::redundant_clone)]</span>
-            <span class="kw">let </span>profiler2 = profiler.clone();
+            <span class="attribute">#[allow(clippy::redundant_clone)]
+            </span><span class="kw">let </span>profiler2 = profiler.clone();
             std::thread::spawn(|| {
                 std::thread::sleep(Duration::from_secs(<span class="number">240</span>));
                 <span class="macro">println!</span>(<span class="string">&quot;Dropping DHAT profiler...&quot;</span>);
@@ -689,4 +689,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="node" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="node" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

@@ -870,12 +870,12 @@
 
 <span class="kw">const </span>BATCH_RETRIEVE_TIMEOUT: Duration = Duration::from_secs(<span class="number">1</span>);
 
-<span class="attribute">#[cfg(test)]</span>
-<span class="attribute">#[path = <span class="string">&quot;tests/block_waiter_tests.rs&quot;</span>]</span>
-<span class="kw">pub mod </span>block_waiter_tests;
+<span class="attribute">#[cfg(test)]
+#[path = <span class="string">&quot;tests/block_waiter_tests.rs&quot;</span>]
+</span><span class="kw">pub mod </span>block_waiter_tests;
 
-<span class="attribute">#[derive(Debug)]</span>
-<span class="kw">pub enum </span>BlockCommand {
+<span class="attribute">#[derive(Debug)]
+</span><span class="kw">pub enum </span>BlockCommand {
     <span class="doccomment">/// GetBlock dictates retrieving the block data
     /// (vector of transactions) by a given block digest.
     /// Results are sent to the provided Sender. The id is
@@ -896,22 +896,22 @@
     },
 }
 
-<span class="attribute">#[derive(Clone, Debug, Eq, PartialEq)]</span>
-<span class="kw">pub struct </span>GetBlockResponse {
+<span class="attribute">#[derive(Clone, Debug, Eq, PartialEq)]
+</span><span class="kw">pub struct </span>GetBlockResponse {
     <span class="kw">pub </span>id: CertificateDigest,
-    <span class="attribute">#[allow(dead_code)]</span>
-    <span class="kw">pub </span>batches: Vec&lt;BatchMessage&gt;,
+    <span class="attribute">#[allow(dead_code)]
+    </span><span class="kw">pub </span>batches: Vec&lt;BatchMessage&gt;,
 }
 
-<span class="attribute">#[derive(Clone, Debug, Eq, PartialEq)]</span>
-<span class="kw">pub struct </span>GetBlocksResponse {
+<span class="attribute">#[derive(Clone, Debug, Eq, PartialEq)]
+</span><span class="kw">pub struct </span>GetBlocksResponse {
     <span class="kw">pub </span>blocks: Vec&lt;BlockResult&lt;GetBlockResponse&gt;&gt;,
 }
 
 <span class="kw">pub type </span>BatchResult = <span class="prelude-ty">Result</span>&lt;BatchMessage, BatchMessageError&gt;;
 
-<span class="attribute">#[derive(Clone, Default, Debug)]</span>
-<span class="comment">// If worker couldn&#39;t send us a batch, this error message
+<span class="attribute">#[derive(Clone, Default, Debug)]
+</span><span class="comment">// If worker couldn&#39;t send us a batch, this error message
 // should be passed to BlockWaiter.
 </span><span class="kw">pub struct </span>BatchMessageError {
     <span class="kw">pub </span>id: BatchDigest,
@@ -919,15 +919,15 @@
 
 <span class="kw">type </span>BlocksResult = <span class="prelude-ty">Result</span>&lt;GetBlocksResponse, BlocksError&gt;;
 
-<span class="attribute">#[derive(Debug, Clone)]</span>
-<span class="kw">pub struct </span>BlocksError {
+<span class="attribute">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>BlocksError {
     ids: Vec&lt;CertificateDigest&gt;,
-    <span class="attribute">#[allow(dead_code)]</span>
-    error: BlocksErrorType,
+    <span class="attribute">#[allow(dead_code)]
+    </span>error: BlocksErrorType,
 }
 
-<span class="attribute">#[derive(Debug, Clone, Eq, PartialEq)]</span>
-<span class="kw">pub enum </span>BlocksErrorType {
+<span class="attribute">#[derive(Debug, Clone, Eq, PartialEq)]
+</span><span class="kw">pub enum </span>BlocksErrorType {
     Error,
 }
 
@@ -1093,8 +1093,8 @@
 <span class="kw">impl</span>&lt;SynchronizerHandler: Handler + Send + Sync + <span class="lifetime">&#39;static</span>&gt; BlockWaiter&lt;SynchronizerHandler&gt; {
     <span class="comment">// Create a new waiter and start listening on incoming
     // commands to fetch a block
-    </span><span class="attribute">#[must_use]</span>
-    <span class="kw">pub fn </span>spawn(
+    </span><span class="attribute">#[must_use]
+    </span><span class="kw">pub fn </span>spawn(
         name: PublicKey,
         committee: Committee,
         rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;,
@@ -1131,7 +1131,7 @@
             <span class="self">self</span>.name
         );
         <span class="kw">loop </span>{
-            <span class="macro">tokio::select!</span> {
+            <span class="macro">tokio::select! </span>{
                 <span class="prelude-val">Some</span>(command) = <span class="self">self</span>.rx_commands.recv() =&gt; {
                     <span class="kw">match </span>command {
                         BlockCommand::GetBlocks { ids, sender } =&gt; {
@@ -1219,8 +1219,8 @@
         }
     }
 
-    <span class="attribute">#[instrument(level=<span class="string">&quot;debug&quot;</span>, skip_all, fields(num_block_ids = ids.len()))]</span>
-    <span class="kw">async fn </span>handle_get_blocks_command&lt;<span class="lifetime">&#39;a</span>&gt;(
+    <span class="attribute">#[instrument(level=<span class="string">&quot;debug&quot;</span>, skip_all, fields(num_block_ids = ids.len()))]
+    </span><span class="kw">async fn </span>handle_get_blocks_command&lt;<span class="lifetime">&#39;a</span>&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         ids: Vec&lt;CertificateDigest&gt;,
         sender: oneshot::Sender&lt;BlocksResult&gt;,
@@ -1260,8 +1260,8 @@
     }
 
     <span class="doccomment">/// Helper method to retrieve a single certificate.
-    </span><span class="attribute">#[instrument(level = <span class="string">&quot;trace&quot;</span>, skip_all, fields(certificate_id = <span class="question-mark">?</span>id))]</span>
-    <span class="kw">async fn </span>get_certificate(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: CertificateDigest) -&gt; <span class="prelude-ty">Option</span>&lt;Certificate&gt; {
+    </span><span class="attribute">#[instrument(level = <span class="string">&quot;trace&quot;</span>, skip_all, fields(certificate_id = <span class="question-mark">?</span>id))]
+    </span><span class="kw">async fn </span>get_certificate(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: CertificateDigest) -&gt; <span class="prelude-ty">Option</span>&lt;Certificate&gt; {
         <span class="kw">if let </span><span class="prelude-val">Some</span>((<span class="kw">_</span>, c)) = <span class="self">self</span>.get_certificates(<span class="macro">vec!</span>[id]).<span class="kw">await</span>.first() {
             <span class="kw">return </span>c.to_owned();
         }
@@ -1273,8 +1273,8 @@
     /// fetch it via the peers. Otherwise if available on the storage
     /// should return the result immediately. The method is blocking to
     /// retrieve all the results.
-    </span><span class="attribute">#[instrument(level = <span class="string">&quot;trace&quot;</span>, skip_all, fields(num_certificate_ids = ids.len()))]</span>
-    <span class="kw">async fn </span>get_certificates(
+    </span><span class="attribute">#[instrument(level = <span class="string">&quot;trace&quot;</span>, skip_all, fields(num_certificate_ids = ids.len()))]
+    </span><span class="kw">async fn </span>get_certificates(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         ids: Vec&lt;CertificateDigest&gt;,
     ) -&gt; Vec&lt;(CertificateDigest, <span class="prelude-ty">Option</span>&lt;Certificate&gt;)&gt; {
@@ -1377,8 +1377,8 @@
     <span class="comment">// handles received commands and returns back a future if needs to
     // wait for further results. Otherwise, an empty option is returned
     // if no further waiting on processing is needed.
-    </span><span class="attribute">#[instrument(level=<span class="string">&quot;debug&quot;</span>, skip_all, fields(block_id = <span class="question-mark">?</span>id))]</span>
-    <span class="kw">async fn </span>handle_get_block_command&lt;<span class="lifetime">&#39;a</span>&gt;(
+    </span><span class="attribute">#[instrument(level=<span class="string">&quot;debug&quot;</span>, skip_all, fields(block_id = <span class="question-mark">?</span>id))]
+    </span><span class="kw">async fn </span>handle_get_block_command&lt;<span class="lifetime">&#39;a</span>&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         id: CertificateDigest,
         sender: oneshot::Sender&lt;BlockResult&lt;GetBlockResponse&gt;&gt;,
@@ -1675,4 +1675,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

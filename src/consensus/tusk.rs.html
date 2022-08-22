@@ -280,9 +280,9 @@
 <span class="kw">use </span>tracing::debug;
 <span class="kw">use </span>types::{Certificate, CertificateDigest, ConsensusStore, Round, StoreResult};
 
-<span class="attribute">#[cfg(any(test))]</span>
-<span class="attribute">#[path = <span class="string">&quot;tests/tusk_tests.rs&quot;</span>]</span>
-<span class="kw">pub mod </span>tusk_tests;
+<span class="attribute">#[cfg(any(test))]
+#[path = <span class="string">&quot;tests/tusk_tests.rs&quot;</span>]
+</span><span class="kw">pub mod </span>tusk_tests;
 
 <span class="kw">pub struct </span>Tusk {
     <span class="doccomment">/// The committee information.
@@ -422,8 +422,8 @@
         //
         // Note: this function is often called with even rounds only. While we do not aim at random selection
         // yet (see issue #10), repeated calls to this function should still pick from the whole roster of leaders.
-        </span><span class="macro">cfg_if::cfg_if!</span> {
-            <span class="kw">if </span><span class="attribute">#[cfg(test)]</span> {
+        </span><span class="macro">cfg_if::cfg_if! </span>{
+            <span class="kw">if </span><span class="attribute">#[cfg(test)] </span>{
                 <span class="comment">// consensus tests rely on returning the same leader.
                 </span><span class="kw">let </span>leader = committee.authorities.iter().next().expect(<span class="string">&quot;Empty authorities table!&quot;</span>).<span class="number">0</span>;
             } <span class="kw">else </span>{
@@ -437,8 +437,8 @@
     }
 }
 
-<span class="attribute">#[cfg(test)]</span>
-<span class="kw">mod </span>tests {
+<span class="attribute">#[cfg(test)]
+</span><span class="kw">mod </span>tests {
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
     <span class="kw">use </span><span class="kw">crate</span>::metrics::ConsensusMetrics;
     <span class="kw">use </span>arc_swap::ArcSwap;
@@ -449,8 +449,8 @@
     <span class="kw">use </span>test_utils::{make_consensus_store, mock_committee};
     <span class="kw">use </span>types::Certificate;
 
-    <span class="attribute">#[test]</span>
-    <span class="kw">fn </span>state_limits_test() {
+    <span class="attribute">#[test]
+    </span><span class="kw">fn </span>state_limits_test() {
         <span class="kw">let </span>gc_depth = <span class="number">12</span>;
         <span class="kw">let </span>rounds: Round = rand::thread_rng().gen_range(<span class="number">10</span>..<span class="number">100</span>);
 
@@ -496,8 +496,8 @@
         <span class="macro">assert!</span>(n &lt;= <span class="number">6</span>, <span class="string">&quot;DAG size: {}&quot;</span>, n);
     }
 
-    <span class="attribute">#[test]</span>
-    <span class="kw">fn </span>imperfect_state_limits_test() {
+    <span class="attribute">#[test]
+    </span><span class="kw">fn </span>imperfect_state_limits_test() {
         <span class="kw">let </span>gc_depth = <span class="number">12</span>;
         <span class="kw">let </span>rounds: Round = rand::thread_rng().gen_range(<span class="number">10</span>..<span class="number">100</span>);
 
@@ -537,4 +537,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="consensus" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="consensus" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

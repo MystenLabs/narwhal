@@ -2497,183 +2497,183 @@
 <span id="2497">2497</span>
 <span id="2498">2498</span>
 <span id="2499">2499</span>
-</pre><pre class="rust"><code><span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]</span>
-<span class="kw">pub struct </span>CertificateDigest {
-    <span class="attribute">#[prost(bytes=<span class="string">&quot;bytes&quot;</span>, tag=<span class="string">&quot;1&quot;</span>)]</span>
-    <span class="kw">pub </span>digest: ::prost::bytes::Bytes,
+</pre><pre class="rust"><code><span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]
+</span><span class="kw">pub struct </span>CertificateDigest {
+    <span class="attribute">#[prost(bytes=<span class="string">&quot;bytes&quot;</span>, tag=<span class="string">&quot;1&quot;</span>)]
+    </span><span class="kw">pub </span>digest: ::prost::bytes::Bytes,
 }
-<span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]</span>
-<span class="kw">pub struct </span>Transaction {
-    <span class="attribute">#[prost(bytes=<span class="string">&quot;bytes&quot;</span>, tag=<span class="string">&quot;1&quot;</span>)]</span>
-    <span class="kw">pub </span>transaction: ::prost::bytes::Bytes,
+<span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]
+</span><span class="kw">pub struct </span>Transaction {
+    <span class="attribute">#[prost(bytes=<span class="string">&quot;bytes&quot;</span>, tag=<span class="string">&quot;1&quot;</span>)]
+    </span><span class="kw">pub </span>transaction: ::prost::bytes::Bytes,
 }
-<span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]</span>
-<span class="kw">pub struct </span>CollectionError {
+<span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]
+</span><span class="kw">pub struct </span>CollectionError {
     <span class="doccomment">/// The collection for which this error refers to
-    </span><span class="attribute">#[prost(message, optional, tag=<span class="string">&quot;1&quot;</span>)]</span>
-    <span class="kw">pub </span>id: ::core::option::Option&lt;CertificateDigest&gt;,
-    <span class="attribute">#[prost(enumeration=<span class="string">&quot;collection_error::CollectionErrorType&quot;</span>, tag=<span class="string">&quot;2&quot;</span>)]</span>
-    <span class="kw">pub </span>error: i32,
+    </span><span class="attribute">#[prost(message, optional, tag=<span class="string">&quot;1&quot;</span>)]
+    </span><span class="kw">pub </span>id: ::core::option::Option&lt;CertificateDigest&gt;,
+    <span class="attribute">#[prost(enumeration=<span class="string">&quot;collection_error::CollectionErrorType&quot;</span>, tag=<span class="string">&quot;2&quot;</span>)]
+    </span><span class="kw">pub </span>error: i32,
 }
 <span class="doccomment">/// Nested message and enum types in `CollectionError`.
 </span><span class="kw">pub mod </span>collection_error {
-    <span class="attribute">#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]</span>
-    <span class="attribute">#[repr(i32)]</span>
-    <span class="kw">pub enum </span>CollectionErrorType {
+    <span class="attribute">#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+    #[repr(i32)]
+    </span><span class="kw">pub enum </span>CollectionErrorType {
         CollectionNotFound = <span class="number">0</span>,
         CollectionTimeout = <span class="number">1</span>,
         CollectionError = <span class="number">2</span>,
     }
 }
-<span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]</span>
-<span class="kw">pub struct </span>PrimaryAddresses {
-    <span class="attribute">#[prost(message, optional, tag=<span class="string">&quot;1&quot;</span>)]</span>
-    <span class="kw">pub </span>primary_to_primary: ::core::option::Option&lt;MultiAddr&gt;,
-    <span class="attribute">#[prost(message, optional, tag=<span class="string">&quot;2&quot;</span>)]</span>
-    <span class="kw">pub </span>worker_to_primary: ::core::option::Option&lt;MultiAddr&gt;,
+<span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]
+</span><span class="kw">pub struct </span>PrimaryAddresses {
+    <span class="attribute">#[prost(message, optional, tag=<span class="string">&quot;1&quot;</span>)]
+    </span><span class="kw">pub </span>primary_to_primary: ::core::option::Option&lt;MultiAddr&gt;,
+    <span class="attribute">#[prost(message, optional, tag=<span class="string">&quot;2&quot;</span>)]
+    </span><span class="kw">pub </span>worker_to_primary: ::core::option::Option&lt;MultiAddr&gt;,
 }
-<span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]</span>
-<span class="kw">pub struct </span>MultiAddr {
-    <span class="attribute">#[prost(string, tag=<span class="string">&quot;1&quot;</span>)]</span>
-    <span class="kw">pub </span>address: ::prost::alloc::string::String,
+<span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]
+</span><span class="kw">pub struct </span>MultiAddr {
+    <span class="attribute">#[prost(string, tag=<span class="string">&quot;1&quot;</span>)]
+    </span><span class="kw">pub </span>address: ::prost::alloc::string::String,
 }
-<span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]</span>
-<span class="kw">pub struct </span>PublicKey {
-    <span class="attribute">#[prost(bytes=<span class="string">&quot;bytes&quot;</span>, tag=<span class="string">&quot;1&quot;</span>)]</span>
-    <span class="kw">pub </span>bytes: ::prost::bytes::Bytes,
+<span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]
+</span><span class="kw">pub struct </span>PublicKey {
+    <span class="attribute">#[prost(bytes=<span class="string">&quot;bytes&quot;</span>, tag=<span class="string">&quot;1&quot;</span>)]
+    </span><span class="kw">pub </span>bytes: ::prost::bytes::Bytes,
 }
-<span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]</span>
-<span class="kw">pub struct </span>ValidatorData {
-    <span class="attribute">#[prost(message, optional, tag=<span class="string">&quot;1&quot;</span>)]</span>
-    <span class="kw">pub </span>public_key: ::core::option::Option&lt;PublicKey&gt;,
-    <span class="attribute">#[prost(int64, tag=<span class="string">&quot;2&quot;</span>)]</span>
-    <span class="kw">pub </span>stake_weight: i64,
-    <span class="attribute">#[prost(message, optional, tag=<span class="string">&quot;3&quot;</span>)]</span>
-    <span class="kw">pub </span>primary_addresses: ::core::option::Option&lt;PrimaryAddresses&gt;,
+<span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]
+</span><span class="kw">pub struct </span>ValidatorData {
+    <span class="attribute">#[prost(message, optional, tag=<span class="string">&quot;1&quot;</span>)]
+    </span><span class="kw">pub </span>public_key: ::core::option::Option&lt;PublicKey&gt;,
+    <span class="attribute">#[prost(int64, tag=<span class="string">&quot;2&quot;</span>)]
+    </span><span class="kw">pub </span>stake_weight: i64,
+    <span class="attribute">#[prost(message, optional, tag=<span class="string">&quot;3&quot;</span>)]
+    </span><span class="kw">pub </span>primary_addresses: ::core::option::Option&lt;PrimaryAddresses&gt;,
 }
-<span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]</span>
-<span class="kw">pub struct </span>Collection {
+<span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]
+</span><span class="kw">pub struct </span>Collection {
     <span class="doccomment">/// The collection&#39;s id
-    </span><span class="attribute">#[prost(message, optional, tag=<span class="string">&quot;1&quot;</span>)]</span>
-    <span class="kw">pub </span>id: ::core::option::Option&lt;CertificateDigest&gt;,
+    </span><span class="attribute">#[prost(message, optional, tag=<span class="string">&quot;1&quot;</span>)]
+    </span><span class="kw">pub </span>id: ::core::option::Option&lt;CertificateDigest&gt;,
     <span class="doccomment">/// The transactions that are part of the collection
-    </span><span class="attribute">#[prost(message, repeated, tag=<span class="string">&quot;2&quot;</span>)]</span>
-    <span class="kw">pub </span>transactions: ::prost::alloc::vec::Vec&lt;Transaction&gt;,
+    </span><span class="attribute">#[prost(message, repeated, tag=<span class="string">&quot;2&quot;</span>)]
+    </span><span class="kw">pub </span>transactions: ::prost::alloc::vec::Vec&lt;Transaction&gt;,
 }
-<span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]</span>
-<span class="kw">pub struct </span>CollectionRetrievalResult {
-    <span class="attribute">#[prost(oneof=<span class="string">&quot;collection_retrieval_result::RetrievalResult&quot;</span>, tags=<span class="string">&quot;1, 2&quot;</span>)]</span>
-    <span class="kw">pub </span>retrieval_result: ::core::option::Option&lt;collection_retrieval_result::RetrievalResult&gt;,
+<span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]
+</span><span class="kw">pub struct </span>CollectionRetrievalResult {
+    <span class="attribute">#[prost(oneof=<span class="string">&quot;collection_retrieval_result::RetrievalResult&quot;</span>, tags=<span class="string">&quot;1, 2&quot;</span>)]
+    </span><span class="kw">pub </span>retrieval_result: ::core::option::Option&lt;collection_retrieval_result::RetrievalResult&gt;,
 }
 <span class="doccomment">/// Nested message and enum types in `CollectionRetrievalResult`.
 </span><span class="kw">pub mod </span>collection_retrieval_result {
-    <span class="attribute">#[derive(Clone, PartialEq, ::prost::Oneof)]</span>
-    <span class="kw">pub enum </span>RetrievalResult {
-        <span class="attribute">#[prost(message, tag=<span class="string">&quot;1&quot;</span>)]</span>
-        Collection(<span class="kw">super</span>::Collection),
-        <span class="attribute">#[prost(message, tag=<span class="string">&quot;2&quot;</span>)]</span>
-        Error(<span class="kw">super</span>::CollectionError),
+    <span class="attribute">#[derive(Clone, PartialEq, ::prost::Oneof)]
+    </span><span class="kw">pub enum </span>RetrievalResult {
+        <span class="attribute">#[prost(message, tag=<span class="string">&quot;1&quot;</span>)]
+        </span>Collection(<span class="kw">super</span>::Collection),
+        <span class="attribute">#[prost(message, tag=<span class="string">&quot;2&quot;</span>)]
+        </span>Error(<span class="kw">super</span>::CollectionError),
     }
 }
-<span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]</span>
-<span class="kw">pub struct </span>GetCollectionsRequest {
+<span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]
+</span><span class="kw">pub struct </span>GetCollectionsRequest {
     <span class="doccomment">/// List of collections to be retrieved.
-    </span><span class="attribute">#[prost(message, repeated, tag=<span class="string">&quot;1&quot;</span>)]</span>
-    <span class="kw">pub </span>collection_ids: ::prost::alloc::vec::Vec&lt;CertificateDigest&gt;,
+    </span><span class="attribute">#[prost(message, repeated, tag=<span class="string">&quot;1&quot;</span>)]
+    </span><span class="kw">pub </span>collection_ids: ::prost::alloc::vec::Vec&lt;CertificateDigest&gt;,
 }
-<span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]</span>
-<span class="kw">pub struct </span>GetCollectionsResponse {
+<span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]
+</span><span class="kw">pub struct </span>GetCollectionsResponse {
     <span class="doccomment">/// TODO: Revisit this for spec compliance.
     /// List of retrieval results of collections.
-    </span><span class="attribute">#[prost(message, repeated, tag=<span class="string">&quot;1&quot;</span>)]</span>
-    <span class="kw">pub </span>result: ::prost::alloc::vec::Vec&lt;CollectionRetrievalResult&gt;,
+    </span><span class="attribute">#[prost(message, repeated, tag=<span class="string">&quot;1&quot;</span>)]
+    </span><span class="kw">pub </span>result: ::prost::alloc::vec::Vec&lt;CollectionRetrievalResult&gt;,
 }
-<span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]</span>
-<span class="kw">pub struct </span>RemoveCollectionsRequest {
+<span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]
+</span><span class="kw">pub struct </span>RemoveCollectionsRequest {
     <span class="doccomment">/// List of collections to be removed.
-    </span><span class="attribute">#[prost(message, repeated, tag=<span class="string">&quot;1&quot;</span>)]</span>
-    <span class="kw">pub </span>collection_ids: ::prost::alloc::vec::Vec&lt;CertificateDigest&gt;,
+    </span><span class="attribute">#[prost(message, repeated, tag=<span class="string">&quot;1&quot;</span>)]
+    </span><span class="kw">pub </span>collection_ids: ::prost::alloc::vec::Vec&lt;CertificateDigest&gt;,
 }
-<span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]</span>
-<span class="kw">pub struct </span>ReadCausalRequest {
+<span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]
+</span><span class="kw">pub struct </span>ReadCausalRequest {
     <span class="doccomment">/// A collection for which a sequence of related collections are to be retrieved.
-    </span><span class="attribute">#[prost(message, optional, tag=<span class="string">&quot;1&quot;</span>)]</span>
-    <span class="kw">pub </span>collection_id: ::core::option::Option&lt;CertificateDigest&gt;,
+    </span><span class="attribute">#[prost(message, optional, tag=<span class="string">&quot;1&quot;</span>)]
+    </span><span class="kw">pub </span>collection_id: ::core::option::Option&lt;CertificateDigest&gt;,
 }
-<span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]</span>
-<span class="kw">pub struct </span>ReadCausalResponse {
+<span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]
+</span><span class="kw">pub struct </span>ReadCausalResponse {
     <span class="doccomment">/// Resulting sequence of collections from DAG walk.
-    </span><span class="attribute">#[prost(message, repeated, tag=<span class="string">&quot;1&quot;</span>)]</span>
-    <span class="kw">pub </span>collection_ids: ::prost::alloc::vec::Vec&lt;CertificateDigest&gt;,
+    </span><span class="attribute">#[prost(message, repeated, tag=<span class="string">&quot;1&quot;</span>)]
+    </span><span class="kw">pub </span>collection_ids: ::prost::alloc::vec::Vec&lt;CertificateDigest&gt;,
 }
-<span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]</span>
-<span class="kw">pub struct </span>RoundsRequest {
+<span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]
+</span><span class="kw">pub struct </span>RoundsRequest {
     <span class="comment">//// The validator&#39;s key for which we want to retrieve
     //// the available rounds.
-    </span><span class="attribute">#[prost(message, optional, tag=<span class="string">&quot;1&quot;</span>)]</span>
-    <span class="kw">pub </span>public_key: ::core::option::Option&lt;PublicKey&gt;,
+    </span><span class="attribute">#[prost(message, optional, tag=<span class="string">&quot;1&quot;</span>)]
+    </span><span class="kw">pub </span>public_key: ::core::option::Option&lt;PublicKey&gt;,
 }
-<span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]</span>
-<span class="kw">pub struct </span>RoundsResponse {
+<span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]
+</span><span class="kw">pub struct </span>RoundsResponse {
     <span class="comment">//// The oldest round for which the node has available
     //// blocks to propose for the defined validator.
-    </span><span class="attribute">#[prost(uint64, tag=<span class="string">&quot;1&quot;</span>)]</span>
-    <span class="kw">pub </span>oldest_round: u64,
+    </span><span class="attribute">#[prost(uint64, tag=<span class="string">&quot;1&quot;</span>)]
+    </span><span class="kw">pub </span>oldest_round: u64,
     <span class="comment">//// The newest (latest) round for which the node has available
     //// blocks to propose for the defined validator.
-    </span><span class="attribute">#[prost(uint64, tag=<span class="string">&quot;2&quot;</span>)]</span>
-    <span class="kw">pub </span>newest_round: u64,
+    </span><span class="attribute">#[prost(uint64, tag=<span class="string">&quot;2&quot;</span>)]
+    </span><span class="kw">pub </span>newest_round: u64,
 }
-<span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]</span>
-<span class="kw">pub struct </span>NodeReadCausalRequest {
-    <span class="attribute">#[prost(message, optional, tag=<span class="string">&quot;1&quot;</span>)]</span>
-    <span class="kw">pub </span>public_key: ::core::option::Option&lt;PublicKey&gt;,
-    <span class="attribute">#[prost(uint64, tag=<span class="string">&quot;2&quot;</span>)]</span>
-    <span class="kw">pub </span>round: u64,
+<span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]
+</span><span class="kw">pub struct </span>NodeReadCausalRequest {
+    <span class="attribute">#[prost(message, optional, tag=<span class="string">&quot;1&quot;</span>)]
+    </span><span class="kw">pub </span>public_key: ::core::option::Option&lt;PublicKey&gt;,
+    <span class="attribute">#[prost(uint64, tag=<span class="string">&quot;2&quot;</span>)]
+    </span><span class="kw">pub </span>round: u64,
 }
-<span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]</span>
-<span class="kw">pub struct </span>NodeReadCausalResponse {
+<span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]
+</span><span class="kw">pub struct </span>NodeReadCausalResponse {
     <span class="doccomment">/// Resulting sequence of collections from DAG walk.
-    </span><span class="attribute">#[prost(message, repeated, tag=<span class="string">&quot;1&quot;</span>)]</span>
-    <span class="kw">pub </span>collection_ids: ::prost::alloc::vec::Vec&lt;CertificateDigest&gt;,
+    </span><span class="attribute">#[prost(message, repeated, tag=<span class="string">&quot;1&quot;</span>)]
+    </span><span class="kw">pub </span>collection_ids: ::prost::alloc::vec::Vec&lt;CertificateDigest&gt;,
 }
-<span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]</span>
-<span class="kw">pub struct </span>NewNetworkInfoRequest {
-    <span class="attribute">#[prost(uint32, tag=<span class="string">&quot;1&quot;</span>)]</span>
-    <span class="kw">pub </span>epoch_number: u32,
-    <span class="attribute">#[prost(message, repeated, tag=<span class="string">&quot;2&quot;</span>)]</span>
-    <span class="kw">pub </span>validators: ::prost::alloc::vec::Vec&lt;ValidatorData&gt;,
+<span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]
+</span><span class="kw">pub struct </span>NewNetworkInfoRequest {
+    <span class="attribute">#[prost(uint32, tag=<span class="string">&quot;1&quot;</span>)]
+    </span><span class="kw">pub </span>epoch_number: u32,
+    <span class="attribute">#[prost(message, repeated, tag=<span class="string">&quot;2&quot;</span>)]
+    </span><span class="kw">pub </span>validators: ::prost::alloc::vec::Vec&lt;ValidatorData&gt;,
 }
-<span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]</span>
-<span class="kw">pub struct </span>NewEpochRequest {
-    <span class="attribute">#[prost(uint32, tag=<span class="string">&quot;1&quot;</span>)]</span>
-    <span class="kw">pub </span>epoch_number: u32,
-    <span class="attribute">#[prost(message, repeated, tag=<span class="string">&quot;2&quot;</span>)]</span>
-    <span class="kw">pub </span>validators: ::prost::alloc::vec::Vec&lt;ValidatorData&gt;,
+<span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]
+</span><span class="kw">pub struct </span>NewEpochRequest {
+    <span class="attribute">#[prost(uint32, tag=<span class="string">&quot;1&quot;</span>)]
+    </span><span class="kw">pub </span>epoch_number: u32,
+    <span class="attribute">#[prost(message, repeated, tag=<span class="string">&quot;2&quot;</span>)]
+    </span><span class="kw">pub </span>validators: ::prost::alloc::vec::Vec&lt;ValidatorData&gt;,
 }
-<span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]</span>
-<span class="kw">pub struct </span>GetPrimaryAddressResponse {
-    <span class="attribute">#[prost(message, optional, tag=<span class="string">&quot;1&quot;</span>)]</span>
-    <span class="kw">pub </span>primary_address: ::core::option::Option&lt;MultiAddr&gt;,
+<span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]
+</span><span class="kw">pub struct </span>GetPrimaryAddressResponse {
+    <span class="attribute">#[prost(message, optional, tag=<span class="string">&quot;1&quot;</span>)]
+    </span><span class="kw">pub </span>primary_address: ::core::option::Option&lt;MultiAddr&gt;,
 }
 <span class="doccomment">/// A bincode encoded payload. This is intended to be used in the short-term
 /// while we don&#39;t have good protobuf definitions for Narwhal types
-</span><span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]</span>
-<span class="kw">pub struct </span>BincodeEncodedPayload {
-    <span class="attribute">#[prost(bytes=<span class="string">&quot;bytes&quot;</span>, tag=<span class="string">&quot;1&quot;</span>)]</span>
-    <span class="kw">pub </span>payload: ::prost::bytes::Bytes,
+</span><span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]
+</span><span class="kw">pub struct </span>BincodeEncodedPayload {
+    <span class="attribute">#[prost(bytes=<span class="string">&quot;bytes&quot;</span>, tag=<span class="string">&quot;1&quot;</span>)]
+    </span><span class="kw">pub </span>payload: ::prost::bytes::Bytes,
 }
 <span class="doccomment">/// Empty message for when we don&#39;t have anything to return
-</span><span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]</span>
-<span class="kw">pub struct </span>Empty {
+</span><span class="attribute">#[derive(Clone, PartialEq, ::prost::Message)]
+</span><span class="kw">pub struct </span>Empty {
 }
 <span class="doccomment">/// Generated client implementations.
 </span><span class="kw">pub mod </span>validator_client {
-    <span class="attribute">#![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]</span>
-    <span class="kw">use </span>tonic::codegen::<span class="kw-2">*</span>;
+    <span class="attribute">#![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
+    </span><span class="kw">use </span>tonic::codegen::<span class="kw-2">*</span>;
     <span class="doccomment">/// The consensus to mempool interface for validator actions.
-    </span><span class="attribute">#[derive(Debug, Clone)]</span>
-    <span class="kw">pub struct </span>ValidatorClient&lt;T&gt; {
+    </span><span class="attribute">#[derive(Debug, Clone)]
+    </span><span class="kw">pub struct </span>ValidatorClient&lt;T&gt; {
         inner: tonic::client::Grpc&lt;T&gt;,
     }
     <span class="kw">impl </span>ValidatorClient&lt;tonic::transport::Channel&gt; {
@@ -2721,14 +2721,14 @@
         ///
         /// This requires the server to support it otherwise it might respond with an
         /// error.
-        </span><span class="attribute">#[must_use]</span>
-        <span class="kw">pub fn </span>send_gzip(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
+        </span><span class="attribute">#[must_use]
+        </span><span class="kw">pub fn </span>send_gzip(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
             <span class="self">self</span>.inner = <span class="self">self</span>.inner.send_gzip();
             <span class="self">self
         </span>}
         <span class="doccomment">/// Enable decompressing responses with `gzip`.
-        </span><span class="attribute">#[must_use]</span>
-        <span class="kw">pub fn </span>accept_gzip(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
+        </span><span class="attribute">#[must_use]
+        </span><span class="kw">pub fn </span>accept_gzip(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
             <span class="self">self</span>.inner = <span class="self">self</span>.inner.accept_gzip();
             <span class="self">self
         </span>}
@@ -2796,12 +2796,12 @@
 }
 <span class="doccomment">/// Generated client implementations.
 </span><span class="kw">pub mod </span>proposer_client {
-    <span class="attribute">#![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]</span>
-    <span class="kw">use </span>tonic::codegen::<span class="kw-2">*</span>;
+    <span class="attribute">#![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
+    </span><span class="kw">use </span>tonic::codegen::<span class="kw-2">*</span>;
     <span class="comment">//// The API that hosts the endpoints that should be used to help
     //// proposing a block.
-    </span><span class="attribute">#[derive(Debug, Clone)]</span>
-    <span class="kw">pub struct </span>ProposerClient&lt;T&gt; {
+    </span><span class="attribute">#[derive(Debug, Clone)]
+    </span><span class="kw">pub struct </span>ProposerClient&lt;T&gt; {
         inner: tonic::client::Grpc&lt;T&gt;,
     }
     <span class="kw">impl </span>ProposerClient&lt;tonic::transport::Channel&gt; {
@@ -2849,14 +2849,14 @@
         ///
         /// This requires the server to support it otherwise it might respond with an
         /// error.
-        </span><span class="attribute">#[must_use]</span>
-        <span class="kw">pub fn </span>send_gzip(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
+        </span><span class="attribute">#[must_use]
+        </span><span class="kw">pub fn </span>send_gzip(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
             <span class="self">self</span>.inner = <span class="self">self</span>.inner.send_gzip();
             <span class="self">self
         </span>}
         <span class="doccomment">/// Enable decompressing responses with `gzip`.
-        </span><span class="attribute">#[must_use]</span>
-        <span class="kw">pub fn </span>accept_gzip(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
+        </span><span class="attribute">#[must_use]
+        </span><span class="kw">pub fn </span>accept_gzip(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
             <span class="self">self</span>.inner = <span class="self">self</span>.inner.accept_gzip();
             <span class="self">self
         </span>}
@@ -2902,10 +2902,10 @@
 }
 <span class="doccomment">/// Generated client implementations.
 </span><span class="kw">pub mod </span>configuration_client {
-    <span class="attribute">#![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]</span>
-    <span class="kw">use </span>tonic::codegen::<span class="kw-2">*</span>;
-    <span class="attribute">#[derive(Debug, Clone)]</span>
-    <span class="kw">pub struct </span>ConfigurationClient&lt;T&gt; {
+    <span class="attribute">#![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
+    </span><span class="kw">use </span>tonic::codegen::<span class="kw-2">*</span>;
+    <span class="attribute">#[derive(Debug, Clone)]
+    </span><span class="kw">pub struct </span>ConfigurationClient&lt;T&gt; {
         inner: tonic::client::Grpc&lt;T&gt;,
     }
     <span class="kw">impl </span>ConfigurationClient&lt;tonic::transport::Channel&gt; {
@@ -2953,14 +2953,14 @@
         ///
         /// This requires the server to support it otherwise it might respond with an
         /// error.
-        </span><span class="attribute">#[must_use]</span>
-        <span class="kw">pub fn </span>send_gzip(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
+        </span><span class="attribute">#[must_use]
+        </span><span class="kw">pub fn </span>send_gzip(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
             <span class="self">self</span>.inner = <span class="self">self</span>.inner.send_gzip();
             <span class="self">self
         </span>}
         <span class="doccomment">/// Enable decompressing responses with `gzip`.
-        </span><span class="attribute">#[must_use]</span>
-        <span class="kw">pub fn </span>accept_gzip(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
+        </span><span class="attribute">#[must_use]
+        </span><span class="kw">pub fn </span>accept_gzip(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
             <span class="self">self</span>.inner = <span class="self">self</span>.inner.accept_gzip();
             <span class="self">self
         </span>}
@@ -3028,11 +3028,11 @@
 }
 <span class="doccomment">/// Generated client implementations.
 </span><span class="kw">pub mod </span>primary_to_primary_client {
-    <span class="attribute">#![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]</span>
-    <span class="kw">use </span>tonic::codegen::<span class="kw-2">*</span>;
+    <span class="attribute">#![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
+    </span><span class="kw">use </span>tonic::codegen::<span class="kw-2">*</span>;
     <span class="doccomment">/// The primary-to-primary interface
-    </span><span class="attribute">#[derive(Debug, Clone)]</span>
-    <span class="kw">pub struct </span>PrimaryToPrimaryClient&lt;T&gt; {
+    </span><span class="attribute">#[derive(Debug, Clone)]
+    </span><span class="kw">pub struct </span>PrimaryToPrimaryClient&lt;T&gt; {
         inner: tonic::client::Grpc&lt;T&gt;,
     }
     <span class="kw">impl </span>PrimaryToPrimaryClient&lt;tonic::transport::Channel&gt; {
@@ -3080,14 +3080,14 @@
         ///
         /// This requires the server to support it otherwise it might respond with an
         /// error.
-        </span><span class="attribute">#[must_use]</span>
-        <span class="kw">pub fn </span>send_gzip(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
+        </span><span class="attribute">#[must_use]
+        </span><span class="kw">pub fn </span>send_gzip(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
             <span class="self">self</span>.inner = <span class="self">self</span>.inner.send_gzip();
             <span class="self">self
         </span>}
         <span class="doccomment">/// Enable decompressing responses with `gzip`.
-        </span><span class="attribute">#[must_use]</span>
-        <span class="kw">pub fn </span>accept_gzip(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
+        </span><span class="attribute">#[must_use]
+        </span><span class="kw">pub fn </span>accept_gzip(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
             <span class="self">self</span>.inner = <span class="self">self</span>.inner.accept_gzip();
             <span class="self">self
         </span>}
@@ -3115,11 +3115,11 @@
 }
 <span class="doccomment">/// Generated client implementations.
 </span><span class="kw">pub mod </span>worker_to_worker_client {
-    <span class="attribute">#![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]</span>
-    <span class="kw">use </span>tonic::codegen::<span class="kw-2">*</span>;
+    <span class="attribute">#![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
+    </span><span class="kw">use </span>tonic::codegen::<span class="kw-2">*</span>;
     <span class="doccomment">/// The worker-to-worker interface
-    </span><span class="attribute">#[derive(Debug, Clone)]</span>
-    <span class="kw">pub struct </span>WorkerToWorkerClient&lt;T&gt; {
+    </span><span class="attribute">#[derive(Debug, Clone)]
+    </span><span class="kw">pub struct </span>WorkerToWorkerClient&lt;T&gt; {
         inner: tonic::client::Grpc&lt;T&gt;,
     }
     <span class="kw">impl </span>WorkerToWorkerClient&lt;tonic::transport::Channel&gt; {
@@ -3167,14 +3167,14 @@
         ///
         /// This requires the server to support it otherwise it might respond with an
         /// error.
-        </span><span class="attribute">#[must_use]</span>
-        <span class="kw">pub fn </span>send_gzip(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
+        </span><span class="attribute">#[must_use]
+        </span><span class="kw">pub fn </span>send_gzip(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
             <span class="self">self</span>.inner = <span class="self">self</span>.inner.send_gzip();
             <span class="self">self
         </span>}
         <span class="doccomment">/// Enable decompressing responses with `gzip`.
-        </span><span class="attribute">#[must_use]</span>
-        <span class="kw">pub fn </span>accept_gzip(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
+        </span><span class="attribute">#[must_use]
+        </span><span class="kw">pub fn </span>accept_gzip(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
             <span class="self">self</span>.inner = <span class="self">self</span>.inner.accept_gzip();
             <span class="self">self
         </span>}
@@ -3225,11 +3225,11 @@
 }
 <span class="doccomment">/// Generated client implementations.
 </span><span class="kw">pub mod </span>worker_to_primary_client {
-    <span class="attribute">#![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]</span>
-    <span class="kw">use </span>tonic::codegen::<span class="kw-2">*</span>;
+    <span class="attribute">#![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
+    </span><span class="kw">use </span>tonic::codegen::<span class="kw-2">*</span>;
     <span class="doccomment">/// The worker-to-primary interface
-    </span><span class="attribute">#[derive(Debug, Clone)]</span>
-    <span class="kw">pub struct </span>WorkerToPrimaryClient&lt;T&gt; {
+    </span><span class="attribute">#[derive(Debug, Clone)]
+    </span><span class="kw">pub struct </span>WorkerToPrimaryClient&lt;T&gt; {
         inner: tonic::client::Grpc&lt;T&gt;,
     }
     <span class="kw">impl </span>WorkerToPrimaryClient&lt;tonic::transport::Channel&gt; {
@@ -3277,14 +3277,14 @@
         ///
         /// This requires the server to support it otherwise it might respond with an
         /// error.
-        </span><span class="attribute">#[must_use]</span>
-        <span class="kw">pub fn </span>send_gzip(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
+        </span><span class="attribute">#[must_use]
+        </span><span class="kw">pub fn </span>send_gzip(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
             <span class="self">self</span>.inner = <span class="self">self</span>.inner.send_gzip();
             <span class="self">self
         </span>}
         <span class="doccomment">/// Enable decompressing responses with `gzip`.
-        </span><span class="attribute">#[must_use]</span>
-        <span class="kw">pub fn </span>accept_gzip(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
+        </span><span class="attribute">#[must_use]
+        </span><span class="kw">pub fn </span>accept_gzip(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
             <span class="self">self</span>.inner = <span class="self">self</span>.inner.accept_gzip();
             <span class="self">self
         </span>}
@@ -3331,11 +3331,11 @@
 }
 <span class="doccomment">/// Generated client implementations.
 </span><span class="kw">pub mod </span>primary_to_worker_client {
-    <span class="attribute">#![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]</span>
-    <span class="kw">use </span>tonic::codegen::<span class="kw-2">*</span>;
+    <span class="attribute">#![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
+    </span><span class="kw">use </span>tonic::codegen::<span class="kw-2">*</span>;
     <span class="doccomment">/// The primary-to-worker interface
-    </span><span class="attribute">#[derive(Debug, Clone)]</span>
-    <span class="kw">pub struct </span>PrimaryToWorkerClient&lt;T&gt; {
+    </span><span class="attribute">#[derive(Debug, Clone)]
+    </span><span class="kw">pub struct </span>PrimaryToWorkerClient&lt;T&gt; {
         inner: tonic::client::Grpc&lt;T&gt;,
     }
     <span class="kw">impl </span>PrimaryToWorkerClient&lt;tonic::transport::Channel&gt; {
@@ -3383,14 +3383,14 @@
         ///
         /// This requires the server to support it otherwise it might respond with an
         /// error.
-        </span><span class="attribute">#[must_use]</span>
-        <span class="kw">pub fn </span>send_gzip(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
+        </span><span class="attribute">#[must_use]
+        </span><span class="kw">pub fn </span>send_gzip(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
             <span class="self">self</span>.inner = <span class="self">self</span>.inner.send_gzip();
             <span class="self">self
         </span>}
         <span class="doccomment">/// Enable decompressing responses with `gzip`.
-        </span><span class="attribute">#[must_use]</span>
-        <span class="kw">pub fn </span>accept_gzip(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
+        </span><span class="attribute">#[must_use]
+        </span><span class="kw">pub fn </span>accept_gzip(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
             <span class="self">self</span>.inner = <span class="self">self</span>.inner.accept_gzip();
             <span class="self">self
         </span>}
@@ -3418,10 +3418,10 @@
 }
 <span class="doccomment">/// Generated client implementations.
 </span><span class="kw">pub mod </span>transactions_client {
-    <span class="attribute">#![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]</span>
-    <span class="kw">use </span>tonic::codegen::<span class="kw-2">*</span>;
-    <span class="attribute">#[derive(Debug, Clone)]</span>
-    <span class="kw">pub struct </span>TransactionsClient&lt;T&gt; {
+    <span class="attribute">#![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
+    </span><span class="kw">use </span>tonic::codegen::<span class="kw-2">*</span>;
+    <span class="attribute">#[derive(Debug, Clone)]
+    </span><span class="kw">pub struct </span>TransactionsClient&lt;T&gt; {
         inner: tonic::client::Grpc&lt;T&gt;,
     }
     <span class="kw">impl </span>TransactionsClient&lt;tonic::transport::Channel&gt; {
@@ -3469,14 +3469,14 @@
         ///
         /// This requires the server to support it otherwise it might respond with an
         /// error.
-        </span><span class="attribute">#[must_use]</span>
-        <span class="kw">pub fn </span>send_gzip(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
+        </span><span class="attribute">#[must_use]
+        </span><span class="kw">pub fn </span>send_gzip(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
             <span class="self">self</span>.inner = <span class="self">self</span>.inner.send_gzip();
             <span class="self">self
         </span>}
         <span class="doccomment">/// Enable decompressing responses with `gzip`.
-        </span><span class="attribute">#[must_use]</span>
-        <span class="kw">pub fn </span>accept_gzip(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
+        </span><span class="attribute">#[must_use]
+        </span><span class="kw">pub fn </span>accept_gzip(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
             <span class="self">self</span>.inner = <span class="self">self</span>.inner.accept_gzip();
             <span class="self">self
         </span>}
@@ -3526,11 +3526,11 @@
 }
 <span class="doccomment">/// Generated server implementations.
 </span><span class="kw">pub mod </span>validator_server {
-    <span class="attribute">#![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]</span>
-    <span class="kw">use </span>tonic::codegen::<span class="kw-2">*</span>;
+    <span class="attribute">#![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
+    </span><span class="kw">use </span>tonic::codegen::<span class="kw-2">*</span>;
     <span class="doccomment">///Generated trait containing gRPC methods that should be implemented for use with ValidatorServer.
-    </span><span class="attribute">#[async_trait]</span>
-    <span class="kw">pub trait </span>Validator: Send + Sync + <span class="lifetime">&#39;static </span>{
+    </span><span class="attribute">#[async_trait]
+    </span><span class="kw">pub trait </span>Validator: Send + Sync + <span class="lifetime">&#39;static </span>{
         <span class="doccomment">/// Returns collection contents for each requested collection.
         </span><span class="kw">async fn </span>get_collections(
             <span class="kw-2">&amp;</span><span class="self">self</span>,
@@ -3548,8 +3548,8 @@
         ) -&gt; <span class="prelude-ty">Result</span>&lt;tonic::Response&lt;<span class="kw">super</span>::ReadCausalResponse&gt;, tonic::Status&gt;;
     }
     <span class="doccomment">/// The consensus to mempool interface for validator actions.
-    </span><span class="attribute">#[derive(Debug)]</span>
-    <span class="kw">pub struct </span>ValidatorServer&lt;T: Validator&gt; {
+    </span><span class="attribute">#[derive(Debug)]
+    </span><span class="kw">pub struct </span>ValidatorServer&lt;T: Validator&gt; {
         inner: _Inner&lt;T&gt;,
         accept_compression_encodings: (),
         send_compression_encodings: (),
@@ -3596,8 +3596,8 @@
             <span class="kw">let </span>inner = <span class="self">self</span>.inner.clone();
             <span class="kw">match </span>req.uri().path() {
                 <span class="string">&quot;/narwhal.Validator/GetCollections&quot; </span>=&gt; {
-                    <span class="attribute">#[allow(non_camel_case_types)]</span>
-                    <span class="kw">struct </span>GetCollectionsSvc&lt;T: Validator&gt;(<span class="kw">pub </span>Arc&lt;T&gt;);
+                    <span class="attribute">#[allow(non_camel_case_types)]
+                    </span><span class="kw">struct </span>GetCollectionsSvc&lt;T: Validator&gt;(<span class="kw">pub </span>Arc&lt;T&gt;);
                     <span class="kw">impl</span>&lt;
                         T: Validator,
                     &gt; tonic::server::UnaryService&lt;<span class="kw">super</span>::GetCollectionsRequest&gt;
@@ -3636,8 +3636,8 @@
                     Box::pin(fut)
                 }
                 <span class="string">&quot;/narwhal.Validator/RemoveCollections&quot; </span>=&gt; {
-                    <span class="attribute">#[allow(non_camel_case_types)]</span>
-                    <span class="kw">struct </span>RemoveCollectionsSvc&lt;T: Validator&gt;(<span class="kw">pub </span>Arc&lt;T&gt;);
+                    <span class="attribute">#[allow(non_camel_case_types)]
+                    </span><span class="kw">struct </span>RemoveCollectionsSvc&lt;T: Validator&gt;(<span class="kw">pub </span>Arc&lt;T&gt;);
                     <span class="kw">impl</span>&lt;
                         T: Validator,
                     &gt; tonic::server::UnaryService&lt;<span class="kw">super</span>::RemoveCollectionsRequest&gt;
@@ -3676,8 +3676,8 @@
                     Box::pin(fut)
                 }
                 <span class="string">&quot;/narwhal.Validator/ReadCausal&quot; </span>=&gt; {
-                    <span class="attribute">#[allow(non_camel_case_types)]</span>
-                    <span class="kw">struct </span>ReadCausalSvc&lt;T: Validator&gt;(<span class="kw">pub </span>Arc&lt;T&gt;);
+                    <span class="attribute">#[allow(non_camel_case_types)]
+                    </span><span class="kw">struct </span>ReadCausalSvc&lt;T: Validator&gt;(<span class="kw">pub </span>Arc&lt;T&gt;);
                     <span class="kw">impl</span>&lt;
                         T: Validator,
                     &gt; tonic::server::UnaryService&lt;<span class="kw">super</span>::ReadCausalRequest&gt;
@@ -3754,11 +3754,11 @@
 }
 <span class="doccomment">/// Generated server implementations.
 </span><span class="kw">pub mod </span>proposer_server {
-    <span class="attribute">#![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]</span>
-    <span class="kw">use </span>tonic::codegen::<span class="kw-2">*</span>;
+    <span class="attribute">#![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
+    </span><span class="kw">use </span>tonic::codegen::<span class="kw-2">*</span>;
     <span class="doccomment">///Generated trait containing gRPC methods that should be implemented for use with ProposerServer.
-    </span><span class="attribute">#[async_trait]</span>
-    <span class="kw">pub trait </span>Proposer: Send + Sync + <span class="lifetime">&#39;static </span>{
+    </span><span class="attribute">#[async_trait]
+    </span><span class="kw">pub trait </span>Proposer: Send + Sync + <span class="lifetime">&#39;static </span>{
         <span class="kw">async fn </span>rounds(
             <span class="kw-2">&amp;</span><span class="self">self</span>,
             request: tonic::Request&lt;<span class="kw">super</span>::RoundsRequest&gt;,
@@ -3772,8 +3772,8 @@
     }
     <span class="comment">//// The API that hosts the endpoints that should be used to help
     //// proposing a block.
-    </span><span class="attribute">#[derive(Debug)]</span>
-    <span class="kw">pub struct </span>ProposerServer&lt;T: Proposer&gt; {
+    </span><span class="attribute">#[derive(Debug)]
+    </span><span class="kw">pub struct </span>ProposerServer&lt;T: Proposer&gt; {
         inner: _Inner&lt;T&gt;,
         accept_compression_encodings: (),
         send_compression_encodings: (),
@@ -3820,8 +3820,8 @@
             <span class="kw">let </span>inner = <span class="self">self</span>.inner.clone();
             <span class="kw">match </span>req.uri().path() {
                 <span class="string">&quot;/narwhal.Proposer/Rounds&quot; </span>=&gt; {
-                    <span class="attribute">#[allow(non_camel_case_types)]</span>
-                    <span class="kw">struct </span>RoundsSvc&lt;T: Proposer&gt;(<span class="kw">pub </span>Arc&lt;T&gt;);
+                    <span class="attribute">#[allow(non_camel_case_types)]
+                    </span><span class="kw">struct </span>RoundsSvc&lt;T: Proposer&gt;(<span class="kw">pub </span>Arc&lt;T&gt;);
                     <span class="kw">impl</span>&lt;T: Proposer&gt; tonic::server::UnaryService&lt;<span class="kw">super</span>::RoundsRequest&gt;
                     <span class="kw">for </span>RoundsSvc&lt;T&gt; {
                         <span class="kw">type </span>Response = <span class="kw">super</span>::RoundsResponse;
@@ -3856,8 +3856,8 @@
                     Box::pin(fut)
                 }
                 <span class="string">&quot;/narwhal.Proposer/NodeReadCausal&quot; </span>=&gt; {
-                    <span class="attribute">#[allow(non_camel_case_types)]</span>
-                    <span class="kw">struct </span>NodeReadCausalSvc&lt;T: Proposer&gt;(<span class="kw">pub </span>Arc&lt;T&gt;);
+                    <span class="attribute">#[allow(non_camel_case_types)]
+                    </span><span class="kw">struct </span>NodeReadCausalSvc&lt;T: Proposer&gt;(<span class="kw">pub </span>Arc&lt;T&gt;);
                     <span class="kw">impl</span>&lt;
                         T: Proposer,
                     &gt; tonic::server::UnaryService&lt;<span class="kw">super</span>::NodeReadCausalRequest&gt;
@@ -3936,11 +3936,11 @@
 }
 <span class="doccomment">/// Generated server implementations.
 </span><span class="kw">pub mod </span>configuration_server {
-    <span class="attribute">#![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]</span>
-    <span class="kw">use </span>tonic::codegen::<span class="kw-2">*</span>;
+    <span class="attribute">#![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
+    </span><span class="kw">use </span>tonic::codegen::<span class="kw-2">*</span>;
     <span class="doccomment">///Generated trait containing gRPC methods that should be implemented for use with ConfigurationServer.
-    </span><span class="attribute">#[async_trait]</span>
-    <span class="kw">pub trait </span>Configuration: Send + Sync + <span class="lifetime">&#39;static </span>{
+    </span><span class="attribute">#[async_trait]
+    </span><span class="kw">pub trait </span>Configuration: Send + Sync + <span class="lifetime">&#39;static </span>{
         <span class="doccomment">/// Signals a new epoch
         </span><span class="kw">async fn </span>new_epoch(
             <span class="kw-2">&amp;</span><span class="self">self</span>,
@@ -3957,8 +3957,8 @@
             request: tonic::Request&lt;<span class="kw">super</span>::Empty&gt;,
         ) -&gt; <span class="prelude-ty">Result</span>&lt;tonic::Response&lt;<span class="kw">super</span>::GetPrimaryAddressResponse&gt;, tonic::Status&gt;;
     }
-    <span class="attribute">#[derive(Debug)]</span>
-    <span class="kw">pub struct </span>ConfigurationServer&lt;T: Configuration&gt; {
+    <span class="attribute">#[derive(Debug)]
+    </span><span class="kw">pub struct </span>ConfigurationServer&lt;T: Configuration&gt; {
         inner: _Inner&lt;T&gt;,
         accept_compression_encodings: (),
         send_compression_encodings: (),
@@ -4005,8 +4005,8 @@
             <span class="kw">let </span>inner = <span class="self">self</span>.inner.clone();
             <span class="kw">match </span>req.uri().path() {
                 <span class="string">&quot;/narwhal.Configuration/NewEpoch&quot; </span>=&gt; {
-                    <span class="attribute">#[allow(non_camel_case_types)]</span>
-                    <span class="kw">struct </span>NewEpochSvc&lt;T: Configuration&gt;(<span class="kw">pub </span>Arc&lt;T&gt;);
+                    <span class="attribute">#[allow(non_camel_case_types)]
+                    </span><span class="kw">struct </span>NewEpochSvc&lt;T: Configuration&gt;(<span class="kw">pub </span>Arc&lt;T&gt;);
                     <span class="kw">impl</span>&lt;
                         T: Configuration,
                     &gt; tonic::server::UnaryService&lt;<span class="kw">super</span>::NewEpochRequest&gt;
@@ -4043,8 +4043,8 @@
                     Box::pin(fut)
                 }
                 <span class="string">&quot;/narwhal.Configuration/NewNetworkInfo&quot; </span>=&gt; {
-                    <span class="attribute">#[allow(non_camel_case_types)]</span>
-                    <span class="kw">struct </span>NewNetworkInfoSvc&lt;T: Configuration&gt;(<span class="kw">pub </span>Arc&lt;T&gt;);
+                    <span class="attribute">#[allow(non_camel_case_types)]
+                    </span><span class="kw">struct </span>NewNetworkInfoSvc&lt;T: Configuration&gt;(<span class="kw">pub </span>Arc&lt;T&gt;);
                     <span class="kw">impl</span>&lt;
                         T: Configuration,
                     &gt; tonic::server::UnaryService&lt;<span class="kw">super</span>::NewNetworkInfoRequest&gt;
@@ -4083,8 +4083,8 @@
                     Box::pin(fut)
                 }
                 <span class="string">&quot;/narwhal.Configuration/GetPrimaryAddress&quot; </span>=&gt; {
-                    <span class="attribute">#[allow(non_camel_case_types)]</span>
-                    <span class="kw">struct </span>GetPrimaryAddressSvc&lt;T: Configuration&gt;(<span class="kw">pub </span>Arc&lt;T&gt;);
+                    <span class="attribute">#[allow(non_camel_case_types)]
+                    </span><span class="kw">struct </span>GetPrimaryAddressSvc&lt;T: Configuration&gt;(<span class="kw">pub </span>Arc&lt;T&gt;);
                     <span class="kw">impl</span>&lt;T: Configuration&gt; tonic::server::UnaryService&lt;<span class="kw">super</span>::Empty&gt;
                     <span class="kw">for </span>GetPrimaryAddressSvc&lt;T&gt; {
                         <span class="kw">type </span>Response = <span class="kw">super</span>::GetPrimaryAddressResponse;
@@ -4161,11 +4161,11 @@
 }
 <span class="doccomment">/// Generated server implementations.
 </span><span class="kw">pub mod </span>primary_to_primary_server {
-    <span class="attribute">#![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]</span>
-    <span class="kw">use </span>tonic::codegen::<span class="kw-2">*</span>;
+    <span class="attribute">#![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
+    </span><span class="kw">use </span>tonic::codegen::<span class="kw-2">*</span>;
     <span class="doccomment">///Generated trait containing gRPC methods that should be implemented for use with PrimaryToPrimaryServer.
-    </span><span class="attribute">#[async_trait]</span>
-    <span class="kw">pub trait </span>PrimaryToPrimary: Send + Sync + <span class="lifetime">&#39;static </span>{
+    </span><span class="attribute">#[async_trait]
+    </span><span class="kw">pub trait </span>PrimaryToPrimary: Send + Sync + <span class="lifetime">&#39;static </span>{
         <span class="doccomment">/// Sends a message
         </span><span class="kw">async fn </span>send_message(
             <span class="kw-2">&amp;</span><span class="self">self</span>,
@@ -4173,8 +4173,8 @@
         ) -&gt; <span class="prelude-ty">Result</span>&lt;tonic::Response&lt;<span class="kw">super</span>::Empty&gt;, tonic::Status&gt;;
     }
     <span class="doccomment">/// The primary-to-primary interface
-    </span><span class="attribute">#[derive(Debug)]</span>
-    <span class="kw">pub struct </span>PrimaryToPrimaryServer&lt;T: PrimaryToPrimary&gt; {
+    </span><span class="attribute">#[derive(Debug)]
+    </span><span class="kw">pub struct </span>PrimaryToPrimaryServer&lt;T: PrimaryToPrimary&gt; {
         inner: _Inner&lt;T&gt;,
         accept_compression_encodings: (),
         send_compression_encodings: (),
@@ -4221,8 +4221,8 @@
             <span class="kw">let </span>inner = <span class="self">self</span>.inner.clone();
             <span class="kw">match </span>req.uri().path() {
                 <span class="string">&quot;/narwhal.PrimaryToPrimary/SendMessage&quot; </span>=&gt; {
-                    <span class="attribute">#[allow(non_camel_case_types)]</span>
-                    <span class="kw">struct </span>SendMessageSvc&lt;T: PrimaryToPrimary&gt;(<span class="kw">pub </span>Arc&lt;T&gt;);
+                    <span class="attribute">#[allow(non_camel_case_types)]
+                    </span><span class="kw">struct </span>SendMessageSvc&lt;T: PrimaryToPrimary&gt;(<span class="kw">pub </span>Arc&lt;T&gt;);
                     <span class="kw">impl</span>&lt;
                         T: PrimaryToPrimary,
                     &gt; tonic::server::UnaryService&lt;<span class="kw">super</span>::BincodeEncodedPayload&gt;
@@ -4302,11 +4302,11 @@
 }
 <span class="doccomment">/// Generated server implementations.
 </span><span class="kw">pub mod </span>worker_to_worker_server {
-    <span class="attribute">#![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]</span>
-    <span class="kw">use </span>tonic::codegen::<span class="kw-2">*</span>;
+    <span class="attribute">#![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
+    </span><span class="kw">use </span>tonic::codegen::<span class="kw-2">*</span>;
     <span class="doccomment">///Generated trait containing gRPC methods that should be implemented for use with WorkerToWorkerServer.
-    </span><span class="attribute">#[async_trait]</span>
-    <span class="kw">pub trait </span>WorkerToWorker: Send + Sync + <span class="lifetime">&#39;static </span>{
+    </span><span class="attribute">#[async_trait]
+    </span><span class="kw">pub trait </span>WorkerToWorker: Send + Sync + <span class="lifetime">&#39;static </span>{
         <span class="doccomment">/// Sends a worker message
         </span><span class="kw">async fn </span>send_message(
             <span class="kw-2">&amp;</span><span class="self">self</span>,
@@ -4325,8 +4325,8 @@
         ) -&gt; <span class="prelude-ty">Result</span>&lt;tonic::Response&lt;<span class="self">Self</span>::ClientBatchRequestStream&gt;, tonic::Status&gt;;
     }
     <span class="doccomment">/// The worker-to-worker interface
-    </span><span class="attribute">#[derive(Debug)]</span>
-    <span class="kw">pub struct </span>WorkerToWorkerServer&lt;T: WorkerToWorker&gt; {
+    </span><span class="attribute">#[derive(Debug)]
+    </span><span class="kw">pub struct </span>WorkerToWorkerServer&lt;T: WorkerToWorker&gt; {
         inner: _Inner&lt;T&gt;,
         accept_compression_encodings: (),
         send_compression_encodings: (),
@@ -4373,8 +4373,8 @@
             <span class="kw">let </span>inner = <span class="self">self</span>.inner.clone();
             <span class="kw">match </span>req.uri().path() {
                 <span class="string">&quot;/narwhal.WorkerToWorker/SendMessage&quot; </span>=&gt; {
-                    <span class="attribute">#[allow(non_camel_case_types)]</span>
-                    <span class="kw">struct </span>SendMessageSvc&lt;T: WorkerToWorker&gt;(<span class="kw">pub </span>Arc&lt;T&gt;);
+                    <span class="attribute">#[allow(non_camel_case_types)]
+                    </span><span class="kw">struct </span>SendMessageSvc&lt;T: WorkerToWorker&gt;(<span class="kw">pub </span>Arc&lt;T&gt;);
                     <span class="kw">impl</span>&lt;
                         T: WorkerToWorker,
                     &gt; tonic::server::UnaryService&lt;<span class="kw">super</span>::BincodeEncodedPayload&gt;
@@ -4413,8 +4413,8 @@
                     Box::pin(fut)
                 }
                 <span class="string">&quot;/narwhal.WorkerToWorker/ClientBatchRequest&quot; </span>=&gt; {
-                    <span class="attribute">#[allow(non_camel_case_types)]</span>
-                    <span class="kw">struct </span>ClientBatchRequestSvc&lt;T: WorkerToWorker&gt;(<span class="kw">pub </span>Arc&lt;T&gt;);
+                    <span class="attribute">#[allow(non_camel_case_types)]
+                    </span><span class="kw">struct </span>ClientBatchRequestSvc&lt;T: WorkerToWorker&gt;(<span class="kw">pub </span>Arc&lt;T&gt;);
                     <span class="kw">impl</span>&lt;
                         T: WorkerToWorker,
                     &gt; tonic::server::ServerStreamingService&lt;<span class="kw">super</span>::BincodeEncodedPayload&gt;
@@ -4494,11 +4494,11 @@
 }
 <span class="doccomment">/// Generated server implementations.
 </span><span class="kw">pub mod </span>worker_to_primary_server {
-    <span class="attribute">#![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]</span>
-    <span class="kw">use </span>tonic::codegen::<span class="kw-2">*</span>;
+    <span class="attribute">#![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
+    </span><span class="kw">use </span>tonic::codegen::<span class="kw-2">*</span>;
     <span class="doccomment">///Generated trait containing gRPC methods that should be implemented for use with WorkerToPrimaryServer.
-    </span><span class="attribute">#[async_trait]</span>
-    <span class="kw">pub trait </span>WorkerToPrimary: Send + Sync + <span class="lifetime">&#39;static </span>{
+    </span><span class="attribute">#[async_trait]
+    </span><span class="kw">pub trait </span>WorkerToPrimary: Send + Sync + <span class="lifetime">&#39;static </span>{
         <span class="doccomment">/// Sends a message
         </span><span class="kw">async fn </span>send_message(
             <span class="kw-2">&amp;</span><span class="self">self</span>,
@@ -4510,8 +4510,8 @@
         ) -&gt; <span class="prelude-ty">Result</span>&lt;tonic::Response&lt;<span class="kw">super</span>::BincodeEncodedPayload&gt;, tonic::Status&gt;;
     }
     <span class="doccomment">/// The worker-to-primary interface
-    </span><span class="attribute">#[derive(Debug)]</span>
-    <span class="kw">pub struct </span>WorkerToPrimaryServer&lt;T: WorkerToPrimary&gt; {
+    </span><span class="attribute">#[derive(Debug)]
+    </span><span class="kw">pub struct </span>WorkerToPrimaryServer&lt;T: WorkerToPrimary&gt; {
         inner: _Inner&lt;T&gt;,
         accept_compression_encodings: (),
         send_compression_encodings: (),
@@ -4558,8 +4558,8 @@
             <span class="kw">let </span>inner = <span class="self">self</span>.inner.clone();
             <span class="kw">match </span>req.uri().path() {
                 <span class="string">&quot;/narwhal.WorkerToPrimary/SendMessage&quot; </span>=&gt; {
-                    <span class="attribute">#[allow(non_camel_case_types)]</span>
-                    <span class="kw">struct </span>SendMessageSvc&lt;T: WorkerToPrimary&gt;(<span class="kw">pub </span>Arc&lt;T&gt;);
+                    <span class="attribute">#[allow(non_camel_case_types)]
+                    </span><span class="kw">struct </span>SendMessageSvc&lt;T: WorkerToPrimary&gt;(<span class="kw">pub </span>Arc&lt;T&gt;);
                     <span class="kw">impl</span>&lt;
                         T: WorkerToPrimary,
                     &gt; tonic::server::UnaryService&lt;<span class="kw">super</span>::BincodeEncodedPayload&gt;
@@ -4598,8 +4598,8 @@
                     Box::pin(fut)
                 }
                 <span class="string">&quot;/narwhal.WorkerToPrimary/WorkerInfo&quot; </span>=&gt; {
-                    <span class="attribute">#[allow(non_camel_case_types)]</span>
-                    <span class="kw">struct </span>WorkerInfoSvc&lt;T: WorkerToPrimary&gt;(<span class="kw">pub </span>Arc&lt;T&gt;);
+                    <span class="attribute">#[allow(non_camel_case_types)]
+                    </span><span class="kw">struct </span>WorkerInfoSvc&lt;T: WorkerToPrimary&gt;(<span class="kw">pub </span>Arc&lt;T&gt;);
                     <span class="kw">impl</span>&lt;T: WorkerToPrimary&gt; tonic::server::UnaryService&lt;<span class="kw">super</span>::Empty&gt;
                     <span class="kw">for </span>WorkerInfoSvc&lt;T&gt; {
                         <span class="kw">type </span>Response = <span class="kw">super</span>::BincodeEncodedPayload;
@@ -4675,11 +4675,11 @@
 }
 <span class="doccomment">/// Generated server implementations.
 </span><span class="kw">pub mod </span>primary_to_worker_server {
-    <span class="attribute">#![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]</span>
-    <span class="kw">use </span>tonic::codegen::<span class="kw-2">*</span>;
+    <span class="attribute">#![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
+    </span><span class="kw">use </span>tonic::codegen::<span class="kw-2">*</span>;
     <span class="doccomment">///Generated trait containing gRPC methods that should be implemented for use with PrimaryToWorkerServer.
-    </span><span class="attribute">#[async_trait]</span>
-    <span class="kw">pub trait </span>PrimaryToWorker: Send + Sync + <span class="lifetime">&#39;static </span>{
+    </span><span class="attribute">#[async_trait]
+    </span><span class="kw">pub trait </span>PrimaryToWorker: Send + Sync + <span class="lifetime">&#39;static </span>{
         <span class="doccomment">/// Sends a message
         </span><span class="kw">async fn </span>send_message(
             <span class="kw-2">&amp;</span><span class="self">self</span>,
@@ -4687,8 +4687,8 @@
         ) -&gt; <span class="prelude-ty">Result</span>&lt;tonic::Response&lt;<span class="kw">super</span>::Empty&gt;, tonic::Status&gt;;
     }
     <span class="doccomment">/// The primary-to-worker interface
-    </span><span class="attribute">#[derive(Debug)]</span>
-    <span class="kw">pub struct </span>PrimaryToWorkerServer&lt;T: PrimaryToWorker&gt; {
+    </span><span class="attribute">#[derive(Debug)]
+    </span><span class="kw">pub struct </span>PrimaryToWorkerServer&lt;T: PrimaryToWorker&gt; {
         inner: _Inner&lt;T&gt;,
         accept_compression_encodings: (),
         send_compression_encodings: (),
@@ -4735,8 +4735,8 @@
             <span class="kw">let </span>inner = <span class="self">self</span>.inner.clone();
             <span class="kw">match </span>req.uri().path() {
                 <span class="string">&quot;/narwhal.PrimaryToWorker/SendMessage&quot; </span>=&gt; {
-                    <span class="attribute">#[allow(non_camel_case_types)]</span>
-                    <span class="kw">struct </span>SendMessageSvc&lt;T: PrimaryToWorker&gt;(<span class="kw">pub </span>Arc&lt;T&gt;);
+                    <span class="attribute">#[allow(non_camel_case_types)]
+                    </span><span class="kw">struct </span>SendMessageSvc&lt;T: PrimaryToWorker&gt;(<span class="kw">pub </span>Arc&lt;T&gt;);
                     <span class="kw">impl</span>&lt;
                         T: PrimaryToWorker,
                     &gt; tonic::server::UnaryService&lt;<span class="kw">super</span>::BincodeEncodedPayload&gt;
@@ -4816,11 +4816,11 @@
 }
 <span class="doccomment">/// Generated server implementations.
 </span><span class="kw">pub mod </span>transactions_server {
-    <span class="attribute">#![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]</span>
-    <span class="kw">use </span>tonic::codegen::<span class="kw-2">*</span>;
+    <span class="attribute">#![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
+    </span><span class="kw">use </span>tonic::codegen::<span class="kw-2">*</span>;
     <span class="doccomment">///Generated trait containing gRPC methods that should be implemented for use with TransactionsServer.
-    </span><span class="attribute">#[async_trait]</span>
-    <span class="kw">pub trait </span>Transactions: Send + Sync + <span class="lifetime">&#39;static </span>{
+    </span><span class="attribute">#[async_trait]
+    </span><span class="kw">pub trait </span>Transactions: Send + Sync + <span class="lifetime">&#39;static </span>{
         <span class="doccomment">/// Submit a Transactions
         </span><span class="kw">async fn </span>submit_transaction(
             <span class="kw-2">&amp;</span><span class="self">self</span>,
@@ -4832,8 +4832,8 @@
             request: tonic::Request&lt;tonic::Streaming&lt;<span class="kw">super</span>::Transaction&gt;&gt;,
         ) -&gt; <span class="prelude-ty">Result</span>&lt;tonic::Response&lt;<span class="kw">super</span>::Empty&gt;, tonic::Status&gt;;
     }
-    <span class="attribute">#[derive(Debug)]</span>
-    <span class="kw">pub struct </span>TransactionsServer&lt;T: Transactions&gt; {
+    <span class="attribute">#[derive(Debug)]
+    </span><span class="kw">pub struct </span>TransactionsServer&lt;T: Transactions&gt; {
         inner: _Inner&lt;T&gt;,
         accept_compression_encodings: (),
         send_compression_encodings: (),
@@ -4880,8 +4880,8 @@
             <span class="kw">let </span>inner = <span class="self">self</span>.inner.clone();
             <span class="kw">match </span>req.uri().path() {
                 <span class="string">&quot;/narwhal.Transactions/SubmitTransaction&quot; </span>=&gt; {
-                    <span class="attribute">#[allow(non_camel_case_types)]</span>
-                    <span class="kw">struct </span>SubmitTransactionSvc&lt;T: Transactions&gt;(<span class="kw">pub </span>Arc&lt;T&gt;);
+                    <span class="attribute">#[allow(non_camel_case_types)]
+                    </span><span class="kw">struct </span>SubmitTransactionSvc&lt;T: Transactions&gt;(<span class="kw">pub </span>Arc&lt;T&gt;);
                     <span class="kw">impl</span>&lt;T: Transactions&gt; tonic::server::UnaryService&lt;<span class="kw">super</span>::Transaction&gt;
                     <span class="kw">for </span>SubmitTransactionSvc&lt;T&gt; {
                         <span class="kw">type </span>Response = <span class="kw">super</span>::Empty;
@@ -4918,8 +4918,8 @@
                     Box::pin(fut)
                 }
                 <span class="string">&quot;/narwhal.Transactions/SubmitTransactionStream&quot; </span>=&gt; {
-                    <span class="attribute">#[allow(non_camel_case_types)]</span>
-                    <span class="kw">struct </span>SubmitTransactionStreamSvc&lt;T: Transactions&gt;(<span class="kw">pub </span>Arc&lt;T&gt;);
+                    <span class="attribute">#[allow(non_camel_case_types)]
+                    </span><span class="kw">struct </span>SubmitTransactionStreamSvc&lt;T: Transactions&gt;(<span class="kw">pub </span>Arc&lt;T&gt;);
                     <span class="kw">impl</span>&lt;
                         T: Transactions,
                     &gt; tonic::server::ClientStreamingService&lt;<span class="kw">super</span>::Transaction&gt;
@@ -4997,4 +4997,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../../../../../../../../../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../../../../../../../../../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

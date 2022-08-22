@@ -98,8 +98,8 @@
     register_int_gauge_with_registry, IntCounter, IntGauge, IntGaugeVec, Registry,
 };
 
-<span class="attribute">#[derive(Clone, Debug)]</span>
-<span class="kw">pub struct </span>ConsensusMetrics {
+<span class="attribute">#[derive(Clone, Debug)]
+</span><span class="kw">pub struct </span>ConsensusMetrics {
     <span class="doccomment">/// The number of rounds for which the Dag holds certificates (for Tusk or Bullshark)
     </span><span class="kw">pub </span>consensus_dag_rounds: IntGaugeVec,
     <span class="doccomment">/// The last committed round from consensus
@@ -155,8 +155,8 @@
     }
 }
 
-<span class="attribute">#[derive(Clone, Debug)]</span>
-<span class="kw">pub struct </span>ChannelMetrics {
+<span class="attribute">#[derive(Clone, Debug)]
+</span><span class="kw">pub struct </span>ChannelMetrics {
     <span class="doccomment">/// occupancy of the channel from the `Consensus` to `SubscriberHandler`.
     /// See also:
     /// * tx_committed_certificates in primary, where the committed certificates
@@ -185,4 +185,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="consensus" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="consensus" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

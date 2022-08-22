@@ -565,8 +565,8 @@
 <span class="kw">use </span>tonic::Status;
 
 <span class="kw">pub mod </span>narwhal {
-    <span class="attribute">#![allow(clippy::derive_partial_eq_without_eq)]</span>
-    <span class="macro">tonic::include_proto!</span>(<span class="string">&quot;narwhal&quot;</span>);
+    <span class="attribute">#![allow(clippy::derive_partial_eq_without_eq)]
+    </span><span class="macro">tonic::include_proto!</span>(<span class="string">&quot;narwhal&quot;</span>);
 }
 
 <span class="doccomment">/// DEMO CONSTANTS
@@ -575,8 +575,8 @@
 // Chose this number because it allows demo to complete round + get extra collections when proposing block.
 </span><span class="kw">const </span>BLOCK_GAS_LIMIT: i32 = <span class="number">300000</span>;
 
-<span class="attribute">#[tokio::main]</span>
-<span class="kw">async fn </span>main() -&gt; <span class="prelude-ty">Result</span>&lt;(), Box&lt;<span class="kw">dyn </span>std::error::Error&gt;&gt; {
+<span class="attribute">#[tokio::main]
+</span><span class="kw">async fn </span>main() -&gt; <span class="prelude-ty">Result</span>&lt;(), Box&lt;<span class="kw">dyn </span>std::error::Error&gt;&gt; {
     <span class="kw">let </span>matches = App::new(<span class="macro">crate_name!</span>())
         .version(<span class="macro">crate_version!</span>())
         .about(<span class="string">&quot;A gRPC client emulating the Proposer / Validator API&quot;</span>)
@@ -1097,4 +1097,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="demo_client" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="demo_client" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

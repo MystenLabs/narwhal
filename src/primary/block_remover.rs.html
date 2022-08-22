@@ -670,12 +670,12 @@
 
 <span class="kw">type </span>RequestKey = Vec&lt;u8&gt;;
 
-<span class="attribute">#[cfg(test)]</span>
-<span class="attribute">#[path = <span class="string">&quot;tests/block_remover_tests.rs&quot;</span>]</span>
-<span class="kw">pub mod </span>block_remover_tests;
+<span class="attribute">#[cfg(test)]
+#[path = <span class="string">&quot;tests/block_remover_tests.rs&quot;</span>]
+</span><span class="kw">pub mod </span>block_remover_tests;
 
-<span class="attribute">#[derive(Debug)]</span>
-<span class="kw">pub enum </span>BlockRemoverCommand {
+<span class="attribute">#[derive(Debug)]
+</span><span class="kw">pub enum </span>BlockRemoverCommand {
     RemoveBlocks {
         <span class="comment">// the block ids to remove
         </span>ids: Vec&lt;CertificateDigest&gt;,
@@ -684,16 +684,16 @@
     },
 }
 
-<span class="attribute">#[derive(Clone, Debug)]</span>
-<span class="kw">pub struct </span>RemoveBlocksResponse {
+<span class="attribute">#[derive(Clone, Debug)]
+</span><span class="kw">pub struct </span>RemoveBlocksResponse {
     <span class="comment">// the block ids removed
     </span>ids: Vec&lt;CertificateDigest&gt;,
 }
 
 <span class="kw">pub type </span>DeleteBatchResult = <span class="prelude-ty">Result</span>&lt;DeleteBatchMessage, DeleteBatchMessage&gt;;
 
-<span class="attribute">#[derive(Clone, Default, Debug)]</span>
-<span class="kw">pub struct </span>DeleteBatchMessage {
+<span class="attribute">#[derive(Clone, Default, Debug)]
+</span><span class="kw">pub struct </span>DeleteBatchMessage {
     <span class="kw">pub </span>ids: Vec&lt;BatchDigest&gt;,
 }
 
@@ -865,8 +865,8 @@
 }
 
 <span class="kw">impl </span>BlockRemover {
-    <span class="attribute">#[must_use]</span>
-    <span class="kw">pub fn </span>spawn(
+    <span class="attribute">#[must_use]
+    </span><span class="kw">pub fn </span>spawn(
         name: PublicKey,
         committee: Committee,
         certificate_store: Store&lt;CertificateDigest, Certificate&gt;,
@@ -909,7 +909,7 @@
             <span class="self">self</span>.name
         );
         <span class="kw">loop </span>{
-            <span class="macro">tokio::select!</span> {
+            <span class="macro">tokio::select! </span>{
                 <span class="prelude-val">Some</span>(command) = <span class="self">self</span>.rx_commands.recv() =&gt; {
                     <span class="kw">if let </span><span class="prelude-val">Some</span>(fut) = <span class="self">self</span>.handle_command(command).<span class="kw">await </span>{
                         waiting.push(fut);
@@ -1083,8 +1083,8 @@
         }
     }
 
-    <span class="attribute">#[instrument(level = <span class="string">&quot;debug&quot;</span>, skip_all)]</span>
-    <span class="kw">async fn </span>handle_command&lt;<span class="lifetime">&#39;a</span>&gt;(
+    <span class="attribute">#[instrument(level = <span class="string">&quot;debug&quot;</span>, skip_all)]
+    </span><span class="kw">async fn </span>handle_command&lt;<span class="lifetime">&#39;a</span>&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         command: BlockRemoverCommand,
     ) -&gt; <span class="prelude-ty">Option</span>&lt;BoxFuture&lt;<span class="lifetime">&#39;a</span>, BlockRemoverResult&lt;RemoveBlocksResponse&gt;&gt;&gt; {
@@ -1279,4 +1279,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

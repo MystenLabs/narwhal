@@ -177,8 +177,8 @@
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span><span class="kw">crate</span>::metrics::WorkerMetrics;
 <span class="kw">use </span>config::Committee;
-<span class="attribute">#[cfg(feature = <span class="string">&quot;benchmark&quot;</span>)]</span>
-<span class="kw">use </span>std::convert::TryInto;
+<span class="attribute">#[cfg(feature = <span class="string">&quot;benchmark&quot;</span>)]
+</span><span class="kw">use </span>std::convert::TryInto;
 <span class="kw">use </span>std::sync::Arc;
 <span class="kw">use </span>tokio::{
     sync::watch,
@@ -191,9 +191,9 @@
     Batch, ReconfigureNotification, Transaction,
 };
 
-<span class="attribute">#[cfg(test)]</span>
-<span class="attribute">#[path = <span class="string">&quot;tests/batch_maker_tests.rs&quot;</span>]</span>
-<span class="kw">pub mod </span>batch_maker_tests;
+<span class="attribute">#[cfg(test)]
+#[path = <span class="string">&quot;tests/batch_maker_tests.rs&quot;</span>]
+</span><span class="kw">pub mod </span>batch_maker_tests;
 
 <span class="doccomment">/// Assemble clients transactions into batches.
 </span><span class="kw">pub struct </span>BatchMaker {
@@ -218,8 +218,8 @@
 }
 
 <span class="kw">impl </span>BatchMaker {
-    <span class="attribute">#[must_use]</span>
-    <span class="kw">pub fn </span>spawn(
+    <span class="attribute">#[must_use]
+    </span><span class="kw">pub fn </span>spawn(
         committee: Committee,
         batch_size: usize,
         max_batch_delay: Duration,
@@ -251,7 +251,7 @@
         <span class="macro">tokio::pin!</span>(timer);
 
         <span class="kw">loop </span>{
-            <span class="macro">tokio::select!</span> {
+            <span class="macro">tokio::select! </span>{
                 <span class="comment">// Assemble client transactions into batches of preset size.
                 </span><span class="prelude-val">Some</span>(transaction) = <span class="self">self</span>.rx_transaction.recv() =&gt; {
                     <span class="self">self</span>.current_batch_size += transaction.len();
@@ -298,8 +298,8 @@
         <span class="kw">let </span>size = <span class="self">self</span>.current_batch_size;
 
         <span class="comment">// Look for sample txs (they all start with 0) and gather their txs id (the next 8 bytes).
-        </span><span class="attribute">#[cfg(feature = <span class="string">&quot;benchmark&quot;</span>)]</span>
-        <span class="kw">let </span>tx_ids: Vec&lt;<span class="kw">_</span>&gt; = <span class="self">self
+        </span><span class="attribute">#[cfg(feature = <span class="string">&quot;benchmark&quot;</span>)]
+        </span><span class="kw">let </span>tx_ids: Vec&lt;<span class="kw">_</span>&gt; = <span class="self">self
             </span>.current_batch
             .<span class="number">0
             </span>.iter()
@@ -311,8 +311,8 @@
         </span><span class="self">self</span>.current_batch_size = <span class="number">0</span>;
         <span class="kw">let </span>batch: Batch = Batch(<span class="self">self</span>.current_batch.<span class="number">0</span>.drain(..).collect());
 
-        <span class="attribute">#[cfg(feature = <span class="string">&quot;benchmark&quot;</span>)]</span>
-        {
+        <span class="attribute">#[cfg(feature = <span class="string">&quot;benchmark&quot;</span>)]
+        </span>{
             <span class="kw">let </span>message = types::WorkerMessage::Batch(batch.clone());
             <span class="kw">let </span>serialized =
                 bincode::serialize(<span class="kw-2">&amp;</span>message).expect(<span class="string">&quot;Failed to serialize our own batch&quot;</span>);
@@ -347,4 +347,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

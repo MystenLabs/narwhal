@@ -495,8 +495,8 @@
 <span class="kw">use </span>std::time::Duration;
 <span class="kw">use </span>tonic::Code;
 
-<span class="attribute">#[derive(Clone)]</span>
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Metrics {
+<span class="attribute">#[derive(Clone)]
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Metrics {
     <span class="kw">pub</span>(<span class="kw">crate</span>) endpoint_metrics: <span class="prelude-ty">Option</span>&lt;EndpointMetrics&gt;,
     <span class="kw">pub</span>(<span class="kw">crate</span>) primary_endpoint_metrics: <span class="prelude-ty">Option</span>&lt;PrimaryEndpointMetrics&gt;,
     <span class="kw">pub</span>(<span class="kw">crate</span>) primary_channel_metrics: <span class="prelude-ty">Option</span>&lt;PrimaryChannelMetrics&gt;,
@@ -530,8 +530,8 @@
     }
 }
 
-<span class="attribute">#[derive(Clone)]</span>
-<span class="kw">pub struct </span>PrimaryChannelMetrics {
+<span class="attribute">#[derive(Clone)]
+</span><span class="kw">pub struct </span>PrimaryChannelMetrics {
     <span class="doccomment">/// occupancy of the channel from the `primary::WorkerReceiverHandler` to the `primary::PayloadReceiver`
     </span><span class="kw">pub </span>tx_others_digests: IntGauge,
     <span class="doccomment">/// occupancy of the channel from the `primary::WorkerReceiverHandler` to the `primary::Proposer`
@@ -751,8 +751,8 @@
     }
 }
 
-<span class="attribute">#[derive(Clone)]</span>
-<span class="kw">pub struct </span>PrimaryMetrics {
+<span class="attribute">#[derive(Clone)]
+</span><span class="kw">pub struct </span>PrimaryMetrics {
     <span class="doccomment">/// count number of headers that the node processed (others + own)
     </span><span class="kw">pub </span>headers_processed: IntCounterVec,
     <span class="doccomment">/// count unique number of headers that we have received for processing (others + own)
@@ -912,8 +912,8 @@
     }
 }
 
-<span class="attribute">#[derive(Clone)]</span>
-<span class="kw">pub struct </span>PrimaryEndpointMetrics {
+<span class="attribute">#[derive(Clone)]
+</span><span class="kw">pub struct </span>PrimaryEndpointMetrics {
     <span class="doccomment">/// Counter of requests, route is a label (ie separate timeseries per route)
     </span>requests_by_route: IntCounterVec,
     <span class="doccomment">/// Request latency, route is a label
@@ -965,4 +965,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

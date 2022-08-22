@@ -792,15 +792,15 @@
 <span class="kw">use </span>tracing::info;
 <span class="kw">use </span>types::{ConfigurationClient, ProposerClient, TransactionsClient};
 
-<span class="attribute">#[cfg(test)]</span>
-<span class="attribute">#[path = <span class="string">&quot;tests/cluster_tests.rs&quot;</span>]</span>
-<span class="kw">pub mod </span>cluster_tests;
+<span class="attribute">#[cfg(test)]
+#[path = <span class="string">&quot;tests/cluster_tests.rs&quot;</span>]
+</span><span class="kw">pub mod </span>cluster_tests;
 
 <span class="kw">pub struct </span>Cluster {
     authorities: HashMap&lt;usize, AuthorityDetails&gt;,
     <span class="kw">pub </span>committee_shared: SharedCommittee,
-    <span class="attribute">#[allow(dead_code)]</span>
-    parameters: Parameters,
+    <span class="attribute">#[allow(dead_code)]
+    </span>parameters: Parameters,
 }
 
 <span class="kw">impl </span>Cluster {
@@ -1030,8 +1030,8 @@
     }
 }
 
-<span class="attribute">#[derive(Clone)]</span>
-<span class="kw">pub struct </span>PrimaryNodeDetails {
+<span class="attribute">#[derive(Clone)]
+</span><span class="kw">pub struct </span>PrimaryNodeDetails {
     <span class="kw">pub </span>id: usize,
     <span class="kw">pub </span>key_pair: Arc&lt;KeyPair&gt;,
     <span class="kw">pub </span>tx_transaction_confirmation: Sender&lt;(SubscriberResult&lt;Vec&lt;u8&gt;&gt;, SerializedTransaction)&gt;,
@@ -1160,8 +1160,8 @@
     }
 }
 
-<span class="attribute">#[derive(Clone)]</span>
-<span class="kw">pub struct </span>WorkerNodeDetails {
+<span class="attribute">#[derive(Clone)]
+</span><span class="kw">pub struct </span>WorkerNodeDetails {
     <span class="kw">pub </span>id: WorkerId,
     <span class="kw">pub </span>transactions_address: Multiaddr,
     <span class="kw">pub </span>registry: Registry,
@@ -1246,9 +1246,9 @@
 /// The Authority can be cloned and reused across the instances as its
 /// internals are thread safe. So changes made from one instance will be
 /// reflected to another.
-</span><span class="attribute">#[allow(dead_code)]</span>
-<span class="attribute">#[derive(Clone)]</span>
-<span class="kw">pub struct </span>AuthorityDetails {
+</span><span class="attribute">#[allow(dead_code)]
+#[derive(Clone)]
+</span><span class="kw">pub struct </span>AuthorityDetails {
     <span class="kw">pub </span>id: usize,
     <span class="kw">pub </span>name: PublicKey,
     internal: Arc&lt;RwLock&lt;AuthorityDetailsInternal&gt;&gt;,
@@ -1535,4 +1535,4 @@
     </span>}
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="test_utils" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="test_utils" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

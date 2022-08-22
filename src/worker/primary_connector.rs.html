@@ -115,8 +115,8 @@
 }
 
 <span class="kw">impl </span>PrimaryConnector {
-    <span class="attribute">#[must_use]</span>
-    <span class="kw">pub fn </span>spawn(
+    <span class="attribute">#[must_use]
+    </span><span class="kw">pub fn </span>spawn(
         name: PublicKey,
         committee: Committee,
         rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;,
@@ -138,7 +138,7 @@
     <span class="kw">async fn </span>run(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="kw">let </span><span class="kw-2">mut </span>futures = FuturesUnordered::new();
         <span class="kw">loop </span>{
-            <span class="macro">tokio::select!</span> {
+            <span class="macro">tokio::select! </span>{
                 <span class="comment">// Send the digest through the network.
                 </span><span class="prelude-val">Some</span>(digest) = <span class="self">self</span>.rx_digest.recv() =&gt; {
                     <span class="kw">if </span>futures.len() &gt;= MAX_PENDING_DIGESTS {
@@ -177,4 +177,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

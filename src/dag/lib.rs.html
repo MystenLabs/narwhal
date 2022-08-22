@@ -392,8 +392,8 @@
 <span class="kw">pub mod </span>node_dag;
 
 <span class="doccomment">/// Reference-counted pointers to a Node
-</span><span class="attribute">#[derive(Debug)]</span>
-<span class="kw">pub struct </span>NodeRef&lt;T&gt;(Arc&lt;Node&lt;T&gt;&gt;);
+</span><span class="attribute">#[derive(Debug)]
+</span><span class="kw">pub struct </span>NodeRef&lt;T&gt;(Arc&lt;Node&lt;T&gt;&gt;);
 
 <span class="comment">// reimplemented to avoid a clone bound on T
 </span><span class="kw">impl</span>&lt;T&gt; Clone <span class="kw">for </span>NodeRef&lt;T&gt; {
@@ -462,8 +462,8 @@
 </span><span class="kw">pub type </span>WeakNodeRef&lt;T&gt; = Weak&lt;Node&lt;T&gt;&gt;;
 
 <span class="doccomment">/// The Dag node, aka vertex.
-</span><span class="attribute">#[derive(Debug)]</span>
-<span class="kw">pub struct </span>Node&lt;T&gt; {
+</span><span class="attribute">#[derive(Debug)]
+</span><span class="kw">pub struct </span>Node&lt;T&gt; {
     <span class="doccomment">/// The antecedents of the Node, aka the edges of the DAG in association list form.
     </span>parents: ArcSwap&lt;Vec&lt;NodeRef&lt;T&gt;&gt;&gt;,
     <span class="doccomment">/// Whether the node is &quot;empty&quot; in some sense: the nodes have a value payload on top of the connections they form.
@@ -575,8 +575,8 @@
     }
 
     <span class="comment">// What&#39;s the maximum distance from this to a leaf?
-    </span><span class="attribute">#[cfg(test)]</span>
-    <span class="kw">fn </span>height(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
+    </span><span class="attribute">#[cfg(test)]
+    </span><span class="kw">fn </span>height(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
         <span class="kw">if </span><span class="self">self</span>.is_leaf() {
             <span class="number">1
         </span>} <span class="kw">else </span>{
@@ -662,13 +662,13 @@
     bft::Bft::new(initial, |node| node.parents().into_iter())
 }
 
-<span class="attribute">#[cfg(test)]</span>
-<span class="kw">mod </span>tests {
+<span class="attribute">#[cfg(test)]
+</span><span class="kw">mod </span>tests {
     <span class="kw">use </span>proptest::prelude::<span class="kw-2">*</span>;
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
 
-    <span class="macro">prop_compose!</span> {
+    <span class="macro">prop_compose! </span>{
         <span class="kw">pub fn </span>arb_leaf_node()(
             value <span class="kw">in </span>any::&lt;u64&gt;(),
             compressible <span class="kw">in </span>any::&lt;bool&gt;(),
@@ -677,7 +677,7 @@
         }
     }
 
-    <span class="macro">prop_compose!</span> {
+    <span class="macro">prop_compose! </span>{
         <span class="kw">pub fn </span>arb_inner_node(prior_round: Vec&lt;NodeRef&lt;u64&gt;&gt;)(
             <span class="comment">// this is a 50% inclusion rate, in production we&#39;d shoot for &gt; 67%
             </span>picks <span class="kw">in </span>prop::collection::vec(any::&lt;bool&gt;(), prior_round.len()..=prior_round.len()),
@@ -689,7 +689,7 @@
         }
     }
 
-    <span class="macro">prop_compose!</span> {
+    <span class="macro">prop_compose! </span>{
         <span class="kw">pub fn </span>next_round(prior_round: Vec&lt;NodeRef&lt;u64&gt;&gt;)(
             nodes <span class="kw">in </span>{ <span class="kw">let </span>n = prior_round.len(); prop::collection::vec(arb_inner_node(prior_round), n..=n) }
         ) -&gt; Vec&lt;NodeRef&lt;u64&gt;&gt; {
@@ -713,9 +713,9 @@
         )
     }
 
-    <span class="macro">proptest!</span> {
-        <span class="attribute">#[test]</span>
-        <span class="kw">fn </span>test_dag_sanity_check(
+    <span class="macro">proptest! </span>{
+        <span class="attribute">#[test]
+        </span><span class="kw">fn </span>test_dag_sanity_check(
             dag <span class="kw">in </span>arb_dag_complete(<span class="number">10</span>, <span class="number">10</span>)
         ) {
             <span class="macro">assert!</span>(dag.len() &lt;= <span class="number">10</span>);
@@ -723,8 +723,8 @@
             <span class="macro">assert!</span>(dag.iter().all(|node| node.raw_parents_snapshot().len() &lt;= <span class="number">10</span>));
         }
 
-        <span class="attribute">#[test]</span>
-        <span class="kw">fn </span>test_path_compression(
+        <span class="attribute">#[test]
+        </span><span class="kw">fn </span>test_path_compression(
             dag <span class="kw">in </span>arb_dag_complete(<span class="number">10</span>, <span class="number">100</span>)
         ) {
             <span class="kw">let </span>first = dag.first().unwrap();
@@ -735,8 +735,8 @@
             <span class="macro">assert!</span>(first.is_trivial())
         }
 
-        <span class="attribute">#[test]</span>
-        <span class="kw">fn </span>test_path_compression_bfs(
+        <span class="attribute">#[test]
+        </span><span class="kw">fn </span>test_path_compression_bfs(
             dag <span class="kw">in </span>arb_dag_complete(<span class="number">10</span>, <span class="number">100</span>)
         ) {
             <span class="kw">let </span>first = dag.first().unwrap();
@@ -755,4 +755,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="dag" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="dag" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

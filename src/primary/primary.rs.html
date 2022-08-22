@@ -771,8 +771,8 @@
     <span class="kw">const </span>INADDR_ANY: Ipv4Addr = Ipv4Addr::new(<span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>);
 
     <span class="comment">// Spawns the primary and returns the JoinHandles of its tasks, as well as a metered receiver for the Consensus.
-    </span><span class="attribute">#[allow(clippy::too_many_arguments)]</span>
-    <span class="kw">pub fn </span>spawn&lt;Signatory: Signer&lt;Signature&gt; + Send + <span class="lifetime">&#39;static</span>&gt;(
+    </span><span class="attribute">#[allow(clippy::too_many_arguments)]
+    </span><span class="kw">pub fn </span>spawn&lt;Signatory: Signer&lt;Signature&gt; + Send + <span class="lifetime">&#39;static</span>&gt;(
         name: PublicKey,
         signer: Signatory,
         committee: SharedCommittee,
@@ -1180,8 +1180,8 @@
 }
 
 <span class="doccomment">/// Defines how the network receiver handles incoming primary messages.
-</span><span class="attribute">#[derive(Clone)]</span>
-<span class="kw">struct </span>PrimaryReceiverHandler {
+</span><span class="attribute">#[derive(Clone)]
+</span><span class="kw">struct </span>PrimaryReceiverHandler {
     tx_primary_messages: Sender&lt;PrimaryMessage&gt;,
     tx_helper_requests: Sender&lt;PrimaryMessage&gt;,
     tx_payload_availability_responses: Sender&lt;PayloadAvailabilityResponse&gt;,
@@ -1200,8 +1200,8 @@
         }
     }
 
-    <span class="attribute">#[must_use]</span>
-    <span class="kw">fn </span>spawn(
+    <span class="attribute">#[must_use]
+    </span><span class="kw">fn </span>spawn(
         <span class="self">self</span>,
         address: Multiaddr,
         max_concurrent_requests: usize,
@@ -1212,7 +1212,7 @@
             <span class="kw">let </span><span class="kw-2">mut </span>config = mysten_network::config::Config::new();
             config.concurrency_limit_per_connection = <span class="prelude-val">Some</span>(max_concurrent_requests);
             <span class="macro">info!</span>(<span class="string">&quot;PrimaryReceiverHandler has started successfully.&quot;</span>);
-            <span class="macro">tokio::select!</span> {
+            <span class="macro">tokio::select! </span>{
                 _result = config
                     .server_builder_with_metrics(primary_endpoint_metrics)
                     .add_service(PrimaryToPrimaryServer::new(<span class="self">self</span>))
@@ -1227,8 +1227,8 @@
     }
 }
 
-<span class="attribute">#[async_trait]</span>
-<span class="kw">impl </span>PrimaryToPrimary <span class="kw">for </span>PrimaryReceiverHandler {
+<span class="attribute">#[async_trait]
+</span><span class="kw">impl </span>PrimaryToPrimary <span class="kw">for </span>PrimaryReceiverHandler {
     <span class="kw">async fn </span>send_message(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         request: Request&lt;BincodeEncodedPayload&gt;,
@@ -1286,8 +1286,8 @@
 }
 
 <span class="doccomment">/// Defines how the network receiver handles incoming workers messages.
-</span><span class="attribute">#[derive(Clone)]</span>
-<span class="kw">struct </span>WorkerReceiverHandler {
+</span><span class="attribute">#[derive(Clone)]
+</span><span class="kw">struct </span>WorkerReceiverHandler {
     tx_our_digests: Sender&lt;(BatchDigest, WorkerId)&gt;,
     tx_others_digests: Sender&lt;(BatchDigest, WorkerId)&gt;,
     tx_batches: Sender&lt;BatchResult&gt;,
@@ -1309,15 +1309,15 @@
         }
     }
 
-    <span class="attribute">#[must_use]</span>
-    <span class="kw">fn </span>spawn(
+    <span class="attribute">#[must_use]
+    </span><span class="kw">fn </span>spawn(
         <span class="self">self</span>,
         address: Multiaddr,
         rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;,
     ) -&gt; JoinHandle&lt;()&gt; {
         tokio::spawn(<span class="kw">async move </span>{
             <span class="macro">info!</span>(<span class="string">&quot;WorkerReceiverHandler has started successfully.&quot;</span>);
-            <span class="macro">tokio::select!</span> {
+            <span class="macro">tokio::select! </span>{
                 _result = mysten_network::config::Config::default()
                     .server_builder()
                     .add_service(WorkerToPrimaryServer::new(<span class="self">self</span>))
@@ -1332,8 +1332,8 @@
     }
 }
 
-<span class="attribute">#[async_trait]</span>
-<span class="kw">impl </span>WorkerToPrimary <span class="kw">for </span>WorkerReceiverHandler {
+<span class="attribute">#[async_trait]
+</span><span class="kw">impl </span>WorkerToPrimary <span class="kw">for </span>WorkerReceiverHandler {
     <span class="kw">async fn </span>send_message(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         request: Request&lt;BincodeEncodedPayload&gt;,
@@ -1415,4 +1415,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

@@ -94,16 +94,16 @@
     WorkerPrimaryMessage,
 };
 
-<span class="attribute">#[cfg(test)]</span>
-<span class="attribute">#[path = <span class="string">&quot;tests/processor_tests.rs&quot;</span>]</span>
-<span class="kw">pub mod </span>processor_tests;
+<span class="attribute">#[cfg(test)]
+#[path = <span class="string">&quot;tests/processor_tests.rs&quot;</span>]
+</span><span class="kw">pub mod </span>processor_tests;
 
 <span class="doccomment">/// Hashes and stores batches, it then outputs the batch&#39;s digest.
 </span><span class="kw">pub struct </span>Processor;
 
 <span class="kw">impl </span>Processor {
-    <span class="attribute">#[must_use]</span>
-    <span class="kw">pub fn </span>spawn(
+    <span class="attribute">#[must_use]
+    </span><span class="kw">pub fn </span>spawn(
         <span class="comment">// Our worker&#39;s id.
         </span>id: WorkerId,
         <span class="comment">// The persistent storage.
@@ -119,7 +119,7 @@
     ) -&gt; JoinHandle&lt;()&gt; {
         tokio::spawn(<span class="kw">async move </span>{
             <span class="kw">loop </span>{
-                <span class="macro">tokio::select!</span> {
+                <span class="macro">tokio::select! </span>{
                     <span class="prelude-val">Some</span>(batch) = rx_batch.recv() =&gt; {
                         <span class="comment">// Hash the batch.
                         </span><span class="kw">let </span>res_digest = serialized_batch_digest(<span class="kw-2">&amp;</span>batch);
@@ -161,4 +161,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

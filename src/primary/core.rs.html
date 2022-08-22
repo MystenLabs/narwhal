@@ -687,9 +687,9 @@
     Certificate, CertificateDigest, Header, HeaderDigest, ReconfigureNotification, Round, Vote,
 };
 
-<span class="attribute">#[cfg(test)]</span>
-<span class="attribute">#[path = <span class="string">&quot;tests/core_tests.rs&quot;</span>]</span>
-<span class="kw">pub mod </span>core_tests;
+<span class="attribute">#[cfg(test)]
+#[path = <span class="string">&quot;tests/core_tests.rs&quot;</span>]
+</span><span class="kw">pub mod </span>core_tests;
 
 <span class="kw">pub struct </span>Core {
     <span class="doccomment">/// The public key of this primary.
@@ -745,9 +745,9 @@
 }
 
 <span class="kw">impl </span>Core {
-    <span class="attribute">#[allow(clippy::too_many_arguments)]</span>
-    <span class="attribute">#[must_use]</span>
-    <span class="kw">pub fn </span>spawn(
+    <span class="attribute">#[allow(clippy::too_many_arguments)]
+    #[must_use]
+    </span><span class="kw">pub fn </span>spawn(
         name: PublicKey,
         committee: Committee,
         header_store: Store&lt;HeaderDigest, Header&gt;,
@@ -798,8 +798,8 @@
         })
     }
 
-    <span class="attribute">#[instrument(level = <span class="string">&quot;debug&quot;</span>, skip_all)]</span>
-    <span class="kw">async fn </span>process_own_header(<span class="kw-2">&amp;mut </span><span class="self">self</span>, header: Header) -&gt; DagResult&lt;()&gt; {
+    <span class="attribute">#[instrument(level = <span class="string">&quot;debug&quot;</span>, skip_all)]
+    </span><span class="kw">async fn </span>process_own_header(<span class="kw-2">&amp;mut </span><span class="self">self</span>, header: Header) -&gt; DagResult&lt;()&gt; {
         <span class="kw">if </span>header.epoch &lt; <span class="self">self</span>.committee.epoch() {
             <span class="macro">debug!</span>(<span class="string">&quot;Proposer outdated&quot;</span>);
             <span class="kw">return </span><span class="prelude-val">Ok</span>(());
@@ -831,9 +831,9 @@
         </span><span class="self">self</span>.process_header(<span class="kw-2">&amp;</span>header).<span class="kw">await
     </span>}
 
-    <span class="attribute">#[async_recursion]</span>
-    <span class="attribute">#[instrument(level = <span class="string">&quot;debug&quot;</span>, skip_all)]</span>
-    <span class="kw">async fn </span>process_header(<span class="kw-2">&amp;mut </span><span class="self">self</span>, header: <span class="kw-2">&amp;</span>Header) -&gt; DagResult&lt;()&gt; {
+    <span class="attribute">#[async_recursion]
+    #[instrument(level = <span class="string">&quot;debug&quot;</span>, skip_all)]
+    </span><span class="kw">async fn </span>process_header(<span class="kw-2">&amp;mut </span><span class="self">self</span>, header: <span class="kw-2">&amp;</span>Header) -&gt; DagResult&lt;()&gt; {
         <span class="macro">debug!</span>(<span class="string">&quot;Processing {:?} round:{:?}&quot;</span>, header, header.round);
         <span class="kw">let </span>header_source = <span class="kw">if </span><span class="self">self</span>.name.eq(<span class="kw-2">&amp;</span>header.author) {
             <span class="string">&quot;own&quot;
@@ -958,9 +958,9 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="attribute">#[async_recursion]</span>
-    <span class="attribute">#[instrument(level = <span class="string">&quot;debug&quot;</span>, skip_all)]</span>
-    <span class="kw">async fn </span>process_vote(<span class="kw-2">&amp;mut </span><span class="self">self</span>, vote: Vote) -&gt; DagResult&lt;()&gt; {
+    <span class="attribute">#[async_recursion]
+    #[instrument(level = <span class="string">&quot;debug&quot;</span>, skip_all)]
+    </span><span class="kw">async fn </span>process_vote(<span class="kw-2">&amp;mut </span><span class="self">self</span>, vote: Vote) -&gt; DagResult&lt;()&gt; {
         <span class="macro">debug!</span>(<span class="string">&quot;Processing {:?}&quot;</span>, vote);
 
         <span class="comment">// Add it to the votes&#39; aggregator and try to make a new certificate.
@@ -999,9 +999,9 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="attribute">#[async_recursion]</span>
-    <span class="attribute">#[instrument(level = <span class="string">&quot;debug&quot;</span>, skip_all)]</span>
-    <span class="kw">async fn </span>process_certificate(<span class="kw-2">&amp;mut </span><span class="self">self</span>, certificate: Certificate) -&gt; DagResult&lt;()&gt; {
+    <span class="attribute">#[async_recursion]
+    #[instrument(level = <span class="string">&quot;debug&quot;</span>, skip_all)]
+    </span><span class="kw">async fn </span>process_certificate(<span class="kw-2">&amp;mut </span><span class="self">self</span>, certificate: Certificate) -&gt; DagResult&lt;()&gt; {
         <span class="macro">debug!</span>(
             <span class="string">&quot;Processing {:?} round:{:?}&quot;</span>,
             certificate,
@@ -1215,7 +1215,7 @@
     </span><span class="kw">pub async fn </span>run(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="macro">info!</span>(<span class="string">&quot;Core on node {} has started successfully.&quot;</span>, <span class="self">self</span>.name);
         <span class="kw">loop </span>{
-            <span class="kw">let </span>result = <span class="macro">tokio::select!</span> {
+            <span class="kw">let </span>result = <span class="macro">tokio::select! </span>{
                 <span class="comment">// We receive here messages from other primaries.
                 </span><span class="prelude-val">Some</span>(message) = <span class="self">self</span>.rx_primaries.recv() =&gt; {
                     <span class="kw">match </span>message {
@@ -1317,4 +1317,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

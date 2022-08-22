@@ -696,11 +696,11 @@
 </span><span class="kw">pub type </span>Round = u64;
 
 <span class="kw">pub type </span>Transaction = Vec&lt;u8&gt;;
-<span class="attribute">#[derive(Clone, Serialize, Deserialize, Default, Debug, PartialEq, Eq, Arbitrary)]</span>
-<span class="kw">pub struct </span>Batch(<span class="kw">pub </span>Vec&lt;Transaction&gt;);
+<span class="attribute">#[derive(Clone, Serialize, Deserialize, Default, Debug, PartialEq, Eq, Arbitrary)]
+</span><span class="kw">pub struct </span>Batch(<span class="kw">pub </span>Vec&lt;Transaction&gt;);
 
-<span class="attribute">#[derive(Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]</span>
-<span class="kw">pub struct </span>BatchDigest(<span class="kw">pub </span>[u8; fastcrypto::DIGEST_LEN]);
+<span class="attribute">#[derive(Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
+</span><span class="kw">pub struct </span>BatchDigest(<span class="kw">pub </span>[u8; fastcrypto::DIGEST_LEN]);
 
 <span class="kw">impl </span>fmt::Debug <span class="kw">for </span>BatchDigest {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), fmt::Error&gt; {
@@ -736,14 +736,14 @@
     }
 }
 
-<span class="attribute">#[derive(Clone, Serialize, Deserialize, Default, Builder)]</span>
-<span class="attribute">#[builder(pattern = <span class="string">&quot;owned&quot;</span>, build_fn(skip))]</span>
-<span class="kw">pub struct </span>Header {
+<span class="attribute">#[derive(Clone, Serialize, Deserialize, Default, Builder)]
+#[builder(pattern = <span class="string">&quot;owned&quot;</span>, build_fn(skip))]
+</span><span class="kw">pub struct </span>Header {
     <span class="kw">pub </span>author: PublicKey,
     <span class="kw">pub </span>round: Round,
     <span class="kw">pub </span>epoch: Epoch,
-    <span class="attribute">#[serde(with = <span class="string">&quot;indexmap::serde_seq&quot;</span>)]</span>
-    <span class="kw">pub </span>payload: IndexMap&lt;BatchDigest, WorkerId&gt;,
+    <span class="attribute">#[serde(with = <span class="string">&quot;indexmap::serde_seq&quot;</span>)]
+    </span><span class="kw">pub </span>payload: IndexMap&lt;BatchDigest, WorkerId&gt;,
     <span class="kw">pub </span>parents: BTreeSet&lt;CertificateDigest&gt;,
     <span class="kw">pub </span>id: HeaderDigest,
     <span class="kw">pub </span>signature: Signature,
@@ -846,8 +846,8 @@
     }
 }
 
-<span class="attribute">#[derive(Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]</span>
-<span class="kw">pub struct </span>HeaderDigest([u8; DIGEST_LEN]);
+<span class="attribute">#[derive(Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
+</span><span class="kw">pub struct </span>HeaderDigest([u8; DIGEST_LEN]);
 
 <span class="kw">impl </span>From&lt;HeaderDigest&gt; <span class="kw">for </span>Digest {
     <span class="kw">fn </span>from(hd: HeaderDigest) -&gt; <span class="self">Self </span>{
@@ -916,8 +916,8 @@
     }
 }
 
-<span class="attribute">#[derive(Clone, Serialize, Deserialize)]</span>
-<span class="kw">pub struct </span>Vote {
+<span class="attribute">#[derive(Clone, Serialize, Deserialize)]
+</span><span class="kw">pub struct </span>Vote {
     <span class="kw">pub </span>id: HeaderDigest,
     <span class="kw">pub </span>round: Round,
     <span class="kw">pub </span>epoch: Epoch,
@@ -969,8 +969,8 @@
             .map_err(DagError::from)
     }
 }
-<span class="attribute">#[derive(Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Copy)]</span>
-<span class="kw">pub struct </span>VoteDigest([u8; DIGEST_LEN]);
+<span class="attribute">#[derive(Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Copy)]
+</span><span class="kw">pub struct </span>VoteDigest([u8; DIGEST_LEN]);
 
 <span class="kw">impl </span>From&lt;VoteDigest&gt; <span class="kw">for </span>Digest {
     <span class="kw">fn </span>from(hd: VoteDigest) -&gt; <span class="self">Self </span>{
@@ -1025,8 +1025,8 @@
     }
 }
 
-<span class="attribute">#[derive(Clone, Serialize, Deserialize, Default)]</span>
-<span class="kw">pub struct </span>Certificate {
+<span class="attribute">#[derive(Clone, Serialize, Deserialize, Default)]
+</span><span class="kw">pub struct </span>Certificate {
     <span class="kw">pub </span>header: Header,
     <span class="kw">pub </span>votes: Vec&lt;(PublicKey, &lt;PublicKey <span class="kw">as </span>VerifyingKey&gt;::Sig)&gt;,
 }
@@ -1105,8 +1105,8 @@
         <span class="self">self</span>.header.author.clone()
     }
 }
-<span class="attribute">#[derive(Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]</span>
-<span class="kw">pub struct </span>CertificateDigest([u8; DIGEST_LEN]);
+<span class="attribute">#[derive(Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
+</span><span class="kw">pub struct </span>CertificateDigest([u8; DIGEST_LEN]);
 
 <span class="kw">impl </span>CertificateDigest {
     <span class="kw">pub fn </span>new(digest: [u8; DIGEST_LEN]) -&gt; CertificateDigest {
@@ -1191,8 +1191,8 @@
     }
 }
 
-<span class="attribute">#[derive(Debug, Serialize, Deserialize)]</span>
-<span class="kw">pub enum </span>PrimaryMessage {
+<span class="attribute">#[derive(Debug, Serialize, Deserialize)]
+</span><span class="kw">pub enum </span>PrimaryMessage {
     Header(Header),
     Vote(Vote),
     Certificate(Certificate),
@@ -1219,8 +1219,8 @@
 }
 
 <span class="doccomment">/// Message to reconfigure worker tasks. This message must be sent by a trusted source.
-</span><span class="attribute">#[derive(Clone, Debug, Serialize, Deserialize)]</span>
-<span class="kw">pub enum </span>ReconfigureNotification {
+</span><span class="attribute">#[derive(Clone, Debug, Serialize, Deserialize)]
+</span><span class="kw">pub enum </span>ReconfigureNotification {
     <span class="doccomment">/// Indicate the committee has changed. This happens at epoch change.
     </span>NewEpoch(Committee),
     <span class="doccomment">/// Update some network information of the committee.
@@ -1230,8 +1230,8 @@
 }
 
 <span class="doccomment">/// The messages sent by the primary to its workers.
-</span><span class="attribute">#[derive(Debug, Serialize, Deserialize)]</span>
-<span class="kw">pub enum </span>PrimaryWorkerMessage {
+</span><span class="attribute">#[derive(Debug, Serialize, Deserialize)]
+</span><span class="kw">pub enum </span>PrimaryWorkerMessage {
     <span class="doccomment">/// The primary indicates that the worker need to sync the target missing batches.
     </span>Synchronize(Vec&lt;BatchDigest&gt;, <span class="comment">/* target */ </span>PublicKey),
     <span class="doccomment">/// The primary indicates a round update.
@@ -1244,8 +1244,8 @@
     </span>DeleteBatches(Vec&lt;BatchDigest&gt;),
 }
 
-<span class="attribute">#[derive(Clone, Default, Debug, Eq, PartialEq)]</span>
-<span class="kw">pub struct </span>BatchMessage {
+<span class="attribute">#[derive(Clone, Default, Debug, Eq, PartialEq)]
+</span><span class="kw">pub struct </span>BatchMessage {
     <span class="comment">// TODO: revisit including the id here [see #188]
     </span><span class="kw">pub </span>id: BatchDigest,
     <span class="kw">pub </span>transactions: Batch,
@@ -1253,22 +1253,22 @@
 
 <span class="kw">pub type </span>BlockRemoverResult&lt;T&gt; = <span class="prelude-ty">Result</span>&lt;T, BlockRemoverError&gt;;
 
-<span class="attribute">#[derive(Clone, Debug)]</span>
-<span class="kw">pub struct </span>BlockRemoverError {
+<span class="attribute">#[derive(Clone, Debug)]
+</span><span class="kw">pub struct </span>BlockRemoverError {
     <span class="kw">pub </span>ids: Vec&lt;CertificateDigest&gt;,
     <span class="kw">pub </span>error: BlockRemoverErrorKind,
 }
 
 <span class="comment">// TODO: refactor BlockError &amp; BlockRemoverError to be one type shared by get/remove collections.
-</span><span class="attribute">#[derive(Clone, Debug, Eq, PartialEq)]</span>
-<span class="kw">pub enum </span>BlockRemoverErrorKind {
+</span><span class="attribute">#[derive(Clone, Debug, Eq, PartialEq)]
+</span><span class="kw">pub enum </span>BlockRemoverErrorKind {
     Timeout,
     Failed,
     StorageFailure,
 }
 
-<span class="attribute">#[derive(Debug, Clone, Eq, PartialEq)]</span>
-<span class="kw">pub enum </span>BlockErrorKind {
+<span class="attribute">#[derive(Debug, Clone, Eq, PartialEq)]
+</span><span class="kw">pub enum </span>BlockErrorKind {
     BlockNotFound,
     BatchTimeout,
     BatchError,
@@ -1276,8 +1276,8 @@
 
 <span class="kw">pub type </span>BlockResult&lt;T&gt; = <span class="prelude-ty">Result</span>&lt;T, BlockError&gt;;
 
-<span class="attribute">#[derive(Debug, Clone, Eq, PartialEq)]</span>
-<span class="kw">pub struct </span>BlockError {
+<span class="attribute">#[derive(Debug, Clone, Eq, PartialEq)]
+</span><span class="kw">pub struct </span>BlockError {
     <span class="kw">pub </span>id: CertificateDigest,
     <span class="kw">pub </span>error: BlockErrorKind,
 }
@@ -1301,8 +1301,8 @@
 }
 
 <span class="doccomment">/// The messages sent by the workers to their primary.
-</span><span class="attribute">#[derive(Debug, Serialize, Deserialize)]</span>
-<span class="kw">pub enum </span>WorkerPrimaryMessage {
+</span><span class="attribute">#[derive(Debug, Serialize, Deserialize)]
+</span><span class="kw">pub enum </span>WorkerPrimaryMessage {
     <span class="doccomment">/// The worker indicates it sealed a new batch.
     </span>OurBatch(BatchDigest, WorkerId),
     <span class="doccomment">/// The worker indicates it received a batch&#39;s digest from another authority.
@@ -1318,19 +1318,19 @@
     </span>Reconfigure(ReconfigureNotification),
 }
 
-<span class="attribute">#[derive(Debug, Serialize, Deserialize, thiserror::Error, Clone, Eq, PartialEq)]</span>
-<span class="kw">pub enum </span>WorkerPrimaryError {
-    <span class="attribute">#[error(<span class="string">&quot;Batch with id {0} has not been found&quot;</span>)]</span>
-    RequestedBatchNotFound(BatchDigest),
+<span class="attribute">#[derive(Debug, Serialize, Deserialize, thiserror::Error, Clone, Eq, PartialEq)]
+</span><span class="kw">pub enum </span>WorkerPrimaryError {
+    <span class="attribute">#[error(<span class="string">&quot;Batch with id {0} has not been found&quot;</span>)]
+    </span>RequestedBatchNotFound(BatchDigest),
 
-    <span class="attribute">#[error(<span class="string">&quot;An error occurred while deleting batches. None deleted&quot;</span>)]</span>
-    ErrorWhileDeletingBatches(Vec&lt;BatchDigest&gt;),
+    <span class="attribute">#[error(<span class="string">&quot;An error occurred while deleting batches. None deleted&quot;</span>)]
+    </span>ErrorWhileDeletingBatches(Vec&lt;BatchDigest&gt;),
 }
 
-<span class="attribute">#[derive(Clone, Serialize, Deserialize, Eq, PartialEq, Debug)]</span>
-<span class="kw">pub struct </span>WorkerInfoResponse {
+<span class="attribute">#[derive(Clone, Serialize, Deserialize, Eq, PartialEq, Debug)]
+</span><span class="kw">pub struct </span>WorkerInfoResponse {
     <span class="doccomment">/// Map of workers&#39; id and their network addresses.
     </span><span class="kw">pub </span>workers: HashMap&lt;WorkerId, WorkerInfo&gt;,
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

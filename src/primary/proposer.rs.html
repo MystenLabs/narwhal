@@ -357,9 +357,9 @@
     BatchDigest, Certificate, Header, ReconfigureNotification, Round,
 };
 
-<span class="attribute">#[cfg(test)]</span>
-<span class="attribute">#[path = <span class="string">&quot;tests/proposer_tests.rs&quot;</span>]</span>
-<span class="kw">pub mod </span>proposer_tests;
+<span class="attribute">#[cfg(test)]
+#[path = <span class="string">&quot;tests/proposer_tests.rs&quot;</span>]
+</span><span class="kw">pub mod </span>proposer_tests;
 
 <span class="doccomment">/// The proposer creates new headers and send them to the core for broadcasting and further processing.
 </span><span class="kw">pub struct </span>Proposer {
@@ -400,9 +400,9 @@
 }
 
 <span class="kw">impl </span>Proposer {
-    <span class="attribute">#[allow(clippy::too_many_arguments)]</span>
-    <span class="attribute">#[must_use]</span>
-    <span class="kw">pub fn </span>spawn(
+    <span class="attribute">#[allow(clippy::too_many_arguments)]
+    #[must_use]
+    </span><span class="kw">pub fn </span>spawn(
         name: PublicKey,
         committee: Committee,
         signature_service: SignatureService&lt;Signature&gt;,
@@ -453,8 +453,8 @@
         .<span class="kw">await</span>;
         <span class="macro">debug!</span>(<span class="string">&quot;Created {header:?}&quot;</span>);
 
-        <span class="attribute">#[cfg(feature = <span class="string">&quot;benchmark&quot;</span>)]</span>
-        <span class="kw">for </span>digest <span class="kw">in </span>header.payload.keys() {
+        <span class="attribute">#[cfg(feature = <span class="string">&quot;benchmark&quot;</span>)]
+        </span><span class="kw">for </span>digest <span class="kw">in </span>header.payload.keys() {
             <span class="comment">// NOTE: This log entry is used to compute performance.
             </span><span class="macro">tracing::info!</span>(<span class="string">&quot;Created {} -&gt; {:?}&quot;</span>, header, digest);
         }
@@ -590,7 +590,7 @@
                 timer.as_mut().reset(deadline);
             }
 
-            <span class="macro">tokio::select!</span> {
+            <span class="macro">tokio::select! </span>{
                 <span class="prelude-val">Some</span>((parents, round, epoch)) = <span class="self">self</span>.rx_core.recv() =&gt; {
                     <span class="comment">// If the core already moved to the next epoch we should pull the next
                     // committee as well.
@@ -675,4 +675,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

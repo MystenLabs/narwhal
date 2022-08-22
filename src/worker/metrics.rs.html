@@ -206,8 +206,8 @@
 <span class="kw">use </span>std::time::Duration;
 <span class="kw">use </span>tonic::Code;
 
-<span class="attribute">#[derive(Clone)]</span>
-<span class="kw">pub struct </span>Metrics {
+<span class="attribute">#[derive(Clone)]
+</span><span class="kw">pub struct </span>Metrics {
     <span class="kw">pub </span>worker_metrics: <span class="prelude-ty">Option</span>&lt;WorkerMetrics&gt;,
     <span class="kw">pub </span>channel_metrics: <span class="prelude-ty">Option</span>&lt;WorkerChannelMetrics&gt;,
     <span class="kw">pub </span>endpoint_metrics: <span class="prelude-ty">Option</span>&lt;WorkerEndpointMetrics&gt;,
@@ -236,8 +236,8 @@
     }
 }
 
-<span class="attribute">#[derive(Clone)]</span>
-<span class="kw">pub struct </span>WorkerMetrics {
+<span class="attribute">#[derive(Clone)]
+</span><span class="kw">pub struct </span>WorkerMetrics {
     <span class="doccomment">/// Number of elements pending elements in the worker synchronizer
     </span><span class="kw">pub </span>pending_elements_worker_synchronizer: IntGaugeVec,
     <span class="doccomment">/// Number of created batches from the batch_maker
@@ -271,8 +271,8 @@
     }
 }
 
-<span class="attribute">#[derive(Clone)]</span>
-<span class="kw">pub struct </span>WorkerChannelMetrics {
+<span class="attribute">#[derive(Clone)]
+</span><span class="kw">pub struct </span>WorkerChannelMetrics {
     <span class="doccomment">/// occupancy of the channel from various handlers to the `worker::PrimaryConnector`
     </span><span class="kw">pub </span>tx_primary: IntGauge,
     <span class="doccomment">/// occupancy of the channel from the `worker::PrimaryReceiverHandler` to the `worker::Synchronizer`
@@ -338,8 +338,8 @@
     }
 }
 
-<span class="attribute">#[derive(Clone)]</span>
-<span class="kw">pub struct </span>WorkerEndpointMetrics {
+<span class="attribute">#[derive(Clone)]
+</span><span class="kw">pub struct </span>WorkerEndpointMetrics {
     <span class="doccomment">/// Counter of requests, route is a label (ie separate timeseries per route)
     </span>requests_by_route: IntCounterVec,
     <span class="doccomment">/// Request latency, route is a label
@@ -391,4 +391,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

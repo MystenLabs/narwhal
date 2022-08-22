@@ -123,8 +123,8 @@
     <span class="kw">fn </span>create_client(config: <span class="kw-2">&amp;</span>mysten_network::config::Config, address: Multiaddr) -&gt; <span class="self">Self</span>::Client;
 }
 
-<span class="attribute">#[async_trait]</span>
-<span class="kw">pub trait </span>UnreliableNetwork: BaseNetwork {
+<span class="attribute">#[async_trait]
+</span><span class="kw">pub trait </span>UnreliableNetwork: BaseNetwork {
     <span class="kw">async fn </span>unreliable_send_message(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         address: Multiaddr,
@@ -159,8 +159,8 @@
     }
 }
 
-<span class="attribute">#[async_trait]</span>
-<span class="kw">pub trait </span>LuckyNetwork: UnreliableNetwork {
+<span class="attribute">#[async_trait]
+</span><span class="kw">pub trait </span>LuckyNetwork: UnreliableNetwork {
     <span class="kw">fn </span>rng(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>SmallRng;
 
     <span class="doccomment">/// Pick a few addresses at random (specified by `nodes`) and try (best-effort) to send the
@@ -177,8 +177,8 @@
     </span>}
 }
 
-<span class="attribute">#[async_trait]</span>
-<span class="kw">pub trait </span>ReliableNetwork: BaseNetwork {
+<span class="attribute">#[async_trait]
+</span><span class="kw">pub trait </span>ReliableNetwork: BaseNetwork {
     <span class="kw">async fn </span>send(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         address: Multiaddr,
@@ -211,4 +211,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="network" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="network" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

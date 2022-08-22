@@ -411,8 +411,8 @@
 <span class="kw">use </span>rand::{prelude::SliceRandom <span class="kw">as _</span>, rngs::SmallRng};
 <span class="kw">use </span>std::collections::HashMap;
 
-<span class="attribute">#[derive(Clone)]</span>
-<span class="kw">pub struct </span>Peer&lt;Value: Hash + Clone&gt; {
+<span class="attribute">#[derive(Clone)]
+</span><span class="kw">pub struct </span>Peer&lt;Value: Hash + Clone&gt; {
     <span class="kw">pub </span>name: PublicKey,
 
     <span class="doccomment">/// Those are the values that we got from the peer and that is able
@@ -574,8 +574,8 @@
     }
 }
 
-<span class="attribute">#[cfg(test)]</span>
-<span class="kw">mod </span>tests {
+<span class="attribute">#[cfg(test)]
+</span><span class="kw">mod </span>tests {
     <span class="kw">use </span><span class="kw">crate</span>::block_synchronizer::peers::Peers;
     <span class="kw">use </span>blake2::{digest::Update, VarBlake2b};
     <span class="kw">use </span>crypto::KeyPair;
@@ -590,8 +590,8 @@
         fmt,
     };
 
-    <span class="attribute">#[test]</span>
-    <span class="kw">fn </span>test_assign_certificates_to_peers_when_all_respond() {
+    <span class="attribute">#[test]
+    </span><span class="kw">fn </span>test_assign_certificates_to_peers_when_all_respond() {
         <span class="kw">struct </span>TestCase {
             num_of_certificates: u8,
             num_of_peers: u8,
@@ -674,8 +674,8 @@
         }
     }
 
-    <span class="attribute">#[test]</span>
-    <span class="kw">fn </span>test_assign_certificates_to_peers_when_all_respond_uniquely() {
+    <span class="attribute">#[test]
+    </span><span class="kw">fn </span>test_assign_certificates_to_peers_when_all_respond_uniquely() {
         <span class="kw">struct </span>TestCase {
             num_of_certificates_each_peer: u8,
             num_of_peers: u8,
@@ -772,11 +772,11 @@
     <span class="comment">// The mock certificate structure we&#39;ll use for our tests
     // It&#39;s easier to debug since the value is a u8 which can
     // be easily understood, print etc.
-    </span><span class="attribute">#[derive(Clone)]</span>
-    <span class="kw">struct </span>MockCertificate(u8);
+    </span><span class="attribute">#[derive(Clone)]
+    </span><span class="kw">struct </span>MockCertificate(u8);
 
-    <span class="attribute">#[derive(Clone, Copy, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]</span>
-    <span class="kw">pub struct </span>MockDigest([u8; DIGEST_LEN]);
+    <span class="attribute">#[derive(Clone, Copy, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
+    </span><span class="kw">pub struct </span>MockDigest([u8; DIGEST_LEN]);
 
     <span class="kw">impl </span>From&lt;MockDigest&gt; <span class="kw">for </span>Digest {
         <span class="kw">fn </span>from(hd: MockDigest) -&gt; <span class="self">Self </span>{
@@ -811,4 +811,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

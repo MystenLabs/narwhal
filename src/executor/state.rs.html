@@ -88,14 +88,14 @@
 </span><span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>types::SequenceNumber;
 
-<span class="attribute">#[cfg(test)]</span>
-<span class="attribute">#[path = <span class="string">&quot;tests/state_tests.rs&quot;</span>]</span>
-<span class="kw">pub mod </span>state_tests;
+<span class="attribute">#[cfg(test)]
+#[path = <span class="string">&quot;tests/state_tests.rs&quot;</span>]
+</span><span class="kw">pub mod </span>state_tests;
 
 <span class="doccomment">/// The state of the subscriber keeping track of the transactions that have already been
 /// executed. It ensures we do not process twice the same transaction despite crash-recovery.
-</span><span class="attribute">#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, Eq)]</span>
-<span class="kw">pub struct </span>ExecutionIndices {
+</span><span class="attribute">#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, Eq)]
+</span><span class="kw">pub struct </span>ExecutionIndices {
     <span class="doccomment">/// The index of the latest consensus message we processed (used for crash-recovery).
     </span><span class="kw">pub </span>next_certificate_index: SequenceNumber,
     <span class="doccomment">/// The index of the last batch we executed (used for crash-recovery).
@@ -169,4 +169,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="executor" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="executor" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

@@ -66,10 +66,10 @@
     nonstandard_style,
     rust_2018_idioms,
     rust_2021_compatibility
-)]</span>
-<span class="attribute">#![allow(clippy::async_yields_async)]</span>
+)]
+#![allow(clippy::async_yields_async)]
 
-<span class="kw">mod </span>bounded_executor;
+</span><span class="kw">mod </span>bounded_executor;
 <span class="kw">pub mod </span>metrics;
 <span class="kw">mod </span>primary;
 <span class="kw">mod </span>retry;
@@ -88,9 +88,9 @@
 </span><span class="kw">pub type </span>MessageResult = <span class="prelude-ty">Result</span>&lt;tonic::Response&lt;types::Empty&gt;, eyre::Report&gt;;
 
 <span class="doccomment">/// This adapter will make a [`tokio::task::JoinHandle`] abort its handled task when the handle is dropped.
-</span><span class="attribute">#[derive(Debug)]</span>
-<span class="attribute">#[must_use]</span>
-<span class="kw">pub struct </span>CancelOnDropHandler&lt;T&gt;(tokio::task::JoinHandle&lt;T&gt;);
+</span><span class="attribute">#[derive(Debug)]
+#[must_use]
+</span><span class="kw">pub struct </span>CancelOnDropHandler&lt;T&gt;(tokio::task::JoinHandle&lt;T&gt;);
 
 <span class="kw">impl</span>&lt;T&gt; Drop <span class="kw">for </span>CancelOnDropHandler&lt;T&gt; {
     <span class="kw">fn </span>drop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
@@ -119,4 +119,4 @@
 // that we don&#39;t create unbounded numbers of tasks.
 </span><span class="kw">pub const </span>MAX_TASK_CONCURRENCY: usize = <span class="number">500</span>;
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="network" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="network" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

@@ -172,13 +172,13 @@
 <span class="kw">mod </span>state;
 <span class="kw">mod </span>subscriber;
 
-<span class="attribute">#[cfg(test)]</span>
-<span class="attribute">#[path = <span class="string">&quot;tests/fixtures.rs&quot;</span>]</span>
-<span class="kw">mod </span>fixtures;
+<span class="attribute">#[cfg(test)]
+#[path = <span class="string">&quot;tests/fixtures.rs&quot;</span>]
+</span><span class="kw">mod </span>fixtures;
 
-<span class="attribute">#[cfg(test)]</span>
-<span class="attribute">#[path = <span class="string">&quot;tests/execution_state.rs&quot;</span>]</span>
-<span class="kw">mod </span>execution_state;
+<span class="attribute">#[cfg(test)]
+#[path = <span class="string">&quot;tests/execution_state.rs&quot;</span>]
+</span><span class="kw">mod </span>execution_state;
 
 <span class="kw">mod </span>metrics;
 
@@ -209,8 +209,8 @@
 <span class="doccomment">/// Convenience type representing a serialized transaction digest.
 </span><span class="kw">pub type </span>SerializedTransactionDigest = u64;
 
-<span class="attribute">#[async_trait]</span>
-<span class="kw">pub trait </span>ExecutionState {
+<span class="attribute">#[async_trait]
+</span><span class="kw">pub trait </span>ExecutionState {
     <span class="doccomment">/// The error type to return in case something went wrong during execution.
     </span><span class="kw">type </span>Error: ExecutionStateError;
 
@@ -227,8 +227,8 @@
 <span class="doccomment">/// Execution state that gets whole certificates and the corresponding batches
 /// for execution. It is responsible for deduplication in case the same certificate
 /// is re-delivered after a crash.
-</span><span class="attribute">#[async_trait]</span>
-<span class="kw">pub trait </span>BatchExecutionState: ExecutionState {
+</span><span class="attribute">#[async_trait]
+</span><span class="kw">pub trait </span>BatchExecutionState: ExecutionState {
     <span class="doccomment">/// Load the last consensus index from storage.
     ///
     /// It should return the index from which it expects a replay, so one higher than
@@ -247,8 +247,8 @@
 }
 
 <span class="doccomment">/// Execution state that executes a single transaction at a time.
-</span><span class="attribute">#[async_trait]</span>
-<span class="kw">pub trait </span>SingleExecutionState: ExecutionState {
+</span><span class="attribute">#[async_trait]
+</span><span class="kw">pub trait </span>SingleExecutionState: ExecutionState {
     <span class="doccomment">/// The type of the transaction to process.
     </span><span class="kw">type </span>Transaction: DeserializeOwned + Send + Debug;
 
@@ -333,4 +333,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="executor" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="executor" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

@@ -208,9 +208,9 @@
     ReconfigureNotification,
 };
 
-<span class="attribute">#[cfg(test)]</span>
-<span class="attribute">#[path = <span class="string">&quot;tests/subscriber_tests.rs&quot;</span>]</span>
-<span class="kw">pub mod </span>subscriber_tests;
+<span class="attribute">#[cfg(test)]
+#[path = <span class="string">&quot;tests/subscriber_tests.rs&quot;</span>]
+</span><span class="kw">pub mod </span>subscriber_tests;
 
 <span class="doccomment">/// The `Subscriber` receives certificates sequenced by the consensus and waits until the
 /// downloaded all the transactions references by the certificates; it then
@@ -240,8 +240,8 @@
     </span><span class="kw">const </span>MAX_PENDING_CONSENSUS_MESSAGES: usize = <span class="number">2000</span>;
 
     <span class="doccomment">/// Spawn a new subscriber in a new tokio task.
-    </span><span class="attribute">#[must_use]</span>
-    <span class="kw">pub fn </span>spawn(
+    </span><span class="attribute">#[must_use]
+    </span><span class="kw">pub fn </span>spawn(
         store: Store&lt;BatchDigest, Batch&gt;,
         tx_get_block_commands: metered_channel::Sender&lt;BlockCommand&gt;,
         rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;,
@@ -287,7 +287,7 @@
 
         <span class="comment">// Listen to sequenced consensus message and process them.
         </span><span class="kw">loop </span>{
-            <span class="macro">tokio::select!</span> {
+            <span class="macro">tokio::select! </span>{
                 <span class="comment">// Receive the ordered sequence of consensus messages from a consensus node.
                 </span><span class="prelude-val">Some</span>(message) = <span class="self">self</span>.rx_consensus.recv(), <span class="kw">if </span>waiting.available_permits() &gt; <span class="number">0 </span>=&gt; {
                     <span class="comment">// Fetch the certificate&#39;s payload from the workers. This is done via the
@@ -375,4 +375,4 @@
     </span>}
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="executor" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="executor" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

@@ -623,9 +623,9 @@
     nonstandard_style,
     rust_2018_idioms,
     rust_2021_compatibility
-)]</span>
+)]
 
-<span class="kw">use </span>arc_swap::ArcSwap;
+</span><span class="kw">use </span>arc_swap::ArcSwap;
 <span class="kw">use </span>crypto::PublicKey;
 <span class="kw">use </span>fastcrypto::traits::EncodeDecodeBase64;
 <span class="kw">use </span>multiaddr::Multiaddr;
@@ -649,31 +649,31 @@
 <span class="doccomment">/// The epoch number.
 </span><span class="kw">pub type </span>Epoch = u64;
 
-<span class="attribute">#[derive(Error, Debug)]</span>
-<span class="kw">pub enum </span>ConfigError {
-    <span class="attribute">#[error(<span class="string">&quot;Node {0} is not in the committee&quot;</span>)]</span>
-    NotInCommittee(String),
+<span class="attribute">#[derive(Error, Debug)]
+</span><span class="kw">pub enum </span>ConfigError {
+    <span class="attribute">#[error(<span class="string">&quot;Node {0} is not in the committee&quot;</span>)]
+    </span>NotInCommittee(String),
 
-    <span class="attribute">#[error(<span class="string">&quot;Unknown worker id {0}&quot;</span>)]</span>
-    UnknownWorker(WorkerId),
+    <span class="attribute">#[error(<span class="string">&quot;Unknown worker id {0}&quot;</span>)]
+    </span>UnknownWorker(WorkerId),
 
-    <span class="attribute">#[error(<span class="string">&quot;Failed to read config file &#39;{file}&#39;: {message}&quot;</span>)]</span>
-    ImportError { file: String, message: String },
+    <span class="attribute">#[error(<span class="string">&quot;Failed to read config file &#39;{file}&#39;: {message}&quot;</span>)]
+    </span>ImportError { file: String, message: String },
 
-    <span class="attribute">#[error(<span class="string">&quot;Failed to write config file &#39;{file}&#39;: {message}&quot;</span>)]</span>
-    ExportError { file: String, message: String },
+    <span class="attribute">#[error(<span class="string">&quot;Failed to write config file &#39;{file}&#39;: {message}&quot;</span>)]
+    </span>ExportError { file: String, message: String },
 }
 
-<span class="attribute">#[derive(Error, Debug)]</span>
-<span class="kw">pub enum </span>CommitteeUpdateError {
-    <span class="attribute">#[error(<span class="string">&quot;Node {0} is not in the committee&quot;</span>)]</span>
-    NotInCommittee(String),
+<span class="attribute">#[derive(Error, Debug)]
+</span><span class="kw">pub enum </span>CommitteeUpdateError {
+    <span class="attribute">#[error(<span class="string">&quot;Node {0} is not in the committee&quot;</span>)]
+    </span>NotInCommittee(String),
 
-    <span class="attribute">#[error(<span class="string">&quot;Node {0} was not in the update&quot;</span>)]</span>
-    MissingFromUpdate(String),
+    <span class="attribute">#[error(<span class="string">&quot;Node {0} was not in the update&quot;</span>)]
+    </span>MissingFromUpdate(String),
 
-    <span class="attribute">#[error(<span class="string">&quot;Node {0} has a different stake than expected&quot;</span>)]</span>
-    DifferentStake(String),
+    <span class="attribute">#[error(<span class="string">&quot;Node {0} has a different stake than expected&quot;</span>)]
+    </span>DifferentStake(String),
 }
 
 <span class="kw">pub trait </span>Import: DeserializeOwned {
@@ -717,20 +717,20 @@
 /// showcase the usage and deserialization from a json file.
 /// To define a Duration on the property file can use either
 /// milliseconds or seconds (e.x 5s, 10ms , 2000ms).
-</span><span class="attribute">#[derive(Clone, Debug, Deserialize, Serialize)]</span>
-<span class="kw">pub struct </span>Parameters {
+</span><span class="attribute">#[derive(Clone, Debug, Deserialize, Serialize)]
+</span><span class="kw">pub struct </span>Parameters {
     <span class="doccomment">/// The preferred header size. The primary creates a new header when it has enough parents and
     /// enough batches&#39; digests to reach `header_size`. Denominated in bytes.
     </span><span class="kw">pub </span>header_size: usize,
     <span class="doccomment">/// The maximum delay that the primary waits between generating two headers, even if the header
     /// did not reach `max_header_size`.
-    </span><span class="attribute">#[serde(with = <span class="string">&quot;duration_format&quot;</span>)]</span>
-    <span class="kw">pub </span>max_header_delay: Duration,
+    </span><span class="attribute">#[serde(with = <span class="string">&quot;duration_format&quot;</span>)]
+    </span><span class="kw">pub </span>max_header_delay: Duration,
     <span class="doccomment">/// The depth of the garbage collection (Denominated in number of rounds).
     </span><span class="kw">pub </span>gc_depth: u64,
     <span class="doccomment">/// The delay after which the synchronizer retries to send sync requests. Denominated in ms.
-    </span><span class="attribute">#[serde(with = <span class="string">&quot;duration_format&quot;</span>)]</span>
-    <span class="kw">pub </span>sync_retry_delay: Duration,
+    </span><span class="attribute">#[serde(with = <span class="string">&quot;duration_format&quot;</span>)]
+    </span><span class="kw">pub </span>sync_retry_delay: Duration,
     <span class="doccomment">/// Determine with how many nodes to sync when re-trying to send sync-request. These nodes
     /// are picked at random from the committee.
     </span><span class="kw">pub </span>sync_retry_nodes: usize,
@@ -739,8 +739,8 @@
     </span><span class="kw">pub </span>batch_size: usize,
     <span class="doccomment">/// The delay after which the workers seal a batch of transactions, even if `max_batch_size`
     /// is not reached.
-    </span><span class="attribute">#[serde(with = <span class="string">&quot;duration_format&quot;</span>)]</span>
-    <span class="kw">pub </span>max_batch_delay: Duration,
+    </span><span class="attribute">#[serde(with = <span class="string">&quot;duration_format&quot;</span>)]
+    </span><span class="kw">pub </span>max_batch_delay: Duration,
     <span class="doccomment">/// The parameters for the block synchronizer
     </span><span class="kw">pub </span>block_synchronizer: BlockSynchronizerParameters,
     <span class="doccomment">/// The parameters for the Consensus API gRPC server
@@ -751,8 +751,8 @@
     </span><span class="kw">pub </span>prometheus_metrics: PrometheusMetricsParameters,
 }
 
-<span class="attribute">#[derive(Clone, Debug, Deserialize, Serialize)]</span>
-<span class="kw">pub struct </span>PrometheusMetricsParameters {
+<span class="attribute">#[derive(Clone, Debug, Deserialize, Serialize)]
+</span><span class="kw">pub struct </span>PrometheusMetricsParameters {
     <span class="doccomment">/// Socket address the server should be listening to.
     </span><span class="kw">pub </span>socket_addr: Multiaddr,
 }
@@ -767,16 +767,16 @@
     }
 }
 
-<span class="attribute">#[derive(Clone, Debug, Deserialize, Serialize)]</span>
-<span class="kw">pub struct </span>ConsensusAPIGrpcParameters {
+<span class="attribute">#[derive(Clone, Debug, Deserialize, Serialize)]
+</span><span class="kw">pub struct </span>ConsensusAPIGrpcParameters {
     <span class="doccomment">/// Socket address the server should be listening to.
     </span><span class="kw">pub </span>socket_addr: Multiaddr,
     <span class="doccomment">/// The timeout configuration when requesting batches from workers.
-    </span><span class="attribute">#[serde(with = <span class="string">&quot;duration_format&quot;</span>)]</span>
-    <span class="kw">pub </span>get_collections_timeout: Duration,
+    </span><span class="attribute">#[serde(with = <span class="string">&quot;duration_format&quot;</span>)]
+    </span><span class="kw">pub </span>get_collections_timeout: Duration,
     <span class="doccomment">/// The timeout configuration when removing batches from workers.
-    </span><span class="attribute">#[serde(with = <span class="string">&quot;duration_format&quot;</span>)]</span>
-    <span class="kw">pub </span>remove_collections_timeout: Duration,
+    </span><span class="attribute">#[serde(with = <span class="string">&quot;duration_format&quot;</span>)]
+    </span><span class="kw">pub </span>remove_collections_timeout: Duration,
 }
 
 <span class="kw">impl </span>Default <span class="kw">for </span>ConsensusAPIGrpcParameters {
@@ -791,27 +791,27 @@
     }
 }
 
-<span class="attribute">#[derive(Clone, Debug, Deserialize, Serialize)]</span>
-<span class="kw">pub struct </span>BlockSynchronizerParameters {
+<span class="attribute">#[derive(Clone, Debug, Deserialize, Serialize)]
+</span><span class="kw">pub struct </span>BlockSynchronizerParameters {
     <span class="doccomment">/// The timeout configuration when requesting certificates from peers.
-    </span><span class="attribute">#[serde(with = <span class="string">&quot;duration_format&quot;</span>)]</span>
-    <span class="kw">pub </span>certificates_synchronize_timeout: Duration,
+    </span><span class="attribute">#[serde(with = <span class="string">&quot;duration_format&quot;</span>)]
+    </span><span class="kw">pub </span>certificates_synchronize_timeout: Duration,
     <span class="doccomment">/// Timeout when has requested the payload for a certificate and is
     /// waiting to receive them.
-    </span><span class="attribute">#[serde(with = <span class="string">&quot;duration_format&quot;</span>)]</span>
-    <span class="kw">pub </span>payload_synchronize_timeout: Duration,
+    </span><span class="attribute">#[serde(with = <span class="string">&quot;duration_format&quot;</span>)]
+    </span><span class="kw">pub </span>payload_synchronize_timeout: Duration,
     <span class="doccomment">/// The timeout configuration when for when we ask the other peers to
     /// discover who has the payload available for the dictated certificates.
-    </span><span class="attribute">#[serde(with = <span class="string">&quot;duration_format&quot;</span>)]</span>
-    <span class="kw">pub </span>payload_availability_timeout: Duration,
+    </span><span class="attribute">#[serde(with = <span class="string">&quot;duration_format&quot;</span>)]
+    </span><span class="kw">pub </span>payload_availability_timeout: Duration,
     <span class="doccomment">/// When a certificate is fetched on the fly from peers, it is submitted
     /// from the block synchronizer handler for further processing to core
     /// to validate and ensure parents are available and history is causal
     /// complete. This property is the timeout while we wait for core to
     /// perform this processes and the certificate to become available to
     /// the handler to consume.
-    </span><span class="attribute">#[serde(with = <span class="string">&quot;duration_format&quot;</span>)]</span>
-    <span class="kw">pub </span>handler_certificate_deliver_timeout: Duration,
+    </span><span class="attribute">#[serde(with = <span class="string">&quot;duration_format&quot;</span>)]
+    </span><span class="kw">pub </span>handler_certificate_deliver_timeout: Duration,
 }
 
 <span class="kw">impl </span>Default <span class="kw">for </span>BlockSynchronizerParameters {
@@ -910,16 +910,16 @@
     }
 }
 
-<span class="attribute">#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]</span>
-<span class="kw">pub struct </span>PrimaryAddresses {
+<span class="attribute">#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+</span><span class="kw">pub struct </span>PrimaryAddresses {
     <span class="doccomment">/// Address to receive messages from other primaries (WAN).
     </span><span class="kw">pub </span>primary_to_primary: Multiaddr,
     <span class="doccomment">/// Address to receive messages from our workers (LAN).
     </span><span class="kw">pub </span>worker_to_primary: Multiaddr,
 }
 
-<span class="attribute">#[derive(Clone, Serialize, Deserialize, Eq, Hash, PartialEq, Debug)]</span>
-<span class="kw">pub struct </span>WorkerInfo {
+<span class="attribute">#[derive(Clone, Serialize, Deserialize, Eq, Hash, PartialEq, Debug)]
+</span><span class="kw">pub struct </span>WorkerInfo {
     <span class="doccomment">/// Address to receive client transactions (WAN).
     </span><span class="kw">pub </span>transactions: Multiaddr,
     <span class="doccomment">/// Address to receive messages from other workers (WAN).
@@ -928,8 +928,8 @@
     </span><span class="kw">pub </span>primary_to_worker: Multiaddr,
 }
 
-<span class="attribute">#[derive(Clone, Serialize, Deserialize, Debug)]</span>
-<span class="kw">pub struct </span>Authority {
+<span class="attribute">#[derive(Clone, Serialize, Deserialize, Debug)]
+</span><span class="kw">pub struct </span>Authority {
     <span class="doccomment">/// The voting power of this authority.
     </span><span class="kw">pub </span>stake: Stake,
     <span class="doccomment">/// The network addresses of the primary.
@@ -940,8 +940,8 @@
 
 <span class="kw">pub type </span>SharedCommittee = Arc&lt;ArcSwap&lt;Committee&gt;&gt;;
 
-<span class="attribute">#[derive(Clone, Serialize, Deserialize, Debug)]</span>
-<span class="kw">pub struct </span>Committee {
+<span class="attribute">#[derive(Clone, Serialize, Deserialize, Debug)]
+</span><span class="kw">pub struct </span>Committee {
     <span class="doccomment">/// The authorities of epoch.
     </span><span class="kw">pub </span>authorities: BTreeMap&lt;PublicKey, Authority&gt;,
     <span class="doccomment">/// The epoch number of this committee
@@ -1187,14 +1187,14 @@
     }
 }
 
-<span class="attribute">#[cfg(test)]</span>
-<span class="kw">mod </span>tests {
+<span class="attribute">#[cfg(test)]
+</span><span class="kw">mod </span>tests {
     <span class="kw">use </span><span class="kw">crate</span>::Parameters;
     <span class="kw">use </span>tracing_test::traced_test;
 
-    <span class="attribute">#[test]</span>
-    <span class="attribute">#[traced_test]</span>
-    <span class="kw">fn </span>tracing_should_print_parameters() {
+    <span class="attribute">#[test]
+    #[traced_test]
+    </span><span class="kw">fn </span>tracing_should_print_parameters() {
         <span class="comment">// GIVEN
         </span><span class="kw">let </span>parameters = Parameters::default();
 
@@ -1233,4 +1233,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="config" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="config" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

@@ -81,16 +81,16 @@
 <span class="kw">use crate</span>::{Batch, BatchDigest};
 
 <span class="doccomment">/// The message exchanged between workers.
-</span><span class="attribute">#[derive(Debug, Serialize, Deserialize)]</span>
-<span class="kw">pub enum </span>WorkerMessage {
+</span><span class="attribute">#[derive(Debug, Serialize, Deserialize)]
+</span><span class="kw">pub enum </span>WorkerMessage {
     <span class="doccomment">/// Used by workers to send a new batch or to reply to a batch request.
     </span>Batch(Batch),
     <span class="doccomment">/// Used by workers to request batches.
     </span>BatchRequest(Vec&lt;BatchDigest&gt;, <span class="comment">/* origin */ </span>PublicKey),
 }
 
-<span class="attribute">#[derive(Debug, Serialize, Deserialize)]</span>
-<span class="kw">pub struct </span>ClientBatchRequest(<span class="kw">pub </span>Vec&lt;BatchDigest&gt;);
+<span class="attribute">#[derive(Debug, Serialize, Deserialize)]
+</span><span class="kw">pub struct </span>ClientBatchRequest(<span class="kw">pub </span>Vec&lt;BatchDigest&gt;);
 
 <span class="doccomment">/// Indicates a serialized `WorkerMessage::Batch` message.
 </span><span class="kw">pub type </span>SerializedBatchMessage = Vec&lt;u8&gt;;
@@ -125,11 +125,11 @@
     })))
 }
 
-<span class="attribute">#[derive(Debug, Error)]</span>
-<span class="attribute">#[non_exhaustive]</span>
-<span class="kw">pub enum </span>DigestError {
-    <span class="attribute">#[error(<span class="string">&quot;Invalid argument: invalid byte at {0}&quot;</span>)]</span>
-    InvalidArgumentError(usize),
+<span class="attribute">#[derive(Debug, Error)]
+#[non_exhaustive]
+</span><span class="kw">pub enum </span>DigestError {
+    <span class="attribute">#[error(<span class="string">&quot;Invalid argument: invalid byte at {0}&quot;</span>)]
+    </span>InvalidArgumentError(usize),
 }
 
 <span class="kw">fn </span>read_one_transaction(sbm: <span class="kw-2">&amp;</span>[u8], offset: usize) -&gt; <span class="prelude-ty">Result</span>&lt;(<span class="kw-2">&amp;</span>[u8], usize), DigestError&gt; {
@@ -143,4 +143,4 @@
     <span class="prelude-val">Ok</span>((<span class="kw-2">&amp;</span>sbm[offset + <span class="number">8</span>..end], end))
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

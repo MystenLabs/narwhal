@@ -250,9 +250,9 @@
     Round,
 };
 
-<span class="attribute">#[cfg(test)]</span>
-<span class="attribute">#[path = <span class="string">&quot;tests/certificate_waiter_tests.rs&quot;</span>]</span>
-<span class="kw">pub mod </span>certificate_waiter_tests;
+<span class="attribute">#[cfg(test)]
+#[path = <span class="string">&quot;tests/certificate_waiter_tests.rs&quot;</span>]
+</span><span class="kw">pub mod </span>certificate_waiter_tests;
 
 <span class="doccomment">/// The resolution of the timer that checks whether we received replies to our parent requests, and triggers
 /// a round of GC if we didn&#39;t.
@@ -291,8 +291,8 @@
         <span class="self">self</span>.gc_depth <span class="kw">as </span>usize * <span class="self">self</span>.committee.size() * <span class="number">2
     </span>}
 
-    <span class="attribute">#[must_use]</span>
-    <span class="kw">pub fn </span>spawn(
+    <span class="attribute">#[must_use]
+    </span><span class="kw">pub fn </span>spawn(
         committee: Committee,
         store: Store&lt;CertificateDigest, Certificate&gt;,
         rx_consensus_round_updates: watch::Receiver&lt;u64&gt;,
@@ -329,7 +329,7 @@
     ) -&gt; DagResult&lt;Certificate&gt; {
         <span class="kw">let </span>waiting: Vec&lt;<span class="kw">_</span>&gt; = missing.into_iter().map(|x| store.notify_read(x)).collect();
 
-        <span class="macro">tokio::select!</span> {
+        <span class="macro">tokio::select! </span>{
             result = try_join_all(waiting) =&gt; {
                 result.map(|<span class="kw">_</span>| deliver).map_err(DagError::from)
             }
@@ -349,7 +349,7 @@
             <span class="comment">// Initially set to not garbage collect
             </span>attempt_garbage_collection = <span class="bool-val">false</span>;
 
-            <span class="macro">tokio::select!</span> {
+            <span class="macro">tokio::select! </span>{
                 <span class="comment">// We only accept new elements if we have &quot;room&quot; for them
                 </span><span class="prelude-val">Some</span>(certificate) = <span class="self">self</span>.rx_synchronizer.recv(), <span class="kw">if </span>waiting.available_permits() &gt; <span class="number">0 </span>=&gt; {
                     <span class="kw">if </span>certificate.epoch() &lt; <span class="self">self</span>.committee.epoch() {
@@ -455,4 +455,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

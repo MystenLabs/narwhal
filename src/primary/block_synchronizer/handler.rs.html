@@ -329,8 +329,8 @@
 <span class="kw">use </span>async_trait::async_trait;
 <span class="kw">use </span>fastcrypto::Hash;
 <span class="kw">use </span>futures::future::join_all;
-<span class="attribute">#[cfg(test)]</span>
-<span class="kw">use </span>mockall::<span class="kw-2">*</span>;
+<span class="attribute">#[cfg(test)]
+</span><span class="kw">use </span>mockall::<span class="kw-2">*</span>;
 <span class="kw">use </span>std::time::Duration;
 <span class="kw">use </span>store::Store;
 <span class="kw">use </span>thiserror::Error;
@@ -338,25 +338,25 @@
 <span class="kw">use </span>tracing::{debug, error, instrument, trace};
 <span class="kw">use </span>types::{metered_channel, Certificate, CertificateDigest, PrimaryMessage};
 
-<span class="attribute">#[cfg(test)]</span>
-<span class="attribute">#[path = <span class="string">&quot;tests/handler_tests.rs&quot;</span>]</span>
-<span class="kw">mod </span>handler_tests;
+<span class="attribute">#[cfg(test)]
+#[path = <span class="string">&quot;tests/handler_tests.rs&quot;</span>]
+</span><span class="kw">mod </span>handler_tests;
 
 <span class="doccomment">/// The errors returned by the Handler. It translates
 /// also the errors returned from the block_synchronizer.
-</span><span class="attribute">#[derive(Debug, Error, Copy, Clone)]</span>
-<span class="kw">pub enum </span>Error {
-    <span class="attribute">#[error(<span class="string">&quot;Block with id {block_id} not found&quot;</span>)]</span>
-    BlockNotFound { block_id: CertificateDigest },
+</span><span class="attribute">#[derive(Debug, Error, Copy, Clone)]
+</span><span class="kw">pub enum </span>Error {
+    <span class="attribute">#[error(<span class="string">&quot;Block with id {block_id} not found&quot;</span>)]
+    </span>BlockNotFound { block_id: CertificateDigest },
 
-    <span class="attribute">#[error(<span class="string">&quot;Block with id {block_id} couldn&#39;t be retrieved, internal error occurred&quot;</span>)]</span>
-    Internal { block_id: CertificateDigest },
+    <span class="attribute">#[error(<span class="string">&quot;Block with id {block_id} couldn&#39;t be retrieved, internal error occurred&quot;</span>)]
+    </span>Internal { block_id: CertificateDigest },
 
-    <span class="attribute">#[error(<span class="string">&quot;Timed out while waiting for {block_id} to become available after submitting for processing&quot;</span>)]</span>
-    BlockDeliveryTimeout { block_id: CertificateDigest },
+    <span class="attribute">#[error(<span class="string">&quot;Timed out while waiting for {block_id} to become available after submitting for processing&quot;</span>)]
+    </span>BlockDeliveryTimeout { block_id: CertificateDigest },
 
-    <span class="attribute">#[error(<span class="string">&quot;Payload for block with {block_id} couldn&#39;t be synchronized: {error}&quot;</span>)]</span>
-    PayloadSyncError {
+    <span class="attribute">#[error(<span class="string">&quot;Payload for block with {block_id} couldn&#39;t be synchronized: {error}&quot;</span>)]
+    </span>PayloadSyncError {
         block_id: CertificateDigest,
         error: SyncError,
     },
@@ -382,9 +382,9 @@
 /// from peers certificates for further validation &amp; processing (e.x ensure
 /// parents history is causally complete) to the core and wait until the
 /// certificate has been processed, before it returns it back as result.
-</span><span class="attribute">#[cfg_attr(test, automock)]</span>
-<span class="attribute">#[async_trait]</span>
-<span class="kw">pub trait </span>Handler {
+</span><span class="attribute">#[cfg_attr(test, automock)]
+#[async_trait]
+</span><span class="kw">pub trait </span>Handler {
     <span class="doccomment">/// It retrieves the requested blocks via the block_synchronizer making
     /// sure though that they are fully validated. The certificates will only
     /// be returned when they have properly processed via the core module
@@ -470,8 +470,8 @@
     }
 }
 
-<span class="attribute">#[async_trait]</span>
-<span class="kw">impl </span>Handler <span class="kw">for </span>BlockSynchronizerHandler {
+<span class="attribute">#[async_trait]
+</span><span class="kw">impl </span>Handler <span class="kw">for </span>BlockSynchronizerHandler {
     <span class="doccomment">/// The method will return a separate result for each requested block id.
     /// If a certificate has been successfully retrieved (and processed via core
     /// if has been fetched from peers) then an OK result will be returned with the
@@ -481,8 +481,8 @@
     /// * Internal: An internal error caused
     /// * BlockDeliveryTimeout: Timed out while waiting for the certificate to become available
     /// after submitting it for processing to core
-    </span><span class="attribute">#[instrument(level=<span class="string">&quot;trace&quot;</span>, skip_all, fields(num_block_ids = block_ids.len()))]</span>
-    <span class="kw">async fn </span>get_and_synchronize_block_headers(
+    </span><span class="attribute">#[instrument(level=<span class="string">&quot;trace&quot;</span>, skip_all, fields(num_block_ids = block_ids.len()))]
+    </span><span class="kw">async fn </span>get_and_synchronize_block_headers(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         block_ids: Vec&lt;CertificateDigest&gt;,
     ) -&gt; Vec&lt;<span class="prelude-ty">Result</span>&lt;Certificate, Error&gt;&gt; {
@@ -546,8 +546,8 @@
         results
     }
 
-    <span class="attribute">#[instrument(level=<span class="string">&quot;trace&quot;</span>, skip_all, fields(num_block_ids = block_ids.len()))]</span>
-    <span class="kw">async fn </span>get_block_headers(
+    <span class="attribute">#[instrument(level=<span class="string">&quot;trace&quot;</span>, skip_all, fields(num_block_ids = block_ids.len()))]
+    </span><span class="kw">async fn </span>get_block_headers(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         block_ids: Vec&lt;CertificateDigest&gt;,
     ) -&gt; Vec&lt;BlockSynchronizeResult&lt;BlockHeader&gt;&gt; {
@@ -583,8 +583,8 @@
         results
     }
 
-    <span class="attribute">#[instrument(level = <span class="string">&quot;trace&quot;</span>, skip_all)]</span>
-    <span class="kw">async fn </span>synchronize_block_payloads(
+    <span class="attribute">#[instrument(level = <span class="string">&quot;trace&quot;</span>, skip_all)]
+    </span><span class="kw">async fn </span>synchronize_block_payloads(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         certificates: Vec&lt;Certificate&gt;,
     ) -&gt; Vec&lt;<span class="prelude-ty">Result</span>&lt;Certificate, Error&gt;&gt; {
@@ -637,4 +637,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

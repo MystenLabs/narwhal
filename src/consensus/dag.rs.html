@@ -540,17 +540,17 @@
 
 <span class="kw">use crate</span>::{metrics::ConsensusMetrics, DEFAULT_CHANNEL_SIZE};
 
-<span class="attribute">#[cfg(any(test))]</span>
-<span class="attribute">#[path = <span class="string">&quot;tests/dag_tests.rs&quot;</span>]</span>
-<span class="kw">pub mod </span>dag_tests;
+<span class="attribute">#[cfg(any(test))]
+#[path = <span class="string">&quot;tests/dag_tests.rs&quot;</span>]
+</span><span class="kw">pub mod </span>dag_tests;
 
 <span class="doccomment">/// Dag represents the Direct Acyclic Graph that is constructed by the certificate of each round without any
 /// consensus running on top of it. This is a [`VerifyingKey`], [`Certificate`] and [`Round`]-aware
 ///  variant of the Dag, with a secondary index to link a (pubkey, round) pair to the possible
 /// certified collection by that authority at that round.
 ///
-</span><span class="attribute">#[derive(Debug)]</span>
-<span class="kw">struct </span>InnerDag {
+</span><span class="attribute">#[derive(Debug)]
+</span><span class="kw">struct </span>InnerDag {
     <span class="doccomment">/// Receives new certificates from the primary. The primary should send us new certificates only
     /// if it already sent us its whole history.
     </span>rx_primary: metered_channel::Receiver&lt;Certificate&gt;,
@@ -575,19 +575,19 @@
 
 <span class="doccomment">/// Represents the errors that can be encountered in this concrete, [`VerifyingKey`],
 /// [`Certificate`] and [`Round`]-aware variant of the Dag.
-</span><span class="attribute">#[derive(Debug, Error)]</span>
-<span class="kw">pub enum </span>ValidatorDagError {
-    <span class="attribute">#[error(<span class="string">&quot;No remaining certificates in Dag for this authority: {0}&quot;</span>)]</span>
-    OutOfCertificates(PublicKey),
-    <span class="attribute">#[error(<span class="string">&quot;No known certificates for this authority: {0} at round {1}&quot;</span>)]</span>
-    NoCertificateForCoordinates(PublicKey, Round),
+</span><span class="attribute">#[derive(Debug, Error)]
+</span><span class="kw">pub enum </span>ValidatorDagError {
+    <span class="attribute">#[error(<span class="string">&quot;No remaining certificates in Dag for this authority: {0}&quot;</span>)]
+    </span>OutOfCertificates(PublicKey),
+    <span class="attribute">#[error(<span class="string">&quot;No known certificates for this authority: {0} at round {1}&quot;</span>)]
+    </span>NoCertificateForCoordinates(PublicKey, Round),
     <span class="comment">// an invariant violation at the level of the generic DAG (unrelated to Certificate specifics)
-    </span><span class="attribute">#[error(<span class="string">&quot;Dag invariant violation {0}&quot;</span>)]</span>
-    DagInvariantViolation(<span class="attribute">#[from]</span> dag::node_dag::NodeDagError),
+    </span><span class="attribute">#[error(<span class="string">&quot;Dag invariant violation {0}&quot;</span>)]
+    </span>DagInvariantViolation(<span class="attribute">#[from] </span>dag::node_dag::NodeDagError),
 }
 
-<span class="attribute">#[allow(clippy::large_enum_variant)]</span>
-<span class="kw">enum </span>DagCommand {
+<span class="attribute">#[allow(clippy::large_enum_variant)]
+</span><span class="kw">enum </span>DagCommand {
     Insert(
         Box&lt;Certificate&gt;,
         oneshot::Sender&lt;<span class="prelude-ty">Result</span>&lt;(), ValidatorDagError&gt;&gt;,
@@ -643,7 +643,7 @@
     <span class="kw">async fn </span>run(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="kw">let </span><span class="kw-2">mut </span>obligations = HashMap::&lt;CertificateDigest, VecDeque&lt;oneshot::Sender&lt;<span class="kw">_</span>&gt;&gt;&gt;::new();
         <span class="kw">loop </span>{
-            <span class="macro">tokio::select!</span> {
+            <span class="macro">tokio::select! </span>{
                  <span class="prelude-val">Some</span>(certificate) = <span class="self">self</span>.rx_primary.recv() =&gt; {
                     <span class="comment">// The Core (process_certificate) guarantees the certificate
                     // has gone through causal completion =&gt; this is ready to be inserted
@@ -697,8 +697,8 @@
         }
     }
 
-    <span class="attribute">#[instrument(level = <span class="string">&quot;trace&quot;</span>, skip_all, fields(certificate = <span class="question-mark">?</span>certificate), err)]</span>
-    <span class="kw">fn </span>insert(<span class="kw-2">&amp;mut </span><span class="self">self</span>, certificate: Certificate) -&gt; <span class="prelude-ty">Result</span>&lt;(), ValidatorDagError&gt; {
+    <span class="attribute">#[instrument(level = <span class="string">&quot;trace&quot;</span>, skip_all, fields(certificate = <span class="question-mark">?</span>certificate), err)]
+    </span><span class="kw">fn </span>insert(<span class="kw-2">&amp;mut </span><span class="self">self</span>, certificate: Certificate) -&gt; <span class="prelude-ty">Result</span>&lt;(), ValidatorDagError&gt; {
         <span class="kw">let </span>digest = certificate.digest();
         <span class="kw">let </span>round = certificate.round();
         <span class="kw">let </span>origin = certificate.origin();
@@ -725,14 +725,14 @@
     <span class="doccomment">/// Returns whether the dag has ever contained a node with the provided digest. The method will return
     /// true either when the node is live (uncompressed) or has been already compressed as still exists
     /// as weak reference.
-    </span><span class="attribute">#[instrument(level = <span class="string">&quot;trace&quot;</span>, skip_all, fields(digest = <span class="question-mark">?</span>digest))]</span>
-    <span class="kw">fn </span>has_ever_contained(<span class="kw-2">&amp;</span><span class="self">self</span>, digest: CertificateDigest) -&gt; bool {
+    </span><span class="attribute">#[instrument(level = <span class="string">&quot;trace&quot;</span>, skip_all, fields(digest = <span class="question-mark">?</span>digest))]
+    </span><span class="kw">fn </span>has_ever_contained(<span class="kw-2">&amp;</span><span class="self">self</span>, digest: CertificateDigest) -&gt; bool {
         <span class="self">self</span>.dag.contains(digest)
     }
 
     <span class="doccomment">/// Returns the oldest and newest rounds for which a validator has (live) certificates in the DAG
-    </span><span class="attribute">#[instrument(level = <span class="string">&quot;trace&quot;</span>, skip_all, fields(origin = <span class="question-mark">?</span>origin), err)]</span>
-    <span class="kw">fn </span>rounds(
+    </span><span class="attribute">#[instrument(level = <span class="string">&quot;trace&quot;</span>, skip_all, fields(origin = <span class="question-mark">?</span>origin), err)]
+    </span><span class="kw">fn </span>rounds(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         origin: PublicKey,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;std::ops::RangeInclusive&lt;Round&gt;, ValidatorDagError&gt; {
@@ -775,8 +775,8 @@
 
     <span class="doccomment">/// Returns a breadth first traversal of the Dag, starting with the certified collection
     /// passed as argument.
-    </span><span class="attribute">#[instrument(level = <span class="string">&quot;trace&quot;</span>, skip_all, fields(start_certificate_id = <span class="question-mark">?</span>start), err)]</span>
-    <span class="kw">fn </span>read_causal(
+    </span><span class="attribute">#[instrument(level = <span class="string">&quot;trace&quot;</span>, skip_all, fields(start_certificate_id = <span class="question-mark">?</span>start), err)]
+    </span><span class="kw">fn </span>read_causal(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         start: CertificateDigest,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw">impl </span>Iterator&lt;Item = CertificateDigest&gt;, ValidatorDagError&gt; {
@@ -786,8 +786,8 @@
 
     <span class="doccomment">/// Returns a breadth first traversal of the Dag, starting with the certified collection
     /// passed as argument.
-    </span><span class="attribute">#[instrument(level = <span class="string">&quot;trace&quot;</span>, skip_all, fields(origin = <span class="question-mark">?</span>origin, round = <span class="question-mark">?</span>round), err)]</span>
-    <span class="kw">fn </span>node_read_causal(
+    </span><span class="attribute">#[instrument(level = <span class="string">&quot;trace&quot;</span>, skip_all, fields(origin = <span class="question-mark">?</span>origin, round = <span class="question-mark">?</span>round), err)]
+    </span><span class="kw">fn </span>node_read_causal(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         origin: PublicKey,
         round: Round,
@@ -800,8 +800,8 @@
     }
 
     <span class="doccomment">/// Removes certificates from the Dag, reclaiming memory in the process.
-    </span><span class="attribute">#[instrument(level = <span class="string">&quot;trace&quot;</span>, skip_all, fields(num_certificate_ids = digests.len()), err)]</span>
-    <span class="kw">fn </span>remove(<span class="kw-2">&amp;mut </span><span class="self">self</span>, digests: Vec&lt;CertificateDigest&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), ValidatorDagError&gt; {
+    </span><span class="attribute">#[instrument(level = <span class="string">&quot;trace&quot;</span>, skip_all, fields(num_certificate_ids = digests.len()), err)]
+    </span><span class="kw">fn </span>remove(<span class="kw-2">&amp;mut </span><span class="self">self</span>, digests: Vec&lt;CertificateDigest&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), ValidatorDagError&gt; {
         {
             <span class="comment">// TODO: lock-free atomicity
             </span><span class="kw">let </span><span class="kw-2">mut </span>vertices = <span class="self">self</span>.vertices.write().unwrap();
@@ -1031,4 +1031,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="consensus" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="consensus" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

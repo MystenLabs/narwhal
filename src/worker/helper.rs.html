@@ -146,9 +146,9 @@
     metered_channel::Receiver, BatchDigest, ReconfigureNotification, SerializedBatchMessage,
 };
 
-<span class="attribute">#[cfg(test)]</span>
-<span class="attribute">#[path = <span class="string">&quot;tests/helper_tests.rs&quot;</span>]</span>
-<span class="kw">pub mod </span>helper_tests;
+<span class="attribute">#[cfg(test)]
+#[path = <span class="string">&quot;tests/helper_tests.rs&quot;</span>]
+</span><span class="kw">pub mod </span>helper_tests;
 
 <span class="doccomment">/// A task dedicated to help other authorities by replying to their batch requests.
 </span><span class="kw">pub struct </span>Helper {
@@ -169,8 +169,8 @@
 }
 
 <span class="kw">impl </span>Helper {
-    <span class="attribute">#[must_use]</span>
-    <span class="kw">pub fn </span>spawn(
+    <span class="attribute">#[must_use]
+    </span><span class="kw">pub fn </span>spawn(
         id: WorkerId,
         committee: Committee,
         store: Store&lt;BatchDigest, SerializedBatchMessage&gt;,
@@ -197,7 +197,7 @@
     <span class="kw">async fn </span>run(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="comment">// TODO [issue #7]: Do some accounting to prevent bad actors from monopolizing our resources.
         </span><span class="kw">loop </span>{
-            <span class="macro">tokio::select!</span> {
+            <span class="macro">tokio::select! </span>{
                 <span class="comment">// Handle requests from other workers.
                 </span><span class="prelude-val">Some</span>((digests, origin)) = <span class="self">self</span>.rx_worker_request.recv() =&gt; {
                     <span class="comment">// get the requestors address.
@@ -261,4 +261,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

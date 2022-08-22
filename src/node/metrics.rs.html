@@ -84,8 +84,8 @@
     Registry::new_custom(<span class="prelude-val">Some</span>(WORKER_METRICS_PREFIX.to_string()), <span class="prelude-val">Some</span>(labels)).unwrap()
 }
 
-<span class="attribute">#[must_use]</span>
-<span class="kw">pub fn </span>start_prometheus_server(addr: Multiaddr, registry: <span class="kw-2">&amp;</span>Registry) -&gt; JoinHandle&lt;()&gt; {
+<span class="attribute">#[must_use]
+</span><span class="kw">pub fn </span>start_prometheus_server(addr: Multiaddr, registry: <span class="kw-2">&amp;</span>Registry) -&gt; JoinHandle&lt;()&gt; {
     <span class="kw">let </span>app = Router::new()
         .route(METRICS_ROUTE, get(metrics))
         .layer(Extension(registry.clone()));
@@ -111,4 +111,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="node" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="node" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

@@ -407,8 +407,8 @@
         }
     }
 
-    <span class="attribute">#[instrument(level = <span class="string">&quot;info&quot;</span>, skip_all)]</span>
-    <span class="kw">pub async fn </span>new_from_store(
+    <span class="attribute">#[instrument(level = <span class="string">&quot;info&quot;</span>, skip_all)]
+    </span><span class="kw">pub async fn </span>new_from_store(
         genesis: Vec&lt;Certificate&gt;,
         metrics: Arc&lt;ConsensusMetrics&gt;,
         recover_last_committed: HashMap&lt;PublicKey, Round&gt;,
@@ -437,8 +437,8 @@
         }
     }
 
-    <span class="attribute">#[instrument(level = <span class="string">&quot;info&quot;</span>, skip_all)]</span>
-    <span class="kw">pub async fn </span>construct_dag_from_cert_store(
+    <span class="attribute">#[instrument(level = <span class="string">&quot;info&quot;</span>, skip_all)]
+    </span><span class="kw">pub async fn </span>construct_dag_from_cert_store(
         cert_store: Store&lt;CertificateDigest, Certificate&gt;,
         last_committed_round: Round,
         gc_depth: Round,
@@ -552,8 +552,8 @@
 <span class="kw">where
     </span>Protocol: ConsensusProtocol + Send + <span class="lifetime">&#39;static</span>,
 {
-    <span class="attribute">#[must_use]</span>
-    <span class="kw">pub fn </span>spawn(
+    <span class="attribute">#[must_use]
+    </span><span class="kw">pub fn </span>spawn(
         committee: Committee,
         store: Arc&lt;ConsensusStore&gt;,
         cert_store: Store&lt;CertificateDigest, Certificate&gt;,
@@ -615,7 +615,7 @@
 
         <span class="comment">// Listen to incoming certificates.
         </span><span class="kw">loop </span>{
-            <span class="macro">tokio::select!</span> {
+            <span class="macro">tokio::select! </span>{
                 <span class="prelude-val">Some</span>(certificate) = <span class="self">self</span>.rx_primary.recv() =&gt; {
                     <span class="comment">// If the core already moved to the next epoch we should pull the next
                     // committee as well.
@@ -654,13 +654,13 @@
                     <span class="comment">// Output the sequence in the right order.
                     </span><span class="kw">for </span>output <span class="kw">in </span>sequence {
                         <span class="kw">let </span>certificate = <span class="kw-2">&amp;</span>output.certificate;
-                        <span class="attribute">#[cfg(not(feature = <span class="string">&quot;benchmark&quot;</span>))]</span>
-                        <span class="kw">if </span>output.consensus_index % <span class="number">5_000 </span>== <span class="number">0 </span>{
+                        <span class="attribute">#[cfg(not(feature = <span class="string">&quot;benchmark&quot;</span>))]
+                        </span><span class="kw">if </span>output.consensus_index % <span class="number">5_000 </span>== <span class="number">0 </span>{
                             <span class="macro">tracing::debug!</span>(<span class="string">&quot;Committed {}&quot;</span>, certificate.header);
                         }
 
-                        <span class="attribute">#[cfg(feature = <span class="string">&quot;benchmark&quot;</span>)]</span>
-                        <span class="kw">for </span>digest <span class="kw">in </span>certificate.header.payload.keys() {
+                        <span class="attribute">#[cfg(feature = <span class="string">&quot;benchmark&quot;</span>)]
+                        </span><span class="kw">for </span>digest <span class="kw">in </span>certificate.header.payload.keys() {
                             <span class="comment">// NOTE: This log entry is used to compute performance.
                             </span><span class="macro">tracing::info!</span>(<span class="string">&quot;Committed {} -&gt; {:?}&quot;</span>, certificate.header, digest);
                         }
@@ -701,4 +701,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="consensus" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="consensus" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

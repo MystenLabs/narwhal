@@ -352,8 +352,8 @@
     }
 }
 
-<span class="attribute">#[async_trait]</span>
-<span class="kw">impl </span>UnreliableNetwork <span class="kw">for </span>PrimaryNetwork {
+<span class="attribute">#[async_trait]
+</span><span class="kw">impl </span>UnreliableNetwork <span class="kw">for </span>PrimaryNetwork {
     <span class="kw">async fn </span>unreliable_send_message(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         address: Multiaddr,
@@ -375,15 +375,15 @@
     }
 }
 
-<span class="attribute">#[async_trait]</span>
-<span class="kw">impl </span>LuckyNetwork <span class="kw">for </span>PrimaryNetwork {
+<span class="attribute">#[async_trait]
+</span><span class="kw">impl </span>LuckyNetwork <span class="kw">for </span>PrimaryNetwork {
     <span class="kw">fn </span>rng(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>SmallRng {
         <span class="kw-2">&amp;mut </span><span class="self">self</span>.rng
     }
 }
 
-<span class="attribute">#[async_trait]</span>
-<span class="kw">impl </span>ReliableNetwork <span class="kw">for </span>PrimaryNetwork {
+<span class="attribute">#[async_trait]
+</span><span class="kw">impl </span>ReliableNetwork <span class="kw">for </span>PrimaryNetwork {
     <span class="comment">// Safety
     // Since this spawns an unbounded task, this should be called in a time-restricted fashion.
     // Here the callers are [`PrimaryNetwork::broadcast`] and [`PrimaryNetwork::send`],
@@ -484,8 +484,8 @@
     }
 }
 
-<span class="attribute">#[async_trait]</span>
-<span class="kw">impl </span>UnreliableNetwork <span class="kw">for </span>PrimaryToWorkerNetwork {
+<span class="attribute">#[async_trait]
+</span><span class="kw">impl </span>UnreliableNetwork <span class="kw">for </span>PrimaryToWorkerNetwork {
     <span class="kw">async fn </span>unreliable_send_message(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         address: Multiaddr,
@@ -505,4 +505,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="network" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="network" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>

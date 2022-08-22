@@ -1047,9 +1047,9 @@
     ReconfigureNotification,
 };
 
-<span class="attribute">#[cfg(test)]</span>
-<span class="attribute">#[path = <span class="string">&quot;tests/block_synchronizer_tests.rs&quot;</span>]</span>
-<span class="kw">mod </span>block_synchronizer_tests;
+<span class="attribute">#[cfg(test)]
+#[path = <span class="string">&quot;tests/block_synchronizer_tests.rs&quot;</span>]
+</span><span class="kw">mod </span>block_synchronizer_tests;
 <span class="kw">pub mod </span>handler;
 <span class="kw">pub mod </span>mock;
 <span class="kw">mod </span>peers;
@@ -1061,8 +1061,8 @@
 /// proceed to next state.
 </span><span class="kw">const </span>CERTIFICATE_RESPONSES_RATIO_THRESHOLD: f32 = <span class="number">0.5</span>;
 
-<span class="attribute">#[derive(Debug, Clone)]</span>
-<span class="kw">pub struct </span>BlockHeader {
+<span class="attribute">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>BlockHeader {
     <span class="kw">pub </span>certificate: Certificate,
     <span class="doccomment">/// It designates whether the requested quantity (either the certificate
     /// or the payload) has been retrieved via the local storage. If true,
@@ -1074,10 +1074,10 @@
 <span class="kw">type </span>ResultSender = Sender&lt;BlockSynchronizeResult&lt;BlockHeader&gt;&gt;;
 <span class="kw">pub type </span>BlockSynchronizeResult&lt;T&gt; = <span class="prelude-ty">Result</span>&lt;T, SyncError&gt;;
 
-<span class="attribute">#[derive(Debug)]</span>
-<span class="kw">pub enum </span>Command {
-    <span class="attribute">#[allow(dead_code)]</span>
-    <span class="doccomment">/// A request to synchronize and output the block headers
+<span class="attribute">#[derive(Debug)]
+</span><span class="kw">pub enum </span>Command {
+    <span class="attribute">#[allow(dead_code)]
+    </span><span class="doccomment">/// A request to synchronize and output the block headers
     /// This will not perform any attempt to fetch the header&#39;s
     /// batches. This component does NOT check whether the
     /// requested block_ids are already synchronized. This is the
@@ -1098,8 +1098,8 @@
     /// This component does NOT check whether the
     </span><span class="comment">//  requested block_ids are already synchronized. This is the
     //  consumer&#39;s responsibility.
-    </span><span class="attribute">#[allow(dead_code)]</span>
-    SynchronizeBlockPayload {
+    </span><span class="attribute">#[allow(dead_code)]
+    </span>SynchronizeBlockPayload {
         certificates: Vec&lt;Certificate&gt;,
         respond_to: ResultSender,
     },
@@ -1108,8 +1108,8 @@
 <span class="comment">// Those states are used for internal purposes only for the component.
 // We are implementing a very very naive state machine and go get from
 // one state to the other those commands are being used.
-</span><span class="attribute">#[allow(clippy::large_enum_variant)]</span>
-<span class="kw">enum </span>State {
+</span><span class="attribute">#[allow(clippy::large_enum_variant)]
+</span><span class="kw">enum </span>State {
     HeadersSynchronized {
         request_id: RequestID,
         certificates: HashMap&lt;CertificateDigest, BlockSynchronizeResult&lt;BlockHeader&gt;&gt;,
@@ -1125,33 +1125,33 @@
     },
 }
 
-<span class="attribute">#[derive(Debug, Error, Copy, Clone)]</span>
-<span class="kw">pub enum </span>SyncError {
-    <span class="attribute">#[error(<span class="string">&quot;Block with id {block_id} was not returned in any peer response&quot;</span>)]</span>
-    NoResponse { block_id: CertificateDigest },
+<span class="attribute">#[derive(Debug, Error, Copy, Clone)]
+</span><span class="kw">pub enum </span>SyncError {
+    <span class="attribute">#[error(<span class="string">&quot;Block with id {block_id} was not returned in any peer response&quot;</span>)]
+    </span>NoResponse { block_id: CertificateDigest },
 
-    <span class="attribute">#[error(<span class="string">&quot;Block with id {block_id} could not be retrieved, timeout while retrieving result&quot;</span>)]</span>
-    Timeout { block_id: CertificateDigest },
+    <span class="attribute">#[error(<span class="string">&quot;Block with id {block_id} could not be retrieved, timeout while retrieving result&quot;</span>)]
+    </span>Timeout { block_id: CertificateDigest },
 }
 
 <span class="kw">impl </span>SyncError {
-    <span class="attribute">#[allow(dead_code)]</span>
-    <span class="kw">pub fn </span>block_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; CertificateDigest {
+    <span class="attribute">#[allow(dead_code)]
+    </span><span class="kw">pub fn </span>block_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; CertificateDigest {
         <span class="kw">match </span><span class="kw-2">*</span><span class="self">self </span>{
             SyncError::NoResponse { block_id } | SyncError::Timeout { block_id } =&gt; block_id,
         }
     }
 }
 
-<span class="attribute">#[derive(Hash, Eq, PartialEq, Clone, Copy)]</span>
-<span class="kw">enum </span>PendingIdentifier {
+<span class="attribute">#[derive(Hash, Eq, PartialEq, Clone, Copy)]
+</span><span class="kw">enum </span>PendingIdentifier {
     Header(CertificateDigest),
     Payload(CertificateDigest),
 }
 
 <span class="kw">impl </span>PendingIdentifier {
-    <span class="attribute">#[allow(dead_code)]</span>
-    <span class="kw">fn </span>id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; CertificateDigest {
+    <span class="attribute">#[allow(dead_code)]
+    </span><span class="kw">fn </span>id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; CertificateDigest {
         <span class="kw">match </span><span class="self">self </span>{
             PendingIdentifier::Header(id) | PendingIdentifier::Payload(id) =&gt; <span class="kw-2">*</span>id,
         }
@@ -1209,8 +1209,8 @@
 }
 
 <span class="kw">impl </span>BlockSynchronizer {
-    <span class="attribute">#[must_use]</span>
-    <span class="kw">pub fn </span>spawn(
+    <span class="attribute">#[must_use]
+    </span><span class="kw">pub fn </span>spawn(
         name: PublicKey,
         committee: Committee,
         rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;,
@@ -1261,7 +1261,7 @@
             <span class="self">self</span>.name
         );
         <span class="kw">loop </span>{
-            <span class="macro">tokio::select!</span> {
+            <span class="macro">tokio::select! </span>{
                 <span class="prelude-val">Some</span>(command) = <span class="self">self</span>.rx_commands.recv() =&gt; {
                     <span class="kw">match </span>command {
                         Command::SynchronizeBlockHeaders { block_ids, respond_to } =&gt; {
@@ -1382,8 +1382,8 @@
     /// logic of waiting and gathering the replies from the primary nodes
     /// for the payload availability. This future is returning the next State
     /// to be executed.
-    </span><span class="attribute">#[instrument(level=<span class="string">&quot;trace&quot;</span>, skip_all, fields(num_certificates = certificates.len()))]</span>
-    <span class="kw">async fn </span>handle_synchronize_block_payload_command&lt;<span class="lifetime">&#39;a</span>&gt;(
+    </span><span class="attribute">#[instrument(level=<span class="string">&quot;trace&quot;</span>, skip_all, fields(num_certificates = certificates.len()))]
+    </span><span class="kw">async fn </span>handle_synchronize_block_payload_command&lt;<span class="lifetime">&#39;a</span>&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         certificates: Vec&lt;Certificate&gt;,
         respond_to: ResultSender,
@@ -1567,8 +1567,8 @@
     /// a reply is immediately sent to the consumer via the provided respond_to
     /// channel. For the ones that haven&#39;t been found, are returned back on the
     /// returned vector.
-    </span><span class="attribute">#[instrument(level = <span class="string">&quot;trace&quot;</span>, skip_all)]</span>
-    <span class="kw">async fn </span>reply_with_payload_already_in_storage(
+    </span><span class="attribute">#[instrument(level = <span class="string">&quot;trace&quot;</span>, skip_all)]
+    </span><span class="kw">async fn </span>reply_with_payload_already_in_storage(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         certificates: Vec&lt;Certificate&gt;,
         respond_to: Sender&lt;BlockSynchronizeResult&lt;BlockHeader&gt;&gt;,
@@ -1628,8 +1628,8 @@
 
     <span class="comment">// Broadcasts a message to all the other primary nodes.
     // It returns back the primary names to which we have sent the requests.
-    </span><span class="attribute">#[instrument(level = <span class="string">&quot;trace&quot;</span>, skip_all)]</span>
-    <span class="kw">async fn </span>broadcast_batch_request(<span class="kw-2">&amp;mut </span><span class="self">self</span>, message: PrimaryMessage) -&gt; Vec&lt;PublicKey&gt; {
+    </span><span class="attribute">#[instrument(level = <span class="string">&quot;trace&quot;</span>, skip_all)]
+    </span><span class="kw">async fn </span>broadcast_batch_request(<span class="kw-2">&amp;mut </span><span class="self">self</span>, message: PrimaryMessage) -&gt; Vec&lt;PublicKey&gt; {
         <span class="comment">// Naively now just broadcast the request to all the primaries
 
         </span><span class="kw">let </span>(primaries_names, primaries_addresses) = <span class="self">self
@@ -1646,8 +1646,8 @@
         primaries_names
     }
 
-    <span class="attribute">#[instrument(level=<span class="string">&quot;trace&quot;</span>, skip_all, fields(request_id = <span class="question-mark">?</span>request_id))]</span>
-    <span class="kw">async fn </span>handle_synchronize_block_payloads&lt;<span class="lifetime">&#39;a</span>&gt;(
+    <span class="attribute">#[instrument(level=<span class="string">&quot;trace&quot;</span>, skip_all, fields(request_id = <span class="question-mark">?</span>request_id))]
+    </span><span class="kw">async fn </span>handle_synchronize_block_payloads&lt;<span class="lifetime">&#39;a</span>&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         request_id: RequestID,
         <span class="kw-2">mut </span>peers: Peers&lt;Certificate&gt;,
@@ -1689,8 +1689,8 @@
     ///
     /// * `primary_peer_name` - The primary from which we are looking to sync the batches.
     /// * `certificates` - The certificates for which we want to sync their batches.
-    </span><span class="attribute">#[instrument(level = <span class="string">&quot;trace&quot;</span>, skip_all)]</span>
-    <span class="kw">async fn </span>send_synchronize_payload_requests(
+    </span><span class="attribute">#[instrument(level = <span class="string">&quot;trace&quot;</span>, skip_all)]
+    </span><span class="kw">async fn </span>send_synchronize_payload_requests(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         primary_peer_name: PublicKey,
         certificates: Vec&lt;Certificate&gt;,
@@ -1755,8 +1755,8 @@
         }
     }
 
-    <span class="attribute">#[instrument(level = <span class="string">&quot;trace&quot;</span>, skip_all)]</span>
-    <span class="kw">async fn </span>handle_payload_availability_response(
+    <span class="attribute">#[instrument(level = <span class="string">&quot;trace&quot;</span>, skip_all)]
+    </span><span class="kw">async fn </span>handle_payload_availability_response(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         response: PayloadAvailabilityResponse,
     ) {
@@ -1778,8 +1778,8 @@
         }
     }
 
-    <span class="attribute">#[instrument(level = <span class="string">&quot;trace&quot;</span>, skip_all)]</span>
-    <span class="kw">async fn </span>handle_certificates_response(<span class="kw-2">&amp;mut </span><span class="self">self</span>, response: CertificatesResponse) {
+    <span class="attribute">#[instrument(level = <span class="string">&quot;trace&quot;</span>, skip_all)]
+    </span><span class="kw">async fn </span>handle_certificates_response(<span class="kw-2">&amp;mut </span><span class="self">self</span>, response: CertificatesResponse) {
         <span class="kw">let </span>sender = <span class="self">self
             </span>.map_certificate_responses_senders
             .get(<span class="kw-2">&amp;</span>response.request_id());
@@ -1811,7 +1811,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>peers = Peers::&lt;Certificate&gt;::new(SmallRng::from_entropy());
 
         <span class="kw">loop </span>{
-            <span class="macro">tokio::select!</span> {
+            <span class="macro">tokio::select! </span>{
                 <span class="prelude-val">Some</span>(response) = receiver.recv() =&gt; {
                     <span class="macro">trace!</span>(<span class="string">&quot;Received response: {:?}&quot;</span>, <span class="kw-2">&amp;</span>response);
 
@@ -1899,7 +1899,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>peers = Peers::&lt;Certificate&gt;::new(SmallRng::from_entropy());
 
         <span class="kw">loop </span>{
-            <span class="macro">tokio::select!</span> {
+            <span class="macro">tokio::select! </span>{
                 <span class="prelude-val">Some</span>(response) = receiver.recv() =&gt; {
                     <span class="kw">if </span>peers.contains_peer(<span class="kw-2">&amp;</span>response.from) {
                         <span class="comment">// skip , we already got an answer from this peer
@@ -2015,4 +2015,4 @@
     </span>}
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (0b79f758c 2022-08-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>
