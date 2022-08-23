@@ -8,12 +8,16 @@
 //! `capacity`.
 use futures::{
     future::{join, BoxFuture, Future},
-    FutureExt, StreamExt,
+    FutureExt, StreamExt, TryFuture, TryFutureExt,
 };
-use std::{ops::Deref, sync::Arc};
+use std::{ops::Deref, pin::Pin, process::Output, sync::Arc, time::Duration};
 use tokio::{
     runtime::Handle,
-    sync::{mpsc, oneshot, OwnedSemaphorePermit, Semaphore},
+    sync::{
+        mpsc,
+        oneshot::{self, error::RecvError},
+        OwnedSemaphorePermit, Semaphore,
+    },
     task::JoinHandle,
 };
 use tokio_util::time::DelayQueue;
@@ -199,43 +203,38 @@ impl InternalBoundedExecutor {
         &self,
         _retry_config: crate::RetryConfig,
         mut f: F,
-    ) -> JoinHandle<Result<T, E>>
+    ) -> impl Future<Output = Result<OpaqueResult, RecvError>> + Send
     where
         F: FnMut() -> Fut + Send + 'static,
-        Fut: Future<Output = Result<T, backoff::Error<E>>> + Send + 'static,
+        Fut: Future<Output = OpaqueResult> + Send + 'static,
         T: Send + 'static,
         E: Send + 'static,
     {
-        let task = f();
         let tx_retry_manager = self.tx_retry_manager.clone();
         let backoff = Backoff {};
 
-        // TODO(erwan): Closure helpers. Focusing on the flow of execution before simplifying it.
-        // 1. retry on failure
-        // 2. once engaged in the retry pipeline, use thin `OpaqueResult` enum
-        // 3. transmit job to scheduler for retry.
-        // 4. need to figure out how to surface results:
-        //      -> a task polling a oneshot channel?
-        //      -> a custom Future that polls a hashtable: JobId -> ComputationResult (Failed |
-        //      Retrying | Done(Result))
-        // fix rust 2018 ambiguities
-        let (tx_callback, rx_callback) = oneshot::channel::<T>(); // extending to support Result<T, E>
-                                                                  // later
-        let mut task = f().then(|result| async move {
+        let (tx_callback, rx_callback) = oneshot::channel::<OpaqueResult>(); // extending to support Result<T, E>
+
+        let mut boxed_factory: Box<dyn FnMut() -> BoxFuture<'static, OpaqueResult> + Send> =
+            Box::new(move || Box::pin(f()));
+
+        let task = boxed_factory();
+        let job = (boxed_factory, tx_callback);
+        let task = task.then(|result| async move {
             match result {
-                Ok(res) => {
-                    tx_callback.send(res);
+                OpaqueResult::Ok => {
+                    let (_, tx_callback) = job;
+                    tx_callback.send(OpaqueResult::Ok);
                 }
-                Err(e) => {
-                    let job = (Box::new(f), backoff);
+                OpaqueResult::Err => {
                     tx_retry_manager.send(job).await;
                 }
             }
         });
 
-        let result_fut = async move { rx_callback.await };
-
-        todo!()
+        // TODO(erwan): SAFETY argument for handling of dropped receiver / caller etc.
+        // failure modes are well understood
+        async move { rx_callback.await }
     }
 
     // Equips a future with a final step that drops the held semaphore permit
@@ -287,34 +286,29 @@ impl RetryManager {
                  // resources can be acquired (semaphore permit).
                  // TODO(erwan): gating branch.
                 job_ready = self.execution_queue.next() => {
-                         let (mut task_factory, backoff, tx_callback) = job_ready.unwrap().into_inner();
                          let tx_scheduler = self.tx_new_jobs.clone();
-                         let task = task_factory();
+                         let (mut task_factory, tx_callback) = job_ready.unwrap().into_inner();
 
-                         let retry_task = task.then(|result| async move {
+                         // build task and spawn into
+                         let retry_task = task_factory().then(|result| async move {
                              match result {
-                                 Ok(res) => {
-                                     // TODO(erwan): reason about edge-cases
-                                     // e.g. receiver dropped
-                                     tx_callback.send(res)
-                                 },
-                                 Err(_) => {
-                                     let backoff = backoff.tick();
-                                     let job = (task_factory, backoff, tx_callback);
-                                     self.tx_retry_manager.send(job)
+                                 OpaqueResult::Ok => { tx_callback.send(OpaqueResult::Ok); },
+                                 OpaqueResult::Err => {
+                                     let job = (task_factory, tx_callback);
+                                     tx_scheduler.send(job).await;
                                  }
                              }
                          });
 
-                         // TODO(erwan): with semaphore logic.
+                         // TODO(erwan): gating
                          let permit = InternalBoundedExecutor::acquire_permit(self.semaphore.clone()).await;
                          executor.spawn_with_permit(retry_task, permit).await;
                  },
                  // Pull jobs that need scheduling, and schedule them for execution.
                  new_job = self.rx_new_jobs.recv() => {
-                           let (f, backoff) = new_job.unwrap();
-                           let cooldown_time = todo!();
-                           self.execution_queue.insert((f, backoff), cooldown_time);
+                           let (task_factory, tx_callback) = new_job.unwrap();
+                           let cooldown_time = Duration::from_secs(1); // placeholder
+                           self.execution_queue.insert((task_factory, tx_callback), cooldown_time);
                         },
             }
         }
@@ -325,30 +319,24 @@ impl RetryManager {
 pub struct Backoff {}
 
 impl Backoff {
-    pub fn tick(&self) {}
+    pub fn tick(self) -> Self {
+        self
+    }
 }
 
 /// The output of a faillible computation, similar to a `Result<T, E>` but using unit variants.
 // Subsuming a `OpaqueResult` for a `Result` enables us to save a heap allocation
 // when submitting computations to the scheduler; might not work for surfacing results
+// TODO: use `TryFuture` and rich Result 
 pub enum OpaqueResult {
     Ok,
     Err,
 }
 
-type Value = dyn Send + 'static;
+/// A `Future` factory that produces boxed futures ready to be ran, and implementing Unpin.
+pub type FutureFactory = dyn FnMut() -> BoxFuture<'static, OpaqueResult> + Send;
 
-/// A `Future` task that can fail`.
-pub type FaillibleFuture = BoxFuture<'static, Value>;
-
-/// A job to schedule or execute.
-/// It wraps a `FaillibleFuture` factory and a `Backoff` context specific to that computation.
-// TODO(erwan): investigate #![feature(type_alias_impl_trait)]
-pub type Job = (
-    Box<dyn FnMut() -> FaillibleFuture + Send + 'static>,
-    Backoff,
-    oneshot::Sender<Value>,
-);
+pub type Job = (Box<FutureFactory>, oneshot::Sender<OpaqueResult>);
 
 #[cfg(test)]
 mod test {
