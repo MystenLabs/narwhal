@@ -296,14 +296,6 @@ impl Parameters {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct PrimaryAddresses {
-    /// Address to receive messages from other primaries (WAN).
-    pub primary_to_primary: Multiaddr,
-    /// Address to receive messages from our workers (LAN).
-    pub worker_to_primary: Multiaddr,
-}
-
 #[derive(Clone, Serialize, Deserialize, Eq, Hash, PartialEq, Debug)]
 pub struct WorkerInfo {
     /// Address to receive client transactions (WAN).
@@ -445,9 +437,9 @@ impl WorkerCache {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PrimaryAddresses {
     /// Address to receive messages from other primaries (WAN).
-    pub primary_to_primary: Option<Multiaddr>,
+    pub primary_to_primary: Multiaddr,
     /// Address to receive messages from our workers (LAN).
-    pub worker_to_primary: Option<Multiaddr>,
+    pub worker_to_primary: Multiaddr,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -456,8 +448,6 @@ pub struct Authority {
     pub stake: Stake,
     /// The network addresses of the primary.
     pub primary: Option<PrimaryAddresses>,
-    /// Map of workers' id and their network addresses.
-    pub workers: HashMap<WorkerId, WorkerInfo>,
 }
 
 pub type SharedCommittee = Arc<ArcSwap<Committee>>;
@@ -568,27 +558,6 @@ impl Committee {
                 network_addresses.insert(&primary.primary_to_primary);
                 network_addresses.insert(&primary.worker_to_primary);
             }
-            network_addresses.extend(
-                &authority
-                    .workers
-                    .values()
-                    .map(|address| &address.transactions)
-                    .collect::<HashSet<&Multiaddr>>(),
-            );
-            network_addresses.extend(
-                &authority
-                    .workers
-                    .values()
-                    .map(|address| &address.worker_to_worker)
-                    .collect::<HashSet<&Multiaddr>>(),
-            );
-            network_addresses.extend(
-                &authority
-                    .workers
-                    .values()
-                    .map(|address| &address.primary_to_worker)
-                    .collect::<HashSet<&Multiaddr>>(),
-            );
         }
         network_addresses
     }
