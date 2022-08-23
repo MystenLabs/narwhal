@@ -92,9 +92,10 @@ pub struct DeleteBatchMessage {
 /// # use tempfile::tempdir;
 /// # use primary::{BlockRemover, BlockRemoverCommand, DeleteBatchMessage, PayloadToken};
 /// # use test_utils::test_channel;
-/// # use types::{BatchDigest, Certificate, CertificateDigest, HeaderDigest, Header, CertificateStore};
+/// # use types::{Round, BatchDigest, Certificate, CertificateDigest, HeaderDigest, Header};
 /// # use prometheus::Registry;
 /// # use consensus::metrics::ConsensusMetrics;
+/// # use storage::{CertificateStore, CertificateToken};
 ///
 /// #[tokio::main(flavor = "current_thread")]
 /// # async fn main() {
@@ -111,7 +112,7 @@ pub struct DeleteBatchMessage {
 ///
 ///     let (certificate_map, certificate_id_by_round_map, headers_map, payload_map) = reopen!(&rocksdb,
 ///             CERTIFICATES_CF;<CertificateDigest, Certificate>,
-///             CERTIFICATE_ID_BY_ROUND_CF;<(Round, CertificateDigest), u8>,
+///             CERTIFICATE_ID_BY_ROUND_CF;<(Round, CertificateDigest), CertificateToken>,
 ///             HEADERS_CF;<HeaderDigest, Header>,
 ///             PAYLOAD_CF;<(BatchDigest, WorkerId), PayloadToken>);
 ///     let certificate_store = CertificateStore::new(certificate_map, certificate_id_by_round_map);

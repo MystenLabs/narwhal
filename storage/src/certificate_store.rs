@@ -1,7 +1,7 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crypto::Hash;
 use dashmap::DashMap;
+use fastcrypto::Hash;
 use std::collections::VecDeque;
 use std::sync::Arc;
 use store::rocks::DBMap;
@@ -311,7 +311,7 @@ impl CertificateStore {
 #[cfg(test)]
 mod test {
     use crate::certificate_store::{CertificateStore, CertificateToken};
-    use crypto::Hash;
+    use fastcrypto::Hash;
     use futures::future::join_all;
     use std::collections::{BTreeSet, HashSet};
     use std::time::Instant;

@@ -8,6 +8,7 @@ publish = false
 
 [dependencies]
 dashmap = "5.3.4"
+fastcrypto = { git = "https://github.com/MystenLabs/fastcrypto", rev = "574fb8fa17926666131b21c03cfbeb16ff9fd894", package = "fastcrypto" }
 futures = "0.3.23"
 store = { git = "https://github.com/mystenlabs/mysten-infra.git", package = "typed-store", rev = "87494e36d96869d62dcae0a4cd0193ef8957145b" }
 thiserror = "1.0.32"
@@ -16,7 +17,6 @@ tokio-util = { version = "0.7.3", features = ["codec"] }
 tonic = { version = "0.7.2", features = ["tls"] }
 tracing = "0.1.36"
 types = { path = "../types" }
-crypto = { path = "../crypto" }
 
 workspace-hack = { version = "0.1", path = "../workspace-hack" }
 

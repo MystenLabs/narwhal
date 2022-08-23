@@ -146,7 +146,7 @@ impl CertificateWaiter {
                     };
                     self.pending.insert(header_id, (certificate.round(), once_cancel));
                     let fut = Self::waiter(wait_for, self.store.clone(), certificate, rx_cancel);
-                    waiting.push(fut);
+                    waiting.push(fut).await;
                 }
                 // we poll the availability of a slot to send the result to the core simultaneously
                 (Some(certificate), permit) = try_fut_and_permit!(waiting.try_next(), self.tx_core) => {
