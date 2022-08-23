@@ -836,10 +836,18 @@
 <span id="836">836</span>
 <span id="837">837</span>
 <span id="838">838</span>
+<span id="839">839</span>
+<span id="840">840</span>
+<span id="841">841</span>
+<span id="842">842</span>
+<span id="843">843</span>
+<span id="844">844</span>
+<span id="845">845</span>
+<span id="846">846</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span><span class="kw">crate</span>::block_synchronizer::handler::Handler;
-<span class="kw">use </span>config::Committee;
+<span class="kw">use </span>config::{Committee, SharedWorkerCache};
 <span class="kw">use </span>crypto::PublicKey;
 <span class="kw">use </span>fastcrypto::{Digest, Hash};
 <span class="kw">use </span>futures::{
@@ -958,7 +966,7 @@
 /// # use fastcrypto::Hash;
 /// # use std::env::temp_dir;
 /// # use fastcrypto::ed25519::Ed25519PublicKey;
-/// # use config::Committee;
+/// # use config::{Committee, WorkerCache, SharedWorkerCache};
 /// # use std::collections::BTreeMap;
 /// # use types::Certificate;
 /// # use primary::{BlockWaiter, BlockHeader, BlockCommand, block_synchronizer::{BlockSynchronizeResult, handler::{Error, Handler}}};
@@ -999,6 +1007,7 @@
 ///
 ///     let name = Ed25519PublicKey::default();
 ///     let committee = Committee{ epoch: 0, authorities: BTreeMap::new() };
+///     let worker_cache: SharedWorkerCache = WorkerCache{ epoch: 0, workers: BTreeMap::new() }.into();
 ///     let (_tx_reconfigure, rx_reconfigure) = watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));
 ///
 ///     // A dummy certificate
@@ -1009,6 +1018,7 @@
 ///     BlockWaiter::spawn(
 ///         name,
 ///         committee,
+///         worker_cache,
 ///         rx_reconfigure,
 ///         rx_commands,
 ///         rx_batches,
@@ -1045,6 +1055,9 @@
 
     <span class="doccomment">/// The committee information.
     </span>committee: Committee,
+
+    <span class="doccomment">/// The worker information cache.
+    </span>worker_cache: SharedWorkerCache,
 
     <span class="doccomment">/// Receive all the requests to get a block
     </span>rx_commands: Receiver&lt;BlockCommand&gt;,
@@ -1097,6 +1110,7 @@
     </span><span class="kw">pub fn </span>spawn(
         name: PublicKey,
         committee: Committee,
+        worker_cache: SharedWorkerCache,
         rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;,
         rx_commands: Receiver&lt;BlockCommand&gt;,
         batch_receiver: Receiver&lt;BatchResult&gt;,
@@ -1107,6 +1121,7 @@
             <span class="self">Self </span>{
                 name,
                 committee,
+                worker_cache,
                 rx_commands,
                 pending_get_block: HashMap::new(),
                 worker_network,
@@ -1584,7 +1599,8 @@
                 );
 
                 <span class="kw">let </span>worker_address = <span class="self">self
-                    </span>.committee
+                    </span>.worker_cache
+                    .load()
                     .worker(<span class="kw-2">&amp;</span><span class="self">self</span>.name, <span class="kw-2">&amp;</span>worker_id)
                     .expect(<span class="string">&quot;Worker id not found&quot;</span>)
                     .primary_to_worker;
@@ -1675,4 +1691,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (015a824f2 2022-08-22)" ></div></body></html>

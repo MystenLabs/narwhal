@@ -665,6 +665,7 @@
 <span id="665">665</span>
 <span id="666">666</span>
 <span id="667">667</span>
+<span id="668">668</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -674,7 +675,7 @@
 };
 <span class="kw">use </span>blake2::{digest::Update, VarBlake2b};
 <span class="kw">use </span>bytes::Bytes;
-<span class="kw">use </span>config::{Committee, Epoch, WorkerId, WorkerInfo};
+<span class="kw">use </span>config::{Committee, Epoch, SharedWorkerCache, WorkerId, WorkerInfo};
 <span class="kw">use </span>crypto::PublicKey;
 <span class="kw">use </span>crypto::Signature;
 <span class="kw">use </span>dag::node_dag::Affiliated;
@@ -687,7 +688,7 @@
 <span class="kw">use </span>proptest_derive::Arbitrary;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>std::{
-    collections::{BTreeSet, HashMap, HashSet},
+    collections::{BTreeMap, BTreeSet, HashSet},
     fmt,
     fmt::Formatter,
 };
@@ -811,7 +812,7 @@
         }
     }
 
-    <span class="kw">pub fn </span>verify(<span class="kw-2">&amp;</span><span class="self">self</span>, committee: <span class="kw-2">&amp;</span>Committee) -&gt; DagResult&lt;()&gt; {
+    <span class="kw">pub fn </span>verify(<span class="kw-2">&amp;</span><span class="self">self</span>, committee: <span class="kw-2">&amp;</span>Committee, worker_cache: SharedWorkerCache) -&gt; DagResult&lt;()&gt; {
         <span class="comment">// Ensure the header is from the correct epoch.
         </span><span class="macro">ensure!</span>(
             <span class="self">self</span>.epoch == committee.epoch(),
@@ -833,7 +834,8 @@
 
         <span class="comment">// Ensure all worker ids are correct.
         </span><span class="kw">for </span>worker_id <span class="kw">in </span><span class="self">self</span>.payload.values() {
-            committee
+            worker_cache
+                .load()
                 .worker(<span class="kw-2">&amp;</span><span class="self">self</span>.author, worker_id)
                 .map_err(|<span class="kw">_</span>| DagError::MalformedHeader(<span class="self">self</span>.id))<span class="question-mark">?</span>;
         }
@@ -1047,7 +1049,7 @@
             .collect()
     }
 
-    <span class="kw">pub fn </span>verify(<span class="kw-2">&amp;</span><span class="self">self</span>, committee: <span class="kw-2">&amp;</span>Committee) -&gt; DagResult&lt;()&gt; {
+    <span class="kw">pub fn </span>verify(<span class="kw-2">&amp;</span><span class="self">self</span>, committee: <span class="kw-2">&amp;</span>Committee, worker_cache: SharedWorkerCache) -&gt; DagResult&lt;()&gt; {
         <span class="comment">// Ensure the header is from the correct epoch.
         </span><span class="macro">ensure!</span>(
             <span class="self">self</span>.epoch() == committee.epoch(),
@@ -1063,7 +1065,7 @@
         }
 
         <span class="comment">// Check the embedded header.
-        </span><span class="self">self</span>.header.verify(committee)<span class="question-mark">?</span>;
+        </span><span class="self">self</span>.header.verify(committee, worker_cache)<span class="question-mark">?</span>;
 
         <span class="comment">// Ensure the certificate has a quorum.
         </span><span class="kw">let </span><span class="kw-2">mut </span>weight = <span class="number">0</span>;
@@ -1330,7 +1332,7 @@
 <span class="attribute">#[derive(Clone, Serialize, Deserialize, Eq, PartialEq, Debug)]
 </span><span class="kw">pub struct </span>WorkerInfoResponse {
     <span class="doccomment">/// Map of workers&#39; id and their network addresses.
-    </span><span class="kw">pub </span>workers: HashMap&lt;WorkerId, WorkerInfo&gt;,
+    </span><span class="kw">pub </span>workers: BTreeMap&lt;WorkerId, WorkerInfo&gt;,
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (015a824f2 2022-08-22)" ></div></body></html>

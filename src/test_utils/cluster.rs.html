@@ -766,11 +766,24 @@
 <span id="766">766</span>
 <span id="767">767</span>
 <span id="768">768</span>
+<span id="769">769</span>
+<span id="770">770</span>
+<span id="771">771</span>
+<span id="772">772</span>
+<span id="773">773</span>
+<span id="774">774</span>
+<span id="775">775</span>
+<span id="776">776</span>
+<span id="777">777</span>
+<span id="778">778</span>
+<span id="779">779</span>
+<span id="780">780</span>
+<span id="781">781</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-</span><span class="kw">use crate</span>::{committee, keys, temp_dir};
+</span><span class="kw">use crate</span>::{keys, pure_committee_from_keys, shared_worker_cache_from_keys, temp_dir};
 <span class="kw">use </span>arc_swap::ArcSwap;
-<span class="kw">use </span>config::{Committee, Parameters, SharedCommittee, WorkerId};
+<span class="kw">use </span>config::{Committee, Parameters, SharedCommittee, SharedWorkerCache, WorkerId};
 <span class="kw">use </span>crypto::KeyPair;
 <span class="kw">use </span>crypto::PublicKey;
 <span class="kw">use </span>executor::{SerializedTransaction, SingleExecutor, SubscriberResult, DEFAULT_CHANNEL_SIZE};
@@ -799,6 +812,7 @@
 <span class="kw">pub struct </span>Cluster {
     authorities: HashMap&lt;usize, AuthorityDetails&gt;,
     <span class="kw">pub </span>committee_shared: SharedCommittee,
+    <span class="kw">pub </span>worker_cache_shared: SharedWorkerCache,
     <span class="attribute">#[allow(dead_code)]
     </span>parameters: Parameters,
 }
@@ -809,6 +823,8 @@
     /// the committee structure, but none of them will be started.
     /// If an `input_committee` is provided then this will be used, otherwise the default
     /// will be used instead.
+    /// If an `input_shared_worker_cache` is provided then this will be used,
+    /// otherwise the default will be used instead.
     /// When the `internal_consensus_enabled` is true then the standard internal
     /// consensus engine will be enabled. If false, then the internal consensus will
     /// be disabled and the gRPC server will be enabled to manage the Collections &amp; the
@@ -816,9 +832,13 @@
     </span><span class="kw">pub fn </span>new(
         parameters: <span class="prelude-ty">Option</span>&lt;Parameters&gt;,
         input_committee: <span class="prelude-ty">Option</span>&lt;Committee&gt;,
+        input_shared_worker_cache: <span class="prelude-ty">Option</span>&lt;SharedWorkerCache&gt;,
         internal_consensus_enabled: bool,
     ) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span>c = input_committee.unwrap_or_else(|| committee(<span class="prelude-val">None</span>));
+        <span class="kw">let </span>k = keys(<span class="prelude-val">None</span>);
+        <span class="kw">let </span>c = input_committee.unwrap_or_else(|| pure_committee_from_keys(<span class="kw-2">&amp;</span>k));
+        <span class="kw">let </span>shared_worker_cache =
+            input_shared_worker_cache.unwrap_or_else(|| shared_worker_cache_from_keys(<span class="kw-2">&amp;</span>k));
         <span class="kw">let </span>shared_committee = Arc::new(ArcSwap::from_pointee(c));
         <span class="kw">let </span>params = parameters.unwrap_or_else(<span class="self">Self</span>::parameters);
 
@@ -835,6 +855,7 @@
                 key_pair,
                 params.clone(),
                 shared_committee.clone(),
+                shared_worker_cache.clone(),
                 internal_consensus_enabled,
             );
             nodes.insert(id, authority);
@@ -843,6 +864,7 @@
         <span class="self">Self </span>{
             authorities: nodes,
             committee_shared: shared_committee,
+            worker_cache_shared: shared_worker_cache,
             parameters: params,
         }
     }
@@ -1038,6 +1060,7 @@
     registry: Registry,
     store_path: PathBuf,
     committee: SharedCommittee,
+    worker_cache: SharedWorkerCache,
     parameters: Parameters,
     handlers: Rc&lt;RefCell&lt;Vec&lt;JoinHandle&lt;()&gt;&gt;&gt;&gt;,
     internal_consensus_enabled: bool,
@@ -1049,6 +1072,7 @@
         key_pair: KeyPair,
         parameters: Parameters,
         committee: SharedCommittee,
+        worker_cache: SharedWorkerCache,
         internal_consensus_enabled: bool,
     ) -&gt; <span class="self">Self </span>{
         <span class="comment">// used just to initialise the struct value
@@ -1061,6 +1085,7 @@
             store_path: temp_dir(),
             tx_transaction_confirmation: tx,
             committee,
+            worker_cache,
             parameters,
             handlers: Rc::new(RefCell::new(Vec::new())),
             internal_consensus_enabled,
@@ -1105,6 +1130,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>primary_handlers = Node::spawn_primary(
             <span class="self">self</span>.key_pair.copy(),
             <span class="self">self</span>.committee.clone(),
+            <span class="self">self</span>.worker_cache.clone(),
             <span class="kw-2">&amp;</span>primary_store,
             <span class="self">self</span>.parameters.clone(),
             <span class="comment">/* consensus */ </span><span class="self">self</span>.internal_consensus_enabled,
@@ -1167,6 +1193,7 @@
     <span class="kw">pub </span>registry: Registry,
     name: PublicKey,
     committee: SharedCommittee,
+    worker_cache: SharedWorkerCache,
     parameters: Parameters,
     store_path: PathBuf,
     handlers: Arc&lt;ArcSwap&lt;Vec&lt;JoinHandle&lt;()&gt;&gt;&gt;&gt;,
@@ -1179,6 +1206,7 @@
         parameters: Parameters,
         transactions_address: Multiaddr,
         committee: SharedCommittee,
+        worker_cache: SharedWorkerCache,
     ) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             id,
@@ -1187,6 +1215,7 @@
             store_path: temp_dir(),
             transactions_address,
             committee,
+            worker_cache,
             parameters,
             handlers: Arc::new(ArcSwap::from_pointee(Vec::new())),
         }
@@ -1215,6 +1244,7 @@
             <span class="self">self</span>.name.clone(),
             <span class="macro">vec!</span>[<span class="self">self</span>.id],
             <span class="self">self</span>.committee.clone(),
+            <span class="self">self</span>.worker_cache.clone(),
             <span class="kw-2">&amp;</span>worker_store,
             <span class="self">self</span>.parameters.clone(),
             <span class="kw-2">&amp;</span>registry,
@@ -1265,6 +1295,7 @@
         key_pair: KeyPair,
         parameters: Parameters,
         committee: SharedCommittee,
+        worker_cache: SharedWorkerCache,
         internal_consensus_enabled: bool,
     ) -&gt; <span class="self">Self </span>{
         <span class="comment">// Create all the nodes we have in the committee
@@ -1274,6 +1305,7 @@
             key_pair,
             parameters.clone(),
             committee.clone(),
+            worker_cache.clone(),
             internal_consensus_enabled,
         );
 
@@ -1281,20 +1313,14 @@
         // act as place holder setups. That gives us the power in a clear way manage
         // the nodes independently.
         </span><span class="kw">let </span><span class="kw-2">mut </span>workers = HashMap::new();
-        <span class="kw">for </span>(worker_id, addresses) <span class="kw">in </span>committee
-            .load()
-            .authorities
-            .get(<span class="kw-2">&amp;</span>name)
-            .unwrap()
-            .workers
-            .clone()
-        {
+        <span class="kw">for </span>(worker_id, addresses) <span class="kw">in </span>worker_cache.load().workers.get(<span class="kw-2">&amp;</span>name).unwrap().<span class="number">0</span>.clone() {
             <span class="kw">let </span>worker = WorkerNodeDetails::new(
                 worker_id,
                 name.clone(),
                 parameters.clone(),
                 addresses.transactions.clone(),
                 committee.clone(),
+                worker_cache.clone(),
             );
             workers.insert(worker_id, worker);
         }
@@ -1535,4 +1561,4 @@
     </span>}
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="test_utils" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="test_utils" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (015a824f2 2022-08-22)" ></div></body></html>

@@ -706,6 +706,13 @@
 <span id="706">706</span>
 <span id="707">707</span>
 <span id="708">708</span>
+<span id="709">709</span>
+<span id="710">710</span>
+<span id="711">711</span>
+<span id="712">712</span>
+<span id="713">713</span>
+<span id="714">714</span>
+<span id="715">715</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -727,7 +734,7 @@
     PayloadAvailabilityResponse,
 };
 <span class="kw">use </span>async_trait::async_trait;
-<span class="kw">use </span>config::{Parameters, SharedCommittee, WorkerId, WorkerInfo};
+<span class="kw">use </span>config::{Parameters, SharedCommittee, SharedWorkerCache, WorkerId, WorkerInfo};
 <span class="kw">use </span>consensus::dag::Dag;
 <span class="kw">use </span>crypto::PublicKey;
 <span class="kw">use </span>crypto::Signature;
@@ -738,7 +745,7 @@
 <span class="kw">use </span>multiaddr::{Multiaddr, Protocol};
 <span class="kw">use </span>network::{metrics::Metrics, PrimaryNetwork, PrimaryToWorkerNetwork};
 <span class="kw">use </span>prometheus::Registry;
-<span class="kw">use </span>std::{collections::HashMap, net::Ipv4Addr, sync::Arc};
+<span class="kw">use </span>std::{collections::BTreeMap, net::Ipv4Addr, sync::Arc};
 <span class="kw">use </span>store::Store;
 <span class="kw">use </span>tokio::{sync::watch, task::JoinHandle};
 <span class="kw">use </span>tonic::{Request, Response, Status};
@@ -776,6 +783,7 @@
         name: PublicKey,
         signer: Signatory,
         committee: SharedCommittee,
+        worker_cache: SharedWorkerCache,
         parameters: Parameters,
         header_store: Store&lt;HeaderDigest, Header&gt;,
         certificate_store: Store&lt;CertificateDigest, Certificate&gt;,
@@ -875,13 +883,13 @@
 
         <span class="kw">let </span>(tx_consensus_round_updates, rx_consensus_round_updates) = watch::channel(<span class="number">0u64</span>);
 
-        <span class="kw">let </span>our_workers = committee
+        <span class="kw">let </span>our_workers = worker_cache
             .load()
-            .authorities
-            .get(<span class="kw-2">&amp;</span>name)
-            .expect(<span class="string">&quot;Our public key or worker id is not in the committee&quot;</span>)
             .workers
-            .clone();
+            .get(<span class="kw-2">&amp;</span>name)
+            .expect(<span class="string">&quot;Our public key is not in the worker cache&quot;</span>)
+            .<span class="number">0
+            </span>.clone();
 
         <span class="comment">// Spawn the network receiver listening to messages from the other primaries.
         </span><span class="kw">let </span>address = committee
@@ -957,6 +965,7 @@
         <span class="kw">let </span>core_handle = Core::spawn(
             name.clone(),
             (<span class="kw-2">**</span>committee.load()).clone(),
+            worker_cache.clone(),
             header_store.clone(),
             certificate_store.clone(),
             synchronizer,
@@ -998,6 +1007,7 @@
         <span class="kw">let </span>block_waiter_handle = BlockWaiter::spawn(
             name.clone(),
             (<span class="kw-2">**</span>committee.load()).clone(),
+            worker_cache.clone(),
             tx_reconfigure.subscribe(),
             rx_get_block_commands,
             rx_batches,
@@ -1016,6 +1026,7 @@
         <span class="kw">let </span>block_remover_handle = BlockRemover::spawn(
             name.clone(),
             (<span class="kw-2">**</span>committee.load()).clone(),
+            worker_cache.clone(),
             certificate_store.clone(),
             header_store,
             payload_store.clone(),
@@ -1036,6 +1047,7 @@
         <span class="kw">let </span>block_synchronizer_handle = BlockSynchronizer::spawn(
             name.clone(),
             (<span class="kw-2">**</span>committee.load()).clone(),
+            worker_cache.clone(),
             tx_reconfigure.subscribe(),
             rx_block_synchronizer_commands,
             rx_certificate_responses,
@@ -1060,6 +1072,7 @@
         <span class="kw">let </span>header_waiter_handle = HeaderWaiter::spawn(
             name.clone(),
             (<span class="kw-2">**</span>committee.load()).clone(),
+            worker_cache.clone(),
             certificate_store.clone(),
             payload_store.clone(),
             tx_consensus_round_updates.subscribe(),
@@ -1121,6 +1134,7 @@
         </span><span class="kw">let </span>state_handler_handle = StateHandler::spawn(
             name.clone(),
             committee.clone(),
+            worker_cache,
             rx_consensus,
             tx_consensus_round_updates,
             rx_state_handler,
@@ -1293,7 +1307,7 @@
     tx_batches: Sender&lt;BatchResult&gt;,
     tx_batch_removal: Sender&lt;DeleteBatchResult&gt;,
     tx_state_handler: Sender&lt;ReconfigureNotification&gt;,
-    our_workers: HashMap&lt;WorkerId, WorkerInfo&gt;,
+    our_workers: BTreeMap&lt;WorkerId, WorkerInfo&gt;,
     metrics: Arc&lt;PrimaryMetrics&gt;,
 }
 
@@ -1415,4 +1429,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (015a824f2 2022-08-22)" ></div></body></html>

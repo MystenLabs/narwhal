@@ -343,9 +343,15 @@
 <span id="343">343</span>
 <span id="344">344</span>
 <span id="345">345</span>
+<span id="346">346</span>
+<span id="347">347</span>
+<span id="348">348</span>
+<span id="349">349</span>
+<span id="350">350</span>
+<span id="351">351</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-</span><span class="kw">use </span>config::{Parameters, SharedCommittee, WorkerId};
+</span><span class="kw">use </span>config::{Parameters, SharedCommittee, SharedWorkerCache, WorkerId};
 <span class="kw">use </span>consensus::{
     bullshark::Bullshark,
     dag::Dag,
@@ -462,6 +468,8 @@
         </span>keypair: KeyPair,
         <span class="comment">// The committee information.
         </span>committee: SharedCommittee,
+        <span class="comment">// The worker information cache.
+        </span>worker_cache: SharedWorkerCache,
         <span class="comment">// The node&#39;s storage.
         </span>store: <span class="kw-2">&amp;</span>NodeStorage,
         <span class="comment">// The configuration parameters.
@@ -559,6 +567,7 @@
             name.clone(),
             keypair,
             committee.clone(),
+            worker_cache.clone(),
             parameters.clone(),
             store.header_store.clone(),
             store.certificate_store.clone(),
@@ -663,6 +672,8 @@
         </span>ids: Vec&lt;WorkerId&gt;,
         <span class="comment">// The committee information.
         </span>committee: SharedCommittee,
+        <span class="comment">// The worker information cache.
+        </span>worker_cache: SharedWorkerCache,
         <span class="comment">// The node&#39;s storage,
         </span>store: <span class="kw-2">&amp;</span>NodeStorage,
         <span class="comment">// The configuration parameters.
@@ -679,6 +690,7 @@
                 name.clone(),
                 id,
                 committee.clone(),
+                worker_cache.clone(),
                 parameters.clone(),
                 store.batch_store.clone(),
                 metrics.clone(),
@@ -689,4 +701,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="node" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="node" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (015a824f2 2022-08-22)" ></div></body></html>

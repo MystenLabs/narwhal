@@ -1006,6 +1006,14 @@
 <span id="1006">1006</span>
 <span id="1007">1007</span>
 <span id="1008">1008</span>
+<span id="1009">1009</span>
+<span id="1010">1010</span>
+<span id="1011">1011</span>
+<span id="1012">1012</span>
+<span id="1013">1013</span>
+<span id="1014">1014</span>
+<span id="1015">1015</span>
+<span id="1016">1016</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use crate</span>::{
@@ -1017,7 +1025,7 @@
     primary::PrimaryMessage,
     utils, PayloadToken, CHANNEL_CAPACITY,
 };
-<span class="kw">use </span>config::{BlockSynchronizerParameters, Committee, WorkerId};
+<span class="kw">use </span>config::{BlockSynchronizerParameters, Committee, SharedWorkerCache, WorkerId};
 <span class="kw">use </span>crypto::PublicKey;
 <span class="kw">use </span>fastcrypto::Hash;
 <span class="kw">use </span>futures::{
@@ -1165,6 +1173,9 @@
     <span class="doccomment">/// The committee information.
     </span>committee: Committee,
 
+    <span class="doccomment">/// The worker information cache.
+    </span>worker_cache: SharedWorkerCache,
+
     <span class="doccomment">/// Watch channel to reconfigure the committee.
     </span>rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;,
 
@@ -1213,6 +1224,7 @@
     </span><span class="kw">pub fn </span>spawn(
         name: PublicKey,
         committee: Committee,
+        worker_cache: SharedWorkerCache,
         rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;,
         rx_commands: metered_channel::Receiver&lt;Command&gt;,
         rx_certificate_responses: metered_channel::Receiver&lt;CertificatesResponse&gt;,
@@ -1226,6 +1238,7 @@
             <span class="self">Self </span>{
                 name,
                 committee,
+                worker_cache,
                 rx_reconfigure,
                 rx_commands,
                 rx_certificate_responses,
@@ -1503,6 +1516,7 @@
                 <span class="self">self</span>.certificates_synchronize_timeout,
                 key,
                 <span class="self">self</span>.committee.clone(),
+                <span class="self">self</span>.worker_cache.clone(),
                 to_sync,
                 primaries,
                 receiver,
@@ -1699,7 +1713,8 @@
 
         <span class="kw">for </span>(worker_id, batch_ids) <span class="kw">in </span>batches_by_worker {
             <span class="kw">let </span>worker_address = <span class="self">self
-                </span>.committee
+                </span>.worker_cache
+                .load()
                 .worker(<span class="kw-2">&amp;</span><span class="self">self</span>.name, <span class="kw-2">&amp;</span>worker_id)
                 .expect(<span class="string">&quot;Worker id not found&quot;</span>)
                 .primary_to_worker;
@@ -1797,6 +1812,7 @@
         fetch_certificates_timeout: Duration,
         request_id: RequestID,
         committee: Committee,
+        worker_cache: SharedWorkerCache,
         block_ids: Vec&lt;CertificateDigest&gt;,
         primaries_sent_requests_to: Vec&lt;PublicKey&gt;,
         <span class="kw-2">mut </span>receiver: Receiver&lt;CertificatesResponse&gt;,
@@ -1831,7 +1847,7 @@
 
                     num_of_responses += <span class="number">1</span>;
 
-                    <span class="kw">match </span>response.validate_certificates(<span class="kw-2">&amp;</span>committee) {
+                    <span class="kw">match </span>response.validate_certificates(<span class="kw-2">&amp;</span>committee, worker_cache.clone()) {
                         <span class="prelude-val">Ok</span>(certificates) =&gt; {
                             <span class="comment">// Ensure we got responses for the certificates we asked for.
                             // Even if we have found one certificate that doesn&#39;t match
@@ -2015,4 +2031,4 @@
     </span>}
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (c0941dfb5 2022-08-21)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (015a824f2 2022-08-22)" ></div></body></html>
