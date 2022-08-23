@@ -7,8 +7,9 @@ use crypto::PublicKey;
 use network::{PrimaryToWorkerNetwork, UnreliableNetwork};
 use std::collections::BTreeMap;
 use std::sync::Arc;
+use tap::TapOptional;
 use tokio::{sync::watch, task::JoinHandle};
-use tracing::info;
+use tracing::{info, warn};
 use types::{metered_channel::Receiver, Certificate, ReconfigureNotification, Round};
 
 /// Receives the highest round reached by consensus and update it for all tasks.
@@ -110,7 +111,14 @@ impl StateHandler {
                                 workers: committee.keys().iter().map(|key|
                                     (
                                         (*key).clone(),
-                                        self.worker_cache.load().workers.get(key).unwrap_or(&WorkerIndex(BTreeMap::new())).clone()
+                                        self.worker_cache
+                                            .load()
+                                            .workers
+                                            .get(key)
+                                            .tap_none(||
+                                                warn!("Worker cache does not have a key for the new committee member"))
+                                            .unwrap_or(&WorkerIndex(BTreeMap::new()))
+                                            .clone()
                                     )).collect(),
                             }));
 
@@ -133,7 +141,14 @@ impl StateHandler {
                                 workers: committee.keys().iter().map(|key|
                                     (
                                         (*key).clone(),
-                                        self.worker_cache.load().workers.get(key).unwrap_or(&WorkerIndex(BTreeMap::new())).clone()
+                                        self.worker_cache
+                                            .load()
+                                            .workers
+                                            .get(key)
+                                            .tap_none(||
+                                                warn!("Worker cache does not have a key for the new committee member"))
+                                            .unwrap_or(&WorkerIndex(BTreeMap::new()))
+                                            .clone()
                                     )).collect(),
                             }));
 

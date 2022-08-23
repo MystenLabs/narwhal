@@ -1,7 +1,6 @@
 // Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use arc_swap::ArcSwap;
 use config::{
     utils::get_available_port, Authority, Committee, Epoch, PrimaryAddresses, SharedWorkerCache,
     WorkerCache, WorkerId, WorkerIndex, WorkerInfo,
@@ -161,7 +160,7 @@ pub fn shared_worker_cache(rng_seed: impl Into<Option<u64>>) -> SharedWorkerCach
 }
 
 pub fn shared_worker_cache_from_keys(keys: &[KeyPair]) -> SharedWorkerCache {
-    Arc::new(ArcSwap::from_pointee(worker_cache_from_keys(keys)))
+    worker_cache_from_keys(keys).into()
 }
 
 pub fn worker_cache_from_keys(keys: &[KeyPair]) -> WorkerCache {

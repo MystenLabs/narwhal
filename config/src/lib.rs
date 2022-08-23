@@ -319,6 +319,12 @@ pub struct WorkerCache {
     pub epoch: Epoch,
 }
 
+impl From<WorkerCache> for SharedWorkerCache {
+    fn from(worker_cache: WorkerCache) -> Self {
+        Arc::new(ArcSwap::from_pointee(worker_cache))
+    }
+}
+
 impl std::fmt::Display for WorkerIndex {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -356,8 +362,7 @@ impl WorkerCache {
     pub fn worker(&self, to: &PublicKey, id: &WorkerId) -> Result<WorkerInfo, ConfigError> {
         self.workers
             .iter()
-            .find(|(name, _)| *name == to)
-            .map(|(_, authority)| authority)
+            .find_map(|v| match_opt::match_opt!(v, (name, authority) if name == to => authority))
             .ok_or_else(|| {
                 ConfigError::NotInWorkerCache(ToString::to_string(&(*to).encode_base64()))
             })?
@@ -373,8 +378,9 @@ impl WorkerCache {
         let res = self
             .workers
             .iter()
-            .find(|(name, _)| *name == myself)
-            .map(|(_, authority)| authority)
+            .find_map(
+                |v| match_opt::match_opt!(v, (name, authority) if name == myself => authority),
+            )
             .ok_or_else(|| ConfigError::NotInWorkerCache((*myself).encode_base64()))?
             .0
             .values()
@@ -392,14 +398,10 @@ impl WorkerCache {
     ) -> Vec<(PublicKey, WorkerInfo)> {
         self.workers
             .iter()
-            .filter(|(name, _)| *name != myself)
-            .filter_map(|(name, authority)| {
-                authority
-                    .0
-                    .iter()
-                    .find(|(worker_id, _)| worker_id == &id)
-                    .map(|(_, addresses)| (name.deref().clone(), addresses.clone()))
-            })
+            .filter(|(name, _)| *name != myself )
+            .flat_map(
+                |(name, authority)|  authority.0.iter().flat_map(
+                    |v| match_opt::match_opt!(v,(worker_id, addresses) if worker_id == id => (name.clone(), addresses.clone()))))
             .collect()
     }
 

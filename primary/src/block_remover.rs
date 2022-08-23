@@ -81,7 +81,7 @@ pub struct DeleteBatchMessage {
 /// # use std::env::temp_dir;
 /// # use fastcrypto::Digest;
 /// # use fastcrypto::ed25519::Ed25519PublicKey;
-/// # use config::{Committee, WorkerCache};
+/// # use config::{Committee, WorkerCache, SharedWorkerCache};
 /// # use consensus::dag::Dag;
 /// # use futures::future::join_all;
 /// # use std::collections::BTreeMap;
@@ -122,7 +122,7 @@ pub struct DeleteBatchMessage {
 ///
 ///     let name = Ed25519PublicKey::default();
 ///     let committee = Committee{ epoch: 0, authorities: BTreeMap::new() };
-///     let worker_cache = Arc::new(ArcSwap::from_pointee(WorkerCache{ epoch: 0, workers: BTreeMap::new() }));
+///     let worker_cache: SharedWorkerCache = WorkerCache{ epoch: 0, workers: BTreeMap::new() }.into();
 ///     let (_tx_reconfigure, rx_reconfigure) = watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));
 ///     let consensus_metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
 ///     // A dag with genesis for the committee

@@ -13,12 +13,13 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 use store::{Store, StoreError};
+use tap::TapOptional;
 use tokio::{
     sync::{mpsc, watch},
     task::JoinHandle,
     time::{sleep, Duration, Instant},
 };
-use tracing::{debug, error};
+use tracing::{debug, error, warn};
 use types::{
     metered_channel::{Receiver, Sender},
     BatchDigest, ReconfigureNotification, Round, SerializedBatchMessage, WorkerMessage,
@@ -217,7 +218,14 @@ impl Synchronizer {
                                     workers: new_committee.keys().iter().map(|key|
                                         (
                                             (*key).clone(),
-                                            self.worker_cache.load().workers.get(key).unwrap_or(&WorkerIndex(BTreeMap::new())).clone()
+                                            self.worker_cache
+                                                .load()
+                                                .workers
+                                                .get(key)
+                                                .tap_none(||
+                                                    warn!("Worker cache does not have a key for the new committee member"))
+                                                .unwrap_or(&WorkerIndex(BTreeMap::new()))
+                                                .clone()
                                         )).collect(),
                                 }));
 
@@ -238,7 +246,14 @@ impl Synchronizer {
                                     workers: new_committee.keys().iter().map(|key|
                                         (
                                             (*key).clone(),
-                                            self.worker_cache.load().workers.get(key).unwrap_or(&WorkerIndex(BTreeMap::new())).clone()
+                                            self.worker_cache
+                                                .load()
+                                                .workers
+                                                .get(key)
+                                                .tap_none(||
+                                                    warn!("Worker cache does not have a key for the new committee member"))
+                                                .unwrap_or(&WorkerIndex(BTreeMap::new()))
+                                                .clone()
                                         )).collect(),
                                 }));
 
