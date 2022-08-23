@@ -252,6 +252,17 @@
 <span id="252">252</span>
 <span id="253">253</span>
 <span id="254">254</span>
+<span id="255">255</span>
+<span id="256">256</span>
+<span id="257">257</span>
+<span id="258">258</span>
+<span id="259">259</span>
+<span id="260">260</span>
+<span id="261">261</span>
+<span id="262">262</span>
+<span id="263">263</span>
+<span id="264">264</span>
+<span id="265">265</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
@@ -265,7 +276,8 @@
 <span class="kw">use </span>rand::{rngs::SmallRng, SeedableRng <span class="kw">as _</span>};
 <span class="kw">use </span>std::collections::HashMap;
 <span class="kw">use </span>tokio::{runtime::Handle, task::JoinHandle};
-<span class="kw">use </span>tonic::transport::Channel;
+<span class="kw">use </span>tonic::{transport::Channel, Code};
+<span class="kw">use </span>tracing::error;
 <span class="kw">use </span>types::{
     BincodeEncodedPayload, PrimaryMessage, PrimaryToPrimaryClient, PrimaryToWorkerClient,
     PrimaryWorkerMessage,
@@ -404,9 +416,19 @@
 
             <span class="kw">async move </span>{
                 client.send_message(message).<span class="kw">await</span>.map_err(|e| {
-                    <span class="comment">// this returns a backoff::Error::Transient
-                    // so that if tonic::Status is returned, we retry
-                    </span>Into::&lt;backoff::Error&lt;eyre::Report&gt;&gt;::into(eyre::Report::from(e))
+                    <span class="kw">match </span>e.code() {
+                        Code::FailedPrecondition | Code::InvalidArgument =&gt; {
+                            <span class="comment">// these errors are not recoverable through retrying, see
+                            // https://github.com/hyperium/tonic/blob/master/tonic/src/status.rs
+                            </span><span class="macro">error!</span>(<span class="string">&quot;Irrecoverable network error: {e}&quot;</span>);
+                            backoff::Error::permanent(eyre::Report::from(e))
+                        }
+                        <span class="kw">_ </span>=&gt; {
+                            <span class="comment">// this returns a backoff::Error::Transient
+                            // so that if tonic::Status is returned, we retry
+                            </span>Into::&lt;backoff::Error&lt;eyre::Report&gt;&gt;::into(eyre::Report::from(e))
+                        }
+                    }
                 })
             }
         };
