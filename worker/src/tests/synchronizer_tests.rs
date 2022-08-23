@@ -5,6 +5,7 @@ use super::*;
 use arc_swap::ArcSwap;
 use fastcrypto::traits::KeyPair;
 use prometheus::Registry;
+use test_utils::committee;
 use test_utils::{
     batch, batch_digest, batches, keys, open_batch_store, pure_committee_from_keys,
     resolve_name_committee_and_worker_cache, serialize_batch_message,
@@ -76,6 +77,7 @@ async fn synchronize_when_batch_exists() {
     let (tx_primary, mut rx_primary) = test_utils::test_channel!(1);
 
     let mut keys = keys(None);
+    let worker_cache = shared_worker_cache_from_keys(&keys);
     let name = keys.pop().unwrap().public().clone();
     let id = 0;
 
@@ -93,6 +95,7 @@ async fn synchronize_when_batch_exists() {
         name.clone(),
         id,
         Arc::new(ArcSwap::from_pointee(committee.clone())),
+        worker_cache.clone(),
         store.clone(),
         /* gc_depth */ 50, // Not used in this test.
         /* sync_retry_delay */
@@ -107,7 +110,11 @@ async fn synchronize_when_batch_exists() {
 
     // Spawn a listener to receive our batch requests.
     let target = keys.pop().unwrap().public().clone();
-    let address = committee.worker(&target, &id).unwrap().worker_to_worker;
+    let address = worker_cache
+        .load()
+        .worker(&target, &id)
+        .unwrap()
+        .worker_to_worker;
     let batch_id = batch_digest();
     let missing = vec![batch_id];
 
