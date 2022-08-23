@@ -1,8 +1,8 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crate::{committee, keys, temp_dir};
+use crate::{keys, pure_committee_from_keys, shared_worker_cache_from_keys, temp_dir};
 use arc_swap::ArcSwap;
-use config::{Committee, Parameters, SharedCommittee, WorkerId};
+use config::{Committee, Parameters, SharedCommittee, SharedWorkerCache, WorkerId};
 use crypto::KeyPair;
 use crypto::PublicKey;
 use executor::{SerializedTransaction, SingleExecutor, SubscriberResult, DEFAULT_CHANNEL_SIZE};
@@ -31,6 +31,7 @@ pub mod cluster_tests;
 pub struct Cluster {
     authorities: HashMap<usize, AuthorityDetails>,
     pub committee_shared: SharedCommittee,
+    pub worker_cache_shared: SharedWorkerCache,
     #[allow(dead_code)]
     parameters: Parameters,
 }
@@ -41,6 +42,8 @@ impl Cluster {
     /// the committee structure, but none of them will be started.
     /// If an `input_committee` is provided then this will be used, otherwise the default
     /// will be used instead.
+    /// If an `input_shared_worker_cache` is provided then this will be used,
+    /// otherwise the default will be used instead.
     /// When the `internal_consensus_enabled` is true then the standard internal
     /// consensus engine will be enabled. If false, then the internal consensus will
     /// be disabled and the gRPC server will be enabled to manage the Collections & the
@@ -48,9 +51,13 @@ impl Cluster {
     pub fn new(
         parameters: Option<Parameters>,
         input_committee: Option<Committee>,
+        input_shared_worker_cache: Option<SharedWorkerCache>,
         internal_consensus_enabled: bool,
     ) -> Self {
-        let c = input_committee.unwrap_or_else(|| committee(None));
+        let k = keys(None);
+        let c = input_committee.unwrap_or_else(|| pure_committee_from_keys(&k));
+        let shared_worker_cache =
+            input_shared_worker_cache.unwrap_or_else(|| shared_worker_cache_from_keys(&k));
         let shared_committee = Arc::new(ArcSwap::from_pointee(c));
         let params = parameters.unwrap_or_else(Self::parameters);
 
@@ -67,6 +74,7 @@ impl Cluster {
                 key_pair,
                 params.clone(),
                 shared_committee.clone(),
+                shared_worker_cache.clone(),
                 internal_consensus_enabled,
             );
             nodes.insert(id, authority);
@@ -75,6 +83,7 @@ impl Cluster {
         Self {
             authorities: nodes,
             committee_shared: shared_committee,
+            worker_cache_shared: shared_worker_cache,
             parameters: params,
         }
     }
@@ -270,6 +279,7 @@ pub struct PrimaryNodeDetails {
     registry: Registry,
     store_path: PathBuf,
     committee: SharedCommittee,
+    worker_cache: SharedWorkerCache,
     parameters: Parameters,
     handlers: Rc<RefCell<Vec<JoinHandle<()>>>>,
     internal_consensus_enabled: bool,
@@ -281,6 +291,7 @@ impl PrimaryNodeDetails {
         key_pair: KeyPair,
         parameters: Parameters,
         committee: SharedCommittee,
+        worker_cache: SharedWorkerCache,
         internal_consensus_enabled: bool,
     ) -> Self {
         // used just to initialise the struct value
@@ -293,6 +304,7 @@ impl PrimaryNodeDetails {
             store_path: temp_dir(),
             tx_transaction_confirmation: tx,
             committee,
+            worker_cache,
             parameters,
             handlers: Rc::new(RefCell::new(Vec::new())),
             internal_consensus_enabled,
@@ -337,6 +349,7 @@ impl PrimaryNodeDetails {
         let mut primary_handlers = Node::spawn_primary(
             self.key_pair.copy(),
             self.committee.clone(),
+            self.worker_cache.clone(),
             &primary_store,
             self.parameters.clone(),
             /* consensus */ self.internal_consensus_enabled,
@@ -399,6 +412,7 @@ pub struct WorkerNodeDetails {
     pub registry: Registry,
     name: PublicKey,
     committee: SharedCommittee,
+    worker_cache: SharedWorkerCache,
     parameters: Parameters,
     store_path: PathBuf,
     handlers: Arc<ArcSwap<Vec<JoinHandle<()>>>>,
@@ -411,6 +425,7 @@ impl WorkerNodeDetails {
         parameters: Parameters,
         transactions_address: Multiaddr,
         committee: SharedCommittee,
+        worker_cache: SharedWorkerCache,
     ) -> Self {
         Self {
             id,
@@ -419,6 +434,7 @@ impl WorkerNodeDetails {
             store_path: temp_dir(),
             transactions_address,
             committee,
+            worker_cache,
             parameters,
             handlers: Arc::new(ArcSwap::from_pointee(Vec::new())),
         }
@@ -447,6 +463,7 @@ impl WorkerNodeDetails {
             self.name.clone(),
             vec![self.id],
             self.committee.clone(),
+            self.worker_cache.clone(),
             &worker_store,
             self.parameters.clone(),
             &registry,
@@ -497,6 +514,7 @@ impl AuthorityDetails {
         key_pair: KeyPair,
         parameters: Parameters,
         committee: SharedCommittee,
+        worker_cache: SharedWorkerCache,
         internal_consensus_enabled: bool,
     ) -> Self {
         // Create all the nodes we have in the committee
@@ -506,6 +524,7 @@ impl AuthorityDetails {
             key_pair,
             parameters.clone(),
             committee.clone(),
+            worker_cache.clone(),
             internal_consensus_enabled,
         );
 
@@ -513,20 +532,14 @@ impl AuthorityDetails {
         // act as place holder setups. That gives us the power in a clear way manage
         // the nodes independently.
         let mut workers = HashMap::new();
-        for (worker_id, addresses) in committee
-            .load()
-            .authorities
-            .get(&name)
-            .unwrap()
-            .workers
-            .clone()
-        {
+        for (worker_id, addresses) in worker_cache.load().workers.get(&name).unwrap().0.clone() {
             let worker = WorkerNodeDetails::new(
                 worker_id,
                 name.clone(),
                 parameters.clone(),
                 addresses.transactions.clone(),
                 committee.clone(),
+                worker_cache.clone(),
             );
             workers.insert(worker_id, worker);
         }
