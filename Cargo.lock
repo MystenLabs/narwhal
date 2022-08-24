@@ -4711,6 +4711,7 @@ dependencies = [
  "prometheus",
  "rand 0.7.3",
  "serde",
+ "tap",
  "tempfile",
  "test_utils",
  "tokio",

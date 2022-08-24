@@ -30,6 +30,7 @@ prometheus = "0.13.1"
 
 store = { git = "https://github.com/mystenlabs/mysten-infra.git", package = "typed-store", rev = "8d090689be14078f2ca41c356e7bbc0af21f73ab" }
 workspace-hack = { version = "0.1", path = "../workspace-hack" }
+tap = "1.0.1"
 
 [dev-dependencies]
 arc-swap = { version = "1.5.1", features = ["serde"] }
