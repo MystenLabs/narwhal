@@ -244,12 +244,16 @@ impl CertificateStore {
     pub fn last_round(&self) -> StoreResult<Vec<Certificate>> {
         // starting from the last element - hence the last round - move backwards until
         // we find certificates of different round.
-        let mut last = self.certificate_ids_by_round.iter().skip_to_last();
+        let certificates_reverse = self
+            .certificate_ids_by_round
+            .iter()
+            .skip_to_last()
+            .reverse();
 
         let mut round = 0;
         let mut certificates = Vec::new();
 
-        while let Some((key, _value)) = last.prev() {
+        for (key, _value) in certificates_reverse {
             let (certificate_round, certificate_id) = key;
 
             // We treat zero as special value (round unset) in order to
