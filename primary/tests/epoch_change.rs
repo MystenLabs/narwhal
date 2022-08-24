@@ -85,16 +85,18 @@ async fn test_simple_epoch_change() {
     let mut old_committee = committee_0;
     for epoch in 1..=3 {
         // Move to the next epoch.
-        let new_committee = Committee {
+        let new_committee = Committee::new(
+            old_committee
+                .authorities()
+                .map(|(a, b)| (a.clone(), b.clone()))
+                .collect(),
             epoch,
-            ..old_committee.clone()
-        };
+        );
 
         // Notify the old committee to change epoch.
         let addresses: Vec<_> = old_committee
-            .authorities
-            .values()
-            .map(|authority| authority.primary.worker_to_primary.clone())
+            .authorities()
+            .map(|(_, authority)| authority.primary.worker_to_primary.clone())
             .collect();
         let message = WorkerPrimaryMessage::Reconfigure(ReconfigureNotification::NewEpoch(
             new_committee.clone(),
@@ -132,14 +134,14 @@ async fn test_partial_committee_change() {
     // Make the committee of epoch 0.
     let keys_0 = keys(None);
     let authorities_0: Vec<_> = keys_0.iter().map(|_| make_authority()).collect();
-    let committee_0 = Committee {
-        epoch: Epoch::default(),
-        authorities: keys_0
+    let committee_0 = Committee::new(
+        keys_0
             .iter()
             .zip(authorities_0.clone().into_iter())
             .map(|(kp, authority)| (kp.public().clone(), authority))
             .collect(),
-    };
+        Epoch::default(),
+    );
     let worker_cache_0 = shared_worker_cache_from_keys(&keys_0);
 
     // Spawn the committee of epoch 0.
@@ -223,10 +225,7 @@ async fn test_partial_committee_change() {
         })
         .collect();
 
-    let committee_1 = Committee {
-        epoch: Epoch::default() + 1,
-        authorities: authorities_1,
-    };
+    let committee_1 = Committee::new(authorities_1, Epoch::default() + 1);
     let worker_cache_1 = shared_worker_cache_from_keys(&committee_keys);
 
     // Spawn the committee of epoch 1 (only the node not already booted).
@@ -273,9 +272,8 @@ async fn test_partial_committee_change() {
 
     // Tell the nodes of epoch 0 to transition to epoch 1.
     let addresses: Vec<_> = committee_0
-        .authorities
-        .values()
-        .map(|authority| authority.primary.worker_to_primary.clone())
+        .authorities()
+        .map(|(_, authority)| authority.primary.worker_to_primary.clone())
         .collect();
     let message =
         WorkerPrimaryMessage::Reconfigure(ReconfigureNotification::NewEpoch(committee_1.clone()));
@@ -369,9 +367,8 @@ async fn test_restart_with_new_committee_change() {
 
     // Shutdown the committee of the previous epoch;
     let addresses: Vec<_> = committee_0
-        .authorities
-        .values()
-        .map(|authority| authority.primary.worker_to_primary.clone())
+        .authorities()
+        .map(|(_, authority)| authority.primary.worker_to_primary.clone())
         .collect();
     let message = WorkerPrimaryMessage::Reconfigure(ReconfigureNotification::Shutdown);
     let mut _do_not_drop: Vec<CancelOnDropHandler<_>> = Vec::new();
@@ -388,8 +385,13 @@ async fn test_restart_with_new_committee_change() {
 
     // Move to the next epochs.
     for epoch in 1..=3 {
-        let mut new_committee = committee_0.clone();
-        new_committee.epoch = epoch;
+        let new_committee = Committee::new(
+            committee_0
+                .authorities()
+                .map(|(a, b)| (a.clone(), b.clone()))
+                .collect(),
+            epoch,
+        );
         let old_worker_cache = &mut worker_cache_0.clone().load().clone();
         let mut new_worker_cache = Arc::make_mut(old_worker_cache);
         new_worker_cache.epoch = epoch;
@@ -449,9 +451,8 @@ async fn test_restart_with_new_committee_change() {
 
         // Shutdown the committee of the previous epoch;
         let addresses: Vec<_> = committee_0
-            .authorities
-            .values()
-            .map(|authority| authority.primary.worker_to_primary.clone())
+            .authorities()
+            .map(|(_, authority)| authority.primary.worker_to_primary.clone())
             .collect();
         let message = WorkerPrimaryMessage::Reconfigure(ReconfigureNotification::Shutdown);
         let mut _do_not_drop: Vec<CancelOnDropHandler<_>> = Vec::new();
@@ -537,12 +538,13 @@ async fn test_simple_committee_update() {
     // Update the committee
     let mut old_committee = committee_0;
     for _ in 1..=3 {
-        // Update the committee
-        let mut new_committee = old_committee.clone();
-
         let mut total_stake = 0;
-        let threshold = new_committee.validity_threshold();
-        for (_, authority) in new_committee.authorities.iter_mut() {
+        let threshold = old_committee.validity_threshold();
+        let mut new_authorities: BTreeMap<_, _> = old_committee
+            .authorities()
+            .map(|(a, b)| (a.clone(), b.clone()))
+            .collect();
+        for (_, authority) in new_authorities.iter_mut() {
             if total_stake < threshold {
                 authority.primary.primary_to_primary = format!(
                     "/ip4/127.0.0.1/tcp/{}/http",
@@ -555,11 +557,12 @@ async fn test_simple_committee_update() {
             }
         }
 
+        let new_committee = Committee::new(new_authorities, old_committee.epoch());
+
         // Notify the old committee about the change in committee information.
         let addresses: Vec<_> = old_committee
-            .authorities
-            .values()
-            .map(|authority| authority.primary.worker_to_primary.clone())
+            .authorities()
+            .map(|(_, authority)| authority.primary.worker_to_primary.clone())
             .collect();
         let message = WorkerPrimaryMessage::Reconfigure(ReconfigureNotification::UpdateCommittee(
             new_committee.clone(),

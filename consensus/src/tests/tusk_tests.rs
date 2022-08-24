@@ -443,7 +443,7 @@ async fn epoch_change() {
         assert_eq!(output.certificate.round(), 2);
 
         // Move to the next epoch.
-        committee.epoch = epoch + 1;
+        committee.advance_epoch(1);
         let message = ReconfigureNotification::NewEpoch(committee.clone());
         tx_reconfigure.send(message).unwrap();
     }
@@ -519,7 +519,7 @@ async fn restart_with_new_committee() {
         assert_eq!(output.certificate.round(), 2);
 
         // Move to the next epoch.
-        committee.epoch = epoch + 1;
+        committee.advance_epoch(1);
         let message = ReconfigureNotification::Shutdown;
         tx_reconfigure.send(message).unwrap();
 

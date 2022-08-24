@@ -66,8 +66,7 @@ fn update_primary_network_info_test() {
 
     let committee2 = test_utils::committee(42);
     let invalid_new_info = committee2
-        .authorities
-        .iter()
+        .authorities()
         .map(|(pk, a)| (pk.clone(), (a.stake, a.primary.clone())))
         .collect::<BTreeMap<_, (Stake, PrimaryAddresses)>>();
     let res2 = committee
@@ -85,8 +84,7 @@ fn update_primary_network_info_test() {
 
     let committee3 = test_utils::committee(None);
     let invalid_new_info = committee3
-        .authorities
-        .iter()
+        .authorities()
         // change the stake
         .map(|(pk, a)| (pk.clone(), (a.stake + 1, a.primary.clone())))
         .collect::<BTreeMap<_, (Stake, PrimaryAddresses)>>();
@@ -105,7 +103,7 @@ fn update_primary_network_info_test() {
     let mut pk_n_stake = Vec::new();
     let mut addresses = Vec::new();
 
-    committee4.authorities.iter().for_each(|(pk, a)| {
+    committee4.authorities().for_each(|(pk, a)| {
         pk_n_stake.push((pk.clone(), a.stake));
         addresses.push(a.primary.clone())
     });
@@ -122,7 +120,7 @@ fn update_primary_network_info_test() {
     let mut comm = committee;
     let res = comm.update_primary_network_info(new_info.clone());
     assert!(res.is_ok());
-    for (pk, a) in comm.authorities.iter() {
+    for (pk, a) in comm.authorities() {
         assert_eq!(a.primary, new_info.get(pk).unwrap().1);
     }
 }
@@ -207,10 +205,8 @@ fn commmittee_snapshot_matches() {
     // and in Sui (prod)
     let keys = test_utils::keys(None);
 
-    let committee = Committee {
-        epoch: Epoch::default(),
-        authorities: keys
-            .iter()
+    let committee = Committee::new(
+        keys.iter()
             .map(|kp| {
                 let mut port = 0;
                 let increment_port_getter = || {
@@ -223,7 +219,8 @@ fn commmittee_snapshot_matches() {
                 )
             })
             .collect(),
-    };
+        Epoch::default(),
+    );
     // we need authorities to be serialized in order
     let mut settings = insta::Settings::clone_current();
     settings.set_sort_maps(true);

@@ -156,7 +156,7 @@ impl Tusk {
         cfg_if::cfg_if! {
             if #[cfg(test)] {
                 // consensus tests rely on returning the same leader.
-                let leader = committee.authorities.iter().next().expect("Empty authorities table!").0;
+                let leader = committee.keys().next().expect("Empty authorities table!");
             } else {
                 // Elect the leader in a stake-weighted choice seeded by the round
                 let leader = &committee.leader(round);

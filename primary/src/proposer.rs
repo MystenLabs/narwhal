@@ -235,7 +235,7 @@ impl Proposer {
                 self.round += 1;
                 self.metrics
                     .current_round
-                    .with_label_values(&[&self.committee.epoch.to_string()])
+                    .with_label_values(&[&self.committee.epoch().to_string()])
                     .set(self.round as i64);
                 debug!("Dag moved to round {}", self.round);
 

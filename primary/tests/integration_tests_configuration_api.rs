@@ -67,7 +67,7 @@ async fn test_new_network_info() {
     // Test gRPC server with client call
     let mut client = authority.new_configuration_client().await;
 
-    let public_keys: Vec<_> = committee.load().authorities.keys().cloned().collect();
+    let public_keys: Vec<_> = committee.load().keys().cloned().collect();
 
     let mut validators = Vec::new();
     for public_key in public_keys.iter() {

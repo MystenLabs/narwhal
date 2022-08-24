@@ -368,7 +368,6 @@ pub struct Certificate {
 impl Certificate {
     pub fn genesis(committee: &Committee) -> Vec<Self> {
         committee
-            .authorities
             .keys()
             .map(|name| Self {
                 header: Header {

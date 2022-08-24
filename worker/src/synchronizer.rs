@@ -209,13 +209,13 @@ impl Synchronizer {
                         // Reconfigure this task and update the shared committee.
                         let shutdown = match &message {
                             ReconfigureNotification::NewEpoch(new_committee) => {
-                                self.network.cleanup(self.worker_cache.load().network_diff(new_committee.keys()));
+                                self.network.cleanup(self.worker_cache.load().network_diff(new_committee.keys().collect()));
                                 self.committee.swap(Arc::new(new_committee.clone()));
 
                                 // Update the worker cache.
                                 self.worker_cache.swap(Arc::new(WorkerCache {
-                                    epoch: new_committee.epoch,
-                                    workers: new_committee.keys().iter().map(|key|
+                                    epoch: new_committee.epoch(),
+                                    workers: new_committee.keys().map(|key|
                                         (
                                             (*key).clone(),
                                             self.worker_cache
@@ -237,13 +237,13 @@ impl Synchronizer {
                                 false
                             }
                             ReconfigureNotification::UpdateCommittee(new_committee) => {
-                                self.network.cleanup(self.worker_cache.load().network_diff(new_committee.keys()));
+                                self.network.cleanup(self.worker_cache.load().network_diff(new_committee.keys().collect()));
                                 self.committee.swap(Arc::new(new_committee.clone()));
 
                                 // Update the worker cache.
                                 self.worker_cache.swap(Arc::new(WorkerCache {
-                                    epoch: new_committee.epoch,
-                                    workers: new_committee.keys().iter().map(|key|
+                                    epoch: new_committee.epoch(),
+                                    workers: new_committee.keys().map(|key|
                                         (
                                             (*key).clone(),
                                             self.worker_cache
@@ -329,7 +329,7 @@ impl Synchronizer {
 
                     // Report list of pending elements
                     self.metrics.pending_elements_worker_synchronizer
-                    .with_label_values(&[&self.committee.load().epoch.to_string()])
+                    .with_label_values(&[&self.committee.load().epoch().to_string()])
                     .set(self.pending.len() as i64);
                 },
             }

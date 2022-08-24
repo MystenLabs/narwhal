@@ -103,12 +103,12 @@ impl StateHandler {
                     let shutdown = match &message {
                         ReconfigureNotification::NewEpoch(committee) => {
                             // Cleanup the network.
-                            self.worker_network.cleanup(self.worker_cache.load().network_diff(committee.keys()));
+                            self.worker_network.cleanup(self.worker_cache.load().network_diff(committee.keys().collect()));
 
                             // Update the worker cache.
                             self.worker_cache.swap(Arc::new(WorkerCache {
-                                epoch: committee.epoch,
-                                workers: committee.keys().iter().map(|key|
+                                epoch: committee.epoch(),
+                                workers: committee.keys().map(|key|
                                     (
                                         (*key).clone(),
                                         self.worker_cache
@@ -133,12 +133,12 @@ impl StateHandler {
                         },
                         ReconfigureNotification::UpdateCommittee(committee) => {
                             // Cleanup the network.
-                            self.worker_network.cleanup(self.worker_cache.load().network_diff(committee.keys()));
+                            self.worker_network.cleanup(self.worker_cache.load().network_diff(committee.keys().collect()));
 
                             // Update the worker cache.
                             self.worker_cache.swap(Arc::new(WorkerCache {
-                                epoch: committee.epoch,
-                                workers: committee.keys().iter().map(|key|
+                                epoch: committee.epoch(),
+                                workers: committee.keys().map(|key|
                                     (
                                         (*key).clone(),
                                         self.worker_cache

@@ -36,10 +36,8 @@ fn get_registry() -> Result<Registry> {
 
     // Trace the corresponding header
     let keys: Vec<_> = (0..4).map(|_| KeyPair::generate(&mut rng)).collect();
-    let committee = Committee {
-        epoch: Epoch::default(),
-        authorities: keys
-            .iter()
+    let committee = Committee::new(
+        keys.iter()
             .enumerate()
             .map(|(i, kp)| {
                 let id = kp.public();
@@ -54,7 +52,8 @@ fn get_registry() -> Result<Registry> {
                 (id.clone(), Authority { stake: 1, primary })
             })
             .collect(),
-    };
+        Epoch::default(),
+    );
 
     let certificates: Vec<Certificate> = Certificate::genesis(&committee);
 

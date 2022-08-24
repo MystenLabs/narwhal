@@ -373,7 +373,7 @@ impl HeaderWaiter {
 
                     self.metrics
                         .gc_header_waiter_latency
-                        .with_label_values(&[&self.committee.epoch.to_string()])
+                        .with_label_values(&[&self.committee.epoch().to_string()])
                         .observe(now.elapsed().as_secs_f64());
                 }
             }
@@ -381,17 +381,17 @@ impl HeaderWaiter {
             // measure the pending & parent elements
             self.metrics
                 .pending_elements_header_waiter
-                .with_label_values(&[&self.committee.epoch.to_string()])
+                .with_label_values(&[&self.committee.epoch().to_string()])
                 .set(self.pending.len() as i64);
 
             self.metrics
                 .parent_requests_header_waiter
-                .with_label_values(&[&self.committee.epoch.to_string()])
+                .with_label_values(&[&self.committee.epoch().to_string()])
                 .set(self.parent_requests.len() as i64);
 
             self.metrics
                 .waiting_elements_header_waiter
-                .with_label_values(&[&self.committee.epoch.to_string()])
+                .with_label_values(&[&self.committee.epoch().to_string()])
                 .set(waiting.len() as i64);
         }
     }

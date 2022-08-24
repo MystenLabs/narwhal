@@ -697,11 +697,7 @@ async fn test_read_causal_unsigned_certificates() {
     let (certificates, _next_parents) = make_optimal_certificates(
         1..=4,
         &genesis,
-        &committee
-            .authorities
-            .keys()
-            .cloned()
-            .collect::<Vec<PublicKey>>(),
+        &committee.keys().cloned().collect::<Vec<PublicKey>>(),
     );
 
     collection_ids.extend(

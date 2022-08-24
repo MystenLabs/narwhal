@@ -73,10 +73,9 @@ impl SingleExecutionState for SimpleExecutionState {
         // this function (they are immediately skipped).
         let mut epoch = self.committee.lock().unwrap().epoch();
         if transaction >= epoch && execution_indices.next_certificate_index % 3 == 0 {
-            epoch += 1;
             {
                 let mut guard = self.committee.lock().unwrap();
-                guard.epoch = epoch;
+                epoch = guard.advance_epoch(1);
             };
 
             let keypair = keys(None)

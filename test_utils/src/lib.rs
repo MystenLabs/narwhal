@@ -128,13 +128,12 @@ pub fn committee(rng_seed: impl Into<Option<u64>>) -> Committee {
 }
 
 pub fn pure_committee_from_keys(keys: &[KeyPair]) -> Committee {
-    Committee {
-        epoch: Epoch::default(),
-        authorities: keys
-            .iter()
+    Committee::new(
+        keys.iter()
             .map(|kp| (kp.public().clone(), make_authority()))
             .collect(),
-    }
+        Epoch::default(),
+    )
 }
 
 pub fn make_authority_with_port_getter<F: FnMut() -> u16>(mut get_port: F) -> Authority {
@@ -249,10 +248,8 @@ pub fn initialize_worker_index_with_port_getter<F: FnMut() -> u16>(mut get_port:
 
 // Fixture
 pub fn mock_committee(keys: &[PublicKey]) -> Committee {
-    Committee {
-        epoch: Epoch::default(),
-        authorities: keys
-            .iter()
+    Committee::new(
+        keys.iter()
             .map(|id| {
                 (
                     id.clone(),
@@ -266,7 +263,8 @@ pub fn mock_committee(keys: &[PublicKey]) -> Committee {
                 )
             })
             .collect(),
-    }
+        Epoch::default(),
+    )
 }
 
 // Fixture

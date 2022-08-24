@@ -557,7 +557,7 @@ async fn reconfigure_core() {
     // Make the new committee & worker cache
     let keys_1 = keys(None);
     let mut new_committee = pure_committee_from_keys(&keys_1);
-    new_committee.epoch = 1;
+    new_committee.advance_epoch(1);
 
     // All the channels to interface with the core.
     let (tx_reconfigure, rx_reconfigure) =

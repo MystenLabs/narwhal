@@ -455,9 +455,14 @@ pub type SharedCommittee = Arc<ArcSwap<Committee>>;
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Committee {
     /// The authorities of epoch.
-    pub authorities: BTreeMap<PublicKey, Authority>,
+    authorities: BTreeMap<PublicKey, Authority>,
+    /// An list of authorities, ordered increasingly
+    ordered_authorities: Vec<PublicKey>,
+    /// Maps the public keys of each authority to their indexes
+    /// in the ascendingly ordered list of authorities.
+    index_map: BTreeMap<PublicKey, u64>,
     /// The epoch number of this committee
-    pub epoch: Epoch,
+    epoch: Epoch,
 }
 
 impl std::fmt::Display for Committee {
@@ -475,14 +480,51 @@ impl std::fmt::Display for Committee {
 }
 
 impl Committee {
+    pub fn new(authorities: BTreeMap<PublicKey, Authority>, epoch: Epoch) -> Self {
+        let mut ordered_authorities: Vec<PublicKey> =
+            authorities.iter().map(|(pk, _)| pk.clone()).collect();
+
+        ordered_authorities.sort_by_key(|pk| pk.clone());
+
+        let index_map: BTreeMap<PublicKey, u64> = ordered_authorities
+            .iter()
+            .enumerate()
+            .map(|(index, addr)| (addr.clone(), index as u64))
+            .collect();
+
+        Committee {
+            authorities,
+            epoch,
+            index_map,
+            ordered_authorities,
+        }
+    }
+
+    pub fn get_authority_index(&self, pk: &PublicKey) -> Option<u64> {
+        self.index_map.get(pk).copied()
+    }
+
+    pub fn get_authority_by_index(&self, index: u64) -> Option<&PublicKey> {
+        self.ordered_authorities.get(index as usize)
+    }
+
+    pub fn authorities(&self) -> impl Iterator<Item = (&PublicKey, &Authority)> {
+        self.authorities.iter()
+    }
+
     /// Returns the current epoch.
     pub fn epoch(&self) -> Epoch {
         self.epoch
     }
 
+    pub fn advance_epoch(&mut self, inc: u64) -> Epoch {
+        self.epoch += inc;
+        self.epoch
+    }
+
     /// Returns the keys in the committee
-    pub fn keys(&self) -> Vec<&PublicKey> {
-        self.authorities.keys().clone().collect::<Vec<&PublicKey>>()
+    pub fn keys(&self) -> impl Iterator<Item = &PublicKey> {
+        self.authorities.keys()
     }
 
     /// Returns the number of authorities.

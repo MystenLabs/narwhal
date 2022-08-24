@@ -83,14 +83,13 @@ async fn test_rounds_errors() {
 
     // AND create a committee passed exclusively to the DAG that does not include the name public key
     // In this way, the genesis certificate is not run for that authority and is absent when we try to fetch it
-    let no_name_committee = config::Committee {
-        epoch: Epoch::default(),
-        authorities: committee
-            .authorities
-            .iter()
+    let no_name_committee = config::Committee::new(
+        committee
+            .authorities()
             .filter_map(|(pk, a)| (*pk != name).then_some((pk.clone(), a.clone())))
             .collect::<BTreeMap<_, _>>(),
-    };
+        Epoch::default(),
+    );
 
     let consensus_metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
 

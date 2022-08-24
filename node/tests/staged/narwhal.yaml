@@ -35,6 +35,14 @@ Committee:
             TYPENAME: Ed25519PublicKey
           VALUE:
             TYPENAME: Authority
+    - ordered_authorities:
+        SEQ:
+          TYPENAME: Ed25519PublicKey
+    - index_map:
+        MAP:
+          KEY:
+            TYPENAME: Ed25519PublicKey
+          VALUE: U64
     - epoch: U64
 Ed25519PublicKey:
   NEWTYPESTRUCT: STR
@@ -156,3 +164,4 @@ WorkerPrimaryMessage:
       Reconfigure:
         NEWTYPE:
           TYPENAME: ReconfigureNotification
+

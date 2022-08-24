@@ -637,7 +637,7 @@ impl Core {
 
                         self.metrics
                             .gc_core_latency
-                            .with_label_values(&[&self.committee.epoch.to_string()])
+                            .with_label_values(&[&self.committee.epoch().to_string()])
                             .observe(now.elapsed().as_secs_f64());
                     }
 
@@ -658,7 +658,7 @@ impl Core {
 
             self.metrics
                 .core_cancel_handlers_total
-                .with_label_values(&[&self.committee.epoch.to_string()])
+                .with_label_values(&[&self.committee.epoch().to_string()])
                 .set(self.cancel_handlers.len() as i64);
         }
     }

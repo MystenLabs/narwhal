@@ -107,7 +107,7 @@ impl Cluster {
         workers_per_authority: Option<usize>,
         boot_wait_time: Option<Duration>,
     ) {
-        let max_authorities = self.committee_shared.load().authorities.len();
+        let max_authorities = self.committee_shared.load().size();
         let authorities = authorities_number.unwrap_or(max_authorities);
 
         if authorities > max_authorities {

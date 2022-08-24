@@ -163,7 +163,7 @@ impl BatchMaker {
 
         self.node_metrics
             .created_batch_size
-            .with_label_values(&[self.committee.epoch.to_string().as_str(), reason])
+            .with_label_values(&[self.committee.epoch().to_string().as_str(), reason])
             .observe(size as f64);
 
         // Send the batch through the deliver channel for further processing.
