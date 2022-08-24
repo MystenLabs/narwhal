@@ -373,6 +373,34 @@
 <span id="373">373</span>
 <span id="374">374</span>
 <span id="375">375</span>
+<span id="376">376</span>
+<span id="377">377</span>
+<span id="378">378</span>
+<span id="379">379</span>
+<span id="380">380</span>
+<span id="381">381</span>
+<span id="382">382</span>
+<span id="383">383</span>
+<span id="384">384</span>
+<span id="385">385</span>
+<span id="386">386</span>
+<span id="387">387</span>
+<span id="388">388</span>
+<span id="389">389</span>
+<span id="390">390</span>
+<span id="391">391</span>
+<span id="392">392</span>
+<span id="393">393</span>
+<span id="394">394</span>
+<span id="395">395</span>
+<span id="396">396</span>
+<span id="397">397</span>
+<span id="398">398</span>
+<span id="399">399</span>
+<span id="400">400</span>
+<span id="401">401</span>
+<span id="402">402</span>
+<span id="403">403</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -382,19 +410,22 @@
 <span class="kw">use </span>futures::stream::{futures_unordered::FuturesUnordered, StreamExt <span class="kw">as _</span>};
 <span class="kw">use </span>network::{LuckyNetwork, UnreliableNetwork, WorkerNetwork};
 <span class="kw">use </span>primary::PrimaryWorkerMessage;
+<span class="kw">use </span>std::collections::HashSet;
 <span class="kw">use </span>std::{
     collections::{BTreeMap, HashMap},
     sync::Arc,
     time::{SystemTime, UNIX_EPOCH},
 };
 <span class="kw">use </span>store::{Store, StoreError};
+<span class="kw">use </span>tap::TapFallible;
 <span class="kw">use </span>tap::TapOptional;
 <span class="kw">use </span>tokio::{
     sync::{mpsc, watch},
     task::JoinHandle,
     time::{sleep, Duration, Instant},
 };
-<span class="kw">use </span>tracing::{debug, error, warn};
+<span class="kw">use </span>tracing::{debug, error, trace, warn};
+<span class="kw">use </span>types::error::DagError;
 <span class="kw">use </span>types::{
     metered_channel::{Receiver, Sender},
     BatchDigest, ReconfigureNotification, Round, SerializedBatchMessage, WorkerMessage,
@@ -513,55 +544,80 @@
                 <span class="comment">// Handle primary&#39;s messages.
                 </span><span class="prelude-val">Some</span>(message) = <span class="self">self</span>.rx_message.recv() =&gt; <span class="kw">match </span>message {
                     PrimaryWorkerMessage::Synchronize(digests, target) =&gt; {
-                        <span class="kw">let </span>now = SystemTime::now()
-                            .duration_since(UNIX_EPOCH)
-                            .expect(<span class="string">&quot;Failed to measure time&quot;</span>)
-                            .as_millis();
+                        <span class="kw">let </span><span class="kw-2">mut </span>missing = HashSet::new();
+                        <span class="kw">let </span><span class="kw-2">mut </span>available = HashSet::new();
 
-                        <span class="kw">let </span><span class="kw-2">mut </span>missing = Vec::new();
-                        <span class="kw">for </span>digest <span class="kw">in </span>digests {
+                        <span class="kw">for </span>digest <span class="kw">in </span>digests.iter() {
                             <span class="comment">// Ensure we do not send twice the same sync request.
-                            </span><span class="kw">if </span><span class="self">self</span>.pending.contains_key(<span class="kw-2">&amp;</span>digest) {
+                            </span><span class="kw">if </span><span class="self">self</span>.pending.contains_key(digest) {
                                 <span class="kw">continue</span>;
                             }
 
                             <span class="comment">// Check if we received the batch in the meantime.
-                            </span><span class="kw">match </span><span class="self">self</span>.store.read(digest).<span class="kw">await </span>{
+                            </span><span class="kw">match </span><span class="self">self</span>.store.read(<span class="kw-2">*</span>digest).<span class="kw">await </span>{
                                 <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>) =&gt; {
-                                    missing.push(digest);
+                                    missing.insert(<span class="kw-2">*</span>digest);
                                     <span class="macro">debug!</span>(<span class="string">&quot;Requesting sync for batch {digest}&quot;</span>);
                                 },
                                 <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="kw">_</span>)) =&gt; {
                                     <span class="comment">// The batch arrived in the meantime: no need to request it.
-                                </span>},
+                                    </span>available.insert(<span class="kw-2">*</span>digest);
+                                    <span class="macro">trace!</span>(<span class="string">&quot;Digest {digest} already in store, nothing to sync&quot;</span>);
+                                    <span class="kw">continue</span>;
+                                },
                                 <span class="prelude-val">Err</span>(e) =&gt; {
                                     <span class="macro">error!</span>(<span class="string">&quot;{e}&quot;</span>);
                                     <span class="kw">continue</span>;
                                 }
-                            }
-
-                            <span class="comment">// Add the digest to the waiter.
-                            </span><span class="kw">let </span>deliver = digest;
-                            <span class="kw">let </span>(tx_cancel, rx_cancel) = mpsc::channel(<span class="number">1</span>);
-                            <span class="kw">let </span>fut = <span class="self">Self</span>::waiter(digest, <span class="self">self</span>.store.clone(), deliver, rx_cancel);
-                            waiting.push(fut);
-                            <span class="self">self</span>.pending.insert(digest, (<span class="self">self</span>.round, tx_cancel, now));
+                            };
                         }
 
-                        <span class="comment">// Send sync request to a single node. If this fails, we will send it
-                        // to other nodes when a timer times out.
-                        </span><span class="kw">let </span>address = <span class="kw">match </span><span class="self">self</span>.worker_cache.load().worker(<span class="kw-2">&amp;</span>target, <span class="kw-2">&amp;</span><span class="self">self</span>.id) {
-                            <span class="prelude-val">Ok</span>(address) =&gt; address.worker_to_worker,
-                            <span class="prelude-val">Err</span>(e) =&gt; {
-                                <span class="macro">error!</span>(<span class="string">&quot;The primary asked us to sync with an unknown node: {e}&quot;</span>);
-                                <span class="kw">continue</span>;
+                        <span class="comment">// reply back immediately for the available ones
+                        </span><span class="kw">if </span>!available.is_empty() {
+                            <span class="comment">// Doing this will ensure the batch id will be populated to primary even
+                            // when other processes fail to do so (ex we received a batch from a peer
+                            // worker and message has been missed by primary).
+                            </span><span class="kw">for </span>digest <span class="kw">in </span>available {
+                                <span class="kw">let </span>message = WorkerPrimaryMessage::OthersBatch(digest, <span class="self">self</span>.id);
+                                <span class="kw">let _ </span>= <span class="self">self</span>.tx_primary.send(message).<span class="kw">await</span>.tap_err(|err|{
+                                    <span class="macro">debug!</span>(<span class="string">&quot;{err:?} {}&quot;</span>, DagError::ShuttingDown);
+                                });
                             }
-                        };
+                        }
 
-                        <span class="macro">debug!</span>(<span class="string">&quot;Sending BatchRequest message to {} for missing batches {:?}&quot;</span>, address, missing.clone());
+                        <span class="kw">if </span>!missing.is_empty() {
+                            <span class="kw">let </span>now = SystemTime::now()
+                            .duration_since(UNIX_EPOCH)
+                            .expect(<span class="string">&quot;Failed to measure time&quot;</span>)
+                            .as_millis();
 
-                        <span class="kw">let </span>message = WorkerMessage::BatchRequest(missing, <span class="self">self</span>.name.clone());
-                        <span class="self">self</span>.network.unreliable_send(address, <span class="kw-2">&amp;</span>message).<span class="kw">await</span>;
+                            <span class="comment">// now add all requests as pending
+                            </span><span class="kw">for </span>digest <span class="kw">in </span>missing.iter() {
+                                <span class="comment">// Add the digest to the waiter.
+                                </span><span class="kw">let </span>deliver = <span class="kw-2">*</span>digest;
+                                <span class="kw">let </span>(tx_cancel, rx_cancel) = mpsc::channel(<span class="number">1</span>);
+                                <span class="kw">let </span>fut = <span class="self">Self</span>::waiter(<span class="kw-2">*</span>digest, <span class="self">self</span>.store.clone(), deliver, rx_cancel);
+                                waiting.push(fut);
+                                <span class="self">self</span>.pending.insert(<span class="kw-2">*</span>digest, (<span class="self">self</span>.round, tx_cancel, now));
+                            }
+
+                            <span class="comment">// Send sync request to a single node. If this fails, we will send it
+                            // to other nodes when a timer times out.
+                            </span><span class="kw">let </span>address = <span class="kw">match </span><span class="self">self</span>.worker_cache.load().worker(<span class="kw-2">&amp;</span>target, <span class="kw-2">&amp;</span><span class="self">self</span>.id) {
+                                <span class="prelude-val">Ok</span>(address) =&gt; address.worker_to_worker,
+                                <span class="prelude-val">Err</span>(e) =&gt; {
+                                    <span class="macro">error!</span>(<span class="string">&quot;The primary asked us to sync with an unknown node: {e}&quot;</span>);
+                                    <span class="kw">continue</span>;
+                                }
+                            };
+
+                            <span class="macro">debug!</span>(<span class="string">&quot;Sending BatchRequest message to {} for missing batches {:?}&quot;</span>, address, missing.clone());
+
+                            <span class="kw">let </span>message = WorkerMessage::BatchRequest(missing.into_iter().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;(), <span class="self">self</span>.name.clone());
+                            <span class="self">self</span>.network.unreliable_send(address, <span class="kw-2">&amp;</span>message).<span class="kw">await</span>;
+                        } <span class="kw">else </span>{
+                            <span class="macro">debug!</span>(<span class="string">&quot;All batches are already available {:?} nothing to request from peers&quot;</span>, digests);
+                        }
                     },
                     PrimaryWorkerMessage::Cleanup(round) =&gt; {
                         <span class="comment">// Keep track of the primary&#39;s round number.
@@ -749,4 +805,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (015a824f2 2022-08-22)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (060e47f74 2022-08-23)" ></div></body></html>

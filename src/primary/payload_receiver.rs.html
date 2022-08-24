@@ -35,6 +35,10 @@
 <span id="35">35</span>
 <span id="36">36</span>
 <span id="37">37</span>
+<span id="38">38</span>
+<span id="39">39</span>
+<span id="40">40</span>
+<span id="41">41</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -44,6 +48,10 @@
 <span class="kw">use </span>tokio::task::JoinHandle;
 <span class="kw">use </span>tracing::info;
 <span class="kw">use </span>types::{metered_channel::Receiver, BatchDigest};
+
+<span class="attribute">#[cfg(test)]
+#[path = <span class="string">&quot;tests/payload_receiver_tests.rs&quot;</span>]
+</span><span class="kw">mod </span>payload_receiver_tests;
 
 <span class="doccomment">/// Receives batches&#39; digests of other authorities. These are only needed to verify incoming
 /// headers (i.e.. make sure we have their payload).
@@ -73,4 +81,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (015a824f2 2022-08-22)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (060e47f74 2022-08-23)" ></div></body></html>
