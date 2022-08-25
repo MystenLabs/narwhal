@@ -776,6 +776,7 @@ dependencies = [
  "prometheus",
  "rand 0.8.5",
  "serde",
+ "storage",
  "test_utils",
  "thiserror",
  "tokio",
@@ -2251,7 +2252,7 @@ checksum = "e5ce46fe64a9d73be07dcbe690a38ce1b293be448fd8ce1e6c1b8062c9f72c6a"
 [[package]]
 name = "mysten-network"
 version = "0.1.0"
-source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=8d090689be14078f2ca41c356e7bbc0af21f73ab#8d090689be14078f2ca41c356e7bbc0af21f73ab"
+source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=696fa25982acdc87ab64ec6a33cb111edc63a331#696fa25982acdc87ab64ec6a33cb111edc63a331"
 dependencies = [
  "bincode",
  "bytes",
@@ -2335,6 +2336,7 @@ dependencies = [
  "rand 0.8.5",
  "serde-reflection",
  "serde_yaml",
+ "storage",
  "structopt",
  "telemetry-subscribers",
  "test_utils",
@@ -2830,6 +2832,7 @@ dependencies = [
  "prost",
  "rand 0.8.5",
  "serde",
+ "storage",
  "tap",
  "telemetry-subscribers",
  "tempfile",
@@ -3708,6 +3711,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
+name = "storage"
+version = "0.1.0"
+dependencies = [
+ "dashmap",
+ "fastcrypto",
+ "futures",
+ "test_utils",
+ "thiserror",
+ "tokio",
+ "tokio-util",
+ "tonic",
+ "tracing",
+ "typed-store",
+ "types",
+ "workspace-hack",
+]
+
+[[package]]
 name = "str_stack"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3833,7 +3854,7 @@ checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 [[package]]
 name = "telemetry-subscribers"
 version = "0.1.0"
-source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=8d090689be14078f2ca41c356e7bbc0af21f73ab#8d090689be14078f2ca41c356e7bbc0af21f73ab"
+source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=696fa25982acdc87ab64ec6a33cb111edc63a331#696fa25982acdc87ab64ec6a33cb111edc63a331"
 dependencies = [
  "crossterm",
  "once_cell",
@@ -4403,7 +4424,7 @@ checksum = "59547bce71d9c38b83d9c0e92b6066c4253371f15005def0c30d9657f50c7642"
 [[package]]
 name = "typed-store"
 version = "0.1.0"
-source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=8d090689be14078f2ca41c356e7bbc0af21f73ab#8d090689be14078f2ca41c356e7bbc0af21f73ab"
+source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=696fa25982acdc87ab64ec6a33cb111edc63a331#696fa25982acdc87ab64ec6a33cb111edc63a331"
 dependencies = [
  "bincode",
  "collectable",
@@ -4436,6 +4457,7 @@ dependencies = [
  "criterion",
  "crypto",
  "dag",
+ "dashmap",
  "derive_builder",
  "fastcrypto",
  "futures",
@@ -4451,11 +4473,13 @@ dependencies = [
  "serde",
  "serde_test",
  "signature",
+ "test_utils",
  "thiserror",
  "tokio",
  "tokio-util",
  "tonic",
  "tonic-build",
+ "tracing",
  "typed-store",
  "workspace-hack",
 ]
