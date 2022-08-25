@@ -5,7 +5,7 @@ use arc_swap::ArcSwap;
 use config::{Committee, Parameters, SharedCommittee, SharedWorkerCache, WorkerId};
 use crypto::KeyPair;
 use crypto::PublicKey;
-use executor::{SerializedTransaction, SingleExecutor, SubscriberResult, DEFAULT_CHANNEL_SIZE};
+use executor::{SerializedTransaction, SingleExecutor, SubscriberResult};
 use fastcrypto::traits::KeyPair as _;
 use itertools::Itertools;
 use multiaddr::Multiaddr;
@@ -363,7 +363,7 @@ impl PrimaryNodeDetails {
         .await
         .unwrap();
 
-        let (tx, _) = tokio::sync::broadcast::channel(DEFAULT_CHANNEL_SIZE);
+        let (tx, _) = tokio::sync::broadcast::channel(primary::CHANNEL_CAPACITY);
         let transactions_sender = tx.clone();
         // spawn a task to listen on the committed transactions
         // and translate to a mpmc channel
