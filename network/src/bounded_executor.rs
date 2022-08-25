@@ -6,15 +6,17 @@
 //! A bounded tokio [`Handle`]. Only a bounded number of tasks can run
 //! concurrently when spawned through this executor, defined by the initial
 //! `capacity`.
+use backoff::future::Retry;
+use exponential_backoff::Backoff;
 use futures::{
     future::{join, BoxFuture, Future},
-    FutureExt, StreamExt, TryFuture, TryFutureExt,
+    FutureExt, StreamExt,
 };
-use std::{ops::Deref, pin::Pin, process::Output, sync::Arc, time::Duration};
+use std::{ops::Deref, sync::Arc, time::Duration};
 use tokio::{
     runtime::Handle,
     sync::{
-        mpsc,
+        mpsc::{self, Sender},
         oneshot::{self, error::RecvError},
         OwnedSemaphorePermit, Semaphore,
     },
@@ -201,47 +203,51 @@ impl InternalBoundedExecutor {
     #[must_use]
     pub(crate) fn spawn_with_retries<F, Fut, T, E>(
         &self,
-        _retry_config: crate::RetryConfig,
+        backoff: Backoff,
         mut f: F,
         // TODO(erwan): find workaround boxing inner result... sadface
-    ) -> impl Future<Output = Result<BoxedResult, RecvError>> + Send
+    ) -> impl Future<Output = Result<Result<(), RetryError>, RecvError>> + Send
     where
         F: FnMut() -> Fut + Send + 'static,
-        Fut: Future<Output = BoxedResult> + Send + 'static,
+        Fut: Future<Output = Result<(), RetryError>> + Send + 'static,
         T: Send + 'static,
         E: Send + 'static,
     {
         let tx_retry_manager = self.tx_retry_manager.clone();
-        let backoff = Backoff {};
 
-        let (tx_callback, rx_callback) = oneshot::channel::<BoxedResult>();
+        let (tx_callback, rx_callback) = oneshot::channel::<Result<(), RetryError>>();
 
         let mut boxed_factory: Box<FutureFactory> = Box::new(move || Box::pin(f()));
 
         let task = boxed_factory();
-        let job = (boxed_factory, backoff, tx_callback);
-        let task = task.then(|result| async move {
-            let (boxed_factory, backoff, tx_callback) = job;
+        let mut job = Job::new(boxed_factory, backoff, 0, tx_callback);
+
+        // TODO(erwan): refactor!
+        let retry_task = task.then(|result| async move {
             match result {
                 Ok(v) => {
-                    tx_callback.send(Ok(v.into()));
+                    job.tx_callback.send(Ok(v));
                 }
-                Err(e) => {
-                    let backoff = backoff.tick();
-                    if backoff.keep_trying() {
-                        tx_retry_manager
-                            .send((boxed_factory, backoff, tx_callback))
-                            .await;
-                    } else {
-                        tx_callback.send(Err(e.into()));
+                Err(e) => match e {
+                    RetryError::Transient => {
+                        job.increase_retry_counter();
+                        let cooldown_time = job.cooldown_time();
+                        if let Some(duration) = cooldown_time {
+                            tx_retry_manager.send(job).await;
+                        } else {
+                            job.tx_callback.send(Err(RetryError::Expired));
+                        }
                     }
-                }
+                    permanent @ RetryError::Permanent => {
+                        job.tx_callback.send(Err(permanent));
+                    }
+                    RetryError::Expired => unreachable!("expired jobs are not executed"),
+                },
             }
         });
 
-        async move { 
+        async move {
             // TODO(erwan): polling a receiver on a closed/dropped oneshot channel returns `RecvError`
-            //              should we wrap this error into a BoundedExecutorError::InternalError(E)
             rx_callback.await
         }
     }
@@ -295,73 +301,98 @@ impl RetryManager {
                  // resources can be acquired (semaphore permit).
                  // TODO(erwan): replace with macro wrapping a try_join
                 (job_ready, permit) = join(self.execution_queue.next(), InternalBoundedExecutor::acquire_permit(self.semaphore.clone()))=> {
+                        let mut job = job_ready.unwrap().into_inner();
                          let tx_scheduler = self.tx_new_jobs.clone();
-                         let (mut task_factory, backoff, tx_callback) = job_ready.unwrap().into_inner();
-
                          // build task and spawn into
-                         let retry_task = task_factory().then(|result| async move {
+                         let task = (job.task_factory)();
+                         let retry_task = task.then(|result| async move {
                              match result {
-                                 Ok(v) => { tx_callback.send(Ok(v)); },
-                                 Err(e) => {
-                                     let backoff = backoff.tick();
-                                     if backoff.keep_trying() {
-                                        let job = (task_factory, backoff, tx_callback);
-                                        tx_scheduler.send(job).await;
-                                     } else {
-                                         tx_callback.send(Err(e.into()));
-                                     }
-                                 }
+                                 Ok(v) => { job.tx_callback.send(Ok(v)); },
+                                 Err(e) => match e {
+                                     err @ RetryError::Transient => {
+                                        job.increase_retry_counter();
+                                        let cooldown_time = job.cooldown_time();
+                                        if let Some(duration) = cooldown_time {
+                                            tx_scheduler.send(job).await;
+                                        } else {
+                                            job.tx_callback.send(Err(RetryError::Expired));
+                                        }
+                                    },
+                                    err @ RetryError::Permanent => {
+                                        job.tx_callback.send(Err(err));
+                                    },
+                                    RetryError::Expired => unreachable!("expired jobs are not executed"),
+                                 },
                              }
                          });
+
 
                          executor.spawn_with_permit(retry_task, permit).await;
                  },
                  // Pull jobs that need scheduling, and schedule them for execution.
                  new_job = self.rx_new_jobs.recv() => {
-                           let (task_factory, backoff, tx_callback) = new_job.unwrap();
-                           let cooldown_time = backoff.cooldown_time();
-                           self.execution_queue.insert((task_factory, backoff, tx_callback), cooldown_time);
+                            let job = new_job.unwrap();
+                           let cooldown_time = job.cooldown_time();
+                           if let Some(duration) = cooldown_time {
+                           self.execution_queue.insert(job, duration);
+                           } else {
+                               // unreachable, but warn?
+                           }
                         },
             }
         }
     }
 }
 
-// TODO(erwan): compare backoff crates
-#[derive(Debug)]
-pub struct Backoff {
-    // tick -> monotonic clock of retries
-    // cooldown_time -> how long we want to wait before next tick (= retry)
-    // keep_trying -> does the policy embed a max number of retries? if so, should we surface
-    // results even if they are errors?
+pub enum RetryError {
+    /// The task has encountered a recoverable error, retrying continues if allowed by the policy.
+    Transient,
+    /// The task has encountered an unrecoverable error, retrying stops.
+    Permanent,
+    /// The task has failed too many times, retrying stops.
+    Expired,
 }
-
-impl Backoff {
-    pub fn tick(self) -> Self {
-        self
-    }
-
-    pub fn cooldown_time(&self) -> Duration {
-        Duration::from_secs(1)
-    }
-
-    pub fn keep_trying(&self) -> bool {
-        return true;
-    }
-}
-
-/// Boxed Result
-pub type BoxedResult = Result<Box<dyn Send>, Box<dyn Send>>;
 
 /// A `Future` factory that produces boxed futures ready to be ran, and implementing Unpin.
-pub type FutureFactory =
-    dyn FnMut() -> BoxFuture<'static, Result<Box<dyn Send>, Box<dyn Send>>> + Send;
+pub type FutureFactory = dyn FnMut() -> BoxFuture<'static, Result<(), RetryError>> + Send;
 
-pub type Job = (
-    Box<FutureFactory>,
-    Backoff,
-    oneshot::Sender<Result<Box<dyn Send>, Box<dyn Send>>>,
-);
+/// A job to be retried.
+pub struct Job {
+    /// A boxed closure returning fresh futures to poll.
+    pub task_factory: Box<FutureFactory>,
+    /// Backoff policy
+    backoff: Backoff,
+    /// An increasing clock that keeps track of the number of time this job has been attempted.
+    retry_counter: u32,
+    /// Callback channel to the initiator of this retry job.
+    pub tx_callback: oneshot::Sender<Result<(), RetryError>>,
+}
+
+impl Job {
+    pub fn new(
+        task_factory: Box<FutureFactory>,
+        backoff: Backoff,
+        retry_counter: u32,
+        tx_callback: oneshot::Sender<Result<(), RetryError>>,
+    ) -> Self {
+        Self {
+            task_factory,
+            backoff,
+            retry_counter,
+            tx_callback,
+        }
+    }
+
+    pub fn increase_retry_counter(&mut self) {
+        self.retry_counter += 1;
+    }
+
+    /// The amount of time this job should wait before being retried.
+    /// Returns `None` if the job has exceeded its maximum retry policy.
+    pub fn cooldown_time(&self) -> Option<Duration> {
+        self.backoff.next(self.retry_counter)
+    }
+}
 
 #[cfg(test)]
 mod test {
