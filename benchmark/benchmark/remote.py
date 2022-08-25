@@ -9,6 +9,7 @@ from time import sleep
 from math import ceil
 from copy import deepcopy
 import subprocess
+import json
 
 from benchmark.config import Committee, Key, NodeParameters, WorkerCache, BenchParameters, ConfigError
 from benchmark.utils import BenchError, Print, PathMaker, progress_bar
@@ -94,40 +95,49 @@ class Bench:
         except GroupException as e:
             raise BenchError('Failed to kill nodes', FabricError(e))
 
-    def _select_hosts(self, bench_parameters):
+    def _select_hosts(self):
         # Collocate the primary and its workers on the same machine.
-        if bench_parameters.collocate:
-            nodes = max(bench_parameters.nodes)
+        selected = []
 
-            # Ensure there are enough hosts.
-            hosts = self.manager.hosts()
-            if sum(len(x) for x in hosts.values()) < nodes:
-                return []
+         # read from json file to get the ip address
+        json_file = open('ip-configs.json')
+        addresses = json.load(json_file)
+        for ip_obj in addresses['ip_list']:
+            host = ip_obj['ip'][0]
+            selected.append(host)
+        return selected
+        # if bench_parameters.collocate:
+        #     nodes = max(bench_parameters.nodes)
 
-            # Select the hosts in different data centers.
-            ordered = zip(*hosts.values())
-            ordered = [x for y in ordered for x in y]
-            return ordered[:nodes]
+        #     # Ensure there are enough hosts.
+        #     hosts = self.manager.hosts()
+        #     if sum(len(x) for x in hosts.values()) < nodes:
+        #         return []
+
+        #     # Select the hosts in different data centers.
+        #     ordered = zip(*hosts.values())
+        #     ordered = [x for y in ordered for x in y]
+        #     return ordered[:nodes]
 
         # Spawn the primary and each worker on a different machine. Each
         # authority runs in a single data center.
-        else:
-            primaries = max(bench_parameters.nodes)
+        # else:
+        #     primaries = max(bench_parameters.nodes)
 
-            # Ensure there are enough hosts.
-            hosts = self.manager.hosts()
-            if len(hosts.keys()) < primaries:
-                return []
-            for ips in hosts.values():
-                if len(ips) < bench_parameters.workers + 1:
-                    return []
+        #     # Ensure there are enough hosts.
+        #     hosts = self.manager.hosts()
+        #     if len(hosts.keys()) < primaries:
+        #         return []
+        #     for ips in hosts.values():
+        #         if len(ips) < bench_parameters.workers + 1:
+        #             return []
 
-            # Ensure the primary and its workers are in the same region.
-            selected = []
-            for region in list(hosts.keys())[:primaries]:
-                ips = list(hosts[region])[:bench_parameters.workers + 1]
-                selected.append(ips)
-            return selected
+        #     # Ensure the primary and its workers are in the same region.
+        #     selected = []
+        #     for region in list(hosts.keys())[:primaries]:
+        #         ips = list(hosts[region])[:bench_parameters.workers + 1]
+        #         selected.append(ips)
+        #     return selected
 
     def _background_run(self, host, command, log_file):
         name = splitext(basename(log_file))[0]
@@ -344,48 +354,48 @@ class Bench:
             e = FabricError(e) if isinstance(e, GroupException) else e
             raise BenchError('Failed to update nodes', e)
 
-        # Upload all configuration files.
-        try:
-            committee, worker_cache = self._config(
-                selected_hosts, node_parameters, bench_parameters
-            )
-        except (subprocess.SubprocessError, GroupException) as e:
-            e = FabricError(e) if isinstance(e, GroupException) else e
-            raise BenchError('Failed to configure nodes', e)
+        # # Upload all configuration files.
+        # try:
+        #     committee, worker_cache = self._config(
+        #         selected_hosts, node_parameters, bench_parameters
+        #     )
+        # except (subprocess.SubprocessError, GroupException) as e:
+        #     e = FabricError(e) if isinstance(e, GroupException) else e
+        #     raise BenchError('Failed to configure nodes', e)
 
-        # Run benchmarks.
-        for n in bench_parameters.nodes:
-            committee_copy = deepcopy(committee)
-            committee_copy.remove_nodes(committee.size() - n)
+        # # Run benchmarks.
+        # for n in bench_parameters.nodes:
+        #     committee_copy = deepcopy(committee)
+        #     committee_copy.remove_nodes(committee.size() - n)
 
-            worker_cache_copy = deepcopy(worker_cache)
-            worker_cache_copy.remove_nodes(worker_cache.size() - n)
+        #     worker_cache_copy = deepcopy(worker_cache)
+        #     worker_cache_copy.remove_nodes(worker_cache.size() - n)
 
-            for r in bench_parameters.rate:
-                Print.heading(f'\nRunning {n} nodes (input rate: {r:,} tx/s)')
+        #     for r in bench_parameters.rate:
+        #         Print.heading(f'\nRunning {n} nodes (input rate: {r:,} tx/s)')
 
-                # Run the benchmark.
-                for i in range(bench_parameters.runs):
-                    Print.heading(f'Run {i+1}/{bench_parameters.runs}')
-                    try:
-                        self._run_single(
-                            r, committee_copy, worker_cache_copy, bench_parameters, debug
-                        )
+        #         # Run the benchmark.
+        #         for i in range(bench_parameters.runs):
+        #             Print.heading(f'Run {i+1}/{bench_parameters.runs}')
+        #             try:
+        #                 self._run_single(
+        #                     r, committee_copy, worker_cache_copy, bench_parameters, debug
+        #                 )
 
-                        faults = bench_parameters.faults
-                        logger = self._logs(
-                            committee_copy, worker_cache_copy, faults)
-                        logger.print(PathMaker.result_file(
-                            faults,
-                            n,
-                            bench_parameters.workers,
-                            bench_parameters.collocate,
-                            r,
-                            bench_parameters.tx_size,
-                        ))
-                    except (subprocess.SubprocessError, GroupException, ParseError) as e:
-                        self.kill(hosts=selected_hosts)
-                        if isinstance(e, GroupException):
-                            e = FabricError(e)
-                        Print.error(BenchError('Benchmark failed', e))
-                        continue
+        #                 faults = bench_parameters.faults
+        #                 logger = self._logs(
+        #                     committee_copy, worker_cache_copy, faults)
+        #                 logger.print(PathMaker.result_file(
+        #                     faults,
+        #                     n,
+        #                     bench_parameters.workers,
+        #                     bench_parameters.collocate,
+        #                     r,
+        #                     bench_parameters.tx_size,
+        #                 ))
+        #             except (subprocess.SubprocessError, GroupException, ParseError) as e:
+        #                 self.kill(hosts=selected_hosts)
+        #                 if isinstance(e, GroupException):
+        #                     e = FabricError(e)
+        #                 Print.error(BenchError('Benchmark failed', e))
+        #                 continue

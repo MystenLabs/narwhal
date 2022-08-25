@@ -1,12 +1,12 @@
 {
     "key": {
-        "name": "aws-sui",
-        "path": "/Users/username/.ssh/aws-sui.pem"
+        "name": "msrg",
+        "path": "/home/ubuntu/.ssh/id_rsa"
     },
     "port": 5000,
     "repo": {
         "name": "narwhal",
-        "url": "https://github.com/mystenlabs/narwhal",
+        "url": "https://github.com/msrg/narwhal",
         "branch": "main"
     },
     "instances": {
