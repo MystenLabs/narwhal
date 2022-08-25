@@ -129,15 +129,11 @@
 <span id="129">129</span>
 <span id="130">130</span>
 <span id="131">131</span>
-<span id="132">132</span>
-<span id="133">133</span>
-<span id="134">134</span>
-<span id="135">135</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span>bytes::Bytes;
-<span class="kw">use </span>config::{Committee, SharedWorkerCache, WorkerId};
+<span class="kw">use </span>config::{Committee, WorkerId};
 <span class="kw">use </span>crypto::PublicKey;
 <span class="kw">use </span>network::{UnreliableNetwork, WorkerNetwork};
 <span class="kw">use </span>store::Store;
@@ -160,8 +156,6 @@
     </span>id: WorkerId,
     <span class="doccomment">/// The committee information.
     </span>committee: Committee,
-    <span class="doccomment">/// The worker information cache.
-    </span>worker_cache: SharedWorkerCache,
     <span class="doccomment">/// The persistent storage.
     </span>store: Store&lt;BatchDigest, SerializedBatchMessage&gt;,
     <span class="doccomment">/// Receive reconfiguration updates.
@@ -179,7 +173,6 @@
     </span><span class="kw">pub fn </span>spawn(
         id: WorkerId,
         committee: Committee,
-        worker_cache: SharedWorkerCache,
         store: Store&lt;BatchDigest, SerializedBatchMessage&gt;,
         rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;,
         rx_worker_request: Receiver&lt;(Vec&lt;BatchDigest&gt;, PublicKey)&gt;,
@@ -190,7 +183,6 @@
             <span class="self">Self </span>{
                 id,
                 committee,
-                worker_cache,
                 store,
                 rx_reconfigure,
                 rx_worker_request,
@@ -209,7 +201,7 @@
                 <span class="comment">// Handle requests from other workers.
                 </span><span class="prelude-val">Some</span>((digests, origin)) = <span class="self">self</span>.rx_worker_request.recv() =&gt; {
                     <span class="comment">// get the requestors address.
-                    </span><span class="kw">let </span>address = <span class="kw">match </span><span class="self">self</span>.worker_cache.load().worker(<span class="kw-2">&amp;</span>origin, <span class="kw-2">&amp;</span><span class="self">self</span>.id) {
+                    </span><span class="kw">let </span>address = <span class="kw">match </span><span class="self">self</span>.committee.worker(<span class="kw-2">&amp;</span>origin, <span class="kw-2">&amp;</span><span class="self">self</span>.id) {
                         <span class="prelude-val">Ok</span>(x) =&gt; x.worker_to_worker,
                         <span class="prelude-val">Err</span>(e) =&gt; {
                             <span class="macro">warn!</span>(<span class="string">&quot;Unexpected batch request: {e}&quot;</span>);

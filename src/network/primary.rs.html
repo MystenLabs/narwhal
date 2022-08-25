@@ -262,7 +262,6 @@
 <span id="262">262</span>
 <span id="263">263</span>
 <span id="264">264</span>
-<span id="265">265</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
@@ -469,8 +468,7 @@
     <span class="kw">where
         </span>I: IntoIterator&lt;Item = <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Multiaddr&gt;,
     {
-        <span class="comment">// TODO: Add protection for primary owned worker addresses (issue#840).
-        </span><span class="kw">for </span>address <span class="kw">in </span>to_remove {
+        <span class="kw">for </span>address <span class="kw">in </span>to_remove {
             <span class="self">self</span>.clients.remove(address);
         }
     }

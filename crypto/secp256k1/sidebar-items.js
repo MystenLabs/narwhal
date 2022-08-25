@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":[["RECOVERABLE_SIGNATURE_SIZE",""]],"struct":[["Secp256k1KeyPair",""],["Secp256k1PrivateKey",""],["Secp256k1PublicKey",""],["Secp256k1Signature",""]],"type":[["Secp256k1PublicKeyBytes",""]]};

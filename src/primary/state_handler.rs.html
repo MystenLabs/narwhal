@@ -137,58 +137,16 @@
 <span id="137">137</span>
 <span id="138">138</span>
 <span id="139">139</span>
-<span id="140">140</span>
-<span id="141">141</span>
-<span id="142">142</span>
-<span id="143">143</span>
-<span id="144">144</span>
-<span id="145">145</span>
-<span id="146">146</span>
-<span id="147">147</span>
-<span id="148">148</span>
-<span id="149">149</span>
-<span id="150">150</span>
-<span id="151">151</span>
-<span id="152">152</span>
-<span id="153">153</span>
-<span id="154">154</span>
-<span id="155">155</span>
-<span id="156">156</span>
-<span id="157">157</span>
-<span id="158">158</span>
-<span id="159">159</span>
-<span id="160">160</span>
-<span id="161">161</span>
-<span id="162">162</span>
-<span id="163">163</span>
-<span id="164">164</span>
-<span id="165">165</span>
-<span id="166">166</span>
-<span id="167">167</span>
-<span id="168">168</span>
-<span id="169">169</span>
-<span id="170">170</span>
-<span id="171">171</span>
-<span id="172">172</span>
-<span id="173">173</span>
-<span id="174">174</span>
-<span id="175">175</span>
-<span id="176">176</span>
-<span id="177">177</span>
-<span id="178">178</span>
-<span id="179">179</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span><span class="kw">crate</span>::primary::PrimaryWorkerMessage;
-<span class="kw">use </span>config::{SharedCommittee, SharedWorkerCache, WorkerCache, WorkerIndex};
+<span class="kw">use </span>config::SharedCommittee;
 <span class="kw">use </span>crypto::PublicKey;
 <span class="kw">use </span>network::{PrimaryToWorkerNetwork, UnreliableNetwork};
-<span class="kw">use </span>std::collections::BTreeMap;
 <span class="kw">use </span>std::sync::Arc;
-<span class="kw">use </span>tap::TapOptional;
 <span class="kw">use </span>tokio::{sync::watch, task::JoinHandle};
-<span class="kw">use </span>tracing::{info, warn};
+<span class="kw">use </span>tracing::info;
 <span class="kw">use </span>types::{metered_channel::Receiver, Certificate, ReconfigureNotification, Round};
 
 <span class="doccomment">/// Receives the highest round reached by consensus and update it for all tasks.
@@ -197,8 +155,6 @@
     </span>name: PublicKey,
     <span class="doccomment">/// The committee information.
     </span>committee: SharedCommittee,
-    <span class="doccomment">/// The worker information cache.
-    </span>worker_cache: SharedWorkerCache,
     <span class="doccomment">/// Receives the ordered certificates from consensus.
     </span>rx_consensus: Receiver&lt;Certificate&gt;,
     <span class="doccomment">/// Signals a new consensus round
@@ -218,7 +174,6 @@
     </span><span class="kw">pub fn </span>spawn(
         name: PublicKey,
         committee: SharedCommittee,
-        worker_cache: SharedWorkerCache,
         rx_consensus: Receiver&lt;Certificate&gt;,
         tx_consensus_round_updates: watch::Sender&lt;u64&gt;,
         rx_reconfigure: Receiver&lt;ReconfigureNotification&gt;,
@@ -228,7 +183,6 @@
             <span class="self">Self </span>{
                 name,
                 committee,
-                worker_cache,
                 rx_consensus,
                 tx_consensus_round_updates,
                 rx_reconfigure,
@@ -253,10 +207,10 @@
 
             // Trigger cleanup on the workers..
             </span><span class="kw">let </span>addresses = <span class="self">self
-                </span>.worker_cache
+                </span>.committee
                 .load()
                 .our_workers(<span class="kw-2">&amp;</span><span class="self">self</span>.name)
-                .expect(<span class="string">&quot;Our public key or worker id is not in the worker cache&quot;</span>)
+                .expect(<span class="string">&quot;Our public key or worker id is not in the committee&quot;</span>)
                 .into_iter()
                 .map(|x| x.primary_to_worker)
                 .collect();
@@ -282,24 +236,7 @@
                     <span class="kw">let </span>shutdown = <span class="kw">match </span><span class="kw-2">&amp;</span>message {
                         ReconfigureNotification::NewEpoch(committee) =&gt; {
                             <span class="comment">// Cleanup the network.
-                            </span><span class="self">self</span>.worker_network.cleanup(<span class="self">self</span>.worker_cache.load().network_diff(committee.keys()));
-
-                            <span class="comment">// Update the worker cache.
-                            </span><span class="self">self</span>.worker_cache.swap(Arc::new(WorkerCache {
-                                epoch: committee.epoch,
-                                workers: committee.keys().iter().map(|key|
-                                    (
-                                        (<span class="kw-2">*</span>key).clone(),
-                                        <span class="self">self</span>.worker_cache
-                                            .load()
-                                            .workers
-                                            .get(key)
-                                            .tap_none(||
-                                                <span class="macro">warn!</span>(<span class="string">&quot;Worker cache does not have a key for the new committee member&quot;</span>))
-                                            .unwrap_or(<span class="kw-2">&amp;</span>WorkerIndex(BTreeMap::new()))
-                                            .clone()
-                                    )).collect(),
-                            }));
+                            </span><span class="self">self</span>.worker_network.cleanup(<span class="self">self</span>.committee.load().network_diff(committee));
 
                             <span class="comment">// Update the committee.
                             </span><span class="self">self</span>.committee.swap(Arc::new(committee.clone()));
@@ -312,24 +249,7 @@
                         </span>},
                         ReconfigureNotification::UpdateCommittee(committee) =&gt; {
                             <span class="comment">// Cleanup the network.
-                            </span><span class="self">self</span>.worker_network.cleanup(<span class="self">self</span>.worker_cache.load().network_diff(committee.keys()));
-
-                            <span class="comment">// Update the worker cache.
-                            </span><span class="self">self</span>.worker_cache.swap(Arc::new(WorkerCache {
-                                epoch: committee.epoch,
-                                workers: committee.keys().iter().map(|key|
-                                    (
-                                        (<span class="kw-2">*</span>key).clone(),
-                                        <span class="self">self</span>.worker_cache
-                                            .load()
-                                            .workers
-                                            .get(key)
-                                            .tap_none(||
-                                                <span class="macro">warn!</span>(<span class="string">&quot;Worker cache does not have a key for the new committee member&quot;</span>))
-                                            .unwrap_or(<span class="kw-2">&amp;</span>WorkerIndex(BTreeMap::new()))
-                                            .clone()
-                                    )).collect(),
-                            }));
+                            </span><span class="self">self</span>.worker_network.cleanup(<span class="self">self</span>.committee.load().network_diff(committee));
 
                             <span class="comment">// Update the committee.
                             </span><span class="self">self</span>.committee.swap(Arc::new(committee.clone()));

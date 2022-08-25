@@ -334,16 +334,12 @@
 <span id="334">334</span>
 <span id="335">335</span>
 <span id="336">336</span>
-<span id="337">337</span>
-<span id="338">338</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright(C) Facebook, Inc. and its affiliates.
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use crate</span>::{metrics::PrimaryMetrics, NetworkModel};
 <span class="kw">use </span>config::{Committee, Epoch, WorkerId};
-<span class="kw">use </span>crypto::PublicKey;
-<span class="kw">use </span>crypto::Signature;
-<span class="kw">use </span>fastcrypto::{Digest, Hash <span class="kw">as _</span>, SignatureService};
+<span class="kw">use </span>crypto::{Digest, Hash <span class="kw">as _</span>, PublicKey, Signature, SignatureService};
 <span class="kw">use </span>std::{cmp::Ordering, sync::Arc};
 <span class="kw">use </span>tokio::{
     sync::watch,

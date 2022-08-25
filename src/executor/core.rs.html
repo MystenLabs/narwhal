@@ -234,126 +234,15 @@
 <span id="234">234</span>
 <span id="235">235</span>
 <span id="236">236</span>
-<span id="237">237</span>
-<span id="238">238</span>
-<span id="239">239</span>
-<span id="240">240</span>
-<span id="241">241</span>
-<span id="242">242</span>
-<span id="243">243</span>
-<span id="244">244</span>
-<span id="245">245</span>
-<span id="246">246</span>
-<span id="247">247</span>
-<span id="248">248</span>
-<span id="249">249</span>
-<span id="250">250</span>
-<span id="251">251</span>
-<span id="252">252</span>
-<span id="253">253</span>
-<span id="254">254</span>
-<span id="255">255</span>
-<span id="256">256</span>
-<span id="257">257</span>
-<span id="258">258</span>
-<span id="259">259</span>
-<span id="260">260</span>
-<span id="261">261</span>
-<span id="262">262</span>
-<span id="263">263</span>
-<span id="264">264</span>
-<span id="265">265</span>
-<span id="266">266</span>
-<span id="267">267</span>
-<span id="268">268</span>
-<span id="269">269</span>
-<span id="270">270</span>
-<span id="271">271</span>
-<span id="272">272</span>
-<span id="273">273</span>
-<span id="274">274</span>
-<span id="275">275</span>
-<span id="276">276</span>
-<span id="277">277</span>
-<span id="278">278</span>
-<span id="279">279</span>
-<span id="280">280</span>
-<span id="281">281</span>
-<span id="282">282</span>
-<span id="283">283</span>
-<span id="284">284</span>
-<span id="285">285</span>
-<span id="286">286</span>
-<span id="287">287</span>
-<span id="288">288</span>
-<span id="289">289</span>
-<span id="290">290</span>
-<span id="291">291</span>
-<span id="292">292</span>
-<span id="293">293</span>
-<span id="294">294</span>
-<span id="295">295</span>
-<span id="296">296</span>
-<span id="297">297</span>
-<span id="298">298</span>
-<span id="299">299</span>
-<span id="300">300</span>
-<span id="301">301</span>
-<span id="302">302</span>
-<span id="303">303</span>
-<span id="304">304</span>
-<span id="305">305</span>
-<span id="306">306</span>
-<span id="307">307</span>
-<span id="308">308</span>
-<span id="309">309</span>
-<span id="310">310</span>
-<span id="311">311</span>
-<span id="312">312</span>
-<span id="313">313</span>
-<span id="314">314</span>
-<span id="315">315</span>
-<span id="316">316</span>
-<span id="317">317</span>
-<span id="318">318</span>
-<span id="319">319</span>
-<span id="320">320</span>
-<span id="321">321</span>
-<span id="322">322</span>
-<span id="323">323</span>
-<span id="324">324</span>
-<span id="325">325</span>
-<span id="326">326</span>
-<span id="327">327</span>
-<span id="328">328</span>
-<span id="329">329</span>
-<span id="330">330</span>
-<span id="331">331</span>
-<span id="332">332</span>
-<span id="333">333</span>
-<span id="334">334</span>
-<span id="335">335</span>
-<span id="336">336</span>
-<span id="337">337</span>
-<span id="338">338</span>
-<span id="339">339</span>
-<span id="340">340</span>
-<span id="341">341</span>
-<span id="342">342</span>
-<span id="343">343</span>
-<span id="344">344</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use crate</span>::{
     bail,
     errors::{SubscriberError, SubscriberResult},
     state::ExecutionIndices,
-    BatchExecutionState, ExecutionState, ExecutorOutput, SerializedTransaction,
-    SingleExecutionState,
+    ExecutionState, ExecutorOutput, SerializedTransaction,
 };
-<span class="kw">use </span>async_trait::async_trait;
 <span class="kw">use </span>consensus::ConsensusOutput;
-<span class="kw">use </span>futures::lock::Mutex;
 <span class="kw">use </span>std::{fmt::Debug, sync::Arc};
 <span class="kw">use </span>store::Store;
 <span class="kw">use </span>tokio::{
@@ -380,6 +269,10 @@
     </span>rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;,
     <span class="doccomment">/// Receive ordered consensus output to execute.
     </span>rx_subscriber: metered_channel::Receiver&lt;ConsensusOutput&gt;,
+    <span class="doccomment">/// Outputs executed transactions.
+    </span>tx_output: Sender&lt;ExecutorOutput&lt;State&gt;&gt;,
+    <span class="doccomment">/// The indices ensuring we do not execute twice the same transaction.
+    </span>execution_indices: ExecutionIndices,
 }
 
 <span class="kw">impl</span>&lt;State: ExecutionState&gt; Drop <span class="kw">for </span>Core&lt;State&gt; {
@@ -390,7 +283,8 @@
 
 <span class="kw">impl</span>&lt;State&gt; Core&lt;State&gt;
 <span class="kw">where
-    </span>State: BatchExecutionState + Send + Sync + <span class="lifetime">&#39;static</span>,
+    </span>State: ExecutionState + Send + Sync + <span class="lifetime">&#39;static</span>,
+    State::Outcome: Send + <span class="lifetime">&#39;static</span>,
     State::Error: Debug,
 {
     <span class="doccomment">/// Spawn a new executor in a dedicated tokio task.
@@ -400,13 +294,20 @@
         execution_state: Arc&lt;State&gt;,
         rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;,
         rx_subscriber: metered_channel::Receiver&lt;ConsensusOutput&gt;,
+        tx_output: Sender&lt;ExecutorOutput&lt;State&gt;&gt;,
     ) -&gt; JoinHandle&lt;()&gt; {
         tokio::spawn(<span class="kw">async move </span>{
+            <span class="kw">let </span>execution_indices = execution_state
+                .load_execution_indices()
+                .<span class="kw">await
+                </span>.expect(<span class="string">&quot;Failed to load execution indices from store&quot;</span>);
             <span class="self">Self </span>{
                 store,
                 execution_state,
                 rx_reconfigure,
                 rx_subscriber,
+                tx_output,
+                execution_indices,
             }
             .run()
             .<span class="kw">await
@@ -416,15 +317,7 @@
 
     <span class="doccomment">/// Main loop listening to new certificates and execute them.
     </span><span class="kw">async fn </span>run(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; SubscriberResult&lt;()&gt; {
-        <span class="kw">let </span>_next_certificate_index = <span class="self">self
-            </span>.execution_state
-            .load_next_certificate_index()
-            .<span class="kw">await
-            </span>.expect(<span class="string">&quot;Failed to load execution indices from store&quot;</span>);
-
-        <span class="comment">// TODO: Replay certificates from the store.
-
-        </span><span class="kw">loop </span>{
+        <span class="kw">loop </span>{
             <span class="macro">tokio::select! </span>{
                 <span class="comment">// Execute all transactions associated with the consensus output message.
                 </span><span class="prelude-val">Some</span>(message) = <span class="self">self</span>.rx_subscriber.recv() =&gt; {
@@ -449,41 +342,35 @@
 
     <span class="doccomment">/// Execute a single certificate.
     </span><span class="kw">async fn </span>execute_certificate(<span class="kw-2">&amp;mut </span><span class="self">self</span>, message: <span class="kw-2">&amp;</span>ConsensusOutput) -&gt; SubscriberResult&lt;()&gt; {
-        <span class="comment">// Collect all transactions in all the batches.
-        </span><span class="kw">let </span><span class="kw-2">mut </span>batches = Vec::new();
-
-        <span class="kw">for </span>batch_digest <span class="kw">in </span>message.certificate.header.payload.keys() {
-            batches.push(<span class="self">self</span>.collect_batch(batch_digest).<span class="kw">await</span><span class="question-mark">?</span>);
+        <span class="comment">// Skip the certificate if it contains no transactions.
+        </span><span class="kw">if </span>message.certificate.header.payload.is_empty() {
+            <span class="self">self</span>.execution_indices.skip_certificate();
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
         }
 
-        <span class="kw">let </span>result = <span class="self">self
-            </span>.execution_state
-            .handle_consensus(message, batches)
-            .<span class="kw">await
-            </span>.map_err(SubscriberError::from);
-
-        <span class="kw">match </span>result {
-            <span class="prelude-val">Ok</span>(()) =&gt; <span class="prelude-val">Ok</span>(()),
-            <span class="prelude-val">Err</span>(error @ SubscriberError::ClientExecutionError(<span class="kw">_</span>)) =&gt; {
-                <span class="comment">// We may want to log the errors that are the user&#39;s fault (i.e., that are neither
-                // our fault or the fault of consensus) for debug purposes. It is safe to continue
-                // by ignoring those transactions since all honest subscribers will do the same.
-                </span><span class="macro">debug!</span>(<span class="string">&quot;{error}&quot;</span>);
-                <span class="prelude-val">Ok</span>(())
-            }
-            <span class="prelude-val">Err</span>(error) =&gt; {
-                <span class="macro">bail!</span>(error)
+        <span class="comment">// Execute every batch in the certificate.
+        </span><span class="kw">let </span>total_batches = message.certificate.header.payload.len();
+        <span class="kw">for </span>(index, digest) <span class="kw">in </span>message.certificate.header.payload.keys().enumerate() {
+            <span class="comment">// Skip batches that we already executed (after crash-recovery).
+            </span><span class="kw">if </span><span class="self">self
+                </span>.execution_indices
+                .check_next_batch_index(index <span class="kw">as </span>SequenceNumber)
+            {
+                <span class="self">self</span>.execute_batch(message, <span class="kw-2">*</span>digest, total_batches).<span class="kw">await</span><span class="question-mark">?</span>;
             }
         }
+        <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="doccomment">/// Collect all transactions in a batch
-    </span><span class="kw">async fn </span>collect_batch(
+    <span class="doccomment">/// Execute a single batch of transactions.
+    </span><span class="kw">async fn </span>execute_batch(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        batch_digest: <span class="kw-2">&amp;</span>BatchDigest,
-    ) -&gt; SubscriberResult&lt;Vec&lt;SerializedTransaction&gt;&gt; {
+        consensus_output: <span class="kw-2">&amp;</span>ConsensusOutput,
+        batch_digest: BatchDigest,
+        total_batches: usize,
+    ) -&gt; SubscriberResult&lt;()&gt; {
         <span class="comment">// The store should now hold all transaction data referenced by the input certificate.
-        </span><span class="kw">let </span>transactions = <span class="kw">match </span><span class="self">self</span>.store.read(<span class="kw-2">*</span>batch_digest).<span class="kw">await</span><span class="question-mark">? </span>{
+        </span><span class="kw">let </span>transactions = <span class="kw">match </span><span class="self">self</span>.store.read(batch_digest).<span class="kw">await</span><span class="question-mark">? </span>{
             <span class="prelude-val">Some</span>(x) =&gt; x.<span class="number">0</span>,
             <span class="prelude-val">None </span>=&gt; {
                 <span class="comment">// If two certificates contain the exact same batch (eg. by the actions of a Byzantine
@@ -492,129 +379,56 @@
                 // the second batch since there is no point in executing twice the same transactions
                 // (as the second execution attempt will always fail).
                 </span><span class="macro">debug!</span>(<span class="string">&quot;Duplicate batch {batch_digest}&quot;</span>);
-                <span class="kw">return </span><span class="prelude-val">Ok</span>(Vec::new());
+                <span class="self">self</span>.execution_indices.skip_batch(total_batches);
+                <span class="kw">return </span><span class="prelude-val">Ok</span>(());
             }
         };
-
-        <span class="prelude-val">Ok</span>(transactions)
-    }
-}
-
-<span class="doccomment">/// Executor that feeds transactions one by one to the execution state.
-</span><span class="kw">pub struct </span>SingleExecutor&lt;State&gt;
-<span class="kw">where
-    </span>State: SingleExecutionState,
-{
-    <span class="doccomment">/// The (global) state to perform execution.
-    </span>execution_state: Arc&lt;State&gt;,
-    <span class="doccomment">/// The indices ensuring we do not execute twice the same transaction.
-    </span>execution_indices: Mutex&lt;ExecutionIndices&gt;,
-    <span class="doccomment">/// Outputs executed transactions.
-    </span>tx_output: Sender&lt;ExecutorOutput&lt;State&gt;&gt;,
-}
-
-<span class="attribute">#[async_trait]
-</span><span class="kw">impl</span>&lt;State&gt; ExecutionState <span class="kw">for </span>SingleExecutor&lt;State&gt;
-<span class="kw">where
-    </span>State: SingleExecutionState + Sync + Send + <span class="lifetime">&#39;static</span>,
-    State::Outcome: Sync + Send + <span class="lifetime">&#39;static</span>,
-    State::Error: Sync + Send + <span class="lifetime">&#39;static</span>,
-{
-    <span class="kw">type </span>Error = State::Error;
-
-    <span class="kw">fn </span>ask_consensus_write_lock(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="self">self</span>.execution_state.ask_consensus_write_lock()
-    }
-
-    <span class="kw">fn </span>release_consensus_write_lock(<span class="kw-2">&amp;</span><span class="self">self</span>) {
-        <span class="self">self</span>.execution_state.release_consensus_write_lock()
-    }
-}
-
-<span class="attribute">#[async_trait]
-</span><span class="kw">impl</span>&lt;State&gt; BatchExecutionState <span class="kw">for </span>SingleExecutor&lt;State&gt;
-<span class="kw">where
-    </span>State: SingleExecutionState + Sync + Send + <span class="lifetime">&#39;static</span>,
-    State::Outcome: Sync + Send + <span class="lifetime">&#39;static</span>,
-    State::Error: Clone + Sync + Send + <span class="lifetime">&#39;static</span>,
-{
-    <span class="kw">async fn </span>load_next_certificate_index(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;SequenceNumber, <span class="self">Self</span>::Error&gt; {
-        <span class="kw">let </span>indices = <span class="self">self</span>.execution_state.load_execution_indices().<span class="kw">await</span><span class="question-mark">?</span>;
-        <span class="kw">let </span><span class="kw-2">mut </span>execution_indices = <span class="self">self</span>.execution_indices.lock().<span class="kw">await</span>;
-        <span class="kw-2">*</span>execution_indices = indices;
-        <span class="prelude-val">Ok</span>(execution_indices.next_certificate_index)
-    }
-
-    <span class="kw">async fn </span>handle_consensus(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        consensus_output: <span class="kw-2">&amp;</span>ConsensusOutput,
-        transaction_batches: Vec&lt;Vec&lt;SerializedTransaction&gt;&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="self">Self</span>::Error&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>execution_indices = <span class="self">self</span>.execution_indices.lock().<span class="kw">await</span>;
-
-        <span class="kw">if </span>transaction_batches.is_empty() {
-            execution_indices.skip_certificate();
-        } <span class="kw">else </span>{
-            <span class="comment">// Execute every batch in the certificate.
-            </span><span class="kw">let </span>total_batches = transaction_batches.len();
-            <span class="kw">for </span>(index, batch) <span class="kw">in </span>transaction_batches.into_iter().enumerate() {
-                <span class="comment">// Skip batches that we already executed (after crash-recovery).
-                </span><span class="kw">if </span>execution_indices.check_next_batch_index(index <span class="kw">as </span>SequenceNumber) {
-                    <span class="self">self</span>.execute_batch(
-                        <span class="kw-2">&amp;mut </span>execution_indices,
-                        consensus_output,
-                        batch,
-                        total_batches,
-                    )
-                    .<span class="kw">await</span><span class="question-mark">?</span>;
-                }
-            }
-        }
-        <span class="prelude-val">Ok</span>(())
-    }
-}
-
-<span class="kw">impl</span>&lt;State&gt; SingleExecutor&lt;State&gt;
-<span class="kw">where
-    </span>State: SingleExecutionState,
-    State::Error: Clone,
-    State::Outcome: Sync + Send + <span class="lifetime">&#39;static</span>,
-{
-    <span class="kw">pub fn </span>new(execution_state: Arc&lt;State&gt;, tx_output: Sender&lt;ExecutorOutput&lt;State&gt;&gt;) -&gt; Arc&lt;<span class="self">Self</span>&gt; {
-        Arc::new(<span class="self">Self </span>{
-            execution_state,
-            execution_indices: Mutex::new(ExecutionIndices::default()),
-            tx_output,
-        })
-    }
-
-    <span class="doccomment">/// Execute a single batch of transactions.
-    </span><span class="kw">async fn </span>execute_batch(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        execution_indices: <span class="kw-2">&amp;mut </span>ExecutionIndices,
-        consensus_output: <span class="kw-2">&amp;</span>ConsensusOutput,
-        transactions: Vec&lt;SerializedTransaction&gt;,
-        total_batches: usize,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), State::Error&gt; {
-        <span class="kw">if </span>transactions.is_empty() {
-            execution_indices.skip_batch(total_batches);
-            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
-        }
 
         <span class="comment">// Execute every transaction in the batch.
         </span><span class="kw">let </span>total_transactions = transactions.len();
         <span class="kw">for </span>(index, transaction) <span class="kw">in </span>transactions.into_iter().enumerate() {
             <span class="comment">// Skip transactions that we already executed (after crash-recovery).
-            </span><span class="kw">if </span>execution_indices.check_next_transaction_index(index <span class="kw">as </span>SequenceNumber) {
+            </span><span class="kw">if </span><span class="self">self
+                </span>.execution_indices
+                .check_next_transaction_index(index <span class="kw">as </span>SequenceNumber)
+            {
                 <span class="comment">// Execute the transaction
-                </span><span class="self">self</span>.execute_transaction(
-                    execution_indices,
-                    consensus_output,
-                    transaction,
-                    total_batches,
-                    total_transactions,
-                )
-                .<span class="kw">await</span><span class="question-mark">?</span>;
+                </span><span class="kw">let </span>result = <span class="self">self
+                    </span>.execute_transaction(
+                        consensus_output,
+                        transaction.clone(),
+                        total_transactions,
+                        total_batches,
+                    )
+                    .<span class="kw">await</span>;
+
+                <span class="kw">let </span>(bail, result) = <span class="kw">match </span>result {
+                    outcome @ <span class="prelude-val">Ok</span>(..) =&gt; (<span class="prelude-val">None</span>, outcome),
+
+                    <span class="comment">// We may want to log the errors that are the user&#39;s fault (i.e., that are neither
+                    // our fault or the fault of consensus) for debug purposes. It is safe to continue
+                    // by ignoring those transactions since all honest subscribers will do the same.
+                    </span><span class="prelude-val">Err</span>(error @ SubscriberError::ClientExecutionError(<span class="kw">_</span>)) =&gt; {
+                        <span class="macro">debug!</span>(<span class="string">&quot;{error}&quot;</span>);
+                        (<span class="prelude-val">None</span>, <span class="prelude-val">Err</span>(error))
+                    }
+
+                    <span class="comment">// We must take special care to errors that are our fault, such as storage errors.
+                    // We may be the only authority experiencing it, and thus cannot continue to process
+                    // transactions until the problem is fixed.
+                    </span><span class="prelude-val">Err</span>(error) =&gt; (<span class="prelude-val">Some</span>(error.clone()), <span class="prelude-val">Err</span>(error)),
+                };
+
+                <span class="comment">// Output the result (eg. to notify the end-user);
+                </span><span class="kw">let </span>output = (result, transaction);
+                <span class="kw">if </span><span class="self">self</span>.tx_output.send(output).<span class="kw">await</span>.is_err() {
+                    <span class="macro">debug!</span>(<span class="string">&quot;No users listening for transaction execution&quot;</span>);
+                }
+
+                <span class="comment">// Bail if a fatal error occurred.
+                </span><span class="kw">if let </span><span class="prelude-val">Some</span>(e) = bail {
+                    <span class="macro">bail!</span>(e);
+                }
             }
         }
         <span class="prelude-val">Ok</span>(())
@@ -622,68 +436,38 @@
 
     <span class="doccomment">/// Execute a single transaction.
     </span><span class="kw">async fn </span>execute_transaction(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        execution_indices: <span class="kw-2">&amp;mut </span>ExecutionIndices,
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         consensus_output: <span class="kw-2">&amp;</span>ConsensusOutput,
         serialized: SerializedTransaction,
-        total_batches: usize,
         total_transactions: usize,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), State::Error&gt; {
+        total_batches: usize,
+    ) -&gt; SubscriberResult&lt;&lt;State <span class="kw">as </span>ExecutionState&gt;::Outcome&gt; {
         <span class="comment">// Compute the next expected indices. Those will be persisted upon transaction execution
         // and are only used for crash-recovery.
-        </span>execution_indices.next(total_batches, total_transactions);
+        </span><span class="self">self</span>.execution_indices
+            .next(total_batches, total_transactions);
 
         <span class="comment">// The consensus simply orders bytes, so we first need to deserialize the transaction.
         // If the deserialization fail it is safe to ignore the transaction since all correct
         // clients will do the same. Remember that a bad authority or client may input random
         // bytes to the consensus.
-        </span><span class="kw">let </span>(result, outcome) = <span class="kw">match </span>bincode::deserialize::&lt;State::Transaction&gt;(<span class="kw-2">&amp;</span>serialized) {
-            <span class="prelude-val">Err</span>(e) =&gt; {
-                <span class="kw">let </span>error = SubscriberError::ClientExecutionError(<span class="macro">format!</span>(
-                    <span class="string">&quot;Failed to deserialize transaction: {e}&quot;
-                </span>));
-                <span class="comment">// There is always a chance that the fault lies with our deserialization.
-                </span><span class="macro">debug!</span>(<span class="string">&quot;{error}&quot;</span>);
-                (<span class="prelude-val">Ok</span>(()), <span class="prelude-val">Err</span>(error))
-            }
-            <span class="prelude-val">Ok</span>(transaction) =&gt; {
-                <span class="comment">// Execute the transaction. Note that the executor will need to choose whether to discard
-                // transactions from previous epochs by itself.
-                </span><span class="kw">let </span>result = <span class="self">self
-                    </span>.execution_state
-                    .handle_consensus_transaction(
-                        consensus_output,
-                        execution_indices.clone(),
-                        transaction,
-                    )
-                    .<span class="kw">await</span>;
-
-                <span class="kw">match </span>result {
-                    <span class="prelude-val">Ok</span>(outcome) =&gt; (<span class="prelude-val">Ok</span>(()), <span class="prelude-val">Ok</span>(outcome)),
-                    <span class="prelude-val">Err</span>(error) =&gt; <span class="kw">match </span>SubscriberError::from(error.clone()) {
-                        <span class="comment">// We may want to log the errors that are the user&#39;s fault (i.e., that are neither
-                        // our fault or the fault of consensus) for debug purposes. It is safe to continue
-                        // by ignoring those transactions since all honest subscribers will do the same.
-                        </span>non_fatal @ SubscriberError::ClientExecutionError(<span class="kw">_</span>) =&gt; {
-                            <span class="macro">debug!</span>(<span class="string">&quot;{non_fatal}&quot;</span>);
-                            (<span class="prelude-val">Ok</span>(()), <span class="prelude-val">Err</span>(non_fatal))
-                        }
-                        <span class="comment">// We must take special care to errors that are our fault, such as storage errors.
-                        // We may be the only authority experiencing it, and thus cannot continue to process
-                        // transactions until the problem is fixed.
-                        </span>fatal =&gt; (<span class="prelude-val">Err</span>(error), <span class="prelude-val">Err</span>(fatal)),
-                    },
-                }
-            }
+        </span><span class="kw">let </span>transaction: State::Transaction = <span class="kw">match </span>bincode::deserialize(<span class="kw-2">&amp;</span>serialized) {
+            <span class="prelude-val">Ok</span>(x) =&gt; x,
+            <span class="prelude-val">Err</span>(e) =&gt; <span class="macro">bail!</span>(SubscriberError::ClientExecutionError(<span class="macro">format!</span>(
+                <span class="string">&quot;Failed to deserialize transaction: {e}&quot;
+            </span>))),
         };
 
-        <span class="comment">// Output the result (eg. to notify the end-user);
-        </span><span class="kw">let </span>output = (outcome, serialized);
-        <span class="kw">if </span><span class="self">self</span>.tx_output.send(output).<span class="kw">await</span>.is_err() {
-            <span class="macro">debug!</span>(<span class="string">&quot;No users listening for transaction execution&quot;</span>);
-        }
-
-        result
+        <span class="comment">// Execute the transaction. Note that the executor will need to choose whether to discard
+        // transactions from previous epochs by itself.
+        </span><span class="self">self</span>.execution_state
+            .handle_consensus_transaction(
+                consensus_output,
+                <span class="self">self</span>.execution_indices.clone(),
+                transaction,
+            )
+            .<span class="kw">await
+            </span>.map_err(SubscriberError::from)
     }
 }
 </code></pre></div>

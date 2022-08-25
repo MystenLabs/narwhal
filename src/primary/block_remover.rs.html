@@ -637,22 +637,12 @@
 <span id="637">637</span>
 <span id="638">638</span>
 <span id="639">639</span>
-<span id="640">640</span>
-<span id="641">641</span>
-<span id="642">642</span>
-<span id="643">643</span>
-<span id="644">644</span>
-<span id="645">645</span>
-<span id="646">646</span>
-<span id="647">647</span>
-<span id="648">648</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use crate</span>::{utils, PayloadToken};
-<span class="kw">use </span>config::{Committee, SharedWorkerCache, WorkerId};
+<span class="kw">use </span>config::{Committee, WorkerId};
 <span class="kw">use </span>consensus::dag::{Dag, ValidatorDagError};
-<span class="kw">use </span>crypto::PublicKey;
-<span class="kw">use </span>fastcrypto::{Digest, Hash};
+<span class="kw">use </span>crypto::{Digest, Hash, PublicKey};
 <span class="kw">use </span>futures::{
     future::{join_all, try_join_all, BoxFuture},
     stream::{futures_unordered::FuturesUnordered, StreamExt <span class="kw">as _</span>},
@@ -725,11 +715,11 @@
 /// # use network::PrimaryToWorkerNetwork;
 /// # use tokio::sync::{mpsc::{channel}, watch};
 /// # use arc_swap::ArcSwap;
-/// # use fastcrypto::Hash;
+/// # use crypto::Hash;
 /// # use std::env::temp_dir;
-/// # use fastcrypto::Digest;
-/// # use fastcrypto::ed25519::Ed25519PublicKey;
-/// # use config::{Committee, WorkerCache, SharedWorkerCache};
+/// # use crypto::Digest;
+/// # use crypto::ed25519::Ed25519PublicKey;
+/// # use config::Committee;
 /// # use consensus::dag::Dag;
 /// # use futures::future::join_all;
 /// # use std::collections::BTreeMap;
@@ -770,7 +760,6 @@
 ///
 ///     let name = Ed25519PublicKey::default();
 ///     let committee = Committee{ epoch: 0, authorities: BTreeMap::new() };
-///     let worker_cache: SharedWorkerCache = WorkerCache{ epoch: 0, workers: BTreeMap::new() }.into();
 ///     let (_tx_reconfigure, rx_reconfigure) = watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));
 ///     let consensus_metrics = Arc::new(ConsensusMetrics::new(&amp;Registry::new()));
 ///     // A dag with genesis for the committee
@@ -787,7 +776,6 @@
 ///     BlockRemover::spawn(
 ///         name,
 ///         committee,
-///         worker_cache,
 ///         certificate_store.clone(),
 ///         headers_store.clone(),
 ///         payload_store.clone(),
@@ -835,9 +823,6 @@
     <span class="doccomment">/// The committee information.
     </span>committee: Committee,
 
-    <span class="doccomment">/// The worker information cache.
-    </span>worker_cache: SharedWorkerCache,
-
     <span class="doccomment">/// Storage that keeps the Certificates by their digest id.
     </span>certificate_store: Store&lt;CertificateDigest, Certificate&gt;,
 
@@ -882,7 +867,6 @@
     </span><span class="kw">pub fn </span>spawn(
         name: PublicKey,
         committee: Committee,
-        worker_cache: SharedWorkerCache,
         certificate_store: Store&lt;CertificateDigest, Certificate&gt;,
         header_store: Store&lt;HeaderDigest, Header&gt;,
         payload_store: Store&lt;(BatchDigest, WorkerId), PayloadToken&gt;,
@@ -897,7 +881,6 @@
             <span class="self">Self </span>{
                 name,
                 committee,
-                worker_cache,
                 certificate_store,
                 header_store,
                 payload_store,
@@ -1196,8 +1179,7 @@
         </span><span class="kw">for </span>(worker_id, batch_ids) <span class="kw">in </span>batches_by_worker {
             <span class="comment">// send the batches to each worker id
             </span><span class="kw">let </span>worker_address = <span class="self">self
-                </span>.worker_cache
-                .load()
+                </span>.committee
                 .worker(<span class="kw-2">&amp;</span><span class="self">self</span>.name, <span class="kw-2">&amp;</span>worker_id)
                 .expect(<span class="string">&quot;Worker id not found&quot;</span>)
                 .primary_to_worker;

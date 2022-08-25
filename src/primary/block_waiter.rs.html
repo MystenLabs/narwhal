@@ -835,21 +835,11 @@
 <span id="835">835</span>
 <span id="836">836</span>
 <span id="837">837</span>
-<span id="838">838</span>
-<span id="839">839</span>
-<span id="840">840</span>
-<span id="841">841</span>
-<span id="842">842</span>
-<span id="843">843</span>
-<span id="844">844</span>
-<span id="845">845</span>
-<span id="846">846</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span><span class="kw">crate</span>::block_synchronizer::handler::Handler;
-<span class="kw">use </span>config::{Committee, SharedWorkerCache};
-<span class="kw">use </span>crypto::PublicKey;
-<span class="kw">use </span>fastcrypto::{Digest, Hash};
+<span class="kw">use </span>config::Committee;
+<span class="kw">use </span>crypto::{Digest, Hash, PublicKey};
 <span class="kw">use </span>futures::{
     future::{try_join_all, BoxFuture},
     stream::{futures_unordered::FuturesUnordered, StreamExt <span class="kw">as _</span>},
@@ -963,10 +953,10 @@
 /// ```rust
 /// # use tokio::sync::{mpsc::{channel}, watch, oneshot};
 /// # use arc_swap::ArcSwap;
-/// # use fastcrypto::Hash;
+/// # use crypto::Hash;
 /// # use std::env::temp_dir;
-/// # use fastcrypto::ed25519::Ed25519PublicKey;
-/// # use config::{Committee, WorkerCache, SharedWorkerCache};
+/// # use crypto::ed25519::Ed25519PublicKey;
+/// # use config::Committee;
 /// # use std::collections::BTreeMap;
 /// # use types::Certificate;
 /// # use primary::{BlockWaiter, BlockHeader, BlockCommand, block_synchronizer::{BlockSynchronizeResult, handler::{Error, Handler}}};
@@ -974,7 +964,7 @@
 /// # use mockall::*;
 /// # use test_utils::test_channel;
 /// # use types::ReconfigureNotification;
-/// # use fastcrypto::traits::VerifyingKey;
+/// # use crypto::traits::VerifyingKey;
 /// # use async_trait::async_trait;
 /// # use std::sync::Arc;
 /// # use network::PrimaryToWorkerNetwork;
@@ -1007,7 +997,6 @@
 ///
 ///     let name = Ed25519PublicKey::default();
 ///     let committee = Committee{ epoch: 0, authorities: BTreeMap::new() };
-///     let worker_cache: SharedWorkerCache = WorkerCache{ epoch: 0, workers: BTreeMap::new() }.into();
 ///     let (_tx_reconfigure, rx_reconfigure) = watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));
 ///
 ///     // A dummy certificate
@@ -1018,7 +1007,6 @@
 ///     BlockWaiter::spawn(
 ///         name,
 ///         committee,
-///         worker_cache,
 ///         rx_reconfigure,
 ///         rx_commands,
 ///         rx_batches,
@@ -1055,9 +1043,6 @@
 
     <span class="doccomment">/// The committee information.
     </span>committee: Committee,
-
-    <span class="doccomment">/// The worker information cache.
-    </span>worker_cache: SharedWorkerCache,
 
     <span class="doccomment">/// Receive all the requests to get a block
     </span>rx_commands: Receiver&lt;BlockCommand&gt;,
@@ -1110,7 +1095,6 @@
     </span><span class="kw">pub fn </span>spawn(
         name: PublicKey,
         committee: Committee,
-        worker_cache: SharedWorkerCache,
         rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;,
         rx_commands: Receiver&lt;BlockCommand&gt;,
         batch_receiver: Receiver&lt;BatchResult&gt;,
@@ -1121,7 +1105,6 @@
             <span class="self">Self </span>{
                 name,
                 committee,
-                worker_cache,
                 rx_commands,
                 pending_get_block: HashMap::new(),
                 worker_network,
@@ -1599,8 +1582,7 @@
                 );
 
                 <span class="kw">let </span>worker_address = <span class="self">self
-                    </span>.worker_cache
-                    .load()
+                    </span>.committee
                     .worker(<span class="kw-2">&amp;</span><span class="self">self</span>.name, <span class="kw-2">&amp;</span>worker_id)
                     .expect(<span class="string">&quot;Worker id not found&quot;</span>)
                     .primary_to_worker;

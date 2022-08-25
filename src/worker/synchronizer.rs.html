@@ -362,69 +362,29 @@
 <span id="362">362</span>
 <span id="363">363</span>
 <span id="364">364</span>
-<span id="365">365</span>
-<span id="366">366</span>
-<span id="367">367</span>
-<span id="368">368</span>
-<span id="369">369</span>
-<span id="370">370</span>
-<span id="371">371</span>
-<span id="372">372</span>
-<span id="373">373</span>
-<span id="374">374</span>
-<span id="375">375</span>
-<span id="376">376</span>
-<span id="377">377</span>
-<span id="378">378</span>
-<span id="379">379</span>
-<span id="380">380</span>
-<span id="381">381</span>
-<span id="382">382</span>
-<span id="383">383</span>
-<span id="384">384</span>
-<span id="385">385</span>
-<span id="386">386</span>
-<span id="387">387</span>
-<span id="388">388</span>
-<span id="389">389</span>
-<span id="390">390</span>
-<span id="391">391</span>
-<span id="392">392</span>
-<span id="393">393</span>
-<span id="394">394</span>
-<span id="395">395</span>
-<span id="396">396</span>
-<span id="397">397</span>
-<span id="398">398</span>
-<span id="399">399</span>
-<span id="400">400</span>
-<span id="401">401</span>
-<span id="402">402</span>
-<span id="403">403</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span><span class="kw">crate</span>::metrics::WorkerMetrics;
-<span class="kw">use </span>config::{SharedCommittee, SharedWorkerCache, WorkerCache, WorkerId, WorkerIndex};
+<span class="kw">use </span>config::{SharedCommittee, WorkerId};
 <span class="kw">use </span>crypto::PublicKey;
 <span class="kw">use </span>futures::stream::{futures_unordered::FuturesUnordered, StreamExt <span class="kw">as _</span>};
 <span class="kw">use </span>network::{LuckyNetwork, UnreliableNetwork, WorkerNetwork};
 <span class="kw">use </span>primary::PrimaryWorkerMessage;
 <span class="kw">use </span>std::collections::HashSet;
 <span class="kw">use </span>std::{
-    collections::{BTreeMap, HashMap},
+    collections::HashMap,
     sync::Arc,
     time::{SystemTime, UNIX_EPOCH},
 };
 <span class="kw">use </span>store::{Store, StoreError};
 <span class="kw">use </span>tap::TapFallible;
-<span class="kw">use </span>tap::TapOptional;
 <span class="kw">use </span>tokio::{
     sync::{mpsc, watch},
     task::JoinHandle,
     time::{sleep, Duration, Instant},
 };
-<span class="kw">use </span>tracing::{debug, error, trace, warn};
+<span class="kw">use </span>tracing::{debug, error, trace};
 <span class="kw">use </span>types::error::DagError;
 <span class="kw">use </span>types::{
     metered_channel::{Receiver, Sender},
@@ -447,8 +407,6 @@
     </span>id: WorkerId,
     <span class="doccomment">/// The committee information.
     </span>committee: SharedCommittee,
-    <span class="doccomment">/// The worker information cache.
-    </span>worker_cache: SharedWorkerCache,
     <span class="comment">// The persistent storage.
     </span>store: Store&lt;BatchDigest, SerializedBatchMessage&gt;,
     <span class="doccomment">/// The depth of the garbage collection.
@@ -482,7 +440,6 @@
         name: PublicKey,
         id: WorkerId,
         committee: SharedCommittee,
-        worker_cache: SharedWorkerCache,
         store: Store&lt;BatchDigest, SerializedBatchMessage&gt;,
         gc_depth: Round,
         sync_retry_delay: Duration,
@@ -498,7 +455,6 @@
                 name,
                 id,
                 committee,
-                worker_cache,
                 store,
                 gc_depth,
                 sync_retry_delay,
@@ -603,7 +559,7 @@
 
                             <span class="comment">// Send sync request to a single node. If this fails, we will send it
                             // to other nodes when a timer times out.
-                            </span><span class="kw">let </span>address = <span class="kw">match </span><span class="self">self</span>.worker_cache.load().worker(<span class="kw-2">&amp;</span>target, <span class="kw-2">&amp;</span><span class="self">self</span>.id) {
+                            </span><span class="kw">let </span>address = <span class="kw">match </span><span class="self">self</span>.committee.load().worker(<span class="kw-2">&amp;</span>target, <span class="kw-2">&amp;</span><span class="self">self</span>.id) {
                                 <span class="prelude-val">Ok</span>(address) =&gt; address.worker_to_worker,
                                 <span class="prelude-val">Err</span>(e) =&gt; {
                                     <span class="macro">error!</span>(<span class="string">&quot;The primary asked us to sync with an unknown node: {e}&quot;</span>);
@@ -640,25 +596,8 @@
                         <span class="comment">// Reconfigure this task and update the shared committee.
                         </span><span class="kw">let </span>shutdown = <span class="kw">match </span><span class="kw-2">&amp;</span>message {
                             ReconfigureNotification::NewEpoch(new_committee) =&gt; {
-                                <span class="self">self</span>.network.cleanup(<span class="self">self</span>.worker_cache.load().network_diff(new_committee.keys()));
+                                <span class="self">self</span>.network.cleanup(<span class="self">self</span>.committee.load().network_diff(new_committee));
                                 <span class="self">self</span>.committee.swap(Arc::new(new_committee.clone()));
-
-                                <span class="comment">// Update the worker cache.
-                                </span><span class="self">self</span>.worker_cache.swap(Arc::new(WorkerCache {
-                                    epoch: new_committee.epoch,
-                                    workers: new_committee.keys().iter().map(|key|
-                                        (
-                                            (<span class="kw-2">*</span>key).clone(),
-                                            <span class="self">self</span>.worker_cache
-                                                .load()
-                                                .workers
-                                                .get(key)
-                                                .tap_none(||
-                                                    <span class="macro">warn!</span>(<span class="string">&quot;Worker cache does not have a key for the new committee member&quot;</span>))
-                                                .unwrap_or(<span class="kw-2">&amp;</span>WorkerIndex(BTreeMap::new()))
-                                                .clone()
-                                        )).collect(),
-                                }));
 
                                 <span class="self">self</span>.pending.clear();
                                 <span class="self">self</span>.round = <span class="number">0</span>;
@@ -668,25 +607,8 @@
                                 <span class="bool-val">false
                             </span>}
                             ReconfigureNotification::UpdateCommittee(new_committee) =&gt; {
-                                <span class="self">self</span>.network.cleanup(<span class="self">self</span>.worker_cache.load().network_diff(new_committee.keys()));
+                                <span class="self">self</span>.network.cleanup(<span class="self">self</span>.committee.load().network_diff(new_committee));
                                 <span class="self">self</span>.committee.swap(Arc::new(new_committee.clone()));
-
-                                <span class="comment">// Update the worker cache.
-                                </span><span class="self">self</span>.worker_cache.swap(Arc::new(WorkerCache {
-                                    epoch: new_committee.epoch,
-                                    workers: new_committee.keys().iter().map(|key|
-                                        (
-                                            (<span class="kw-2">*</span>key).clone(),
-                                            <span class="self">self</span>.worker_cache
-                                                .load()
-                                                .workers
-                                                .get(key)
-                                                .tap_none(||
-                                                    <span class="macro">warn!</span>(<span class="string">&quot;Worker cache does not have a key for the new committee member&quot;</span>))
-                                                .unwrap_or(<span class="kw-2">&amp;</span>WorkerIndex(BTreeMap::new()))
-                                                .clone()
-                                        )).collect(),
-                                }));
 
                                 <span class="macro">tracing::debug!</span>(<span class="string">&quot;Committee updated to {}&quot;</span>, <span class="self">self</span>.committee);
                                 <span class="bool-val">false
@@ -744,7 +666,7 @@
                         }
                     }
                     <span class="kw">if </span>!retry.is_empty() {
-                        <span class="kw">let </span>addresses = <span class="self">self</span>.worker_cache.load()
+                        <span class="kw">let </span>addresses = <span class="self">self</span>.committee.load()
                             .others_workers(<span class="kw-2">&amp;</span><span class="self">self</span>.name, <span class="kw-2">&amp;</span><span class="self">self</span>.id)
                             .into_iter()
                             .map(|(<span class="kw">_</span>, address)| address.worker_to_worker)

@@ -348,14 +348,12 @@
 <span id="348">348</span>
 <span id="349">349</span>
 <span id="350">350</span>
-<span id="351">351</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use crate</span>::{metrics::ConsensusMetrics, ConsensusOutput, SequenceNumber};
 <span class="kw">use </span>config::Committee;
-<span class="kw">use </span>crypto::PublicKey;
-<span class="kw">use </span>fastcrypto::Hash;
+<span class="kw">use </span>crypto::{Hash, PublicKey};
 <span class="kw">use </span>std::{
     cmp::{max, Ordering},
     collections::HashMap,

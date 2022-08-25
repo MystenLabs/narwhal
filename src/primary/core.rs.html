@@ -655,14 +655,6 @@
 <span id="655">655</span>
 <span id="656">656</span>
 <span id="657">657</span>
-<span id="658">658</span>
-<span id="659">659</span>
-<span id="660">660</span>
-<span id="661">661</span>
-<span id="662">662</span>
-<span id="663">663</span>
-<span id="664">664</span>
-<span id="665">665</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -673,10 +665,8 @@
     synchronizer::Synchronizer,
 };
 <span class="kw">use </span>async_recursion::async_recursion;
-<span class="kw">use </span>config::{Committee, Epoch, SharedWorkerCache};
-<span class="kw">use </span>crypto::PublicKey;
-<span class="kw">use </span>crypto::Signature;
-<span class="kw">use </span>fastcrypto::{Hash <span class="kw">as _</span>, SignatureService};
+<span class="kw">use </span>config::{Committee, Epoch};
+<span class="kw">use </span>crypto::{Hash <span class="kw">as _</span>, PublicKey, Signature, SignatureService};
 <span class="kw">use </span>network::{CancelOnDropHandler, MessageResult, PrimaryNetwork, ReliableNetwork};
 <span class="kw">use </span>std::{
     collections::{HashMap, HashSet},
@@ -702,8 +692,6 @@
     </span>name: PublicKey,
     <span class="doccomment">/// The committee information.
     </span>committee: Committee,
-    <span class="doccomment">/// The worker information cache.
-    </span>worker_cache: SharedWorkerCache,
     <span class="doccomment">/// The persistent storage keyed to headers.
     </span>header_store: Store&lt;HeaderDigest, Header&gt;,
     <span class="doccomment">/// The persistent storage keyed to certificates.
@@ -758,7 +746,6 @@
     </span><span class="kw">pub fn </span>spawn(
         name: PublicKey,
         committee: Committee,
-        worker_cache: SharedWorkerCache,
         header_store: Store&lt;HeaderDigest, Header&gt;,
         certificate_store: Store&lt;CertificateDigest, Certificate&gt;,
         synchronizer: Synchronizer,
@@ -779,7 +766,6 @@
             <span class="self">Self </span>{
                 name,
                 committee,
-                worker_cache,
                 header_store,
                 certificate_store,
                 synchronizer,
@@ -1127,7 +1113,7 @@
         );
 
         <span class="comment">// Verify the header&#39;s signature.
-        </span>header.verify(<span class="kw-2">&amp;</span><span class="self">self</span>.committee, <span class="self">self</span>.worker_cache.clone())<span class="question-mark">?</span>;
+        </span>header.verify(<span class="kw-2">&amp;</span><span class="self">self</span>.committee)<span class="question-mark">?</span>;
 
         <span class="comment">// TODO [issue #672]: Prevent bad nodes from sending junk headers with high round numbers.
 
@@ -1183,9 +1169,7 @@
         );
 
         <span class="comment">// Verify the certificate (and the embedded header).
-        </span>certificate
-            .verify(<span class="kw-2">&amp;</span><span class="self">self</span>.committee, <span class="self">self</span>.worker_cache.clone())
-            .map_err(DagError::from)
+        </span>certificate.verify(<span class="kw-2">&amp;</span><span class="self">self</span>.committee).map_err(DagError::from)
     }
 
     <span class="doccomment">/// If a new committee is available, update our internal state.

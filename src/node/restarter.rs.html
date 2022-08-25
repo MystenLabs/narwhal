@@ -126,21 +126,18 @@
 <span id="126">126</span>
 <span id="127">127</span>
 <span id="128">128</span>
-<span id="129">129</span>
-<span id="130">130</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use crate</span>::{Node, NodeStorage};
 <span class="kw">use </span>arc_swap::ArcSwap;
-<span class="kw">use </span>config::{Committee, Parameters, SharedWorkerCache};
-<span class="kw">use </span>crypto::KeyPair;
-<span class="kw">use </span>executor::BatchExecutionState;
-<span class="kw">use </span>fastcrypto::traits::KeyPair <span class="kw">as _</span>;
+<span class="kw">use </span>config::{Committee, Parameters};
+<span class="kw">use </span>crypto::{traits::KeyPair <span class="kw">as _</span>, KeyPair};
+<span class="kw">use </span>executor::{ExecutionState, ExecutorOutput};
 <span class="kw">use </span>futures::future::join_all;
 <span class="kw">use </span>network::{PrimaryToWorkerNetwork, ReliableNetwork, UnreliableNetwork, WorkerToPrimaryNetwork};
 <span class="kw">use </span>prometheus::Registry;
 <span class="kw">use </span>std::{fmt::Debug, path::PathBuf, sync::Arc};
-<span class="kw">use </span>tokio::sync::mpsc::Receiver;
+<span class="kw">use </span>tokio::sync::mpsc::{Receiver, Sender};
 <span class="kw">use </span>types::{PrimaryWorkerMessage, ReconfigureNotification, WorkerPrimaryMessage};
 
 <span class="comment">// Module to start a node (primary, workers and default consensus), keep it running, and restarting it
@@ -151,14 +148,15 @@
     <span class="kw">pub async fn </span>watch&lt;State&gt;(
         keypair: KeyPair,
         committee: <span class="kw-2">&amp;</span>Committee,
-        worker_cache: SharedWorkerCache,
         storage_base_path: PathBuf,
         execution_state: Arc&lt;State&gt;,
         parameters: Parameters,
         <span class="kw-2">mut </span>rx_reconfigure: Receiver&lt;(KeyPair, Committee)&gt;,
+        tx_output: Sender&lt;ExecutorOutput&lt;State&gt;&gt;,
         registry: <span class="kw-2">&amp;</span>Registry,
     ) <span class="kw">where
-        </span>State: BatchExecutionState + Send + Sync + <span class="lifetime">&#39;static</span>,
+        </span>State: ExecutionState + Send + Sync + <span class="lifetime">&#39;static</span>,
+        State::Outcome: Send + <span class="lifetime">&#39;static</span>,
         State::Error: Debug,
     {
         <span class="kw">let </span><span class="kw-2">mut </span>keypair = keypair;
@@ -182,11 +180,11 @@
             </span><span class="kw">let </span>primary_handles = Node::spawn_primary(
                 keypair,
                 Arc::new(ArcSwap::new(Arc::new(committee.clone()))),
-                worker_cache.clone(),
                 <span class="kw-2">&amp;</span>store,
                 parameters.clone(),
                 <span class="comment">/* consensus */ </span><span class="bool-val">true</span>,
                 execution_state.clone(),
+                tx_output.clone(),
                 registry,
             )
             .<span class="kw">await
@@ -196,7 +194,6 @@
                 name.clone(),
                 <span class="comment">/* worker_ids */ </span><span class="macro">vec!</span>[<span class="number">0</span>],
                 Arc::new(ArcSwap::new(Arc::new(committee.clone()))),
-                worker_cache.clone(),
                 <span class="kw-2">&amp;</span>store,
                 parameters.clone(),
                 registry,
@@ -220,10 +217,9 @@
             <span class="kw">let </span>message = WorkerPrimaryMessage::Reconfigure(ReconfigureNotification::Shutdown);
             <span class="kw">let </span>primary_cancel_handle = primary_network.send(address, <span class="kw-2">&amp;</span>message).<span class="kw">await</span>;
 
-            <span class="kw">let </span>addresses = worker_cache
-                .load()
+            <span class="kw">let </span>addresses = committee
                 .our_workers(<span class="kw-2">&amp;</span>name)
-                .expect(<span class="string">&quot;Our key is not in the worker cache&quot;</span>)
+                .expect(<span class="string">&quot;Our key is not in the committee&quot;</span>)
                 .into_iter()
                 .map(|x| x.primary_to_worker)
                 .collect();
