@@ -99,6 +99,7 @@ impl ConsensusState {
         );
 
         let min_round = last_committed_round.saturating_sub(gc_depth);
+        // get all certificates at a round > min_round
         let cert_map = cert_store.after_round(min_round + 1).unwrap();
 
         let num_certs = cert_map.len();
