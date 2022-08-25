@@ -342,7 +342,7 @@ class Bench:
             raise BenchError('Invalid nodes or bench parameters', e)
 
         # Select which hosts to use.
-        selected_hosts = self._select_hosts(bench_parameters)
+        selected_hosts = self._select_hosts()
         if not selected_hosts:
             Print.warn('There are not enough instances available')
             return
