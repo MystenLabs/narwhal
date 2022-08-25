@@ -364,38 +364,38 @@ class Bench:
             raise BenchError('Failed to configure nodes', e)
 
         # # Run benchmarks.
-        # for n in bench_parameters.nodes:
-        #     committee_copy = deepcopy(committee)
-        #     committee_copy.remove_nodes(committee.size() - n)
+        for n in bench_parameters.nodes:
+            committee_copy = deepcopy(committee)
+            committee_copy.remove_nodes(committee.size() - n)
 
-        #     worker_cache_copy = deepcopy(worker_cache)
-        #     worker_cache_copy.remove_nodes(worker_cache.size() - n)
+            worker_cache_copy = deepcopy(worker_cache)
+            worker_cache_copy.remove_nodes(worker_cache.size() - n)
 
-        #     for r in bench_parameters.rate:
-        #         Print.heading(f'\nRunning {n} nodes (input rate: {r:,} tx/s)')
+            for r in bench_parameters.rate:
+                Print.heading(f'\nRunning {n} nodes (input rate: {r:,} tx/s)')
 
-        #         # Run the benchmark.
-        #         for i in range(bench_parameters.runs):
-        #             Print.heading(f'Run {i+1}/{bench_parameters.runs}')
-        #             try:
-        #                 self._run_single(
-        #                     r, committee_copy, worker_cache_copy, bench_parameters, debug
-        #                 )
+                # Run the benchmark.
+                for i in range(bench_parameters.runs):
+                    Print.heading(f'Run {i+1}/{bench_parameters.runs}')
+                    try:
+                        self._run_single(
+                            r, committee_copy, worker_cache_copy, bench_parameters, debug
+                        )
 
-        #                 faults = bench_parameters.faults
-        #                 logger = self._logs(
-        #                     committee_copy, worker_cache_copy, faults)
-        #                 logger.print(PathMaker.result_file(
-        #                     faults,
-        #                     n,
-        #                     bench_parameters.workers,
-        #                     bench_parameters.collocate,
-        #                     r,
-        #                     bench_parameters.tx_size,
-        #                 ))
-        #             except (subprocess.SubprocessError, GroupException, ParseError) as e:
-        #                 self.kill(hosts=selected_hosts)
-        #                 if isinstance(e, GroupException):
-        #                     e = FabricError(e)
-        #                 Print.error(BenchError('Benchmark failed', e))
-        #                 continue
+                        faults = bench_parameters.faults
+                        logger = self._logs(
+                            committee_copy, worker_cache_copy, faults)
+                        logger.print(PathMaker.result_file(
+                            faults,
+                            n,
+                            bench_parameters.workers,
+                            bench_parameters.collocate,
+                            r,
+                            bench_parameters.tx_size,
+                        ))
+                    except (subprocess.SubprocessError, GroupException, ParseError) as e:
+                        self.kill(hosts=selected_hosts)
+                        if isinstance(e, GroupException):
+                            e = FabricError(e)
+                        Print.error(BenchError('Benchmark failed', e))
+                        continue
