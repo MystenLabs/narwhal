@@ -1014,6 +1014,7 @@
 <span id="1014">1014</span>
 <span id="1015">1015</span>
 <span id="1016">1016</span>
+<span id="1017">1017</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use crate</span>::{
@@ -1039,6 +1040,7 @@
     collections::{HashMap, HashSet},
     time::Duration,
 };
+<span class="kw">use </span>storage::CertificateStore;
 <span class="kw">use </span>store::Store;
 <span class="kw">use </span>thiserror::Error;
 <span class="kw">use </span>tokio::{
@@ -1204,7 +1206,7 @@
     worker_network: PrimaryToWorkerNetwork,
 
     <span class="doccomment">/// The store that holds the certificates
-    </span>certificate_store: Store&lt;CertificateDigest, Certificate&gt;,
+    </span>certificate_store: CertificateStore,
 
     <span class="doccomment">/// The persistent storage for payload markers from workers
     </span>payload_store: Store&lt;(BatchDigest, WorkerId), PayloadToken&gt;,
@@ -1231,7 +1233,7 @@
         rx_payload_availability_responses: metered_channel::Receiver&lt;PayloadAvailabilityResponse&gt;,
         network: PrimaryNetwork,
         payload_store: Store&lt;(BatchDigest, WorkerId), PayloadToken&gt;,
-        certificate_store: Store&lt;CertificateDigest, Certificate&gt;,
+        certificate_store: CertificateStore,
         parameters: BlockSynchronizerParameters,
     ) -&gt; JoinHandle&lt;()&gt; {
         tokio::spawn(<span class="kw">async move </span>{
@@ -1535,7 +1537,7 @@
         respond_to: Sender&lt;BlockSynchronizeResult&lt;BlockHeader&gt;&gt;,
     ) -&gt; HashSet&lt;CertificateDigest&gt; {
         <span class="comment">// find the certificates that already exist in storage
-        </span><span class="kw">match </span><span class="self">self</span>.certificate_store.read_all(block_ids.clone()).<span class="kw">await </span>{
+        </span><span class="kw">match </span><span class="self">self</span>.certificate_store.read_all(block_ids.clone()) {
             <span class="prelude-val">Ok</span>(certificates) =&gt; {
                 <span class="kw">let </span>(found, missing): (
                     Vec&lt;(CertificateDigest, <span class="prelude-ty">Option</span>&lt;Certificate&gt;)&gt;,

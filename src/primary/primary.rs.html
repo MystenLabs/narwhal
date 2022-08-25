@@ -746,6 +746,7 @@
 <span class="kw">use </span>network::{metrics::Metrics, PrimaryNetwork, PrimaryToWorkerNetwork};
 <span class="kw">use </span>prometheus::Registry;
 <span class="kw">use </span>std::{collections::BTreeMap, net::Ipv4Addr, sync::Arc};
+<span class="kw">use </span>storage::CertificateStore;
 <span class="kw">use </span>store::Store;
 <span class="kw">use </span>tokio::{sync::watch, task::JoinHandle};
 <span class="kw">use </span>tonic::{Request, Response, Status};
@@ -753,10 +754,9 @@
 <span class="kw">use </span>types::{
     error::DagError,
     metered_channel::{channel, Receiver, Sender},
-    BatchDigest, BatchMessage, BincodeEncodedPayload, Certificate, CertificateDigest, Empty,
-    Header, HeaderDigest, PrimaryToPrimary, PrimaryToPrimaryServer, ReconfigureNotification,
-    WorkerInfoResponse, WorkerPrimaryError, WorkerPrimaryMessage, WorkerToPrimary,
-    WorkerToPrimaryServer,
+    BatchDigest, BatchMessage, BincodeEncodedPayload, Certificate, Empty, Header, HeaderDigest,
+    PrimaryToPrimary, PrimaryToPrimaryServer, ReconfigureNotification, WorkerInfoResponse,
+    WorkerPrimaryError, WorkerPrimaryMessage, WorkerToPrimary, WorkerToPrimaryServer,
 };
 <span class="kw">pub use </span>types::{PrimaryMessage, PrimaryWorkerMessage};
 
@@ -786,7 +786,7 @@
         worker_cache: SharedWorkerCache,
         parameters: Parameters,
         header_store: Store&lt;HeaderDigest, Header&gt;,
-        certificate_store: Store&lt;CertificateDigest, Certificate&gt;,
+        certificate_store: CertificateStore,
         payload_store: Store&lt;(BatchDigest, WorkerId), PayloadToken&gt;,
         tx_consensus: Sender&lt;Certificate&gt;,
         rx_consensus: Receiver&lt;Certificate&gt;,

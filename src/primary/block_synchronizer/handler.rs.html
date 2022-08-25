@@ -315,8 +315,6 @@
 <span id="315">315</span>
 <span id="316">316</span>
 <span id="317">317</span>
-<span id="318">318</span>
-<span id="319">319</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use crate</span>::{
@@ -332,7 +330,7 @@
 <span class="attribute">#[cfg(test)]
 </span><span class="kw">use </span>mockall::<span class="kw-2">*</span>;
 <span class="kw">use </span>std::time::Duration;
-<span class="kw">use </span>store::Store;
+<span class="kw">use </span>storage::CertificateStore;
 <span class="kw">use </span>thiserror::Error;
 <span class="kw">use </span>tokio::{sync::mpsc::channel, time::timeout};
 <span class="kw">use </span>tracing::{debug, error, instrument, trace};
@@ -423,7 +421,7 @@
     </span>tx_core: metered_channel::Sender&lt;PrimaryMessage&gt;,
 
     <span class="doccomment">/// The store that holds the certificates.
-    </span>certificate_store: Store&lt;CertificateDigest, Certificate&gt;,
+    </span>certificate_store: CertificateStore,
 
     <span class="doccomment">/// The timeout while waiting for a certificate to become available
     /// after submitting for processing to core.
@@ -434,7 +432,7 @@
     <span class="kw">pub fn </span>new(
         tx_block_synchronizer: metered_channel::Sender&lt;Command&gt;,
         tx_core: metered_channel::Sender&lt;PrimaryMessage&gt;,
-        certificate_store: Store&lt;CertificateDigest, Certificate&gt;,
+        certificate_store: CertificateStore,
         certificate_deliver_timeout: Duration,
     ) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
@@ -461,9 +459,7 @@
         )
         .<span class="kw">await
         </span>{
-            result
-                .map_err(|<span class="kw">_</span>| Error::Internal { block_id })<span class="question-mark">?
-                </span>.ok_or(Error::BlockNotFound { block_id })
+            result.map_err(|<span class="kw">_</span>| Error::Internal { block_id })
         } <span class="kw">else </span>{
             <span class="prelude-val">Err</span>(Error::BlockDeliveryTimeout { block_id })
         }

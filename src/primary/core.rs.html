@@ -662,7 +662,6 @@
 <span id="662">662</span>
 <span id="663">663</span>
 <span id="664">664</span>
-<span id="665">665</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -683,6 +682,7 @@
     sync::Arc,
     time::Instant,
 };
+<span class="kw">use </span>storage::CertificateStore;
 <span class="kw">use </span>store::Store;
 <span class="kw">use </span>tokio::{sync::watch, task::JoinHandle};
 <span class="kw">use </span>tracing::{debug, error, info, instrument, warn};
@@ -690,7 +690,7 @@
     ensure,
     error::{DagError, DagResult},
     metered_channel::{Receiver, Sender},
-    Certificate, CertificateDigest, Header, HeaderDigest, ReconfigureNotification, Round, Vote,
+    Certificate, Header, HeaderDigest, ReconfigureNotification, Round, Vote,
 };
 
 <span class="attribute">#[cfg(test)]
@@ -707,7 +707,7 @@
     <span class="doccomment">/// The persistent storage keyed to headers.
     </span>header_store: Store&lt;HeaderDigest, Header&gt;,
     <span class="doccomment">/// The persistent storage keyed to certificates.
-    </span>certificate_store: Store&lt;CertificateDigest, Certificate&gt;,
+    </span>certificate_store: CertificateStore,
     <span class="doccomment">/// Handles synchronization with other nodes and our workers.
     </span>synchronizer: Synchronizer,
     <span class="doccomment">/// Service to sign headers.
@@ -760,7 +760,7 @@
         committee: Committee,
         worker_cache: SharedWorkerCache,
         header_store: Store&lt;HeaderDigest, Header&gt;,
-        certificate_store: Store&lt;CertificateDigest, Certificate&gt;,
+        certificate_store: CertificateStore,
         synchronizer: Synchronizer,
         signature_service: SignatureService&lt;Signature&gt;,
         rx_consensus_round_updates: watch::Receiver&lt;u64&gt;,
@@ -1061,9 +1061,7 @@
         }
 
         <span class="comment">// Store the certificate.
-        </span><span class="self">self</span>.certificate_store
-            .write(certificate.digest(), certificate.clone())
-            .<span class="kw">await</span>;
+        </span><span class="self">self</span>.certificate_store.write(certificate.clone())<span class="question-mark">?</span>;
 
         <span class="kw">let </span>certificate_source = <span class="kw">if </span><span class="self">self</span>.name.eq(<span class="kw-2">&amp;</span>certificate.header.author) {
             <span class="string">&quot;own&quot;

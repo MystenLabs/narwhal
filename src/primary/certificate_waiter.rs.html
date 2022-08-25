@@ -235,7 +235,7 @@
 <span class="kw">use </span>futures::future::try_join_all;
 <span class="kw">use </span>once_cell::sync::OnceCell;
 <span class="kw">use </span>std::sync::Arc;
-<span class="kw">use </span>store::Store;
+<span class="kw">use </span>storage::CertificateStore;
 <span class="kw">use </span>tokio::{
     sync::{oneshot, watch},
     task::JoinHandle,
@@ -264,7 +264,7 @@
     <span class="doccomment">/// The committee information.
     </span>committee: Committee,
     <span class="doccomment">/// The persistent storage.
-    </span>store: Store&lt;CertificateDigest, Certificate&gt;,
+    </span>store: CertificateStore,
     <span class="doccomment">/// Receiver for signal of round change
     </span>rx_consensus_round_updates: watch::Receiver&lt;u64&gt;,
     <span class="doccomment">/// The depth of the garbage collector.
@@ -294,7 +294,7 @@
     <span class="attribute">#[must_use]
     </span><span class="kw">pub fn </span>spawn(
         committee: Committee,
-        store: Store&lt;CertificateDigest, Certificate&gt;,
+        store: CertificateStore,
         rx_consensus_round_updates: watch::Receiver&lt;u64&gt;,
         gc_depth: Round,
         rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;,
@@ -323,7 +323,7 @@
     /// delivers the specified header.
     </span><span class="kw">async fn </span>waiter(
         missing: Vec&lt;CertificateDigest&gt;,
-        store: <span class="kw-2">&amp;</span>Store&lt;CertificateDigest, Certificate&gt;,
+        store: CertificateStore,
         deliver: Certificate,
         cancel_handle: oneshot::Receiver&lt;()&gt;,
     ) -&gt; DagResult&lt;Certificate&gt; {
@@ -373,7 +373,7 @@
                         inner
                     };
                     <span class="self">self</span>.pending.insert(header_id, (certificate.round(), once_cancel));
-                    <span class="kw">let </span>fut = <span class="self">Self</span>::waiter(wait_for, <span class="kw-2">&amp;</span><span class="self">self</span>.store, certificate, rx_cancel);
+                    <span class="kw">let </span>fut = <span class="self">Self</span>::waiter(wait_for, <span class="self">self</span>.store.clone(), certificate, rx_cancel);
                     waiting.push(fut).<span class="kw">await</span>;
                 }
                 <span class="comment">// we poll the availability of a slot to send the result to the core simultaneously

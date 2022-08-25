@@ -175,6 +175,7 @@
 <span id="175">175</span>
 <span id="176">176</span>
 <span id="177">177</span>
+<span id="178">178</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -184,6 +185,7 @@
 <span class="kw">use </span>crypto::PublicKey;
 <span class="kw">use </span>fastcrypto::Hash <span class="kw">as _</span>;
 <span class="kw">use </span>std::{collections::HashMap, sync::Arc};
+<span class="kw">use </span>storage::CertificateStore;
 <span class="kw">use </span>store::Store;
 <span class="kw">use </span>types::{
     error::DagResult, metered_channel::Sender, BatchDigest, Certificate, CertificateDigest, Header,
@@ -199,7 +201,7 @@
     <span class="doccomment">/// The public key of this primary.
     </span>name: PublicKey,
     <span class="doccomment">/// The persistent storage.
-    </span>certificate_store: Store&lt;CertificateDigest, Certificate&gt;,
+    </span>certificate_store: CertificateStore,
     payload_store: Store&lt;(BatchDigest, WorkerId), PayloadToken&gt;,
     <span class="doccomment">/// Send commands to the `HeaderWaiter`.
     </span>tx_header_waiter: Sender&lt;WaiterMessage&gt;,
@@ -215,7 +217,7 @@
     <span class="kw">pub fn </span>new(
         name: PublicKey,
         committee: <span class="kw-2">&amp;</span>Committee,
-        certificate_store: Store&lt;CertificateDigest, Certificate&gt;,
+        certificate_store: CertificateStore,
         payload_store: Store&lt;(BatchDigest, WorkerId), PayloadToken&gt;,
         tx_header_waiter: Sender&lt;WaiterMessage&gt;,
         tx_certificate_waiter: Sender&lt;Certificate&gt;,
@@ -302,7 +304,7 @@
                 <span class="kw">continue</span>;
             }
 
-            <span class="kw">match </span><span class="self">self</span>.certificate_store.read(<span class="kw-2">*</span>digest).<span class="kw">await</span><span class="question-mark">? </span>{
+            <span class="kw">match </span><span class="self">self</span>.certificate_store.read(<span class="kw-2">*</span>digest)<span class="question-mark">? </span>{
                 <span class="prelude-val">Some</span>(certificate) =&gt; parents.push(certificate),
                 <span class="prelude-val">None </span>=&gt; missing.push(<span class="kw-2">*</span>digest),
             };
@@ -349,7 +351,7 @@
         <span class="kw">if let </span><span class="prelude-val">Some</span>(dag) = <span class="kw-2">&amp;</span><span class="self">self</span>.dag {
             <span class="kw">return </span><span class="prelude-val">Ok</span>(dag.has_ever_contained(digest).<span class="kw">await</span>);
         }
-        <span class="prelude-val">Ok</span>(<span class="self">self</span>.certificate_store.read(digest).<span class="kw">await</span><span class="question-mark">?</span>.is_some())
+        <span class="prelude-val">Ok</span>(<span class="self">self</span>.certificate_store.read(digest)<span class="question-mark">?</span>.is_some())
     }
 }
 </code></pre></div>

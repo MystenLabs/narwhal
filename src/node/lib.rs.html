@@ -349,6 +349,11 @@
 <span id="349">349</span>
 <span id="350">350</span>
 <span id="351">351</span>
+<span id="352">352</span>
+<span id="353">353</span>
+<span id="354">354</span>
+<span id="355">355</span>
+<span id="356">356</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span>config::{Parameters, SharedCommittee, SharedWorkerCache, WorkerId};
@@ -365,6 +370,7 @@
 <span class="kw">use </span>primary::{BlockCommand, NetworkModel, PayloadToken, Primary, PrimaryChannelMetrics};
 <span class="kw">use </span>prometheus::{IntGauge, Registry};
 <span class="kw">use </span>std::{fmt::Debug, sync::Arc};
+<span class="kw">use </span>storage::{CertificateStore, CertificateToken};
 <span class="kw">use </span>store::{
     reopen,
     rocks::{open_cf, DBMap},
@@ -385,7 +391,7 @@
 <span class="doccomment">/// All the data stores of the node.
 </span><span class="kw">pub struct </span>NodeStorage {
     <span class="kw">pub </span>header_store: Store&lt;HeaderDigest, Header&gt;,
-    <span class="kw">pub </span>certificate_store: Store&lt;CertificateDigest, Certificate&gt;,
+    <span class="kw">pub </span>certificate_store: CertificateStore,
     <span class="kw">pub </span>payload_store: Store&lt;(BatchDigest, WorkerId), PayloadToken&gt;,
     <span class="kw">pub </span>batch_store: Store&lt;BatchDigest, SerializedBatchMessage&gt;,
     <span class="kw">pub </span>consensus_store: Arc&lt;ConsensusStore&gt;,
@@ -396,6 +402,7 @@
     <span class="doccomment">/// The datastore column family names.
     </span><span class="kw">const </span>HEADERS_CF: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str = <span class="string">&quot;headers&quot;</span>;
     <span class="kw">const </span>CERTIFICATES_CF: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str = <span class="string">&quot;certificates&quot;</span>;
+    <span class="kw">const </span>CERTIFICATE_ID_BY_ROUND_CF: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str = <span class="string">&quot;certificate_id_by_round&quot;</span>;
     <span class="kw">const </span>PAYLOAD_CF: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str = <span class="string">&quot;payload&quot;</span>;
     <span class="kw">const </span>BATCHES_CF: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str = <span class="string">&quot;batches&quot;</span>;
     <span class="kw">const </span>LAST_COMMITTED_CF: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str = <span class="string">&quot;last_committed&quot;</span>;
@@ -410,6 +417,7 @@
             <span class="kw-2">&amp;</span>[
                 <span class="self">Self</span>::HEADERS_CF,
                 <span class="self">Self</span>::CERTIFICATES_CF,
+                <span class="self">Self</span>::CERTIFICATE_ID_BY_ROUND_CF,
                 <span class="self">Self</span>::PAYLOAD_CF,
                 <span class="self">Self</span>::BATCHES_CF,
                 <span class="self">Self</span>::LAST_COMMITTED_CF,
@@ -422,6 +430,7 @@
         <span class="kw">let </span>(
             header_map,
             certificate_map,
+            certificate_id_by_round_map,
             payload_map,
             batch_map,
             last_committed_map,
@@ -430,6 +439,7 @@
         ) = <span class="macro">reopen!</span>(<span class="kw-2">&amp;</span>rocksdb,
             <span class="self">Self</span>::HEADERS_CF;&lt;HeaderDigest, Header&gt;,
             <span class="self">Self</span>::CERTIFICATES_CF;&lt;CertificateDigest, Certificate&gt;,
+            <span class="self">Self</span>::CERTIFICATE_ID_BY_ROUND_CF;&lt;(Round, CertificateDigest), CertificateToken&gt;,
             <span class="self">Self</span>::PAYLOAD_CF;&lt;(BatchDigest, WorkerId), PayloadToken&gt;,
             <span class="self">Self</span>::BATCHES_CF;&lt;BatchDigest, SerializedBatchMessage&gt;,
             <span class="self">Self</span>::LAST_COMMITTED_CF;&lt;PublicKey, Round&gt;,
@@ -438,7 +448,7 @@
         );
 
         <span class="kw">let </span>header_store = Store::new(header_map);
-        <span class="kw">let </span>certificate_store = Store::new(certificate_map);
+        <span class="kw">let </span>certificate_store = CertificateStore::new(certificate_map, certificate_id_by_round_map);
         <span class="kw">let </span>payload_store = Store::new(payload_map);
         <span class="kw">let </span>batch_store = Store::new(batch_map);
         <span class="kw">let </span>consensus_store = Arc::new(ConsensusStore::new(last_committed_map, sequence_map));

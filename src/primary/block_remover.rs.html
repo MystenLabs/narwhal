@@ -646,6 +646,9 @@
 <span id="646">646</span>
 <span id="647">647</span>
 <span id="648">648</span>
+<span id="649">649</span>
+<span id="650">650</span>
+<span id="651">651</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use crate</span>::{utils, PayloadToken};
@@ -661,6 +664,7 @@
 <span class="kw">use </span>itertools::Either;
 <span class="kw">use </span>network::{PrimaryToWorkerNetwork, UnreliableNetwork};
 <span class="kw">use </span>std::{collections::HashMap, sync::Arc, time::Duration};
+<span class="kw">use </span>storage::CertificateStore;
 <span class="kw">use </span>store::{rocks::TypedStoreError, Store};
 <span class="kw">use </span>tokio::{
     sync::{mpsc, oneshot, watch},
@@ -739,27 +743,30 @@
 /// # use tempfile::tempdir;
 /// # use primary::{BlockRemover, BlockRemoverCommand, DeleteBatchMessage, PayloadToken};
 /// # use test_utils::test_channel;
-/// # use types::{BatchDigest, Certificate, CertificateDigest, HeaderDigest, Header};
+/// # use types::{Round, BatchDigest, Certificate, CertificateDigest, HeaderDigest, Header};
 /// # use prometheus::Registry;
 /// # use consensus::metrics::ConsensusMetrics;
+/// # use storage::{CertificateStore, CertificateToken};
 ///
 /// #[tokio::main(flavor = &quot;current_thread&quot;)]
 /// # async fn main() {
 ///     const CERTIFICATES_CF: &amp;str = &quot;certificates&quot;;
+///     const CERTIFICATE_ID_BY_ROUND_CF: &amp;str = &quot;certificate_id_by_round&quot;;
 ///     const HEADERS_CF: &amp;str = &quot;headers&quot;;
 ///     const PAYLOAD_CF: &amp;str = &quot;payload&quot;;
 ///
 ///     let temp_dir = tempdir().expect(&quot;Failed to open temporary directory&quot;).into_path();
 ///
 ///     // Basic setup: datastore, channels &amp; BlockWaiter
-///     let rocksdb = rocks::open_cf(temp_dir, None, &amp;[CERTIFICATES_CF, HEADERS_CF, PAYLOAD_CF])
+///     let rocksdb = rocks::open_cf(temp_dir, None, &amp;[CERTIFICATES_CF, CERTIFICATE_ID_BY_ROUND_CF, HEADERS_CF, PAYLOAD_CF])
 ///         .expect(&quot;Failed creating database&quot;);
 ///
-///     let (certificate_map, headers_map, payload_map) = reopen!(&amp;rocksdb,
+///     let (certificate_map, certificate_id_by_round_map, headers_map, payload_map) = reopen!(&amp;rocksdb,
 ///             CERTIFICATES_CF;&lt;CertificateDigest, Certificate&gt;,
+///             CERTIFICATE_ID_BY_ROUND_CF;&lt;(Round, CertificateDigest), CertificateToken&gt;,
 ///             HEADERS_CF;&lt;HeaderDigest, Header&gt;,
 ///             PAYLOAD_CF;&lt;(BatchDigest, WorkerId), PayloadToken&gt;);
-///     let certificate_store = Store::new(certificate_map);
+///     let certificate_store = CertificateStore::new(certificate_map, certificate_id_by_round_map);
 ///     let headers_store = Store::new(headers_map);
 ///     let payload_store = Store::new(payload_map);
 ///
@@ -784,7 +791,7 @@
 ///     )
 ///     .await;
 ///
-///     BlockRemover::spawn(
+///     let _ = BlockRemover::spawn(
 ///         name,
 ///         committee,
 ///         worker_cache,
@@ -839,7 +846,7 @@
     </span>worker_cache: SharedWorkerCache,
 
     <span class="doccomment">/// Storage that keeps the Certificates by their digest id.
-    </span>certificate_store: Store&lt;CertificateDigest, Certificate&gt;,
+    </span>certificate_store: CertificateStore,
 
     <span class="doccomment">/// Storage that keeps the headers by their digest id
     </span>header_store: Store&lt;HeaderDigest, Header&gt;,
@@ -883,7 +890,7 @@
         name: PublicKey,
         committee: Committee,
         worker_cache: SharedWorkerCache,
-        certificate_store: Store&lt;CertificateDigest, Certificate&gt;,
+        certificate_store: CertificateStore,
         header_store: Store&lt;HeaderDigest, Header&gt;,
         payload_store: Store&lt;(BatchDigest, WorkerId), PayloadToken&gt;,
         dag: <span class="prelude-ty">Option</span>&lt;Arc&lt;Dag&gt;&gt;,
@@ -1068,9 +1075,8 @@
         </span>}
 
         <span class="self">self</span>.certificate_store
-            .remove_all(certificate_ids)
-            .<span class="kw">await
-            </span>.map_err(Either::Left)<span class="question-mark">?</span>;
+            .delete_all(certificate_ids)
+            .map_err(Either::Left)<span class="question-mark">?</span>;
 
         <span class="comment">// Now output all the removed certificates
         </span><span class="kw">for </span>certificate <span class="kw">in </span>certificates.clone() {
@@ -1123,7 +1129,7 @@
                 }
 
                 <span class="comment">// find the blocks in certificates store
-                </span><span class="kw">match </span><span class="self">self</span>.certificate_store.read_all(ids.clone()).<span class="kw">await </span>{
+                </span><span class="kw">match </span><span class="self">self</span>.certificate_store.read_all(ids.clone()) {
                     <span class="prelude-val">Ok</span>(certificates) =&gt; {
                         <span class="kw">let </span>non_found_certificates: Vec&lt;(<span class="prelude-ty">Option</span>&lt;Certificate&gt;, CertificateDigest)&gt; =
                             certificates

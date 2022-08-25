@@ -278,6 +278,7 @@
 <span id="278">278</span>
 <span id="279">279</span>
 <span id="280">280</span>
+<span id="281">281</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -286,6 +287,7 @@
 <span class="kw">use </span>crypto::PublicKey;
 <span class="kw">use </span>fastcrypto::traits::EncodeDecodeBase64;
 <span class="kw">use </span>network::{PrimaryNetwork, UnreliableNetwork};
+<span class="kw">use </span>storage::CertificateStore;
 <span class="kw">use </span>store::{Store, StoreError};
 <span class="kw">use </span>thiserror::Error;
 <span class="kw">use </span>tokio::{sync::watch, task::JoinHandle};
@@ -318,7 +320,7 @@
     <span class="doccomment">/// The committee information.
     </span>committee: Committee,
     <span class="doccomment">/// The certificate persistent storage.
-    </span>certificate_store: Store&lt;CertificateDigest, Certificate&gt;,
+    </span>certificate_store: CertificateStore,
     <span class="doccomment">/// The payloads (batches) persistent storage.
     </span>payload_store: Store&lt;(BatchDigest, WorkerId), PayloadToken&gt;,
     <span class="doccomment">/// Watch channel to reconfigure the committee.
@@ -334,7 +336,7 @@
     </span><span class="kw">pub fn </span>spawn(
         name: PublicKey,
         committee: Committee,
-        certificate_store: Store&lt;CertificateDigest, Certificate&gt;,
+        certificate_store: CertificateStore,
         payload_store: Store&lt;(BatchDigest, WorkerId), PayloadToken&gt;,
         rx_committee: watch::Receiver&lt;ReconfigureNotification&gt;,
         rx_primaries: Receiver&lt;PrimaryMessage&gt;,
@@ -435,7 +437,7 @@
 
         <span class="kw">let </span><span class="kw-2">mut </span>result: Vec&lt;(CertificateDigest, bool)&gt; = Vec::new();
 
-        <span class="kw">let </span>certificates = <span class="kw">match </span><span class="self">self</span>.certificate_store.read_all(digests.to_owned()).<span class="kw">await </span>{
+        <span class="kw">let </span>certificates = <span class="kw">match </span><span class="self">self</span>.certificate_store.read_all(digests.to_owned()) {
             <span class="prelude-val">Ok</span>(certificates) =&gt; certificates,
             <span class="prelude-val">Err</span>(err) =&gt; {
                 <span class="comment">// just return at this point. Send back to the requestor
@@ -514,7 +516,7 @@
         };
 
         <span class="comment">// TODO [issue #195]: Do some accounting to prevent bad nodes from monopolizing our resources.
-        </span><span class="kw">let </span>certificates = <span class="kw">match </span><span class="self">self</span>.certificate_store.read_all(digests.to_owned()).<span class="kw">await </span>{
+        </span><span class="kw">let </span>certificates = <span class="kw">match </span><span class="self">self</span>.certificate_store.read_all(digests.to_owned()) {
             <span class="prelude-val">Ok</span>(certificates) =&gt; certificates,
             <span class="prelude-val">Err</span>(err) =&gt; {
                 <span class="macro">error!</span>(<span class="string">&quot;Error while retrieving certificates: {err}&quot;</span>);

@@ -346,9 +346,6 @@
 <span id="346">346</span>
 <span id="347">347</span>
 <span id="348">348</span>
-<span id="349">349</span>
-<span id="350">350</span>
-<span id="351">351</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -361,7 +358,7 @@
     collections::HashMap,
     sync::Arc,
 };
-<span class="kw">use </span>store::Store;
+<span class="kw">use </span>storage::CertificateStore;
 <span class="kw">use </span>tokio::{sync::watch, task::JoinHandle};
 <span class="kw">use </span>tracing::{info, instrument};
 <span class="kw">use </span>types::{
@@ -412,7 +409,7 @@
         genesis: Vec&lt;Certificate&gt;,
         metrics: Arc&lt;ConsensusMetrics&gt;,
         recover_last_committed: HashMap&lt;PublicKey, Round&gt;,
-        cert_store: Store&lt;CertificateDigest, Certificate&gt;,
+        cert_store: CertificateStore,
         gc_depth: Round,
     ) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>last_committed_round = <span class="kw-2">*</span>recover_last_committed
@@ -439,7 +436,7 @@
 
     <span class="attribute">#[instrument(level = <span class="string">&quot;info&quot;</span>, skip_all)]
     </span><span class="kw">pub async fn </span>construct_dag_from_cert_store(
-        cert_store: Store&lt;CertificateDigest, Certificate&gt;,
+        cert_store: CertificateStore,
         last_committed_round: Round,
         gc_depth: Round,
     ) -&gt; Dag {
@@ -450,14 +447,11 @@
         );
 
         <span class="kw">let </span>min_round = last_committed_round.saturating_sub(gc_depth);
-        <span class="kw">let </span>cert_map = cert_store
-            .iter(<span class="prelude-val">Some</span>(Box::new(<span class="kw">move </span>|(_dig, cert)| {
-                cert.header.round &gt; min_round
-            })))
-            .<span class="kw">await</span>;
+        <span class="comment">// get all certificates at a round &gt; min_round
+        </span><span class="kw">let </span>cert_map = cert_store.after_round(min_round + <span class="number">1</span>).unwrap();
 
         <span class="kw">let </span>num_certs = cert_map.len();
-        <span class="kw">for </span>(digest, cert) <span class="kw">in </span>cert_map {
+        <span class="kw">for </span>(digest, cert) <span class="kw">in </span>cert_map.into_iter().map(|c| (c.digest(), c)) {
             <span class="kw">let </span>inner = dag.get_mut(<span class="kw-2">&amp;</span>cert.header.round);
             <span class="kw">match </span>inner {
                 <span class="prelude-val">Some</span>(m) =&gt; {
@@ -556,7 +550,7 @@
     </span><span class="kw">pub fn </span>spawn(
         committee: Committee,
         store: Arc&lt;ConsensusStore&gt;,
-        cert_store: Store&lt;CertificateDigest, Certificate&gt;,
+        cert_store: CertificateStore,
         rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;,
         rx_primary: metered_channel::Receiver&lt;Certificate&gt;,
         tx_primary: metered_channel::Sender&lt;Certificate&gt;,
@@ -599,7 +593,7 @@
     <span class="kw">async fn </span>run(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         recover_last_committed: HashMap&lt;PublicKey, Round&gt;,
-        cert_store: Store&lt;CertificateDigest, Certificate&gt;,
+        cert_store: CertificateStore,
         gc_depth: Round,
     ) -&gt; StoreResult&lt;()&gt; {
         <span class="comment">// The consensus state (everything else is immutable).
