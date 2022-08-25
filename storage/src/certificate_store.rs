@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 use dashmap::DashMap;
 use fastcrypto::Hash;
-use std::collections::VecDeque;
 use std::sync::Arc;
+use std::{collections::VecDeque, iter};
 use store::rocks::DBMap;
 use store::rocks::TypedStoreError::RocksDBError;
 use store::Map;
@@ -60,13 +60,16 @@ impl CertificateStore {
         let round = certificate.round();
 
         // write the certificate by its id
-        batch = batch.insert_batch(&self.certificates_by_id, vec![(id, certificate.clone())])?;
+        batch = batch.insert_batch(
+            &self.certificates_by_id,
+            iter::once((id, certificate.clone())),
+        )?;
 
         // write the certificate id by its round
         let key = (round, id);
         let value = 0;
 
-        batch = batch.insert_batch(&self.certificate_ids_by_round, vec![(key, value)])?;
+        batch = batch.insert_batch(&self.certificate_ids_by_round, iter::once((key, value)))?;
 
         // execute the batch (atomically) and return the result
         let result = batch.write();
@@ -87,7 +90,7 @@ impl CertificateStore {
     ) -> StoreResult<()> {
         let mut batch = self.certificates_by_id.batch();
 
-        let certificates: Vec<(CertificateDigest, Certificate)> = certificates
+        let certificates: Vec<_> = certificates
             .into_iter()
             .map(|certificate| (certificate.digest(), certificate))
             .collect();
@@ -96,15 +99,12 @@ impl CertificateStore {
         batch = batch.insert_batch(&self.certificates_by_id, certificates.clone())?;
 
         // write the certificates id by their rounds
-        let values: Vec<((Round, CertificateDigest), CertificateToken)> = certificates
-            .iter()
-            .map(|(_, c)| {
-                let key = (c.round(), c.digest());
-                let value = 0;
+        let values = certificates.iter().map(|(digest, c)| {
+            let key = (c.round(), *digest);
+            let value = 0;
 
-                (key, value)
-            })
-            .collect();
+            (key, value)
+        });
 
         batch = batch.insert_batch(&self.certificate_ids_by_round, values)?;
 
@@ -166,22 +166,21 @@ impl CertificateStore {
     pub fn delete(&self, id: CertificateDigest) -> StoreResult<()> {
         // first read the certificate to get the round - we'll need in order
         // to delete the secondary index
-        let cert = self.read(id)?;
-        let round = if let Some(c) = cert {
-            c.round()
-        } else {
-            return Ok(());
+        let cert = match self.read(id)? {
+            Some(cert) => cert,
+            None => return Ok(()),
         };
+        let round = cert.round();
 
         let mut batch = self.certificates_by_id.batch();
 
         // write the certificate by its id
-        batch = batch.delete_batch(&self.certificates_by_id, vec![id])?;
+        batch = batch.delete_batch(&self.certificates_by_id, iter::once(id))?;
 
         // write the certificate id by its round
         let key = (round, id);
 
-        batch = batch.delete_batch(&self.certificate_ids_by_round, vec![key])?;
+        batch = batch.delete_batch(&self.certificate_ids_by_round, iter::once(key))?;
 
         // execute the batch (atomically) and return the result
         batch.write()
@@ -192,26 +191,22 @@ impl CertificateStore {
         // first read the certificates to get their rounds - we'll need in order
         // to delete the secondary index
         let certs = self.read_all(ids)?;
-        let ids = certs
-            .clone()
+        let keys_by_round = certs
             .into_iter()
-            .filter_map(|c| c.map(|cert| cert.digest()))
+            .filter_map(|c| c.map(|cert| (cert.round(), cert.digest())))
             .collect::<Vec<_>>();
-        if ids.is_empty() {
+        if keys_by_round.is_empty() {
             return Ok(());
         }
 
         let mut batch = self.certificates_by_id.batch();
 
+        // delete the certificates from the secondary index
+        batch = batch.delete_batch(&self.certificate_ids_by_round, keys_by_round.clone())?;
+
         // delete the certificates by its ids
+        let ids = keys_by_round.into_iter().map(|(_round, digest)| digest);
         batch = batch.delete_batch(&self.certificates_by_id, ids)?;
-
-        let keys_by_round = certs
-            .into_iter()
-            .filter_map(|c| c.map(|cert| (cert.round(), cert.digest())))
-            .collect::<Vec<(_, _)>>();
-
-        batch = batch.delete_batch(&self.certificate_ids_by_round, keys_by_round)?;
 
         // execute the batch (atomically) and return the result
         batch.write()
