@@ -354,14 +354,14 @@ class Bench:
             e = FabricError(e) if isinstance(e, GroupException) else e
             raise BenchError('Failed to update nodes', e)
 
-        # # Upload all configuration files.
-        # try:
-        #     committee, worker_cache = self._config(
-        #         selected_hosts, node_parameters, bench_parameters
-        #     )
-        # except (subprocess.SubprocessError, GroupException) as e:
-        #     e = FabricError(e) if isinstance(e, GroupException) else e
-        #     raise BenchError('Failed to configure nodes', e)
+        # Upload all configuration files.
+        try:
+            committee, worker_cache = self._config(
+                selected_hosts, node_parameters, bench_parameters
+            )
+        except (subprocess.SubprocessError, GroupException) as e:
+            e = FabricError(e) if isinstance(e, GroupException) else e
+            raise BenchError('Failed to configure nodes', e)
 
         # # Run benchmarks.
         # for n in bench_parameters.nodes:
