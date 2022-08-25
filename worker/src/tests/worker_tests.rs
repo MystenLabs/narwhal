@@ -10,10 +10,10 @@ use std::time::Duration;
 use store::rocks;
 use test_utils::{
     batch, digest_batch, resolve_name_committee_and_worker_cache, serialize_batch_message,
-    temp_dir, WorkerToPrimaryMockServer, WorkerToWorkerMockServer,
+    temp_dir, PublicToWorkerMockServer, WorkerToPrimaryMockServer,
 };
 use types::{
-    serialized_batch_digest, TransactionsClient, WorkerPrimaryMessage, WorkerToWorkerClient,
+    serialized_batch_digest, PublicToWorkerClient, TransactionsClient, WorkerPrimaryMessage,
 };
 
 #[tokio::test]
@@ -66,7 +66,7 @@ async fn handle_clients_transactions() {
     let mut other_workers = Vec::new();
     for (_, addresses) in worker_cache.load().others_workers(&name, &id) {
         let address = addresses.worker_to_worker;
-        other_workers.push(WorkerToWorkerMockServer::spawn(address));
+        other_workers.push(PublicToWorkerMockServer::spawn(address));
     }
 
     // Wait till other services have been able to start up
@@ -142,7 +142,7 @@ async fn handle_client_batch_request() {
         .worker_to_worker;
     let config = mysten_network::config::Config::new();
     let channel = config.connect_lazy(&address).unwrap();
-    let mut client = WorkerToWorkerClient::new(channel);
+    let mut client = PublicToWorkerClient::new(channel);
 
     // Send batch request.
     let digests = vec![digest_batch(batch.clone())];

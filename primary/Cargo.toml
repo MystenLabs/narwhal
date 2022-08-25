@@ -60,6 +60,7 @@ tracing = "0.1.36"
 tracing-test = "0.2.3"
 worker = { path = "../worker" }
 storage = { path = "../storage" }
+primary = { path = "../primary" }
 
 [features]
 benchmark = []

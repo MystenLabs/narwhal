@@ -12,6 +12,7 @@
     - [Empty](#narwhal-Empty)
     - [GetCollectionsRequest](#narwhal-GetCollectionsRequest)
     - [GetCollectionsResponse](#narwhal-GetCollectionsResponse)
+    - [GetPrimaryAddressResponse](#narwhal-GetPrimaryAddressResponse)
     - [MultiAddr](#narwhal-MultiAddr)
     - [NewEpochRequest](#narwhal-NewEpochRequest)
     - [NewNetworkInfoRequest](#narwhal-NewNetworkInfoRequest)
@@ -30,13 +31,13 @@
     - [CollectionError.CollectionErrorType](#narwhal-CollectionError-CollectionErrorType)
 
     - [Configuration](#narwhal-Configuration)
-    - [PrimaryToPrimary](#narwhal-PrimaryToPrimary)
     - [PrimaryToWorker](#narwhal-PrimaryToWorker)
     - [Proposer](#narwhal-Proposer)
+    - [PublicToPrimary](#narwhal-PublicToPrimary)
+    - [PublicToWorker](#narwhal-PublicToWorker)
     - [Transactions](#narwhal-Transactions)
     - [Validator](#narwhal-Validator)
     - [WorkerToPrimary](#narwhal-WorkerToPrimary)
-    - [WorkerToWorker](#narwhal-WorkerToWorker)
 
 - [Scalar Value Types](#scalar-value-types)
 
@@ -162,6 +163,21 @@ Empty message for when we don&#39;t have anything to return
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | result | [CollectionRetrievalResult](#narwhal-CollectionRetrievalResult) | repeated | TODO: Revisit this for spec compliance. List of retrieval results of collections. |
+
+
+
+
+
+
+<a name="narwhal-GetPrimaryAddressResponse"></a>
+
+### GetPrimaryAddressResponse
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| primary_address | [MultiAddr](#narwhal-MultiAddr) |  |  |
 
 
 
@@ -413,16 +429,7 @@ Empty message for when we don&#39;t have anything to return
 | ----------- | ------------ | ------------- | ------------|
 | NewEpoch | [NewEpochRequest](#narwhal-NewEpochRequest) | [Empty](#narwhal-Empty) | Signals a new epoch |
 | NewNetworkInfo | [NewNetworkInfoRequest](#narwhal-NewNetworkInfoRequest) | [Empty](#narwhal-Empty) | Signals a change in networking info |
-
-
-<a name="narwhal-PrimaryToPrimary"></a>
-
-### PrimaryToPrimary
-The primary-to-primary interface
-
-| Method Name | Request Type | Response Type | Description |
-| ----------- | ------------ | ------------- | ------------|
-| SendMessage | [BincodeEncodedPayload](#narwhal-BincodeEncodedPayload) | [Empty](#narwhal-Empty) | Sends a message |
+| GetPrimaryAddress | [Empty](#narwhal-Empty) | [GetPrimaryAddressResponse](#narwhal-GetPrimaryAddressResponse) | Retrieve multiaddr of narwhal primary |
 
 
 <a name="narwhal-PrimaryToWorker"></a>
@@ -445,6 +452,28 @@ The API that hosts the endpoints that should be used to help
 | ----------- | ------------ | ------------- | ------------|
 | Rounds | [RoundsRequest](#narwhal-RoundsRequest) | [RoundsResponse](#narwhal-RoundsResponse) |  |
 | NodeReadCausal | [NodeReadCausalRequest](#narwhal-NodeReadCausalRequest) | [NodeReadCausalResponse](#narwhal-NodeReadCausalResponse) | Returns the read_causal obtained by starting the DAG walk at the collection proposed by the input authority (as indicated by their public key) at the input round |
+
+
+<a name="narwhal-PublicToPrimary"></a>
+
+### PublicToPrimary
+The public-to-primary interface
+
+| Method Name | Request Type | Response Type | Description |
+| ----------- | ------------ | ------------- | ------------|
+| SendMessage | [BincodeEncodedPayload](#narwhal-BincodeEncodedPayload) | [Empty](#narwhal-Empty) | Sends a message |
+| WorkerInfo | [Empty](#narwhal-Empty) | [BincodeEncodedPayload](#narwhal-BincodeEncodedPayload) | Retrieve worker information for this primary |
+
+
+<a name="narwhal-PublicToWorker"></a>
+
+### PublicToWorker
+The public-to-worker interface
+
+| Method Name | Request Type | Response Type | Description |
+| ----------- | ------------ | ------------- | ------------|
+| SendMessage | [BincodeEncodedPayload](#narwhal-BincodeEncodedPayload) | [Empty](#narwhal-Empty) | Sends a worker message |
+| ClientBatchRequest | [BincodeEncodedPayload](#narwhal-BincodeEncodedPayload) | [BincodeEncodedPayload](#narwhal-BincodeEncodedPayload) stream | requests a number of batches that the service then streams back to the client |
 
 
 <a name="narwhal-Transactions"></a>
@@ -478,17 +507,6 @@ The worker-to-primary interface
 | Method Name | Request Type | Response Type | Description |
 | ----------- | ------------ | ------------- | ------------|
 | SendMessage | [BincodeEncodedPayload](#narwhal-BincodeEncodedPayload) | [Empty](#narwhal-Empty) | Sends a message |
-
-
-<a name="narwhal-WorkerToWorker"></a>
-
-### WorkerToWorker
-The worker-to-worker interface
-
-| Method Name | Request Type | Response Type | Description |
-| ----------- | ------------ | ------------- | ------------|
-| SendMessage | [BincodeEncodedPayload](#narwhal-BincodeEncodedPayload) | [Empty](#narwhal-Empty) | Sends a worker message |
-| ClientBatchRequest | [BincodeEncodedPayload](#narwhal-BincodeEncodedPayload) | [BincodeEncodedPayload](#narwhal-BincodeEncodedPayload) stream | requests a number of batches that the service then streams back to the client |
 
 
 

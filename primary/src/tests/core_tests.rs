@@ -7,7 +7,7 @@ use fastcrypto::traits::KeyPair;
 use prometheus::Registry;
 use test_utils::{
     certificate, fixture_batch_with_transactions, header, headers, keys, pure_committee_from_keys,
-    shared_worker_cache_from_keys, votes, PrimaryToPrimaryMockServer,
+    shared_worker_cache_from_keys, votes, PublicToPrimaryMockServer,
 };
 use types::{CertificateDigest, Header, Vote};
 
@@ -44,7 +44,7 @@ async fn process_header() {
         .primary(&header().author)
         .unwrap()
         .primary_to_primary;
-    let mut handle = PrimaryToPrimaryMockServer::spawn(address);
+    let mut handle = PublicToPrimaryMockServer::spawn(address);
 
     // Make a synchronizer for the core.
     let synchronizer = Synchronizer::new(
@@ -343,7 +343,7 @@ async fn process_votes() {
     let mut handles: Vec<_> = committee
         .others_primaries(&name)
         .into_iter()
-        .map(|(_, address)| PrimaryToPrimaryMockServer::spawn(address.primary_to_primary))
+        .map(|(_, address)| PublicToPrimaryMockServer::spawn(address.primary_to_primary))
         .collect();
 
     // Send a votes to the core.
@@ -584,7 +584,7 @@ async fn reconfigure_core() {
         .primary(&header.author)
         .unwrap()
         .primary_to_primary;
-    let mut handle = PrimaryToPrimaryMockServer::spawn(address);
+    let mut handle = PublicToPrimaryMockServer::spawn(address);
 
     // Make a synchronizer for the core.
     let synchronizer = Synchronizer::new(

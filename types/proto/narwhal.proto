@@ -162,29 +162,29 @@ service Configuration {
     rpc GetPrimaryAddress(Empty) returns (GetPrimaryAddressResponse);
 }
 
-// The primary-to-primary interface
-service PrimaryToPrimary {
+// The public-to-primary interface to be used from an external worker/primary to primary
+service PublicToPrimary {
     // Sends a message
     rpc SendMessage(BincodeEncodedPayload) returns (Empty) {}
+    // Retrieve worker information for this primary
+    rpc WorkerInfo(Empty) returns (BincodeEncodedPayload) {}
 }
 
-// The worker-to-worker interface
-service WorkerToWorker {
+// The public-to-worker interface to be used from an external worker to worker
+service PublicToWorker {
     // Sends a worker message
     rpc SendMessage(BincodeEncodedPayload) returns (Empty) {}
     // requests a number of batches that the service then streams back to the client
     rpc ClientBatchRequest(BincodeEncodedPayload) returns (stream BincodeEncodedPayload) {}
 }
 
-// The worker-to-primary interface
+// The worker-to-primary interface to be used between a worker and its primary only
 service WorkerToPrimary {
     // Sends a message
     rpc SendMessage(BincodeEncodedPayload) returns (Empty) {}
-
-    rpc WorkerInfo(Empty) returns (BincodeEncodedPayload) {}
 }
 
-// The primary-to-worker interface
+// The primary-to-worker interface to be used between a primary and its worker only
 service PrimaryToWorker {
     // Sends a message
     rpc SendMessage(BincodeEncodedPayload) returns (Empty) {}

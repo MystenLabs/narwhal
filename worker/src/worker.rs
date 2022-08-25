@@ -26,9 +26,9 @@ use types::{
     error::DagError,
     metered_channel::{channel, Sender},
     BatchDigest, BincodeEncodedPayload, ClientBatchRequest, Empty, PrimaryToWorker,
-    PrimaryToWorkerServer, ReconfigureNotification, SerializedBatchMessage, Transaction,
-    TransactionProto, Transactions, TransactionsServer, WorkerPrimaryMessage, WorkerToWorker,
-    WorkerToWorkerServer,
+    PrimaryToWorkerServer, PublicToWorker, PublicToWorkerServer, ReconfigureNotification,
+    SerializedBatchMessage, Transaction, TransactionProto, Transactions, TransactionsServer,
+    WorkerPrimaryMessage,
 };
 
 #[cfg(test)]
@@ -456,7 +456,7 @@ impl WorkerReceiverHandler {
             tokio::select! {
                 _result = config
                 .server_builder()
-                .add_service(WorkerToWorkerServer::new(self))
+                .add_service(PublicToWorkerServer::new(self))
                 .bind(&address)
                 .await
                 .unwrap()
@@ -469,7 +469,7 @@ impl WorkerReceiverHandler {
 }
 
 #[async_trait]
-impl WorkerToWorker for WorkerReceiverHandler {
+impl PublicToWorker for WorkerReceiverHandler {
     async fn send_message(
         &self,
         request: Request<BincodeEncodedPayload>,

@@ -21,7 +21,7 @@ use std::{
 };
 use test_utils::{
     certificate, fixture_batch_with_transactions, fixture_header_builder, keys,
-    resolve_name_committee_and_worker_cache, PrimaryToPrimaryMockServer,
+    resolve_name_committee_and_worker_cache, PublicToPrimaryMockServer,
 };
 use tokio::{
     sync::{mpsc, watch},
@@ -897,7 +897,7 @@ where
     T: Send + DeserializeOwned + 'static,
 {
     tokio::spawn(async move {
-        let mut recv = PrimaryToPrimaryMockServer::spawn(address);
+        let mut recv = PublicToPrimaryMockServer::spawn(address);
         let mut responses = Vec::new();
 
         loop {

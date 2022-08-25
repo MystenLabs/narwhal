@@ -13,12 +13,12 @@ use tokio::{runtime::Handle, task::JoinHandle};
 use tonic::{transport::Channel, Code};
 use tracing::error;
 use types::{
-    BincodeEncodedPayload, WorkerMessage, WorkerPrimaryMessage, WorkerToPrimaryClient,
-    WorkerToWorkerClient,
+    BincodeEncodedPayload, PublicToWorkerClient, WorkerMessage, WorkerPrimaryMessage,
+    WorkerToPrimaryClient,
 };
 
 pub struct WorkerNetwork {
-    clients: HashMap<Multiaddr, WorkerToWorkerClient<Channel>>,
+    clients: HashMap<Multiaddr, PublicToWorkerClient<Channel>>,
     config: mysten_network::config::Config,
     retry_config: RetryConfig,
     /// Small RNG just used to shuffle nodes and randomize connections (not crypto related).
@@ -81,10 +81,10 @@ impl WorkerNetwork {
 }
 
 impl BaseNetwork for WorkerNetwork {
-    type Client = WorkerToWorkerClient<Channel>;
+    type Client = PublicToWorkerClient<Channel>;
     type Message = WorkerMessage;
 
-    fn client(&mut self, address: Multiaddr) -> WorkerToWorkerClient<Channel> {
+    fn client(&mut self, address: Multiaddr) -> PublicToWorkerClient<Channel> {
         self.clients
             .entry(address.clone())
             .or_insert_with(|| Self::create_client(&self.config, address))
@@ -94,10 +94,10 @@ impl BaseNetwork for WorkerNetwork {
     fn create_client(
         config: &mysten_network::config::Config,
         address: Multiaddr,
-    ) -> WorkerToWorkerClient<Channel> {
+    ) -> PublicToWorkerClient<Channel> {
         //TODO don't panic here if address isn't supported
         let channel = config.connect_lazy(&address).unwrap();
-        WorkerToWorkerClient::new(channel)
+        PublicToWorkerClient::new(channel)
     }
 }
 

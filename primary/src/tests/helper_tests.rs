@@ -15,7 +15,7 @@ use storage::CertificateStore;
 use store::{reopen, rocks, rocks::DBMap, Store};
 use test_utils::{
     certificate, fixture_batch_with_transactions, fixture_header_builder, keys,
-    resolve_name_committee_and_worker_cache, temp_dir, PrimaryToPrimaryMockServer, CERTIFICATES_CF,
+    resolve_name_committee_and_worker_cache, temp_dir, PublicToPrimaryMockServer, CERTIFICATES_CF,
     CERTIFICATE_ID_BY_ROUND_CF, PAYLOAD_CF,
 };
 use tokio::{sync::watch, time::timeout};
@@ -63,7 +63,7 @@ async fn test_process_certificates_stream_mode() {
 
     // AND spin up a mock node
     let address = committee.primary(&name).unwrap();
-    let mut handler = PrimaryToPrimaryMockServer::spawn(address.primary_to_primary);
+    let mut handler = PublicToPrimaryMockServer::spawn(address.primary_to_primary);
 
     // WHEN requesting the certificates
     tx_primaries
@@ -148,7 +148,7 @@ async fn test_process_certificates_batch_mode() {
 
     // AND spin up a mock node
     let address = committee.primary(&name).unwrap();
-    let mut handler = PrimaryToPrimaryMockServer::spawn(address.primary_to_primary);
+    let mut handler = PublicToPrimaryMockServer::spawn(address.primary_to_primary);
 
     // WHEN requesting the certificates in batch mode
     tx_primaries
@@ -249,7 +249,7 @@ async fn test_process_payload_availability_success() {
 
     // AND spin up a mock node
     let address = committee.primary(&name).unwrap();
-    let mut handler = PrimaryToPrimaryMockServer::spawn(address.primary_to_primary);
+    let mut handler = PublicToPrimaryMockServer::spawn(address.primary_to_primary);
 
     // WHEN requesting the payload availability for all the certificates
     tx_primaries
@@ -376,7 +376,7 @@ async fn test_process_payload_availability_when_failures() {
 
     // AND spin up a mock node
     let address = committee.primary(&name).unwrap();
-    let mut handler = PrimaryToPrimaryMockServer::spawn(address.primary_to_primary);
+    let mut handler = PublicToPrimaryMockServer::spawn(address.primary_to_primary);
 
     // WHEN requesting the payload availability for all the certificates
     tx_primaries

@@ -25,10 +25,10 @@ use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tonic::Response;
 use types::{
     serialized_batch_digest, Batch, BatchDigest, BincodeEncodedPayload, Certificate,
-    CertificateDigest, ConsensusStore, Empty, Header, HeaderBuilder, PrimaryToPrimary,
-    PrimaryToPrimaryServer, PrimaryToWorker, PrimaryToWorkerServer, Round, SequenceNumber,
-    Transaction, Vote, WorkerToPrimary, WorkerToPrimaryServer, WorkerToWorker,
-    WorkerToWorkerServer,
+    CertificateDigest, ConsensusStore, Empty, Header, HeaderBuilder, PrimaryToWorker,
+    PrimaryToWorkerServer, PublicToPrimary, PublicToPrimaryServer, PublicToWorker,
+    PublicToWorkerServer, Round, SequenceNumber, Transaction, Vote, WorkerToPrimary,
+    WorkerToPrimaryServer,
 };
 
 pub mod cluster;
@@ -488,11 +488,11 @@ pub fn certificate(header: &Header) -> Certificate {
     }
 }
 
-pub struct PrimaryToPrimaryMockServer {
+pub struct PublicToPrimaryMockServer {
     sender: Sender<BincodeEncodedPayload>,
 }
 
-impl PrimaryToPrimaryMockServer {
+impl PublicToPrimaryMockServer {
     pub fn spawn(address: Multiaddr) -> Receiver<BincodeEncodedPayload> {
         let (sender, receiver) = channel(1);
         tokio::spawn(async move {
@@ -500,7 +500,7 @@ impl PrimaryToPrimaryMockServer {
             let mock = Self { sender };
             config
                 .server_builder()
-                .add_service(PrimaryToPrimaryServer::new(mock))
+                .add_service(PublicToPrimaryServer::new(mock))
                 .bind(&address)
                 .await
                 .unwrap()
@@ -512,13 +512,20 @@ impl PrimaryToPrimaryMockServer {
 }
 
 #[tonic::async_trait]
-impl PrimaryToPrimary for PrimaryToPrimaryMockServer {
+impl PublicToPrimary for PublicToPrimaryMockServer {
     async fn send_message(
         &self,
         request: tonic::Request<BincodeEncodedPayload>,
     ) -> Result<tonic::Response<Empty>, tonic::Status> {
         self.sender.send(request.into_inner()).await.unwrap();
         Ok(Response::new(Empty {}))
+    }
+
+    async fn worker_info(
+        &self,
+        _request: tonic::Request<Empty>,
+    ) -> Result<tonic::Response<BincodeEncodedPayload>, tonic::Status> {
+        unimplemented!()
     }
 }
 
@@ -553,13 +560,6 @@ impl WorkerToPrimary for WorkerToPrimaryMockServer {
     ) -> Result<tonic::Response<Empty>, tonic::Status> {
         self.sender.send(request.into_inner()).await.unwrap();
         Ok(Response::new(Empty {}))
-    }
-
-    async fn worker_info(
-        &self,
-        _request: tonic::Request<Empty>,
-    ) -> Result<tonic::Response<BincodeEncodedPayload>, tonic::Status> {
-        unimplemented!()
     }
 }
 
@@ -597,11 +597,11 @@ impl PrimaryToWorker for PrimaryToWorkerMockServer {
     }
 }
 
-pub struct WorkerToWorkerMockServer {
+pub struct PublicToWorkerMockServer {
     sender: Sender<BincodeEncodedPayload>,
 }
 
-impl WorkerToWorkerMockServer {
+impl PublicToWorkerMockServer {
     pub fn spawn(address: Multiaddr) -> Receiver<BincodeEncodedPayload> {
         let (sender, receiver) = channel(1);
         tokio::spawn(async move {
@@ -609,7 +609,7 @@ impl WorkerToWorkerMockServer {
             let mock = Self { sender };
             config
                 .server_builder()
-                .add_service(WorkerToWorkerServer::new(mock))
+                .add_service(PublicToWorkerServer::new(mock))
                 .bind(&address)
                 .await
                 .unwrap()
@@ -621,7 +621,7 @@ impl WorkerToWorkerMockServer {
 }
 
 #[tonic::async_trait]
-impl WorkerToWorker for WorkerToWorkerMockServer {
+impl PublicToWorker for PublicToWorkerMockServer {
     async fn send_message(
         &self,
         request: tonic::Request<BincodeEncodedPayload>,

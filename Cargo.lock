@@ -2828,6 +2828,7 @@ dependencies = [
  "network",
  "node",
  "once_cell",
+ "primary",
  "prometheus",
  "prost",
  "rand 0.8.5",

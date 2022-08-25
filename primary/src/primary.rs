@@ -19,7 +19,7 @@ use crate::{
     PayloadAvailabilityResponse,
 };
 use async_trait::async_trait;
-use config::{Parameters, SharedCommittee, SharedWorkerCache, WorkerId, WorkerInfo};
+use config::{Parameters, SharedCommittee, SharedWorkerCache, WorkerId};
 use consensus::dag::Dag;
 use crypto::{PublicKey, Signature};
 use fastcrypto::{
@@ -29,7 +29,7 @@ use fastcrypto::{
 use multiaddr::{Multiaddr, Protocol};
 use network::{metrics::Metrics, PrimaryNetwork, PrimaryToWorkerNetwork};
 use prometheus::Registry;
-use std::{collections::BTreeMap, net::Ipv4Addr, sync::Arc};
+use std::{net::Ipv4Addr, sync::Arc};
 use storage::CertificateStore;
 use store::Store;
 use tokio::{sync::watch, task::JoinHandle};
@@ -39,10 +39,14 @@ use types::{
     error::DagError,
     metered_channel::{channel, Receiver, Sender},
     BatchDigest, BatchMessage, BincodeEncodedPayload, Certificate, Empty, Header, HeaderDigest,
-    PrimaryToPrimary, PrimaryToPrimaryServer, ReconfigureNotification, WorkerInfoResponse,
+    PublicToPrimary, PublicToPrimaryServer, ReconfigureNotification, WorkerInfoResponse,
     WorkerPrimaryError, WorkerPrimaryMessage, WorkerToPrimary, WorkerToPrimaryServer,
 };
 pub use types::{PrimaryMessage, PrimaryWorkerMessage};
+
+#[cfg(test)]
+#[path = "tests/primary_tests.rs"]
+pub mod primary_tests;
 
 /// The default channel capacity for each channel of the primary.
 pub const CHANNEL_CAPACITY: usize = 1_000;
@@ -167,14 +171,6 @@ impl Primary {
 
         let (tx_consensus_round_updates, rx_consensus_round_updates) = watch::channel(0u64);
 
-        let our_workers = worker_cache
-            .load()
-            .workers
-            .get(&name)
-            .expect("Our public key is not in the worker cache")
-            .0
-            .clone();
-
         // Spawn the network receiver listening to messages from the other primaries.
         let address = committee
             .load()
@@ -185,10 +181,12 @@ impl Primary {
             .replace(0, |_protocol| Some(Protocol::Ip4(Primary::INADDR_ANY)))
             .unwrap();
         let primary_receiver_handle = PrimaryReceiverHandler {
+            name: name.clone(),
             tx_primary_messages: tx_primary_messages.clone(),
             tx_helper_requests,
             tx_payload_availability_responses,
             tx_certificate_responses,
+            worker_cache: worker_cache.clone(),
         }
         .spawn(
             address.clone(),
@@ -217,7 +215,6 @@ impl Primary {
             tx_batches,
             tx_batch_removal,
             tx_state_handler,
-            our_workers,
             metrics: node_metrics.clone(),
         }
         .spawn(address.clone(), tx_reconfigure.subscribe());
@@ -480,10 +477,12 @@ impl Primary {
 /// Defines how the network receiver handles incoming primary messages.
 #[derive(Clone)]
 struct PrimaryReceiverHandler {
+    name: PublicKey,
     tx_primary_messages: Sender<PrimaryMessage>,
     tx_helper_requests: Sender<PrimaryMessage>,
     tx_payload_availability_responses: Sender<PayloadAvailabilityResponse>,
     tx_certificate_responses: Sender<CertificatesResponse>,
+    worker_cache: SharedWorkerCache,
 }
 
 impl PrimaryReceiverHandler {
@@ -513,7 +512,7 @@ impl PrimaryReceiverHandler {
             tokio::select! {
                 _result = config
                     .server_builder_with_metrics(primary_endpoint_metrics)
-                    .add_service(PrimaryToPrimaryServer::new(self))
+                    .add_service(PublicToPrimaryServer::new(self))
                     .bind(&address)
                     .await
                     .unwrap()
@@ -526,7 +525,7 @@ impl PrimaryReceiverHandler {
 }
 
 #[async_trait]
-impl PrimaryToPrimary for PrimaryReceiverHandler {
+impl PublicToPrimary for PrimaryReceiverHandler {
     async fn send_message(
         &self,
         request: Request<BincodeEncodedPayload>,
@@ -581,6 +580,28 @@ impl PrimaryToPrimary for PrimaryReceiverHandler {
 
         Ok(Response::new(Empty {}))
     }
+
+    async fn worker_info(
+        &self,
+        _request: Request<Empty>,
+    ) -> Result<Response<BincodeEncodedPayload>, Status> {
+        let our_workers = self
+            .worker_cache
+            .load()
+            .workers
+            .get(&self.name)
+            .ok_or_else(|| Status::internal("Our public key is not in the worker cache"))?
+            .0
+            .clone();
+        let workers = WorkerInfoResponse {
+            workers: our_workers,
+        };
+
+        let response = BincodeEncodedPayload::try_from(&workers)
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(response))
+    }
 }
 
 /// Defines how the network receiver handles incoming workers messages.
@@ -591,7 +612,6 @@ struct WorkerReceiverHandler {
     tx_batches: Sender<BatchResult>,
     tx_batch_removal: Sender<DeleteBatchResult>,
     tx_state_handler: Sender<ReconfigureNotification>,
-    our_workers: BTreeMap<WorkerId, WorkerInfo>,
     metrics: Arc<PrimaryMetrics>,
 }
 
@@ -696,19 +716,5 @@ impl WorkerToPrimary for WorkerReceiverHandler {
         .map_err(|e| Status::not_found(e.to_string()))?;
 
         Ok(Response::new(Empty {}))
-    }
-
-    async fn worker_info(
-        &self,
-        _request: Request<Empty>,
-    ) -> Result<Response<BincodeEncodedPayload>, Status> {
-        let workers = WorkerInfoResponse {
-            workers: self.our_workers.clone(),
-        };
-
-        let response = BincodeEncodedPayload::try_from(&workers)
-            .map_err(|e| Status::internal(e.to_string()))?;
-
-        Ok(Response::new(response))
     }
 }

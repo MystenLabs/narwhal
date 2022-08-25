@@ -8,7 +8,7 @@ use prometheus::Registry;
 use test_utils::{
     batch, batch_digest, batches, committee, keys, open_batch_store, pure_committee_from_keys,
     resolve_name_committee_and_worker_cache, serialize_batch_message,
-    shared_worker_cache_from_keys, WorkerToWorkerMockServer,
+    shared_worker_cache_from_keys, PublicToWorkerMockServer,
 };
 use tokio::time::timeout;
 use types::serialized_batch_digest;
@@ -60,7 +60,7 @@ async fn synchronize() {
     let missing = vec![batch_digest()];
     let message = WorkerMessage::BatchRequest(missing.clone(), name.clone());
     let serialized = bincode::serialize(&message).unwrap();
-    let mut handle = WorkerToWorkerMockServer::spawn(address);
+    let mut handle = PublicToWorkerMockServer::spawn(address);
 
     // Send a sync request.
     let message = PrimaryWorkerMessage::Synchronize(missing, target);
@@ -121,7 +121,7 @@ async fn synchronize_when_batch_exists() {
     let payload = vec![10u8];
     store.write(batch_id, payload).await;
 
-    let mut handle = WorkerToWorkerMockServer::spawn(address);
+    let mut handle = PublicToWorkerMockServer::spawn(address);
 
     // Send a sync request.
     let message = PrimaryWorkerMessage::Synchronize(missing, target);

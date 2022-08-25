@@ -14,12 +14,12 @@ use tokio::{runtime::Handle, task::JoinHandle};
 use tonic::{transport::Channel, Code};
 use tracing::error;
 use types::{
-    BincodeEncodedPayload, PrimaryMessage, PrimaryToPrimaryClient, PrimaryToWorkerClient,
-    PrimaryWorkerMessage,
+    BincodeEncodedPayload, PrimaryMessage, PrimaryToWorkerClient, PrimaryWorkerMessage,
+    PublicToPrimaryClient,
 };
 
 pub struct PrimaryNetwork {
-    clients: HashMap<Multiaddr, PrimaryToPrimaryClient<Channel>>,
+    clients: HashMap<Multiaddr, PublicToPrimaryClient<Channel>>,
     config: mysten_network::config::Config,
     retry_config: RetryConfig,
     /// Small RNG just used to shuffle nodes and randomize connections (not crypto related).
@@ -82,7 +82,7 @@ impl PrimaryNetwork {
 }
 
 impl BaseNetwork for PrimaryNetwork {
-    type Client = PrimaryToPrimaryClient<Channel>;
+    type Client = PublicToPrimaryClient<Channel>;
 
     type Message = PrimaryMessage;
 
@@ -96,7 +96,7 @@ impl BaseNetwork for PrimaryNetwork {
     fn create_client(config: &mysten_network::config::Config, address: Multiaddr) -> Self::Client {
         //TODO don't panic here if address isn't supported
         let channel = config.connect_lazy(&address).unwrap();
-        PrimaryToPrimaryClient::new(channel)
+        PublicToPrimaryClient::new(channel)
     }
 }
 

@@ -5,7 +5,7 @@ use super::*;
 use store::rocks;
 use test_utils::{
     batch, digest_batch, resolve_name_committee_and_worker_cache, serialize_batch_message,
-    temp_dir, WorkerToWorkerMockServer,
+    temp_dir, PublicToWorkerMockServer,
 };
 use tokio::sync::mpsc::channel;
 use types::BatchDigest;
@@ -53,7 +53,7 @@ async fn worker_batch_reply() {
         .unwrap()
         .worker_to_worker;
     let expected = Bytes::from(serialized_batch.clone());
-    let mut handle = WorkerToWorkerMockServer::spawn(address);
+    let mut handle = PublicToWorkerMockServer::spawn(address);
 
     // Send a batch request.
     let digests = vec![batch_digest];
