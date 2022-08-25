@@ -220,19 +220,25 @@ impl CertificateStore {
         // should be zero).
         let key = (round, CertificateDigest::default());
 
-        let mut certificates = Vec::new();
-        for (key, _) in self.certificate_ids_by_round.iter().skip_to(&key)? {
-            let certificate = self.certificates_by_id.get(&key.1)?.ok_or_else(|| {
-                RocksDBError(format!(
-                    "Certificate with id {} not found in main storage although it should",
-                    key.1
-                ))
-            })?;
+        let digests = self
+            .certificate_ids_by_round
+            .keys()
+            .skip_to(&key)?
+            .map(|(_round, digest)| digest);
 
-            certificates.push(certificate);
-        }
-
-        Ok(certificates)
+        // Fetch all those certificates from main storage, return an error if any one is missing.
+        self.certificates_by_id
+            .multi_get(digests)?
+            .into_iter()
+            .map(|opt_cert| {
+                opt_cert.ok_or_else(|| {
+                    RocksDBError(format!(
+                        "Certificate with id {} not found, CertificateStore invariant violation",
+                        key.1
+                    ))
+                })
+            })
+            .collect()
     }
 
     /// Retrieves the certificates of the last round
