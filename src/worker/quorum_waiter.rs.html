@@ -150,10 +150,15 @@
 <span id="150">150</span>
 <span id="151">151</span>
 <span id="152">152</span>
+<span id="153">153</span>
+<span id="154">154</span>
+<span id="155">155</span>
+<span id="156">156</span>
+<span id="157">157</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-</span><span class="kw">use </span>config::{Committee, Stake, WorkerId};
+</span><span class="kw">use </span>config::{Committee, SharedWorkerCache, Stake, WorkerId};
 <span class="kw">use </span>crypto::PublicKey;
 <span class="kw">use </span>futures::stream::{futures_unordered::FuturesUnordered, StreamExt <span class="kw">as _</span>};
 <span class="kw">use </span>network::{CancelOnDropHandler, MessageResult, ReliableNetwork, WorkerNetwork};
@@ -176,6 +181,8 @@
     </span>id: WorkerId,
     <span class="doccomment">/// The committee information.
     </span>committee: Committee,
+    <span class="doccomment">/// The worker information cache.
+    </span>worker_cache: SharedWorkerCache,
     <span class="doccomment">/// Receive reconfiguration updates.
     </span>rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;,
     <span class="doccomment">/// Input Channel to receive commands.
@@ -193,6 +200,7 @@
         name: PublicKey,
         id: WorkerId,
         committee: Committee,
+        worker_cache: SharedWorkerCache,
         rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;,
         rx_message: Receiver&lt;Batch&gt;,
         tx_batch: Sender&lt;Vec&lt;u8&gt;&gt;,
@@ -203,6 +211,7 @@
                 name,
                 id,
                 committee,
+                worker_cache,
                 rx_reconfigure,
                 rx_message,
                 tx_batch,
@@ -226,7 +235,8 @@
                 <span class="prelude-val">Some</span>(batch) = <span class="self">self</span>.rx_message.recv() =&gt; {
                     <span class="comment">// Broadcast the batch to the other workers.
                     </span><span class="kw">let </span>workers_addresses: Vec&lt;<span class="kw">_</span>&gt; = <span class="self">self
-                        </span>.committee
+                        </span>.worker_cache
+                        .load()
                         .others_workers(<span class="kw-2">&amp;</span><span class="self">self</span>.name, <span class="kw-2">&amp;</span><span class="self">self</span>.id)
                         .into_iter()
                         .map(|(name, addresses)| (name, addresses.worker_to_worker))
@@ -303,4 +313,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (060e47f74 2022-08-23)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>

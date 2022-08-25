@@ -554,9 +554,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 </span><span class="kw">use </span>arc_swap::ArcSwap;
-<span class="kw">use </span>crypto::Digest;
 <span class="kw">use </span>dashmap::DashMap;
 <span class="kw">use </span>either::Either;
+<span class="kw">use </span>fastcrypto::Digest;
 <span class="kw">use </span>once_cell::sync::OnceCell;
 <span class="kw">use </span>std::sync::Arc;
 <span class="kw">use </span>thiserror::Error;
@@ -568,9 +568,9 @@
 /// - `compressible`: a value-derived boolean indicating if that value is, initially, compressible
 ///
 /// The `crypto:Hash` trait bound offers the digest-ibility.
-</span><span class="kw">pub trait </span>Affiliated: crypto::Hash {
+</span><span class="kw">pub trait </span>Affiliated: fastcrypto::Hash {
     <span class="doccomment">/// Hash pointers to the parents of the current value
-    </span><span class="kw">fn </span>parents(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;&lt;<span class="self">Self </span><span class="kw">as </span>crypto::Hash&gt;::TypedDigest&gt;;
+    </span><span class="kw">fn </span>parents(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;&lt;<span class="self">Self </span><span class="kw">as </span>fastcrypto::Hash&gt;::TypedDigest&gt;;
 
     <span class="doccomment">/// Whether the current value should be marked as compressible when first inserted in a Node.
     /// Defaults to a blanket false for all values.
@@ -805,13 +805,13 @@
 </span><span class="kw">mod </span>tests {
     <span class="kw">use </span>std::{collections::HashSet, fmt};
 
-    <span class="kw">use </span>crypto::{Digest, Hash};
+    <span class="kw">use </span>fastcrypto::{Digest, Hash};
     <span class="kw">use </span>proptest::prelude::<span class="kw-2">*</span>;
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
 
     <span class="attribute">#[derive(Clone, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Copy)]
-    </span><span class="kw">pub struct </span>TestDigest([u8; crypto::DIGEST_LEN]);
+    </span><span class="kw">pub struct </span>TestDigest([u8; fastcrypto::DIGEST_LEN]);
 
     <span class="kw">impl </span>From&lt;TestDigest&gt; <span class="kw">for </span>Digest {
         <span class="kw">fn </span>from(hd: TestDigest) -&gt; <span class="self">Self </span>{
@@ -838,7 +838,7 @@
         digest: TestDigest,
     }
 
-    <span class="kw">impl </span>crypto::Hash <span class="kw">for </span>TestNode {
+    <span class="kw">impl </span>fastcrypto::Hash <span class="kw">for </span>TestNode {
         <span class="kw">type </span>TypedDigest = TestDigest;
 
         <span class="kw">fn </span>digest(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="self">Self</span>::TypedDigest {
@@ -847,7 +847,7 @@
     }
 
     <span class="kw">impl </span>Affiliated <span class="kw">for </span>TestNode {
-        <span class="kw">fn </span>parents(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;&lt;<span class="self">Self </span><span class="kw">as </span>crypto::Hash&gt;::TypedDigest&gt; {
+        <span class="kw">fn </span>parents(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;&lt;<span class="self">Self </span><span class="kw">as </span>fastcrypto::Hash&gt;::TypedDigest&gt; {
             <span class="self">self</span>.parents.clone()
         }
 
@@ -858,7 +858,7 @@
 
     <span class="macro">prop_compose! </span>{
         <span class="kw">pub fn </span>arb_test_digest()(
-            hash <span class="kw">in </span>prop::collection::vec(any::&lt;u8&gt;(), crypto::DIGEST_LEN..=crypto::DIGEST_LEN),
+            hash <span class="kw">in </span>prop::collection::vec(any::&lt;u8&gt;(), fastcrypto::DIGEST_LEN..=fastcrypto::DIGEST_LEN),
         ) -&gt; TestDigest {
             TestDigest(hash.try_into().unwrap())
         }
@@ -1103,4 +1103,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="dag" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (060e47f74 2022-08-23)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="dag" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>

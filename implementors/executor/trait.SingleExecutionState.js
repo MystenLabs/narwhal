@@ -1,0 +1,3 @@
+(function() {var implementors = {
+"node":[["impl <a class=\"trait\" href=\"executor/trait.SingleExecutionState.html\" title=\"trait executor::SingleExecutionState\">SingleExecutionState</a> for <a class=\"struct\" href=\"node/execution_state/struct.SimpleExecutionState.html\" title=\"struct node::execution_state::SimpleExecutionState\">SimpleExecutionState</a>"]]
+};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

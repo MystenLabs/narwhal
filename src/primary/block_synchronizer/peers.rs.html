@@ -402,9 +402,12 @@
 <span id="402">402</span>
 <span id="403">403</span>
 <span id="404">404</span>
+<span id="405">405</span>
+<span id="406">406</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-</span><span class="kw">use </span>crypto::{Hash, PublicKey};
+</span><span class="kw">use </span>crypto::PublicKey;
+<span class="kw">use </span>fastcrypto::Hash;
 <span class="kw">use </span>rand::{prelude::SliceRandom <span class="kw">as _</span>, rngs::SmallRng};
 <span class="kw">use </span>std::collections::HashMap;
 
@@ -422,7 +425,7 @@
 
 <span class="kw">impl</span>&lt;Value: Hash + Clone&gt; Peer&lt;Value&gt; {
     <span class="kw">pub fn </span>new(name: PublicKey, values_able_to_serve: Vec&lt;Value&gt;) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span>certs: HashMap&lt;&lt;Value <span class="kw">as </span>crypto::Hash&gt;::TypedDigest, Value&gt; = values_able_to_serve
+        <span class="kw">let </span>certs: HashMap&lt;&lt;Value <span class="kw">as </span>fastcrypto::Hash&gt;::TypedDigest, Value&gt; = values_able_to_serve
             .into_iter()
             .map(|c| (c.digest(), c))
             .collect();
@@ -575,7 +578,8 @@
 </span><span class="kw">mod </span>tests {
     <span class="kw">use </span><span class="kw">crate</span>::block_synchronizer::peers::Peers;
     <span class="kw">use </span>blake2::{digest::Update, VarBlake2b};
-    <span class="kw">use </span>crypto::{traits::KeyPair <span class="kw">as _</span>, Digest, Hash, KeyPair, DIGEST_LEN};
+    <span class="kw">use </span>crypto::KeyPair;
+    <span class="kw">use </span>fastcrypto::{traits::KeyPair <span class="kw">as _</span>, Digest, Hash, DIGEST_LEN};
     <span class="kw">use </span>rand::{
         rngs::{SmallRng, StdRng},
         SeedableRng,
@@ -802,9 +806,9 @@
                 hasher.update([<span class="kw-2">*</span>v].as_ref());
             };
 
-            MockDigest(crypto::blake2b_256(hasher_update))
+            MockDigest(fastcrypto::blake2b_256(hasher_update))
         }
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (060e47f74 2022-08-23)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>

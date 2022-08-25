@@ -391,6 +391,11 @@
 <span id="391">391</span>
 <span id="392">392</span>
 <span id="393">393</span>
+<span id="394">394</span>
+<span id="395">395</span>
+<span id="396">396</span>
+<span id="397">397</span>
+<span id="398">398</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -398,7 +403,7 @@
     metrics::PrimaryMetrics,
     primary::{PayloadToken, PrimaryMessage, PrimaryWorkerMessage},
 };
-<span class="kw">use </span>config::{Committee, WorkerId};
+<span class="kw">use </span>config::{Committee, SharedWorkerCache, WorkerId};
 <span class="kw">use </span>crypto::PublicKey;
 <span class="kw">use </span>futures::future::{try_join_all, BoxFuture};
 <span class="kw">use </span>network::{LuckyNetwork, PrimaryNetwork, PrimaryToWorkerNetwork, UnreliableNetwork};
@@ -444,6 +449,8 @@
     </span>name: PublicKey,
     <span class="doccomment">/// The committee information.
     </span>committee: Committee,
+    <span class="doccomment">/// The worker information cache.
+    </span>worker_cache: SharedWorkerCache,
     <span class="doccomment">/// The persistent storage for parent Certificates.
     </span>certificate_store: Store&lt;CertificateDigest, Certificate&gt;,
     <span class="doccomment">/// The persistent storage for payload markers from workers.
@@ -491,6 +498,7 @@
     </span><span class="kw">pub fn </span>spawn(
         name: PublicKey,
         committee: Committee,
+        worker_cache: SharedWorkerCache,
         certificate_store: Store&lt;CertificateDigest, Certificate&gt;,
         payload_store: Store&lt;(BatchDigest, WorkerId), PayloadToken&gt;,
         rx_consensus_round_updates: watch::Receiver&lt;u64&gt;,
@@ -508,6 +516,7 @@
             <span class="self">Self </span>{
                 name,
                 committee,
+                worker_cache,
                 certificate_store,
                 payload_store,
                 rx_consensus_round_updates,
@@ -599,9 +608,10 @@
                                 });
                             }
                             <span class="kw">for </span>(worker_id, digests) <span class="kw">in </span>requires_sync {
-                                <span class="kw">let </span>address = <span class="self">self</span>.committee
+                                <span class="kw">let </span>address = <span class="self">self</span>.worker_cache
+                                    .load()
                                     .worker(<span class="kw-2">&amp;</span><span class="self">self</span>.name, <span class="kw-2">&amp;</span>worker_id)
-                                    .expect(<span class="string">&quot;Author of valid header is not in the committee&quot;</span>)
+                                    .expect(<span class="string">&quot;Author of valid header is not in the worker cache&quot;</span>)
                                     .primary_to_worker;
 
                                 <span class="comment">// TODO [issue #423]: This network transmission needs to be reliable: the worker may crash-recover.
@@ -785,4 +795,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (060e47f74 2022-08-23)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>

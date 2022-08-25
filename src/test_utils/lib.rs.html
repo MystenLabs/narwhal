@@ -862,22 +862,77 @@
 <span id="862">862</span>
 <span id="863">863</span>
 <span id="864">864</span>
+<span id="865">865</span>
+<span id="866">866</span>
+<span id="867">867</span>
+<span id="868">868</span>
+<span id="869">869</span>
+<span id="870">870</span>
+<span id="871">871</span>
+<span id="872">872</span>
+<span id="873">873</span>
+<span id="874">874</span>
+<span id="875">875</span>
+<span id="876">876</span>
+<span id="877">877</span>
+<span id="878">878</span>
+<span id="879">879</span>
+<span id="880">880</span>
+<span id="881">881</span>
+<span id="882">882</span>
+<span id="883">883</span>
+<span id="884">884</span>
+<span id="885">885</span>
+<span id="886">886</span>
+<span id="887">887</span>
+<span id="888">888</span>
+<span id="889">889</span>
+<span id="890">890</span>
+<span id="891">891</span>
+<span id="892">892</span>
+<span id="893">893</span>
+<span id="894">894</span>
+<span id="895">895</span>
+<span id="896">896</span>
+<span id="897">897</span>
+<span id="898">898</span>
+<span id="899">899</span>
+<span id="900">900</span>
+<span id="901">901</span>
+<span id="902">902</span>
+<span id="903">903</span>
+<span id="904">904</span>
+<span id="905">905</span>
+<span id="906">906</span>
+<span id="907">907</span>
+<span id="908">908</span>
+<span id="909">909</span>
+<span id="910">910</span>
+<span id="911">911</span>
+<span id="912">912</span>
+<span id="913">913</span>
+<span id="914">914</span>
+<span id="915">915</span>
+<span id="916">916</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span>config::{
-    utils::get_available_port, Authority, Committee, Epoch, PrimaryAddresses, WorkerId, WorkerInfo,
+    utils::get_available_port, Authority, Committee, Epoch, PrimaryAddresses, SharedWorkerCache,
+    WorkerCache, WorkerId, WorkerIndex, WorkerInfo,
 };
-<span class="kw">use </span>crypto::{
+<span class="kw">use </span>crypto::PublicKey;
+<span class="kw">use </span>crypto::{KeyPair, Signature};
+<span class="kw">use </span>fastcrypto::{
     traits::{KeyPair <span class="kw">as _</span>, Signer <span class="kw">as _</span>},
-    Digest, Hash <span class="kw">as _</span>, KeyPair, PublicKey, Signature,
+    Digest, Hash <span class="kw">as _</span>,
 };
 <span class="kw">use </span>futures::Stream;
 <span class="kw">use </span>indexmap::IndexMap;
 <span class="kw">use </span>multiaddr::Multiaddr;
 <span class="kw">use </span>rand::{rngs::StdRng, Rng, SeedableRng <span class="kw">as _</span>};
 <span class="kw">use </span>std::{
-    collections::{BTreeSet, HashMap, VecDeque},
+    collections::{BTreeSet, VecDeque},
     ops::RangeInclusive,
     pin::Pin,
     sync::Arc,
@@ -985,10 +1040,17 @@
 
 <span class="comment">// Fixture
 </span><span class="kw">pub fn </span>committee(rng_seed: <span class="kw">impl </span>Into&lt;<span class="prelude-ty">Option</span>&lt;u64&gt;&gt;) -&gt; Committee {
-    committee_from_keys(<span class="kw-2">&amp;</span>keys(rng_seed))
+    pure_committee_from_keys(<span class="kw-2">&amp;</span>keys(rng_seed))
 }
-<span class="kw">pub fn </span>committee_from_keys(keys: <span class="kw-2">&amp;</span>[KeyPair]) -&gt; Committee {
-    pure_committee_from_keys(keys)
+
+<span class="kw">pub fn </span>pure_committee_from_keys(keys: <span class="kw-2">&amp;</span>[KeyPair]) -&gt; Committee {
+    Committee {
+        epoch: Epoch::default(),
+        authorities: keys
+            .iter()
+            .map(|kp| (kp.public().clone(), make_authority()))
+            .collect(),
+    }
 }
 
 <span class="kw">pub fn </span>make_authority_with_port_getter&lt;F: FnMut() -&gt; u16&gt;(<span class="kw-2">mut </span>get_port: F) -&gt; Authority {
@@ -1000,6 +1062,38 @@
             .parse()
             .unwrap(),
     };
+
+    Authority { stake: <span class="number">1</span>, primary }
+}
+
+<span class="kw">pub fn </span>make_authority() -&gt; Authority {
+    make_authority_with_port_getter(get_available_port)
+}
+
+<span class="comment">// Fixture
+</span><span class="kw">pub fn </span>shared_worker_cache(rng_seed: <span class="kw">impl </span>Into&lt;<span class="prelude-ty">Option</span>&lt;u64&gt;&gt;) -&gt; SharedWorkerCache {
+    shared_worker_cache_from_keys(<span class="kw-2">&amp;</span>keys(rng_seed))
+}
+
+<span class="kw">pub fn </span>shared_worker_cache_from_keys(keys: <span class="kw-2">&amp;</span>[KeyPair]) -&gt; SharedWorkerCache {
+    worker_cache_from_keys(keys).into()
+}
+
+<span class="kw">pub fn </span>worker_cache_from_keys(keys: <span class="kw-2">&amp;</span>[KeyPair]) -&gt; WorkerCache {
+    WorkerCache {
+        epoch: Epoch::default(),
+        workers: keys
+            .iter()
+            .map(|kp| (kp.public().clone(), make_worker_index()))
+            .collect(),
+    }
+}
+
+<span class="kw">pub fn </span>make_worker_index() -&gt; WorkerIndex {
+    initialize_worker_index_with_port_getter(get_available_port)
+}
+
+<span class="kw">pub fn </span>initialize_worker_index_with_port_getter&lt;F: FnMut() -&gt; u16&gt;(<span class="kw-2">mut </span>get_port: F) -&gt; WorkerIndex {
     <span class="kw">let </span>workers = <span class="macro">vec!</span>[
         (
             <span class="number">0</span>,
@@ -1062,25 +1156,7 @@
     .cloned()
     .collect();
 
-    Authority {
-        stake: <span class="number">1</span>,
-        primary,
-        workers,
-    }
-}
-
-<span class="kw">pub fn </span>make_authority() -&gt; Authority {
-    make_authority_with_port_getter(get_available_port)
-}
-
-<span class="kw">pub fn </span>pure_committee_from_keys(keys: <span class="kw-2">&amp;</span>[KeyPair]) -&gt; Committee {
-    Committee {
-        epoch: Epoch::default(),
-        authorities: keys
-            .iter()
-            .map(|kp| (kp.public().clone(), make_authority()))
-            .collect(),
-    }
+    WorkerIndex(workers)
 }
 
 <span class="comment">////////////////////////////////////////////////////////////////
@@ -1102,8 +1178,35 @@
                             primary_to_primary: <span class="string">&quot;/ip4/0.0.0.0/tcp/0/http&quot;</span>.parse().unwrap(),
                             worker_to_primary: <span class="string">&quot;/ip4/0.0.0.0/tcp/0/http&quot;</span>.parse().unwrap(),
                         },
-                        workers: HashMap::default(),
                     },
+                )
+            })
+            .collect(),
+    }
+}
+
+<span class="comment">// Fixture
+</span><span class="kw">pub fn </span>mock_worker_cache(keys: <span class="kw-2">&amp;</span>[PublicKey]) -&gt; WorkerCache {
+    WorkerCache {
+        epoch: Epoch::default(),
+        workers: keys
+            .iter()
+            .map(|id| {
+                (
+                    id.clone(),
+                    WorkerIndex(
+                        <span class="macro">vec!</span>[(
+                            <span class="number">0</span>,
+                            WorkerInfo {
+                                primary_to_worker: <span class="string">&quot;/ip4/0.0.0.0/tcp/0/http&quot;</span>.parse().unwrap(),
+                                transactions: <span class="string">&quot;/ip4/0.0.0.0/tcp/0/http&quot;</span>.parse().unwrap(),
+                                worker_to_worker: <span class="string">&quot;/ip4/0.0.0.0/tcp/0/http&quot;</span>.parse().unwrap(),
+                            },
+                        )]
+                        .iter()
+                        .cloned()
+                        .collect(),
+                    ),
                 )
             })
             .collect(),
@@ -1454,15 +1557,16 @@
     }
 }
 
-<span class="comment">// helper method to get a name and a committee.
-</span><span class="kw">pub fn </span>resolve_name_and_committee() -&gt; (PublicKey, Committee) {
+<span class="comment">// helper method to get a name and a committee + worker_cache.
+</span><span class="kw">pub fn </span>resolve_name_committee_and_worker_cache() -&gt; (PublicKey, Committee, SharedWorkerCache) {
     <span class="kw">let </span><span class="kw-2">mut </span>keys = keys(<span class="prelude-val">None</span>);
+    <span class="kw">let </span>committee = pure_committee_from_keys(<span class="kw-2">&amp;</span>keys);
+    <span class="kw">let </span>worker_cache = shared_worker_cache_from_keys(<span class="kw-2">&amp;</span>keys);
     <span class="kw">let _ </span>= keys.pop().unwrap(); <span class="comment">// Skip the header&#39; author.
     </span><span class="kw">let </span>kp = keys.pop().unwrap();
     <span class="kw">let </span>name = kp.public().clone();
-    <span class="kw">let </span>committee = committee(<span class="prelude-val">None</span>);
 
-    (name, committee)
+    (name, committee, worker_cache)
 }
 
 <span class="comment">////////////////////////////////////////////////////////////////
@@ -1565,7 +1669,7 @@
 }
 
 <span class="comment">// Utility for making several rounds worth of certificates through iterated parenthood sampling.
-// The making of individial certificates once parents are figured out is delegated to the `make_one_certificate` argument
+// The making of individual certificates once parents are figured out is delegated to the `make_one_certificate` argument
 </span><span class="kw">fn </span>rounds_of_certificates(
     range: RangeInclusive&lt;Round&gt;,
     initial_parents: <span class="kw-2">&amp;</span>BTreeSet&lt;CertificateDigest&gt;,
@@ -1727,4 +1831,4 @@
     (cert.digest(), cert)
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="test_utils" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (060e47f74 2022-08-23)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="test_utils" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>

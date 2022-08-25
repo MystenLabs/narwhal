@@ -585,6 +585,13 @@
 <span id="585">585</span>
 <span id="586">586</span>
 <span id="587">587</span>
+<span id="588">588</span>
+<span id="589">589</span>
+<span id="590">590</span>
+<span id="591">591</span>
+<span id="592">592</span>
+<span id="593">593</span>
+<span id="594">594</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -595,7 +602,7 @@
 };
 <span class="kw">use </span>async_trait::async_trait;
 <span class="kw">use </span>bytes::Bytes;
-<span class="kw">use </span>config::{Parameters, SharedCommittee, WorkerId};
+<span class="kw">use </span>config::{Parameters, SharedCommittee, SharedWorkerCache, WorkerId};
 <span class="kw">use </span>crypto::PublicKey;
 <span class="kw">use </span>futures::{Stream, StreamExt};
 <span class="kw">use </span>multiaddr::{Multiaddr, Protocol};
@@ -635,6 +642,8 @@
     </span>id: WorkerId,
     <span class="doccomment">/// The committee information.
     </span>committee: SharedCommittee,
+    <span class="doccomment">/// The worker information cache.
+    </span>worker_cache: SharedWorkerCache,
     <span class="doccomment">/// The configuration parameters
     </span>parameters: Parameters,
     <span class="doccomment">/// The persistent storage.
@@ -648,6 +657,7 @@
         name: PublicKey,
         id: WorkerId,
         committee: SharedCommittee,
+        worker_cache: SharedWorkerCache,
         parameters: Parameters,
         store: Store&lt;BatchDigest, SerializedBatchMessage&gt;,
         metrics: Metrics,
@@ -657,6 +667,7 @@
             name: name.clone(),
             id,
             committee: committee.clone(),
+            worker_cache,
             parameters,
             store,
         };
@@ -703,10 +714,10 @@
             <span class="string">&quot;Worker {} successfully booted on {}&quot;</span>,
             id,
             worker
-                .committee
+                .worker_cache
                 .load()
                 .worker(<span class="kw-2">&amp;</span>worker.name, <span class="kw-2">&amp;</span>worker.id)
-                .expect(<span class="string">&quot;Our public key or worker id is not in the committee&quot;</span>)
+                .expect(<span class="string">&quot;Our public key or worker id is not in the worker cache&quot;</span>)
                 .transactions
         );
 
@@ -731,10 +742,10 @@
 
         <span class="comment">// Receive incoming messages from our primary.
         </span><span class="kw">let </span>address = <span class="self">self
-            </span>.committee
+            </span>.worker_cache
             .load()
             .worker(<span class="kw-2">&amp;</span><span class="self">self</span>.name, <span class="kw-2">&amp;</span><span class="self">self</span>.id)
-            .expect(<span class="string">&quot;Our public key or worker id is not in the committee&quot;</span>)
+            .expect(<span class="string">&quot;Our public key or worker id is not in the worker cache&quot;</span>)
             .primary_to_worker;
         <span class="kw">let </span>address = address
             .replace(<span class="number">0</span>, |_protocol| <span class="prelude-val">Some</span>(Protocol::Ip4(INADDR_ANY)))
@@ -752,6 +763,7 @@
             <span class="self">self</span>.name.clone(),
             <span class="self">self</span>.id,
             <span class="self">self</span>.committee.clone(),
+            <span class="self">self</span>.worker_cache.clone(),
             <span class="self">self</span>.store.clone(),
             <span class="self">self</span>.parameters.gc_depth,
             <span class="self">self</span>.parameters.sync_retry_delay,
@@ -790,10 +802,10 @@
 
         <span class="comment">// We first receive clients&#39; transactions from the network.
         </span><span class="kw">let </span>address = <span class="self">self
-            </span>.committee
+            </span>.worker_cache
             .load()
             .worker(<span class="kw-2">&amp;</span><span class="self">self</span>.name, <span class="kw-2">&amp;</span><span class="self">self</span>.id)
-            .expect(<span class="string">&quot;Our public key or worker id is not in the committee&quot;</span>)
+            .expect(<span class="string">&quot;Our public key or worker id is not in the worker cache&quot;</span>)
             .transactions;
         <span class="kw">let </span>address = address
             .replace(<span class="number">0</span>, |_protocol| <span class="prelude-val">Some</span>(Protocol::Ip4(INADDR_ANY)))
@@ -827,6 +839,7 @@
             <span class="self">self</span>.name.clone(),
             <span class="self">self</span>.id,
             (<span class="kw-2">*</span>(<span class="kw-2">*</span>(<span class="kw-2">*</span><span class="self">self</span>.committee).load()).clone()).clone(),
+            <span class="self">self</span>.worker_cache.clone(),
             tx_reconfigure.subscribe(),
             <span class="comment">/* rx_message */ </span>rx_quorum_waiter,
             <span class="comment">/* tx_batch */ </span>tx_client_processor,
@@ -874,10 +887,10 @@
 
         <span class="comment">// Receive incoming messages from other workers.
         </span><span class="kw">let </span>address = <span class="self">self
-            </span>.committee
+            </span>.worker_cache
             .load()
             .worker(<span class="kw-2">&amp;</span><span class="self">self</span>.name, <span class="kw-2">&amp;</span><span class="self">self</span>.id)
-            .expect(<span class="string">&quot;Our public key or worker id is not in the committee&quot;</span>)
+            .expect(<span class="string">&quot;Our public key or worker id is not in the worker cache&quot;</span>)
             .worker_to_worker;
         <span class="kw">let </span>address = address
             .replace(<span class="number">0</span>, |_protocol| <span class="prelude-val">Some</span>(Protocol::Ip4(INADDR_ANY)))
@@ -901,6 +914,7 @@
         <span class="kw">let </span>helper_handle = Helper::spawn(
             <span class="self">self</span>.id,
             (<span class="kw-2">*</span>(<span class="kw-2">*</span>(<span class="kw-2">*</span><span class="self">self</span>.committee).load()).clone()).clone(),
+            <span class="self">self</span>.worker_cache.clone(),
             <span class="self">self</span>.store.clone(),
             tx_reconfigure.subscribe(),
             <span class="comment">/* rx_worker_request */ </span>rx_worker_helper,
@@ -1173,4 +1187,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (060e47f74 2022-08-23)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>

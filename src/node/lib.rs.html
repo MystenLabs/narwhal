@@ -349,28 +349,19 @@
 <span id="349">349</span>
 <span id="350">350</span>
 <span id="351">351</span>
-<span id="352">352</span>
-<span id="353">353</span>
-<span id="354">354</span>
-<span id="355">355</span>
-<span id="356">356</span>
-<span id="357">357</span>
-<span id="358">358</span>
-<span id="359">359</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-</span><span class="kw">use </span>config::{Parameters, SharedCommittee, WorkerId};
+</span><span class="kw">use </span>config::{Parameters, SharedCommittee, SharedWorkerCache, WorkerId};
 <span class="kw">use </span>consensus::{
     bullshark::Bullshark,
     dag::Dag,
     metrics::{ChannelMetrics, ConsensusMetrics},
     Consensus,
 };
-<span class="kw">use </span>crypto::{
-    traits::{KeyPair <span class="kw">as _</span>, VerifyingKey},
-    KeyPair, PublicKey,
-};
-<span class="kw">use </span>executor::{ExecutionState, Executor, ExecutorOutput, SerializedTransaction, SubscriberResult};
+<span class="kw">use </span>crypto::KeyPair;
+<span class="kw">use </span>crypto::PublicKey;
+<span class="kw">use </span>executor::{BatchExecutionState, Executor, SubscriberResult};
+<span class="kw">use </span>fastcrypto::traits::{KeyPair <span class="kw">as _</span>, VerifyingKey};
 <span class="kw">use </span>primary::{BlockCommand, NetworkModel, PayloadToken, Primary, PrimaryChannelMetrics};
 <span class="kw">use </span>prometheus::{IntGauge, Registry};
 <span class="kw">use </span>std::{fmt::Debug, sync::Arc};
@@ -379,10 +370,7 @@
     rocks::{open_cf, DBMap},
     Store,
 };
-<span class="kw">use </span>tokio::{
-    sync::{mpsc::Sender, watch},
-    task::JoinHandle,
-};
+<span class="kw">use </span>tokio::{sync::watch, task::JoinHandle};
 <span class="kw">use </span>tracing::debug;
 <span class="kw">use </span>types::{
     metered_channel, Batch, BatchDigest, Certificate, CertificateDigest, ConsensusStore, Header,
@@ -480,6 +468,8 @@
         </span>keypair: KeyPair,
         <span class="comment">// The committee information.
         </span>committee: SharedCommittee,
+        <span class="comment">// The worker information cache.
+        </span>worker_cache: SharedWorkerCache,
         <span class="comment">// The node&#39;s storage.
         </span>store: <span class="kw-2">&amp;</span>NodeStorage,
         <span class="comment">// The configuration parameters.
@@ -492,14 +482,11 @@
         </span>internal_consensus: bool,
         <span class="comment">// The state used by the client to execute transactions.
         </span>execution_state: Arc&lt;State&gt;,
-        <span class="comment">// A channel to output transactions execution confirmations.
-        </span>tx_confirmation: Sender&lt;ExecutorOutput&lt;State&gt;&gt;,
         <span class="comment">// A prometheus exporter Registry to use for the metrics
         </span>registry: <span class="kw-2">&amp;</span>Registry,
     ) -&gt; SubscriberResult&lt;Vec&lt;JoinHandle&lt;()&gt;&gt;&gt;
     <span class="kw">where
-        </span>State: ExecutionState + Send + Sync + <span class="lifetime">&#39;static</span>,
-        State::Outcome: Send + <span class="lifetime">&#39;static</span>,
+        </span>State: BatchExecutionState + Send + Sync + <span class="lifetime">&#39;static</span>,
         State::Error: Debug,
     {
         <span class="kw">let </span>initial_committee = ReconfigureNotification::NewEpoch((<span class="kw-2">**</span>committee.load()).clone());
@@ -552,7 +539,6 @@
                 <span class="kw-2">&amp;</span>tx_reconfigure,
                 rx_new_certificates,
                 tx_consensus.clone(),
-                tx_confirmation,
                 tx_get_block_commands.clone(),
                 registry,
             )
@@ -565,7 +551,7 @@
         // Put name of primary in heap profile to distinguish diff primaries
         </span><span class="attribute">#[cfg(feature = <span class="string">&quot;dhat-heap&quot;</span>)]
         </span><span class="kw">let </span>profiler = {
-            <span class="kw">use </span>crypto::traits::EncodeDecodeBase64;
+            <span class="kw">use </span>fastcrypto::traits::EncodeDecodeBase64;
             <span class="kw">use </span>std::path::Path;
 
             <span class="kw">let </span>heap_file = <span class="macro">format!</span>(<span class="string">&quot;dhat-heap-{}.json&quot;</span>, name.encode_base64());
@@ -581,6 +567,7 @@
             name.clone(),
             keypair,
             committee.clone(),
+            worker_cache.clone(),
             parameters.clone(),
             store.header_store.clone(),
             store.certificate_store.clone(),
@@ -626,17 +613,12 @@
         tx_reconfigure: <span class="kw-2">&amp;</span>watch::Sender&lt;ReconfigureNotification&gt;,
         rx_new_certificates: metered_channel::Receiver&lt;Certificate&gt;,
         tx_feedback: metered_channel::Sender&lt;Certificate&gt;,
-        tx_confirmation: Sender&lt;(
-            SubscriberResult&lt;&lt;State <span class="kw">as </span>ExecutionState&gt;::Outcome&gt;,
-            SerializedTransaction,
-        )&gt;,
         tx_get_block_commands: metered_channel::Sender&lt;BlockCommand&gt;,
         registry: <span class="kw-2">&amp;</span>Registry,
     ) -&gt; SubscriberResult&lt;Vec&lt;JoinHandle&lt;()&gt;&gt;&gt;
     <span class="kw">where
         </span>PublicKey: VerifyingKey,
-        State: ExecutionState + Send + Sync + <span class="lifetime">&#39;static</span>,
-        State::Outcome: Send + <span class="lifetime">&#39;static</span>,
+        State: BatchExecutionState + Send + Sync + <span class="lifetime">&#39;static</span>,
         State::Error: Debug,
     {
         <span class="kw">let </span>consensus_metrics = Arc::new(ConsensusMetrics::new(registry));
@@ -671,7 +653,6 @@
             execution_state,
             tx_reconfigure,
             <span class="comment">/* rx_consensus */ </span>rx_sequence,
-            <span class="comment">/* tx_output */ </span>tx_confirmation,
             tx_get_block_commands,
             registry,
         )
@@ -691,6 +672,8 @@
         </span>ids: Vec&lt;WorkerId&gt;,
         <span class="comment">// The committee information.
         </span>committee: SharedCommittee,
+        <span class="comment">// The worker information cache.
+        </span>worker_cache: SharedWorkerCache,
         <span class="comment">// The node&#39;s storage,
         </span>store: <span class="kw-2">&amp;</span>NodeStorage,
         <span class="comment">// The configuration parameters.
@@ -707,6 +690,7 @@
                 name.clone(),
                 id,
                 committee.clone(),
+                worker_cache.clone(),
                 parameters.clone(),
                 store.batch_store.clone(),
                 metrics.clone(),
@@ -717,4 +701,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="node" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (060e47f74 2022-08-23)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="node" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (addacb587 2022-08-24)" ></div></body></html>
