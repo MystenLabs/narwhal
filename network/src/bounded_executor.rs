@@ -198,11 +198,11 @@ impl InternalBoundedExecutor {
     /// TODO: this still spawns one task, unconditionally, per call.
     /// We would instead like to have one central task that drives all retries
     /// for the whole executor.
-    async fn with_retries<F, Fut>(
+    fn build_retry_task<F, Fut>(
         mut factory: F,
         backoff: Backoff,
         tx_scheduler: Arc<Sender<Job>>,
-    ) -> Result<(), RetryError>
+    ) -> impl Future<Output = Result<(), RetryError>>
     where
         F: FnMut() -> Fut + Send + 'static,
         Fut: Future<Output = Result<(), RetryError>> + Send + 'static,
@@ -211,10 +211,7 @@ impl InternalBoundedExecutor {
 
         let task = boxed_factory();
         let job = Job::new(boxed_factory, backoff, 0);
-
-        let retry_task =
-            task.then(|result| async move { retry_logic(result, job, tx_scheduler).await });
-        retry_task.await
+        task.then(|result| async move { retry_logic(result, job, tx_scheduler).await })
     }
 
     pub(crate) async fn spawn_with_retries<F, Fut>(
@@ -227,7 +224,7 @@ impl InternalBoundedExecutor {
         Fut: Future<Output = Result<(), RetryError>> + Send + 'static,
     {
         let retry_task =
-            InternalBoundedExecutor::with_retries(f, backoff, self.tx_retry_manager.clone());
+            InternalBoundedExecutor::build_retry_task(f, backoff, self.tx_retry_manager.clone());
         let permit = Self::acquire_permit(self.semaphore.clone()).await;
         self.spawn_with_permit(retry_task, permit)
     }
@@ -244,8 +241,11 @@ impl InternalBoundedExecutor {
         F: FnMut() -> Fut + Send + 'static,
         Fut: Future<Output = Result<(), RetryError>> + Send + 'static,
     {
-        let retry_task =
-            InternalBoundedExecutor::with_retries(factory, backoff, self.tx_retry_manager.clone());
+        let retry_task = InternalBoundedExecutor::build_retry_task(
+            factory,
+            backoff,
+            self.tx_retry_manager.clone(),
+        );
 
         match self.semaphore.clone().try_acquire_owned() {
             Ok(permit) => Ok(self.spawn_with_permit(retry_task, permit)),
