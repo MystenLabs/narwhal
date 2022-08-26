@@ -14,7 +14,7 @@ use fastcrypto::traits::{KeyPair as _, VerifyingKey};
 use primary::{BlockCommand, NetworkModel, PayloadToken, Primary, PrimaryChannelMetrics};
 use prometheus::{IntGauge, Registry};
 use std::{fmt::Debug, sync::Arc};
-use storage::{CertificateStore, CertificateToken};
+use storage::CertificateStore;
 use store::{
     reopen,
     rocks::{open_cf, DBMap},
@@ -47,6 +47,7 @@ impl NodeStorage {
     const HEADERS_CF: &'static str = "headers";
     const CERTIFICATES_CF: &'static str = "certificates";
     const CERTIFICATE_ID_BY_ROUND_CF: &'static str = "certificate_id_by_round";
+    const CERTIFICATE_ID_BY_ORIGIN_CF: &'static str = "certificate_id_by_origin";
     const PAYLOAD_CF: &'static str = "payload";
     const BATCHES_CF: &'static str = "batches";
     const LAST_COMMITTED_CF: &'static str = "last_committed";
@@ -62,6 +63,7 @@ impl NodeStorage {
                 Self::HEADERS_CF,
                 Self::CERTIFICATES_CF,
                 Self::CERTIFICATE_ID_BY_ROUND_CF,
+                Self::CERTIFICATE_ID_BY_ORIGIN_CF,
                 Self::PAYLOAD_CF,
                 Self::BATCHES_CF,
                 Self::LAST_COMMITTED_CF,
@@ -75,6 +77,7 @@ impl NodeStorage {
             header_map,
             certificate_map,
             certificate_id_by_round_map,
+            certificate_id_by_origin_map,
             payload_map,
             batch_map,
             last_committed_map,
@@ -83,7 +86,8 @@ impl NodeStorage {
         ) = reopen!(&rocksdb,
             Self::HEADERS_CF;<HeaderDigest, Header>,
             Self::CERTIFICATES_CF;<CertificateDigest, Certificate>,
-            Self::CERTIFICATE_ID_BY_ROUND_CF;<(Round, CertificateDigest), CertificateToken>,
+            Self::CERTIFICATE_ID_BY_ROUND_CF;<(Round, PublicKey), CertificateDigest>,
+            Self::CERTIFICATE_ID_BY_ORIGIN_CF;<(PublicKey, Round), CertificateDigest>,
             Self::PAYLOAD_CF;<(BatchDigest, WorkerId), PayloadToken>,
             Self::BATCHES_CF;<BatchDigest, SerializedBatchMessage>,
             Self::LAST_COMMITTED_CF;<PublicKey, Round>,
@@ -92,7 +96,11 @@ impl NodeStorage {
         );
 
         let header_store = Store::new(header_map);
-        let certificate_store = CertificateStore::new(certificate_map, certificate_id_by_round_map);
+        let certificate_store = CertificateStore::new(
+            certificate_map,
+            certificate_id_by_round_map,
+            certificate_id_by_origin_map,
+        );
         let payload_store = Store::new(payload_map);
         let batch_store = Store::new(batch_map);
         let consensus_store = Arc::new(ConsensusStore::new(last_committed_map, sequence_map));

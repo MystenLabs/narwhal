@@ -13,12 +13,6 @@ use tokio::sync::oneshot::Sender;
 use tracing::warn;
 use types::{Certificate, CertificateDigest, Round, StoreResult};
 
-/// A type alias used as the value part on the secondary index. Since on the
-/// index we don't really need to store any value, as all the necessary info
-/// are part of the key, we just used the minimum possible value we can
-/// store.
-pub type CertificateToken = u8;
-
 /// The main storage when we have to deal with certificates. It maintains
 /// two storages, one main which saves the certificates by their ids, and a
 /// secondary one which acts as an index to allow us fast retrieval based
@@ -229,17 +223,22 @@ impl CertificateStore {
         batch.write()
     }
 
-    pub fn between_rounds(&self, limit: (Round, Round)) -> StoreResult<Vec<Certificate>> {
+    pub fn from_origin(
+        &self,
+        origin: PublicKey,
+        limit: (Round, Round),
+    ) -> StoreResult<Vec<Certificate>> {
         // The key is basically a composite of the dictated round and
         // the possible smallest value of the public key / authority name (all byte values
         // should be zero).
-        let key = (limit.0, PublicKey::default());
+        let key = (origin, limit.0);
 
         let digests = self
-            .certificate_id_by_round
+            .certificate_id_by_origin
             .iter()
             .skip_to(&key)?
-            .map(|(_round, digest)| digest);
+            .take_while(|((_origin, r), _d)| r < &limit.1)
+            .map(|(_origin_key, digest)| digest);
 
         // Fetch all those certificates from main storage, return an error if any one is missing.
         self.certificates_by_id
@@ -353,7 +352,8 @@ impl CertificateStore {
 
 #[cfg(test)]
 mod test {
-    use crate::certificate_store::{CertificateStore, CertificateToken};
+    use crate::certificate_store::CertificateStore;
+    use crypto::PublicKey;
     use fastcrypto::Hash;
     use futures::future::join_all;
     use std::collections::{BTreeSet, HashSet};
@@ -383,7 +383,7 @@ mod test {
 
         let (certificate_map, certificate_id_by_round_map, certificate_id_by_origin_map) = reopen!(&rocksdb,
             CERTIFICATES_CF;<CertificateDigest, Certificate>,
-            CERTIFICATE_ID_BY_ROUND_CF;<(Round, PublicKey), CertificateDigest>
+            CERTIFICATE_ID_BY_ROUND_CF;<(Round, PublicKey), CertificateDigest>,
             CERTIFICATE_ID_BY_ORIGIN_CF;<(PublicKey, Round), CertificateDigest>
         );
 

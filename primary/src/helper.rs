@@ -4,7 +4,7 @@
 use crate::{primary::PrimaryMessage, PayloadToken};
 use config::{Committee, WorkerId};
 use crypto::PublicKey;
-use fastcrypto::traits::EncodeDecodeBase64;
+use fastcrypto::{traits::EncodeDecodeBase64, Hash};
 use network::{PrimaryNetwork, UnreliableNetwork};
 use storage::CertificateStore;
 use store::{Store, StoreError};
@@ -309,27 +309,13 @@ impl Helper {
             }
         };
 
-        let cert_map;
-        for r in limit.0..limit.1 {
-            if let Some(digest) = self
-                .certificate_store
-                .certificate_id_by_round
-                .get((r, author))?
-            {}
-        }
-
-        // let cert_map = self
-        //     .certificate_store
-        //     .certificate_id_by_round.
-        //     .iter(Some(Box::new(move |(_dig, cert)| {
-        //         cert.header.author == author
-        //             && limit.0 <= cert.header.round
-        //             && cert.header.round < limit.1
-        //     })))
-        //     .await;
-
         let message = PrimaryMessage::CertificatesRoundsResponse {
-            certificates: cert_map.into_iter().map(|(d, c)| (d, Some(c))).collect(),
+            certificates: self
+                .certificate_store
+                .from_origin(author, limit)?
+                .into_iter()
+                .map(|cert| (cert.digest(), Some(cert)))
+                .collect(),
             from: self.name.clone(),
         };
 

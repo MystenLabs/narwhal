@@ -3,6 +3,7 @@
 use crate::{common::create_db_stores, helper::Helper, primary::PrimaryMessage, PayloadToken};
 use bincode::Options;
 use config::WorkerId;
+use crypto::PublicKey;
 use fastcrypto::Hash;
 use itertools::Itertools;
 use network::PrimaryNetwork;
@@ -319,7 +320,7 @@ async fn test_process_payload_availability_when_failures() {
     let (certificate_map, certificate_id_by_round_map, certificate_id_by_origin_map, payload_map) = reopen!(&rocksdb,
         CERTIFICATES_CF;<CertificateDigest, Certificate>,
         CERTIFICATE_ID_BY_ROUND_CF;<(Round, PublicKey), CertificateDigest>,
-        CERTIFICATE_ID_BY_ORIGIN_CF;<(Round, PublicKey), CertificateDigest>,
+        CERTIFICATE_ID_BY_ORIGIN_CF;<(PublicKey, Round), CertificateDigest>,
         PAYLOAD_CF;<(BatchDigest, WorkerId), PayloadToken>);
 
     let certificate_store = CertificateStore::new(

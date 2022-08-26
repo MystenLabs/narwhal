@@ -95,7 +95,7 @@ pub struct DeleteBatchMessage {
 /// # use types::{Round, BatchDigest, Certificate, CertificateDigest, HeaderDigest, Header};
 /// # use prometheus::Registry;
 /// # use consensus::metrics::ConsensusMetrics;
-/// # use storage::{CertificateStore, CertificateToken};
+/// # use storage::{CertificateStore};
 ///
 /// #[tokio::main(flavor = "current_thread")]
 /// # async fn main() {
@@ -110,12 +110,13 @@ pub struct DeleteBatchMessage {
 ///     let rocksdb = rocks::open_cf(temp_dir, None, &[CERTIFICATES_CF, CERTIFICATE_ID_BY_ROUND_CF, HEADERS_CF, PAYLOAD_CF])
 ///         .expect("Failed creating database");
 ///
-///     let (certificate_map, certificate_id_by_round_map, headers_map, payload_map) = reopen!(&rocksdb,
+///     let (certificate_map, certificate_id_by_round_map, certificate_id_by_origin_map, headers_map, payload_map) = reopen!(&rocksdb,
 ///             CERTIFICATES_CF;<CertificateDigest, Certificate>,
-///             CERTIFICATE_ID_BY_ROUND_CF;<(Round, CertificateDigest), CertificateToken>,
+///             CERTIFICATE_ID_BY_ROUND_CF;<(Round, PublicKey), CertificateDigest>,
+///             CERTIFICATE_ID_BY_ORIGIN_CF;<(PublicKey, Round), CertificateDigest>,
 ///             HEADERS_CF;<HeaderDigest, Header>,
 ///             PAYLOAD_CF;<(BatchDigest, WorkerId), PayloadToken>);
-///     let certificate_store = CertificateStore::new(certificate_map, certificate_id_by_round_map);
+///     let certificate_store = CertificateStore::new(certificate_map, certificate_id_by_round_map, certificate_id_by_origin_map);
 ///     let headers_store = Store::new(headers_map);
 ///     let payload_store = Store::new(payload_map);
 ///
