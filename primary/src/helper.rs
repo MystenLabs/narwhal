@@ -313,14 +313,14 @@ impl Helper {
         for r in limit.0..limit.1 {
             if let Some(digest) = self
                 .certificate_store
-                .certificate_index_by_round
+                .certificate_id_by_round
                 .get((r, author))?
             {}
         }
 
         // let cert_map = self
         //     .certificate_store
-        //     .certificate_index_by_round.
+        //     .certificate_id_by_round.
         //     .iter(Some(Box::new(move |(_dig, cert)| {
         //         cert.header.author == author
         //             && limit.0 <= cert.header.round

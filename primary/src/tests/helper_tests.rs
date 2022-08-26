@@ -16,7 +16,7 @@ use store::{reopen, rocks, rocks::DBMap, Store};
 use test_utils::{
     certificate, fixture_batch_with_transactions, fixture_header_builder, keys,
     resolve_name_committee_and_worker_cache, temp_dir, PrimaryToPrimaryMockServer, CERTIFICATES_CF,
-    CERTIFICATE_ID_BY_ROUND_CF, PAYLOAD_CF,
+    CERTIFICATE_ID_BY_ORIGIN_CF, CERTIFICATE_ID_BY_ROUND_CF, PAYLOAD_CF,
 };
 use tokio::{sync::watch, time::timeout};
 use tracing_test::traced_test;
@@ -307,16 +307,26 @@ async fn test_process_payload_availability_when_failures() {
     let rocksdb = rocks::open_cf(
         temp_dir(),
         None,
-        &[CERTIFICATES_CF, CERTIFICATE_ID_BY_ROUND_CF, PAYLOAD_CF],
+        &[
+            CERTIFICATES_CF,
+            CERTIFICATE_ID_BY_ROUND_CF,
+            CERTIFICATE_ID_BY_ORIGIN_CF,
+            PAYLOAD_CF,
+        ],
     )
     .expect("Failed creating database");
 
-    let (certificate_map, certificate_id_by_round_map, payload_map) = reopen!(&rocksdb,
+    let (certificate_map, certificate_id_by_round_map, certificate_id_by_origin_map, payload_map) = reopen!(&rocksdb,
         CERTIFICATES_CF;<CertificateDigest, Certificate>,
-        CERTIFICATE_ID_BY_ROUND_CF;<(Round, CertificateDigest), u8>,
+        CERTIFICATE_ID_BY_ROUND_CF;<(Round, PublicKey), CertificateDigest>,
+        CERTIFICATE_ID_BY_ORIGIN_CF;<(Round, PublicKey), CertificateDigest>,
         PAYLOAD_CF;<(BatchDigest, WorkerId), PayloadToken>);
 
-    let certificate_store = CertificateStore::new(certificate_map, certificate_id_by_round_map);
+    let certificate_store = CertificateStore::new(
+        certificate_map,
+        certificate_id_by_round_map,
+        certificate_id_by_origin_map,
+    );
     let payload_store: Store<(types::BatchDigest, WorkerId), PayloadToken> =
         Store::new(payload_map);
 

@@ -37,6 +37,7 @@ pub mod cluster;
 pub const HEADERS_CF: &str = "headers";
 pub const CERTIFICATES_CF: &str = "certificates";
 pub const CERTIFICATE_ID_BY_ROUND_CF: &str = "certificate_id_by_round";
+pub const CERTIFICATE_ID_BY_ORIGIN_CF: &str = "certificate_id_by_origin";
 pub const PAYLOAD_CF: &str = "payload";
 
 pub fn temp_dir() -> std::path::PathBuf {
