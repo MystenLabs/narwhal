@@ -541,6 +541,16 @@ pub enum PrimaryMessage {
         from: PublicKey,
     },
 
+    CertificatesRoundsRequest {
+        limit: (Round, Round),
+        author: PublicKey,
+        requestor: PublicKey,
+    },
+    CertificatesRoundsResponse {
+        certificates: Vec<(CertificateDigest, Option<Certificate>)>,
+        from: PublicKey,
+    },
+
     PayloadAvailabilityRequest {
         certificate_ids: Vec<CertificateDigest>,
         requestor: PublicKey,

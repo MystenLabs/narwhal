@@ -1,5 +1,6 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
+use crypto::PublicKey;
 use dashmap::DashMap;
 use fastcrypto::Hash;
 use std::sync::Arc;
@@ -30,11 +31,10 @@ pub struct CertificateStore {
     /// Holds the certificates by their digest id
     certificates_by_id: DBMap<CertificateDigest, Certificate>,
     /// A secondary index that keeps the certificate digest ids
-    /// by the certificate rounds. That helps us to perform
-    /// range requests based on rounds. We avoid storing again the
-    /// certificate here to not waste space. To dereference we use
-    /// the certificates_by_id storage.
-    certificate_ids_by_round: DBMap<(Round, CertificateDigest), CertificateToken>,
+    /// by the certificate rounds. Certificate origin are used to produce unique keys.
+    /// This helps us to perform range requests based on rounds. We avoid storing again the
+    /// certificate here to not waste space. To dereference we use the certificates_by_id storage.
+    certificate_index_by_round: DBMap<(Round, PublicKey), CertificateDigest>,
     /// Senders to notify for a write that happened for
     /// the specified certificate digest id
     notify_on_write_subscribers: Arc<DashMap<CertificateDigest, VecDeque<Sender<Certificate>>>>,
@@ -43,11 +43,11 @@ pub struct CertificateStore {
 impl CertificateStore {
     pub fn new(
         certificates_by_id: DBMap<CertificateDigest, Certificate>,
-        certificate_ids_by_round: DBMap<(Round, CertificateDigest), CertificateToken>,
+        certificate_index_by_round: DBMap<(Round, PublicKey), CertificateDigest>,
     ) -> CertificateStore {
         Self {
             certificates_by_id,
-            certificate_ids_by_round,
+            certificate_index_by_round,
             notify_on_write_subscribers: Arc::new(DashMap::new()),
         }
     }
@@ -57,7 +57,6 @@ impl CertificateStore {
         let mut batch = self.certificates_by_id.batch();
 
         let id = certificate.digest();
-        let round = certificate.round();
 
         // write the certificate by its id
         batch = batch.insert_batch(
@@ -65,11 +64,11 @@ impl CertificateStore {
             iter::once((id, certificate.clone())),
         )?;
 
-        // write the certificate id by its round
-        let key = (round, id);
-        let value = 0;
-
-        batch = batch.insert_batch(&self.certificate_ids_by_round, iter::once((key, value)))?;
+        // Index the certificate id by its round.
+        batch = batch.insert_batch(
+            &self.certificate_index_by_round,
+            iter::once(((certificate.round(), certificate.origin()), id)),
+        )?;
 
         // execute the batch (atomically) and return the result
         let result = batch.write();
@@ -100,13 +99,16 @@ impl CertificateStore {
 
         // write the certificates id by their rounds
         let values = certificates.iter().map(|(digest, c)| {
-            let key = (c.round(), *digest);
-            let value = 0;
+            let key = (c.round(), c.origin());
+            let value = digest;
 
-            (key, value)
+            (
+                ((c.round(), c.origin()), digest),
+                ((c.origin(), c.round()), digest),
+            )
         });
 
-        batch = batch.insert_batch(&self.certificate_ids_by_round, values)?;
+        batch = batch.insert_batch(&self.certificate_index_by_round, values.map(f))?;
 
         // execute the batch (atomically) and return the result
         let result = batch.write();
@@ -170,17 +172,16 @@ impl CertificateStore {
             Some(cert) => cert,
             None => return Ok(()),
         };
-        let round = cert.round();
 
         let mut batch = self.certificates_by_id.batch();
 
         // write the certificate by its id
         batch = batch.delete_batch(&self.certificates_by_id, iter::once(id))?;
 
-        // write the certificate id by its round
-        let key = (round, id);
+        // write the certificate index by its round
+        let key = (cert.round(), cert.origin());
 
-        batch = batch.delete_batch(&self.certificate_ids_by_round, iter::once(key))?;
+        batch = batch.delete_batch(&self.certificate_index_by_round, iter::once(key))?;
 
         // execute the batch (atomically) and return the result
         batch.write()
@@ -190,10 +191,11 @@ impl CertificateStore {
     pub fn delete_all(&self, ids: impl IntoIterator<Item = CertificateDigest>) -> StoreResult<()> {
         // first read the certificates to get their rounds - we'll need in order
         // to delete the secondary index
-        let certs = self.read_all(ids)?;
+        let ids: Vec<CertificateDigest> = ids.into_iter().collect();
+        let certs = self.read_all(ids.clone())?;
         let keys_by_round = certs
             .into_iter()
-            .filter_map(|c| c.map(|cert| (cert.round(), cert.digest())))
+            .filter_map(|c| c.map(|cert| (cert.round(), cert.origin())))
             .collect::<Vec<_>>();
         if keys_by_round.is_empty() {
             return Ok(());
@@ -202,27 +204,53 @@ impl CertificateStore {
         let mut batch = self.certificates_by_id.batch();
 
         // delete the certificates from the secondary index
-        batch = batch.delete_batch(&self.certificate_ids_by_round, keys_by_round.clone())?;
+        batch = batch.delete_batch(&self.certificate_index_by_round, keys_by_round)?;
 
         // delete the certificates by its ids
-        let ids = keys_by_round.into_iter().map(|(_round, digest)| digest);
         batch = batch.delete_batch(&self.certificates_by_id, ids)?;
 
         // execute the batch (atomically) and return the result
         batch.write()
     }
 
+    pub fn between_rounds(&self, limit: (Round, Round)) -> StoreResult<Vec<Certificate>> {
+        // The key is basically a composite of the dictated round and
+        // the possible smallest value of the public key / authority name (all byte values
+        // should be zero).
+        let key = (limit.0, PublicKey::default());
+
+        let digests = self
+            .certificate_index_by_round
+            .iter()
+            .skip_to(&key)?
+            .map(|(_round, digest)| digest);
+
+        // Fetch all those certificates from main storage, return an error if any one is missing.
+        self.certificates_by_id
+            .multi_get(digests)?
+            .into_iter()
+            .map(|opt_cert| {
+                opt_cert.ok_or_else(|| {
+                    RocksDBError(format!(
+                        "Certificate with id {} not found, CertificateStore invariant violation",
+                        key.1
+                    ))
+                })
+            })
+            .collect()
+    }
+
     /// Retrieves all the certificates with round >= the provided round.
     /// The result is returned with certificates sorted in round asc order
     pub fn after_round(&self, round: Round) -> StoreResult<Vec<Certificate>> {
         // The key is basically a composite of the dictated round and
-        // the possible smallest value of the certificate digest (all byte values
+        // the possible smallest value of the public key / authority name (all byte values
         // should be zero).
-        let key = (round, CertificateDigest::default());
+        let key = (round, PublicKey::default());
 
         let digests = self
-            .certificate_ids_by_round
-            .keys()
+            .certificate_index_by_round
+            .iter()
             .skip_to(&key)?
             .map(|(_round, digest)| digest);
 
@@ -246,7 +274,7 @@ impl CertificateStore {
         // starting from the last element - hence the last round - move backwards until
         // we find certificates of different round.
         let certificates_reverse = self
-            .certificate_ids_by_round
+            .certificate_index_by_round
             .iter()
             .skip_to_last()
             .reverse();
@@ -254,8 +282,8 @@ impl CertificateStore {
         let mut round = 0;
         let mut certificates = Vec::new();
 
-        for (key, _value) in certificates_reverse {
-            let (certificate_round, certificate_id) = key;
+        for (key, digest) in certificates_reverse {
+            let (certificate_round, _certificate_origin) = key;
 
             // We treat zero as special value (round unset) in order to
             // capture the last certificate's round.
@@ -269,15 +297,12 @@ impl CertificateStore {
                 break;
             }
 
-            let certificate = self
-                .certificates_by_id
-                .get(&certificate_id)?
-                .ok_or_else(|| {
-                    RocksDBError(format!(
-                        "Certificate with id {} not found in main storage although it should",
-                        certificate_id
-                    ))
-                })?;
+            let certificate = self.certificates_by_id.get(&digest)?.ok_or_else(|| {
+                RocksDBError(format!(
+                    "Certificate with id {} not found in main storage although it should",
+                    digest
+                ))
+            })?;
 
             certificates.push(certificate);
         }
@@ -288,7 +313,7 @@ impl CertificateStore {
     /// Clears both the main storage of the certificates and the secondary index
     pub fn clear(&self) -> StoreResult<()> {
         self.certificates_by_id.clear()?;
-        self.certificate_ids_by_round.clear()
+        self.certificate_index_by_round.clear()
     }
 
     /// Checks whether the storage is empty. The main storage is
@@ -329,17 +354,21 @@ mod test {
 
     fn new_store(path: std::path::PathBuf) -> CertificateStore {
         const CERTIFICATES_CF: &str = "certificates";
-        const CERTIFICATE_IDS_BY_ROUND_CF: &str = "certificate_ids_by_round";
+        const CERTIFICATE_INDEX_BY_ROUND_CF: &str = "certificate_index_by_round";
 
-        let rocksdb = open_cf(path, None, &[CERTIFICATES_CF, CERTIFICATE_IDS_BY_ROUND_CF])
-            .expect("Cannot open database");
+        let rocksdb = open_cf(
+            path,
+            None,
+            &[CERTIFICATES_CF, CERTIFICATE_INDEX_BY_ROUND_CF],
+        )
+        .expect("Cannot open database");
 
-        let (certificate_map, certificate_ids_by_round_map) = reopen!(&rocksdb,
+        let (certificate_map, certificate_index_by_round_map) = reopen!(&rocksdb,
             CERTIFICATES_CF;<CertificateDigest, Certificate>,
-            CERTIFICATE_IDS_BY_ROUND_CF;<(Round,CertificateDigest), CertificateToken>
+            CERTIFICATE_INDEX_BY_ROUND_CF;<(Round,CertificateDigest), CertificateToken>
         );
 
-        CertificateStore::new(certificate_map, certificate_ids_by_round_map)
+        CertificateStore::new(certificate_map, certificate_index_by_round_map)
     }
 
     // helper method that creates certificates for the provided

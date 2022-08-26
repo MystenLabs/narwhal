@@ -66,6 +66,9 @@ impl MockBlockSynchronizerCore {
                                 respond_to.send(result).await.expect("Couldn't send message");
                             }
                         }
+                        Command::SynchronizeRounds { limit: _limit, author: _author } => {
+                            // TODO
+                        }
                         Command::SynchronizeBlockPayload { certificates, respond_to } => {
                             let block_ids = certificates.into_iter().map(|c|c.digest()).collect();
                             let (times, results) = self

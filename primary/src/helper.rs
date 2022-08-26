@@ -12,7 +12,8 @@ use thiserror::Error;
 use tokio::{sync::watch, task::JoinHandle};
 use tracing::{error, info, instrument};
 use types::{
-    metered_channel::Receiver, BatchDigest, Certificate, CertificateDigest, ReconfigureNotification,
+    metered_channel::Receiver, BatchDigest, Certificate, CertificateDigest,
+    ReconfigureNotification, Round,
 };
 
 #[cfg(test)]
@@ -99,6 +100,15 @@ impl Helper {
                     } => {
                         let _ = self
                             .process_certificates(certificate_ids, requestor, true)
+                            .await;
+                    }
+                    PrimaryMessage::CertificatesRoundsRequest {
+                        limit,
+                        author,
+                        requestor,
+                    } => {
+                        let _ = self
+                            .process_certificates_rounds(limit, author, requestor)
                             .await;
                     }
                     // A request that another primary sends us to ask whether we
@@ -275,6 +285,57 @@ impl Helper {
                     .await;
             }
         }
+
+        Ok(())
+    }
+
+    #[instrument(level = "debug", skip_all, err)]
+    async fn process_certificates_rounds(
+        &mut self,
+        limit: (Round, Round),
+        author: PublicKey,
+        requestor: PublicKey,
+    ) -> Result<(), HelperError> {
+        // verify the requested validator's name
+        self.committee
+            .primary(&author)
+            .map_err(|_| HelperError::UnknownAuthority(author.encode_base64()))?;
+
+        // get the requestor's address, for replying to.
+        let reply_address = match self.committee.primary(&requestor) {
+            Ok(x) => x.primary_to_primary,
+            Err(_) => {
+                return Err(HelperError::UnknownAuthority(requestor.encode_base64()));
+            }
+        };
+
+        let cert_map;
+        for r in limit.0..limit.1 {
+            if let Some(digest) = self
+                .certificate_store
+                .certificate_index_by_round
+                .get((r, author))?
+            {}
+        }
+
+        // let cert_map = self
+        //     .certificate_store
+        //     .certificate_index_by_round.
+        //     .iter(Some(Box::new(move |(_dig, cert)| {
+        //         cert.header.author == author
+        //             && limit.0 <= cert.header.round
+        //             && cert.header.round < limit.1
+        //     })))
+        //     .await;
+
+        let message = PrimaryMessage::CertificatesRoundsResponse {
+            certificates: cert_map.into_iter().map(|(d, c)| (d, Some(c))).collect(),
+            from: self.name.clone(),
+        };
+
+        self.primary_network
+            .unreliable_send(reply_address, &message)
+            .await;
 
         Ok(())
     }

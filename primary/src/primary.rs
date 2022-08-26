@@ -556,6 +556,14 @@ impl PrimaryToPrimary for PrimaryReceiverHandler {
                 })
                 .await
                 .map_err(|_| DagError::ShuttingDown),
+            PrimaryMessage::CertificatesRoundsResponse { certificates, from } => self
+                .tx_certificate_responses
+                .send(CertificatesResponse {
+                    certificates: certificates.to_vec(),
+                    from: from.clone(),
+                })
+                .await
+                .map_err(|_| DagError::ShuttingDown),
             PrimaryMessage::PayloadAvailabilityRequest { .. } => self
                 .tx_helper_requests
                 .send(message)

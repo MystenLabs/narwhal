@@ -37,7 +37,7 @@ use tokio::{
 use tracing::{debug, error, info, instrument, trace, warn};
 use types::{
     metered_channel, BatchDigest, Certificate, CertificateDigest, PrimaryWorkerMessage,
-    ReconfigureNotification,
+    ReconfigureNotification, Round,
 };
 
 #[cfg(test)]
@@ -78,6 +78,12 @@ pub enum Command {
     SynchronizeBlockHeaders {
         block_ids: Vec<CertificateDigest>,
         respond_to: ResultSender,
+    },
+    #[allow(dead_code)]
+    /// A request to synchronize and output the block headers between rounds for a validator.
+    SynchronizeRounds {
+        limit: (Round, Round),
+        author: PublicKey,
     },
     /// A request to synchronize the payload (batches) of the
     /// provided certificates. The certificates are needed in
@@ -262,6 +268,9 @@ impl BlockSynchronizer {
             tokio::select! {
                 Some(command) = self.rx_commands.recv() => {
                     match command {
+                        Command::SynchronizeRounds { limit, author } => {
+                            self.handle_synchronize_rounds_command(limit, author).await;
+                        },
                         Command::SynchronizeBlockHeaders { block_ids, respond_to } => {
                             let fut = self.handle_synchronize_block_headers_command(block_ids, respond_to).await;
                             if fut.is_some() {
@@ -508,6 +517,35 @@ impl BlockSynchronizer {
             )
             .boxed(),
         )
+    }
+
+    async fn handle_synchronize_rounds_command<'a>(
+        &mut self,
+        limit: (Round, Round),
+        author: PublicKey,
+    ) {
+        let message = PrimaryMessage::CertificatesRoundsRequest {
+            limit,
+            author: author.clone(),
+            requestor: self.name.clone(),
+        };
+
+        // broadcast the message to fetch  the certificates
+        let primaries = self.broadcast_batch_request(message).await;
+
+        let (_, receiver) = channel(primaries.as_slice().len());
+
+        // now create the future that will wait to gather the responses
+        Self::wait_for_certificates_rounds_responses(
+            limit,
+            author,
+            self.certificates_synchronize_timeout,
+            self.committee.clone(),
+            self.worker_cache.clone(),
+            primaries,
+            receiver,
+        )
+        .await;
     }
 
     /// This method queries the local storage to try and find certificates
@@ -790,6 +828,76 @@ impl BlockSynchronizer {
             }
         } else {
             warn!("Couldn't find a sender to channel the response. Will drop the message.");
+        }
+    }
+
+    async fn wait_for_certificates_rounds_responses(
+        limit: (Round, Round),
+        author: PublicKey,
+        fetch_certificates_timeout: Duration,
+        committee: Committee,
+        worker_cache: SharedWorkerCache,
+        primaries_sent_requests_to: Vec<PublicKey>,
+        mut receiver: Receiver<CertificatesResponse>,
+    ) -> State {
+        let total_expected_certificates = limit.1 - limit.0;
+        let mut num_of_responses: u32 = 0;
+        let num_of_requests_sent: u32 = primaries_sent_requests_to.len() as u32;
+
+        let timer = sleep(fetch_certificates_timeout);
+        tokio::pin!(timer);
+
+        let mut peers = Peers::<Certificate>::new(SmallRng::from_entropy());
+
+        loop {
+            tokio::select! {
+                Some(response) = receiver.recv() => {
+                    trace!("Received response: {:?}", &response);
+
+                    if peers.contains_peer(&response.from) {
+                        // skip , we already got an answer from this peer
+                        continue;
+                    }
+
+                    // check whether the peer is amongst the one we are expecting
+                    // response from.
+                    if !primaries_sent_requests_to.iter().any(|p|p.eq(&response.from)) {
+                        warn!("Not expected reply from this peer, will skip response");
+                        continue;
+                    }
+
+                    num_of_responses += 1;
+
+                    match response.validate_certificates(&committee, worker_cache.clone()) {
+                        Ok(certificates) => {
+                            // Ensure we got responses for the certificates we asked for.
+                            // Even if we have found one certificate that doesn't match
+                            // we reject the payload - it shouldn't happen.
+                            if certificates.iter().any(|c| c.header.author == author && limit.0 <= c.header.round && c.header.round < limit.1) {
+                                warn!("Will not process certificates, found at least one that we haven't asked for");
+                                continue;
+                            }
+
+                            // add them as a new peer
+                            peers.add_peer(response.from.clone(), certificates);
+
+                            // We have received all possible responses
+                            if (peers.unique_values().len() as u64 == total_expected_certificates &&
+                            Self::reached_response_ratio(num_of_responses, num_of_requests_sent))
+                            || num_of_responses == num_of_requests_sent
+                            {
+                                // TODO: set results into certificate_store?
+                            }
+                        },
+                        Err(err) => {
+                            warn!("Got invalid certificates from peer: {:?}", err);
+                        }
+                    }
+                },
+                () = &mut timer => {
+                    // TODO: set results into certificate_store?
+                }
+            }
         }
     }
 
