@@ -3,7 +3,9 @@ use arc_swap::ArcSwap;
 // SPDX-License-Identifier: Apache-2.0
 use config::{Parameters, WorkerId};
 use consensus::{dag::Dag, metrics::ConsensusMetrics};
-use crypto::{traits::KeyPair as _, Hash, KeyPair, PublicKey};
+use crypto::KeyPair;
+use crypto::PublicKey;
+use fastcrypto::{traits::KeyPair as _, Hash};
 use indexmap::IndexMap;
 use network::metrics::WorkerNetworkMetrics;
 use node::NodeStorage;
@@ -14,11 +16,12 @@ use std::{
     sync::Arc,
     time::Duration,
 };
+use storage::CertificateStore;
 use store::Store;
 use test_utils::{
-    certificate, committee, committee_from_keys, fixture_batch_with_transactions,
-    fixture_header_builder, keys, make_optimal_certificates, make_optimal_signed_certificates,
-    temp_dir,
+    certificate, committee, fixture_batch_with_transactions, fixture_header_builder, keys,
+    make_optimal_certificates, make_optimal_signed_certificates, pure_committee_from_keys,
+    shared_worker_cache_from_keys, temp_dir,
 };
 use tokio::sync::watch;
 use tonic::transport::Channel;
@@ -39,10 +42,12 @@ async fn test_get_collections() {
         batch_size: 200, // Two transactions.
         ..Parameters::default()
     };
-    let keypair = keys(None).pop().unwrap();
+    let mut k = keys(None);
+    let committee = pure_committee_from_keys(&k);
+    let worker_cache = shared_worker_cache_from_keys(&k);
+    let keypair = k.pop().unwrap();
     let name = keypair.public().clone();
     let signer = keypair;
-    let committee = committee(None);
 
     // Make the data store.
     let store = NodeStorage::reopen(temp_dir());
@@ -68,10 +73,7 @@ async fn test_get_collections() {
         collection_ids.push(block_id);
 
         // Write the certificate
-        store
-            .certificate_store
-            .write(certificate.digest(), certificate.clone())
-            .await;
+        store.certificate_store.write(certificate.clone()).unwrap();
 
         // Write the header
         store
@@ -104,6 +106,7 @@ async fn test_get_collections() {
         test_utils::test_new_certificates_channel!(CHANNEL_CAPACITY);
     let (tx_feedback, rx_feedback) =
         test_utils::test_committed_certificates_channel!(CHANNEL_CAPACITY);
+    let (tx_get_block_commands, rx_get_block_commands) = test_utils::test_get_block_commands!(1);
     let initial_committee = ReconfigureNotification::NewEpoch(committee.clone());
     let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
     let consensus_metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
@@ -112,6 +115,7 @@ async fn test_get_collections() {
         name.clone(),
         signer,
         Arc::new(ArcSwap::from_pointee(committee.clone())),
+        worker_cache.clone(),
         parameters.clone(),
         store.header_store.clone(),
         store.certificate_store.clone(),
@@ -119,6 +123,8 @@ async fn test_get_collections() {
         /* tx_consensus */ tx_new_certificates,
         /* rx_consensus */ rx_feedback,
         /* dag */
+        tx_get_block_commands,
+        rx_get_block_commands,
         Some(Arc::new(
             Dag::new(&committee, rx_new_certificates, consensus_metrics).1,
         )),
@@ -141,6 +147,7 @@ async fn test_get_collections() {
         name.clone(),
         worker_id,
         Arc::new(ArcSwap::from_pointee(committee.clone())),
+        worker_cache.clone(),
         parameters.clone(),
         store.batch_store.clone(),
         metrics,
@@ -225,10 +232,12 @@ async fn test_remove_collections() {
         batch_size: 200, // Two transactions.
         ..Parameters::default()
     };
-    let keypair = keys(None).pop().unwrap();
+    let mut k = keys(None);
+    let committee = pure_committee_from_keys(&k);
+    let worker_cache = shared_worker_cache_from_keys(&k);
+    let keypair = k.pop().unwrap();
     let name = keypair.public().clone();
     let signer = keypair;
-    let committee = committee(None);
 
     // Make the data store.
     let store = NodeStorage::reopen(temp_dir());
@@ -260,10 +269,7 @@ async fn test_remove_collections() {
         collection_ids.push(block_id);
 
         // Write the certificate
-        store
-            .certificate_store
-            .write(certificate.digest(), certificate.clone())
-            .await;
+        store.certificate_store.write(certificate.clone()).unwrap();
         dag.insert(certificate.clone()).await.unwrap();
 
         // Write the header
@@ -293,6 +299,7 @@ async fn test_remove_collections() {
 
     let (tx_feedback, rx_feedback) =
         test_utils::test_committed_certificates_channel!(CHANNEL_CAPACITY);
+    let (tx_get_block_commands, rx_get_block_commands) = test_utils::test_get_block_commands!(1);
     let initial_committee = ReconfigureNotification::NewEpoch(committee.clone());
     let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
 
@@ -300,12 +307,15 @@ async fn test_remove_collections() {
         name.clone(),
         signer,
         Arc::new(ArcSwap::from_pointee(committee.clone())),
+        worker_cache.clone(),
         parameters.clone(),
         store.header_store.clone(),
         store.certificate_store.clone(),
         store.payload_store.clone(),
         /* tx_consensus */ tx_new_certificates,
         /* rx_consensus */ rx_feedback,
+        tx_get_block_commands,
+        rx_get_block_commands,
         /* dag */ Some(dag.clone()),
         NetworkModel::Asynchronous,
         tx_reconfigure,
@@ -335,7 +345,6 @@ async fn test_remove_collections() {
         store
             .certificate_store
             .read(block_to_be_removed)
-            .await
             .unwrap()
             .is_some(),
         "Certificate should still exist"
@@ -354,6 +363,7 @@ async fn test_remove_collections() {
         name.clone(),
         worker_id,
         Arc::new(ArcSwap::from_pointee(committee.clone())),
+        worker_cache.clone(),
         parameters.clone(),
         store.batch_store.clone(),
         metrics,
@@ -383,7 +393,6 @@ async fn test_remove_collections() {
         store
             .certificate_store
             .read(block_to_be_removed)
-            .await
             .unwrap()
             .is_none(),
         "Certificate shouldn't exist"
@@ -403,7 +412,6 @@ async fn test_remove_collections() {
         store
             .certificate_store
             .read_all(collection_ids.clone())
-            .await
             .unwrap()
             .iter()
             .filter(|c| c.is_some())
@@ -427,7 +435,8 @@ async fn test_remove_collections() {
 async fn test_read_causal_signed_certificates() {
     let mut k = keys(None);
 
-    let committee = committee_from_keys(&k);
+    let committee = pure_committee_from_keys(&k);
+    let worker_cache = shared_worker_cache_from_keys(&k);
 
     // Make the data store.
     let primary_store_1 = NodeStorage::reopen(temp_dir());
@@ -447,13 +456,11 @@ async fn test_read_causal_signed_certificates() {
     // Write genesis certs to primary 1 & 2
     primary_store_1
         .certificate_store
-        .write_all(genesis_certs.clone().into_iter().map(|c| (c.digest(), c)))
-        .await
+        .write_all(genesis_certs.clone())
         .unwrap();
     primary_store_2
         .certificate_store
-        .write_all(genesis_certs.clone().into_iter().map(|c| (c.digest(), c)))
-        .await
+        .write_all(genesis_certs.clone())
         .unwrap();
 
     let genesis = genesis_certs
@@ -478,22 +485,14 @@ async fn test_read_causal_signed_certificates() {
     // Write the certificates to Primary 1 but intentionally miss one certificate.
     primary_store_1
         .certificate_store
-        .write_all(
-            certificates
-                .clone()
-                .into_iter()
-                .skip(1)
-                .map(|c| (c.digest(), c)),
-        )
-        .await
+        .write_all(certificates.clone().into_iter().skip(1))
         .unwrap();
 
     // Write all certificates to Primary 2, so Primary 1 has a place to retrieve
     // missing certificate from.
     primary_store_2
         .certificate_store
-        .write_all(certificates.clone().into_iter().map(|c| (c.digest(), c)))
-        .await
+        .write_all(certificates.clone())
         .unwrap();
 
     let (tx_feedback, rx_feedback) =
@@ -509,17 +508,23 @@ async fn test_read_causal_signed_certificates() {
     let keypair_1 = k.pop().unwrap();
     let name_1 = keypair_1.public().clone();
 
+    let (tx_get_block_commands_1, rx_get_block_commands_1) =
+        test_utils::test_get_block_commands!(1);
+
     // Spawn Primary 1 that we will be interacting with.
     Primary::spawn(
         name_1.clone(),
         keypair_1,
         Arc::new(ArcSwap::from_pointee(committee.clone())),
+        worker_cache.clone(),
         primary_1_parameters.clone(),
         primary_store_1.header_store.clone(),
         primary_store_1.certificate_store.clone(),
         primary_store_1.payload_store.clone(),
         /* tx_consensus */ tx_new_certificates,
         /* rx_consensus */ rx_feedback,
+        tx_get_block_commands_1,
+        rx_get_block_commands_1,
         /* dag */ Some(dag.clone()),
         NetworkModel::Asynchronous,
         tx_reconfigure,
@@ -531,6 +536,8 @@ async fn test_read_causal_signed_certificates() {
         test_utils::test_new_certificates_channel!(CHANNEL_CAPACITY);
     let (tx_feedback_2, rx_feedback_2) =
         test_utils::test_committed_certificates_channel!(CHANNEL_CAPACITY);
+    let (tx_get_block_commands_2, rx_get_block_commands_2) =
+        test_utils::test_get_block_commands!(1);
 
     let initial_committee = ReconfigureNotification::NewEpoch(committee.clone());
     let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
@@ -548,12 +555,15 @@ async fn test_read_causal_signed_certificates() {
         name_2.clone(),
         keypair_2,
         Arc::new(ArcSwap::from_pointee(committee.clone())),
+        worker_cache.clone(),
         primary_2_parameters.clone(),
         primary_store_2.header_store,
         primary_store_2.certificate_store,
         primary_store_2.payload_store,
         /* tx_consensus */ tx_new_certificates_2,
         /* rx_consensus */ rx_feedback_2,
+        tx_get_block_commands_2,
+        rx_get_block_commands_2,
         /* external_consensus */
         Some(Arc::new(
             Dag::new(&committee, rx_new_certificates_2, consensus_metrics_2).1,
@@ -615,7 +625,8 @@ async fn test_read_causal_signed_certificates() {
 #[tokio::test]
 async fn test_read_causal_unsigned_certificates() {
     let mut k = keys(None);
-    let committee = committee(None);
+    let committee = pure_committee_from_keys(&k);
+    let worker_cache = shared_worker_cache_from_keys(&k);
 
     let primary_1_parameters = Parameters {
         batch_size: 200, // Two transactions.
@@ -640,6 +651,8 @@ async fn test_read_causal_unsigned_certificates() {
     // Make the Dag
     let (tx_new_certificates, rx_new_certificates) =
         test_utils::test_new_certificates_channel!(CHANNEL_CAPACITY);
+    let (tx_get_block_commands_1, rx_get_block_commands_1) =
+        test_utils::test_get_block_commands!(1);
     let consensus_metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
     let dag = Arc::new(Dag::new(&committee, rx_new_certificates, consensus_metrics).1);
 
@@ -649,13 +662,11 @@ async fn test_read_causal_unsigned_certificates() {
     // Write genesis certs to primary 1 & 2
     primary_store_1
         .certificate_store
-        .write_all(genesis_certs.clone().into_iter().map(|c| (c.digest(), c)))
-        .await
+        .write_all(genesis_certs.clone())
         .unwrap();
     primary_store_2
         .certificate_store
-        .write_all(genesis_certs.clone().into_iter().map(|c| (c.digest(), c)))
-        .await
+        .write_all(genesis_certs.clone())
         .unwrap();
 
     let genesis = genesis_certs
@@ -688,22 +699,14 @@ async fn test_read_causal_unsigned_certificates() {
     // Write the certificates to Primary 1 but intentionally miss one certificate.
     primary_store_1
         .certificate_store
-        .write_all(
-            certificates
-                .clone()
-                .into_iter()
-                .skip(1)
-                .map(|c| (c.digest(), c)),
-        )
-        .await
+        .write_all(certificates.clone().into_iter().skip(1))
         .unwrap();
 
     // Write all certificates to Primary 2, so Primary 1 has a place to retrieve
     // missing certificate from.
     primary_store_2
         .certificate_store
-        .write_all(certificates.clone().into_iter().map(|c| (c.digest(), c)))
-        .await
+        .write_all(certificates.clone())
         .unwrap();
 
     let (tx_feedback, rx_feedback) =
@@ -717,12 +720,15 @@ async fn test_read_causal_unsigned_certificates() {
         name_1.clone(),
         keypair_1,
         Arc::new(ArcSwap::from_pointee(committee.clone())),
+        worker_cache.clone(),
         primary_1_parameters.clone(),
         primary_store_1.header_store.clone(),
         primary_store_1.certificate_store.clone(),
         primary_store_1.payload_store.clone(),
         /* tx_consensus */ tx_new_certificates,
         /* rx_consensus */ rx_feedback,
+        tx_get_block_commands_1,
+        rx_get_block_commands_1,
         /* dag */ Some(dag.clone()),
         NetworkModel::Asynchronous,
         tx_reconfigure,
@@ -734,6 +740,9 @@ async fn test_read_causal_unsigned_certificates() {
         test_utils::test_new_certificates_channel!(CHANNEL_CAPACITY);
     let (tx_feedback_2, rx_feedback_2) =
         test_utils::test_committed_certificates_channel!(CHANNEL_CAPACITY);
+    let (tx_get_block_commands_2, rx_get_block_commands_2) =
+        test_utils::test_get_block_commands!(1);
+
     let initial_committee = ReconfigureNotification::NewEpoch(committee.clone());
     let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
     let consensus_metrics_2 = Arc::new(ConsensusMetrics::new(&Registry::new()));
@@ -743,12 +752,15 @@ async fn test_read_causal_unsigned_certificates() {
         name_2.clone(),
         keypair_2,
         Arc::new(ArcSwap::from_pointee(committee.clone())),
+        worker_cache.clone(),
         primary_2_parameters.clone(),
         primary_store_2.header_store,
         primary_store_2.certificate_store,
         primary_store_2.payload_store,
         /* tx_consensus */ tx_new_certificates_2,
         /* rx_consensus */ rx_feedback_2,
+        tx_get_block_commands_2,
+        rx_get_block_commands_2,
         /* external_consensus */
         Some(Arc::new(
             Dag::new(&committee, rx_new_certificates_2, consensus_metrics_2).1,
@@ -826,11 +838,12 @@ async fn test_read_causal_unsigned_certificates() {
 async fn test_get_collections_with_missing_certificates() {
     // GIVEN keys for two primary nodes
     let mut k = keys(None);
+    let committee = pure_committee_from_keys(&k);
+    let worker_cache = shared_worker_cache_from_keys(&k);
 
     let keypair_1 = k.pop().unwrap();
     let keypair_2 = k.pop().unwrap();
 
-    let committee = committee(None);
     let parameters = Parameters {
         batch_size: 200, // Two transactions.
         ..Parameters::default()
@@ -877,6 +890,8 @@ async fn test_get_collections_with_missing_certificates() {
         test_utils::test_new_certificates_channel!(CHANNEL_CAPACITY);
     let (tx_feedback_1, rx_feedback_1) =
         test_utils::test_committed_certificates_channel!(CHANNEL_CAPACITY);
+    let (tx_get_block_commands_1, rx_get_block_commands_1) =
+        test_utils::test_get_block_commands!(1);
     let initial_committee = ReconfigureNotification::NewEpoch(committee.clone());
     let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
     let consensus_metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
@@ -885,6 +900,7 @@ async fn test_get_collections_with_missing_certificates() {
         name_1.clone(),
         keypair_1,
         Arc::new(ArcSwap::from_pointee(committee.clone())),
+        worker_cache.clone(),
         parameters.clone(),
         store_primary_1.header_store,
         store_primary_1.certificate_store,
@@ -892,6 +908,8 @@ async fn test_get_collections_with_missing_certificates() {
         /* tx_consensus */ tx_new_certificates_1,
         /* rx_consensus */ rx_feedback_1,
         /* external_consensus */
+        tx_get_block_commands_1,
+        rx_get_block_commands_1,
         Some(Arc::new(
             Dag::new(&committee, rx_new_certificates_1, consensus_metrics).1,
         )),
@@ -914,6 +932,7 @@ async fn test_get_collections_with_missing_certificates() {
         name_1,
         worker_id,
         Arc::new(ArcSwap::from_pointee(committee.clone())),
+        worker_cache.clone(),
         parameters.clone(),
         store_primary_1.batch_store,
         metrics_1,
@@ -923,6 +942,9 @@ async fn test_get_collections_with_missing_certificates() {
     let (tx_new_certificates_2, _) = test_utils::test_new_certificates_channel!(CHANNEL_CAPACITY);
     let (tx_feedback_2, rx_feedback_2) =
         test_utils::test_committed_certificates_channel!(CHANNEL_CAPACITY);
+    let (tx_get_block_commands_2, rx_get_block_commands_2) =
+        test_utils::test_get_block_commands!(1);
+
     let initial_committee = ReconfigureNotification::NewEpoch(committee.clone());
     let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
 
@@ -930,12 +952,15 @@ async fn test_get_collections_with_missing_certificates() {
         name_2.clone(),
         keypair_2,
         Arc::new(ArcSwap::from_pointee(committee.clone())),
+        worker_cache.clone(),
         parameters.clone(),
         store_primary_2.header_store,
         store_primary_2.certificate_store,
         store_primary_2.payload_store,
         /* tx_consensus */ tx_new_certificates_2,
         /* rx_consensus */ rx_feedback_2,
+        tx_get_block_commands_2,
+        rx_get_block_commands_2,
         /* external_consensus */
         None,
         NetworkModel::Asynchronous,
@@ -957,6 +982,7 @@ async fn test_get_collections_with_missing_certificates() {
         name_2,
         worker_id,
         Arc::new(ArcSwap::from_pointee(committee.clone())),
+        worker_cache.clone(),
         parameters.clone(),
         store_primary_2.batch_store,
         metrics_2,
@@ -1020,7 +1046,7 @@ async fn test_get_collections_with_missing_certificates() {
 async fn fixture_certificate(
     key: &KeyPair,
     header_store: Store<HeaderDigest, Header>,
-    certificate_store: Store<CertificateDigest, Certificate>,
+    certificate_store: CertificateStore,
     payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,
     batch_store: Store<BatchDigest, SerializedBatchMessage>,
 ) -> (Certificate, Batch) {
@@ -1052,9 +1078,7 @@ async fn fixture_certificate(
     let certificate = certificate(&header);
 
     // Write the certificate
-    certificate_store
-        .write(certificate.digest(), certificate.clone())
-        .await;
+    certificate_store.write(certificate.clone()).unwrap();
 
     // Write the header
     header_store.write(header.clone().id, header.clone()).await;

@@ -5,12 +5,9 @@ use crate::{
     metrics::PrimaryMetrics,
     primary::{PayloadToken, PrimaryMessage, PrimaryWorkerMessage},
 };
-use config::{Committee, WorkerId};
+use config::{Committee, SharedWorkerCache, WorkerId};
 use crypto::PublicKey;
-use futures::{
-    future::{try_join_all, BoxFuture},
-    stream::{futures_unordered::FuturesUnordered, StreamExt as _},
-};
+use futures::future::{try_join_all, BoxFuture};
 use network::{LuckyNetwork, PrimaryNetwork, PrimaryToWorkerNetwork, UnreliableNetwork};
 use serde::{de::DeserializeOwned, Serialize};
 use std::{
@@ -18,18 +15,20 @@ use std::{
     sync::Arc,
     time::{SystemTime, UNIX_EPOCH},
 };
+use storage::CertificateStore;
 use store::Store;
 use tokio::{
     sync::{oneshot, watch},
     task::JoinHandle,
     time::{sleep, Duration, Instant},
 };
-use tracing::{debug, error, info};
+use tracing::{debug, info};
 use types::{
+    bounded_future_queue::BoundedFuturesUnordered,
     error::{DagError, DagResult},
     metered_channel::{Receiver, Sender},
-    BatchDigest, Certificate, CertificateDigest, Header, HeaderDigest, ReconfigureNotification,
-    Round,
+    try_fut_and_permit, BatchDigest, CertificateDigest, Header, HeaderDigest,
+    ReconfigureNotification, Round,
 };
 
 #[cfg(test)]
@@ -53,8 +52,10 @@ pub struct HeaderWaiter {
     name: PublicKey,
     /// The committee information.
     committee: Committee,
+    /// The worker information cache.
+    worker_cache: SharedWorkerCache,
     /// The persistent storage for parent Certificates.
-    certificate_store: Store<CertificateDigest, Certificate>,
+    certificate_store: CertificateStore,
     /// The persistent storage for payload markers from workers.
     payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,
     /// A watch channel receiver to get consensus round updates.
@@ -90,11 +91,18 @@ pub struct HeaderWaiter {
 }
 
 impl HeaderWaiter {
+    /// Returns the max amount of pending certificates x pending parents messages we should expect. In the worst case of causal completion,
+    /// this can be `self.gc_depth` x `self.committee.len()` for each
+    pub fn max_pending_header_waiter_requests(&self) -> usize {
+        self.gc_depth as usize * self.committee.size() * 4
+    }
+
     #[must_use]
     pub fn spawn(
         name: PublicKey,
         committee: Committee,
-        certificate_store: Store<CertificateDigest, Certificate>,
+        worker_cache: SharedWorkerCache,
+        certificate_store: CertificateStore,
         payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,
         rx_consensus_round_updates: watch::Receiver<u64>,
         gc_depth: Round,
@@ -111,6 +119,7 @@ impl HeaderWaiter {
             Self {
                 name,
                 committee,
+                worker_cache,
                 certificate_store,
                 payload_store,
                 rx_consensus_round_updates,
@@ -130,20 +139,6 @@ impl HeaderWaiter {
             .run()
             .await;
         })
-    }
-
-    /// Update the committee and cleanup internal state.
-    fn change_epoch(&mut self, committee: Committee) {
-        self.primary_network
-            .cleanup(self.committee.network_diff(&committee));
-        self.worker_network
-            .cleanup(self.committee.network_diff(&committee));
-
-        self.committee = committee;
-
-        self.pending.clear();
-        self.batch_requests.clear();
-        self.parent_requests.clear();
     }
 
     /// Helper function. It waits for particular data to become available in the storage
@@ -167,9 +162,25 @@ impl HeaderWaiter {
         }
     }
 
+    async fn wait_for_parents(
+        missing: Vec<CertificateDigest>,
+        store: CertificateStore,
+        deliver: Header,
+        handler: oneshot::Receiver<()>,
+    ) -> DagResult<Option<Header>> {
+        let waiting: Vec<_> = missing.into_iter().map(|x| store.notify_read(x)).collect();
+        tokio::select! {
+            result = try_join_all(waiting) => {
+                result.map(|_| Some(deliver)).map_err(DagError::from)
+            }
+            _ = handler => Ok(None),
+        }
+    }
+
     /// Main loop listening to the `Synchronizer` messages.
     async fn run(&mut self) {
-        let mut waiting: FuturesUnordered<BoxFuture<'_, _>> = FuturesUnordered::new();
+        let mut waiting: BoundedFuturesUnordered<BoxFuture<'_, _>> =
+            BoundedFuturesUnordered::with_capacity(self.max_pending_header_waiter_requests());
 
         let timer = sleep(Duration::from_millis(TIMER_RESOLUTION));
         tokio::pin!(timer);
@@ -182,7 +193,7 @@ impl HeaderWaiter {
             let mut attempt_garbage_collection = false;
 
             tokio::select! {
-                Some(message) = self.rx_synchronizer.recv() => {
+                Some(message) = self.rx_synchronizer.recv(), if waiting.available_permits() > 0 => {
                     match message {
                         WaiterMessage::SyncBatches(missing, header) => {
                             debug!("Synching the payload of {header}");
@@ -204,7 +215,7 @@ impl HeaderWaiter {
                             self.pending.insert(header_id, (round, tx_cancel));
                             let fut = Self::waiter(wait_for, self.payload_store.clone(), header, rx_cancel);
                             // pointer-size allocation, bounded by the # of blocks (may eventually go away, see rust RFC #1909)
-                            waiting.push(Box::pin(fut));
+                            waiting.push(Box::pin(fut)).await;
 
                             // Ensure we didn't already send a sync request for these parents.
                             let mut requires_sync = HashMap::new();
@@ -215,9 +226,10 @@ impl HeaderWaiter {
                                 });
                             }
                             for (worker_id, digests) in requires_sync {
-                                let address = self.committee
+                                let address = self.worker_cache
+                                    .load()
                                     .worker(&self.name, &worker_id)
-                                    .expect("Author of valid header is not in the committee")
+                                    .expect("Author of valid header is not in the worker cache")
                                     .primary_to_worker;
 
                                 // TODO [issue #423]: This network transmission needs to be reliable: the worker may crash-recover.
@@ -242,9 +254,9 @@ impl HeaderWaiter {
                             let wait_for = missing.clone();
                             let (tx_cancel, rx_cancel) = oneshot::channel();
                             self.pending.insert(header_id, (round, tx_cancel));
-                            let fut = Self::waiter(wait_for, self.certificate_store.clone(), header, rx_cancel);
+                            let fut = Self::wait_for_parents(wait_for, self.certificate_store.clone(), header, rx_cancel);
                             // pointer-size allocation, bounded by the # of blocks (may eventually go away, see rust RFC #1909)
-                            waiting.push(Box::pin(fut));
+                            waiting.push(Box::pin(fut)).await;
 
                             // Ensure we didn't already sent a sync request for these parents.
                             // Optimistically send the sync request to the node that created the certificate.
@@ -272,27 +284,17 @@ impl HeaderWaiter {
                     }
                 },
 
-                Some(result) = waiting.next() => match result {
-                    Ok(Some(header)) => {
-                        let _ = self.pending.remove(&header.id);
-                        for x in header.payload.keys() {
-                            let _ = self.batch_requests.remove(x);
-                        }
-                        for x in &header.parents {
-                            let _ = self.parent_requests.remove(x);
-                        }
-                        if self.tx_core.send(header).await.is_err() {
-                           debug!("{}", DagError::ShuttingDown)
-                        }
-                    },
-                    Ok(None) => {
-                        // This request has been canceled.
-                    },
-                    Err(e) => {
-                        error!("{e}");
-                        panic!("Storage failure: killing node.");
+                // we poll the availability of a slot to send the result to the core simultaneously
+                (Some(result), permit) = try_fut_and_permit!(waiting.try_next(), self.tx_core) => if let Some(header) = result {
+                    let _ = self.pending.remove(&header.id);
+                    for x in header.payload.keys() {
+                        let _ = self.batch_requests.remove(x);
                     }
-                },
+                    for x in &header.parents {
+                        let _ = self.parent_requests.remove(x);
+                    }
+                    permit.send(header);
+                },  // This request has been canceled when result is None.
 
                 () = &mut timer => {
                     // We optimistically sent sync requests to a single node. If this timer triggers,
@@ -332,7 +334,15 @@ impl HeaderWaiter {
                     let message = self.rx_reconfigure.borrow().clone();
                     match message {
                         ReconfigureNotification::NewEpoch(new_committee) => {
-                            self.change_epoch(new_committee);
+                            // Update the committee and cleanup internal state.
+                            self.primary_network.cleanup(self.committee.network_diff(&new_committee));
+                            self.worker_network.cleanup(self.committee.network_diff(&new_committee));
+
+                            self.committee = new_committee;
+
+                            self.pending.clear();
+                            self.batch_requests.clear();
+                            self.parent_requests.clear();
                         },
                         ReconfigureNotification::UpdateCommittee(new_committee) => {
                             self.primary_network.cleanup(self.committee.network_diff(&new_committee));
@@ -394,6 +404,11 @@ impl HeaderWaiter {
                 .parent_requests_header_waiter
                 .with_label_values(&[&self.committee.epoch.to_string()])
                 .set(self.parent_requests.len() as i64);
+
+            self.metrics
+                .waiting_elements_header_waiter
+                .with_label_values(&[&self.committee.epoch.to_string()])
+                .set(waiting.len() as i64);
         }
     }
 }

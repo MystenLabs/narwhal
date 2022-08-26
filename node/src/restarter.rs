@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 use crate::{Node, NodeStorage};
 use arc_swap::ArcSwap;
-use config::{Committee, Parameters};
-use crypto::{traits::KeyPair as _, KeyPair};
-use executor::{ExecutionState, ExecutorOutput};
+use config::{Committee, Parameters, SharedWorkerCache};
+use crypto::KeyPair;
+use executor::BatchExecutionState;
+use fastcrypto::traits::KeyPair as _;
 use futures::future::join_all;
 use network::{PrimaryToWorkerNetwork, ReliableNetwork, UnreliableNetwork, WorkerToPrimaryNetwork};
 use prometheus::Registry;
 use std::{fmt::Debug, path::PathBuf, sync::Arc};
-use tokio::sync::mpsc::{Receiver, Sender};
+use tokio::sync::mpsc::Receiver;
 use types::{PrimaryWorkerMessage, ReconfigureNotification, WorkerPrimaryMessage};
 
 // Module to start a node (primary, workers and default consensus), keep it running, and restarting it
@@ -20,22 +21,21 @@ impl NodeRestarter {
     pub async fn watch<State>(
         keypair: KeyPair,
         committee: &Committee,
+        worker_cache: SharedWorkerCache,
         storage_base_path: PathBuf,
         execution_state: Arc<State>,
         parameters: Parameters,
         mut rx_reconfigure: Receiver<(KeyPair, Committee)>,
-        tx_output: Sender<ExecutorOutput<State>>,
         registry: &Registry,
     ) where
-        State: ExecutionState + Send + Sync + 'static,
-        State::Outcome: Send + 'static,
+        State: BatchExecutionState + Send + Sync + 'static,
         State::Error: Debug,
     {
         let mut keypair = keypair;
         let mut name = keypair.public().clone();
         let mut committee = committee.clone();
 
-        let mut task_managers = Vec::new();
+        let mut handles = Vec::new();
         let mut primary_network = WorkerToPrimaryNetwork::default();
         let mut worker_network = PrimaryToWorkerNetwork::default();
 
@@ -49,30 +49,31 @@ impl NodeRestarter {
             let store = NodeStorage::reopen(store_path);
 
             // Restart the relevant components.
-            let primary = Node::spawn_primary(
+            let primary_handles = Node::spawn_primary(
                 keypair,
                 Arc::new(ArcSwap::new(Arc::new(committee.clone()))),
+                worker_cache.clone(),
                 &store,
                 parameters.clone(),
                 /* consensus */ true,
                 execution_state.clone(),
-                tx_output.clone(),
                 registry,
             )
             .await
             .unwrap();
 
-            let workers = Node::spawn_workers(
+            let worker_handles = Node::spawn_workers(
                 name.clone(),
                 /* worker_ids */ vec![0],
                 Arc::new(ArcSwap::new(Arc::new(committee.clone()))),
+                worker_cache.clone(),
                 &store,
                 parameters.clone(),
                 registry,
             );
 
-            task_managers.push(primary);
-            task_managers.push(workers);
+            handles.extend(primary_handles);
+            handles.extend(worker_handles);
 
             // Wait for a committee change.
             let (new_keypair, new_committee) = match rx_reconfigure.recv().await {
@@ -89,9 +90,10 @@ impl NodeRestarter {
             let message = WorkerPrimaryMessage::Reconfigure(ReconfigureNotification::Shutdown);
             let primary_cancel_handle = primary_network.send(address, &message).await;
 
-            let addresses = committee
+            let addresses = worker_cache
+                .load()
                 .our_workers(&name)
-                .expect("Our key is not in the committee")
+                .expect("Our key is not in the worker cache")
                 .into_iter()
                 .map(|x| x.primary_to_worker)
                 .collect();
@@ -111,7 +113,7 @@ impl NodeRestarter {
             worker_network.cleanup(committee.network_diff(&new_committee));
 
             // Wait for the components to shut down.
-            join_all(task_managers.drain(..)).await;
+            join_all(handles.drain(..)).await;
             tracing::debug!("All tasks successfully exited");
 
             // Give it an extra second in case the last task to exit is a network server. The OS

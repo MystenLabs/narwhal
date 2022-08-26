@@ -8,23 +8,29 @@ use crate::{
     metrics::PrimaryMetrics,
     synchronizer::Synchronizer,
 };
-use crypto::{traits::KeyPair, Hash, SignatureService};
+use fastcrypto::{traits::KeyPair, Hash, SignatureService};
 use network::{PrimaryNetwork, PrimaryToWorkerNetwork};
 use prometheus::Registry;
 use std::{collections::BTreeSet, sync::Arc, time::Duration};
-use test_utils::{certificate, committee, fixture_headers_round, keys};
+use test_utils::{
+    certificate, fixture_headers_round, keys, pure_committee_from_keys,
+    shared_worker_cache_from_keys,
+};
 use tokio::sync::watch;
 use types::{Certificate, PrimaryMessage, ReconfigureNotification, Round};
 
 #[tokio::test]
 async fn process_certificate_missing_parents_in_reverse() {
-    let kp = keys(None).pop().unwrap();
+    let mut k = keys(None);
+    let committee = pure_committee_from_keys(&k);
+    let worker_cache = shared_worker_cache_from_keys(&k);
+    let kp = k.pop().unwrap();
     let name = kp.public().clone();
     let signature_service = SignatureService::new(kp);
 
     // kept empty
     let (_tx_reconfigure, rx_reconfigure) =
-        watch::channel(ReconfigureNotification::NewEpoch(committee(None)));
+        watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));
     // synchronizer to header waiter
     let (tx_sync_headers, rx_sync_headers) = test_utils::test_channel!(1);
     // synchronizer to certificate waiter
@@ -51,7 +57,7 @@ async fn process_certificate_missing_parents_in_reverse() {
     // Make a synchronizer for the core.
     let synchronizer = Synchronizer::new(
         name.clone(),
-        &committee(None),
+        &committee,
         certificates_store.clone(),
         payload_store.clone(),
         /* tx_header_waiter */ tx_sync_headers,
@@ -65,7 +71,8 @@ async fn process_certificate_missing_parents_in_reverse() {
     // Make a headerWaiter
     let _header_waiter_handle = HeaderWaiter::spawn(
         name.clone(),
-        committee(None),
+        committee.clone(),
+        worker_cache.clone(),
         certificates_store.clone(),
         payload_store.clone(),
         rx_consensus_round_updates.clone(),
@@ -82,7 +89,7 @@ async fn process_certificate_missing_parents_in_reverse() {
 
     // Make a certificate waiter
     let _certificate_waiter_handle = CertificateWaiter::spawn(
-        committee(None),
+        committee.clone(),
         certificates_store.clone(),
         rx_consensus_round_updates.clone(),
         gc_depth,
@@ -95,7 +102,8 @@ async fn process_certificate_missing_parents_in_reverse() {
     // Spawn the core.
     let _core_handle = Core::spawn(
         name.clone(),
-        committee(None),
+        committee.clone(),
+        worker_cache,
         header_store.clone(),
         certificates_store.clone(),
         synchronizer,
@@ -114,7 +122,7 @@ async fn process_certificate_missing_parents_in_reverse() {
     );
 
     // Generate headers in successive rounds
-    let mut current_round: Vec<_> = Certificate::genesis(&committee(None))
+    let mut current_round: Vec<_> = Certificate::genesis(&committee)
         .into_iter()
         .map(|cert| cert.header)
         .collect();
@@ -154,19 +162,22 @@ async fn process_certificate_missing_parents_in_reverse() {
     tokio::time::sleep(Duration::from_secs(2)).await;
     // Ensure all certificates are now stored
     for id in ids.into_iter().rev() {
-        assert!(certificates_store.read(id).await.unwrap().is_some());
+        assert!(certificates_store.read(id).unwrap().is_some());
     }
 }
 
 #[tokio::test]
 async fn process_certificate_check_gc_fires() {
-    let kp = keys(None).pop().unwrap();
+    let mut k = keys(None);
+    let committee = pure_committee_from_keys(&k);
+    let worker_cache = shared_worker_cache_from_keys(&k);
+    let kp = k.pop().unwrap();
     let name = kp.public().clone();
     let signature_service = SignatureService::new(kp);
 
     // kept empty
     let (_tx_reconfigure, rx_reconfigure) =
-        watch::channel(ReconfigureNotification::NewEpoch(committee(None)));
+        watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));
     // synchronizer to header waiter
     let (tx_sync_headers, rx_sync_headers) = test_utils::test_channel!(1);
     // synchronizer to certificate waiter
@@ -193,7 +204,7 @@ async fn process_certificate_check_gc_fires() {
     // Make a synchronizer for the core.
     let synchronizer = Synchronizer::new(
         name.clone(),
-        &committee(None),
+        &committee,
         certificates_store.clone(),
         payload_store.clone(),
         /* tx_header_waiter */ tx_sync_headers,
@@ -207,7 +218,8 @@ async fn process_certificate_check_gc_fires() {
     // Make a headerWaiter
     let _header_waiter_handle = HeaderWaiter::spawn(
         name.clone(),
-        committee(None),
+        committee.clone(),
+        worker_cache.clone(),
         certificates_store.clone(),
         payload_store.clone(),
         rx_consensus_round_updates.clone(),
@@ -223,8 +235,8 @@ async fn process_certificate_check_gc_fires() {
     );
 
     // Make a certificate waiter
-    let _certficate_waiter_handle = CertificateWaiter::spawn(
-        committee(None),
+    let _certificate_waiter_handle = CertificateWaiter::spawn(
+        committee.clone(),
         certificates_store.clone(),
         rx_consensus_round_updates.clone(),
         gc_depth,
@@ -237,7 +249,8 @@ async fn process_certificate_check_gc_fires() {
     // Spawn the core.
     let _core_handle = Core::spawn(
         name.clone(),
-        committee(None),
+        committee.clone(),
+        worker_cache.clone(),
         header_store.clone(),
         certificates_store.clone(),
         synchronizer,
@@ -256,7 +269,7 @@ async fn process_certificate_check_gc_fires() {
     );
 
     // Generate headers in successive rounds
-    let mut current_round: Vec<_> = Certificate::genesis(&committee(None))
+    let mut current_round: Vec<_> = Certificate::genesis(&committee)
         .into_iter()
         .map(|cert| cert.header)
         .collect();
@@ -290,7 +303,10 @@ async fn process_certificate_check_gc_fires() {
         .unwrap();
 
     // check the header is still not written (see also process_header_missing_parent)
-    assert!(certificates_store.read(id).await.unwrap().is_none());
+    assert!(certificates_store.read(id).unwrap().is_none());
+
+    // wait a little bit so we give the change to the message to get processed
+    tokio::time::sleep(Duration::from_millis(1_000)).await;
 
     // Move the round so that this pending certificate moves well past the GC bound
     tx_consensus_round_updates.send(60u64).unwrap();
@@ -299,5 +315,5 @@ async fn process_certificate_check_gc_fires() {
     tokio::time::sleep(Duration::from_millis(GC_RESOLUTION)).await;
 
     // check the header is written, as the cert has been delivered w/o antecedents
-    assert!(certificates_store.read(id).await.unwrap().is_some());
+    assert!(certificates_store.read(id).unwrap().is_some());
 }

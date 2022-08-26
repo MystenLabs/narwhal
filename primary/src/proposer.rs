@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: Apache-2.0
 use crate::{metrics::PrimaryMetrics, NetworkModel};
 use config::{Committee, Epoch, WorkerId};
-use crypto::{Digest, Hash as _, PublicKey, Signature, SignatureService};
+use crypto::PublicKey;
+use crypto::Signature;
+use fastcrypto::{Digest, Hash as _, SignatureService};
 use std::{cmp::Ordering, sync::Arc};
 use tokio::{
     sync::watch,
@@ -137,7 +139,7 @@ impl Proposer {
     // Main loop listening to incoming messages.
     /// Update the last leader certificate. This is only relevant in partial synchrony.
     fn update_leader(&mut self) -> bool {
-        let leader_name = self.committee.leader(self.round as usize);
+        let leader_name = self.committee.leader(self.round);
         self.last_leader = self
             .last_parents
             .iter()

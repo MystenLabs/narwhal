@@ -1,8 +1,9 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use blake2::digest::Update;
-use config::Committee;
-use crypto::{Digest, Hash, PublicKey};
+use config::{Committee, SharedWorkerCache};
+use crypto::PublicKey;
+use fastcrypto::{Digest, Hash};
 use std::fmt::{Display, Formatter};
 use thiserror::Error;
 use tracing::{error, warn};
@@ -11,12 +12,12 @@ use types::{Certificate, CertificateDigest};
 // RequestID helps us identify an incoming request and
 // all the consequent network requests associated with it.
 #[derive(Clone, Debug, Copy, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct RequestID(pub [u8; crypto::DIGEST_LEN]);
+pub struct RequestID(pub [u8; fastcrypto::DIGEST_LEN]);
 
 impl RequestID {
     // Create a request key (deterministically) from arbitrary data.
     pub fn new(data: &[u8]) -> Self {
-        RequestID(crypto::blake2b_256(|hasher| hasher.update(data)))
+        RequestID(fastcrypto::blake2b_256(|hasher| hasher.update(data)))
     }
 }
 
@@ -90,6 +91,7 @@ impl CertificatesResponse {
     pub fn validate_certificates(
         &self,
         committee: &Committee,
+        worker_cache: SharedWorkerCache,
     ) -> Result<Vec<Certificate>, CertificatesResponseError> {
         let peer_found_certs: Vec<Certificate> = self
             .certificates
@@ -110,7 +112,7 @@ impl CertificatesResponse {
             .clone()
             .into_iter()
             .filter(|c| {
-                if let Err(err) = c.verify(committee) {
+                if let Err(err) = c.verify(committee, worker_cache.clone()) {
                     error!(
                         "Certificate verification failed for id {} with error {:?}",
                         c.digest(),

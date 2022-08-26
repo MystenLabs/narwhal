@@ -4,8 +4,10 @@
 use crate::{header_waiter::WaiterMessage, primary::PayloadToken};
 use config::{Committee, WorkerId};
 use consensus::dag::Dag;
-use crypto::{Hash as _, PublicKey};
+use crypto::PublicKey;
+use fastcrypto::Hash as _;
 use std::{collections::HashMap, sync::Arc};
+use storage::CertificateStore;
 use store::Store;
 use types::{
     error::DagResult, metered_channel::Sender, BatchDigest, Certificate, CertificateDigest, Header,
@@ -21,7 +23,7 @@ pub struct Synchronizer {
     /// The public key of this primary.
     name: PublicKey,
     /// The persistent storage.
-    certificate_store: Store<CertificateDigest, Certificate>,
+    certificate_store: CertificateStore,
     payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,
     /// Send commands to the `HeaderWaiter`.
     tx_header_waiter: Sender<WaiterMessage>,
@@ -37,7 +39,7 @@ impl Synchronizer {
     pub fn new(
         name: PublicKey,
         committee: &Committee,
-        certificate_store: Store<CertificateDigest, Certificate>,
+        certificate_store: CertificateStore,
         payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,
         tx_header_waiter: Sender<WaiterMessage>,
         tx_certificate_waiter: Sender<Certificate>,
@@ -124,7 +126,7 @@ impl Synchronizer {
                 continue;
             }
 
-            match self.certificate_store.read(*digest).await? {
+            match self.certificate_store.read(*digest)? {
                 Some(certificate) => parents.push(certificate),
                 None => missing.push(*digest),
             };
@@ -171,6 +173,6 @@ impl Synchronizer {
         if let Some(dag) = &self.dag {
             return Ok(dag.has_ever_contained(digest).await);
         }
-        Ok(self.certificate_store.read(digest).await?.is_some())
+        Ok(self.certificate_store.read(digest)?.is_some())
     }
 }

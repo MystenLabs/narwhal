@@ -2,9 +2,9 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use super::*;
-use crypto::traits::KeyPair;
+use fastcrypto::traits::KeyPair;
 use prometheus::Registry;
-use test_utils::{committee, keys};
+use test_utils::{committee, keys, shared_worker_cache};
 
 #[tokio::test]
 async fn propose_empty() {
@@ -39,7 +39,9 @@ async fn propose_empty() {
     let header = rx_headers.recv().await.unwrap();
     assert_eq!(header.round, 1);
     assert!(header.payload.is_empty());
-    assert!(header.verify(&committee(None)).is_ok());
+    assert!(header
+        .verify(&committee(None), shared_worker_cache(None))
+        .is_ok());
 }
 
 #[tokio::test]
@@ -73,7 +75,9 @@ async fn propose_payload() {
     );
 
     // Send enough digests for the header payload.
-    let name_bytes: [u8; 32] = *name.0.as_bytes();
+    let mut name_bytes = [0u8; 32];
+    name_bytes.copy_from_slice(name.as_ref());
+
     let digest = BatchDigest(name_bytes);
     let worker_id = 0;
     tx_our_digests.send((digest, worker_id)).await.unwrap();
@@ -82,5 +86,7 @@ async fn propose_payload() {
     let header = rx_headers.recv().await.unwrap();
     assert_eq!(header.round, 1);
     assert_eq!(header.payload.get(&digest), Some(&worker_id));
-    assert!(header.verify(&committee(None)).is_ok());
+    assert!(header
+        .verify(&committee(None), shared_worker_cache(None))
+        .is_ok());
 }

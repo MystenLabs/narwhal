@@ -10,10 +10,12 @@
 
 use arc_swap::ArcSwap;
 use clap::{crate_name, crate_version, App, AppSettings, ArgMatches, SubCommand};
-use config::{Committee, Import, Parameters, WorkerId};
-use crypto::{generate_production_keypair, traits::KeyPair as _, KeyPair};
-use executor::{SerializedTransaction, SubscriberResult};
-use eyre::{eyre, Context};
+use config::{Committee, Import, Parameters, WorkerCache, WorkerId};
+use crypto::KeyPair;
+use executor::{SerializedTransaction, SingleExecutor, SubscriberResult};
+use eyre::Context;
+use fastcrypto::{generate_production_keypair, traits::KeyPair as _};
+use futures::future::join_all;
 use node::{
     execution_state::SimpleExecutionState,
     metrics::{primary_metrics_registry, start_prometheus_server, worker_metrics_registry},
@@ -47,6 +49,7 @@ async fn main() -> Result<(), eyre::Report> {
                 .about("Run a node")
                 .args_from_usage("--keys=<FILE> 'The file containing the node keys'")
                 .args_from_usage("--committee=<FILE> 'The file containing committee information'")
+                .args_from_usage("--workers=<FILE> 'The file containing worker information'")
                 .args_from_usage("--parameters=[FILE] 'The file containing the node parameters'")
                 .args_from_usage("--store=<PATH> 'The path where to create the data store'")
                 .subcommand(SubCommand::with_name("primary")
@@ -128,13 +131,17 @@ async fn main() -> Result<(), eyre::Report> {
 async fn run(matches: &ArgMatches<'_>) -> Result<(), eyre::Report> {
     let key_file = matches.value_of("keys").unwrap();
     let committee_file = matches.value_of("committee").unwrap();
+    let workers_file = matches.value_of("workers").unwrap();
     let parameters_file = matches.value_of("parameters");
     let store_path = matches.value_of("store").unwrap();
 
-    // Read the committee and node's keypair from file.
+    // Read the committee, workers and node's keypair from file.
     let keypair = KeyPair::import(key_file).context("Failed to load the node's keypair")?;
     let committee = Arc::new(ArcSwap::from_pointee(
         Committee::import(committee_file).context("Failed to load the committee information")?,
+    ));
+    let worker_cache = Arc::new(ArcSwap::from_pointee(
+        WorkerCache::import(workers_file).context("Failed to load the worker information")?,
     ));
 
     // Load default parameters if none are specified.
@@ -155,7 +162,7 @@ async fn run(matches: &ArgMatches<'_>) -> Result<(), eyre::Report> {
     let registry;
 
     // Check whether to run a primary, a worker, or an entire authority.
-    let task_manager = match matches.subcommand() {
+    let node_handles = match matches.subcommand() {
         // Spawn the primary and consensus core.
         ("primary", Some(sub_matches)) => {
             registry = primary_metrics_registry(keypair.public().clone());
@@ -163,11 +170,15 @@ async fn run(matches: &ArgMatches<'_>) -> Result<(), eyre::Report> {
             Node::spawn_primary(
                 keypair,
                 committee,
+                worker_cache,
                 &store,
                 parameters.clone(),
                 /* consensus */ !sub_matches.is_present("consensus-disabled"),
-                /* execution_state */ Arc::new(SimpleExecutionState::default()),
-                tx_transaction_confirmation,
+                /* execution_state */
+                SingleExecutor::new(
+                    Arc::new(SimpleExecutionState::default()),
+                    tx_transaction_confirmation,
+                ),
                 &registry,
             )
             .await?
@@ -188,6 +199,7 @@ async fn run(matches: &ArgMatches<'_>) -> Result<(), eyre::Report> {
                 keypair.public().clone(),
                 vec![id],
                 committee,
+                worker_cache,
                 &store,
                 parameters.clone(),
                 &registry,
@@ -208,12 +220,10 @@ async fn run(matches: &ArgMatches<'_>) -> Result<(), eyre::Report> {
     analyze(rx_transaction_confirmation).await;
 
     // Await on the completion handles of all the nodes we have launched
-    return task_manager.await.map_err(|err| match err {
-        task_group::RuntimeError::Panic { name: n, panic: p } => eyre!("{} paniced: {:?}", n, p),
-        task_group::RuntimeError::Application { name: n, error: e } => {
-            eyre!("{} error: {:?}", n, e)
-        }
-    });
+    join_all(node_handles).await;
+
+    // If this expression is reached, the program ends and all other tasks terminate.
+    Ok(())
 }
 
 /// Receives an ordered list of certificates and apply any application-specific logic.

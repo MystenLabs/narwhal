@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use crate::{common::create_db_stores, synchronizer::Synchronizer};
 use consensus::{dag::Dag, metrics::ConsensusMetrics};
-use crypto::{traits::KeyPair, Hash};
+use fastcrypto::{traits::KeyPair, Hash};
 use prometheus::Registry;
 use std::{collections::BTreeSet, sync::Arc};
 use test_utils::{committee, keys, make_optimal_signed_certificates};
@@ -96,9 +96,7 @@ async fn deliver_certificate_using_store() {
 
     // insert the certificates in the DAG
     for certificate in certificates.clone() {
-        certificates_store
-            .write(certificate.digest(), certificate)
-            .await;
+        certificates_store.write(certificate).unwrap();
     }
 
     // take the last one (top) and test for parents

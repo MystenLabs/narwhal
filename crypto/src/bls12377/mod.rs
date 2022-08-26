@@ -6,11 +6,6 @@ use std::{
     str::FromStr,
 };
 
-use crate::{
-    pubkey_bytes::PublicKeyBytes,
-    serde_helpers::keypair_decode_base64,
-    traits::{AggregateAuthenticator, EncodeDecodeBase64, ToFromBytes},
-};
 use ::ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use ark_bls12_377::{Fr, G1Affine, G1Projective, G2Affine, G2Projective};
 use ark_ec::{AffineCurve, ProjectiveCurve};
@@ -20,12 +15,19 @@ use ark_ff::{
 };
 use base64ct::{Base64, Encoding};
 use celo_bls::{hash_to_curve::try_and_increment, PublicKey};
+use eyre::eyre;
+use fastcrypto::{
+    pubkey_bytes::PublicKeyBytes,
+    serde_helpers::keypair_decode_base64,
+    traits::{AggregateAuthenticator, EncodeDecodeBase64, ToFromBytes},
+};
 use once_cell::sync::OnceCell;
 use serde::{de, Deserialize, Serialize};
 use serde_with::serde_as;
 use signature::{Signer, Verifier};
 
-use crate::traits::{Authenticator, KeyPair, SigningKey, VerifyingKey};
+use fastcrypto::traits::{Authenticator, KeyPair, SigningKey, VerifyingKey};
+use zeroize::Zeroize;
 
 mod ark_serialize;
 
@@ -39,7 +41,6 @@ pub const CELO_BLS_SIGNATURE_LENGTH: usize = 48;
 /// Define Structs
 ///
 
-#[readonly::make]
 #[derive(Debug, Clone)]
 pub struct BLS12377PublicKey {
     pub pubkey: celo_bls::PublicKey,
@@ -265,9 +266,18 @@ impl VerifyingKey for BLS12377PublicKey {
     type Sig = BLS12377Signature;
     const LENGTH: usize = CELO_BLS_PUBLIC_KEY_LENGTH;
 
-    fn verify_batch(msg: &[u8], pks: &[Self], sigs: &[Self::Sig]) -> Result<(), signature::Error> {
-        if pks.len() != sigs.len() {
-            return Err(signature::Error::new());
+    fn verify_batch_empty_fail(
+        msg: &[u8],
+        pks: &[Self],
+        sigs: &[Self::Sig],
+    ) -> Result<(), eyre::Report> {
+        if sigs.is_empty() {
+            return Err(eyre!("Critical Error! This behavious can signal something dangerous, and that someone may be trying to bypass signature verification through providing empty batches."));
+        }
+        if sigs.len() != pks.len() {
+            return Err(eyre!(
+                "Mismatch between number of signatures and public keys provided"
+            ));
         }
         let mut batch = celo_bls::bls::Batch::new(msg, &[]);
         pks.iter()
@@ -276,7 +286,7 @@ impl VerifyingKey for BLS12377PublicKey {
         let hash_to_g1 = &*celo_bls::hash_to_curve::try_and_increment::COMPOSITE_HASH_TO_G1;
         batch
             .verify(hash_to_g1)
-            .map_err(|_| signature::Error::new())
+            .map_err(|_| eyre!("Signature verification failed"))
     }
 }
 
@@ -379,7 +389,6 @@ impl KeyPair for BLS12377KeyPair {
     type PrivKey = BLS12377PrivateKey;
     type Sig = BLS12377Signature;
 
-    #[cfg(feature = "copy_key")]
     fn copy(&self) -> Self {
         BLS12377KeyPair {
             name: self.name.clone(),
@@ -392,7 +401,7 @@ impl KeyPair for BLS12377KeyPair {
     }
 
     fn private(self) -> Self::PrivKey {
-        self.secret
+        BLS12377PrivateKey::from_bytes(self.secret.as_ref()).unwrap()
     }
 
     fn generate<R: rand::CryptoRng + rand::RngCore>(rng: &mut R) -> Self {
@@ -536,18 +545,25 @@ impl AggregateAuthenticator for BLS12377AggregateSignature {
         Ok(())
     }
 
-    fn batch_verify(
-        signatures: &[Self],
-        pks: &[&[Self::PubKey]],
+    fn batch_verify<'a>(
+        signatures: &[&Self],
+        pks: Vec<impl Iterator<Item = &'a Self::PubKey>>,
         messages: &[&[u8]],
     ) -> Result<(), signature::Error> {
         if pks.len() != messages.len() || messages.len() != signatures.len() {
             return Err(signature::Error::new());
         }
+        let mut pk_iter = pks.into_iter();
         for i in 0..signatures.len() {
             let sig = signatures[i].sig.clone();
             let mut cache = celo_bls::PublicKeyCache::new();
-            let apk = cache.aggregate(pks[i].iter().map(|pk| pk.pubkey.clone()).collect());
+            let apk = cache.aggregate(
+                pk_iter
+                    .next()
+                    .unwrap()
+                    .map(|pk| pk.pubkey.clone())
+                    .collect(),
+            );
             apk.verify(
                 messages[i],
                 &[],
@@ -575,5 +591,34 @@ impl TryFrom<BLS12377PublicKeyBytes> for BLS12377PublicKey {
 impl From<&BLS12377PublicKey> for BLS12377PublicKeyBytes {
     fn from(pk: &BLS12377PublicKey) -> Self {
         BLS12377PublicKeyBytes::from_bytes(pk.as_ref()).unwrap()
+    }
+}
+
+impl zeroize::Zeroize for BLS12377PrivateKey {
+    fn zeroize(&mut self) {
+        // PrivateKey.zeroize here is not necessary here because the underlying implicitly zeroizes.
+        self.bytes.take().zeroize();
+    }
+}
+
+impl zeroize::ZeroizeOnDrop for BLS12377PrivateKey {}
+
+impl Drop for BLS12377PrivateKey {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
+
+impl zeroize::Zeroize for BLS12377KeyPair {
+    fn zeroize(&mut self) {
+        self.secret.zeroize()
+    }
+}
+
+impl zeroize::ZeroizeOnDrop for BLS12377KeyPair {}
+
+impl Drop for BLS12377KeyPair {
+    fn drop(&mut self) {
+        self.zeroize();
     }
 }

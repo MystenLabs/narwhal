@@ -6,12 +6,12 @@ use types::{PublicKeyProto, RoundsRequest};
 
 #[tokio::test]
 async fn basic_cluster_setup() {
-    let mut cluster = Cluster::new(None, None, true);
+    let mut cluster = Cluster::new(None, None, None, true);
 
     // start the cluster will all the possible nodes
     cluster.start(None, None, None).await;
 
-    // give some time for nodes to boostrap
+    // give some time for nodes to bootstrap
     tokio::time::sleep(Duration::from_secs(2)).await;
 
     // fetch all the running authorities
@@ -37,12 +37,12 @@ async fn basic_cluster_setup() {
 
 #[tokio::test]
 async fn cluster_setup_with_consensus_disabled() {
-    let mut cluster = Cluster::new(None, None, false);
+    let mut cluster = Cluster::new(None, None, None, false);
 
     // start the cluster will all the possible nodes
     cluster.start(Some(2), Some(1), None).await;
 
-    // give some time for nodes to boostrap
+    // give some time for nodes to bootstrap
     tokio::time::sleep(Duration::from_secs(2)).await;
 
     // connect to the gRPC address and send a simple request

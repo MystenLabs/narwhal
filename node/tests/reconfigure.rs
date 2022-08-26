@@ -2,10 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 use arc_swap::ArcSwap;
 use bytes::Bytes;
-use config::{Committee, Parameters};
+use config::{Committee, Parameters, SharedWorkerCache};
 use consensus::ConsensusOutput;
-use crypto::{traits::KeyPair as _, KeyPair, PublicKey};
-use executor::{ExecutionIndices, ExecutionState, ExecutionStateError};
+use crypto::KeyPair;
+use crypto::PublicKey;
+use executor::{
+    ExecutionIndices, ExecutionState, ExecutionStateError, SingleExecutionState, SingleExecutor,
+};
+use fastcrypto::traits::KeyPair as _;
 use futures::future::join_all;
 use network::{PrimaryToWorkerNetwork, ReliableNetwork, UnreliableNetwork, WorkerToPrimaryNetwork};
 use node::{restarter::NodeRestarter, Node, NodeStorage};
@@ -15,7 +19,7 @@ use std::{
     fmt::Debug,
     sync::{Arc, Mutex},
 };
-use test_utils::{committee, keys};
+use test_utils::{keys, resolve_name_committee_and_worker_cache};
 use tokio::{
     sync::mpsc::{channel, Receiver, Sender},
     time::{interval, sleep, Duration, MissedTickBehavior},
@@ -45,8 +49,18 @@ impl SimpleExecutionState {
 
 #[async_trait::async_trait]
 impl ExecutionState for SimpleExecutionState {
-    type Transaction = u64;
     type Error = SimpleExecutionError;
+
+    fn ask_consensus_write_lock(&self) -> bool {
+        true
+    }
+
+    fn release_consensus_write_lock(&self) {}
+}
+
+#[async_trait::async_trait]
+impl SingleExecutionState for SimpleExecutionState {
+    type Transaction = u64;
     type Outcome = u64;
 
     async fn handle_consensus_transaction(
@@ -83,19 +97,13 @@ impl ExecutionState for SimpleExecutionState {
         Ok(epoch)
     }
 
-    fn ask_consensus_write_lock(&self) -> bool {
-        true
-    }
-
-    fn release_consensus_write_lock(&self) {}
-
     async fn load_execution_indices(&self) -> Result<ExecutionIndices, Self::Error> {
         Ok(ExecutionIndices::default())
     }
 }
 
 /// A simple/dumb execution error.
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Clone, thiserror::Error)]
 pub enum SimpleExecutionError {
     #[error("Something went wrong in the authority")]
     ServerError,
@@ -114,10 +122,15 @@ impl ExecutionStateError for SimpleExecutionError {
     }
 }
 
-async fn run_client(name: PublicKey, committee: Committee, mut rx_reconfigure: Receiver<u64>) {
-    let target = committee
+async fn run_client(
+    name: PublicKey,
+    worker_cache: SharedWorkerCache,
+    mut rx_reconfigure: Receiver<u64>,
+) {
+    let target = worker_cache
+        .load()
         .worker(&name, /* id */ &0)
-        .expect("Our key or worker id is not in the committee")
+        .expect("Our key or worker id is not in the worker cache")
         .transactions;
     let config = mysten_network::config::Config::new();
     let channel = config.connect_lazy(&target).unwrap();
@@ -156,7 +169,7 @@ async fn run_client(name: PublicKey, committee: Committee, mut rx_reconfigure: R
 
 #[tokio::test]
 async fn restart() {
-    let committee = committee(None);
+    let (_, committee, worker_cache) = resolve_name_committee_and_worker_cache();
     let parameters = Parameters {
         batch_size: 200,
         header_size: 1,
@@ -178,17 +191,18 @@ async fn restart() {
         states.push(execution_state.clone());
 
         let committee = committee.clone();
+        let worker_cache = worker_cache.clone();
         let execution_state = execution_state.clone();
         let parameters = parameters.clone();
         tokio::spawn(async move {
             NodeRestarter::watch(
                 keypair,
                 &committee,
+                worker_cache,
                 /* base_store_path */ test_utils::temp_dir(),
-                execution_state,
+                SingleExecutor::new(execution_state, tx_output),
                 parameters,
                 rx_node_reconfigure,
-                tx_output,
                 &Registry::new(),
             )
             .await;
@@ -207,9 +221,9 @@ async fn restart() {
         tx_clients.push(tx_client_reconfigure);
 
         let name = keypair.public().clone();
-        let committee = committee.clone();
+        let worker_cache = worker_cache.clone();
         tokio::spawn(
-            async move { run_client(name, committee.clone(), rx_client_reconfigure).await },
+            async move { run_client(name, worker_cache.clone(), rx_client_reconfigure).await },
         );
     }
 
@@ -240,7 +254,7 @@ async fn restart() {
 
 #[tokio::test]
 async fn epoch_change() {
-    let committee = committee(None);
+    let (_, committee, worker_cache) = resolve_name_committee_and_worker_cache();
     let parameters = Parameters {
         batch_size: 200,
         header_size: 1,
@@ -266,6 +280,7 @@ async fn epoch_change() {
 
         // Start a task that will broadcast the committee change signal.
         let name_clone = name.clone();
+        let worker_cache_clone = worker_cache.clone();
         tokio::spawn(async move {
             let mut primary_network = WorkerToPrimaryNetwork::default();
             let mut worker_network = PrimaryToWorkerNetwork::default();
@@ -280,9 +295,10 @@ async fn epoch_change() {
                 ));
                 let primary_cancel_handle = primary_network.send(address, &message).await;
 
-                let addresses = committee
+                let addresses = worker_cache_clone
+                    .load()
                     .our_workers(&name_clone)
-                    .expect("Our key is not in the committee")
+                    .expect("Our key is not in the worker cache")
                     .into_iter()
                     .map(|x| x.primary_to_worker)
                     .collect();
@@ -299,14 +315,14 @@ async fn epoch_change() {
             }
         });
 
-        let _primary = Node::spawn_primary(
+        let _primary_handles = Node::spawn_primary(
             keypair,
             Arc::new(ArcSwap::new(Arc::new(committee.clone()))),
+            worker_cache.clone(),
             &store,
             parameters.clone(),
             /* consensus */ true,
-            execution_state.clone(),
-            tx_output,
+            SingleExecutor::new(execution_state.clone(), tx_output),
             &Registry::new(),
         )
         .await
@@ -316,6 +332,7 @@ async fn epoch_change() {
             name,
             /* worker_ids */ vec![0],
             Arc::new(ArcSwap::new(Arc::new(committee.clone()))),
+            worker_cache.clone(),
             &store,
             parameters.clone(),
             &Registry::new(),
@@ -334,9 +351,9 @@ async fn epoch_change() {
         tx_clients.push(tx_client_reconfigure);
 
         let name = keypair.public().clone();
-        let committee = committee.clone();
+        let worker_cache = worker_cache.clone();
         tokio::spawn(
-            async move { run_client(name, committee.clone(), rx_client_reconfigure).await },
+            async move { run_client(name, worker_cache.clone(), rx_client_reconfigure).await },
         );
     }
 

@@ -6,15 +6,18 @@ authors = ["Mysten Labs <build@mystenlabs.com>"]
 edition = "2021"
 
 [dependencies]
+match_opt = "0.1.2"
 multiaddr = "0.14.0"
-serde = { version = "1.0.142", features = ["derive"] }
-serde_json = "1.0.83"
+serde = { version = "1.0.144", features = ["derive"] }
+serde_json = "1.0.85"
 thiserror = "1.0.32"
 tracing = "0.1.36"
 arc-swap = { version = "1.5.1", features = ["serde"] }
 
+fastcrypto = { git = "https://github.com/MystenLabs/fastcrypto", rev = "c022a2ae23ca7cc2778293fd3b1db42e8cd02d3b" }
 crypto = { path = "../crypto" }
 workspace-hack = { version = "0.1", path = "../workspace-hack" }
+rand = "0.8.5"
 
 [dev-dependencies]
 insta = "1.17.2"

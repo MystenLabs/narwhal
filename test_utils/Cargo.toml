@@ -13,29 +13,29 @@ bincode = "1.3.3"
 blake2 = "0.9"
 bytes = "1.2.1"
 derive_builder = "0.11.2"
-futures = "0.3.21"
+futures = "0.3.23"
 indexmap = { version = "1.9.1", features = ["serde"] }
 itertools = "0.10.3"
 multiaddr = "0.14.0"
 prometheus = "0.13.1"
 rand = "0.8.5"
-serde = { version = "1.0.142", features = ["derive"] }
+serde = { version = "1.0.144", features = ["derive"] }
 tempfile = "3.3.0"
 thiserror = "1.0.32"
 tokio = { version = "1.20.1", features = ["sync", "rt", "macros"] }
 tokio-util = { version = "0.7.3", features = ["codec"] }
 tonic = "0.7.2"
 tracing = "0.1.36"
-task-group = "0.2.2"
 
 config = { path = "../config" }
-crypto = { path = "../crypto", features = ["copy_key"] }
+fastcrypto = { git = "https://github.com/MystenLabs/fastcrypto", rev = "c022a2ae23ca7cc2778293fd3b1db42e8cd02d3b", features = ["copy_key"] }
+crypto = { path = "../crypto" }
 executor = { path = "../executor" }
 node = { path = "../node" }
 primary = { path = "../primary" }
 types = { path = "../types" }
 worker = { path = "../worker" }
-mysten-network = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "f4aa523d3029bd6a23bead5f04c182f2cfa04c5e" }
+mysten-network = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "696fa25982acdc87ab64ec6a33cb111edc63a331" }
 
-store = { git = "https://github.com/mystenlabs/mysten-infra.git", package = "typed-store", rev = "f4aa523d3029bd6a23bead5f04c182f2cfa04c5e" }
+store = { git = "https://github.com/mystenlabs/mysten-infra.git", package = "typed-store", rev = "696fa25982acdc87ab64ec6a33cb111edc63a331" }
 workspace-hack = { version = "0.1", path = "../workspace-hack" }

@@ -7,18 +7,20 @@ use crate::{
 };
 use blake2::{digest::Update, VarBlake2b};
 use bytes::Bytes;
-use config::{Committee, Epoch, WorkerId, WorkerInfo};
-use crypto::{
-    traits::{EncodeDecodeBase64, Signer, VerifyingKey},
-    Digest, Hash, PublicKey, Signature, SignatureService, Verifier, DIGEST_LEN,
-};
+use config::{Committee, Epoch, SharedWorkerCache, WorkerId, WorkerInfo};
+use crypto::PublicKey;
+use crypto::Signature;
 use dag::node_dag::Affiliated;
 use derive_builder::Builder;
+use fastcrypto::{
+    traits::{EncodeDecodeBase64, Signer, VerifyingKey},
+    Digest, Hash, SignatureService, Verifier, DIGEST_LEN,
+};
 use indexmap::IndexMap;
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::{BTreeSet, HashMap, HashSet},
+    collections::{BTreeMap, BTreeSet, HashSet},
     fmt,
     fmt::Formatter,
 };
@@ -31,7 +33,7 @@ pub type Transaction = Vec<u8>;
 pub struct Batch(pub Vec<Transaction>);
 
 #[derive(Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct BatchDigest(pub [u8; crypto::DIGEST_LEN]);
+pub struct BatchDigest(pub [u8; fastcrypto::DIGEST_LEN]);
 
 impl fmt::Debug for BatchDigest {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
@@ -61,7 +63,7 @@ impl Hash for Batch {
     type TypedDigest = BatchDigest;
 
     fn digest(&self) -> Self::TypedDigest {
-        BatchDigest::new(crypto::blake2b_256(|hasher| {
+        BatchDigest::new(fastcrypto::blake2b_256(|hasher| {
             self.0.iter().for_each(|tx| hasher.update(tx))
         }))
     }
@@ -81,7 +83,7 @@ pub struct Header {
 }
 
 impl HeaderBuilder {
-    pub fn build<F>(self, signer: &F) -> Result<Header, crypto::traits::Error>
+    pub fn build<F>(self, signer: &F) -> Result<Header, fastcrypto::traits::Error>
     where
         F: Signer<Signature>,
     {
@@ -142,7 +144,7 @@ impl Header {
         }
     }
 
-    pub fn verify(&self, committee: &Committee) -> DagResult<()> {
+    pub fn verify(&self, committee: &Committee, worker_cache: SharedWorkerCache) -> DagResult<()> {
         // Ensure the header is from the correct epoch.
         ensure!(
             self.epoch == committee.epoch(),
@@ -164,7 +166,8 @@ impl Header {
 
         // Ensure all worker ids are correct.
         for worker_id in self.payload.values() {
-            committee
+            worker_cache
+                .load()
                 .worker(&self.author, worker_id)
                 .map_err(|_| DagError::MalformedHeader(self.id))?;
         }
@@ -214,7 +217,7 @@ impl Hash for Header {
                 hasher.update(Digest::from(*x))
             }
         };
-        HeaderDigest(crypto::blake2b_256(hasher_update))
+        HeaderDigest(fastcrypto::blake2b_256(hasher_update))
     }
 }
 
@@ -332,7 +335,7 @@ impl Hash for Vote {
             hasher.update(&self.origin);
         };
 
-        VoteDigest(crypto::blake2b_256(hasher_update))
+        VoteDigest(fastcrypto::blake2b_256(hasher_update))
     }
 }
 
@@ -378,7 +381,7 @@ impl Certificate {
             .collect()
     }
 
-    pub fn verify(&self, committee: &Committee) -> DagResult<()> {
+    pub fn verify(&self, committee: &Committee, worker_cache: SharedWorkerCache) -> DagResult<()> {
         // Ensure the header is from the correct epoch.
         ensure!(
             self.epoch() == committee.epoch(),
@@ -394,7 +397,7 @@ impl Certificate {
         }
 
         // Check the embedded header.
-        self.header.verify(committee)?;
+        self.header.verify(committee, worker_cache)?;
 
         // Ensure the certificate has a quorum.
         let mut weight = 0;
@@ -419,7 +422,9 @@ impl Certificate {
         let (pks, sigs): (Vec<PublicKey>, Vec<Signature>) = self.votes.iter().cloned().unzip();
         // Verify the signatures
         let certificate_digest: Digest = Digest::from(self.digest());
-        PublicKey::verify_batch(certificate_digest.as_ref(), &pks, &sigs).map_err(DagError::from)
+        PublicKey::verify_batch_empty_fail(certificate_digest.as_ref(), &pks, &sigs)
+            .map_err(|_| signature::Error::new())
+            .map_err(DagError::from)
     }
 
     pub fn round(&self) -> Round {
@@ -479,7 +484,7 @@ impl Hash for Certificate {
             hasher.update(&self.origin());
         };
 
-        CertificateDigest(crypto::blake2b_256(hasher_update))
+        CertificateDigest(fastcrypto::blake2b_256(hasher_update))
     }
 }
 
@@ -508,7 +513,7 @@ impl PartialEq for Certificate {
 }
 
 impl Affiliated for Certificate {
-    fn parents(&self) -> Vec<<Self as crypto::Hash>::TypedDigest> {
+    fn parents(&self) -> Vec<<Self as fastcrypto::Hash>::TypedDigest> {
         self.header.parents.iter().cloned().collect()
     }
 
@@ -659,5 +664,5 @@ pub enum WorkerPrimaryError {
 #[derive(Clone, Serialize, Deserialize, Eq, PartialEq, Debug)]
 pub struct WorkerInfoResponse {
     /// Map of workers' id and their network addresses.
-    pub workers: HashMap<WorkerId, WorkerInfo>,
+    pub workers: BTreeMap<WorkerId, WorkerInfo>,
 }

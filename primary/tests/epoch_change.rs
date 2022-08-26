@@ -2,14 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 use arc_swap::ArcSwap;
 use config::{Committee, Epoch, Parameters};
-use crypto::traits::KeyPair;
+use fastcrypto::traits::KeyPair;
 use futures::future::join_all;
 use network::{CancelOnDropHandler, ReliableNetwork, WorkerToPrimaryNetwork};
 use node::NodeStorage;
 use primary::{NetworkModel, Primary, CHANNEL_CAPACITY};
 use prometheus::Registry;
 use std::{collections::BTreeMap, sync::Arc};
-use test_utils::{keys, make_authority, pure_committee_from_keys, temp_dir};
+use test_utils::{
+    keys, make_authority, pure_committee_from_keys, shared_worker_cache_from_keys, temp_dir,
+};
 use tokio::sync::watch;
 use types::{ReconfigureNotification, WorkerPrimaryMessage};
 
@@ -24,6 +26,7 @@ async fn test_simple_epoch_change() {
     // The configuration of epoch 0.
     let keys_0 = keys(None);
     let committee_0 = pure_committee_from_keys(&keys_0);
+    let worker_cache_0 = shared_worker_cache_from_keys(&keys_0);
 
     // Spawn the committee of epoch 0.
     let mut rx_channels = Vec::new();
@@ -41,6 +44,8 @@ async fn test_simple_epoch_change() {
 
         let initial_committee = ReconfigureNotification::NewEpoch(committee_0.clone());
         let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
+        let (tx_get_block_commands, rx_get_block_commands) =
+            test_utils::test_get_block_commands!(1);
 
         let store = NodeStorage::reopen(temp_dir());
 
@@ -48,12 +53,15 @@ async fn test_simple_epoch_change() {
             name,
             signer,
             Arc::new(ArcSwap::from_pointee(committee_0.clone())),
+            worker_cache_0.clone(),
             parameters.clone(),
             store.header_store.clone(),
             store.certificate_store.clone(),
             store.payload_store.clone(),
             /* tx_consensus */ tx_new_certificates,
             /* rx_consensus */ rx_feedback,
+            tx_get_block_commands,
+            rx_get_block_commands,
             /* dag */ None,
             NetworkModel::Asynchronous,
             tx_reconfigure,
@@ -132,6 +140,7 @@ async fn test_partial_committee_change() {
             .map(|(kp, authority)| (kp.public().clone(), authority))
             .collect(),
     };
+    let worker_cache_0 = shared_worker_cache_from_keys(&keys_0);
 
     // Spawn the committee of epoch 0.
     let mut epoch_0_rx_channels = Vec::new();
@@ -148,6 +157,8 @@ async fn test_partial_committee_change() {
         epoch_0_tx_channels.push(tx_feedback.clone());
         let initial_committee = ReconfigureNotification::NewEpoch(committee_0.clone());
         let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
+        let (tx_get_block_commands, rx_get_block_commands) =
+            test_utils::test_get_block_commands!(1);
 
         let store = NodeStorage::reopen(temp_dir());
 
@@ -155,12 +166,15 @@ async fn test_partial_committee_change() {
             name,
             signer,
             Arc::new(ArcSwap::from_pointee(committee_0.clone())),
+            worker_cache_0.clone(),
             parameters.clone(),
             store.header_store.clone(),
             store.certificate_store.clone(),
             store.payload_store.clone(),
             /* tx_consensus */ tx_new_certificates,
             /* rx_consensus */ rx_feedback,
+            tx_get_block_commands,
+            rx_get_block_commands,
             /* dag */ None,
             NetworkModel::Asynchronous,
             tx_reconfigure,
@@ -186,6 +200,7 @@ async fn test_partial_committee_change() {
     let keys_0 = keys(None);
     let keys_1 = keys(Some(1));
     let mut total_stake = 0;
+    let mut committee_keys = vec![];
     let authorities_1: BTreeMap<_, _> = authorities_0
         .into_iter()
         .zip(keys_0.into_iter())
@@ -194,10 +209,12 @@ async fn test_partial_committee_change() {
             let stake = authority.stake;
             let x = if total_stake < committee_0.validity_threshold() {
                 let pk = key_0.public().clone();
+                committee_keys.push(key_0);
                 (pk, authority)
             } else {
                 let new_authority = make_authority();
                 let pk = key_1.public().clone();
+                committee_keys.push(key_1.copy());
                 to_spawn.push(key_1);
                 (pk, new_authority)
             };
@@ -210,6 +227,7 @@ async fn test_partial_committee_change() {
         epoch: Epoch::default() + 1,
         authorities: authorities_1,
     };
+    let worker_cache_1 = shared_worker_cache_from_keys(&committee_keys);
 
     // Spawn the committee of epoch 1 (only the node not already booted).
     let mut epoch_1_rx_channels = Vec::new();
@@ -224,6 +242,8 @@ async fn test_partial_committee_change() {
         let (tx_feedback, rx_feedback) =
             test_utils::test_committed_certificates_channel!(CHANNEL_CAPACITY);
         epoch_1_tx_channels.push(tx_feedback.clone());
+        let (tx_get_block_commands, rx_get_block_commands) =
+            test_utils::test_get_block_commands!(1);
 
         let initial_committee = ReconfigureNotification::NewEpoch(committee_1.clone());
         let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
@@ -234,12 +254,15 @@ async fn test_partial_committee_change() {
             name,
             signer,
             Arc::new(ArcSwap::from_pointee(committee_1.clone())),
+            worker_cache_1.clone(),
             parameters.clone(),
             store.header_store.clone(),
             store.certificate_store.clone(),
             store.payload_store.clone(),
             /* tx_consensus */ tx_new_certificates,
             /* rx_consensus */ rx_feedback,
+            tx_get_block_commands,
+            rx_get_block_commands,
             /* dag */ None,
             NetworkModel::Asynchronous,
             tx_reconfigure,
@@ -287,6 +310,7 @@ async fn test_restart_with_new_committee_change() {
     // The configuration of epoch 0.
     let keys_0 = keys(None);
     let committee_0 = pure_committee_from_keys(&keys_0);
+    let worker_cache_0 = shared_worker_cache_from_keys(&keys_0);
 
     // Spawn the committee of epoch 0.
     let mut rx_channels = Vec::new();
@@ -302,29 +326,34 @@ async fn test_restart_with_new_committee_change() {
         let (tx_feedback, rx_feedback) =
             test_utils::test_committed_certificates_channel!(CHANNEL_CAPACITY);
         tx_channels.push(tx_feedback.clone());
+        let (tx_get_block_commands, rx_get_block_commands) =
+            test_utils::test_get_block_commands!(1);
 
         let initial_committee = ReconfigureNotification::NewEpoch(committee_0.clone());
         let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
 
         let store = NodeStorage::reopen(temp_dir());
-        let registry = Registry::new();
+
         let primary_handles = Primary::spawn(
             name,
             signer,
             Arc::new(ArcSwap::new(Arc::new(committee_0.clone()))),
+            worker_cache_0.clone(),
             parameters.clone(),
             store.header_store.clone(),
             store.certificate_store.clone(),
             store.payload_store.clone(),
             /* tx_consensus */ tx_new_certificates,
             /* rx_consensus */ rx_feedback,
+            tx_get_block_commands,
+            rx_get_block_commands,
             /* dag */ None,
             NetworkModel::Asynchronous,
             tx_reconfigure,
             /* tx_committed_certificates */ tx_feedback,
-            &registry,
+            &Registry::new(),
         );
-        handles.extend(primary_handles.into_iter().map(|(_n, j)| j));
+        handles.extend(primary_handles);
     }
 
     // Run for a while in epoch 0.
@@ -361,6 +390,9 @@ async fn test_restart_with_new_committee_change() {
     for epoch in 1..=3 {
         let mut new_committee = committee_0.clone();
         new_committee.epoch = epoch;
+        let old_worker_cache = &mut worker_cache_0.clone().load().clone();
+        let mut new_worker_cache = Arc::make_mut(old_worker_cache);
+        new_worker_cache.epoch = epoch;
 
         let mut rx_channels = Vec::new();
         let mut tx_channels = Vec::new();
@@ -378,26 +410,31 @@ async fn test_restart_with_new_committee_change() {
 
             let initial_committee = ReconfigureNotification::NewEpoch(new_committee.clone());
             let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
+            let (tx_get_block_commands, rx_get_block_commands) =
+                test_utils::test_get_block_commands!(1);
 
             let store = NodeStorage::reopen(temp_dir());
-            let registry = Registry::new();
+
             let primary_handles = Primary::spawn(
                 name,
                 signer,
                 Arc::new(ArcSwap::new(Arc::new(new_committee.clone()))),
+                Arc::new(ArcSwap::new(Arc::new(new_worker_cache.clone()))),
                 parameters.clone(),
                 store.header_store.clone(),
                 store.certificate_store.clone(),
                 store.payload_store.clone(),
                 /* tx_consensus */ tx_new_certificates,
                 /* rx_consensus */ rx_feedback,
+                tx_get_block_commands,
+                rx_get_block_commands,
                 /* dag */ None,
                 NetworkModel::Asynchronous,
                 tx_reconfigure,
                 /* tx_committed_certificates */ tx_feedback,
-                &registry,
+                &Registry::new(),
             );
-            handles.extend(primary_handles.into_iter().map(|(_n, j)| j));
+            handles.extend(primary_handles);
         }
 
         // Run for a while.
@@ -442,6 +479,7 @@ async fn test_simple_committee_update() {
     // The configuration of epoch 0.
     let keys_0 = keys(None);
     let committee_0 = pure_committee_from_keys(&keys_0);
+    let worker_cache_0 = shared_worker_cache_from_keys(&keys_0);
 
     // Spawn the committee of epoch 0.
     let mut rx_channels = Vec::new();
@@ -459,6 +497,8 @@ async fn test_simple_committee_update() {
 
         let initial_committee = ReconfigureNotification::NewEpoch(committee_0.clone());
         let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
+        let (tx_get_block_commands, rx_get_block_commands) =
+            test_utils::test_get_block_commands!(1);
 
         let store = NodeStorage::reopen(temp_dir());
 
@@ -466,12 +506,15 @@ async fn test_simple_committee_update() {
             name,
             signer,
             Arc::new(ArcSwap::from_pointee(committee_0.clone())),
+            worker_cache_0.clone(),
             parameters.clone(),
             store.header_store.clone(),
             store.certificate_store.clone(),
             store.payload_store.clone(),
             /* tx_consensus */ tx_new_certificates,
             /* rx_consensus */ rx_feedback,
+            tx_get_block_commands,
+            rx_get_block_commands,
             /* dag */ None,
             NetworkModel::Asynchronous,
             tx_reconfigure,

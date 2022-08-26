@@ -2,18 +2,21 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use config::{
-    utils::get_available_port, Authority, Committee, Epoch, PrimaryAddresses, WorkerId, WorkerInfo,
+    utils::get_available_port, Authority, Committee, Epoch, PrimaryAddresses, SharedWorkerCache,
+    WorkerCache, WorkerId, WorkerIndex, WorkerInfo,
 };
-use crypto::{
+use crypto::PublicKey;
+use crypto::{KeyPair, Signature};
+use fastcrypto::{
     traits::{KeyPair as _, Signer as _},
-    Digest, Hash as _, KeyPair, PublicKey, Signature,
+    Digest, Hash as _,
 };
 use futures::Stream;
 use indexmap::IndexMap;
 use multiaddr::Multiaddr;
 use rand::{rngs::StdRng, Rng, SeedableRng as _};
 use std::{
-    collections::{BTreeSet, HashMap, VecDeque},
+    collections::{BTreeSet, VecDeque},
     ops::RangeInclusive,
     pin::Pin,
     sync::Arc,
@@ -33,6 +36,7 @@ pub mod cluster;
 
 pub const HEADERS_CF: &str = "headers";
 pub const CERTIFICATES_CF: &str = "certificates";
+pub const CERTIFICATE_ID_BY_ROUND_CF: &str = "certificate_id_by_round";
 pub const PAYLOAD_CF: &str = "payload";
 
 pub fn temp_dir() -> std::path::PathBuf {
@@ -89,6 +93,20 @@ macro_rules! test_new_certificates_channel {
     };
 }
 
+#[macro_export]
+macro_rules! test_get_block_commands {
+    ($e:expr) => {
+        types::metered_channel::channel(
+            $e,
+            &prometheus::IntGauge::new(
+                primary::PrimaryChannelMetrics::NAME_GET_BLOCK_COMMANDS,
+                primary::PrimaryChannelMetrics::DESC_GET_BLOCK_COMMANDS,
+            )
+            .unwrap(),
+        );
+    };
+}
+
 ////////////////////////////////////////////////////////////////
 /// Keys, Committee
 ////////////////////////////////////////////////////////////////
@@ -107,10 +125,17 @@ pub fn keys(rng_seed: impl Into<Option<u64>>) -> Vec<KeyPair> {
 
 // Fixture
 pub fn committee(rng_seed: impl Into<Option<u64>>) -> Committee {
-    committee_from_keys(&keys(rng_seed))
+    pure_committee_from_keys(&keys(rng_seed))
 }
-pub fn committee_from_keys(keys: &[KeyPair]) -> Committee {
-    pure_committee_from_keys(keys)
+
+pub fn pure_committee_from_keys(keys: &[KeyPair]) -> Committee {
+    Committee {
+        epoch: Epoch::default(),
+        authorities: keys
+            .iter()
+            .map(|kp| (kp.public().clone(), make_authority()))
+            .collect(),
+    }
 }
 
 pub fn make_authority_with_port_getter<F: FnMut() -> u16>(mut get_port: F) -> Authority {
@@ -122,6 +147,38 @@ pub fn make_authority_with_port_getter<F: FnMut() -> u16>(mut get_port: F) -> Au
             .parse()
             .unwrap(),
     };
+
+    Authority { stake: 1, primary }
+}
+
+pub fn make_authority() -> Authority {
+    make_authority_with_port_getter(get_available_port)
+}
+
+// Fixture
+pub fn shared_worker_cache(rng_seed: impl Into<Option<u64>>) -> SharedWorkerCache {
+    shared_worker_cache_from_keys(&keys(rng_seed))
+}
+
+pub fn shared_worker_cache_from_keys(keys: &[KeyPair]) -> SharedWorkerCache {
+    worker_cache_from_keys(keys).into()
+}
+
+pub fn worker_cache_from_keys(keys: &[KeyPair]) -> WorkerCache {
+    WorkerCache {
+        epoch: Epoch::default(),
+        workers: keys
+            .iter()
+            .map(|kp| (kp.public().clone(), make_worker_index()))
+            .collect(),
+    }
+}
+
+pub fn make_worker_index() -> WorkerIndex {
+    initialize_worker_index_with_port_getter(get_available_port)
+}
+
+pub fn initialize_worker_index_with_port_getter<F: FnMut() -> u16>(mut get_port: F) -> WorkerIndex {
     let workers = vec![
         (
             0,
@@ -184,25 +241,7 @@ pub fn make_authority_with_port_getter<F: FnMut() -> u16>(mut get_port: F) -> Au
     .cloned()
     .collect();
 
-    Authority {
-        stake: 1,
-        primary,
-        workers,
-    }
-}
-
-pub fn make_authority() -> Authority {
-    make_authority_with_port_getter(get_available_port)
-}
-
-pub fn pure_committee_from_keys(keys: &[KeyPair]) -> Committee {
-    Committee {
-        epoch: Epoch::default(),
-        authorities: keys
-            .iter()
-            .map(|kp| (kp.public().clone(), make_authority()))
-            .collect(),
-    }
+    WorkerIndex(workers)
 }
 
 ////////////////////////////////////////////////////////////////
@@ -224,8 +263,35 @@ pub fn mock_committee(keys: &[PublicKey]) -> Committee {
                             primary_to_primary: "/ip4/0.0.0.0/tcp/0/http".parse().unwrap(),
                             worker_to_primary: "/ip4/0.0.0.0/tcp/0/http".parse().unwrap(),
                         },
-                        workers: HashMap::default(),
                     },
+                )
+            })
+            .collect(),
+    }
+}
+
+// Fixture
+pub fn mock_worker_cache(keys: &[PublicKey]) -> WorkerCache {
+    WorkerCache {
+        epoch: Epoch::default(),
+        workers: keys
+            .iter()
+            .map(|id| {
+                (
+                    id.clone(),
+                    WorkerIndex(
+                        vec![(
+                            0,
+                            WorkerInfo {
+                                primary_to_worker: "/ip4/0.0.0.0/tcp/0/http".parse().unwrap(),
+                                transactions: "/ip4/0.0.0.0/tcp/0/http".parse().unwrap(),
+                                worker_to_worker: "/ip4/0.0.0.0/tcp/0/http".parse().unwrap(),
+                            },
+                        )]
+                        .iter()
+                        .cloned()
+                        .collect(),
+                    ),
                 )
             })
             .collect(),
@@ -576,15 +642,16 @@ impl WorkerToWorker for WorkerToWorkerMockServer {
     }
 }
 
-// helper method to get a name and a committee.
-pub fn resolve_name_and_committee() -> (PublicKey, Committee) {
+// helper method to get a name and a committee + worker_cache.
+pub fn resolve_name_committee_and_worker_cache() -> (PublicKey, Committee, SharedWorkerCache) {
     let mut keys = keys(None);
+    let committee = pure_committee_from_keys(&keys);
+    let worker_cache = shared_worker_cache_from_keys(&keys);
     let _ = keys.pop().unwrap(); // Skip the header' author.
     let kp = keys.pop().unwrap();
     let name = kp.public().clone();
-    let committee = committee(None);
 
-    (name, committee)
+    (name, committee, worker_cache)
 }
 
 ////////////////////////////////////////////////////////////////
@@ -682,12 +749,12 @@ fn this_cert_parents(
     })
     .take(ancestors.len())
     .zip(ancestors)
-    .flat_map(|(parenthood, parent)| parenthood.then(|| *parent))
+    .flat_map(|(parenthood, parent)| parenthood.then_some(*parent))
     .collect::<BTreeSet<_>>()
 }
 
 // Utility for making several rounds worth of certificates through iterated parenthood sampling.
-// The making of individial certificates once parents are figured out is delegated to the `make_one_certificate` argument
+// The making of individual certificates once parents are figured out is delegated to the `make_one_certificate` argument
 fn rounds_of_certificates(
     range: RangeInclusive<Round>,
     initial_parents: &BTreeSet<CertificateDigest>,

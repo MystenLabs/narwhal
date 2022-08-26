@@ -1,9 +1,10 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use config::{Authority, Committee, Epoch, PrimaryAddresses, WorkerInfo};
-use crypto::{
+use config::{Authority, Committee, Epoch, PrimaryAddresses, WorkerIndex, WorkerInfo};
+use crypto::KeyPair;
+use fastcrypto::{
     traits::{KeyPair as _, Signer},
-    Digest, Hash, KeyPair,
+    Digest, Hash,
 };
 use primary::PrimaryWorkerMessage;
 use rand::{prelude::StdRng, SeedableRng};
@@ -50,30 +51,7 @@ fn get_registry() -> Result<Registry> {
                         .parse()
                         .unwrap(),
                 };
-                let workers = vec![(
-                    0,
-                    WorkerInfo {
-                        primary_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", 300 + i)
-                            .parse()
-                            .unwrap(),
-                        transactions: format!("/ip4/127.0.0.1/tcp/{}/http", 400 + i)
-                            .parse()
-                            .unwrap(),
-                        worker_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", 500 + i)
-                            .parse()
-                            .unwrap(),
-                    },
-                )]
-                .into_iter()
-                .collect();
-                (
-                    id.clone(),
-                    Authority {
-                        stake: 1,
-                        primary,
-                        workers,
-                    },
-                )
+                (id.clone(), Authority { stake: 1, primary })
             })
             .collect(),
     };
@@ -103,6 +81,22 @@ fn get_registry() -> Result<Registry> {
     tracer.trace_value(&mut samples, &header)?;
     tracer.trace_value(&mut samples, &certificate)?;
 
+    // WorkerIndex & WorkerInfo will be present in a protocol message once dynamic
+    // worker integration is complete.
+    let worker_index = WorkerIndex(
+        vec![(
+            0,
+            WorkerInfo {
+                primary_to_worker: "/ip4/127.0.0.1/tcp/300/http".to_string().parse().unwrap(),
+                transactions: "/ip4/127.0.0.1/tcp/400/http".to_string().parse().unwrap(),
+                worker_to_worker: "/ip4/127.0.0.1/tcp/500/http".to_string().parse().unwrap(),
+            },
+        )]
+        .into_iter()
+        .collect(),
+    );
+    tracer.trace_value(&mut samples, &worker_index)?;
+
     let cleanup = PrimaryWorkerMessage::Cleanup(1u64);
     let request_batch = PrimaryWorkerMessage::RequestBatch(BatchDigest([0u8; 32]));
     let delete_batch = PrimaryWorkerMessage::DeleteBatches(vec![BatchDigest([0u8; 32])]);
@@ -125,18 +119,6 @@ fn get_registry() -> Result<Registry> {
     tracer.trace_type::<BatchDigest>(&samples)?;
     tracer.trace_type::<HeaderDigest>(&samples)?;
     tracer.trace_type::<CertificateDigest>(&samples)?;
-
-    // Caveat: the following (trace_type) won't work, but not because of generics.
-    //
-    // Generic types instantiated multiple times in the same tracing session requires a work around.
-    // https://docs.rs/serde-reflection/latest/serde_reflection/#features-and-limitations
-    // but here we should be fine.
-    //
-    // This doesn't work because of the custom ser/de in PublicKey, which carries through to most top-level messages
-    //
-    // tracer.trace_type::<Header<Ed25519PublicKey>>(&samples)?;
-    // tracer.trace_type::<Certificate<Ed25519PublicKey>>(&samples)?;
-    // tracer.trace_type::<PrimaryWorkerMessage<Ed25519PublicKey>>(&samples)?;
 
     // The final entry points that we must document
     tracer.trace_type::<WorkerPrimaryMessage>(&samples)?;

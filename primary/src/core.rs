@@ -8,14 +8,17 @@ use crate::{
     synchronizer::Synchronizer,
 };
 use async_recursion::async_recursion;
-use config::{Committee, Epoch};
-use crypto::{Hash as _, PublicKey, Signature, SignatureService};
+use config::{Committee, Epoch, SharedWorkerCache};
+use crypto::PublicKey;
+use crypto::Signature;
+use fastcrypto::{Hash as _, SignatureService};
 use network::{CancelOnDropHandler, MessageResult, PrimaryNetwork, ReliableNetwork};
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
     time::Instant,
 };
+use storage::CertificateStore;
 use store::Store;
 use tokio::{sync::watch, task::JoinHandle};
 use tracing::{debug, error, info, instrument, warn};
@@ -23,7 +26,7 @@ use types::{
     ensure,
     error::{DagError, DagResult},
     metered_channel::{Receiver, Sender},
-    Certificate, CertificateDigest, Header, HeaderDigest, ReconfigureNotification, Round, Vote,
+    Certificate, Header, HeaderDigest, ReconfigureNotification, Round, Vote,
 };
 
 #[cfg(test)]
@@ -35,10 +38,12 @@ pub struct Core {
     name: PublicKey,
     /// The committee information.
     committee: Committee,
+    /// The worker information cache.
+    worker_cache: SharedWorkerCache,
     /// The persistent storage keyed to headers.
     header_store: Store<HeaderDigest, Header>,
     /// The persistent storage keyed to certificates.
-    certificate_store: Store<CertificateDigest, Certificate>,
+    certificate_store: CertificateStore,
     /// Handles synchronization with other nodes and our workers.
     synchronizer: Synchronizer,
     /// Service to sign headers.
@@ -89,8 +94,9 @@ impl Core {
     pub fn spawn(
         name: PublicKey,
         committee: Committee,
+        worker_cache: SharedWorkerCache,
         header_store: Store<HeaderDigest, Header>,
-        certificate_store: Store<CertificateDigest, Certificate>,
+        certificate_store: CertificateStore,
         synchronizer: Synchronizer,
         signature_service: SignatureService<Signature>,
         rx_consensus_round_updates: watch::Receiver<u64>,
@@ -109,6 +115,7 @@ impl Core {
             Self {
                 name,
                 committee,
+                worker_cache,
                 header_store,
                 certificate_store,
                 synchronizer,
@@ -390,9 +397,7 @@ impl Core {
         }
 
         // Store the certificate.
-        self.certificate_store
-            .write(certificate.digest(), certificate.clone())
-            .await;
+        self.certificate_store.write(certificate.clone())?;
 
         let certificate_source = if self.name.eq(&certificate.header.author) {
             "own"
@@ -456,7 +461,7 @@ impl Core {
         );
 
         // Verify the header's signature.
-        header.verify(&self.committee)?;
+        header.verify(&self.committee, self.worker_cache.clone())?;
 
         // TODO [issue #672]: Prevent bad nodes from sending junk headers with high round numbers.
 
@@ -512,7 +517,9 @@ impl Core {
         );
 
         // Verify the certificate (and the embedded header).
-        certificate.verify(&self.committee).map_err(DagError::from)
+        certificate
+            .verify(&self.committee, self.worker_cache.clone())
+            .map_err(DagError::from)
     }
 
     /// If a new committee is available, update our internal state.

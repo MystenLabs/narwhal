@@ -1,10 +1,12 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crate::{committee, keys, temp_dir};
-use arc_swap::{ArcSwap, ArcSwapOption};
-use config::{Committee, Parameters, SharedCommittee, WorkerId};
-use crypto::{traits::KeyPair as _, KeyPair, PublicKey};
-use executor::{SerializedTransaction, SubscriberResult, DEFAULT_CHANNEL_SIZE};
+use crate::{keys, pure_committee_from_keys, shared_worker_cache_from_keys, temp_dir};
+use arc_swap::ArcSwap;
+use config::{Committee, Parameters, SharedCommittee, SharedWorkerCache, WorkerId};
+use crypto::KeyPair;
+use crypto::PublicKey;
+use executor::{SerializedTransaction, SingleExecutor, SubscriberResult};
+use fastcrypto::traits::KeyPair as _;
 use itertools::Itertools;
 use multiaddr::Multiaddr;
 use node::{
@@ -14,14 +16,13 @@ use node::{
 };
 use prometheus::{proto::Metric, Registry};
 use std::{cell::RefCell, collections::HashMap, path::PathBuf, rc::Rc, sync::Arc, time::Duration};
-use task_group::TaskManager;
 use tokio::{
     sync::{broadcast::Sender, mpsc::channel, RwLock},
-    task::{JoinError, JoinHandle},
+    task::JoinHandle,
 };
 use tonic::transport::Channel;
 use tracing::info;
-use types::{ConfigurationClient, ProposerClient};
+use types::{ConfigurationClient, ProposerClient, TransactionsClient};
 
 #[cfg(test)]
 #[path = "tests/cluster_tests.rs"]
@@ -30,6 +31,7 @@ pub mod cluster_tests;
 pub struct Cluster {
     authorities: HashMap<usize, AuthorityDetails>,
     pub committee_shared: SharedCommittee,
+    pub worker_cache_shared: SharedWorkerCache,
     #[allow(dead_code)]
     parameters: Parameters,
 }
@@ -40,6 +42,8 @@ impl Cluster {
     /// the committee structure, but none of them will be started.
     /// If an `input_committee` is provided then this will be used, otherwise the default
     /// will be used instead.
+    /// If an `input_shared_worker_cache` is provided then this will be used,
+    /// otherwise the default will be used instead.
     /// When the `internal_consensus_enabled` is true then the standard internal
     /// consensus engine will be enabled. If false, then the internal consensus will
     /// be disabled and the gRPC server will be enabled to manage the Collections & the
@@ -47,9 +51,13 @@ impl Cluster {
     pub fn new(
         parameters: Option<Parameters>,
         input_committee: Option<Committee>,
+        input_shared_worker_cache: Option<SharedWorkerCache>,
         internal_consensus_enabled: bool,
     ) -> Self {
-        let c = input_committee.unwrap_or_else(|| committee(None));
+        let k = keys(None);
+        let c = input_committee.unwrap_or_else(|| pure_committee_from_keys(&k));
+        let shared_worker_cache =
+            input_shared_worker_cache.unwrap_or_else(|| shared_worker_cache_from_keys(&k));
         let shared_committee = Arc::new(ArcSwap::from_pointee(c));
         let params = parameters.unwrap_or_else(Self::parameters);
 
@@ -66,6 +74,7 @@ impl Cluster {
                 key_pair,
                 params.clone(),
                 shared_committee.clone(),
+                shared_worker_cache.clone(),
                 internal_consensus_enabled,
             );
             nodes.insert(id, authority);
@@ -74,6 +83,7 @@ impl Cluster {
         Self {
             authorities: nodes,
             committee_shared: shared_committee,
+            worker_cache_shared: shared_worker_cache,
             parameters: params,
         }
     }
@@ -269,9 +279,9 @@ pub struct PrimaryNodeDetails {
     registry: Registry,
     store_path: PathBuf,
     committee: SharedCommittee,
+    worker_cache: SharedWorkerCache,
     parameters: Parameters,
     handlers: Rc<RefCell<Vec<JoinHandle<()>>>>,
-    primary: Rc<RefCell<Option<TaskManager<JoinError>>>>,
     internal_consensus_enabled: bool,
 }
 
@@ -281,6 +291,7 @@ impl PrimaryNodeDetails {
         key_pair: KeyPair,
         parameters: Parameters,
         committee: SharedCommittee,
+        worker_cache: SharedWorkerCache,
         internal_consensus_enabled: bool,
     ) -> Self {
         // used just to initialise the struct value
@@ -293,9 +304,9 @@ impl PrimaryNodeDetails {
             store_path: temp_dir(),
             tx_transaction_confirmation: tx,
             committee,
+            worker_cache,
             parameters,
             handlers: Rc::new(RefCell::new(Vec::new())),
-            primary: Rc::new(RefCell::new(None)),
             internal_consensus_enabled,
         }
     }
@@ -335,22 +346,24 @@ impl PrimaryNodeDetails {
 
         // Primary node
         let primary_store: NodeStorage = NodeStorage::reopen(store_path.clone());
-        self.primary.replace(Some(
-            Node::spawn_primary(
-                self.key_pair.copy(),
-                self.committee.clone(),
-                &primary_store,
-                self.parameters.clone(),
-                /* consensus */ self.internal_consensus_enabled,
-                /* execution_state */ Arc::new(SimpleExecutionState::default()),
+        let mut primary_handlers = Node::spawn_primary(
+            self.key_pair.copy(),
+            self.committee.clone(),
+            self.worker_cache.clone(),
+            &primary_store,
+            self.parameters.clone(),
+            /* consensus */ self.internal_consensus_enabled,
+            /* execution_state */
+            SingleExecutor::new(
+                Arc::new(SimpleExecutionState::default()),
                 tx_transaction_confirmation,
-                &registry,
-            )
-            .await
-            .unwrap(),
-        ));
+            ),
+            &registry,
+        )
+        .await
+        .unwrap();
 
-        let (tx, _) = tokio::sync::broadcast::channel(DEFAULT_CHANNEL_SIZE);
+        let (tx, _) = tokio::sync::broadcast::channel(primary::CHANNEL_CAPACITY);
         let transactions_sender = tx.clone();
         // spawn a task to listen on the committed transactions
         // and translate to a mpmc channel
@@ -363,8 +376,12 @@ impl PrimaryNodeDetails {
                 let _ = transactions_sender.send(t);
             }
         });
-        self.handlers.replace(vec![h]);
 
+        // add the tasks's handle to the primary's handle so can be shutdown
+        // with the others.
+        primary_handlers.push(h);
+
+        self.handlers.replace(primary_handlers);
         self.store_path = store_path;
         self.registry = registry;
         self.tx_transaction_confirmation = tx;
@@ -372,16 +389,18 @@ impl PrimaryNodeDetails {
 
     fn stop(&self) {
         self.handlers.borrow().iter().for_each(|h| h.abort());
-        self.primary.replace(None);
         info!("Aborted primary node for id {}", self.id);
     }
 
-    /// Returns whether the primary is still running, by checking if the TaskManager
-    /// and task handles exist and at least one of them is not finished.
+    /// This method returns whether the node is still running or not. We
+    /// iterate over all the handlers and check whether there is still any
+    /// that is not finished. If we find at least one, then we report the
+    /// node as still running.
     pub fn is_running(&self) -> bool {
-        if self.primary.borrow().is_none() || self.handlers.borrow().is_empty() {
+        if self.handlers.borrow().is_empty() {
             return false;
         }
+
         self.handlers.borrow().iter().any(|h| !h.is_finished())
     }
 }
@@ -393,9 +412,10 @@ pub struct WorkerNodeDetails {
     pub registry: Registry,
     name: PublicKey,
     committee: SharedCommittee,
+    worker_cache: SharedWorkerCache,
     parameters: Parameters,
     store_path: PathBuf,
-    worker: Arc<ArcSwapOption<TaskManager<JoinError>>>,
+    handlers: Arc<ArcSwap<Vec<JoinHandle<()>>>>,
 }
 
 impl WorkerNodeDetails {
@@ -405,6 +425,7 @@ impl WorkerNodeDetails {
         parameters: Parameters,
         transactions_address: Multiaddr,
         committee: SharedCommittee,
+        worker_cache: SharedWorkerCache,
     ) -> Self {
         Self {
             id,
@@ -413,8 +434,9 @@ impl WorkerNodeDetails {
             store_path: temp_dir(),
             transactions_address,
             committee,
+            worker_cache,
             parameters,
-            worker: Arc::new(ArcSwapOption::from(None)),
+            handlers: Arc::new(ArcSwap::from_pointee(Vec::new())),
         }
     }
 
@@ -437,28 +459,32 @@ impl WorkerNodeDetails {
         };
 
         let worker_store = NodeStorage::reopen(store_path.clone());
-        self.worker.store(Some(Arc::new(Node::spawn_workers(
+        let worker_handlers = Node::spawn_workers(
             self.name.clone(),
             vec![self.id],
             self.committee.clone(),
+            self.worker_cache.clone(),
             &worker_store,
             self.parameters.clone(),
             &registry,
-        ))));
+        );
 
+        self.handlers.swap(Arc::new(worker_handlers));
         self.store_path = store_path;
         self.registry = registry;
     }
 
     fn stop(&self) {
-        self.worker.store(None);
+        self.handlers.load().iter().for_each(|h| h.abort());
         info!("Aborted worker node for id {}", self.id);
     }
 
-    /// Returns whether the worker is still running, by checking if the
-    /// TaskManager for worker tasks exists.
+    /// This method returns whether the node is still running or not. We
+    /// iterate over all the handlers and check whether there is still any
+    /// that is not finished. If we find at least one, then we report the
+    /// node as still running.
     pub fn is_running(&self) -> bool {
-        self.worker.load().is_some()
+        self.handlers.load().iter().any(|h| !h.is_finished())
     }
 }
 
@@ -488,6 +514,7 @@ impl AuthorityDetails {
         key_pair: KeyPair,
         parameters: Parameters,
         committee: SharedCommittee,
+        worker_cache: SharedWorkerCache,
         internal_consensus_enabled: bool,
     ) -> Self {
         // Create all the nodes we have in the committee
@@ -497,6 +524,7 @@ impl AuthorityDetails {
             key_pair,
             parameters.clone(),
             committee.clone(),
+            worker_cache.clone(),
             internal_consensus_enabled,
         );
 
@@ -504,20 +532,14 @@ impl AuthorityDetails {
         // act as place holder setups. That gives us the power in a clear way manage
         // the nodes independently.
         let mut workers = HashMap::new();
-        for (worker_id, addresses) in committee
-            .load()
-            .authorities
-            .get(&name)
-            .unwrap()
-            .workers
-            .clone()
-        {
+        for (worker_id, addresses) in worker_cache.load().workers.get(&name).unwrap().0.clone() {
             let worker = WorkerNodeDetails::new(
                 worker_id,
                 name.clone(),
                 parameters.clone(),
                 addresses.transactions.clone(),
                 committee.clone(),
+                worker_cache.clone(),
             );
             workers.insert(worker_id, worker);
         }
@@ -694,6 +716,29 @@ impl AuthorityDetails {
             .unwrap();
 
         ProposerClient::new(channel)
+    }
+
+    /// This method returns a new client to send transactions to the dictated
+    /// worker identified by the `worker_id`. If the worker_id is not found then
+    /// a panic is raised.
+    pub async fn new_transactions_client(
+        &self,
+        worker_id: &WorkerId,
+    ) -> TransactionsClient<Channel> {
+        let internal = self.internal.read().await;
+
+        let config = mysten_network::config::Config::new();
+        let channel = config
+            .connect_lazy(
+                &internal
+                    .workers
+                    .get(worker_id)
+                    .unwrap()
+                    .transactions_address,
+            )
+            .unwrap();
+
+        TransactionsClient::new(channel)
     }
 
     /// Creates a new configuration client that connects to the corresponding client.

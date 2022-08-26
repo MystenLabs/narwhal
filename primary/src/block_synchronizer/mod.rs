@@ -9,8 +9,9 @@ use crate::{
     primary::PrimaryMessage,
     utils, PayloadToken, CHANNEL_CAPACITY,
 };
-use config::{BlockSynchronizerParameters, Committee, WorkerId};
-use crypto::{Hash, PublicKey};
+use config::{BlockSynchronizerParameters, Committee, SharedWorkerCache, WorkerId};
+use crypto::PublicKey;
+use fastcrypto::Hash;
 use futures::{
     future::{join_all, BoxFuture},
     stream::FuturesUnordered,
@@ -22,6 +23,7 @@ use std::{
     collections::{HashMap, HashSet},
     time::Duration,
 };
+use storage::CertificateStore;
 use store::Store;
 use thiserror::Error;
 use tokio::{
@@ -156,6 +158,9 @@ pub struct BlockSynchronizer {
     /// The committee information.
     committee: Committee,
 
+    /// The worker information cache.
+    worker_cache: SharedWorkerCache,
+
     /// Watch channel to reconfigure the committee.
     rx_reconfigure: watch::Receiver<ReconfigureNotification>,
 
@@ -184,7 +189,7 @@ pub struct BlockSynchronizer {
     worker_network: PrimaryToWorkerNetwork,
 
     /// The store that holds the certificates
-    certificate_store: Store<CertificateDigest, Certificate>,
+    certificate_store: CertificateStore,
 
     /// The persistent storage for payload markers from workers
     payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,
@@ -204,19 +209,21 @@ impl BlockSynchronizer {
     pub fn spawn(
         name: PublicKey,
         committee: Committee,
+        worker_cache: SharedWorkerCache,
         rx_reconfigure: watch::Receiver<ReconfigureNotification>,
         rx_commands: metered_channel::Receiver<Command>,
         rx_certificate_responses: metered_channel::Receiver<CertificatesResponse>,
         rx_payload_availability_responses: metered_channel::Receiver<PayloadAvailabilityResponse>,
         network: PrimaryNetwork,
         payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,
-        certificate_store: Store<CertificateDigest, Certificate>,
+        certificate_store: CertificateStore,
         parameters: BlockSynchronizerParameters,
     ) -> JoinHandle<()> {
         tokio::spawn(async move {
             Self {
                 name,
                 committee,
+                worker_cache,
                 rx_reconfigure,
                 rx_commands,
                 rx_certificate_responses,
@@ -373,7 +380,7 @@ impl BlockSynchronizer {
     /// logic of waiting and gathering the replies from the primary nodes
     /// for the payload availability. This future is returning the next State
     /// to be executed.
-    #[instrument(level="debug", skip_all, fields(num_certificates = certificates.len()))]
+    #[instrument(level="trace", skip_all, fields(num_certificates = certificates.len()))]
     async fn handle_synchronize_block_payload_command<'a>(
         &mut self,
         certificates: Vec<Certificate>,
@@ -404,6 +411,9 @@ impl BlockSynchronizer {
         } else {
             trace!("Certificate payloads need sync");
         }
+
+        // TODO: add metric here to track the number of certificates
+        // requested that are missing a payload
 
         let key = RequestID::from_iter(certificates_to_sync.iter());
 
@@ -491,6 +501,7 @@ impl BlockSynchronizer {
                 self.certificates_synchronize_timeout,
                 key,
                 self.committee.clone(),
+                self.worker_cache.clone(),
                 to_sync,
                 primaries,
                 receiver,
@@ -509,7 +520,7 @@ impl BlockSynchronizer {
         respond_to: Sender<BlockSynchronizeResult<BlockHeader>>,
     ) -> HashSet<CertificateDigest> {
         // find the certificates that already exist in storage
-        match self.certificate_store.read_all(block_ids.clone()).await {
+        match self.certificate_store.read_all(block_ids.clone()) {
             Ok(certificates) => {
                 let (found, missing): (
                     Vec<(CertificateDigest, Option<Certificate>)>,
@@ -555,7 +566,7 @@ impl BlockSynchronizer {
     /// a reply is immediately sent to the consumer via the provided respond_to
     /// channel. For the ones that haven't been found, are returned back on the
     /// returned vector.
-    #[instrument(level = "debug", skip_all)]
+    #[instrument(level = "trace", skip_all)]
     async fn reply_with_payload_already_in_storage(
         &self,
         certificates: Vec<Certificate>,
@@ -616,7 +627,7 @@ impl BlockSynchronizer {
 
     // Broadcasts a message to all the other primary nodes.
     // It returns back the primary names to which we have sent the requests.
-    #[instrument(level = "debug", skip_all)]
+    #[instrument(level = "trace", skip_all)]
     async fn broadcast_batch_request(&mut self, message: PrimaryMessage) -> Vec<PublicKey> {
         // Naively now just broadcast the request to all the primaries
 
@@ -634,7 +645,7 @@ impl BlockSynchronizer {
         primaries_names
     }
 
-    #[instrument(level="debug", skip_all, fields(request_id = ?request_id))]
+    #[instrument(level="trace", skip_all, fields(request_id = ?request_id))]
     async fn handle_synchronize_block_payloads<'a>(
         &mut self,
         request_id: RequestID,
@@ -677,7 +688,7 @@ impl BlockSynchronizer {
     ///
     /// * `primary_peer_name` - The primary from which we are looking to sync the batches.
     /// * `certificates` - The certificates for which we want to sync their batches.
-    #[instrument(level = "debug", skip_all)]
+    #[instrument(level = "trace", skip_all)]
     async fn send_synchronize_payload_requests(
         &mut self,
         primary_peer_name: PublicKey,
@@ -687,7 +698,8 @@ impl BlockSynchronizer {
 
         for (worker_id, batch_ids) in batches_by_worker {
             let worker_address = self
-                .committee
+                .worker_cache
+                .load()
                 .worker(&self.name, &worker_id)
                 .expect("Worker id not found")
                 .primary_to_worker;
@@ -743,7 +755,7 @@ impl BlockSynchronizer {
         }
     }
 
-    #[instrument(level = "debug", skip_all)]
+    #[instrument(level = "trace", skip_all)]
     async fn handle_payload_availability_response(
         &mut self,
         response: PayloadAvailabilityResponse,
@@ -766,7 +778,7 @@ impl BlockSynchronizer {
         }
     }
 
-    #[instrument(level = "debug", skip_all)]
+    #[instrument(level = "trace", skip_all)]
     async fn handle_certificates_response(&mut self, response: CertificatesResponse) {
         let sender = self
             .map_certificate_responses_senders
@@ -785,6 +797,7 @@ impl BlockSynchronizer {
         fetch_certificates_timeout: Duration,
         request_id: RequestID,
         committee: Committee,
+        worker_cache: SharedWorkerCache,
         block_ids: Vec<CertificateDigest>,
         primaries_sent_requests_to: Vec<PublicKey>,
         mut receiver: Receiver<CertificatesResponse>,
@@ -819,7 +832,7 @@ impl BlockSynchronizer {
 
                     num_of_responses += 1;
 
-                    match response.validate_certificates(&committee) {
+                    match response.validate_certificates(&committee, worker_cache.clone()) {
                         Ok(certificates) => {
                             // Ensure we got responses for the certificates we asked for.
                             // Even if we have found one certificate that doesn't match

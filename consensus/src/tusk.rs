@@ -6,7 +6,7 @@ use crate::{
     utils, ConsensusOutput, SequenceNumber,
 };
 use config::{Committee, Stake};
-use crypto::{traits::EncodeDecodeBase64, Hash};
+use fastcrypto::{traits::EncodeDecodeBase64, Hash};
 use std::{collections::HashMap, sync::Arc};
 use tracing::debug;
 use types::{Certificate, CertificateDigest, ConsensusStore, Round, StoreResult};
@@ -149,17 +149,22 @@ impl Tusk {
     ) -> Option<&'a (CertificateDigest, Certificate)> {
         // TODO: We should elect the leader of round r-2 using the common coin revealed at round r.
         // At this stage, we are guaranteed to have 2f+1 certificates from round r (which is enough to
-        // compute the coin). We currently just use round-robin.
-        #[cfg(test)]
-        let coin = 0;
-        #[cfg(not(test))]
-        let coin = round as usize;
-
-        // Elect the leader.
-        let leader = committee.leader(coin);
+        // compute the coin). We currently just use a stake-weighted choise seeded by the round.
+        //
+        // Note: this function is often called with even rounds only. While we do not aim at random selection
+        // yet (see issue #10), repeated calls to this function should still pick from the whole roster of leaders.
+        cfg_if::cfg_if! {
+            if #[cfg(test)] {
+                // consensus tests rely on returning the same leader.
+                let leader = committee.authorities.iter().next().expect("Empty authorities table!").0;
+            } else {
+                // Elect the leader in a stake-weighted choice seeded by the round
+                let leader = &committee.leader(round);
+            }
+        }
 
         // Return its certificate and the certificate's digest.
-        dag.get(&round).and_then(|x| x.get(&leader))
+        dag.get(&round).and_then(|x| x.get(leader))
     }
 }
 
@@ -168,7 +173,7 @@ mod tests {
     use super::*;
     use crate::metrics::ConsensusMetrics;
     use arc_swap::ArcSwap;
-    use crypto::traits::KeyPair;
+    use fastcrypto::traits::KeyPair;
     use prometheus::Registry;
     use rand::Rng;
     use std::collections::BTreeSet;

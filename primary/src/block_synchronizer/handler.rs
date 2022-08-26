@@ -8,12 +8,12 @@ use crate::{
     BlockHeader,
 };
 use async_trait::async_trait;
-use crypto::Hash;
+use fastcrypto::Hash;
 use futures::future::join_all;
 #[cfg(test)]
 use mockall::*;
 use std::time::Duration;
-use store::Store;
+use storage::CertificateStore;
 use thiserror::Error;
 use tokio::{sync::mpsc::channel, time::timeout};
 use tracing::{debug, error, instrument, trace};
@@ -104,7 +104,7 @@ pub struct BlockSynchronizerHandler {
     tx_core: metered_channel::Sender<PrimaryMessage>,
 
     /// The store that holds the certificates.
-    certificate_store: Store<CertificateDigest, Certificate>,
+    certificate_store: CertificateStore,
 
     /// The timeout while waiting for a certificate to become available
     /// after submitting for processing to core.
@@ -115,7 +115,7 @@ impl BlockSynchronizerHandler {
     pub fn new(
         tx_block_synchronizer: metered_channel::Sender<Command>,
         tx_core: metered_channel::Sender<PrimaryMessage>,
-        certificate_store: Store<CertificateDigest, Certificate>,
+        certificate_store: CertificateStore,
         certificate_deliver_timeout: Duration,
     ) -> Self {
         Self {
@@ -126,7 +126,6 @@ impl BlockSynchronizerHandler {
         }
     }
 
-    #[instrument(level = "debug", skip_all)]
     async fn wait_all(&self, certificates: Vec<Certificate>) -> Vec<Result<Certificate, Error>> {
         let futures: Vec<_> = certificates
             .into_iter()
@@ -136,7 +135,6 @@ impl BlockSynchronizerHandler {
         join_all(futures).await
     }
 
-    #[instrument(level = "debug", skip_all, err)]
     async fn wait(&self, block_id: CertificateDigest) -> Result<Certificate, Error> {
         if let Ok(result) = timeout(
             self.certificate_deliver_timeout,
@@ -144,9 +142,7 @@ impl BlockSynchronizerHandler {
         )
         .await
         {
-            result
-                .map_err(|_| Error::Internal { block_id })?
-                .ok_or(Error::BlockNotFound { block_id })
+            result.map_err(|_| Error::Internal { block_id })
         } else {
             Err(Error::BlockDeliveryTimeout { block_id })
         }
@@ -164,7 +160,7 @@ impl Handler for BlockSynchronizerHandler {
     /// * Internal: An internal error caused
     /// * BlockDeliveryTimeout: Timed out while waiting for the certificate to become available
     /// after submitting it for processing to core
-    #[instrument(level="debug", skip_all, fields(num_block_ids = block_ids.len()))]
+    #[instrument(level="trace", skip_all, fields(num_block_ids = block_ids.len()))]
     async fn get_and_synchronize_block_headers(
         &self,
         block_ids: Vec<CertificateDigest>,
@@ -229,7 +225,7 @@ impl Handler for BlockSynchronizerHandler {
         results
     }
 
-    #[instrument(level="debug", skip_all, fields(num_block_ids = block_ids.len()))]
+    #[instrument(level="trace", skip_all, fields(num_block_ids = block_ids.len()))]
     async fn get_block_headers(
         &self,
         block_ids: Vec<CertificateDigest>,
@@ -266,7 +262,7 @@ impl Handler for BlockSynchronizerHandler {
         results
     }
 
-    #[instrument(level = "debug", skip_all)]
+    #[instrument(level = "trace", skip_all)]
     async fn synchronize_block_payloads(
         &self,
         certificates: Vec<Certificate>,

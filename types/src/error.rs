@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use crate::{HeaderDigest, Round};
 use config::Epoch;
-use crypto::Digest;
+use fastcrypto::Digest;
 use store::StoreError;
 use thiserror::Error;
 
@@ -23,10 +23,31 @@ macro_rules! ensure {
     };
 }
 
+#[macro_export]
+macro_rules! try_fut_and_permit {
+    ($fut:expr, $sender:expr) => {
+        futures::future::TryFutureExt::unwrap_or_else(
+            futures::future::try_join(
+                $fut,
+                futures::TryFutureExt::map_err($sender.reserve(), |_e| {
+                    DagError::ClosedChannel(stringify!(sender).to_owned())
+                }),
+            ),
+            |e| {
+                tracing::error!("{e}");
+                panic!("I/O failure, killing the node.");
+            },
+        )
+    };
+}
+
 pub type DagResult<T> = Result<T, DagError>;
 
 #[derive(Debug, Error)]
 pub enum DagError {
+    #[error("Channel {0} has closed unexpectedly")]
+    ClosedChannel(String),
+
     #[error("Invalid signature")]
     InvalidSignature(#[from] signature::Error),
 

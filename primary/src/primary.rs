@@ -15,19 +15,23 @@ use crate::{
     proposer::Proposer,
     state_handler::StateHandler,
     synchronizer::Synchronizer,
-    BlockRemover, CertificatesResponse, DeleteBatchMessage, PayloadAvailabilityResponse,
+    BlockCommand, BlockRemover, CertificatesResponse, DeleteBatchMessage,
+    PayloadAvailabilityResponse,
 };
 use async_trait::async_trait;
-use config::{Parameters, SharedCommittee, WorkerId, WorkerInfo};
+use config::{Parameters, SharedCommittee, SharedWorkerCache, WorkerId, WorkerInfo};
 use consensus::dag::Dag;
-use crypto::{
+use crypto::PublicKey;
+use crypto::Signature;
+use fastcrypto::{
     traits::{EncodeDecodeBase64, Signer},
-    PublicKey, Signature, SignatureService,
+    SignatureService,
 };
 use multiaddr::{Multiaddr, Protocol};
 use network::{metrics::Metrics, PrimaryNetwork, PrimaryToWorkerNetwork};
 use prometheus::Registry;
-use std::{collections::HashMap, net::Ipv4Addr, sync::Arc};
+use std::{collections::BTreeMap, net::Ipv4Addr, sync::Arc};
+use storage::CertificateStore;
 use store::Store;
 use tokio::{sync::watch, task::JoinHandle};
 use tonic::{Request, Response, Status};
@@ -35,10 +39,9 @@ use tracing::info;
 use types::{
     error::DagError,
     metered_channel::{channel, Receiver, Sender},
-    BatchDigest, BatchMessage, BincodeEncodedPayload, Certificate, CertificateDigest, Empty,
-    Header, HeaderDigest, PrimaryToPrimary, PrimaryToPrimaryServer, ReconfigureNotification,
-    WorkerInfoResponse, WorkerPrimaryError, WorkerPrimaryMessage, WorkerToPrimary,
-    WorkerToPrimaryServer,
+    BatchDigest, BatchMessage, BincodeEncodedPayload, Certificate, Empty, Header, HeaderDigest,
+    PrimaryToPrimary, PrimaryToPrimaryServer, ReconfigureNotification, WorkerInfoResponse,
+    WorkerPrimaryError, WorkerPrimaryMessage, WorkerToPrimary, WorkerToPrimaryServer,
 };
 pub use types::{PrimaryMessage, PrimaryWorkerMessage};
 
@@ -60,22 +63,26 @@ impl Primary {
     const INADDR_ANY: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 0);
 
     // Spawns the primary and returns the JoinHandles of its tasks, as well as a metered receiver for the Consensus.
+    #[allow(clippy::too_many_arguments)]
     pub fn spawn<Signatory: Signer<Signature> + Send + 'static>(
         name: PublicKey,
         signer: Signatory,
         committee: SharedCommittee,
+        worker_cache: SharedWorkerCache,
         parameters: Parameters,
         header_store: Store<HeaderDigest, Header>,
-        certificate_store: Store<CertificateDigest, Certificate>,
+        certificate_store: CertificateStore,
         payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,
         tx_consensus: Sender<Certificate>,
         rx_consensus: Receiver<Certificate>,
+        tx_get_block_commands: Sender<BlockCommand>,
+        rx_get_block_commands: Receiver<BlockCommand>,
         dag: Option<Arc<Dag>>,
         network_model: NetworkModel,
         tx_reconfigure: watch::Sender<ReconfigureNotification>,
         tx_committed_certificates: Sender<Certificate>,
         registry: &Registry,
-    ) -> Vec<(&str, JoinHandle<()>)> {
+    ) -> Vec<JoinHandle<()>> {
         // Write the parameters to the logs.
         parameters.tracing();
 
@@ -117,10 +124,6 @@ impl Primary {
             CHANNEL_CAPACITY,
             &primary_channel_metrics.tx_helper_requests,
         );
-        let (tx_get_block_commands, rx_get_block_commands) = channel(
-            CHANNEL_CAPACITY,
-            &primary_channel_metrics.tx_get_block_commands,
-        );
         let (tx_batches, rx_batches) =
             channel(CHANNEL_CAPACITY, &primary_channel_metrics.tx_batches);
         let (tx_block_removal_commands, rx_block_removal_commands) = channel(
@@ -152,18 +155,25 @@ impl Primary {
             registry,
             Box::new(committed_certificates_gauge),
         );
+
         let new_certificates_gauge = tx_consensus.gauge().clone();
         primary_channel_metrics
             .replace_registered_new_certificates_metric(registry, Box::new(new_certificates_gauge));
 
+        let tx_get_block_commands_gauge = tx_get_block_commands.gauge().clone();
+        primary_channel_metrics.replace_registered_get_block_commands_metric(
+            registry,
+            Box::new(tx_get_block_commands_gauge),
+        );
+
         let (tx_consensus_round_updates, rx_consensus_round_updates) = watch::channel(0u64);
 
-        let our_workers = committee
+        let our_workers = worker_cache
             .load()
-            .authorities
-            .get(&name)
-            .expect("Our public key or worker id is not in the committee")
             .workers
+            .get(&name)
+            .expect("Our public key is not in the worker cache")
+            .0
             .clone();
 
         // Spawn the network receiver listening to messages from the other primaries.
@@ -240,6 +250,7 @@ impl Primary {
         let core_handle = Core::spawn(
             name.clone(),
             (**committee.load()).clone(),
+            worker_cache.clone(),
             header_store.clone(),
             certificate_store.clone(),
             synchronizer,
@@ -281,6 +292,7 @@ impl Primary {
         let block_waiter_handle = BlockWaiter::spawn(
             name.clone(),
             (**committee.load()).clone(),
+            worker_cache.clone(),
             tx_reconfigure.subscribe(),
             rx_get_block_commands,
             rx_batches,
@@ -299,6 +311,7 @@ impl Primary {
         let block_remover_handle = BlockRemover::spawn(
             name.clone(),
             (**committee.load()).clone(),
+            worker_cache.clone(),
             certificate_store.clone(),
             header_store,
             payload_store.clone(),
@@ -319,6 +332,7 @@ impl Primary {
         let block_synchronizer_handle = BlockSynchronizer::spawn(
             name.clone(),
             (**committee.load()).clone(),
+            worker_cache.clone(),
             tx_reconfigure.subscribe(),
             rx_block_synchronizer_commands,
             rx_certificate_responses,
@@ -343,6 +357,7 @@ impl Primary {
         let header_waiter_handle = HeaderWaiter::spawn(
             name.clone(),
             (**committee.load()).clone(),
+            worker_cache.clone(),
             certificate_store.clone(),
             payload_store.clone(),
             tx_consensus_round_updates.subscribe(),
@@ -404,6 +419,7 @@ impl Primary {
         let state_handler_handle = StateHandler::spawn(
             name.clone(),
             committee.clone(),
+            worker_cache,
             rx_consensus,
             tx_consensus_round_updates,
             rx_state_handler,
@@ -440,22 +456,22 @@ impl Primary {
         );
 
         let mut handles = vec![
-            ("primary_receiver", primary_receiver_handle),
-            ("worker_receiver", worker_receiver_handle),
-            ("core", core_handle),
-            ("payload_receiver", payload_receiver_handle),
-            ("block_synchronizer", block_synchronizer_handle),
-            ("block_waiter", block_waiter_handle),
-            ("block_remover", block_remover_handle),
-            ("header_waiter", header_waiter_handle),
-            ("certificate_waiter", certificate_waiter_handle),
-            ("proposer", proposer_handle),
-            ("helper", helper_handle),
-            ("state_handler", state_handler_handle),
+            primary_receiver_handle,
+            worker_receiver_handle,
+            core_handle,
+            payload_receiver_handle,
+            block_synchronizer_handle,
+            block_waiter_handle,
+            block_remover_handle,
+            header_waiter_handle,
+            certificate_waiter_handle,
+            proposer_handle,
+            helper_handle,
+            state_handler_handle,
         ];
 
         if let Some(h) = consensus_api_handle {
-            handles.push(("consensus_api", h));
+            handles.push(h);
         }
 
         handles
@@ -576,7 +592,7 @@ struct WorkerReceiverHandler {
     tx_batches: Sender<BatchResult>,
     tx_batch_removal: Sender<DeleteBatchResult>,
     tx_state_handler: Sender<ReconfigureNotification>,
-    our_workers: HashMap<WorkerId, WorkerInfo>,
+    our_workers: BTreeMap<WorkerId, WorkerInfo>,
     metrics: Arc<PrimaryMetrics>,
 }
 

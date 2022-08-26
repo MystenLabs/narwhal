@@ -4,6 +4,7 @@ use config::WorkerId;
 use std::fmt::Debug;
 use store::StoreError;
 use thiserror::Error;
+use types::CertificateDigest;
 
 #[macro_export]
 macro_rules! bail {
@@ -21,12 +22,36 @@ macro_rules! ensure {
     };
 }
 
+#[macro_export]
+macro_rules! try_fut_and_permit {
+    ($fut:expr, $sender:expr) => {
+        futures::future::TryFutureExt::unwrap_or_else(
+            futures::future::try_join(
+                $fut,
+                futures::TryFutureExt::map_err($sender.reserve(), |_e| {
+                    SubscriberError::ClosedChannel(stringify!(sender).to_owned())
+                }),
+            ),
+            |e| {
+                tracing::error!("{e}");
+                panic!("I/O failure, killing the node.");
+            },
+        )
+    };
+}
+
 pub type SubscriberResult<T> = Result<T, SubscriberError>;
 
 #[derive(Debug, Error, Clone)]
 pub enum SubscriberError {
+    #[error("channel {0} closed unexpectedly")]
+    ClosedChannel(String),
+
     #[error("Storage failure: {0}")]
     StoreError(#[from] StoreError),
+
+    #[error("Error occurred while retrieving certificate {0} payload: {1}")]
+    PayloadRetrieveError(CertificateDigest, String),
 
     #[error("Consensus referenced unexpected worker id {0}")]
     UnexpectedWorkerId(WorkerId),
@@ -56,7 +81,7 @@ impl From<Box<bincode::ErrorKind>> for SubscriberError {
     }
 }
 
-/// Trait do separate execution errors in two categories: (i) errors caused by a bad client, (ii)
+/// Trait to separate execution errors in two categories: (i) errors caused by a bad client, (ii)
 /// errors caused by a fault in the authority.
 pub trait ExecutionStateError: std::error::Error {
     /// Whether the error is due to a fault in the authority (eg. internal storage error).

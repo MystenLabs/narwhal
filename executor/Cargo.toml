@@ -12,23 +12,23 @@ blake2 = "0.9"
 bytes = "1.2.1"
 config = { path = "../config" }
 consensus = { path = "../consensus" }
-crypto = { path = "../crypto" }
-futures = "0.3.21"
+fastcrypto = { git = "https://github.com/MystenLabs/fastcrypto", rev = "c022a2ae23ca7cc2778293fd3b1db42e8cd02d3b" }
+futures = "0.3.23"
 multiaddr = "0.14.0"
 primary = { path = "../primary" }
-serde = { version = "1.0.142", features = ["derive"] }
+serde = { version = "1.0.144", features = ["derive"] }
 thiserror = "1.0.32"
 tokio = { version = "1.20.1", features = ["sync"] }
 tokio-util = { version = "0.7.3", features = ["codec"] }
 tonic = "0.7.2"
 tracing = "0.1.36"
 prometheus = "0.13.1"
+backoff = { version = "0.4.0", features = ["tokio"] }
 
 types = { path = "../types" }
-worker = { path = "../worker" }
-mysten-network = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "f4aa523d3029bd6a23bead5f04c182f2cfa04c5e" }
+mysten-network = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "696fa25982acdc87ab64ec6a33cb111edc63a331" }
 
-store = { git = "https://github.com/mystenlabs/mysten-infra.git", package = "typed-store", rev = "f4aa523d3029bd6a23bead5f04c182f2cfa04c5e" }
+store = { git = "https://github.com/mystenlabs/mysten-infra.git", package = "typed-store", rev = "696fa25982acdc87ab64ec6a33cb111edc63a331" }
 workspace-hack = { version = "0.1", path = "../workspace-hack" }
 match_opt = "0.1.2"
 
@@ -36,5 +36,7 @@ match_opt = "0.1.2"
 indexmap = { version = "1.9.1", features = ["serde"] }
 rand = "0.8.5"
 tempfile = "3.3.0"
+primary = { path = "../primary" }
 test_utils = { path = "../test_utils" }
 types = { path = "../types" }
+telemetry-subscribers = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "696fa25982acdc87ab64ec6a33cb111edc63a331" }

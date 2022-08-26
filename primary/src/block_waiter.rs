@@ -1,8 +1,9 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use crate::block_synchronizer::handler::Handler;
-use config::Committee;
-use crypto::{Digest, Hash, PublicKey};
+use config::{Committee, SharedWorkerCache};
+use crypto::PublicKey;
+use fastcrypto::{Digest, Hash};
 use futures::{
     future::{try_join_all, BoxFuture},
     stream::{futures_unordered::FuturesUnordered, StreamExt as _},
@@ -14,14 +15,15 @@ use std::{
     fmt,
     fmt::Formatter,
     sync::Arc,
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::Duration,
 };
+use tap::TapFallible;
 use tokio::{
     sync::{oneshot, watch},
     task::JoinHandle,
     time::timeout,
 };
-use tracing::{debug, error, info, instrument, warn};
+use tracing::{debug, error, info, instrument, trace, warn};
 use types::{
     metered_channel::Receiver, BatchDigest, BatchMessage, BlockError, BlockErrorKind, BlockResult,
     Certificate, CertificateDigest, Header, PrimaryWorkerMessage, ReconfigureNotification,
@@ -115,10 +117,10 @@ type RequestKey = Vec<u8>;
 /// ```rust
 /// # use tokio::sync::{mpsc::{channel}, watch, oneshot};
 /// # use arc_swap::ArcSwap;
-/// # use crypto::Hash;
+/// # use fastcrypto::Hash;
 /// # use std::env::temp_dir;
-/// # use crypto::ed25519::Ed25519PublicKey;
-/// # use config::Committee;
+/// # use fastcrypto::ed25519::Ed25519PublicKey;
+/// # use config::{Committee, WorkerCache, SharedWorkerCache};
 /// # use std::collections::BTreeMap;
 /// # use types::Certificate;
 /// # use primary::{BlockWaiter, BlockHeader, BlockCommand, block_synchronizer::{BlockSynchronizeResult, handler::{Error, Handler}}};
@@ -126,7 +128,7 @@ type RequestKey = Vec<u8>;
 /// # use mockall::*;
 /// # use test_utils::test_channel;
 /// # use types::ReconfigureNotification;
-/// # use crypto::traits::VerifyingKey;
+/// # use fastcrypto::traits::VerifyingKey;
 /// # use async_trait::async_trait;
 /// # use std::sync::Arc;
 /// # use network::PrimaryToWorkerNetwork;
@@ -159,6 +161,7 @@ type RequestKey = Vec<u8>;
 ///
 ///     let name = Ed25519PublicKey::default();
 ///     let committee = Committee{ epoch: 0, authorities: BTreeMap::new() };
+///     let worker_cache: SharedWorkerCache = WorkerCache{ epoch: 0, workers: BTreeMap::new() }.into();
 ///     let (_tx_reconfigure, rx_reconfigure) = watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));
 ///
 ///     // A dummy certificate
@@ -169,6 +172,7 @@ type RequestKey = Vec<u8>;
 ///     BlockWaiter::spawn(
 ///         name,
 ///         committee,
+///         worker_cache,
 ///         rx_reconfigure,
 ///         rx_commands,
 ///         rx_batches,
@@ -206,6 +210,9 @@ pub struct BlockWaiter<SynchronizerHandler: Handler + Send + Sync + 'static> {
     /// The committee information.
     committee: Committee,
 
+    /// The worker information cache.
+    worker_cache: SharedWorkerCache,
+
     /// Receive all the requests to get a block
     rx_commands: Receiver<BlockCommand>,
 
@@ -227,10 +234,13 @@ pub struct BlockWaiter<SynchronizerHandler: Handler + Send + Sync + 'static> {
     rx_batch_receiver: Receiver<BatchResult>,
 
     /// Maps batch ids to channels that "listen" for arrived batch messages.
-    /// On the key we hold the batch id (we assume it's globally unique).
-    /// On the value we hold a tuple of the channel to communicate the result
-    /// to and also a timestamp of when the request was sent.
-    tx_pending_batch: HashMap<BatchDigest, (oneshot::Sender<BatchResult>, u128)>,
+    /// On the key we hold the batch id.
+    /// On the value we hold a map of CertificateDigest --> oneshot::Sender
+    /// as we might need to deliver the batch result for requests from multiple
+    /// certificates (although not really probable its still possible for batches of
+    /// same id to be included in multiple headers).
+    tx_pending_batch:
+        HashMap<BatchDigest, HashMap<CertificateDigest, oneshot::Sender<BatchResult>>>,
 
     /// A map that holds the channels we should notify with the
     /// GetBlock responses.
@@ -254,6 +264,7 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> BlockWaiter<Synchroni
     pub fn spawn(
         name: PublicKey,
         committee: Committee,
+        worker_cache: SharedWorkerCache,
         rx_reconfigure: watch::Receiver<ReconfigureNotification>,
         rx_commands: Receiver<BlockCommand>,
         batch_receiver: Receiver<BatchResult>,
@@ -264,6 +275,7 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> BlockWaiter<Synchroni
             Self {
                 name,
                 committee,
+                worker_cache,
                 rx_commands,
                 pending_get_block: HashMap::new(),
                 worker_network,
@@ -417,7 +429,7 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> BlockWaiter<Synchroni
     }
 
     /// Helper method to retrieve a single certificate.
-    #[instrument(level = "debug", skip_all, fields(certificate_id = ?id))]
+    #[instrument(level = "trace", skip_all, fields(certificate_id = ?id))]
     async fn get_certificate(&mut self, id: CertificateDigest) -> Option<Certificate> {
         if let Some((_, c)) = self.get_certificates(vec![id]).await.first() {
             return c.to_owned();
@@ -430,7 +442,7 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> BlockWaiter<Synchroni
     /// fetch it via the peers. Otherwise if available on the storage
     /// should return the result immediately. The method is blocking to
     /// retrieve all the results.
-    #[instrument(level = "debug", skip_all, fields(num_certificate_ids = ids.len()))]
+    #[instrument(level = "trace", skip_all, fields(num_certificate_ids = ids.len()))]
     async fn get_certificates(
         &mut self,
         ids: Vec<CertificateDigest>,
@@ -588,14 +600,16 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> BlockWaiter<Synchroni
                 .or_insert_with(Vec::new)
                 .push(sender);
 
-            debug!("Block with id {} already has a pending request", id.clone());
+            trace!("Block with id {} already has a pending request", id.clone());
             return None;
         }
 
-        debug!("No pending get block for {}", id);
+        trace!("No pending get block for {}", id);
 
         // Add on a vector the receivers
-        let batch_receivers = self.send_batch_requests(certificate.header.clone()).await;
+        let batch_receivers = self
+            .send_batch_requests(id, certificate.header.clone())
+            .await;
 
         let fut = Self::wait_for_all_batches(id, batch_receivers);
 
@@ -675,9 +689,18 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> BlockWaiter<Synchroni
         match self.pending_get_block.remove(&block_id) {
             Some(certificate) => {
                 for (digest, _) in certificate.header.payload {
-                    // unlock the pending request - mostly about the
-                    // timed out requests.
-                    self.tx_pending_batch.remove(&digest);
+                    // Although we expect the entries to have been cleaned up by the moment
+                    // they have been delivered (or error) still adding this here to ensure
+                    // we don't miss any edge case and introduce memory leaks.
+                    if let Some(senders) = self.tx_pending_batch.get_mut(&digest) {
+                        senders.remove(&block_id);
+
+                        // if no more senders in the map then remove entirely
+                        // the map for the digest
+                        if senders.is_empty() {
+                            self.tx_pending_batch.remove(&digest);
+                        }
+                    }
                 }
             }
             None => {
@@ -695,42 +718,53 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> BlockWaiter<Synchroni
     // channel of the fetched batch.
     async fn send_batch_requests(
         &mut self,
+        block_id: CertificateDigest,
         header: Header,
     ) -> Vec<(BatchDigest, oneshot::Receiver<BatchResult>)> {
-        // Get the "now" time
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("Failed to measure time")
-            .as_millis();
-
         // Add the receivers to a vector
         let mut batch_receivers = Vec::new();
 
         // otherwise we send requests to all workers to send us their batches
         for (digest, worker_id) in header.payload {
-            debug!(
-                "Sending batch {} request to worker id {}",
-                digest.clone(),
-                worker_id
-            );
-
-            let worker_address = self
-                .committee
-                .worker(&self.name, &worker_id)
-                .expect("Worker id not found")
-                .primary_to_worker;
-
-            let message = PrimaryWorkerMessage::RequestBatch(digest);
-
-            self.worker_network
-                .unreliable_send(worker_address, &message)
-                .await;
-
-            // mark it as pending batch. Since we assume that batches are unique
-            // per block, a clean up on a block request will also clean
-            // up all the pending batch requests.
+            // Although we expect our headers to reference to unique batch ids it is
+            // possible for a batch with the same id to be produced if the exact same
+            // transactions are posted and included to a batch. Although unlikely it's
+            // still a possibility and this component should be prepared for it.
             let (tx, rx) = oneshot::channel();
-            self.tx_pending_batch.insert(digest, (tx, now));
+
+            if let Some(map) = self.tx_pending_batch.get_mut(&digest) {
+                debug!(
+                    "Skip sending request for batch {} to worker id {}, already pending",
+                    digest.clone(),
+                    worker_id
+                );
+
+                map.insert(block_id, tx);
+            } else {
+                self.tx_pending_batch
+                    .entry(digest)
+                    .or_default()
+                    .insert(block_id, tx);
+
+                debug!(
+                    "Sending batch {} request to worker id {}",
+                    digest.clone(),
+                    worker_id
+                );
+
+                let worker_address = self
+                    .worker_cache
+                    .load()
+                    .worker(&self.name, &worker_id)
+                    .expect("Worker id not found")
+                    .primary_to_worker;
+
+                let message = PrimaryWorkerMessage::RequestBatch(digest);
+
+                self.worker_network
+                    .unreliable_send(worker_address, &message)
+                    .await;
+            }
 
             // add the receiver to a vector to poll later
             batch_receivers.push((digest, rx));
@@ -743,11 +777,11 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> BlockWaiter<Synchroni
         let batch_id: BatchDigest = result.clone().map_or_else(|e| e.id, |r| r.id);
 
         match self.tx_pending_batch.remove(&batch_id) {
-            Some((sender, _)) => {
-                debug!("Sending BatchResult with id {}", &batch_id);
-                sender
-                    .send(result)
-                    .expect("Couldn't send BatchResult for pending batch");
+            Some(respond_to) => {
+                for (id, s) in respond_to {
+                    let _ = s.send(result.clone())
+                        .tap_err(|err| error!("Couldn't send batch result {batch_id} message to channel [{err:?}] for block_id {id}"));
+                }
             }
             None => {
                 warn!("Couldn't find pending batch with id {}", &batch_id);
