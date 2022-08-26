@@ -16,7 +16,7 @@ use tokio::{
     runtime::Handle,
     sync::{
         mpsc::{self, Sender},
-        oneshot, OwnedSemaphorePermit, Semaphore,
+        OwnedSemaphorePermit, Semaphore,
     },
     task::JoinHandle,
 };
@@ -25,7 +25,7 @@ use tracing::{debug, log::error, warn};
 
 use thiserror::Error;
 
-use crate::{try_fut_and_acquire, CancelOnDropHandler};
+use crate::CancelOnDropHandler;
 
 #[derive(Error)]
 pub enum BoundedExecutionError<F>
@@ -198,27 +198,59 @@ impl InternalBoundedExecutor {
     /// TODO: this still spawns one task, unconditionally, per call.
     /// We would instead like to have one central task that drives all retries
     /// for the whole executor.
-    pub(crate) async fn spawn_with_retries<F, Fut, T, E>(
-        &self,
+    async fn with_retries<F, Fut>(
+        mut factory: F,
         backoff: Backoff,
-        mut f: F,
-    ) -> JoinHandle<Result<(), RetryError>>
+        tx_scheduler: Arc<Sender<Job>>,
+    ) -> Result<(), RetryError>
     where
         F: FnMut() -> Fut + Send + 'static,
         Fut: Future<Output = Result<(), RetryError>> + Send + 'static,
-        T: Send + 'static,
-        E: Send + 'static,
     {
-        let mut boxed_factory: Box<FutureFactory> = Box::new(move || Box::pin(f()));
-        let tx_retry_manager = self.tx_retry_manager.clone();
+        let mut boxed_factory: Box<FutureFactory> = Box::new(move || Box::pin(factory()));
 
         let task = boxed_factory();
         let job = Job::new(boxed_factory, backoff, 0);
 
         let retry_task =
-            task.then(|result| async move { retry_logic(result, job, tx_retry_manager).await });
+            task.then(|result| async move { retry_logic(result, job, tx_scheduler).await });
+        retry_task.await
+    }
 
-        self.spawn(retry_task).await
+    pub(crate) async fn spawn_with_retries<F, Fut>(
+        &self,
+        backoff: Backoff,
+        f: F,
+    ) -> JoinHandle<Result<(), RetryError>>
+    where
+        F: FnMut() -> Fut + Send + 'static,
+        Fut: Future<Output = Result<(), RetryError>> + Send + 'static,
+    {
+        let retry_task =
+            InternalBoundedExecutor::with_retries(f, backoff, self.tx_retry_manager.clone());
+        let permit = Self::acquire_permit(self.semaphore.clone()).await;
+        self.spawn_with_permit(retry_task, permit)
+    }
+
+    pub fn try_spawn_with_retries<F, Fut>(
+        &self,
+        factory: F,
+        backoff: Backoff,
+    ) -> Result<
+        JoinHandle<Result<(), RetryError>>,
+        BoundedExecutionError<impl Future<Output = Result<(), RetryError>>>,
+    >
+    where
+        F: FnMut() -> Fut + Send + 'static,
+        Fut: Future<Output = Result<(), RetryError>> + Send + 'static,
+    {
+        let retry_task =
+            InternalBoundedExecutor::with_retries(factory, backoff, self.tx_retry_manager.clone());
+
+        match self.semaphore.clone().try_acquire_owned() {
+            Ok(permit) => Ok(self.spawn_with_permit(retry_task, permit)),
+            Err(_) => Err(BoundedExecutionError::Full(retry_task)),
+        }
     }
 
     // Equips a future with a final step that drops the held semaphore permit
@@ -243,15 +275,15 @@ async fn retry_logic(
     tx_scheduler: Arc<Sender<Job>>,
 ) -> Result<(), RetryError> {
     match result {
-        Ok(v) => Ok(()),
+        Ok(_) => Ok(()),
         Err(e) => match e {
             RetryError::Transient => {
                 job.increase_retry_counter();
                 let cooldown_time = job.cooldown_time();
-                if let Some(_) = cooldown_time {
-                    tx_scheduler.send(job).await.or_else(|e| {
+                if cooldown_time.is_some() {
+                    tx_scheduler.send(job).await.map_err(|e| {
                         error!("retry_job: failed to submit task to scheduler! ({e})");
-                        Err(RetryError::Permanent)
+                        RetryError::Permanent
                     })
                 } else {
                     Err(RetryError::Expired)
