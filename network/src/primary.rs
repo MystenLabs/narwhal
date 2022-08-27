@@ -2,14 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
+    bounded_executor::RetryError,
     metrics::{Metrics, PrimaryNetworkMetrics},
     traits::{BaseNetwork, LuckyNetwork, ReliableNetwork, UnreliableNetwork},
-    BoundedExecutor, CancelOnDropHandler, MessageResult, RetryConfig, MAX_TASK_CONCURRENCY,
+    BoundedExecutor, CancelOnDropHandler, MessageResult, MAX_TASK_CONCURRENCY,
 };
 use async_trait::async_trait;
+use exponential_backoff::Backoff;
 use multiaddr::Multiaddr;
 use rand::{rngs::SmallRng, SeedableRng as _};
 use std::collections::HashMap;
+use std::time::Duration;
 use tokio::{runtime::Handle, task::JoinHandle};
 use tonic::{transport::Channel, Code};
 use tracing::error;
@@ -21,7 +24,7 @@ use types::{
 pub struct PrimaryNetwork {
     clients: HashMap<Multiaddr, PrimaryToPrimaryClient<Channel>>,
     config: mysten_network::config::Config,
-    retry_config: RetryConfig,
+    backoff: Backoff,
     /// Small RNG just used to shuffle nodes and randomize connections (not crypto related).
     rng: SmallRng,
     // One bounded executor per address
@@ -35,16 +38,12 @@ fn default_executor() -> BoundedExecutor {
 
 impl Default for PrimaryNetwork {
     fn default() -> Self {
-        let retry_config = RetryConfig {
-            // Retry for forever
-            retrying_max_elapsed_time: None,
-            ..Default::default()
-        };
+        let backoff = Backoff::new(u32::MAX, Duration::ZERO, None);
 
         Self {
             clients: Default::default(),
             config: Default::default(),
-            retry_config,
+            backoff,
             rng: SmallRng::from_entropy(),
             executors: HashMap::new(),
             metrics: None,
@@ -150,29 +149,38 @@ impl ReliableNetwork for PrimaryNetwork {
             let message = message.clone();
 
             async move {
-                client.send_message(message).await.map_err(|e| {
-                    match e.code() {
+                match client.send_message(message).await {
+                    Ok(_) => Ok(()),
+                    Err(e) => match e.code() {
                         Code::FailedPrecondition | Code::InvalidArgument => {
                             // these errors are not recoverable through retrying, see
                             // https://github.com/hyperium/tonic/blob/master/tonic/src/status.rs
                             error!("Irrecoverable network error: {e}");
-                            backoff::Error::permanent(eyre::Report::from(e))
+                            Err(RetryError::Permanent)
                         }
                         _ => {
                             // this returns a backoff::Error::Transient
                             // so that if tonic::Status is returned, we retry
-                            Into::<backoff::Error<eyre::Report>>::into(eyre::Report::from(e))
+                            Err(RetryError::Transient)
                         }
-                    }
-                })
+                    },
+                }
             }
+        };
+
+        let backoff = self.backoff.clone();
+
+        let adapter = |result| match result {
+            Ok(()) => Ok(tonic::Response::new(types::Empty {})),
+            Err(e) => Err(eyre::Report::from(e)),
         };
 
         let handle = self
             .executors
             .entry(address)
             .or_insert_with(default_executor)
-            .spawn_with_retries(self.retry_config, message_send);
+            .spawn_with_retries_and_adapter(backoff, message_send, adapter)
+            .await;
 
         self.update_metrics();
 
