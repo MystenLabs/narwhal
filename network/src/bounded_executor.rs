@@ -198,10 +198,10 @@ impl InternalBoundedExecutor {
     /// TODO: this still spawns one task, unconditionally, per call.
     /// We would instead like to have one central task that drives all retries
     /// for the whole executor.
-    fn build_retry_task<F, Fut>(
+    pub fn with_retries<F, Fut>(
+        &self,
         mut factory: F,
         backoff: Backoff,
-        tx_scheduler: Arc<Sender<Job>>,
     ) -> impl Future<Output = Result<(), RetryError>>
     where
         F: FnMut() -> Fut + Send + 'static,
@@ -211,6 +211,7 @@ impl InternalBoundedExecutor {
 
         let task = boxed_factory();
         let job = Job::new(boxed_factory, backoff, 0);
+        let tx_scheduler = self.tx_retry_manager.clone();
         task.then(|result| async move { retry_logic(result, job, tx_scheduler).await })
     }
 
@@ -223,10 +224,8 @@ impl InternalBoundedExecutor {
         F: FnMut() -> Fut + Send + 'static,
         Fut: Future<Output = Result<(), RetryError>> + Send + 'static,
     {
-        let retry_task =
-            InternalBoundedExecutor::build_retry_task(f, backoff, self.tx_retry_manager.clone());
-        let permit = Self::acquire_permit(self.semaphore.clone()).await;
-        self.spawn_with_permit(retry_task, permit)
+        let retry_task = self.with_retries(f, backoff);
+        self.spawn(retry_task).await
     }
 
     pub fn try_spawn_with_retries<F, Fut>(
@@ -241,16 +240,31 @@ impl InternalBoundedExecutor {
         F: FnMut() -> Fut + Send + 'static,
         Fut: Future<Output = Result<(), RetryError>> + Send + 'static,
     {
-        let retry_task = InternalBoundedExecutor::build_retry_task(
-            factory,
-            backoff,
-            self.tx_retry_manager.clone(),
-        );
+        let retry_task = self.with_retries(factory, backoff);
 
         match self.semaphore.clone().try_acquire_owned() {
             Ok(permit) => Ok(self.spawn_with_permit(retry_task, permit)),
             Err(_) => Err(BoundedExecutionError::Full(retry_task)),
         }
+    }
+
+    pub(crate) async fn spawn_with_retries_and_adapter<F, Fut, A, T, E>(
+        &self,
+        backoff: Backoff,
+        f: F,
+        adapter: A,
+    ) -> JoinHandle<Result<T, E>>
+    where
+        F: FnMut() -> Fut + Send + 'static,
+        Fut: Future<Output = Result<(), RetryError>> + Send + 'static,
+        A: FnOnce(Result<(), RetryError>) -> Result<T, E> + Send + 'static,
+        T: Send + 'static,
+        E: Send + 'static,
+    {
+        let retry_task = self
+            .with_retries(f, backoff)
+            .then(|result| async move { adapter(result) });
+        self.spawn(retry_task).await
     }
 
     // Equips a future with a final step that drops the held semaphore permit
@@ -354,12 +368,16 @@ impl RetryManager {
     }
 }
 
+#[derive(Debug, Clone, Error)]
 pub enum RetryError {
     /// The task has encountered a recoverable error, retrying continues if allowed by the policy.
+    #[error("Transient error encountered.")]
     Transient,
     /// The task has encountered an unrecoverable error, retrying stops.
+    #[error("Permanent error encountered, stopping retries.")]
     Permanent,
     /// The task has failed too many times, retrying stops.
+    #[error("Maximum number of retries reached, stopping retries.")]
     Expired,
 }
 
