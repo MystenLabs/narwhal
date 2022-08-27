@@ -30,6 +30,16 @@ use types::{
 #[path = "tests/core_tests.rs"]
 pub mod core_tests;
 
+struct PrintAtDrop {
+    pub cert_digest: CertificateDigest,
+}
+
+impl Drop for PrintAtDrop {
+    fn drop(&mut self) {
+        debug!("PrintAtDrop dropped when processing certificate: {:?}", self.cert_digest);
+    }
+}
+
 pub struct Core {
     /// The public key of this primary.
     name: PublicKey,
@@ -341,6 +351,9 @@ impl Core {
     #[async_recursion]
     #[instrument(level = "debug", skip_all)]
     async fn process_certificate(&mut self, certificate: Certificate) -> DagResult<()> {
+        let _print_at_drop = PrintAtDrop {
+            cert_digest: certificate.digest(),
+        };
         debug!(
             "Processing {:?} round:{:?}",
             certificate,
@@ -360,6 +373,8 @@ impl Core {
             .await
             .map_err(|_| DagError::ShuttingDown)?;
 
+        debug!("Certificate sent to tx_proposer: {:?}", certificate.digest());
+
         // Process the header embedded in the certificate if we haven't already voted for it (if we already
         // voted, it means we already processed it). Since this header got certified, we are sure that all
         // the data it refers to (ie. its payload and its parents) are available. We can thus continue the
@@ -372,27 +387,39 @@ impl Core {
             // This function may still throw an error if the storage fails.
             self.process_header(&certificate.header).await?;
         }
+        debug!("Certificate added to processing: {:?}", certificate.digest());
 
         // Ensure we have all the ancestors of this certificate yet (if we didn't already garbage collect them).
         // If we don't, the synchronizer will gather them and trigger re-processing of this certificate.
-        if certificate.round() > self.gc_round + 1
-            && !self.synchronizer.deliver_certificate(&certificate).await?
-        {
-            debug!(
-                "Processing of {:?} suspended: missing ancestors",
-                certificate
-            );
-            self.metrics
-                .certificates_suspended
-                .with_label_values(&[&certificate.epoch().to_string(), "missing_parents"])
-                .inc();
-            return Ok(());
+        if certificate.round() > self.gc_round + 1 {
+            debug!("Certificate round bigger than gc round + 1: {:?}", certificate.digest());
+            match self.synchronizer.deliver_certificate(&certificate).await {
+                Ok(true) =>  {
+                    debug!("deliver_certificate successful: {:?}", certificate.digest());
+                },
+                Ok(false) => {
+                    debug!(
+                        "Processing of {:?} suspended: missing ancestors",
+                        certificate
+                    );
+                    self.metrics
+                        .certificates_suspended
+                        .with_label_values(&[&certificate.epoch().to_string(), "missing_parents"])
+                        .inc();
+                    return Ok(());
+                },
+                Err(err) => {
+                    debug!("Error calling deliver_certificate: {:?}", err);
+                    return Err(err);
+                }
+            }
         }
 
         // Store the certificate.
         self.certificate_store
             .write(certificate.digest(), certificate.clone())
             .await;
+        debug!("Certificate written into store: {:?}", certificate.digest());
 
         let certificate_source = if self.name.eq(&certificate.header.author) {
             "own"
@@ -411,6 +438,7 @@ impl Core {
             .or_insert_with(|| Box::new(CertificatesAggregator::new()))
             .append(certificate.clone(), &self.committee)
         {
+            debug!("Enough parents are available: {:?}", certificate.digest());
             // Send it to the `Proposer`.
             self.tx_proposer
                 .send((parents, certificate.round(), certificate.epoch()))
@@ -423,12 +451,14 @@ impl Core {
                     .retain(|k, _| *k >= certificate.round() - 1);
             }
             debug!(
-                "Pruned {} messages from obsolete rounds.",
-                before.saturating_sub(self.cancel_handlers.len())
+                "Pruned {} messages from obsolete rounds while processing certificate {:?}",
+                before.saturating_sub(self.cancel_handlers.len()),
+                certificate.digest(),
             );
         }
 
         // Send it to the consensus layer.
+        debug!("Sending certificate to the consensus layer: {:?}", certificate.digest());
         let id = certificate.header.id;
         if let Err(e) = self.tx_consensus.send(certificate).await {
             warn!(

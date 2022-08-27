@@ -32,6 +32,7 @@ impl ConsensusProtocol for Bullshark {
         certificate: Certificate,
     ) -> StoreResult<Vec<ConsensusOutput>> {
         debug!("Processing {:?}", certificate);
+        let cert_digest = certificate.digest();
         let round = certificate.round();
         let mut consensus_index = consensus_index;
 
@@ -48,6 +49,7 @@ impl ConsensusProtocol for Bullshark {
 
         // We only elect leaders for even round numbers.
         if r % 2 != 0 || r < 2 {
+            debug!(?cert_digest, "Not an even round");
             return Ok(Vec::new());
         }
 
@@ -55,12 +57,16 @@ impl ConsensusProtocol for Bullshark {
         // there is nothing to do.
         let leader_round = r;
         if leader_round <= state.last_committed_round {
+            debug!(?cert_digest, "Leader round less or equal than last committed round");
             return Ok(Vec::new());
         }
         let (leader_digest, leader) = match Self::leader(&self.committee, leader_round, &state.dag)
         {
             Some(x) => x,
-            None => return Ok(Vec::new()),
+            None => {
+                debug!(?cert_digest, "Did not find the leader");
+                return Ok(Vec::new())
+            },
         };
 
         // Check if the leader has f+1 support from its children (ie. round r-1).
@@ -77,12 +83,12 @@ impl ConsensusProtocol for Bullshark {
         // the last committed leader, and commit all preceding leaders in the right order. Committing
         // a leader block means committing all its dependencies.
         if stake < self.committee.validity_threshold() {
-            debug!("Leader {:?} does not have enough support", leader);
+            debug!(?cert_digest, "Leader {:?} does not have enough support", leader);
             return Ok(Vec::new());
         }
 
         // Get an ordered list of past leaders that are linked to the current leader.
-        debug!("Leader {:?} has enough support", leader);
+        debug!(?cert_digest, "Leader {:?} has enough support", leader);
         let mut sequence = Vec::new();
         for leader in utils::order_leaders(&self.committee, leader, state, Self::leader)
             .iter()
@@ -118,7 +124,7 @@ impl ConsensusProtocol for Bullshark {
         // Performance note: if tracing at the debug log level is disabled, this is cheap, see
         // https://github.com/tokio-rs/tracing/pull/326
         for (name, round) in &state.last_committed {
-            debug!("Latest commit of {}: Round {}", name.encode_base64(), round);
+            debug!(?cert_digest, "Latest commit of {}: Round {}", name.encode_base64(), round);
         }
 
         Ok(sequence)

@@ -11,6 +11,8 @@ use tokio::{
     task::JoinHandle,
     time::{sleep, Duration, Instant},
 };
+#[cfg(feature = "benchmark")]
+use byteorder::{LittleEndian, ReadBytesExt};
 use types::{
     error::DagError,
     metered_channel::{Receiver, Sender},
@@ -156,6 +158,12 @@ impl BatchMaker {
 
                 // NOTE: This log entry is used to compute performance.
                 tracing::info!("Batch {:?} contains {} B", digest, size);
+                let tracking_ids: Vec<_> = batch.0.iter().map(|tx| if tx.len() >= 8usize {
+                    (&tx[0..8]).read_u64::<LittleEndian>().unwrap()
+                } else {
+                    0
+                }).collect();
+                tracing::debug!("List of transaction tracking ids in batch {:?}: {:?}", digest, tracking_ids);
             }
         }
 
