@@ -5,8 +5,7 @@ use config::{
     utils::get_available_port, Authority, Committee, Epoch, PrimaryAddresses, SharedWorkerCache,
     WorkerCache, WorkerId, WorkerIndex, WorkerInfo,
 };
-use crypto::PublicKey;
-use crypto::{KeyPair, Signature};
+use crypto::{KeyPair, PublicKey, Signature};
 use fastcrypto::{
     traits::{KeyPair as _, Signer as _},
     Digest, Hash as _,
