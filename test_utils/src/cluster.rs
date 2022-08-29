@@ -3,9 +3,8 @@
 use crate::{keys, pure_committee_from_keys, shared_worker_cache_from_keys, temp_dir};
 use arc_swap::ArcSwap;
 use config::{Committee, Parameters, SharedCommittee, SharedWorkerCache, WorkerId};
-use crypto::KeyPair;
-use crypto::PublicKey;
-use executor::{SerializedTransaction, SingleExecutor, SubscriberResult};
+use crypto::{KeyPair, PublicKey};
+use executor::{SerializedTransaction, SubscriberResult};
 use fastcrypto::traits::KeyPair as _;
 use itertools::Itertools;
 use multiaddr::Multiaddr;
@@ -353,11 +352,8 @@ impl PrimaryNodeDetails {
             &primary_store,
             self.parameters.clone(),
             /* consensus */ self.internal_consensus_enabled,
-            /* execution_state */
-            SingleExecutor::new(
-                Arc::new(SimpleExecutionState::default()),
-                tx_transaction_confirmation,
-            ),
+            /* execution_state */ Arc::new(SimpleExecutionState::default()),
+            tx_transaction_confirmation,
             &registry,
         )
         .await
