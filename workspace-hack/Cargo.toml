@@ -179,6 +179,7 @@ mockall = { version = "0.11", default-features = false }
 multiaddr = { version = "0.14", features = ["url"] }
 multihash = { version = "0.16", default-features = false, features = ["alloc", "derive", "identity", "multihash-derive", "multihash-impl", "std"] }
 mysten-network = { version = "0.1", default-features = false }
+mysten-util-mem = { git = "https://github.com/MystenLabs/mysten-infra", features = ["estimate-heapsize", "hashbrown", "parking_lot", "smallvec", "std"] }
 nom = { version = "7", features = ["alloc", "std"] }
 normalize-line-endings = { version = "0.3", default-features = false }
 num-bigint = { version = "0.4", features = ["std"] }
@@ -381,6 +382,7 @@ heck-468e82937335b1c9 = { package = "heck", version = "0.3", default-features = 
 heck-9fbad63c4bcf4a8f = { package = "heck", version = "0.4" }
 hex-literal = { version = "0.3", default-features = false }
 ident_case = { version = "1", default-features = false }
+impl-trait-for-tuples = { version = "0.2", default-features = false }
 indexmap = { version = "1", default-features = false, features = ["serde", "std"] }
 itertools = { version = "0.10", features = ["use_alloc", "use_std"] }
 jobserver = { version = "0.1", default-features = false }
@@ -394,6 +396,7 @@ minimal-lexical = { version = "0.2", default-features = false, features = ["std"
 mockall_derive = { version = "0.11", default-features = false }
 multihash-derive = { version = "0.8", default-features = false, features = ["std"] }
 multimap = { version = "0.8", default-features = false }
+mysten-util-mem-derive = { git = "https://github.com/MystenLabs/mysten-infra", default-features = false }
 nom = { version = "7", features = ["alloc", "std"] }
 num-bigint = { version = "0.4", features = ["std"] }
 num-integer = { version = "0.1", default-features = false, features = ["i128", "std"] }
@@ -438,7 +441,7 @@ shlex = { version = "1", features = ["std"] }
 strsim-93f6ce9d446188ac = { package = "strsim", version = "0.10", default-features = false }
 structopt-derive = { version = "0.4", default-features = false }
 syn-3575ec1268b04181 = { package = "syn", version = "0.15", features = ["clone-impls", "derive", "extra-traits", "full", "parsing", "printing", "proc-macro", "quote", "visit"] }
-syn-dff4ba8e3ae991db = { package = "syn", version = "1", features = ["clone-impls", "derive", "extra-traits", "full", "parsing", "printing", "proc-macro", "quote", "visit", "visit-mut"] }
+syn-dff4ba8e3ae991db = { package = "syn", version = "1", features = ["clone-impls", "derive", "extra-traits", "fold", "full", "parsing", "printing", "proc-macro", "quote", "visit", "visit-mut"] }
 synstructure = { version = "0.12", features = ["proc-macro"] }
 tempfile = { version = "3", default-features = false }
 thiserror = { version = "1", default-features = false }

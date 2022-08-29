@@ -857,6 +857,7 @@ dependencies = [
  "futures",
  "indexmap",
  "match_opt",
+ "mysten-util-mem",
  "pprof",
  "prometheus",
  "rand 0.8.5",
@@ -1079,6 +1080,7 @@ dependencies = [
  "hkdf",
  "k256",
  "merlin",
+ "mysten-util-mem",
  "once_cell",
  "proptest",
  "proptest-derive",
@@ -1994,6 +1996,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "impl-trait-for-tuples"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "11d7a9f6330b71fea57921c9b61c47ee6e84f72d394754eff6163ae67e7395eb"
+dependencies = [
+ "proc-macro2 1.0.40",
+ "quote 1.0.20",
+ "syn 1.0.98",
+]
+
+[[package]]
 name = "indenter"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2395,6 +2408,33 @@ dependencies = [
  "tower",
  "tower-http",
  "tracing",
+]
+
+[[package]]
+name = "mysten-util-mem"
+version = "0.11.0"
+source = "git+https://github.com/MystenLabs/mysten-infra#d932aa91fb5345fa72869bf943d9989fafde330c"
+dependencies = [
+ "cfg-if 1.0.0",
+ "ed25519-consensus",
+ "fastcrypto",
+ "hashbrown",
+ "impl-trait-for-tuples",
+ "indexmap",
+ "mysten-util-mem-derive",
+ "parking_lot 0.12.1",
+ "roaring",
+ "smallvec",
+]
+
+[[package]]
+name = "mysten-util-mem-derive"
+version = "0.1.0"
+source = "git+https://github.com/MystenLabs/mysten-infra#d932aa91fb5345fa72869bf943d9989fafde330c"
+dependencies = [
+ "proc-macro2 1.0.40",
+ "syn 1.0.98",
+ "synstructure",
 ]
 
 [[package]]
@@ -4733,6 +4773,7 @@ dependencies = [
  "futures",
  "hex",
  "indexmap",
+ "mysten-util-mem",
  "prometheus",
  "proptest",
  "proptest-derive",
@@ -5262,6 +5303,7 @@ dependencies = [
  "hyper-timeout",
  "ident_case",
  "idna",
+ "impl-trait-for-tuples",
  "indenter",
  "indexmap",
  "insta",
@@ -5301,6 +5343,8 @@ dependencies = [
  "multihash-derive",
  "multimap",
  "mysten-network",
+ "mysten-util-mem",
+ "mysten-util-mem-derive",
  "nom",
  "normalize-line-endings",
  "num-bigint",
