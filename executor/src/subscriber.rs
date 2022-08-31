@@ -48,7 +48,7 @@ pub struct Subscriber {
 }
 
 impl Subscriber {
-    /// Returns the max amount of pending consensus messages we should expect.
+    /// Returns the max amount of pending consensus messages we should expect..
     const MAX_PENDING_CONSENSUS_MESSAGES: usize = 2000;
 
     /// Spawn a new subscriber in a new tokio task.
