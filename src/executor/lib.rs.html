@@ -137,6 +137,11 @@
 <span id="137">137</span>
 <span id="138">138</span>
 <span id="139">139</span>
+<span id="140">140</span>
+<span id="141">141</span>
+<span id="142">142</span>
+<span id="143">143</span>
+<span id="144">144</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">mod </span>core;
@@ -198,6 +203,11 @@
         execution_indices: ExecutionIndices,
         transaction: <span class="self">Self</span>::Transaction,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>::Outcome, <span class="self">Self</span>::Error&gt;;
+
+    <span class="doccomment">/// Deserialize the message bytes into Transaction type. This allows an implementation of
+    /// ExecutionState to customize how to deserialize the message, in case customized
+    /// serialization was used when sending the message.
+    </span><span class="kw">fn </span>deserialize(bytes: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>::Transaction, bincode::Error&gt;;
 
     <span class="doccomment">/// Simple guardrail ensuring there is a single instance using the state
     /// to call `handle_consensus_transaction`. Many instances may read the state,
@@ -277,4 +287,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="executor" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (bc4b39c27 2022-08-29)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="executor" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (02654a084 2022-08-30)" ></div></body></html>
