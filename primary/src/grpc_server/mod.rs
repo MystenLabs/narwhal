@@ -85,7 +85,7 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> ConsensusAPIGrpc<Sync
                 .load()
                 .primary(&self.name)
                 .expect("Our public key is not in the committee")
-                .primary_to_primary,
+                .public_to_primary,
             Arc::clone(&self.committee),
         );
 

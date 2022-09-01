@@ -287,7 +287,7 @@ async fn epoch_change() {
                 let address = committee
                     .primary(&name_clone)
                     .expect("Our key is not in the committee")
-                    .primary_to_primary;
+                    .public_to_primary;
                 let message = WorkerPrimaryMessage::Reconfigure(ReconfigureNotification::NewEpoch(
                     committee.clone(),
                 ));

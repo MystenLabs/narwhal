@@ -82,7 +82,7 @@ impl QuorumWaiter {
                         .load()
                         .others_workers(&self.name, &self.id)
                         .into_iter()
-                        .map(|(name, addresses)| (name, addresses.worker_to_worker))
+                        .map(|(name, addresses)| (name, addresses.public_to_worker))
                         .collect();
                     let (names, addresses): (Vec<_>, _) = workers_addresses.iter().cloned().unzip();
                     let message = WorkerMessage::Batch(batch);

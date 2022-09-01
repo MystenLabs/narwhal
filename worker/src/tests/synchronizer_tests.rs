@@ -56,7 +56,7 @@ async fn synchronize() {
         .load()
         .worker(&target, &id)
         .unwrap()
-        .worker_to_worker;
+        .public_to_worker;
     let missing = vec![batch_digest()];
     let message = WorkerMessage::BatchRequest(missing.clone(), name.clone());
     let serialized = bincode::serialize(&message).unwrap();
@@ -113,7 +113,7 @@ async fn synchronize_when_batch_exists() {
         .load()
         .worker(&target, &id)
         .unwrap()
-        .worker_to_worker;
+        .public_to_worker;
     let batch_id = batch_digest();
     let missing = vec![batch_id];
 

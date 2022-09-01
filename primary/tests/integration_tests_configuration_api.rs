@@ -24,7 +24,7 @@ async fn test_new_epoch() {
 
     let public_key = PublicKeyProto::from(name);
     let stake_weight = 1;
-    let primary_to_primary = Some(MultiAddrProto {
+    let public_to_primary = Some(MultiAddrProto {
         address: "/ip4/127.0.0.1".to_string(),
     });
     let worker_to_primary = Some(MultiAddrProto {
@@ -37,7 +37,7 @@ async fn test_new_epoch() {
             public_key: Some(public_key),
             stake_weight,
             primary_addresses: Some(PrimaryAddressesProto {
-                primary_to_primary,
+                public_to_primary,
                 worker_to_primary,
             }),
         }],
@@ -73,7 +73,7 @@ async fn test_new_network_info() {
     for public_key in public_keys.iter() {
         let public_key_proto = PublicKeyProto::from(public_key.clone());
         let stake_weight = 1;
-        let primary_to_primary = Some(MultiAddrProto {
+        let public_to_primary = Some(MultiAddrProto {
             address: "/ip4/127.0.0.1".to_string(),
         });
         let worker_to_primary = Some(MultiAddrProto {
@@ -84,7 +84,7 @@ async fn test_new_network_info() {
             public_key: Some(public_key_proto),
             stake_weight,
             primary_addresses: Some(PrimaryAddressesProto {
-                primary_to_primary,
+                public_to_primary,
                 worker_to_primary,
             }),
         });
@@ -139,7 +139,7 @@ async fn test_get_primary_address() {
             .load()
             .primary(&name)
             .expect("Our public key or worker id is not in the committee")
-            .primary_to_primary
+            .public_to_primary
             .to_string()
     )
 }

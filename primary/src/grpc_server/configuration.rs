@@ -64,8 +64,8 @@ impl Configuration for NarwhalConfiguration {
                 .primary_addresses
                 .as_ref()
                 .ok_or_else(|| Status::invalid_argument("Missing primary addresses"))?;
-            let primary_to_primary = primary_addresses
-                .primary_to_primary
+            let public_to_primary = primary_addresses
+                .public_to_primary
                 .as_ref()
                 .ok_or_else(|| Status::invalid_argument("Missing primary to primary address"))?
                 .address
@@ -74,7 +74,7 @@ impl Configuration for NarwhalConfiguration {
                     Status::invalid_argument(format!("Could not serialize: {:?}", err))
                 })?;
             let worker_to_primary = primary_addresses
-                .primary_to_primary
+                .public_to_primary
                 .as_ref()
                 .ok_or_else(|| Status::invalid_argument("Missing worker to primary address"))?
                 .address
@@ -83,7 +83,7 @@ impl Configuration for NarwhalConfiguration {
                     Status::invalid_argument(format!("Could not serialize: {:?}", err))
                 })?;
             let primary = PrimaryAddresses {
-                primary_to_primary,
+                public_to_primary,
                 worker_to_primary,
             };
             parsed_input.push(format!(
@@ -122,8 +122,8 @@ impl Configuration for NarwhalConfiguration {
                 .primary_addresses
                 .as_ref()
                 .ok_or_else(|| Status::invalid_argument("Missing primary addresses"))?;
-            let primary_to_primary = primary_addresses
-                .primary_to_primary
+            let public_to_primary = primary_addresses
+                .public_to_primary
                 .as_ref()
                 .ok_or_else(|| Status::invalid_argument("Missing primary to primary address"))?
                 .address
@@ -132,7 +132,7 @@ impl Configuration for NarwhalConfiguration {
                     Status::invalid_argument(format!("Could not serialize: {:?}", err))
                 })?;
             let worker_to_primary = primary_addresses
-                .primary_to_primary
+                .public_to_primary
                 .as_ref()
                 .ok_or_else(|| Status::invalid_argument("Missing worker to primary address"))?
                 .address
@@ -141,7 +141,7 @@ impl Configuration for NarwhalConfiguration {
                     Status::invalid_argument(format!("Could not serialize: {:?}", err))
                 })?;
             let primary = PrimaryAddresses {
-                primary_to_primary,
+                public_to_primary,
                 worker_to_primary,
             };
             new_network_info.insert(public_key, (stake_weight, primary));

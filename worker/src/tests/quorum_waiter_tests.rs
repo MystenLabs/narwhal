@@ -36,7 +36,7 @@ async fn wait_for_quorum() {
     let mut addresses = Vec::new();
     let mut listener_handles = Vec::new();
     for (name, address) in worker_cache.load().others_workers(&myself, /* id */ &0) {
-        let address = address.worker_to_worker;
+        let address = address.public_to_worker;
         let handle = PublicToWorkerMockServer::spawn(address.clone());
         names.push(name);
         addresses.push(address);

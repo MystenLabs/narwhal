@@ -75,7 +75,7 @@ impl Helper {
                 Some((digests, origin)) = self.rx_worker_request.recv() => {
                     // get the requestors address.
                     let address = match self.worker_cache.load().worker(&origin, &self.id) {
-                        Ok(x) => x.worker_to_worker,
+                        Ok(x) => x.public_to_worker,
                         Err(e) => {
                             warn!("Unexpected batch request: {e}");
                             continue;

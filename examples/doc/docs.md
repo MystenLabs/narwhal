@@ -270,7 +270,7 @@ Empty message for when we don&#39;t have anything to return
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| primary_to_primary | [MultiAddr](#narwhal-MultiAddr) |  |  |
+| public_to_primary | [MultiAddr](#narwhal-MultiAddr) |  |  |
 | worker_to_primary | [MultiAddr](#narwhal-MultiAddr) |  |  |
 
 

@@ -63,7 +63,7 @@ async fn handle_worker_info_request() {
 
     // Spawn a client to ask for worker info and receive the reply.
     tokio::task::yield_now().await;
-    let address = committee.primary(&name).unwrap().primary_to_primary.clone();
+    let address = committee.primary(&name).unwrap().public_to_primary.clone();
     let config = mysten_network::config::Config::new();
     let channel = config.connect_lazy(&address).unwrap();
     let mut client = PublicToPrimaryClient::new(channel);

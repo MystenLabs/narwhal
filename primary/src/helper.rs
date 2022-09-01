@@ -148,7 +148,7 @@ impl Helper {
     ) -> Result<(), HelperError> {
         // get the requestor's address.
         let address = match self.committee.primary(&origin) {
-            Ok(x) => x.primary_to_primary,
+            Ok(x) => x.public_to_primary,
             Err(_) => {
                 return Err(HelperError::UnknownAuthority(origin.encode_base64()));
             }
@@ -228,7 +228,7 @@ impl Helper {
 
         // get the requestor's address.
         let address = match self.committee.primary(&origin) {
-            Ok(x) => x.primary_to_primary,
+            Ok(x) => x.public_to_primary,
             Err(_) => {
                 return Err(HelperError::UnknownAuthority(origin.encode_base64()));
             }

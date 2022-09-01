@@ -162,7 +162,7 @@ impl Core {
             .committee
             .others_primaries(&self.name)
             .into_iter()
-            .map(|(_, x)| x.primary_to_primary)
+            .map(|(_, x)| x.public_to_primary)
             .collect();
 
         let message = PrimaryMessage::Header(header.clone());
@@ -289,7 +289,7 @@ impl Core {
                     .committee
                     .primary(&header.author)
                     .expect("Author of valid header is not in the committee")
-                    .primary_to_primary;
+                    .public_to_primary;
                 let handler = self
                     .network
                     .send(address, &PrimaryMessage::Vote(vote))
@@ -320,7 +320,7 @@ impl Core {
                 .committee
                 .others_primaries(&self.name)
                 .into_iter()
-                .map(|(_, x)| x.primary_to_primary)
+                .map(|(_, x)| x.public_to_primary)
                 .collect();
             let message = PrimaryMessage::Certificate(certificate.clone());
             let handlers = self.network.broadcast(addresses, &message).await;

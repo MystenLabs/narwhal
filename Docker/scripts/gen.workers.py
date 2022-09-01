@@ -36,7 +36,7 @@ def main():
             workers[j] = {
                 "primary_to_worker": "/dns/worker_{:02d}/tcp/{}/http".format(i, port),
                 "transactions": "/dns/worker_{:02d}/tcp/{}/http".format(i, port+1),
-                "worker_to_worker": "/dns/worker_{:02d}/tcp/{}/http".format(i, port+2)
+                "public_to_worker": "/dns/worker_{:02d}/tcp/{}/http".format(i, port+2)
             }
             port += 3
         temp[k['name']] = workers

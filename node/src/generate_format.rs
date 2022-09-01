@@ -44,7 +44,7 @@ fn get_registry() -> Result<Registry> {
             .map(|(i, kp)| {
                 let id = kp.public();
                 let primary = PrimaryAddresses {
-                    primary_to_primary: format!("/ip4/127.0.0.1/tcp/{}/http", 100 + i)
+                    public_to_primary: format!("/ip4/127.0.0.1/tcp/{}/http", 100 + i)
                         .parse()
                         .unwrap(),
                     worker_to_primary: format!("/ip4/127.0.0.1/tcp/{}/http", 200 + i)
@@ -89,7 +89,7 @@ fn get_registry() -> Result<Registry> {
             WorkerInfo {
                 primary_to_worker: "/ip4/127.0.0.1/tcp/300/http".to_string().parse().unwrap(),
                 transactions: "/ip4/127.0.0.1/tcp/400/http".to_string().parse().unwrap(),
-                worker_to_worker: "/ip4/127.0.0.1/tcp/500/http".to_string().parse().unwrap(),
+                public_to_worker: "/ip4/127.0.0.1/tcp/500/http".to_string().parse().unwrap(),
             },
         )]
         .into_iter()

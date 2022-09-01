@@ -139,7 +139,7 @@ pub fn pure_committee_from_keys(keys: &[KeyPair]) -> Committee {
 
 pub fn make_authority_with_port_getter<F: FnMut() -> u16>(mut get_port: F) -> Authority {
     let primary = PrimaryAddresses {
-        primary_to_primary: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
+        public_to_primary: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
             .parse()
             .unwrap(),
         worker_to_primary: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
@@ -188,7 +188,7 @@ pub fn initialize_worker_index_with_port_getter<F: FnMut() -> u16>(mut get_port:
                 transactions: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
                     .parse()
                     .unwrap(),
-                worker_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
+                public_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
                     .parse()
                     .unwrap(),
             },
@@ -202,7 +202,7 @@ pub fn initialize_worker_index_with_port_getter<F: FnMut() -> u16>(mut get_port:
                 transactions: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
                     .parse()
                     .unwrap(),
-                worker_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
+                public_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
                     .parse()
                     .unwrap(),
             },
@@ -216,7 +216,7 @@ pub fn initialize_worker_index_with_port_getter<F: FnMut() -> u16>(mut get_port:
                 transactions: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
                     .parse()
                     .unwrap(),
-                worker_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
+                public_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
                     .parse()
                     .unwrap(),
             },
@@ -230,7 +230,7 @@ pub fn initialize_worker_index_with_port_getter<F: FnMut() -> u16>(mut get_port:
                 transactions: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
                     .parse()
                     .unwrap(),
-                worker_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
+                public_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
                     .parse()
                     .unwrap(),
             },
@@ -259,7 +259,7 @@ pub fn mock_committee(keys: &[PublicKey]) -> Committee {
                     Authority {
                         stake: 1,
                         primary: PrimaryAddresses {
-                            primary_to_primary: "/ip4/0.0.0.0/tcp/0/http".parse().unwrap(),
+                            public_to_primary: "/ip4/0.0.0.0/tcp/0/http".parse().unwrap(),
                             worker_to_primary: "/ip4/0.0.0.0/tcp/0/http".parse().unwrap(),
                         },
                     },
@@ -284,7 +284,7 @@ pub fn mock_worker_cache(keys: &[PublicKey]) -> WorkerCache {
                             WorkerInfo {
                                 primary_to_worker: "/ip4/0.0.0.0/tcp/0/http".parse().unwrap(),
                                 transactions: "/ip4/0.0.0.0/tcp/0/http".parse().unwrap(),
-                                worker_to_worker: "/ip4/0.0.0.0/tcp/0/http".parse().unwrap(),
+                                public_to_worker: "/ip4/0.0.0.0/tcp/0/http".parse().unwrap(),
                             },
                         )]
                         .iter()

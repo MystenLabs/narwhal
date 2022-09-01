@@ -29,7 +29,7 @@ def main():
     for i, k in enumerate(keys):
         temp[k['name']] = {
             "primary": {
-                "primary_to_primary": "/dns/primary_{:02d}/tcp/3000/http".format(i),
+                "public_to_primary": "/dns/primary_{:02d}/tcp/3000/http".format(i),
                 "worker_to_primary": "/dns/primary_{:02d}/tcp/3001/http".format(i)
             },
             "stake": 1,

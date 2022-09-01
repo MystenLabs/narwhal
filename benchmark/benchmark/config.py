@@ -27,7 +27,7 @@ class WorkerCache:
             "name": {
                 "0": {
                     "primary_to_worker": x.x.x.x:x,
-                    "worker_to_worker": x.x.x.x:x,
+                    "public_to_worker": x.x.x.x:x,
                     "transactions": x.x.x.x:x
                 },
                 ...
@@ -63,7 +63,7 @@ class WorkerCache:
                 workers_addr[j] = {
                     'primary_to_worker': f'/ip4/{host}/tcp/{port}/http',
                     'transactions': f'/ip4/{host}/tcp/{port + 1}/http',
-                    'worker_to_worker': f'/ip4/{host}/tcp/{port + 2}/http',
+                    'public_to_worker': f'/ip4/{host}/tcp/{port + 2}/http',
                 }
                 port += 3
 
@@ -107,7 +107,7 @@ class WorkerCache:
         for name in names:
             for worker in self.json['workers'][name].values():
                 ips.add(self.ip(worker['primary_to_worker']))
-                ips.add(self.ip(worker['worker_to_worker']))
+                ips.add(self.ip(worker['public_to_worker']))
                 ips.add(self.ip(worker['transactions']))
         return ips
 
@@ -139,7 +139,7 @@ class Committee:
             "name": {
                 "stake": 1,
                 "primary: {
-                    "primary_to_primary": x.x.x.x:x,
+                    "public_to_primary": x.x.x.x:x,
                     "worker_to_primary": x.x.x.x:x,
                 },
             },
@@ -170,7 +170,7 @@ class Committee:
         for name, hosts in addresses.items():
             host = hosts.pop(0)
             primary_addr = {
-                'primary_to_primary': f'/ip4/{host}/tcp/{port}/http',
+                'public_to_primary': f'/ip4/{host}/tcp/{port}/http',
                 'worker_to_primary': f'/ip4/{host}/tcp/{port + 1}/http'
             }
             port += 2
@@ -187,7 +187,7 @@ class Committee:
         good_nodes = self.size() - faults
         for authority in list(self.json['authorities'].values())[:good_nodes]:
             addresses += [multiaddr_to_url_data(
-                authority['primary']['primary_to_primary'])]
+                authority['primary']['public_to_primary'])]
         return addresses
 
     def ips(self, name=None):
@@ -200,7 +200,7 @@ class Committee:
         ips = set()
         for name in names:
             addresses = self.json['authorities'][name]['primary']
-            ips.add(self.ip(addresses['primary_to_primary']))
+            ips.add(self.ip(addresses['public_to_primary']))
             ips.add(self.ip(addresses['worker_to_primary']))
 
         return ips

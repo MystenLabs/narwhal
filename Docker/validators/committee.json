@@ -2,28 +2,28 @@
     "authorities": {
         "Zy82aSpF8QghKE4wWvyIoTWyLetCuUSfk2gxHEtwdbg=": {
             "primary": {
-                "primary_to_primary": "/dns/primary_0/tcp/3000/http",
+                "public_to_primary": "/dns/primary_0/tcp/3000/http",
                 "worker_to_primary": "/dns/primary_0/tcp/3001/http"
             },
             "stake": 1
         },
         "fbhvgLnet2HdE0NUITUpekQxdRRWKxbZczM6Qg55sP8=": {
             "primary": {
-                "primary_to_primary": "/dns/primary_1/tcp/3000/http",
+                "public_to_primary": "/dns/primary_1/tcp/3000/http",
                 "worker_to_primary": "/dns/primary_1/tcp/3001/http"
             },
             "stake": 1
         },
         "noDjBFfXGqQioHTf6jEIPYthhUWCMsC12ZJ9DMh7Ujk=": {
             "primary": {
-                "primary_to_primary": "/dns/primary_2/tcp/3000/http",
+                "public_to_primary": "/dns/primary_2/tcp/3000/http",
                 "worker_to_primary": "/dns/primary_2/tcp/3001/http"
             },
             "stake": 1
         },
         "Z+K3OEI/eldyTTdp27mQFDdBPqjkss9wOkN6RceDTuM=": {
             "primary": {
-                "primary_to_primary": "/dns/primary_3/tcp/3000/http",
+                "public_to_primary": "/dns/primary_3/tcp/3000/http",
                 "worker_to_primary": "/dns/primary_3/tcp/3001/http"
             },
             "stake": 1

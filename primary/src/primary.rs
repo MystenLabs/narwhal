@@ -176,7 +176,7 @@ impl Primary {
             .load()
             .primary(&name)
             .expect("Our public key or worker id is not in the committee")
-            .primary_to_primary;
+            .public_to_primary;
         let address = address
             .replace(0, |_protocol| Some(Protocol::Ip4(Primary::INADDR_ANY)))
             .unwrap();
@@ -448,7 +448,7 @@ impl Primary {
                 .load()
                 .primary(&name)
                 .expect("Our public key or worker id is not in the committee")
-                .primary_to_primary
+                .public_to_primary
         );
 
         let mut handles = vec![

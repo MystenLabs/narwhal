@@ -199,7 +199,7 @@ impl Synchronizer {
                             // Send sync request to a single node. If this fails, we will send it
                             // to other nodes when a timer times out.
                             let address = match self.worker_cache.load().worker(&target, &self.id) {
-                                Ok(address) => address.worker_to_worker,
+                                Ok(address) => address.public_to_worker,
                                 Err(e) => {
                                     error!("The primary asked us to sync with an unknown node: {e}");
                                     continue;
@@ -342,7 +342,7 @@ impl Synchronizer {
                         let addresses = self.worker_cache.load()
                             .others_workers(&self.name, &self.id)
                             .into_iter()
-                            .map(|(_, address)| address.worker_to_worker)
+                            .map(|(_, address)| address.public_to_worker)
                             .collect();
                         let message = WorkerMessage::BatchRequest(retry, self.name.clone());
                         self.network

@@ -297,7 +297,7 @@ impl Worker {
             .load()
             .worker(&self.name, &self.id)
             .expect("Our public key or worker id is not in the worker cache")
-            .worker_to_worker;
+            .public_to_worker;
         let address = address
             .replace(0, |_protocol| Some(Protocol::Ip4(INADDR_ANY)))
             .unwrap();

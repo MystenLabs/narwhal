@@ -635,7 +635,7 @@ impl BlockSynchronizer {
             .committee
             .others_primaries(&self.name)
             .into_iter()
-            .map(|(name, address)| (name, address.primary_to_primary))
+            .map(|(name, address)| (name, address.public_to_primary))
             .unzip();
 
         self.primary_network

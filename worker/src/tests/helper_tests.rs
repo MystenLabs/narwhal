@@ -51,7 +51,7 @@ async fn worker_batch_reply() {
         .load()
         .worker(&requestor, &id)
         .unwrap()
-        .worker_to_worker;
+        .public_to_worker;
     let expected = Bytes::from(serialized_batch.clone());
     let mut handle = PublicToWorkerMockServer::spawn(address);
 

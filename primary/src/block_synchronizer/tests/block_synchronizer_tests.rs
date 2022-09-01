@@ -95,8 +95,8 @@ async fn test_successful_headers_synchronization() {
         .others_primaries(&name)
         .into_iter()
         .map(|primary| {
-            println!("New primary added: {:?}", primary.1.primary_to_primary);
-            primary_listener::<PrimaryMessage>(1, primary.1.primary_to_primary)
+            println!("New primary added: {:?}", primary.1.public_to_primary);
+            primary_listener::<PrimaryMessage>(1, primary.1.public_to_primary)
         })
         .collect();
 
@@ -253,8 +253,8 @@ async fn test_successful_payload_synchronization() {
         .others_primaries(&name)
         .into_iter()
         .map(|primary| {
-            println!("New primary added: {:?}", primary.1.primary_to_primary);
-            primary_listener::<PrimaryMessage>(1, primary.1.primary_to_primary)
+            println!("New primary added: {:?}", primary.1.public_to_primary);
+            primary_listener::<PrimaryMessage>(1, primary.1.public_to_primary)
         })
         .collect();
 

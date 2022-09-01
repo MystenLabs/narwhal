@@ -65,7 +65,7 @@ async fn handle_clients_transactions() {
     // Spawn enough workers' listeners to acknowledge our batches.
     let mut other_workers = Vec::new();
     for (_, addresses) in worker_cache.load().others_workers(&name, &id) {
-        let address = addresses.worker_to_worker;
+        let address = addresses.public_to_worker;
         other_workers.push(PublicToWorkerMockServer::spawn(address));
     }
 
@@ -139,7 +139,7 @@ async fn handle_client_batch_request() {
         .load()
         .worker(&name, &id)
         .unwrap()
-        .worker_to_worker;
+        .public_to_worker;
     let config = mysten_network::config::Config::new();
     let channel = config.connect_lazy(&address).unwrap();
     let mut client = PublicToWorkerClient::new(channel);

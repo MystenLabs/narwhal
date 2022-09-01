@@ -301,7 +301,7 @@ pub struct WorkerInfo {
     /// Address to receive client transactions (WAN).
     pub transactions: Multiaddr,
     /// Address to receive messages from other workers (WAN).
-    pub worker_to_worker: Multiaddr,
+    pub public_to_worker: Multiaddr,
     /// Address to receive messages from our primary (LAN).
     pub primary_to_worker: Multiaddr,
 }
@@ -421,7 +421,7 @@ impl WorkerCache {
                         authority
                             .0
                             .values()
-                            .map(|address| &address.worker_to_worker),
+                            .map(|address| &address.public_to_worker),
                     )
                     .chain(
                         authority
@@ -436,8 +436,8 @@ impl WorkerCache {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PrimaryAddresses {
-    /// Address to receive messages from other primaries (WAN).
-    pub primary_to_primary: Multiaddr,
+    /// Address to receive messages from other primaries or workers (WAN).
+    pub public_to_primary: Multiaddr,
     /// Address to receive messages from our workers (LAN).
     pub worker_to_primary: Multiaddr,
 }
@@ -552,7 +552,7 @@ impl Committee {
         self.authorities
             .values()
             .flat_map(|authority| {
-                std::iter::once(&authority.primary.primary_to_primary)
+                std::iter::once(&authority.primary.public_to_primary)
                     .chain(std::iter::once(&authority.primary.worker_to_primary))
             })
             .collect()
