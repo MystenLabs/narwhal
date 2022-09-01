@@ -28,7 +28,7 @@ use tokio::{
     sync::{mpsc::Sender, watch},
     task::JoinHandle,
 };
-use tracing::debug;
+use tracing::{debug, info};
 use types::{
     metered_channel, Batch, BatchDigest, Certificate, CertificateDigest, ConsensusStore, Header,
     HeaderDigest, ReconfigureNotification, Round, SequenceNumber, SerializedBatchMessage,
@@ -307,6 +307,17 @@ impl Node {
         .into_iter()
         .sorted_by(|a, b| a.consensus_index.cmp(&b.consensus_index))
         .collect::<Vec<ConsensusOutput>>();
+
+        let len_restored = restored_consensus_output.len() as u64;
+        if len_restored > 0 {
+            info!(
+                "Consensus output on its way to the executor was restored for {} certificates",
+                len_restored
+            );
+        }
+        consensus_metrics
+            .recovered_consensus_output
+            .inc_by(len_restored);
 
         // Spawn the consensus core who only sequences transactions.
         let ordering_engine = Bullshark::new(
