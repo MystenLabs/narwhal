@@ -26,7 +26,7 @@ pub(crate) fn initialise_metrics(metrics_registry: &Registry) -> Metrics {
     // The metrics used for the gRPC primary node endpoints we expose to the external consensus
     let endpoint_metrics = EndpointMetrics::new(metrics_registry);
 
-    // The metrics used for the primary-to-primary communication node endpoints
+    // The metrics used for the public-to-primary communication node endpoints
     let primary_endpoint_metrics = PrimaryEndpointMetrics::new(metrics_registry);
 
     // The metrics used for measuring the occupancy of the channels in the primary
