@@ -1905,6 +1905,7 @@ dependencies = [
  "console",
  "linked-hash-map",
  "once_cell",
+ "serde",
  "similar",
  "yaml-rust",
 ]
