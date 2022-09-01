@@ -2253,7 +2253,7 @@ checksum = "e5ce46fe64a9d73be07dcbe690a38ce1b293be448fd8ce1e6c1b8062c9f72c6a"
 [[package]]
 name = "mysten-network"
 version = "0.1.0"
-source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=696fa25982acdc87ab64ec6a33cb111edc63a331#696fa25982acdc87ab64ec6a33cb111edc63a331"
+source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=9deac015fbf66e24b6da9699630e06750eaa094a#9deac015fbf66e24b6da9699630e06750eaa094a"
 dependencies = [
  "bincode",
  "bytes",
@@ -3855,12 +3855,13 @@ checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 [[package]]
 name = "telemetry-subscribers"
 version = "0.1.0"
-source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=696fa25982acdc87ab64ec6a33cb111edc63a331#696fa25982acdc87ab64ec6a33cb111edc63a331"
+source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=9deac015fbf66e24b6da9699630e06750eaa094a#9deac015fbf66e24b6da9699630e06750eaa094a"
 dependencies = [
  "crossterm",
  "once_cell",
  "opentelemetry",
  "opentelemetry-jaeger",
+ "prometheus",
  "tokio",
  "tracing",
  "tracing-appender",
@@ -4425,7 +4426,7 @@ checksum = "59547bce71d9c38b83d9c0e92b6066c4253371f15005def0c30d9657f50c7642"
 [[package]]
 name = "typed-store"
 version = "0.1.0"
-source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=696fa25982acdc87ab64ec6a33cb111edc63a331#696fa25982acdc87ab64ec6a33cb111edc63a331"
+source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=9deac015fbf66e24b6da9699630e06750eaa094a#9deac015fbf66e24b6da9699630e06750eaa094a"
 dependencies = [
  "bincode",
  "collectable",
