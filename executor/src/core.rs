@@ -13,7 +13,7 @@ use tokio::{
     sync::{mpsc::Sender, watch},
     task::JoinHandle,
 };
-use tracing::debug;
+use tracing::{info, debug};
 use types::{metered_channel, Batch, BatchDigest, ReconfigureNotification, SequenceNumber};
 
 #[cfg(test)]
@@ -114,6 +114,7 @@ where
 
         // Execute every batch in the certificate.
         let total_batches = message.certificate.header.payload.len();
+        println!("Execute certificate {:?}", message);
         for (index, digest) in message.certificate.header.payload.keys().enumerate() {
             // Skip batches that we already executed (after crash-recovery).
             if self
@@ -142,12 +143,12 @@ where
                 // temporary storage while others may not. This is not a problem, we can simply ignore
                 // the second batch since there is no point in executing twice the same transactions
                 // (as the second execution attempt will always fail).
-                debug!("Duplicate batch {batch_digest}");
+                info!("Duplicate batch {batch_digest}");
                 self.execution_indices.skip_batch(total_batches);
                 return Ok(());
             }
         };
-
+        info!("Batch={}, txns={:?}", batch_digest, transactions);
         // Execute every transaction in the batch.
         let total_transactions = transactions.len();
         for (index, transaction) in transactions.into_iter().enumerate() {
