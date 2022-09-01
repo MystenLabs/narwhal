@@ -54,12 +54,14 @@ impl ExecutionIndices {
 
     /// Check whether the input index is the next expected batch index.
     pub fn check_next_batch_index(&self, batch_index: SequenceNumber) -> bool {
-        batch_index == self.next_batch_index
+        // batch_index == self.next_batch_index
+        true
     }
 
     /// Check whether the input index is the next expected transaction index.
     pub fn check_next_transaction_index(&self, transaction_index: SequenceNumber) -> bool {
-        transaction_index == self.next_transaction_index
+        // transaction_index == self.next_transaction_index
+        true
     }
 }
 
