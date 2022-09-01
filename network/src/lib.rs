@@ -12,14 +12,12 @@
 mod bounded_executor;
 pub mod metrics;
 mod primary;
-mod retry;
 mod traits;
 mod worker;
 
 pub use crate::{
     bounded_executor::BoundedExecutor,
     primary::{PrimaryNetwork, PrimaryToWorkerNetwork},
-    retry::RetryConfig,
     traits::{LuckyNetwork, ReliableNetwork, UnreliableNetwork},
     worker::{WorkerNetwork, WorkerToPrimaryNetwork},
 };

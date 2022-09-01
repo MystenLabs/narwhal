@@ -8,7 +8,7 @@
 //! `capacity`.
 use exponential_backoff::Backoff;
 use futures::{
-    future::{join, BoxFuture, Future},
+    future::{BoxFuture, Future},
     FutureExt, StreamExt,
 };
 use std::{ops::Deref, sync::Arc, time::Duration};
@@ -85,9 +85,12 @@ impl Deref for BoundedExecutor {
 }
 
 pub struct InternalBoundedExecutor {
+    /// Execution bound, shared by [`InternalBoundedExecutor`] and the [`RetryManager`].
     semaphore: Arc<Semaphore>,
+    /// Handle to the tokio runtime.
     executor: Handle,
-    // Outbound channel to the retry manager task
+    /// Outbound channel to the retry scheduler task.
+    /// Tasks equipped with a retry strategy hold a shared reference to this [`mpsc::Sender`].
     tx_retry_manager: Arc<mpsc::Sender<Job>>,
 }
 
@@ -106,13 +109,14 @@ impl InternalBoundedExecutor {
         }
     }
 
+    /// Returns a shared reference to the `BoundedExecutor` semaphore.
     pub fn semaphore(&self) -> Arc<Semaphore> {
         self.semaphore.clone()
     }
 
     // Acquires a permit with the semaphore, first gracefully,
     // then queuing after logging that we're out of capacity.
-    pub async fn acquire_permit(semaphore: Arc<Semaphore>) -> OwnedSemaphorePermit {
+    pub(crate) async fn acquire_permit(semaphore: Arc<Semaphore>) -> OwnedSemaphorePermit {
         match semaphore.clone().try_acquire_owned() {
             Ok(p) => p,
             Err(_) => {
@@ -210,7 +214,7 @@ impl InternalBoundedExecutor {
         let mut boxed_factory: Box<FutureFactory> = Box::new(move || Box::pin(factory()));
 
         let task = boxed_factory();
-        let job = Job::new(boxed_factory, backoff, 0);
+        let job = Job::new(boxed_factory, backoff);
         let tx_scheduler = self.tx_retry_manager.clone();
         task.then(|result| async move { retry_logic(result, job, tx_scheduler).await })
     }
@@ -281,8 +285,7 @@ impl InternalBoundedExecutor {
     }
 }
 
-/// Encapsulates the retry logic necessary to either submit a task to the scheduler for retrying,
-/// or surface the final status of the task to the caller.
+/// Implements the retry logic to effect a result into a retry attempt, or forward that result.
 async fn retry_logic(
     result: Result<(), RetryError>,
     mut job: Job,
@@ -309,6 +312,7 @@ async fn retry_logic(
     }
 }
 
+/// Context consumed by the [`run_scheduler`] task.
 struct RetryManager {
     /// Bounded execution semaphore.
     semaphore: Arc<Semaphore>,
@@ -332,6 +336,7 @@ impl RetryManager {
         }
     }
 
+    /// Returns a smart reference to the channel consumed by `run_scheduler`.
     pub fn inbound_channel(&self) -> Arc<mpsc::Sender<Job>> {
         self.tx_new_jobs.clone()
     }
@@ -342,9 +347,18 @@ impl RetryManager {
             tokio::select! {
                  // Pull jobs that are ready for execution, and forward them to the executor if
                  // resources can be acquired (semaphore permit).
-                 // TODO(erwan): replace with macro wrapping a try_join
-                (job_ready, permit) = join(self.execution_queue.next(), InternalBoundedExecutor::acquire_permit(self.semaphore.clone()))=> {
-                    let mut job = job_ready.unwrap().into_inner();
+                 // TODO(erwan): refactor this or turn into a macro.
+                 Some((job_ready, permit)) = async {
+                    if let Some(job_ready) = self.execution_queue.next().await {
+                        let permit = InternalBoundedExecutor::acquire_permit(self.semaphore.clone()).await;
+                        Some((job_ready, permit))
+                    } else {
+                        // The execution is empty, we avoid polling for an execution permit and
+                        // return early.
+                        None
+                    }
+                } => {
+                    let mut job = job_ready.into_inner();
                     let tx_scheduler = self.tx_new_jobs.clone();
                     let task = (job.task_factory)();
                     let retry_task = task.then(|result| async move { retry_logic(result, job, tx_scheduler).await });
@@ -353,7 +367,8 @@ impl RetryManager {
                         error!("run_scheduler: inbound channel is closed; tasks won't be retried ({e})")
                     }
                  },
-                 // Pull jobs that need scheduling, and schedule them for execution.
+                 // Pull new jobs that need to be scheduled, and insert them in the execution
+                 // queue if their backoff policy allows it.
                  new_job = self.rx_new_jobs.recv() => {
                      let job = new_job.unwrap();
                      let cooldown_time = job.cooldown_time();
@@ -390,16 +405,20 @@ pub struct Job {
     pub task_factory: Box<FutureFactory>,
     /// Retry policy specifying the backoff strategy as well as the max number of attempts.
     backoff: Backoff,
-    /// Monotically increasing clock keeping track of the number of execution attempts.
+    /// Monotonic counter tracking the number of execution attempts.
     retry_counter: u32,
 }
 
 impl Job {
-    pub fn new(task_factory: Box<FutureFactory>, backoff: Backoff, retry_counter: u32) -> Self {
+    /// Creates a new `Job` for submission to the scheduler task.
+    ///
+    /// The struct wraps a task factory that is used to create fresh futures to poll, a backoff
+    /// policy specifying the duration between each call, and the maximum number of retries.
+    pub fn new(task_factory: Box<FutureFactory>, backoff: Backoff) -> Self {
         Self {
             task_factory,
             backoff,
-            retry_counter,
+            retry_counter: 0,
         }
     }
 
@@ -407,7 +426,7 @@ impl Job {
         self.retry_counter += 1;
     }
 
-    /// The amount of time this job should wait before being retried.
+    /// The minimum duration this job should wait before being retried.
     /// Returns `None` if the job has exceeded its maximum retry policy.
     pub fn cooldown_time(&self) -> Option<Duration> {
         self.backoff.next(self.retry_counter)
@@ -416,7 +435,6 @@ impl Job {
 
 #[cfg(test)]
 mod test {
-    use crate::RetryConfig;
 
     use super::*;
     use futures::{channel::oneshot, executor::block_on, future::Future, FutureExt};
@@ -426,7 +444,7 @@ mod test {
             mpsc,
         },
         thread,
-        time::Duration,
+        time::{self, Duration},
     };
     use tokio::{runtime::Runtime, time::sleep};
 
@@ -502,15 +520,11 @@ mod test {
             let executor = rt.handle().clone();
             let executor = BoundedExecutor::new(1, executor);
 
-            let infinite_retry_config = RetryConfig {
-                // Retry for forever
-                retrying_max_elapsed_time: None,
-                ..Default::default()
-            };
+            let infinite_backoff = Backoff::new(u32::MAX, Duration::ZERO, None);
 
             // we can queue this future with infinite retries
             let handle_infinite_fails =
-                executor.spawn_with_retries(infinite_retry_config, always_failing);
+                block_on(executor.spawn_with_retries(infinite_backoff, always_failing));
 
             // check we can still enqueue another successful task
             let (tx1, rx1) = oneshot::channel();
@@ -525,8 +539,8 @@ mod test {
         })
     }
 
-    async fn always_failing() -> Result<(), backoff::Error<eyre::Report>> {
-        Err(Into::into(eyre::eyre!("oops")))
+    async fn always_failing() -> Result<(), RetryError> {
+        Err(RetryError::Transient)
     }
 
     fn panic_after<T, F>(d: Duration, f: F) -> T
