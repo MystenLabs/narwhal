@@ -186,6 +186,22 @@
 <span id="186">186</span>
 <span id="187">187</span>
 <span id="188">188</span>
+<span id="189">189</span>
+<span id="190">190</span>
+<span id="191">191</span>
+<span id="192">192</span>
+<span id="193">193</span>
+<span id="194">194</span>
+<span id="195">195</span>
+<span id="196">196</span>
+<span id="197">197</span>
+<span id="198">198</span>
+<span id="199">199</span>
+<span id="200">200</span>
+<span id="201">201</span>
+<span id="202">202</span>
+<span id="203">203</span>
+<span id="204">204</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use crate</span>::{
@@ -248,6 +264,7 @@
         rx_consensus: metered_channel::Receiver&lt;ConsensusOutput&gt;,
         tx_executor: metered_channel::Sender&lt;ConsensusOutput&gt;,
         metrics: Arc&lt;ExecutorMetrics&gt;,
+        restored_consensus_output: Vec&lt;ConsensusOutput&gt;,
     ) -&gt; JoinHandle&lt;()&gt; {
         <span class="kw">let </span>get_block_retry_policy = ExponentialBackoff {
             initial_interval: Duration::from_millis(<span class="number">500</span>),
@@ -268,14 +285,17 @@
                 get_block_retry_policy,
                 metrics,
             }
-            .run()
+            .run(restored_consensus_output)
             .<span class="kw">await
             </span>.expect(<span class="string">&quot;Failed to run subscriber&quot;</span>)
         })
     }
 
     <span class="doccomment">/// Main loop connecting to the consensus to listen to sequence messages.
-    </span><span class="kw">async fn </span>run(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; SubscriberResult&lt;()&gt; {
+    </span><span class="kw">async fn </span>run(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        restored_consensus_output: Vec&lt;ConsensusOutput&gt;,
+    ) -&gt; SubscriberResult&lt;()&gt; {
         <span class="comment">// It&#39;s important to have the futures in ordered fashion as we want
         // to guarantee that will deliver to the executor the certificates
         // in the same order we received from rx_consensus. So it doesn&#39;t
@@ -284,6 +304,18 @@
         // fetched, no later certificate will be delivered.
         </span><span class="kw">let </span><span class="kw-2">mut </span>waiting =
             BoundedFuturesOrdered::with_capacity(<span class="self">Self</span>::MAX_PENDING_CONSENSUS_MESSAGES);
+
+        <span class="comment">// First handle any consensus output messages that were restored due to a restart.
+        // This needs to happen before we start listening on rx_consensus and receive messages sequenced after these.
+        </span><span class="kw">for </span>message <span class="kw">in </span>restored_consensus_output {
+            <span class="kw">let </span>future = <span class="self">Self</span>::wait_on_payload(
+                <span class="self">self</span>.get_block_retry_policy.clone(),
+                <span class="self">self</span>.store.clone(),
+                <span class="self">self</span>.tx_get_block_commands.clone(),
+                message,
+            );
+            waiting.push(future).<span class="kw">await</span>;
+        }
 
         <span class="comment">// Listen to sequenced consensus message and process them.
         </span><span class="kw">loop </span>{

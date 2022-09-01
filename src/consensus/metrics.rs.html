@@ -91,6 +91,14 @@
 <span id="91">91</span>
 <span id="92">92</span>
 <span id="93">93</span>
+<span id="94">94</span>
+<span id="95">95</span>
+<span id="96">96</span>
+<span id="97">97</span>
+<span id="98">98</span>
+<span id="99">99</span>
+<span id="100">100</span>
+<span id="101">101</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span>prometheus::{
@@ -111,6 +119,9 @@
     <span class="doccomment">/// The number of times the consensus state was restored from the consensus store
     /// following a node restart
     </span><span class="kw">pub </span>recovered_consensus_state: IntCounter,
+    <span class="doccomment">/// The number of certificates from consensus that were restored and sent to the executor
+    /// following a node restart
+    </span><span class="kw">pub </span>recovered_consensus_output: IntCounter,
 }
 
 <span class="kw">impl </span>ConsensusMetrics {
@@ -143,6 +154,11 @@
             recovered_consensus_state: <span class="macro">register_int_counter_with_registry!</span>(
                 <span class="string">&quot;recovered_consensus_state&quot;</span>,
                 <span class="string">&quot;The number of times the consensus state was restored from the consensus store following a node restart&quot;</span>,
+                registry
+            ).unwrap(),
+            recovered_consensus_output: <span class="macro">register_int_counter_with_registry!</span>(
+                <span class="string">&quot;recovered_consensus_output&quot;</span>, 
+                <span class="string">&quot;The number of certificates from consensus that were restored and sent to the executor following a node restart&quot;</span>,
                 registry
             ).unwrap(),
         }
