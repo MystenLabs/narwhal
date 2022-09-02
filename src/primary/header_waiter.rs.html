@@ -410,8 +410,6 @@
 <span id="410">410</span>
 <span id="411">411</span>
 <span id="412">412</span>
-<span id="413">413</span>
-<span id="414">414</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -422,7 +420,9 @@
 <span class="kw">use </span>config::{Committee, SharedWorkerCache, WorkerId};
 <span class="kw">use </span>crypto::PublicKey;
 <span class="kw">use </span>futures::future::{try_join_all, BoxFuture};
-<span class="kw">use </span>network::{LuckyNetwork, PrimaryNetwork, PrimaryToWorkerNetwork, UnreliableNetwork};
+<span class="kw">use </span>network::{
+    LuckyNetwork2, PrimaryNetwork, PrimaryToWorkerNetwork, UnreliableNetwork, UnreliableNetwork2,
+};
 <span class="kw">use </span>serde::{de::DeserializeOwned, Serialize};
 <span class="kw">use </span>std::{
     collections::HashMap,
@@ -687,12 +687,8 @@
                                 });
                             }
                             <span class="kw">if </span>!requires_sync.is_empty() {
-                                <span class="kw">let </span>address = <span class="self">self</span>.committee
-                                    .primary(<span class="kw-2">&amp;</span>author)
-                                    .expect(<span class="string">&quot;Author of valid header not in the committee&quot;</span>)
-                                    .primary_to_primary;
                                 <span class="kw">let </span>message = PrimaryMessage::CertificatesRequest(requires_sync, <span class="self">self</span>.name.clone());
-                                <span class="self">self</span>.primary_network.unreliable_send(address, <span class="kw-2">&amp;</span>message).<span class="kw">await</span>;
+                                <span class="self">self</span>.primary_network.unreliable_send(author.clone(), <span class="kw-2">&amp;</span>message).<span class="kw">await</span>;
                             }
                         }
                     }
@@ -733,7 +729,7 @@
                         <span class="kw">let </span>addresses = <span class="self">self</span>.committee
                             .others_primaries(<span class="kw-2">&amp;</span><span class="self">self</span>.name)
                             .into_iter()
-                            .map(|(<span class="kw">_</span>, x)| x.primary_to_primary)
+                            .map(|(pubkey, _x)| pubkey)
                             .collect();
                         <span class="kw">let </span>message = PrimaryMessage::CertificatesRequest(retry, <span class="self">self</span>.name.clone());
                         <span class="self">self</span>.primary_network.lucky_broadcast(addresses, <span class="kw-2">&amp;</span>message, <span class="self">self</span>.sync_retry_nodes).<span class="kw">await</span>;

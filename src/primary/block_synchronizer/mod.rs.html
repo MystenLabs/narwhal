@@ -1034,7 +1034,7 @@
     stream::FuturesUnordered,
     FutureExt, StreamExt,
 };
-<span class="kw">use </span>network::{PrimaryNetwork, PrimaryToWorkerNetwork, UnreliableNetwork};
+<span class="kw">use </span>network::{PrimaryNetwork, PrimaryToWorkerNetwork, UnreliableNetwork, UnreliableNetwork2};
 <span class="kw">use </span>rand::{rngs::SmallRng, SeedableRng};
 <span class="kw">use </span>std::{
     collections::{HashMap, HashSet},
@@ -1648,15 +1648,15 @@
     </span><span class="kw">async fn </span>broadcast_batch_request(<span class="kw-2">&amp;mut </span><span class="self">self</span>, message: PrimaryMessage) -&gt; Vec&lt;PublicKey&gt; {
         <span class="comment">// Naively now just broadcast the request to all the primaries
 
-        </span><span class="kw">let </span>(primaries_names, primaries_addresses) = <span class="self">self
+        </span><span class="kw">let </span>primaries_names: Vec&lt;<span class="kw">_</span>&gt; = <span class="self">self
             </span>.committee
             .others_primaries(<span class="kw-2">&amp;</span><span class="self">self</span>.name)
             .into_iter()
-            .map(|(name, address)| (name, address.primary_to_primary))
-            .unzip();
+            .map(|(name, _address)| name)
+            .collect();
 
         <span class="self">self</span>.primary_network
-            .unreliable_broadcast(primaries_addresses, <span class="kw-2">&amp;</span>message)
+            .unreliable_broadcast(primaries_names.clone(), <span class="kw-2">&amp;</span>message)
             .<span class="kw">await</span>;
 
         primaries_names

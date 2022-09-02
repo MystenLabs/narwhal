@@ -1375,7 +1375,7 @@
     }
 }
 
-<span class="attribute">#[derive(Debug, Serialize, Deserialize)]
+<span class="attribute">#[derive(Clone, Debug, Serialize, Deserialize)]
 </span><span class="kw">pub enum </span>PrimaryMessage {
     Header(Header),
     Vote(Vote),

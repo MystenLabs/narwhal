@@ -656,11 +656,6 @@
 <span id="656">656</span>
 <span id="657">657</span>
 <span id="658">658</span>
-<span id="659">659</span>
-<span id="660">660</span>
-<span id="661">661</span>
-<span id="662">662</span>
-<span id="663">663</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -674,7 +669,7 @@
 <span class="kw">use </span>config::{Committee, Epoch, SharedWorkerCache};
 <span class="kw">use </span>crypto::{PublicKey, Signature};
 <span class="kw">use </span>fastcrypto::{Hash <span class="kw">as _</span>, SignatureService};
-<span class="kw">use </span>network::{CancelOnDropHandler, MessageResult, PrimaryNetwork, ReliableNetwork};
+<span class="kw">use </span>network::{CancelOnDropHandler, PrimaryNetwork, ReliableNetwork2};
 <span class="kw">use </span>std::{
     collections::{HashMap, HashSet},
     sync::Arc,
@@ -745,7 +740,7 @@
     <span class="doccomment">/// A network sender to send the batches to the other workers.
     </span>network: PrimaryNetwork,
     <span class="doccomment">/// Keeps the cancel handlers of the messages we sent.
-    </span>cancel_handlers: HashMap&lt;Round, Vec&lt;CancelOnDropHandler&lt;MessageResult&gt;&gt;&gt;,
+    </span>cancel_handlers: HashMap&lt;Round, Vec&lt;CancelOnDropHandler&lt;anyhow::Result&lt;anemo::Response&lt;()&gt;&gt;&gt;&gt;&gt;,
     <span class="doccomment">/// Metrics handler
     </span>metrics: Arc&lt;PrimaryMetrics&gt;,
 }
@@ -821,15 +816,15 @@
         <span class="self">self</span>.votes_aggregator = VotesAggregator::new();
 
         <span class="comment">// Broadcast the new header in a reliable manner.
-        </span><span class="kw">let </span>addresses = <span class="self">self
+        </span><span class="kw">let </span>peers = <span class="self">self
             </span>.committee
             .others_primaries(<span class="kw-2">&amp;</span><span class="self">self</span>.name)
             .into_iter()
-            .map(|(<span class="kw">_</span>, x)| x.primary_to_primary)
+            .map(|(pubkey, <span class="kw">_</span>)| pubkey)
             .collect();
 
         <span class="kw">let </span>message = PrimaryMessage::Header(header.clone());
-        <span class="kw">let </span>handlers = <span class="self">self</span>.network.broadcast(addresses, <span class="kw-2">&amp;</span>message).<span class="kw">await</span>;
+        <span class="kw">let </span>handlers = <span class="self">self</span>.network.broadcast(peers, <span class="kw-2">&amp;</span>message).<span class="kw">await</span>;
         <span class="self">self</span>.cancel_handlers
             .entry(header.round)
             .or_insert_with(Vec::new)
@@ -948,14 +943,9 @@
                     <span class="macro">error!</span>(<span class="string">&quot;Failed to process our own vote: {}&quot;</span>, e.to_string());
                 }
             } <span class="kw">else </span>{
-                <span class="kw">let </span>address = <span class="self">self
-                    </span>.committee
-                    .primary(<span class="kw-2">&amp;</span>header.author)
-                    .expect(<span class="string">&quot;Author of valid header is not in the committee&quot;</span>)
-                    .primary_to_primary;
                 <span class="kw">let </span>handler = <span class="self">self
                     </span>.network
-                    .send(address, <span class="kw-2">&amp;</span>PrimaryMessage::Vote(vote))
+                    .send(header.author.clone(), <span class="kw-2">&amp;</span>PrimaryMessage::Vote(vote))
                     .<span class="kw">await</span>;
                 <span class="self">self</span>.cancel_handlers
                     .entry(header.round)
@@ -979,14 +969,14 @@
             <span class="macro">debug!</span>(<span class="string">&quot;Assembled {:?}&quot;</span>, certificate);
 
             <span class="comment">// Broadcast the certificate.
-            </span><span class="kw">let </span>addresses = <span class="self">self
+            </span><span class="kw">let </span>peers = <span class="self">self
                 </span>.committee
                 .others_primaries(<span class="kw-2">&amp;</span><span class="self">self</span>.name)
                 .into_iter()
-                .map(|(<span class="kw">_</span>, x)| x.primary_to_primary)
+                .map(|(pubkey, <span class="kw">_</span>)| pubkey)
                 .collect();
             <span class="kw">let </span>message = PrimaryMessage::Certificate(certificate.clone());
-            <span class="kw">let </span>handlers = <span class="self">self</span>.network.broadcast(addresses, <span class="kw-2">&amp;</span>message).<span class="kw">await</span>;
+            <span class="kw">let </span>handlers = <span class="self">self</span>.network.broadcast(peers, <span class="kw-2">&amp;</span>message).<span class="kw">await</span>;
             <span class="self">self</span>.cancel_handlers
                 .entry(certificate.round())
                 .or_insert_with(Vec::new)

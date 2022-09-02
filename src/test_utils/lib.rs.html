@@ -935,10 +935,15 @@
 <span id="935">935</span>
 <span id="936">936</span>
 <span id="937">937</span>
+<span id="938">938</span>
+<span id="939">939</span>
+<span id="940">940</span>
+<span id="941">941</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-</span><span class="kw">use </span>config::{
+</span><span class="kw">use </span>anemo::Network;
+<span class="kw">use </span>config::{
     utils::get_available_port, Authority, Committee, Epoch, PrimaryAddresses, SharedWorkerCache,
     WorkerCache, WorkerId, WorkerIndex, WorkerInfo,
 };
@@ -959,12 +964,13 @@
 };
 <span class="kw">use </span>store::{reopen, rocks, rocks::DBMap, Store};
 <span class="kw">use </span>tokio::sync::mpsc::{channel, Receiver, Sender};
-<span class="kw">use </span>tonic::Response;
+<span class="kw">use </span>tonic::{async_trait, Response};
+<span class="kw">use </span>tracing::info;
 <span class="kw">use </span>types::{
     serialized_batch_digest, Batch, BatchDigest, BincodeEncodedPayload, Certificate,
-    CertificateDigest, ConsensusStore, Empty, Header, HeaderBuilder, PrimaryToPrimary,
-    PrimaryToPrimaryServer, PrimaryToWorker, PrimaryToWorkerServer, Round, SequenceNumber,
-    Transaction, Vote, WorkerToPrimary, WorkerToPrimaryServer, WorkerToWorker,
+    CertificateDigest, ConsensusStore, Empty, Header, HeaderBuilder, PrimaryMessage,
+    PrimaryToPrimary, PrimaryToPrimaryServer, PrimaryToWorker, PrimaryToWorkerServer, Round,
+    SequenceNumber, Transaction, Vote, WorkerToPrimary, WorkerToPrimaryServer, WorkerToWorker,
     WorkerToWorkerServer,
 };
 
@@ -1441,37 +1447,39 @@
     certificate_from_committee(header, <span class="kw-2">&amp;</span>committee(<span class="prelude-val">None</span>))
 }
 
-<span class="kw">pub struct </span>PrimaryToPrimaryMockServer {
-    sender: Sender&lt;BincodeEncodedPayload&gt;,
+<span class="attribute">#[derive(Clone)]
+</span><span class="kw">pub struct </span>PrimaryToPrimaryMockServer {
+    sender: Sender&lt;PrimaryMessage&gt;,
 }
 
 <span class="kw">impl </span>PrimaryToPrimaryMockServer {
-    <span class="kw">pub fn </span>spawn(address: Multiaddr) -&gt; Receiver&lt;BincodeEncodedPayload&gt; {
-        <span class="kw">let </span>(sender, receiver) = channel(<span class="number">1</span>);
-        tokio::spawn(<span class="kw">async move </span>{
-            <span class="kw">let </span>config = mysten_network::config::Config::new();
-            <span class="kw">let </span>mock = <span class="self">Self </span>{ sender };
-            config
-                .server_builder()
-                .add_service(PrimaryToPrimaryServer::new(mock))
-                .bind(<span class="kw-2">&amp;</span>address)
-                .<span class="kw">await
-                </span>.unwrap()
-                .serve()
-                .<span class="kw">await
-        </span>});
-        receiver
+    <span class="kw">pub fn </span>spawn(keypair: KeyPair, address: Multiaddr) -&gt; (Receiver&lt;PrimaryMessage&gt;, Network) {
+        <span class="kw">let </span>addr = network::multiaddr_to_address(<span class="kw-2">&amp;</span>address).unwrap();
+        <span class="kw">let </span>(sender, reciever) = channel(<span class="number">1</span>);
+        <span class="kw">let </span>service = PrimaryToPrimaryServer::new(<span class="self">Self </span>{ sender });
+
+        <span class="kw">let </span>routes = anemo::Router::new().add_rpc_service(service);
+        <span class="kw">let </span>network = anemo::Network::bind(addr)
+            .server_name(<span class="string">&quot;narwhal&quot;</span>)
+            .private_key(keypair.private().<span class="number">0</span>.to_bytes())
+            .start(routes)
+            .unwrap();
+        <span class="macro">info!</span>(<span class="string">&quot;starting network on: {}&quot;</span>, network.local_addr());
+        (reciever, network)
     }
 }
 
-<span class="attribute">#[tonic::async_trait]
+<span class="attribute">#[async_trait]
 </span><span class="kw">impl </span>PrimaryToPrimary <span class="kw">for </span>PrimaryToPrimaryMockServer {
     <span class="kw">async fn </span>send_message(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        request: tonic::Request&lt;BincodeEncodedPayload&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;tonic::Response&lt;Empty&gt;, tonic::Status&gt; {
-        <span class="self">self</span>.sender.send(request.into_inner()).<span class="kw">await</span>.unwrap();
-        <span class="prelude-val">Ok</span>(Response::new(Empty {}))
+        request: anemo::Request&lt;types::PrimaryMessage&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;anemo::Response&lt;()&gt;, anemo::rpc::Status&gt; {
+        <span class="kw">let </span>message = request.into_body();
+
+        <span class="self">self</span>.sender.send(message).<span class="kw">await</span>.unwrap();
+
+        <span class="prelude-val">Ok</span>(anemo::Response::new(()))
     }
 }
 

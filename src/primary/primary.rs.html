@@ -674,44 +674,6 @@
 <span id="674">674</span>
 <span id="675">675</span>
 <span id="676">676</span>
-<span id="677">677</span>
-<span id="678">678</span>
-<span id="679">679</span>
-<span id="680">680</span>
-<span id="681">681</span>
-<span id="682">682</span>
-<span id="683">683</span>
-<span id="684">684</span>
-<span id="685">685</span>
-<span id="686">686</span>
-<span id="687">687</span>
-<span id="688">688</span>
-<span id="689">689</span>
-<span id="690">690</span>
-<span id="691">691</span>
-<span id="692">692</span>
-<span id="693">693</span>
-<span id="694">694</span>
-<span id="695">695</span>
-<span id="696">696</span>
-<span id="697">697</span>
-<span id="698">698</span>
-<span id="699">699</span>
-<span id="700">700</span>
-<span id="701">701</span>
-<span id="702">702</span>
-<span id="703">703</span>
-<span id="704">704</span>
-<span id="705">705</span>
-<span id="706">706</span>
-<span id="707">707</span>
-<span id="708">708</span>
-<span id="709">709</span>
-<span id="710">710</span>
-<span id="711">711</span>
-<span id="712">712</span>
-<span id="713">713</span>
-<span id="714">714</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -724,7 +686,7 @@
     grpc_server::ConsensusAPIGrpc,
     header_waiter::HeaderWaiter,
     helper::Helper,
-    metrics::{initialise_metrics, PrimaryEndpointMetrics, PrimaryMetrics},
+    metrics::{initialise_metrics, PrimaryMetrics},
     payload_receiver::PayloadReceiver,
     proposer::Proposer,
     state_handler::StateHandler,
@@ -732,12 +694,14 @@
     BlockCommand, BlockRemover, CertificatesResponse, DeleteBatchMessage,
     PayloadAvailabilityResponse,
 };
+
+<span class="kw">use </span>anemo::{types::PeerInfo, PeerId};
 <span class="kw">use </span>async_trait::async_trait;
 <span class="kw">use </span>config::{Parameters, SharedCommittee, SharedWorkerCache, WorkerId, WorkerInfo};
 <span class="kw">use </span>consensus::dag::Dag;
-<span class="kw">use </span>crypto::{PublicKey, Signature};
+<span class="kw">use </span>crypto::{KeyPair, PublicKey};
 <span class="kw">use </span>fastcrypto::{
-    traits::{EncodeDecodeBase64, Signer},
+    traits::{EncodeDecodeBase64, KeyPair <span class="kw">as _</span>},
     SignatureService,
 };
 <span class="kw">use </span>multiaddr::{Multiaddr, Protocol};
@@ -777,9 +741,9 @@
 
     <span class="comment">// Spawns the primary and returns the JoinHandles of its tasks, as well as a metered receiver for the Consensus.
     </span><span class="attribute">#[allow(clippy::too_many_arguments)]
-    </span><span class="kw">pub fn </span>spawn&lt;Signatory: Signer&lt;Signature&gt; + Send + <span class="lifetime">&#39;static</span>&gt;(
+    </span><span class="kw">pub fn </span>spawn(
         name: PublicKey,
-        signer: Signatory,
+        signer: KeyPair,
         committee: SharedCommittee,
         worker_cache: SharedWorkerCache,
         parameters: Parameters,
@@ -803,7 +767,8 @@
         </span><span class="kw">let </span>metrics = initialise_metrics(registry);
         <span class="kw">let </span>endpoint_metrics = metrics.endpoint_metrics.unwrap();
         <span class="kw">let </span><span class="kw-2">mut </span>primary_channel_metrics = metrics.primary_channel_metrics.unwrap();
-        <span class="kw">let </span>primary_endpoint_metrics = metrics.primary_endpoint_metrics.unwrap();
+        <span class="comment">// TODO Re-hookup metrics once the network migration is complete.
+        </span><span class="kw">let </span>_primary_endpoint_metrics = metrics.primary_endpoint_metrics.unwrap();
         <span class="kw">let </span>node_metrics = Arc::new(metrics.node_metrics.unwrap());
         <span class="kw">let </span>network_metrics = Arc::new(metrics.network_metrics.unwrap());
 
@@ -898,23 +863,37 @@
         <span class="kw">let </span>address = address
             .replace(<span class="number">0</span>, |_protocol| <span class="prelude-val">Some</span>(Protocol::Ip4(Primary::INADDR_ANY)))
             .unwrap();
-        <span class="kw">let </span>primary_receiver_handle = PrimaryReceiverHandler {
+        <span class="kw">let </span>primary_service = PrimaryToPrimaryServer::new(PrimaryReceiverHandler {
             tx_primary_messages: tx_primary_messages.clone(),
             tx_helper_requests,
             tx_payload_availability_responses,
             tx_certificate_responses,
-        }
-        .spawn(
-            address.clone(),
-            parameters.max_concurrent_requests,
-            tx_reconfigure.subscribe(),
-            primary_endpoint_metrics,
-        );
+        });
+
+        <span class="kw">let </span>addr = network::multiaddr_to_address(<span class="kw-2">&amp;</span>address).unwrap();
+
+        <span class="kw">let </span>routes = anemo::Router::new().add_rpc_service(primary_service);
+        <span class="kw">let </span>network = anemo::Network::bind(addr)
+            .server_name(<span class="string">&quot;narwhal&quot;</span>)
+            .private_key(signer.copy().private().<span class="number">0</span>.to_bytes())
+            .start(routes)
+            .unwrap();
         <span class="macro">info!</span>(
             <span class="string">&quot;Primary {} listening to primary messages on {}&quot;</span>,
             name.encode_base64(),
             address
         );
+
+        <span class="kw">for </span>(pubkey, addresses) <span class="kw">in </span>committee.load().others_primaries(<span class="kw-2">&amp;</span>name) {
+            <span class="kw">let </span>peer_id = PeerId(pubkey.<span class="number">0</span>.to_bytes());
+            <span class="kw">let </span>address = network::multiaddr_to_address(<span class="kw-2">&amp;</span>addresses.primary_to_primary).unwrap();
+            <span class="kw">let </span>peer_info = PeerInfo {
+                peer_id,
+                affinity: anemo::types::PeerAffinity::High,
+                address: <span class="macro">vec!</span>[address],
+            };
+            network.known_peers().insert(peer_info);
+        }
 
         <span class="comment">// Spawn the network receiver listening to messages from our workers.
         </span><span class="kw">let </span>address = committee
@@ -956,10 +935,7 @@
         </span><span class="kw">let </span>signature_service = SignatureService::new(signer);
 
         <span class="comment">// The `Core` receives and handles headers, votes, and certificates from the other primaries.
-        </span><span class="kw">let </span>core_primary_network = PrimaryNetwork::new(Metrics::new(
-            network_metrics.clone(),
-            <span class="string">&quot;primary_core&quot;</span>.to_string(),
-        ));
+        </span><span class="kw">let </span>core_primary_network = PrimaryNetwork::new(network.clone());
         <span class="kw">let </span>core_handle = Core::spawn(
             name.clone(),
             (<span class="kw-2">**</span>committee.load()).clone(),
@@ -1038,10 +1014,7 @@
 
         <span class="comment">// Responsible for finding missing blocks (certificates) and fetching
         // them from the primary peers by synchronizing also their batches.
-        </span><span class="kw">let </span>block_synchronizer_network = PrimaryNetwork::new(Metrics::new(
-            network_metrics.clone(),
-            <span class="string">&quot;block_synchronizer_handler&quot;</span>.to_string(),
-        ));
+        </span><span class="kw">let </span>block_synchronizer_network = PrimaryNetwork::new(network.clone());
         <span class="kw">let </span>block_synchronizer_handle = BlockSynchronizer::spawn(
             name.clone(),
             (<span class="kw-2">**</span>committee.load()).clone(),
@@ -1059,14 +1032,9 @@
         <span class="comment">// Whenever the `Synchronizer` does not manage to validate a header due to missing parent certificates of
         // batch digests, it commands the `HeaderWaiter` to synchronize with other nodes, wait for their reply, and
         // re-schedule execution of the header once we have all missing data.
-        </span><span class="kw">let </span>header_waiter_primary_network = PrimaryNetwork::new(Metrics::new(
-            network_metrics.clone(),
-            <span class="string">&quot;header_waiter&quot;</span>.to_string(),
-        ));
-        <span class="kw">let </span>header_waiter_worker_network = PrimaryToWorkerNetwork::new(Metrics::new(
-            network_metrics.clone(),
-            <span class="string">&quot;header_waiter&quot;</span>.to_string(),
-        ));
+        </span><span class="kw">let </span>header_waiter_primary_network = PrimaryNetwork::new(network.clone());
+        <span class="kw">let </span>header_waiter_worker_network =
+            PrimaryToWorkerNetwork::new(Metrics::new(network_metrics, <span class="string">&quot;header_waiter&quot;</span>.to_string()));
         <span class="kw">let </span>header_waiter_handle = HeaderWaiter::spawn(
             name.clone(),
             (<span class="kw-2">**</span>committee.load()).clone(),
@@ -1116,8 +1084,7 @@
 
         <span class="comment">// The `Helper` is dedicated to reply to certificates &amp; payload availability requests
         // from other primaries.
-        </span><span class="kw">let </span>helper_primary_network =
-            PrimaryNetwork::new(Metrics::new(network_metrics, <span class="string">&quot;primary_helper&quot;</span>.to_string()));
+        </span><span class="kw">let </span>helper_primary_network = PrimaryNetwork::new(network);
         <span class="kw">let </span>helper_handle = Helper::spawn(
             name.clone(),
             (<span class="kw-2">**</span>committee.load()).clone(),
@@ -1169,7 +1136,6 @@
         );
 
         <span class="kw">let </span><span class="kw-2">mut </span>handles = <span class="macro">vec!</span>[
-            primary_receiver_handle,
             worker_receiver_handle,
             core_handle,
             payload_receiver_handle,
@@ -1200,55 +1166,13 @@
     tx_certificate_responses: Sender&lt;CertificatesResponse&gt;,
 }
 
-<span class="kw">impl </span>PrimaryReceiverHandler {
-    <span class="kw">async fn </span>wait_for_shutdown(<span class="kw-2">mut </span>rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;) {
-        <span class="kw">loop </span>{
-            <span class="kw">let </span>result = rx_reconfigure.changed().<span class="kw">await</span>;
-            result.expect(<span class="string">&quot;Committee channel dropped&quot;</span>);
-            <span class="kw">let </span>message = rx_reconfigure.borrow().clone();
-            <span class="kw">if let </span>ReconfigureNotification::Shutdown = message {
-                <span class="kw">break</span>;
-            }
-        }
-    }
-
-    <span class="attribute">#[must_use]
-    </span><span class="kw">fn </span>spawn(
-        <span class="self">self</span>,
-        address: Multiaddr,
-        max_concurrent_requests: usize,
-        rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;,
-        primary_endpoint_metrics: PrimaryEndpointMetrics,
-    ) -&gt; JoinHandle&lt;()&gt; {
-        tokio::spawn(<span class="kw">async move </span>{
-            <span class="kw">let </span><span class="kw-2">mut </span>config = mysten_network::config::Config::new();
-            config.concurrency_limit_per_connection = <span class="prelude-val">Some</span>(max_concurrent_requests);
-            <span class="macro">info!</span>(<span class="string">&quot;PrimaryReceiverHandler has started successfully.&quot;</span>);
-            <span class="macro">tokio::select! </span>{
-                _result = config
-                    .server_builder_with_metrics(primary_endpoint_metrics)
-                    .add_service(PrimaryToPrimaryServer::new(<span class="self">self</span>))
-                    .bind(<span class="kw-2">&amp;</span>address)
-                    .<span class="kw">await
-                    </span>.unwrap()
-                    .serve() =&gt; (),
-
-                () = <span class="self">Self</span>::wait_for_shutdown(rx_reconfigure) =&gt; ()
-            }
-        })
-    }
-}
-
 <span class="attribute">#[async_trait]
 </span><span class="kw">impl </span>PrimaryToPrimary <span class="kw">for </span>PrimaryReceiverHandler {
     <span class="kw">async fn </span>send_message(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        request: Request&lt;BincodeEncodedPayload&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;Response&lt;Empty&gt;, Status&gt; {
-        <span class="kw">let </span>message: PrimaryMessage = request
-            .into_inner()
-            .deserialize()
-            .map_err(|e| Status::invalid_argument(e.to_string()))<span class="question-mark">?</span>;
+        request: anemo::Request&lt;types::PrimaryMessage&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;anemo::Response&lt;()&gt;, anemo::rpc::Status&gt; {
+        <span class="kw">let </span>message = request.into_body();
 
         <span class="kw">match </span>message {
             PrimaryMessage::CertificatesRequest(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="self">self
@@ -1291,9 +1215,9 @@
                 .<span class="kw">await
                 </span>.map_err(|<span class="kw">_</span>| DagError::ShuttingDown),
         }
-        .map_err(|e| Status::not_found(e.to_string()))<span class="question-mark">?</span>;
+        .unwrap();
 
-        <span class="prelude-val">Ok</span>(Response::new(Empty {}))
+        <span class="prelude-val">Ok</span>(anemo::Response::new(()))
     }
 }
 

@@ -221,229 +221,31 @@
 <span id="221">221</span>
 <span id="222">222</span>
 <span id="223">223</span>
-<span id="224">224</span>
-<span id="225">225</span>
-<span id="226">226</span>
-<span id="227">227</span>
-<span id="228">228</span>
-<span id="229">229</span>
-<span id="230">230</span>
-<span id="231">231</span>
-<span id="232">232</span>
-<span id="233">233</span>
-<span id="234">234</span>
-<span id="235">235</span>
-<span id="236">236</span>
-<span id="237">237</span>
-<span id="238">238</span>
-<span id="239">239</span>
-<span id="240">240</span>
-<span id="241">241</span>
-<span id="242">242</span>
-<span id="243">243</span>
-<span id="244">244</span>
-<span id="245">245</span>
-<span id="246">246</span>
-<span id="247">247</span>
-<span id="248">248</span>
-<span id="249">249</span>
-<span id="250">250</span>
-<span id="251">251</span>
-<span id="252">252</span>
-<span id="253">253</span>
-<span id="254">254</span>
-<span id="255">255</span>
-<span id="256">256</span>
-<span id="257">257</span>
-<span id="258">258</span>
-<span id="259">259</span>
-<span id="260">260</span>
-<span id="261">261</span>
-<span id="262">262</span>
-<span id="263">263</span>
-<span id="264">264</span>
-<span id="265">265</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
 </span><span class="kw">use crate</span>::{
     metrics::{Metrics, PrimaryNetworkMetrics},
-    traits::{BaseNetwork, LuckyNetwork, ReliableNetwork, UnreliableNetwork},
-    BoundedExecutor, CancelOnDropHandler, MessageResult, RetryConfig, MAX_TASK_CONCURRENCY,
+    traits::{BaseNetwork, Lucky, ReliableNetwork2, UnreliableNetwork, UnreliableNetwork2},
+    BoundedExecutor, CancelOnDropHandler, RetryConfig, MAX_TASK_CONCURRENCY,
 };
+<span class="kw">use </span>anemo::PeerId;
 <span class="kw">use </span>async_trait::async_trait;
+<span class="kw">use </span>crypto::PublicKey;
 <span class="kw">use </span>multiaddr::Multiaddr;
 <span class="kw">use </span>rand::{rngs::SmallRng, SeedableRng <span class="kw">as _</span>};
 <span class="kw">use </span>std::collections::HashMap;
 <span class="kw">use </span>tokio::{runtime::Handle, task::JoinHandle};
-<span class="kw">use </span>tonic::{transport::Channel, Code};
-<span class="kw">use </span>tracing::error;
+<span class="kw">use </span>tonic::transport::Channel;
 <span class="kw">use </span>types::{
     BincodeEncodedPayload, PrimaryMessage, PrimaryToPrimaryClient, PrimaryToWorkerClient,
     PrimaryWorkerMessage,
 };
 
-<span class="kw">pub struct </span>PrimaryNetwork {
-    clients: HashMap&lt;Multiaddr, PrimaryToPrimaryClient&lt;Channel&gt;&gt;,
-    config: mysten_network::config::Config,
-    retry_config: RetryConfig,
-    <span class="doccomment">/// Small RNG just used to shuffle nodes and randomize connections (not crypto related).
-    </span>rng: SmallRng,
-    <span class="comment">// One bounded executor per address
-    </span>executors: HashMap&lt;Multiaddr, BoundedExecutor&gt;,
-    metrics: <span class="prelude-ty">Option</span>&lt;Metrics&lt;PrimaryNetworkMetrics&gt;&gt;,
-}
-
 <span class="kw">fn </span>default_executor() -&gt; BoundedExecutor {
     BoundedExecutor::new(MAX_TASK_CONCURRENCY, Handle::current())
 }
 
-<span class="kw">impl </span>Default <span class="kw">for </span>PrimaryNetwork {
-    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span>retry_config = RetryConfig {
-            <span class="comment">// Retry for forever
-            </span>retrying_max_elapsed_time: <span class="prelude-val">None</span>,
-            ..Default::default()
-        };
-
-        <span class="self">Self </span>{
-            clients: Default::default(),
-            config: Default::default(),
-            retry_config,
-            rng: SmallRng::from_entropy(),
-            executors: HashMap::new(),
-            metrics: <span class="prelude-val">None</span>,
-        }
-    }
-}
-
-<span class="kw">impl </span>PrimaryNetwork {
-    <span class="kw">pub fn </span>new(metrics: Metrics&lt;PrimaryNetworkMetrics&gt;) -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{
-            metrics: <span class="prelude-val">Some</span>(Metrics::from(metrics, <span class="string">&quot;primary&quot;</span>.to_string())),
-            ..Default::default()
-        }
-    }
-
-    <span class="kw">fn </span>update_metrics(<span class="kw-2">&amp;</span><span class="self">self</span>) {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(m) = <span class="kw-2">&amp;</span><span class="self">self</span>.metrics {
-            <span class="kw">for </span>(addr, executor) <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.executors {
-                m.set_network_available_tasks(
-                    executor.available_capacity() <span class="kw">as </span>i64,
-                    <span class="prelude-val">Some</span>(addr.to_string()),
-                );
-            }
-        }
-    }
-
-    <span class="kw">pub fn </span>cleanup&lt;<span class="lifetime">&#39;a</span>, I&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, to_remove: I)
-    <span class="kw">where
-        </span>I: IntoIterator&lt;Item = <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Multiaddr&gt;,
-    {
-        <span class="kw">for </span>address <span class="kw">in </span>to_remove {
-            <span class="self">self</span>.clients.remove(address);
-        }
-    }
-}
-
-<span class="kw">impl </span>BaseNetwork <span class="kw">for </span>PrimaryNetwork {
-    <span class="kw">type </span>Client = PrimaryToPrimaryClient&lt;Channel&gt;;
-
-    <span class="kw">type </span>Message = PrimaryMessage;
-
-    <span class="kw">fn </span>client(<span class="kw-2">&amp;mut </span><span class="self">self</span>, address: Multiaddr) -&gt; <span class="self">Self</span>::Client {
-        <span class="self">self</span>.clients
-            .entry(address.clone())
-            .or_insert_with(|| <span class="self">Self</span>::create_client(<span class="kw-2">&amp;</span><span class="self">self</span>.config, address))
-            .clone()
-    }
-
-    <span class="kw">fn </span>create_client(config: <span class="kw-2">&amp;</span>mysten_network::config::Config, address: Multiaddr) -&gt; <span class="self">Self</span>::Client {
-        <span class="comment">//TODO don&#39;t panic here if address isn&#39;t supported
-        </span><span class="kw">let </span>channel = config.connect_lazy(<span class="kw-2">&amp;</span>address).unwrap();
-        PrimaryToPrimaryClient::new(channel)
-    }
-}
-
-<span class="attribute">#[async_trait]
-</span><span class="kw">impl </span>UnreliableNetwork <span class="kw">for </span>PrimaryNetwork {
-    <span class="kw">async fn </span>unreliable_send_message(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        address: Multiaddr,
-        message: BincodeEncodedPayload,
-    ) -&gt; JoinHandle&lt;()&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>client = <span class="self">self</span>.client(address.clone());
-        <span class="kw">let </span>handle = <span class="self">self
-            </span>.executors
-            .entry(address)
-            .or_insert_with(default_executor)
-            .spawn(<span class="kw">async move </span>{
-                <span class="kw">let _ </span>= client.send_message(message).<span class="kw">await</span>;
-            })
-            .<span class="kw">await</span>;
-
-        <span class="self">self</span>.update_metrics();
-
-        handle
-    }
-}
-
-<span class="attribute">#[async_trait]
-</span><span class="kw">impl </span>LuckyNetwork <span class="kw">for </span>PrimaryNetwork {
-    <span class="kw">fn </span>rng(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>SmallRng {
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>.rng
-    }
-}
-
-<span class="attribute">#[async_trait]
-</span><span class="kw">impl </span>ReliableNetwork <span class="kw">for </span>PrimaryNetwork {
-    <span class="comment">// Safety
-    // Since this spawns an unbounded task, this should be called in a time-restricted fashion.
-    // Here the callers are [`PrimaryNetwork::broadcast`] and [`PrimaryNetwork::send`],
-    // at respectively N and K calls per round.
-    //  (where N is the number of primaries, K the number of workers for this primary)
-    // See the TODO on spawn_with_retries for lifting this restriction.
-    </span><span class="kw">async fn </span>send_message(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        address: Multiaddr,
-        message: BincodeEncodedPayload,
-    ) -&gt; CancelOnDropHandler&lt;MessageResult&gt; {
-        <span class="kw">let </span>client = <span class="self">self</span>.client(address.clone());
-
-        <span class="kw">let </span>message_send = <span class="kw">move </span>|| {
-            <span class="kw">let </span><span class="kw-2">mut </span>client = client.clone();
-            <span class="kw">let </span>message = message.clone();
-
-            <span class="kw">async move </span>{
-                client.send_message(message).<span class="kw">await</span>.map_err(|e| {
-                    <span class="kw">match </span>e.code() {
-                        Code::FailedPrecondition | Code::InvalidArgument =&gt; {
-                            <span class="comment">// these errors are not recoverable through retrying, see
-                            // https://github.com/hyperium/tonic/blob/master/tonic/src/status.rs
-                            </span><span class="macro">error!</span>(<span class="string">&quot;Irrecoverable network error: {e}&quot;</span>);
-                            backoff::Error::permanent(eyre::Report::from(e))
-                        }
-                        <span class="kw">_ </span>=&gt; {
-                            <span class="comment">// this returns a backoff::Error::Transient
-                            // so that if tonic::Status is returned, we retry
-                            </span>Into::&lt;backoff::Error&lt;eyre::Report&gt;&gt;::into(eyre::Report::from(e))
-                        }
-                    }
-                })
-            }
-        };
-
-        <span class="kw">let </span>handle = <span class="self">self
-            </span>.executors
-            .entry(address)
-            .or_insert_with(default_executor)
-            .spawn_with_retries(<span class="self">self</span>.retry_config, message_send);
-
-        <span class="self">self</span>.update_metrics();
-
-        CancelOnDropHandler(handle)
-    }
-}
 <span class="kw">pub struct </span>PrimaryToWorkerNetwork {
     clients: HashMap&lt;Multiaddr, PrimaryToWorkerClient&lt;Channel&gt;&gt;,
     config: mysten_network::config::Config,
@@ -526,6 +328,120 @@
         <span class="self">self</span>.update_metrics();
 
         handler
+    }
+}
+
+<span class="kw">pub struct </span>PrimaryNetwork {
+    network: anemo::Network,
+    retry_config: RetryConfig,
+    <span class="doccomment">/// Small RNG just used to shuffle nodes and randomize connections (not crypto related).
+    </span>rng: SmallRng,
+    <span class="comment">// One bounded executor per address
+    </span>executors: HashMap&lt;anemo::PeerId, BoundedExecutor&gt;,
+}
+
+<span class="kw">impl </span>PrimaryNetwork {
+    <span class="kw">pub fn </span>new(network: anemo::Network) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>retry_config = RetryConfig {
+            <span class="comment">// Retry forever
+            </span>retrying_max_elapsed_time: <span class="prelude-val">None</span>,
+            ..Default::default()
+        };
+
+        <span class="self">Self </span>{
+            network,
+            retry_config,
+            rng: SmallRng::from_entropy(),
+            executors: HashMap::new(),
+        }
+    }
+
+    <span class="kw">pub fn </span>cleanup&lt;<span class="lifetime">&#39;a</span>, I&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, _to_remove: I)
+    <span class="kw">where
+        </span>I: IntoIterator&lt;Item = <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Multiaddr&gt;,
+    {
+        <span class="comment">// TODO This function was previously used to remove old clients on epoch changes. This may
+        // not be necessary with the new networking stack so we&#39;ll need to revisit if this function
+        // is even needed. For now do nothing.
+    </span>}
+}
+
+<span class="attribute">#[async_trait]
+</span><span class="kw">impl </span>UnreliableNetwork2&lt;PrimaryMessage&gt; <span class="kw">for </span>PrimaryNetwork {
+    <span class="kw">async fn </span>unreliable_send(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        peer: PublicKey,
+        message: <span class="kw-2">&amp;</span>PrimaryMessage,
+    ) -&gt; JoinHandle&lt;()&gt; {
+        <span class="kw">let </span>network = <span class="self">self</span>.network.clone();
+        <span class="kw">let </span>peer_id = PeerId(peer.<span class="number">0</span>.to_bytes());
+        <span class="kw">let </span>message = message.to_owned();
+        <span class="self">self</span>.executors
+            .entry(peer_id)
+            .or_insert_with(default_executor)
+            .spawn(<span class="kw">async move </span>{
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(peer) = network.peer(peer_id) {
+                    <span class="kw">let _ </span>= PrimaryToPrimaryClient::new(peer)
+                        .send_message(message)
+                        .<span class="kw">await</span>;
+                }
+            })
+            .<span class="kw">await
+    </span>}
+}
+
+<span class="kw">impl </span>Lucky <span class="kw">for </span>PrimaryNetwork {
+    <span class="kw">fn </span>rng(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>SmallRng {
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>.rng
+    }
+}
+
+<span class="attribute">#[async_trait]
+</span><span class="kw">impl </span>ReliableNetwork2&lt;PrimaryMessage&gt; <span class="kw">for </span>PrimaryNetwork {
+    <span class="kw">async fn </span>send(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        peer: PublicKey,
+        message: <span class="kw-2">&amp;</span>PrimaryMessage,
+    ) -&gt; CancelOnDropHandler&lt;anyhow::Result&lt;anemo::Response&lt;()&gt;&gt;&gt; {
+        <span class="comment">// Safety
+        // Since this spawns an unbounded task, this should be called in a time-restricted fashion.
+        // Here the callers are [`PrimaryNetwork::broadcast`] and [`PrimaryNetwork::send`],
+        // at respectively N and K calls per round.
+        //  (where N is the number of primaries, K the number of workers for this primary)
+        // See the TODO on spawn_with_retries for lifting this restriction.
+
+        </span><span class="kw">let </span>network = <span class="self">self</span>.network.clone();
+        <span class="kw">let </span>peer_id = PeerId(peer.<span class="number">0</span>.to_bytes());
+        <span class="kw">let </span>message = message.to_owned();
+        <span class="kw">let </span>message_send = <span class="kw">move </span>|| {
+            <span class="kw">let </span>network = network.clone();
+            <span class="kw">let </span>message = message.clone();
+
+            <span class="kw">async move </span>{
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(peer) = network.peer(peer_id) {
+                    PrimaryToPrimaryClient::new(peer)
+                        .send_message(message)
+                        .<span class="kw">await
+                        </span>.map_err(|e| {
+                            <span class="comment">// this returns a backoff::Error::Transient
+                            // so that if anemo::Status is returned, we retry
+                            </span>backoff::Error::transient(<span class="macro">anyhow::anyhow!</span>(<span class="string">&quot;RPC error: {e:?}&quot;</span>))
+                        })
+                } <span class="kw">else </span>{
+                    <span class="prelude-val">Err</span>(backoff::Error::transient(<span class="macro">anyhow::anyhow!</span>(
+                        <span class="string">&quot;not connected to peer {peer_id}&quot;
+                    </span>)))
+                }
+            }
+        };
+
+        <span class="kw">let </span>handle = <span class="self">self
+            </span>.executors
+            .entry(peer_id)
+            .or_insert_with(default_executor)
+            .spawn_with_retries(<span class="self">self</span>.retry_config, message_send);
+
+        CancelOnDropHandler(handle)
     }
 }
 </code></pre></div>
