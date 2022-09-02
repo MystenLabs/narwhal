@@ -4803,6 +4803,7 @@ dependencies = [
  "async-trait",
  "bincode",
  "blake2",
+ "byteorder",
  "bytes",
  "config",
  "crypto",
