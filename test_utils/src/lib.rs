@@ -111,7 +111,7 @@ macro_rules! test_get_block_commands {
 ////////////////////////////////////////////////////////////////
 
 // Fixture
-pub fn keys(rng_seed: impl Into<Option<u64>>) -> Vec<KeyPair> {
+pub fn keys_with_len(rng_seed: impl Into<Option<u64>>, num_keys: usize) -> Vec<KeyPair> {
     let seed = rng_seed.into().unwrap_or(0u64).to_le_bytes();
     let mut rng_arg = [0u8; 32];
     for i in 0..4 {
@@ -119,7 +119,11 @@ pub fn keys(rng_seed: impl Into<Option<u64>>) -> Vec<KeyPair> {
     }
 
     let mut rng = StdRng::from_seed(rng_arg);
-    (0..4).map(|_| KeyPair::generate(&mut rng)).collect()
+    (0..num_keys).map(|_| KeyPair::generate(&mut rng)).collect()
+}
+
+pub fn keys(rng_seed: impl Into<Option<u64>>) -> Vec<KeyPair> {
+    keys_with_len(rng_seed, 4)
 }
 
 // Fixture
@@ -133,6 +137,16 @@ pub fn pure_committee_from_keys(keys: &[KeyPair]) -> Committee {
         authorities: keys
             .iter()
             .map(|kp| (kp.public().clone(), make_authority()))
+            .collect(),
+    }
+}
+
+pub fn pure_committee_from_keys_with_mock_ports(keys: &[KeyPair]) -> Committee {
+    Committee {
+        epoch: Epoch::default(),
+        authorities: keys
+            .iter()
+            .map(|kp| (kp.public().clone(), make_authority_with_port_getter(|| 0)))
             .collect(),
     }
 }
@@ -478,14 +492,16 @@ pub fn votes(header: &Header) -> Vec<Vote> {
 }
 
 // Fixture
+pub fn certificate_from_committee(header: &Header, committee: &Committee) -> Certificate {
+    let votes: Vec<_> = votes(header)
+        .into_iter()
+        .map(|x| (x.author, x.signature))
+        .collect();
+    Certificate::new(committee, header.clone(), votes).unwrap()
+}
+
 pub fn certificate(header: &Header) -> Certificate {
-    Certificate {
-        header: header.clone(),
-        votes: votes(header)
-            .into_iter()
-            .map(|x| (x.author, x.signature))
-            .collect(),
-    }
+    certificate_from_committee(header, &committee(None))
 }
 
 pub struct PrimaryToPrimaryMockServer {
@@ -850,16 +866,18 @@ pub fn mock_certificate(
     round: Round,
     parents: BTreeSet<CertificateDigest>,
 ) -> (CertificateDigest, Certificate) {
-    let certificate = Certificate {
-        header: Header {
+    let certificate = Certificate::new_unsigned(
+        &committee(None),
+        Header {
             author: origin,
             round,
             parents,
             payload: fixture_payload(1),
             ..Header::default()
         },
-        ..Certificate::default()
-    };
+        Vec::new(),
+    )
+    .unwrap();
     (certificate.digest(), certificate)
 }
 
@@ -871,8 +889,9 @@ pub fn mock_certificate_with_epoch(
     epoch: Epoch,
     parents: BTreeSet<CertificateDigest>,
 ) -> (CertificateDigest, Certificate) {
-    let certificate = Certificate {
-        header: Header {
+    let certificate = Certificate::new_unsigned(
+        &committee(None),
+        Header {
             author: origin,
             round,
             epoch,
@@ -880,8 +899,9 @@ pub fn mock_certificate_with_epoch(
             payload: fixture_payload(1),
             ..Header::default()
         },
-        ..Certificate::default()
-    };
+        Vec::new(),
+    )
+    .unwrap();
     (certificate.digest(), certificate)
 }
 
@@ -899,18 +919,19 @@ pub fn mock_signed_certificate(
         .round(round)
         .epoch(0)
         .parents(parents);
-    let header = header_builder.build(author).unwrap();
-    let mut cert = Certificate {
-        header,
-        ..Certificate::default()
-    };
 
+    let header = header_builder.build(author).unwrap();
+
+    let cert = Certificate::new_unsigned(&committee(None), header.clone(), Vec::new()).unwrap();
+
+    let mut votes = Vec::new();
     for signer in signers {
         let pk = signer.public();
         let sig = signer
             .try_sign(Digest::from(cert.digest()).as_ref())
             .unwrap();
-        cert.votes.push((pk.clone(), sig))
+        votes.push((pk.clone(), sig))
     }
+    let cert = Certificate::new(&committee(None), header, votes).unwrap();
     (cert.digest(), cert)
 }
