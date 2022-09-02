@@ -207,6 +207,7 @@
 
 <span class="kw">pub use </span>errors::{ExecutionStateError, SubscriberError, SubscriberResult};
 <span class="kw">pub use </span>state::ExecutionIndices;
+<span class="kw">use </span>tracing::info;
 
 <span class="kw">use crate</span>::{core::Core, metrics::ExecutorMetrics, subscriber::Subscriber};
 <span class="kw">use </span>async_trait::async_trait;
@@ -221,7 +222,6 @@
     sync::{mpsc::Sender, watch},
     task::JoinHandle,
 };
-<span class="kw">use </span>tracing::info;
 <span class="kw">use </span>types::{
     metered_channel, Batch, BatchDigest, CertificateDigest, ConsensusStore,
     ReconfigureNotification, SequenceNumber,
@@ -284,7 +284,7 @@
 <span class="kw">impl </span>Executor {
     <span class="doccomment">/// Spawn a new client subscriber.
     </span><span class="kw">pub async fn </span>spawn&lt;State&gt;(
-        store: Store&lt;BatchDigest, Batch&gt;,
+        store: Store&lt;(CertificateDigest, BatchDigest), Batch&gt;,
         execution_state: Arc&lt;State&gt;,
         tx_reconfigure: <span class="kw-2">&amp;</span>watch::Sender&lt;ReconfigureNotification&gt;,
         rx_consensus: metered_channel::Receiver&lt;ConsensusOutput&gt;,

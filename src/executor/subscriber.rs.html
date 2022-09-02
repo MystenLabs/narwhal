@@ -202,6 +202,18 @@
 <span id="202">202</span>
 <span id="203">203</span>
 <span id="204">204</span>
+<span id="205">205</span>
+<span id="206">206</span>
+<span id="207">207</span>
+<span id="208">208</span>
+<span id="209">209</span>
+<span id="210">210</span>
+<span id="211">211</span>
+<span id="212">212</span>
+<span id="213">213</span>
+<span id="214">214</span>
+<span id="215">215</span>
+<span id="216">216</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use crate</span>::{
@@ -221,7 +233,7 @@
 <span class="kw">use </span>tracing::error;
 <span class="kw">use </span>types::{
     bounded_future_queue::BoundedFuturesOrdered, metered_channel, Batch, BatchDigest,
-    ReconfigureNotification,
+    CertificateDigest, ReconfigureNotification,
 };
 
 <span class="attribute">#[cfg(test)]
@@ -233,7 +245,7 @@
 /// forward the certificates to the Executor Core.
 </span><span class="kw">pub struct </span>Subscriber {
     <span class="doccomment">/// The temporary storage holding all transactions&#39; data (that may be too big to hold in memory).
-    </span>store: Store&lt;BatchDigest, Batch&gt;,
+    </span>store: Store&lt;(CertificateDigest, BatchDigest), Batch&gt;,
     <span class="doccomment">/// Receive reconfiguration updates.
     </span>rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;,
     <span class="doccomment">/// A channel to receive consensus messages.
@@ -258,7 +270,7 @@
     <span class="doccomment">/// Spawn a new subscriber in a new tokio task.
     </span><span class="attribute">#[must_use]
     </span><span class="kw">pub fn </span>spawn(
-        store: Store&lt;BatchDigest, Batch&gt;,
+        store: Store&lt;(CertificateDigest, BatchDigest), Batch&gt;,
         tx_get_block_commands: metered_channel::Sender&lt;BlockCommand&gt;,
         rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;,
         rx_consensus: metered_channel::Receiver&lt;ConsensusOutput&gt;,
@@ -362,13 +374,13 @@
     /// fetched the payload.
     </span><span class="kw">async fn </span>wait_on_payload(
         back_off_policy: ExponentialBackoff,
-        store: Store&lt;BatchDigest, Batch&gt;,
+        store: Store&lt;(CertificateDigest, BatchDigest), Batch&gt;,
         tx_get_block_commands: metered_channel::Sender&lt;BlockCommand&gt;,
         deliver: ConsensusOutput,
     ) -&gt; SubscriberResult&lt;ConsensusOutput&gt; {
         <span class="kw">let </span>get_block = <span class="kw">move </span>|| {
             <span class="kw">let </span>message = deliver.clone();
-            <span class="kw">let </span>id = message.certificate.digest();
+            <span class="kw">let </span>certificate_id = message.certificate.digest();
             <span class="kw">let </span>tx_get_block = tx_get_block_commands.clone();
             <span class="kw">let </span>batch_store = store.clone();
 
@@ -376,18 +388,27 @@
                 <span class="kw">let </span>(sender, receiver) = oneshot::channel();
 
                 tx_get_block
-                    .send(BlockCommand::GetBlock { id, sender })
+                    .send(BlockCommand::GetBlock {
+                        id: certificate_id,
+                        sender,
+                    })
                     .<span class="kw">await
-                    </span>.map_err(|err| Error::permanent(PayloadRetrieveError(id, err.to_string())))<span class="question-mark">?</span>;
+                    </span>.map_err(|err| {
+                        Error::permanent(PayloadRetrieveError(certificate_id, err.to_string()))
+                    })<span class="question-mark">?</span>;
 
-                <span class="kw">match </span>receiver
-                    .<span class="kw">await
-                    </span>.map_err(|err| Error::permanent(PayloadRetrieveError(id, err.to_string())))<span class="question-mark">?
-                </span>{
+                <span class="kw">match </span>receiver.<span class="kw">await</span>.map_err(|err| {
+                    Error::permanent(PayloadRetrieveError(certificate_id, err.to_string()))
+                })<span class="question-mark">? </span>{
                     <span class="prelude-val">Ok</span>(block) =&gt; {
                         <span class="comment">// we successfully received the payload. Now let&#39;s add to store
                         </span>batch_store
-                            .write_all(block.batches.into_iter().map(|b| (b.id, b.transactions)))
+                            .write_all(
+                                block
+                                    .batches
+                                    .into_iter()
+                                    .map(|b| ((certificate_id, b.id), b.transactions)),
+                            )
                             .<span class="kw">await
                             </span>.map_err(|err| Error::permanent(SubscriberError::from(err)))<span class="question-mark">?</span>;
 
@@ -397,7 +418,10 @@
                         <span class="comment">// whatever the error might be at this point we don&#39;t
                         // have many options apart from retrying.
                         </span><span class="macro">error!</span>(<span class="string">&quot;Error while retrieving block via block waiter: {}&quot;</span>, err);
-                        <span class="prelude-val">Err</span>(Error::transient(PayloadRetrieveError(id, err.to_string())))
+                        <span class="prelude-val">Err</span>(Error::transient(PayloadRetrieveError(
+                            certificate_id,
+                            err.to_string(),
+                        )))
                     }
                 }
             }

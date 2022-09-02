@@ -442,7 +442,7 @@
     <span class="kw">pub </span>payload_store: Store&lt;(BatchDigest, WorkerId), PayloadToken&gt;,
     <span class="kw">pub </span>batch_store: Store&lt;BatchDigest, SerializedBatchMessage&gt;,
     <span class="kw">pub </span>consensus_store: Arc&lt;ConsensusStore&gt;,
-    <span class="kw">pub </span>temp_batch_store: Store&lt;BatchDigest, Batch&gt;,
+    <span class="kw">pub </span>temp_batch_store: Store&lt;(CertificateDigest, BatchDigest), Batch&gt;,
 }
 
 <span class="kw">impl </span>NodeStorage {
@@ -491,7 +491,7 @@
             <span class="self">Self</span>::BATCHES_CF;&lt;BatchDigest, SerializedBatchMessage&gt;,
             <span class="self">Self</span>::LAST_COMMITTED_CF;&lt;PublicKey, Round&gt;,
             <span class="self">Self</span>::SEQUENCE_CF;&lt;SequenceNumber, CertificateDigest&gt;,
-            <span class="self">Self</span>::TEMP_BATCH_CF;&lt;BatchDigest, Batch&gt;
+            <span class="self">Self</span>::TEMP_BATCH_CF;&lt;(CertificateDigest, BatchDigest), Batch&gt;
         );
 
         <span class="kw">let </span>header_store = Store::new(header_map);
