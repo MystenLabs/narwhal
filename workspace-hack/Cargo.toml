@@ -18,7 +18,9 @@ addr2line = { version = "0.17", default-features = false }
 adler = { version = "1", default-features = false }
 ahash = { version = "0.7", default-features = false }
 aho-corasick = { version = "0.7", features = ["std"] }
+anemo = { git = "https://github.com/mystenlabs/anemo.git", rev = "6278d0fa78147a49ff2cb9dd2e45e763886be0a0", default-features = false }
 ansi_term = { version = "0.12", default-features = false }
+anyhow = { version = "1", features = ["std"] }
 arc-swap = { version = "1", default-features = false, features = ["serde"] }
 ark-bls12-377 = { version = "0.3", features = ["base_field", "curve", "scalar_field", "std"] }
 ark-crypto-primitives = { version = "0.3", features = ["parallel", "rayon", "std"] }
@@ -32,6 +34,7 @@ ark-snark = { version = "0.3", default-features = false }
 ark-std = { version = "0.3", features = ["parallel", "rayon", "std"] }
 arrayref = { version = "0.3", default-features = false }
 arrayvec = { version = "0.7", default-features = false }
+asn1-rs = { version = "0.5", features = ["datetime", "std", "time"] }
 async-stream = { version = "0.3", default-features = false }
 atty = { version = "0.2", default-features = false }
 axum = { version = "0.5", features = ["form", "http1", "json", "matched-path", "original-uri", "query", "serde_json", "serde_urlencoded", "tower-log"] }
@@ -58,7 +61,7 @@ bstr = { version = "0.2", features = ["lazy_static", "regex-automata", "serde", 
 bulletproofs = { version = "4", features = ["rand", "std", "thiserror"] }
 bytemuck = { version = "1", default-features = false }
 byteorder = { version = "1", features = ["i128", "std"] }
-bytes = { version = "1", features = ["std"] }
+bytes = { version = "1", features = ["serde", "std"] }
 cast = { version = "0.3", default-features = false }
 cfg-if-c65f7effa3be6d31 = { package = "cfg-if", version = "0.1", default-features = false }
 cfg-if-dff4ba8e3ae991db = { package = "cfg-if", version = "1", default-features = false }
@@ -88,7 +91,8 @@ csv-core = { version = "0.1" }
 curve25519-dalek-ng = { version = "4", features = ["alloc", "serde", "std", "u64_backend"] }
 dashmap = { version = "5", default-features = false }
 data-encoding = { version = "2", features = ["alloc", "std"] }
-der = { version = "0.6", default-features = false, features = ["alloc", "const-oid", "oid", "zeroize"] }
+der = { version = "0.6", default-features = false, features = ["alloc", "const-oid", "oid", "std", "zeroize"] }
+der-parser = { version = "8", features = ["bigint", "num-bigint", "std"] }
 derive_builder = { version = "0.11", features = ["std"] }
 dhat = { version = "0.3", default-features = false }
 diff = { version = "0.1", default-features = false }
@@ -97,6 +101,7 @@ digest-93f6ce9d446188ac = { package = "digest", version = "0.10", features = ["a
 digest-274715c4dabd11b0 = { package = "digest", version = "0.9", default-features = false, features = ["alloc", "std"] }
 downcast = { version = "0.11", features = ["std"] }
 ecdsa = { version = "0.14", default-features = false, features = ["alloc", "arithmetic", "der", "digest", "hazmat", "pkcs8", "rfc6979", "sign", "std", "verify"] }
+ed25519 = { version = "1", features = ["alloc", "pkcs8", "std", "zeroize"] }
 ed25519-consensus = { version = "2", features = ["serde", "std", "thiserror"] }
 either = { version = "1", features = ["use_std"] }
 elliptic-curve = { version = "0.12", default-features = false, features = ["alloc", "arithmetic", "digest", "ff", "group", "hazmat", "pkcs8", "sec1", "std"] }
@@ -117,7 +122,8 @@ futures-executor = { version = "0.3", features = ["std"] }
 futures-io = { version = "0.3", default-features = false, features = ["std"] }
 futures-sink = { version = "0.3", features = ["alloc", "std"] }
 futures-task = { version = "0.3", default-features = false, features = ["alloc", "std"] }
-futures-util = { version = "0.3", default-features = false, features = ["alloc", "async-await", "async-await-macro", "channel", "futures-channel", "futures-io", "futures-macro", "futures-sink", "io", "memchr", "sink", "slab", "std"] }
+futures-util = { version = "0.3", features = ["alloc", "async-await", "async-await-macro", "channel", "futures-channel", "futures-io", "futures-macro", "futures-sink", "io", "memchr", "sink", "slab", "std"] }
+fxhash = { version = "0.2", default-features = false }
 generic-array = { version = "0.14", default-features = false, features = ["more_lengths"] }
 gethostname = { version = "0.2", default-features = false }
 getrandom-c65f7effa3be6d31 = { package = "getrandom", version = "0.1", default-features = false, features = ["std"] }
@@ -167,18 +173,21 @@ memchr = { version = "2", features = ["std"] }
 memoffset = { version = "0.6" }
 merlin = { version = "3", features = ["std"] }
 mime = { version = "0.3", default-features = false }
+minimal-lexical = { version = "0.2", default-features = false, features = ["std"] }
 miniz_oxide = { version = "0.5", default-features = false }
 mio = { version = "0.8", features = ["net", "os-ext", "os-poll"] }
 mockall = { version = "0.11", default-features = false }
 multiaddr = { version = "0.14", features = ["url"] }
 multihash = { version = "0.16", default-features = false, features = ["alloc", "derive", "identity", "multihash-derive", "multihash-impl", "std"] }
 mysten-network = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "9deac015fbf66e24b6da9699630e06750eaa094a", default-features = false }
+nom = { version = "7", features = ["alloc", "std"] }
 normalize-line-endings = { version = "0.3", default-features = false }
-num-bigint = { version = "0.4", default-features = false }
-num-integer = { version = "0.1", default-features = false, features = ["i128"] }
+num-bigint = { version = "0.4", features = ["std"] }
+num-integer = { version = "0.1", default-features = false, features = ["i128", "std"] }
 num-traits = { version = "0.2", features = ["i128", "std"] }
 num_cpus = { version = "1", default-features = false }
 object = { version = "0.29", default-features = false, features = ["archive", "coff", "elf", "macho", "pe", "read_core", "unaligned"] }
+oid-registry = { version = "0.6", features = ["crypto", "kdf", "nist_algs", "pkcs1", "pkcs12", "pkcs7", "pkcs9", "registry", "x509", "x962"] }
 once_cell = { version = "1", features = ["alloc", "race", "std"] }
 oorandom = { version = "11", default-features = false }
 opaque-debug = { version = "0.3", default-features = false }
@@ -191,11 +200,12 @@ parking_lot-a6292c17cd707f01 = { package = "parking_lot", version = "0.11" }
 parking_lot-5ef9efb8ec2df382 = { package = "parking_lot", version = "0.12" }
 parking_lot_core-c38e5c1d305a1b54 = { package = "parking_lot_core", version = "0.8", default-features = false }
 parking_lot_core-274715c4dabd11b0 = { package = "parking_lot_core", version = "0.9", default-features = false }
+pem = { version = "1", default-features = false }
 percent-encoding = { version = "2", default-features = false }
 pin-project = { version = "1", default-features = false }
 pin-project-lite = { version = "0.2", default-features = false }
 pin-utils = { version = "0.1", default-features = false }
-pkcs8 = { version = "0.9", default-features = false, features = ["alloc"] }
+pkcs8 = { version = "0.9", default-features = false, features = ["alloc", "std"] }
 plotters = { version = "0.3", default-features = false, features = ["area_series", "line_series", "plotters-svg", "svg_backend"] }
 plotters-backend = { version = "0.3", default-features = false }
 plotters-svg = { version = "0.3", default-features = false }
@@ -211,6 +221,9 @@ prost = { version = "0.10", features = ["prost-derive", "std"] }
 protobuf = { version = "2", default-features = false }
 quick-error-dff4ba8e3ae991db = { package = "quick-error", version = "1", default-features = false }
 quick-error-f595c2ba2a3f28df = { package = "quick-error", version = "2", default-features = false }
+quinn = { version = "0.8", default-features = false, features = ["rustls", "tls-rustls", "webpki"] }
+quinn-proto = { version = "0.8", default-features = false, features = ["ring", "rustls", "rustls-pemfile", "tls-rustls", "webpki"] }
+quinn-udp = { version = "0.1", default-features = false }
 rand-ca01ad9e24f5d932 = { package = "rand", version = "0.7", features = ["alloc", "getrandom", "getrandom_package", "libc", "std"] }
 rand-c38e5c1d305a1b54 = { package = "rand", version = "0.8", features = ["alloc", "getrandom", "libc", "rand_chacha", "small_rng", "std", "std_rng"] }
 rand_chacha = { version = "0.3", features = ["std"] }
@@ -219,6 +232,7 @@ rand_core-3b31131e45eafb45 = { package = "rand_core", version = "0.6", default-f
 rand_xorshift = { version = "0.3", default-features = false }
 rayon = { version = "1", default-features = false }
 rayon-core = { version = "1", default-features = false }
+rcgen = { version = "0.9", features = ["pem"] }
 regex = { version = "1", features = ["aho-corasick", "memchr", "perf", "perf-cache", "perf-dfa", "perf-inline", "perf-literal", "std", "unicode", "unicode-age", "unicode-bool", "unicode-case", "unicode-gencat", "unicode-perl", "unicode-script", "unicode-segment"] }
 regex-automata = { version = "0.1", features = ["regex-syntax", "std"] }
 regex-syntax = { version = "0.6", features = ["unicode", "unicode-age", "unicode-bool", "unicode-case", "unicode-gencat", "unicode-perl", "unicode-script", "unicode-segment"] }
@@ -230,8 +244,10 @@ roaring = { version = "0.9", default-features = false }
 rocksdb = { version = "0.19", default-features = false, features = ["lz4", "multi-threaded-cf", "snappy", "zlib", "zstd"] }
 rustc-demangle = { version = "0.1", default-features = false }
 rustc-hash = { version = "1", features = ["std"] }
-rustls = { version = "0.20", default-features = false, features = ["log", "logging", "tls12"] }
-rustls-pemfile = { version = "1", default-features = false }
+rusticata-macros = { version = "4", default-features = false }
+rustls = { version = "0.20", features = ["dangerous_configuration", "log", "logging", "quic", "tls12"] }
+rustls-pemfile-6f8ce4dd05d13bba = { package = "rustls-pemfile", version = "0.2", default-features = false }
+rustls-pemfile-dff4ba8e3ae991db = { package = "rustls-pemfile", version = "1", default-features = false }
 rusty-fork = { version = "0.3", default-features = false, features = ["timeout", "wait-timeout"] }
 ryu = { version = "1", default-features = false }
 same-file = { version = "1", default-features = false }
@@ -259,7 +275,7 @@ similar = { version = "2", features = ["inline", "text"] }
 slab = { version = "0.4", features = ["std"] }
 smallvec = { version = "1", default-features = false }
 socket2 = { version = "0.4", default-features = false, features = ["all"] }
-spki = { version = "0.6", default-features = false, features = ["alloc", "base64ct"] }
+spki = { version = "0.6", default-features = false, features = ["alloc", "base64ct", "std"] }
 static_assertions = { version = "1", default-features = false }
 strsim-93f6ce9d446188ac = { package = "strsim", version = "0.10", default-features = false }
 strsim-c38e5c1d305a1b54 = { package = "strsim", version = "0.8", default-features = false }
@@ -280,7 +296,7 @@ thousands = { version = "0.2", default-features = false }
 thread_local = { version = "1", default-features = false }
 threadpool = { version = "1", default-features = false }
 thrift = { version = "0.15", default-features = false }
-time = { version = "0.3", features = ["alloc", "formatting", "itoa", "std"] }
+time = { version = "0.3", features = ["alloc", "formatting", "itoa", "macros", "parsing", "std", "time-macros"] }
 tinytemplate = { version = "1", default-features = false }
 tinyvec = { version = "1", features = ["alloc", "tinyvec_macros"] }
 tinyvec_macros = { version = "0.1", default-features = false }
@@ -320,23 +336,28 @@ wait-timeout = { version = "0.2", default-features = false }
 walkdir = { version = "2", default-features = false }
 want = { version = "0.3", default-features = false }
 webpki = { version = "0.22", default-features = false, features = ["alloc", "std"] }
+x509-parser = { version = "0.14" }
 yaml-rust = { version = "0.4", default-features = false }
 yansi = { version = "0.5", default-features = false }
+yasna = { version = "0.5", features = ["std", "time"] }
 zeroize = { version = "1", features = ["alloc", "zeroize_derive"] }
 zstd-sys = { version = "2", features = ["legacy", "zdict_builder"] }
 
 [build-dependencies]
+anemo-build = { git = "https://github.com/mystenlabs/anemo.git", rev = "6278d0fa78147a49ff2cb9dd2e45e763886be0a0", default-features = false }
 anyhow = { version = "1", features = ["std"] }
 ark-ff-asm = { version = "0.3", default-features = false }
 ark-ff-macros = { version = "0.3", default-features = false }
 ark-serialize-derive = { version = "0.3", default-features = false }
+asn1-rs-derive = { version = "0.4", default-features = false }
+asn1-rs-impl = { version = "0.1", default-features = false }
 async-recursion = { version = "1", default-features = false }
 async-stream-impl = { version = "0.3", default-features = false }
 async-trait = { version = "0.1", default-features = false }
 autocfg = { version = "1", default-features = false }
 bindgen = { version = "0.60", default-features = false, features = ["runtime"] }
 bitflags = { version = "1" }
-bytes = { version = "1", features = ["std"] }
+bytes = { version = "1", features = ["serde", "std"] }
 cc = { version = "1", default-features = false, features = ["jobserver", "parallel"] }
 cexpr = { version = "0.6", default-features = false }
 cfg-if-c65f7effa3be6d31 = { package = "cfg-if", version = "0.1", default-features = false }
@@ -349,6 +370,7 @@ darling_macro = { version = "0.14", default-features = false }
 derivative = { version = "2", default-features = false, features = ["use_core"] }
 derive_builder_core = { version = "0.11", default-features = false }
 derive_builder_macro = { version = "0.11", default-features = false }
+displaydoc = { version = "0.2", features = ["std"] }
 either = { version = "1", features = ["use_std"] }
 fastrand = { version = "1", default-features = false }
 fixedbitset = { version = "0.4", default-features = false }
@@ -373,9 +395,9 @@ minimal-lexical = { version = "0.2", default-features = false, features = ["std"
 mockall_derive = { version = "0.11", default-features = false }
 multihash-derive = { version = "0.8", default-features = false, features = ["std"] }
 multimap = { version = "0.8", default-features = false }
-nom = { version = "7", default-features = false, features = ["alloc", "std"] }
-num-bigint = { version = "0.4", default-features = false }
-num-integer = { version = "0.1", default-features = false, features = ["i128"] }
+nom = { version = "7", features = ["alloc", "std"] }
+num-bigint = { version = "0.4", features = ["std"] }
+num-integer = { version = "0.1", default-features = false, features = ["i128", "std"] }
 num-traits = { version = "0.2", features = ["i128", "std"] }
 paste = { version = "1", default-features = false }
 peeking_take_while = { version = "0.1", default-features = false }
@@ -422,6 +444,7 @@ synstructure = { version = "0.12", features = ["proc-macro"] }
 tempfile = { version = "3", default-features = false }
 thiserror = { version = "1", default-features = false }
 thiserror-impl = { version = "1", default-features = false }
+time-macros = { version = "0.2", default-features = false }
 tokio-macros = { version = "1", default-features = false }
 toml = { version = "0.5" }
 tonic-build = { version = "0.7", features = ["prost", "prost-build", "transport"] }
