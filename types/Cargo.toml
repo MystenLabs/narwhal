@@ -18,7 +18,7 @@ indexmap = { version = "1.9.1", features = ["serde"] }
 prometheus = "0.13.1"
 proptest = "1.0.0"
 proptest-derive = "0.3.0"
-prost = "0.10.4"
+prost = "0.11.0"
 rand = "0.8.5"
 roaring = "0.9.0"
 serde = { version = "1.0.144", features = ["derive"] }
@@ -28,7 +28,7 @@ store = { git = "https://github.com/mystenlabs/mysten-infra.git", package = "typ
 thiserror = "1.0.33"
 tokio = { version = "1.20.1", features = ["sync", "rt", "macros"] }
 tokio-util = { version = "0.7.3", features = ["codec"] }
-tonic = { version = "0.7.2", features = ["tls"] }
+tonic = { version = "0.8.0", features = ["tls"] }
 tracing = "0.1.36"
 
 config = { path = "../config" }
@@ -45,9 +45,9 @@ serde_test = "1.0.144"
 test_utils = { path = "../test_utils" }
 
 [build-dependencies]
-prost-build = "0.10.4"
+prost-build = "0.11.1"
 rustversion = "1.0.9"
-tonic-build = { version = "0.7.2", features = [ "prost", "transport" ] }
+tonic-build = { version = "0.8.0", features = [ "prost", "transport" ] }
 anemo-build = { git = "https://github.com/mystenlabs/anemo.git", rev = "6278d0fa78147a49ff2cb9dd2e45e763886be0a0" }
 
 [features]
