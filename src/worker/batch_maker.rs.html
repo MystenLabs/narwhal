@@ -172,10 +172,33 @@
 <span id="172">172</span>
 <span id="173">173</span>
 <span id="174">174</span>
+<span id="175">175</span>
+<span id="176">176</span>
+<span id="177">177</span>
+<span id="178">178</span>
+<span id="179">179</span>
+<span id="180">180</span>
+<span id="181">181</span>
+<span id="182">182</span>
+<span id="183">183</span>
+<span id="184">184</span>
+<span id="185">185</span>
+<span id="186">186</span>
+<span id="187">187</span>
+<span id="188">188</span>
+<span id="189">189</span>
+<span id="190">190</span>
+<span id="191">191</span>
+<span id="192">192</span>
+<span id="193">193</span>
+<span id="194">194</span>
+<span id="195">195</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span><span class="kw">crate</span>::metrics::WorkerMetrics;
+<span class="attribute">#[cfg(feature = <span class="string">&quot;benchmark&quot;</span>)]
+</span><span class="kw">use </span>byteorder::{BigEndian, ReadBytesExt};
 <span class="kw">use </span>config::Committee;
 <span class="attribute">#[cfg(feature = <span class="string">&quot;benchmark&quot;</span>)]
 </span><span class="kw">use </span>std::convert::TryInto;
@@ -297,16 +320,6 @@
     </span><span class="kw">async fn </span>seal(<span class="kw-2">&amp;mut </span><span class="self">self</span>, timeout: bool) {
         <span class="kw">let </span>size = <span class="self">self</span>.current_batch_size;
 
-        <span class="comment">// Look for sample txs (they all start with 0) and gather their txs id (the next 8 bytes).
-        </span><span class="attribute">#[cfg(feature = <span class="string">&quot;benchmark&quot;</span>)]
-        </span><span class="kw">let </span>tx_ids: Vec&lt;<span class="kw">_</span>&gt; = <span class="self">self
-            </span>.current_batch
-            .<span class="number">0
-            </span>.iter()
-            .filter(|tx| tx[<span class="number">0</span>] == <span class="number">0u8 </span>&amp;&amp; tx.len() &gt; <span class="number">8</span>)
-            .filter_map(|tx| tx[<span class="number">1</span>..<span class="number">9</span>].try_into().ok())
-            .collect();
-
         <span class="comment">// Serialize the batch.
         </span><span class="self">self</span>.current_batch_size = <span class="number">0</span>;
         <span class="kw">let </span>batch: Batch = Batch(<span class="self">self</span>.current_batch.<span class="number">0</span>.drain(..).collect());
@@ -319,6 +332,14 @@
 
             <span class="comment">// NOTE: This is one extra hash that is only needed to print the following log entries.
             </span><span class="kw">if let </span><span class="prelude-val">Ok</span>(digest) = types::serialized_batch_digest(<span class="kw-2">&amp;</span>serialized) {
+                <span class="comment">// Look for sample txs (they all start with 0) and gather their txs id (the next 8 bytes).
+                </span><span class="kw">let </span>tx_ids: Vec&lt;<span class="kw">_</span>&gt; = batch
+                    .<span class="number">0
+                    </span>.iter()
+                    .filter(|tx| tx[<span class="number">0</span>] == <span class="number">0u8 </span>&amp;&amp; tx.len() &gt; <span class="number">8</span>)
+                    .filter_map(|tx| tx[<span class="number">1</span>..<span class="number">9</span>].try_into().ok())
+                    .collect();
+
                 <span class="kw">for </span>id <span class="kw">in </span>tx_ids {
                     <span class="comment">// NOTE: This log entry is used to compute performance.
                     </span><span class="macro">tracing::info!</span>(
@@ -327,6 +348,27 @@
                         u64::from_be_bytes(id)
                     );
                 }
+
+                <span class="comment">// The first 8 bytes of each transaction message is reserved for an identifier
+                // that&#39;s useful for debugging and tracking the lifetime of messages between
+                // Narwhal and clients.
+                </span><span class="kw">let </span>tracking_ids: Vec&lt;<span class="kw">_</span>&gt; = batch
+                    .<span class="number">0
+                    </span>.iter()
+                    .map(|tx| {
+                        <span class="kw">let </span>len = tx.len();
+                        <span class="kw">if </span>len &gt;= <span class="number">8 </span>{
+                            (<span class="kw-2">&amp;</span>tx[<span class="number">0</span>..<span class="number">8</span>]).read_u64::&lt;BigEndian&gt;().unwrap_or_default()
+                        } <span class="kw">else </span>{
+                            <span class="number">0
+                        </span>}
+                    })
+                    .collect();
+                <span class="macro">tracing::debug!</span>(
+                    <span class="string">&quot;Tracking IDs of transactions in the Batch {:?}: {:?}&quot;</span>,
+                    digest,
+                    tracking_ids
+                );
 
                 <span class="comment">// NOTE: This log entry is used to compute performance.
                 </span><span class="macro">tracing::info!</span>(<span class="string">&quot;Batch {:?} contains {} B&quot;</span>, digest, size);
@@ -347,4 +389,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (9243168fa 2022-08-31)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (2e35f954a 2022-09-01)" ></div></body></html>
