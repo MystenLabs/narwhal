@@ -90,6 +90,9 @@
 <span id="90">90</span>
 <span id="91">91</span>
 <span id="92">92</span>
+<span id="93">93</span>
+<span id="94">94</span>
+<span id="95">95</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -139,6 +142,9 @@
 </span><span class="kw">pub enum </span>DagError {
     <span class="attribute">#[error(<span class="string">&quot;Channel {0} has closed unexpectedly&quot;</span>)]
     </span>ClosedChannel(String),
+
+    <span class="attribute">#[error(<span class="string">&quot;Invalid Authorities Bitmap: {0}&quot;</span>)]
+    </span>InvalidBitmap(String),
 
     <span class="attribute">#[error(<span class="string">&quot;Invalid signature&quot;</span>)]
     </span>InvalidSignature(<span class="attribute">#[from] </span>signature::Error),

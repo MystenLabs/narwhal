@@ -914,6 +914,27 @@
 <span id="914">914</span>
 <span id="915">915</span>
 <span id="916">916</span>
+<span id="917">917</span>
+<span id="918">918</span>
+<span id="919">919</span>
+<span id="920">920</span>
+<span id="921">921</span>
+<span id="922">922</span>
+<span id="923">923</span>
+<span id="924">924</span>
+<span id="925">925</span>
+<span id="926">926</span>
+<span id="927">927</span>
+<span id="928">928</span>
+<span id="929">929</span>
+<span id="930">930</span>
+<span id="931">931</span>
+<span id="932">932</span>
+<span id="933">933</span>
+<span id="934">934</span>
+<span id="935">935</span>
+<span id="936">936</span>
+<span id="937">937</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -1027,7 +1048,7 @@
 </span><span class="comment">////////////////////////////////////////////////////////////////
 
 // Fixture
-</span><span class="kw">pub fn </span>keys(rng_seed: <span class="kw">impl </span>Into&lt;<span class="prelude-ty">Option</span>&lt;u64&gt;&gt;) -&gt; Vec&lt;KeyPair&gt; {
+</span><span class="kw">pub fn </span>keys_with_len(rng_seed: <span class="kw">impl </span>Into&lt;<span class="prelude-ty">Option</span>&lt;u64&gt;&gt;, num_keys: usize) -&gt; Vec&lt;KeyPair&gt; {
     <span class="kw">let </span>seed = rng_seed.into().unwrap_or(<span class="number">0u64</span>).to_le_bytes();
     <span class="kw">let </span><span class="kw-2">mut </span>rng_arg = [<span class="number">0u8</span>; <span class="number">32</span>];
     <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..<span class="number">4 </span>{
@@ -1035,7 +1056,11 @@
     }
 
     <span class="kw">let </span><span class="kw-2">mut </span>rng = StdRng::from_seed(rng_arg);
-    (<span class="number">0</span>..<span class="number">4</span>).map(|<span class="kw">_</span>| KeyPair::generate(<span class="kw-2">&amp;mut </span>rng)).collect()
+    (<span class="number">0</span>..num_keys).map(|<span class="kw">_</span>| KeyPair::generate(<span class="kw-2">&amp;mut </span>rng)).collect()
+}
+
+<span class="kw">pub fn </span>keys(rng_seed: <span class="kw">impl </span>Into&lt;<span class="prelude-ty">Option</span>&lt;u64&gt;&gt;) -&gt; Vec&lt;KeyPair&gt; {
+    keys_with_len(rng_seed, <span class="number">4</span>)
 }
 
 <span class="comment">// Fixture
@@ -1049,6 +1074,16 @@
         authorities: keys
             .iter()
             .map(|kp| (kp.public().clone(), make_authority()))
+            .collect(),
+    }
+}
+
+<span class="kw">pub fn </span>pure_committee_from_keys_with_mock_ports(keys: <span class="kw-2">&amp;</span>[KeyPair]) -&gt; Committee {
+    Committee {
+        epoch: Epoch::default(),
+        authorities: keys
+            .iter()
+            .map(|kp| (kp.public().clone(), make_authority_with_port_getter(|| <span class="number">0</span>)))
             .collect(),
     }
 }
@@ -1394,14 +1429,16 @@
 }
 
 <span class="comment">// Fixture
-</span><span class="kw">pub fn </span>certificate(header: <span class="kw-2">&amp;</span>Header) -&gt; Certificate {
-    Certificate {
-        header: header.clone(),
-        votes: votes(header)
-            .into_iter()
-            .map(|x| (x.author, x.signature))
-            .collect(),
-    }
+</span><span class="kw">pub fn </span>certificate_from_committee(header: <span class="kw-2">&amp;</span>Header, committee: <span class="kw-2">&amp;</span>Committee) -&gt; Certificate {
+    <span class="kw">let </span>votes: Vec&lt;<span class="kw">_</span>&gt; = votes(header)
+        .into_iter()
+        .map(|x| (x.author, x.signature))
+        .collect();
+    Certificate::new(committee, header.clone(), votes).unwrap()
+}
+
+<span class="kw">pub fn </span>certificate(header: <span class="kw-2">&amp;</span>Header) -&gt; Certificate {
+    certificate_from_committee(header, <span class="kw-2">&amp;</span>committee(<span class="prelude-val">None</span>))
 }
 
 <span class="kw">pub struct </span>PrimaryToPrimaryMockServer {
@@ -1766,16 +1803,18 @@
     round: Round,
     parents: BTreeSet&lt;CertificateDigest&gt;,
 ) -&gt; (CertificateDigest, Certificate) {
-    <span class="kw">let </span>certificate = Certificate {
-        header: Header {
+    <span class="kw">let </span>certificate = Certificate::new_unsigned(
+        <span class="kw-2">&amp;</span>committee(<span class="prelude-val">None</span>),
+        Header {
             author: origin,
             round,
             parents,
             payload: fixture_payload(<span class="number">1</span>),
             ..Header::default()
         },
-        ..Certificate::default()
-    };
+        Vec::new(),
+    )
+    .unwrap();
     (certificate.digest(), certificate)
 }
 
@@ -1787,8 +1826,9 @@
     epoch: Epoch,
     parents: BTreeSet&lt;CertificateDigest&gt;,
 ) -&gt; (CertificateDigest, Certificate) {
-    <span class="kw">let </span>certificate = Certificate {
-        header: Header {
+    <span class="kw">let </span>certificate = Certificate::new_unsigned(
+        <span class="kw-2">&amp;</span>committee(<span class="prelude-val">None</span>),
+        Header {
             author: origin,
             round,
             epoch,
@@ -1796,8 +1836,9 @@
             payload: fixture_payload(<span class="number">1</span>),
             ..Header::default()
         },
-        ..Certificate::default()
-    };
+        Vec::new(),
+    )
+    .unwrap();
     (certificate.digest(), certificate)
 }
 
@@ -1815,19 +1856,20 @@
         .round(round)
         .epoch(<span class="number">0</span>)
         .parents(parents);
-    <span class="kw">let </span>header = header_builder.build(author).unwrap();
-    <span class="kw">let </span><span class="kw-2">mut </span>cert = Certificate {
-        header,
-        ..Certificate::default()
-    };
 
+    <span class="kw">let </span>header = header_builder.build(author).unwrap();
+
+    <span class="kw">let </span>cert = Certificate::new_unsigned(<span class="kw-2">&amp;</span>committee(<span class="prelude-val">None</span>), header.clone(), Vec::new()).unwrap();
+
+    <span class="kw">let </span><span class="kw-2">mut </span>votes = Vec::new();
     <span class="kw">for </span>signer <span class="kw">in </span>signers {
         <span class="kw">let </span>pk = signer.public();
         <span class="kw">let </span>sig = signer
             .try_sign(Digest::from(cert.digest()).as_ref())
             .unwrap();
-        cert.votes.push((pk.clone(), sig))
+        votes.push((pk.clone(), sig))
     }
+    <span class="kw">let </span>cert = Certificate::new(<span class="kw-2">&amp;</span>committee(<span class="prelude-val">None</span>), header, votes).unwrap();
     (cert.digest(), cert)
 }
 </code></pre></div>

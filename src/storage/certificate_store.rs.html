@@ -613,6 +613,9 @@
 <span id="613">613</span>
 <span id="614">614</span>
 <span id="615">615</span>
+<span id="616">616</span>
+<span id="617">617</span>
+<span id="618">618</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span>dashmap::DashMap;
@@ -940,7 +943,9 @@
         reopen,
         rocks::{open_cf, DBMap},
     };
-    <span class="kw">use </span>test_utils::{certificate, committee, fixture_headers_round, temp_dir};
+    <span class="kw">use </span>test_utils::{
+        certificate, certificate_from_committee, committee, fixture_headers_round, temp_dir,
+    };
     <span class="kw">use </span>types::{Certificate, CertificateDigest, Round};
 
     <span class="kw">fn </span>new_store(path: std::path::PathBuf) -&gt; CertificateStore {
@@ -965,12 +970,13 @@
             .into_iter()
             .map(|cert| cert.header)
             .collect();
+        <span class="kw">let </span>committee = <span class="kw-2">&amp;</span>committee(<span class="prelude-val">None</span>);
 
         <span class="kw">let </span><span class="kw-2">mut </span>result: Vec&lt;Certificate&gt; = Vec::new();
         <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..rounds {
             <span class="kw">let </span>parents: BTreeSet&lt;<span class="kw">_</span>&gt; = current_round
                 .iter()
-                .map(|header| certificate(header).digest())
+                .map(|header| certificate_from_committee(header, committee).digest())
                 .collect();
             (<span class="kw">_</span>, current_round) = fixture_headers_round(i, <span class="kw-2">&amp;</span>parents);
 

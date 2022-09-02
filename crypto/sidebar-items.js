@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"type":[["KeyPair",""],["PrivateKey",""],["PublicKey","Type aliases selecting the signature algorithm for the code base."],["Signature",""]]};
+window.SIDEBAR_ITEMS = {"type":[["AggregateSignature",""],["KeyPair",""],["PrivateKey",""],["PublicKey","Type aliases selecting the signature algorithm for the code base."],["Signature",""]]};

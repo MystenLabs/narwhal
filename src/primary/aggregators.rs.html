@@ -95,6 +95,8 @@
 <span id="95">95</span>
 <span id="96">96</span>
 <span id="97">97</span>
+<span id="98">98</span>
+<span id="99">99</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -141,12 +143,14 @@
 
         <span class="self">self</span>.votes.push((author.clone(), vote.signature));
         <span class="self">self</span>.weight += committee.stake(<span class="kw-2">&amp;</span>author);
+
         <span class="kw">if </span><span class="self">self</span>.weight &gt;= committee.quorum_threshold() {
             <span class="self">self</span>.weight = <span class="number">0</span>; <span class="comment">// Ensures quorum is only reached once.
-            </span><span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Certificate {
-                header: header.clone(),
-                votes: <span class="self">self</span>.votes.clone(),
-            }));
+            </span><span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Certificate::new(
+                committee,
+                header.clone(),
+                <span class="self">self</span>.votes.clone(),
+            )<span class="question-mark">?</span>));
         }
         <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
     }

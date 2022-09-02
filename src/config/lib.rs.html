@@ -681,6 +681,10 @@
 <span id="681">681</span>
 <span id="682">682</span>
 <span id="683">683</span>
+<span id="684">684</span>
+<span id="685">685</span>
+<span id="686">686</span>
+<span id="687">687</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -1166,6 +1170,10 @@
     <span class="doccomment">/// Returns the keys in the committee
     </span><span class="kw">pub fn </span>keys(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;<span class="kw-2">&amp;</span>PublicKey&gt; {
         <span class="self">self</span>.authorities.keys().clone().collect::&lt;Vec&lt;<span class="kw-2">&amp;</span>PublicKey&gt;&gt;()
+    }
+
+    <span class="kw">pub fn </span>authorities(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = (<span class="kw-2">&amp;</span>PublicKey, <span class="kw-2">&amp;</span>Authority)&gt; {
+        <span class="self">self</span>.authorities.iter()
     }
 
     <span class="doccomment">/// Returns the number of authorities.
