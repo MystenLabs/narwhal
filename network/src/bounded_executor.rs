@@ -1,4 +1,5 @@
-// Copyright (c) The Diem Core Contributors Copyright (c) 2022, Mysten Labs, Inc.
+// Copyright (c) The Diem Core Contributors
+// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
 #![forbid(unsafe_code)]
@@ -52,7 +53,7 @@ where
 
 pub struct BoundedExecutor {
     inner: Arc<InternalBoundedExecutor>,
-    scheduler_handle: CancelOnDropHandler<()>,
+    _scheduler_handle: CancelOnDropHandler<()>,
 }
 
 impl BoundedExecutor {
@@ -72,7 +73,7 @@ impl BoundedExecutor {
 
         Self {
             inner: bounded_executor,
-            scheduler_handle: CancelOnDropHandler(scheduler_handle),
+            _scheduler_handle: CancelOnDropHandler(scheduler_handle),
         }
     }
 }
@@ -202,18 +203,6 @@ impl InternalBoundedExecutor {
         // Release the permit back to the semaphore when this task completes.
         let f = Self::with_permit(f, spawn_permit);
         self.executor.spawn(f)
-    }
-
-    // Returns a [`Future`] that complies with the `BoundedExecutor`. Once launched,
-    // will block if the executor is at capacity, until one of the other spawned
-    // futures completes.
-    async fn run_on_semaphore<F>(semaphore: Arc<Semaphore>, f: F) -> F::Output
-    where
-        F: Future + Send + 'static,
-        F::Output: Send + 'static,
-    {
-        let permit = Self::acquire_permit(semaphore.clone()).await;
-        Self::with_permit(f, permit).await
     }
 
     fn with_retries<F, Fut>(
