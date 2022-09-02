@@ -17,6 +17,7 @@ tokio-util = { version = "0.7.3", features = ["codec"] }
 tonic = { version = "0.7.2", features = ["tls"] }
 tracing = "0.1.36"
 types = { path = "../types" }
+config = { path = "../config" }
 
 workspace-hack = { version = "0.1", path = "../workspace-hack" }
 
