@@ -84,6 +84,37 @@ impl Deref for BoundedExecutor {
     }
 }
 
+///   BoundedExecutor
+/// ┌───────────────────────────────────────────────────────────────────────────────┬────────────┐
+/// │                                                                               │            │
+/// │                                      tx_new_jobs                              │ DelayQueue │
+/// │                   ┌────────────────────────────────────────────────────┐      │(exec_queue)│
+/// │                   │                                                    │      │            │
+/// │                   │                                                    │      │            │
+/// │                   │                                                    │  ┌──►│  insert    │
+/// │    ┌──────────────┴────────────┐    ┌─────────────────────┐            │  │   │            │
+/// │    │                           │    │                     │            │  │   │            │
+/// │    │                           │    │                     │            │  │   │            │
+/// │    │ .InternalBoundedExecutor  │    │     RetryManager    │            ▼  │   │            │
+/// │    │                           │    │                     │               │   │            │
+/// │    │ ┌──────────┬────────────┐ │    │                     │     ┌─────────┴─┐ │            │
+/// │    │ │          │            │ │    │                     │     │ scheduler │ │            │
+/// │    │ │  Handle  │  Semaphore │ │    │                     │ run │           │ │            │
+/// │    │ │ (runtime)│            │ │    │                     ├────►│           │ │            │
+/// │    │ │          │            │ │    │                     │     │           │ │            │
+/// │    │ │          │            │ │    │                     │     │           │ │            │
+/// │    │ │          │            │ │    │                     │     └──────┬────┘ │            │
+/// │    │ │          │            │ │    │                     │            │  ▲   │            │
+/// │    │ │          │            │ │    │                     │            │  │   │            │
+/// │    │ │          │            │ │    │                     │            │  │   │            │
+/// │    │ └──────────┴────────────┘ │    │                     │            │  │   │            │
+/// │    │                           │    │                     │            │  │   │            │
+/// │    └───────────────────────────┘    └─────────────────────┘            │  └───┤ job_ready  │
+/// │                  ▲                                                     │      │            │
+/// │                  └─────────────────────────────────────────────────────┘      │            │
+/// │                                    spawn                                      │            │
+/// │                                                                               │            │
+/// └───────────────────────────────────────────────────────────────────────────────┴────────────
 pub struct InternalBoundedExecutor {
     /// Execution bound, shared by [`InternalBoundedExecutor`] and the [`RetryManager`].
     semaphore: Arc<Semaphore>,
@@ -95,8 +126,10 @@ pub struct InternalBoundedExecutor {
 }
 
 impl InternalBoundedExecutor {
-    /// Create a new `BoundedExecutor` from an existing tokio [`Handle`]
-    /// with a maximum concurrent task capacity of `capacity`.
+    /// Creates a new `InternalBoundedExecutor` from an existing tokio [`Handle`]
+    /// with a maximum concurrent task capacity of `capacity`, a shared reference
+    /// to a semaphore, and a outbound stream to the [`RetryManager::run_scheduler`]
+    /// task.
     pub fn new(
         executor: Handle,
         semaphore: Arc<Semaphore>,
@@ -109,13 +142,8 @@ impl InternalBoundedExecutor {
         }
     }
 
-    /// Returns a shared reference to the `BoundedExecutor` semaphore.
-    pub fn semaphore(&self) -> Arc<Semaphore> {
-        self.semaphore.clone()
-    }
-
-    // Acquires a permit with the semaphore, first gracefully,
-    // then queuing after logging that we're out of capacity.
+    /// Acquires a permit with the semaphore, first gracefully, then queuing after
+    /// logging that we're out of capacity.
     pub(crate) async fn acquire_permit(semaphore: Arc<Semaphore>) -> OwnedSemaphorePermit {
         match semaphore.clone().try_acquire_owned() {
             Ok(p) => p,
@@ -160,6 +188,7 @@ impl InternalBoundedExecutor {
             Err(_) => Err(BoundedExecutionError::Full(f)),
         }
     }
+
     #[must_use]
     fn spawn_with_permit<F>(
         &self,
@@ -187,22 +216,7 @@ impl InternalBoundedExecutor {
         Self::with_permit(f, permit).await
     }
 
-    /// Unconditionally spawns a task driving retries of a [`Future`] on the `BoundedExecutor`.
-    /// This [`Future`] will be executed in the form of attempts, one after the other, run on
-    /// our bounded executor, each according to the provided [`crate::RetryConfig`].
-    ///
-    /// Each attempt is async and will block if the executor is at capacity until
-    /// one of the other attempts completes. In case the attempt completes with an error,
-    /// the driver completes a backoff (according to the retry configuration) without holding
-    /// a permit, before, queueing an attempt on the executor again.
-    ///
-    /// This function returns a [`JoinHandle`] that the caller can `.await` on for
-    /// the results of the overall retry driver.
-    ///
-    /// TODO: this still spawns one task, unconditionally, per call.
-    /// We would instead like to have one central task that drives all retries
-    /// for the whole executor.
-    pub fn with_retries<F, Fut>(
+    fn with_retries<F, Fut>(
         &self,
         mut factory: F,
         backoff: Backoff,
@@ -219,7 +233,7 @@ impl InternalBoundedExecutor {
         task.then(|result| async move { retry_logic(result, job, tx_scheduler).await })
     }
 
-    pub(crate) async fn spawn_with_retries<F, Fut>(
+    pub async fn spawn_with_retries<F, Fut>(
         &self,
         backoff: Backoff,
         f: F,
@@ -229,6 +243,25 @@ impl InternalBoundedExecutor {
         Fut: Future<Output = Result<(), RetryError>> + Send + 'static,
     {
         let retry_task = self.with_retries(f, backoff);
+        self.spawn(retry_task).await
+    }
+
+    pub async fn spawn_with_retries_and_adapter<F, Fut, A, T, E>(
+        &self,
+        backoff: Backoff,
+        f: F,
+        adapter: A,
+    ) -> JoinHandle<Result<T, E>>
+    where
+        F: FnMut() -> Fut + Send + 'static,
+        Fut: Future<Output = Result<(), RetryError>> + Send + 'static,
+        A: FnOnce(Result<(), RetryError>) -> Result<T, E> + Send + 'static,
+        T: Send + 'static,
+        E: Send + 'static,
+    {
+        let retry_task = self
+            .with_retries(f, backoff)
+            .then(|result| async move { adapter(result) });
         self.spawn(retry_task).await
     }
 
@@ -250,25 +283,6 @@ impl InternalBoundedExecutor {
             Ok(permit) => Ok(self.spawn_with_permit(retry_task, permit)),
             Err(_) => Err(BoundedExecutionError::Full(retry_task)),
         }
-    }
-
-    pub(crate) async fn spawn_with_retries_and_adapter<F, Fut, A, T, E>(
-        &self,
-        backoff: Backoff,
-        f: F,
-        adapter: A,
-    ) -> JoinHandle<Result<T, E>>
-    where
-        F: FnMut() -> Fut + Send + 'static,
-        Fut: Future<Output = Result<(), RetryError>> + Send + 'static,
-        A: FnOnce(Result<(), RetryError>) -> Result<T, E> + Send + 'static,
-        T: Send + 'static,
-        E: Send + 'static,
-    {
-        let retry_task = self
-            .with_retries(f, backoff)
-            .then(|result| async move { adapter(result) });
-        self.spawn(retry_task).await
     }
 
     // Equips a future with a final step that drops the held semaphore permit
@@ -298,10 +312,13 @@ async fn retry_logic(
                 job.increase_retry_counter();
                 let cooldown_time = job.cooldown_time();
                 if cooldown_time.is_some() {
-                    tx_scheduler.send(job).await.map_err(|e| {
-                        error!("retry_job: failed to submit task to scheduler! ({e})");
-                        RetryError::Permanent
-                    })
+                    match tx_scheduler.send(job).await {
+                        Ok(_) => Err(RetryError::Transient),
+                        Err(e) => {
+                            error!("retry_job: failed to submit task to scheduler! ({e})");
+                            Err(RetryError::Permanent)
+                        }
+                    }
                 } else {
                     Err(RetryError::Expired)
                 }
@@ -353,8 +370,8 @@ impl RetryManager {
                         let permit = InternalBoundedExecutor::acquire_permit(self.semaphore.clone()).await;
                         Some((job_ready, permit))
                     } else {
-                        // The execution is empty, we avoid polling for an execution permit and
-                        // return early.
+                        // The execution queue is empty, we avoid polling for a semaphore permit
+                        // and return early.
                         None
                     }
                 } => {
@@ -362,6 +379,7 @@ impl RetryManager {
                     let tx_scheduler = self.tx_new_jobs.clone();
                     let task = (job.task_factory)();
                     let retry_task = task.then(|result| async move { retry_logic(result, job, tx_scheduler).await });
+
 
                     if let Err(e) = executor.spawn_with_permit(retry_task, permit).await {
                         error!("run_scheduler: inbound channel is closed; tasks won't be retried ({e})")
@@ -435,18 +453,18 @@ impl Job {
 
 #[cfg(test)]
 mod test {
-
     use super::*;
     use futures::{channel::oneshot, executor::block_on, future::Future, FutureExt};
     use std::{
+        borrow::BorrowMut,
         sync::{
             atomic::{AtomicU32, Ordering},
             mpsc,
         },
         thread,
-        time::{self, Duration},
+        time::Duration,
     };
-    use tokio::{runtime::Runtime, time::sleep};
+    use tokio::{runtime::Runtime, task::block_in_place, time::sleep};
 
     #[test]
     fn try_spawn_panicking() {
@@ -512,7 +530,7 @@ mod test {
 
     // ensure tasks spawned with retries do not hog the semaphore
     #[test]
-    fn test_spawn_with_semaphore() {
+    fn spawn_with_semaphore() {
         // beware: the timeout is here to witness a failure rather than a hung test in case the
         // executor does not work correctly.
         panic_after(Duration::from_secs(10), || {
@@ -521,10 +539,9 @@ mod test {
             let executor = BoundedExecutor::new(1, executor);
 
             let infinite_backoff = Backoff::new(u32::MAX, Duration::ZERO, None);
-
+            let handle = executor.spawn_with_retries(infinite_backoff, always_failing);
             // we can queue this future with infinite retries
-            let handle_infinite_fails =
-                block_on(executor.spawn_with_retries(infinite_backoff, always_failing));
+            let handle_infinite_fails = block_on(handle);
 
             // check we can still enqueue another successful task
             let (tx1, rx1) = oneshot::channel();
@@ -539,27 +556,109 @@ mod test {
         })
     }
 
-    async fn always_failing() -> Result<(), RetryError> {
-        Err(RetryError::Transient)
-    }
-
-    fn panic_after<T, F>(d: Duration, f: F) -> T
-    where
-        T: Send + 'static,
-        F: FnOnce() -> T,
-        F: Send + 'static,
-    {
-        let (done_tx, done_rx) = mpsc::channel();
-        let handle = thread::spawn(move || {
-            let val = f();
-            done_tx.send(()).expect("Unable to send completion signal");
-            val
-        });
-
-        match done_rx.recv_timeout(d) {
-            Ok(_) => handle.join().expect("Thread panicked"),
-            Err(_) => panic!("Thread took too long"),
+    #[test]
+    fn spawn_with_retries() {
+        enum WitnessMode {
+            AlwaysFailing,
+            CrashAfter(u32),
+            ResolveAfter(u32),
         }
+
+        enum WitnessError {
+            Transient,
+            Permanent,
+        }
+
+        struct RetryWitness {
+            mode: WitnessMode,
+            counter: u32,
+        }
+
+        impl RetryWitness {
+            fn new(mode: WitnessMode) -> Self {
+                Self { mode, counter: 0 }
+            }
+
+            async fn operation(&mut self) -> Result<(), WitnessError> {
+                self.counter += 1;
+                match self.mode {
+                    WitnessMode::CrashAfter(n) => {
+                        if self.counter >= n {
+                            Err(WitnessError::Permanent)
+                        } else {
+                            Err(WitnessError::Transient)
+                        }
+                    }
+                    WitnessMode::ResolveAfter(n) => {
+                        if self.counter >= n {
+                            Ok(())
+                        } else {
+                            Err(WitnessError::Transient)
+                        }
+                    }
+                    WitnessMode::AlwaysFailing => Err(WitnessError::Transient),
+                }
+            }
+
+            fn state(&self) -> u32 {
+                self.counter
+            }
+        }
+        // beware: the timeout is here to witness a failure rather than a hung test in case the
+        // executor does not work correctly.
+
+        use std::cell::RefCell;
+        use tokio::sync::Mutex;
+
+        /*
+         * We test four scenarios:
+         *
+         * #1: backoff policy specifies 5 max retries, and the witness always fails (transient)
+         * #2: backoff policy with no max retries, and the witness succeeds after 10 attempts.
+         * #3: backoff policy specifies 5 max retries, and the witness hard fails on attempt 2.
+         * #4: backoff policy specifies no max retries, and the witness succeeds on first attempt.
+         */
+        panic_after(Duration::from_secs(10), || {
+            let rt = Runtime::new().unwrap();
+            let executor = rt.handle().clone();
+            let executor = BoundedExecutor::new(1, executor);
+
+            let mut max_five_retries = Backoff::new(5u32, Duration::ZERO, None);
+            max_five_retries.set_factor(0);
+            let witness = Arc::new(Mutex::new(RefCell::new(RetryWitness::new(
+                WitnessMode::AlwaysFailing,
+            ))));
+
+            let witness_a = witness.clone();
+
+            let task = move || {
+                let witness = witness.clone();
+                async move {
+                    let mut w = witness.lock().await;
+                    match w.get_mut().operation().await {
+                        Ok(_) => Ok(()),
+                        Err(WitnessError::Permanent) => Err(RetryError::Permanent),
+                        _ => Err(RetryError::Transient),
+                    }
+                }
+            };
+
+            // we can queue this future with infinite retries
+            let handle_infinite_fails =
+                block_on(executor.spawn_with_retries(max_five_retries, task));
+
+            let first_try = block_on(handle_infinite_fails);
+
+            let err = first_try.unwrap().unwrap_err();
+
+            assert!(matches!(err, RetryError::Transient));
+
+            thread::sleep(Duration::from_secs(1));
+            let counter = block_on(witness_a.lock()).borrow().state();
+
+            // 1 attempt + 5 retries = 6 attempts
+            assert_eq!(counter, 6);
+        })
     }
 
     // spawn NUM_TASKS futures on a BoundedExecutor, ensuring that no more than
@@ -606,5 +705,28 @@ mod test {
 
     fn yield_task() -> impl Future<Output = ()> {
         sleep(Duration::from_millis(1)).map(|_| ())
+    }
+
+    async fn always_failing() -> Result<(), RetryError> {
+        Err(RetryError::Transient)
+    }
+
+    fn panic_after<T, F>(d: Duration, f: F) -> T
+    where
+        T: Send + 'static,
+        F: FnOnce() -> T,
+        F: Send + 'static,
+    {
+        let (done_tx, done_rx) = mpsc::channel();
+        let handle = thread::spawn(move || {
+            let val = f();
+            done_tx.send(()).expect("Unable to send completion signal");
+            val
+        });
+
+        match done_rx.recv_timeout(d) {
+            Ok(_) => handle.join().expect("Thread panicked"),
+            Err(_) => panic!("Thread took too long"),
+        }
     }
 }
