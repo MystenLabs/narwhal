@@ -14,10 +14,12 @@ use fastcrypto::{
 use futures::Stream;
 use indexmap::IndexMap;
 use multiaddr::Multiaddr;
+use rand::rngs::OsRng;
 use rand::{rngs::StdRng, Rng, SeedableRng as _};
 use std::sync::Arc;
 use std::{
-    collections::{BTreeSet, VecDeque},
+    collections::{BTreeMap, BTreeSet, VecDeque},
+    num::NonZeroUsize,
     ops::RangeInclusive,
     pin::Pin,
 };
@@ -938,4 +940,234 @@ pub fn mock_signed_certificate(
     }
     let cert = Certificate::new(&committee(None), header, votes).unwrap();
     (cert.digest(), cert)
+}
+
+pub struct Builder<R = OsRng> {
+    rng: R,
+    committee_size: NonZeroUsize,
+    number_of_workers: NonZeroUsize,
+    randomize_ports: bool,
+}
+
+impl Default for Builder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Builder {
+    pub fn new() -> Self {
+        Self {
+            rng: OsRng,
+            committee_size: NonZeroUsize::new(4).unwrap(),
+            number_of_workers: NonZeroUsize::new(4).unwrap(),
+            randomize_ports: false,
+        }
+    }
+}
+
+impl<R> Builder<R> {
+    pub fn committee_size(mut self, committee_size: NonZeroUsize) -> Self {
+        self.committee_size = committee_size;
+        self
+    }
+
+    pub fn number_of_workers(mut self, number_of_workers: NonZeroUsize) -> Self {
+        self.number_of_workers = number_of_workers;
+        self
+    }
+
+    pub fn randomize_ports(mut self, randomize_ports: bool) -> Self {
+        self.randomize_ports = randomize_ports;
+        self
+    }
+
+    pub fn rng<N: ::rand::RngCore + ::rand::CryptoRng>(self, rng: N) -> Builder<N> {
+        Builder {
+            rng,
+            committee_size: self.committee_size,
+            number_of_workers: self.number_of_workers,
+            randomize_ports: self.randomize_ports,
+        }
+    }
+}
+
+impl<R: ::rand::RngCore + ::rand::CryptoRng> Builder<R> {
+    pub fn build(mut self) -> CommitteeFixture {
+        let get_port = || {
+            if self.randomize_ports {
+                get_available_port()
+            } else {
+                0
+            }
+        };
+
+        let primary_keys = (0..self.committee_size.get())
+            .map(|_| KeyPair::generate(&mut self.rng))
+            .collect::<Vec<_>>();
+
+        let authorities = primary_keys
+            .into_iter()
+            .map(|keypair| {
+                let primary_addresses = PrimaryAddresses {
+                    primary_to_primary: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
+                        .parse()
+                        .unwrap(),
+                    worker_to_primary: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
+                        .parse()
+                        .unwrap(),
+                };
+
+                let workers = (0..self.number_of_workers.get())
+                    .map(|idx| {
+                        let worker = WorkerFixture {
+                            keypair: KeyPair::generate(&mut self.rng),
+                            id: idx as u32,
+                            info: WorkerInfo {
+                                primary_to_worker: format!(
+                                    "/ip4/127.0.0.1/tcp/{}/http",
+                                    get_port()
+                                )
+                                .parse()
+                                .unwrap(),
+                                transactions: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
+                                    .parse()
+                                    .unwrap(),
+                                worker_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
+                                    .parse()
+                                    .unwrap(),
+                            },
+                        };
+
+                        (idx as u32, worker)
+                    })
+                    .collect();
+
+                AuthorityFixture {
+                    keypair,
+                    stake: 1,
+                    addresses: primary_addresses,
+                    workers,
+                }
+            })
+            .collect();
+
+        CommitteeFixture {
+            authorities,
+            epoch: Epoch::default(),
+        }
+    }
+}
+
+pub struct CommitteeFixture {
+    authorities: Vec<AuthorityFixture>,
+    epoch: Epoch,
+}
+
+impl CommitteeFixture {
+    pub fn authorities(&self) -> impl Iterator<Item = &AuthorityFixture> {
+        self.authorities.iter()
+    }
+
+    pub fn builder() -> Builder {
+        Builder::new()
+    }
+
+    pub fn committee(&self) -> Committee {
+        Committee {
+            epoch: self.epoch,
+            authorities: self
+                .authorities
+                .iter()
+                .map(|a| {
+                    let pubkey = a.public_key();
+                    let authority = a.authority();
+                    (pubkey, authority)
+                })
+                .collect(),
+        }
+    }
+
+    pub fn worker_cache(&self) -> WorkerCache {
+        WorkerCache {
+            epoch: self.epoch,
+            workers: self
+                .authorities
+                .iter()
+                .map(|a| (a.public_key(), a.worker_index()))
+                .collect(),
+        }
+    }
+
+    // pub fn header(&self, author: PublicKey) -> Header {
+    // Currently sign with the last authority
+    pub fn header(&self) -> Header {
+        self.authorities.last().unwrap().header(&self.committee())
+    }
+
+    pub fn headers(&self) -> Vec<Header> {
+        let committee = self.committee();
+
+        self.authorities
+            .iter()
+            .map(|a| a.header(&committee))
+            .collect()
+    }
+}
+
+pub struct AuthorityFixture {
+    keypair: KeyPair,
+    stake: u32,
+    addresses: PrimaryAddresses,
+    workers: BTreeMap<WorkerId, WorkerFixture>,
+}
+
+impl AuthorityFixture {
+    pub fn public_key(&self) -> PublicKey {
+        self.keypair.public().clone()
+    }
+
+    pub fn authority(&self) -> Authority {
+        Authority {
+            stake: self.stake,
+            primary: self.addresses.clone(),
+        }
+    }
+
+    pub fn worker_index(&self) -> WorkerIndex {
+        WorkerIndex(
+            self.workers
+                .iter()
+                .map(|(id, w)| (*id, w.info.clone()))
+                .collect(),
+        )
+    }
+
+    pub fn header(&self, committee: &Committee) -> Header {
+        types::HeaderBuilder::default()
+            .author(self.public_key())
+            .round(1)
+            .epoch(committee.epoch)
+            .parents(
+                Certificate::genesis(committee)
+                    .iter()
+                    .map(|x| x.digest())
+                    .collect(),
+            )
+            .with_payload_batch(fixture_batch_with_transactions(10), 0)
+            .build(&self.keypair)
+            .unwrap()
+    }
+
+    pub fn vote(&self, header: &Header) -> Vote {
+        Vote::new_with_signer(header, self.keypair.public(), &self.keypair)
+    }
+}
+
+pub struct WorkerFixture {
+    #[allow(dead_code)]
+    keypair: KeyPair,
+    #[allow(dead_code)]
+    id: WorkerId,
+    info: WorkerInfo,
 }
