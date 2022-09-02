@@ -560,8 +560,8 @@ mod test {
     fn spawn_with_retries() {
         enum WitnessMode {
             AlwaysFailing,
-            CrashAfter(u32),
-            ResolveAfter(u32),
+            CrashOnAttempt(u32),
+            ResolveOnAttempt(u32),
         }
 
         enum WitnessError {
@@ -582,15 +582,15 @@ mod test {
             async fn operation(&mut self) -> Result<(), WitnessError> {
                 self.counter += 1;
                 match self.mode {
-                    WitnessMode::CrashAfter(n) => {
-                        if self.counter >= n {
+                    WitnessMode::CrashOnAttempt(n) => {
+                        if self.counter > n {
                             Err(WitnessError::Permanent)
                         } else {
                             Err(WitnessError::Transient)
                         }
                     }
-                    WitnessMode::ResolveAfter(n) => {
-                        if self.counter >= n {
+                    WitnessMode::ResolveOnAttempt(n) => {
+                        if self.counter > n {
                             Ok(())
                         } else {
                             Err(WitnessError::Transient)
@@ -604,33 +604,24 @@ mod test {
                 self.counter
             }
         }
-        // beware: the timeout is here to witness a failure rather than a hung test in case the
-        // executor does not work correctly.
-
-        use std::cell::RefCell;
-        use tokio::sync::Mutex;
 
         /*
          * We test four scenarios:
          *
-         * #1: backoff policy specifies 5 max retries, and the witness always fails (transient)
-         * #2: backoff policy with no max retries, and the witness succeeds after 10 attempts.
+         * #1: backoff policy specifies no max retries, and the witness succeeds on first attempt.
+         * #2: backoff policy specifies 5 max retries, and the witness always fails (transient)
          * #3: backoff policy specifies 5 max retries, and the witness hard fails on attempt 2.
-         * #4: backoff policy specifies no max retries, and the witness succeeds on first attempt.
+         * #4: backoff policy with no max retries, and the witness succeeds after 10 attempts.
          */
-        panic_after(Duration::from_secs(10), || {
-            let rt = Runtime::new().unwrap();
-            let executor = rt.handle().clone();
-            let executor = BoundedExecutor::new(1, executor);
 
-            let mut max_five_retries = Backoff::new(5u32, Duration::ZERO, None);
-            max_five_retries.set_factor(0);
-            let witness = Arc::new(Mutex::new(RefCell::new(RetryWitness::new(
-                WitnessMode::AlwaysFailing,
-            ))));
+        use std::cell::RefCell;
+        use tokio::sync::Mutex;
 
-            let witness_a = witness.clone();
-
+        fn test_executor_with_witness(
+            executor: BoundedExecutor,
+            witness: Arc<Mutex<RefCell<RetryWitness>>>,
+            backoff: Backoff,
+        ) -> Result<(), RetryError> {
             let task = move || {
                 let witness = witness.clone();
                 async move {
@@ -638,27 +629,104 @@ mod test {
                     match w.get_mut().operation().await {
                         Ok(_) => Ok(()),
                         Err(WitnessError::Permanent) => Err(RetryError::Permanent),
-                        _ => Err(RetryError::Transient),
+                        Err(WitnessError::Transient) => Err(RetryError::Transient),
                     }
                 }
             };
 
-            // we can queue this future with infinite retries
-            let handle_infinite_fails =
-                block_on(executor.spawn_with_retries(max_five_retries, task));
+            let handle = block_on(executor.spawn_with_retries(backoff, task));
 
-            let first_try = block_on(handle_infinite_fails);
+            let first_try = block_on(handle).unwrap();
 
-            let err = first_try.unwrap().unwrap_err();
+            thread::sleep(Duration::from_millis(500));
+            first_try
+        }
 
-            assert!(matches!(err, RetryError::Transient));
+        // Scenario #1: no max retries, task succeeds on first attempt.
 
-            thread::sleep(Duration::from_secs(1));
-            let counter = block_on(witness_a.lock()).borrow().state();
+        panic_after(Duration::from_secs(5), || {
+            let rt = Runtime::new().unwrap();
+            let executor = rt.handle().clone();
+            let executor = BoundedExecutor::new(1, executor);
 
-            // 1 attempt + 5 retries = 6 attempts
-            assert_eq!(counter, 6);
-        })
+            let max_retry_attempts = u32::MAX;
+
+            let mut infinite_retries = Backoff::new(max_retry_attempts, Duration::ZERO, None);
+            infinite_retries.set_factor(0);
+
+            let witness = RetryWitness::new(WitnessMode::ResolveOnAttempt(0));
+            let witness = Arc::new(Mutex::new(RefCell::new(witness)));
+
+            let result = test_executor_with_witness(executor, witness.clone(), infinite_retries);
+
+            let number_attempts = block_on(witness.lock()).borrow().state();
+            assert_eq!(number_attempts, 1);
+            assert!(matches!(result.unwrap(), ()));
+        });
+
+        // Scenario #2: 5 max retries, with an ever failing witness (transient).
+
+        panic_after(Duration::from_secs(5), || {
+            let rt = Runtime::new().unwrap();
+            let executor = rt.handle().clone();
+            let executor = BoundedExecutor::new(1, executor);
+
+            let max_retry_attempts = 5u32;
+
+            let mut max_five_retries = Backoff::new(max_retry_attempts, Duration::ZERO, None);
+            max_five_retries.set_factor(0);
+
+            let witness = RetryWitness::new(WitnessMode::AlwaysFailing);
+            let witness = Arc::new(Mutex::new(RefCell::new(witness)));
+
+            let result = test_executor_with_witness(executor, witness.clone(), max_five_retries);
+
+            let number_attempts = block_on(witness.lock()).borrow().state();
+            assert_eq!(number_attempts, max_retry_attempts + 1);
+            assert!(matches!(result.unwrap_err(), RetryError::Transient));
+        });
+
+        // Scenario #3: 5 max retries, witness crashes on the secon attempt.
+
+        panic_after(Duration::from_secs(5), || {
+            let rt = Runtime::new().unwrap();
+            let executor = rt.handle().clone();
+            let executor = BoundedExecutor::new(1, executor);
+
+            let max_retry_attempts = 5u32;
+
+            let mut max_five_retries = Backoff::new(max_retry_attempts, Duration::ZERO, None);
+            max_five_retries.set_factor(0);
+
+            let witness = RetryWitness::new(WitnessMode::CrashOnAttempt(2));
+            let witness = Arc::new(Mutex::new(RefCell::new(witness)));
+
+            let _ = test_executor_with_witness(executor, witness.clone(), max_five_retries);
+
+            let number_attempts = block_on(witness.lock()).borrow().state();
+            assert_eq!(number_attempts, 3);
+        });
+
+        // Scenario #4: no max retries, witness succeeds after 10 attempts.
+
+        panic_after(Duration::from_secs(5), || {
+            let rt = Runtime::new().unwrap();
+            let executor = rt.handle().clone();
+            let executor = BoundedExecutor::new(1, executor);
+
+            let max_retry_attempts = u32::MAX;
+
+            let mut infinite_retries = Backoff::new(max_retry_attempts, Duration::ZERO, None);
+            infinite_retries.set_factor(0);
+
+            let witness = RetryWitness::new(WitnessMode::ResolveOnAttempt(10));
+            let witness = Arc::new(Mutex::new(RefCell::new(witness)));
+
+            let _ = test_executor_with_witness(executor, witness.clone(), infinite_retries);
+
+            let number_attempts = block_on(witness.lock()).borrow().state();
+            assert_eq!(number_attempts, 10 + 1);
+        });
     }
 
     // spawn NUM_TASKS futures on a BoundedExecutor, ensuring that no more than

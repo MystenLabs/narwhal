@@ -149,10 +149,7 @@ impl ReliableNetwork for WorkerNetwork {
 
             async move {
                 match client.send_message(message).await {
-                    Ok(_) => {
-                        // surface results here
-                        Ok(())
-                    }
+                    Ok(_) => Ok(()),
                     Err(e) => match e.code() {
                         Code::FailedPrecondition | Code::InvalidArgument => {
                             // these errors are not recoverable through retrying, see
