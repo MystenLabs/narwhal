@@ -1397,11 +1397,9 @@ dependencies = [
 
 [[package]]
 name = "exponential-backoff"
-version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "851c5c1b202b7317c442c5f9c1f55f4cb6cb7e3dee875dd422d124c081a8da88"
+version = "1.2.0"
 dependencies = [
- "rand 0.7.3",
+ "rand 0.8.5",
 ]
 
 [[package]]
