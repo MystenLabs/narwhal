@@ -38,7 +38,11 @@ fn default_executor() -> BoundedExecutor {
 
 impl Default for PrimaryNetwork {
     fn default() -> Self {
-        let backoff = Backoff::new(u32::MAX, Duration::ZERO, None);
+        let backoff = Backoff::new(
+            u32::MAX,
+            Duration::from_millis(500),
+            Duration::from_secs(15),
+        );
 
         Self {
             clients: Default::default(),

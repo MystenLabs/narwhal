@@ -197,7 +197,11 @@ pub struct WorkerToPrimaryNetwork {
 
 impl Default for WorkerToPrimaryNetwork {
     fn default() -> Self {
-        let backoff = Backoff::new(u32::MAX, Duration::ZERO, None);
+        let backoff = Backoff::new(
+            u32::MAX,
+            Duration::from_millis(500),
+            Duration::from_secs(15),
+        );
 
         Self {
             address: None,
