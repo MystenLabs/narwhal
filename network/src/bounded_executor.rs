@@ -51,6 +51,9 @@ where
     }
 }
 
+/// A bounded tokio [`Handle`]. Only a bounded number of tasks can run
+/// concurrently when spawned through this executor, defined by the initial
+/// `capacity`.
 pub struct BoundedExecutor {
     inner: Arc<InternalBoundedExecutor>,
     _scheduler_handle: CancelOnDropHandler<()>,
@@ -143,8 +146,8 @@ impl InternalBoundedExecutor {
         }
     }
 
-    /// Acquires a permit with the semaphore, first gracefully, then queuing after
-    /// logging that we're out of capacity.
+    /// Acquires a [`OwnedSemaphorePermit`] with the semaphore, first gracefully,
+    /// then queuing after logging that we're out of capacity.
     pub(crate) async fn acquire_permit(semaphore: Arc<Semaphore>) -> OwnedSemaphorePermit {
         match semaphore.clone().try_acquire_owned() {
             Ok(p) => p,
@@ -205,6 +208,8 @@ impl InternalBoundedExecutor {
         self.executor.spawn(f)
     }
 
+    /// Equips a task with a retry strategy, the onus for surfacing results, and mapping error
+    /// types to failure cases (Transient, vs. Permanent)
     fn with_retries<F, Fut>(
         &self,
         mut factory: F,
@@ -219,9 +224,14 @@ impl InternalBoundedExecutor {
         let task = boxed_factory();
         let job = Job::new(boxed_factory, backoff);
         let tx_scheduler = self.tx_retry_manager.clone();
-        task.then(|result| async move { retry_logic(result, job, tx_scheduler).await })
+        task.then(
+            |result| async move { RetryManager::retry_logic(result, job, tx_scheduler).await },
+        )
     }
 
+    /// Asynchronously spawns a [`Future`] equipped with a retry strategy, and
+    /// returns a handle to the task executing for the first time. If retries are
+    /// needed, one needs to embed a callback inside the factory closure.
     pub async fn spawn_with_retries<F, Fut>(
         &self,
         backoff: Backoff,
@@ -235,6 +245,9 @@ impl InternalBoundedExecutor {
         self.spawn(retry_task).await
     }
 
+    /// Asynchronously spawns a task equipped with a retry strategy, and an
+    /// adapter closure to map `Result<(), RetryError>` to a custom result.
+    /// TODO(erwan): conversion trait bounds would be cleaner once API matures.
     pub async fn spawn_with_retries_and_adapter<F, Fut, A, T, E>(
         &self,
         backoff: Backoff,
@@ -254,6 +267,8 @@ impl InternalBoundedExecutor {
         self.spawn(retry_task).await
     }
 
+    /// Tries to spawn a [`Future`] equipped with a retry strategy, and return
+    /// early if the executor is full.
     pub fn try_spawn_with_retries<F, Fut>(
         &self,
         factory: F,
@@ -288,36 +303,6 @@ impl InternalBoundedExecutor {
     }
 }
 
-/// Implements the retry logic to effect a result into a retry attempt, or forward that result.
-async fn retry_logic(
-    result: Result<(), RetryError>,
-    mut job: Job,
-    tx_scheduler: Arc<Sender<Job>>,
-) -> Result<(), RetryError> {
-    match result {
-        Ok(_) => Ok(()),
-        Err(e) => match e {
-            RetryError::Transient => {
-                job.increase_retry_counter();
-                let cooldown_time = job.cooldown_time();
-                if cooldown_time.is_some() {
-                    match tx_scheduler.send(job).await {
-                        Ok(_) => Err(RetryError::Transient),
-                        Err(e) => {
-                            error!("retry_job: failed to submit task to scheduler! ({e})");
-                            Err(RetryError::Permanent)
-                        }
-                    }
-                } else {
-                    Err(RetryError::Expired)
-                }
-            }
-            permanent @ RetryError::Permanent => Err(permanent),
-            RetryError::Expired => unreachable!("expired jobs are not executed"),
-        },
-    }
-}
-
 /// Context consumed by the [`run_scheduler`] task.
 struct RetryManager {
     /// Bounded execution semaphore.
@@ -332,7 +317,7 @@ struct RetryManager {
 
 impl RetryManager {
     pub fn new(capacity: usize, semaphore: Arc<Semaphore>) -> Self {
-        let (tx, rx) = mpsc::channel(1);
+        let (tx, rx) = mpsc::channel(crate::RETRY_CHANNEL_BUFFER);
         Self {
             // TODO(erwan): scaling factor for capacity?
             execution_queue: DelayQueue::with_capacity(capacity),
@@ -342,12 +327,12 @@ impl RetryManager {
         }
     }
 
-    /// Returns a smart reference to the channel consumed by `run_scheduler`.
+    /// Returns an [`Arc`] reference to the channel consumed by `run_scheduler`.
     pub fn inbound_channel(&self) -> Arc<mpsc::Sender<Job>> {
         self.tx_new_jobs.clone()
     }
 
-    /// A scheduler which manages spawning retry tasks on the `BoundedExecutor`.
+    /// Long-running task scheduling retry attempts on the `BoundedExecutor`.
     async fn run_scheduler(mut self, executor: Arc<InternalBoundedExecutor>) {
         loop {
             tokio::select! {
@@ -367,7 +352,7 @@ impl RetryManager {
                     let mut job = job_ready.into_inner();
                     let tx_scheduler = self.tx_new_jobs.clone();
                     let task = (job.task_factory)();
-                    let retry_task = task.then(|result| async move { retry_logic(result, job, tx_scheduler).await });
+                    let retry_task = task.then(|result| async move { RetryManager::retry_logic(result, job, tx_scheduler).await });
 
 
                     if let Err(e) = executor.spawn_with_permit(retry_task, permit).await {
@@ -386,6 +371,37 @@ impl RetryManager {
                      }
                 },
             }
+        }
+    }
+
+    /// Implements the retry logic to effect a result into a retry attempt,
+    /// or forward that result.
+    async fn retry_logic(
+        result: Result<(), RetryError>,
+        mut job: Job,
+        tx_scheduler: Arc<Sender<Job>>,
+    ) -> Result<(), RetryError> {
+        match result {
+            Ok(_) => Ok(()),
+            Err(e) => match e {
+                RetryError::Transient => {
+                    job.increase_retry_counter();
+                    let cooldown_time = job.cooldown_time();
+                    if cooldown_time.is_some() {
+                        match tx_scheduler.send(job).await {
+                            Ok(_) => Err(RetryError::Transient),
+                            Err(e) => {
+                                error!("retry_job: failed to submit task to scheduler! ({e})");
+                                Err(RetryError::Permanent)
+                            }
+                        }
+                    } else {
+                        Err(RetryError::Expired)
+                    }
+                }
+                permanent @ RetryError::Permanent => Err(permanent),
+                RetryError::Expired => unreachable!("expired jobs are not executed"),
+            },
         }
     }
 }
@@ -445,7 +461,6 @@ mod test {
     use super::*;
     use futures::{channel::oneshot, executor::block_on, future::Future, FutureExt};
     use std::{
-        borrow::BorrowMut,
         sync::{
             atomic::{AtomicU32, Ordering},
             mpsc,
@@ -453,7 +468,7 @@ mod test {
         thread,
         time::Duration,
     };
-    use tokio::{runtime::Runtime, task::block_in_place, time::sleep};
+    use tokio::{runtime::Runtime, time::sleep};
 
     #[test]
     fn try_spawn_panicking() {
