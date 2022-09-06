@@ -115,7 +115,7 @@ macro_rules! test_get_block_commands {
 ////////////////////////////////////////////////////////////////
 
 // Fixture
-pub fn keys_with_len(rng_seed: impl Into<Option<u64>>, num_keys: usize) -> Vec<KeyPair> {
+fn keys_with_len(rng_seed: impl Into<Option<u64>>, num_keys: usize) -> Vec<KeyPair> {
     let seed = rng_seed.into().unwrap_or(0u64).to_le_bytes();
     let mut rng_arg = [0u8; 32];
     for i in 0..4 {
@@ -379,13 +379,6 @@ pub fn header_with_epoch(committee: &Committee) -> Header {
         signature: kp.sign(Digest::from(header_digest).as_ref()),
         ..header
     }
-}
-
-#[allow(dead_code)]
-pub fn fixture_header() -> Header {
-    let kp = keys(None).pop().unwrap();
-
-    fixture_header_builder().build(&kp).unwrap()
 }
 
 pub fn fixture_header_builder() -> types::HeaderBuilder {
@@ -754,9 +747,10 @@ pub fn make_optimal_certificates(
 pub fn make_optimal_signed_certificates(
     range: RangeInclusive<Round>,
     initial_parents: &BTreeSet<CertificateDigest>,
+    committee: &Committee,
     keys: &[KeyPair],
 ) -> (VecDeque<Certificate>, BTreeSet<CertificateDigest>) {
-    make_signed_certificates(range, initial_parents, keys, 0.0)
+    make_signed_certificates(range, initial_parents, committee, keys, 0.0)
 }
 
 // Bernoulli-samples from a set of ancestors passed as a argument,
@@ -850,11 +844,13 @@ pub fn make_certificates_with_epoch(
 pub fn make_signed_certificates(
     range: RangeInclusive<Round>,
     initial_parents: &BTreeSet<CertificateDigest>,
+    committee: &Committee,
     keys: &[KeyPair],
     failure_probability: f64,
 ) -> (VecDeque<Certificate>, BTreeSet<CertificateDigest>) {
     let public_keys = keys.iter().map(|k| k.public().clone()).collect::<Vec<_>>();
-    let generator = |pk, round, parents| mock_signed_certificate(keys, pk, round, parents);
+    let generator =
+        |pk, round, parents| mock_signed_certificate(keys, pk, round, parents, committee);
 
     rounds_of_certificates(
         range,
@@ -917,6 +913,7 @@ pub fn mock_signed_certificate(
     origin: PublicKey,
     round: Round,
     parents: BTreeSet<CertificateDigest>,
+    committee: &Committee,
 ) -> (CertificateDigest, Certificate) {
     let author = signers.iter().find(|kp| *kp.public() == origin).unwrap();
     let header_builder = HeaderBuilder::default()
@@ -928,7 +925,7 @@ pub fn mock_signed_certificate(
 
     let header = header_builder.build(author).unwrap();
 
-    let cert = Certificate::new_unsigned(&committee(None), header.clone(), Vec::new()).unwrap();
+    let cert = Certificate::new_unsigned(committee, header.clone(), Vec::new()).unwrap();
 
     let mut votes = Vec::new();
     for signer in signers {
@@ -938,7 +935,7 @@ pub fn mock_signed_certificate(
             .unwrap();
         votes.push((pk.clone(), sig))
     }
-    let cert = Certificate::new(&committee(None), header, votes).unwrap();
+    let cert = Certificate::new(committee, header, votes).unwrap();
     (cert.digest(), cert)
 }
 
@@ -1099,6 +1096,10 @@ impl CommitteeFixture {
         }
     }
 
+    pub fn shared_worker_cache(&self) -> SharedWorkerCache {
+        self.worker_cache().into()
+    }
+
     // pub fn header(&self, author: PublicKey) -> Header {
     // Currently sign with the last authority
     pub fn header(&self) -> Header {
@@ -1113,6 +1114,30 @@ impl CommitteeFixture {
             .map(|a| a.header(&committee))
             .collect()
     }
+
+    pub fn votes(&self, header: &Header) -> Vec<Vote> {
+        self.authorities()
+            .flat_map(|a| {
+                // we should not re-sign using the key of the authority
+                // that produced the header
+                if a.public_key() == header.author {
+                    None
+                } else {
+                    Some(a.vote(header))
+                }
+            })
+            .collect()
+    }
+
+    pub fn certificate(&self, header: &Header) -> Certificate {
+        let committee = self.committee();
+        let votes: Vec<_> = self
+            .votes(header)
+            .into_iter()
+            .map(|x| (x.author, x.signature))
+            .collect();
+        Certificate::new(&committee, header.clone(), votes).unwrap()
+    }
 }
 
 pub struct AuthorityFixture {
@@ -1123,6 +1148,10 @@ pub struct AuthorityFixture {
 }
 
 impl AuthorityFixture {
+    pub fn keypair(&self) -> &KeyPair {
+        &self.keypair
+    }
+
     pub fn public_key(&self) -> PublicKey {
         self.keypair.public().clone()
     }
@@ -1144,6 +1173,13 @@ impl AuthorityFixture {
     }
 
     pub fn header(&self, committee: &Committee) -> Header {
+        self.header_builder(committee)
+            .payload(Default::default())
+            .build(&self.keypair)
+            .unwrap()
+    }
+
+    pub fn header_builder(&self, committee: &Committee) -> types::HeaderBuilder {
         types::HeaderBuilder::default()
             .author(self.public_key())
             .round(1)
@@ -1154,9 +1190,6 @@ impl AuthorityFixture {
                     .map(|x| x.digest())
                     .collect(),
             )
-            .with_payload_batch(fixture_batch_with_transactions(10), 0)
-            .build(&self.keypair)
-            .unwrap()
     }
 
     pub fn vote(&self, header: &Header) -> Vote {
