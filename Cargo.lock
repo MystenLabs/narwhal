@@ -4190,6 +4190,7 @@ dependencies = [
  "prometheus",
  "rand 0.8.5",
  "serde",
+ "telemetry-subscribers",
  "tempfile",
  "thiserror",
  "tokio",
