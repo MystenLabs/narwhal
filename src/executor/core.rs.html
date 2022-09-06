@@ -258,7 +258,6 @@
 <span id="258">258</span>
 <span id="259">259</span>
 <span id="260">260</span>
-<span id="261">261</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use crate</span>::{
@@ -270,8 +269,7 @@
 <span class="kw">use </span>consensus::ConsensusOutput;
 <span class="kw">use </span>fastcrypto::Hash;
 <span class="kw">use </span>std::{fmt::Debug, sync::Arc};
-<span class="kw">use </span>store::rocks::TypedStoreError;
-<span class="kw">use </span>store::Store;
+<span class="kw">use </span>store::{rocks::TypedStoreError, Store};
 <span class="kw">use </span>tokio::{
     sync::{mpsc::Sender, watch},
     task::JoinHandle,

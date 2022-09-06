@@ -756,13 +756,12 @@
 <span id="756">756</span>
 <span id="757">757</span>
 <span id="758">758</span>
-<span id="759">759</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-</span><span class="kw">use </span><span class="kw">crate</span>::serde::NarwhalBitmap;
-<span class="kw">use crate</span>::{
+</span><span class="kw">use crate</span>::{
     error::{DagError, DagResult},
+    serde::NarwhalBitmap,
     CertificateDigestProto,
 };
 <span class="kw">use </span>blake2::{digest::Update, VarBlake2b};
@@ -779,9 +778,8 @@
 <span class="kw">use </span>proptest_derive::Arbitrary;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>serde_with::serde_as;
-<span class="kw">use </span>std::collections::VecDeque;
 <span class="kw">use </span>std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::{BTreeMap, BTreeSet, VecDeque},
     fmt,
     fmt::Formatter,
 };

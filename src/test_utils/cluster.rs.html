@@ -775,6 +775,23 @@
 <span id="775">775</span>
 <span id="776">776</span>
 <span id="777">777</span>
+<span id="778">778</span>
+<span id="779">779</span>
+<span id="780">780</span>
+<span id="781">781</span>
+<span id="782">782</span>
+<span id="783">783</span>
+<span id="784">784</span>
+<span id="785">785</span>
+<span id="786">786</span>
+<span id="787">787</span>
+<span id="788">788</span>
+<span id="789">789</span>
+<span id="790">790</span>
+<span id="791">791</span>
+<span id="792">792</span>
+<span id="793">793</span>
+<span id="794">794</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use crate</span>::{keys, pure_committee_from_keys, shared_worker_cache_from_keys, temp_dir};
@@ -792,6 +809,7 @@
 };
 <span class="kw">use </span>prometheus::{proto::Metric, Registry};
 <span class="kw">use </span>std::{cell::RefCell, collections::HashMap, path::PathBuf, rc::Rc, sync::Arc, time::Duration};
+<span class="kw">use </span>telemetry_subscribers::TelemetryGuards;
 <span class="kw">use </span>tokio::{
     sync::{broadcast::Sender, mpsc::channel, RwLock},
     task::JoinHandle,
@@ -1552,5 +1570,21 @@
         <span class="bool-val">false
     </span>}
 }
+
+<span class="kw">pub fn </span>setup_tracing() -&gt; TelemetryGuards {
+    <span class="comment">// Setup tracing
+    </span><span class="kw">let </span>tracing_level = <span class="string">&quot;debug&quot;</span>;
+    <span class="kw">let </span>network_tracing_level = <span class="string">&quot;info&quot;</span>;
+
+    <span class="kw">let </span>log_filter = <span class="macro">format!</span>(<span class="string">&quot;{tracing_level},h2={network_tracing_level},tower={network_tracing_level},hyper={network_tracing_level},tonic::transport={network_tracing_level},quinn={network_tracing_level}&quot;</span>);
+
+    telemetry_subscribers::TelemetryConfig::new(<span class="string">&quot;narwhal&quot;</span>)
+        <span class="comment">// load env variables
+        </span>.with_env()
+        <span class="comment">// load special log filter
+        </span>.with_log_level(<span class="kw-2">&amp;</span>log_filter)
+        .init()
+        .<span class="number">0
+</span>}
 </code></pre></div>
 </section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="test_utils" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (b44197abb 2022-09-05)" ></div></body></html>

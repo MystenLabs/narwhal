@@ -51,11 +51,15 @@
 <span id="51">51</span>
 <span id="52">52</span>
 <span id="53">53</span>
+<span id="54">54</span>
+<span id="55">55</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-</span><span class="kw">use </span>serde::de::{Deserializer, Error};
-<span class="kw">use </span>serde::ser::{Error <span class="kw">as </span>SerError, Serializer};
+</span><span class="kw">use </span>serde::{
+    de::{Deserializer, Error},
+    ser::{Error <span class="kw">as </span>SerError, Serializer},
+};
 <span class="kw">use </span>serde_with::{Bytes, DeserializeAs, SerializeAs};
 <span class="kw">use </span>std::fmt::Debug;
 

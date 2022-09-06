@@ -956,11 +956,11 @@
 <span class="kw">use </span>indexmap::IndexMap;
 <span class="kw">use </span>multiaddr::Multiaddr;
 <span class="kw">use </span>rand::{rngs::StdRng, Rng, SeedableRng <span class="kw">as _</span>};
-<span class="kw">use </span>std::sync::Arc;
 <span class="kw">use </span>std::{
     collections::{BTreeSet, VecDeque},
     ops::RangeInclusive,
     pin::Pin,
+    sync::Arc,
 };
 <span class="kw">use </span>store::{reopen, rocks, rocks::DBMap, Store};
 <span class="kw">use </span>tokio::sync::mpsc::{channel, Receiver, Sender};
