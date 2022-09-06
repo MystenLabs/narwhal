@@ -11,7 +11,6 @@ use fastcrypto::{
     traits::{KeyPair as _, Signer as _},
     Digest, Hash as _,
 };
-use futures::Stream;
 use indexmap::IndexMap;
 use multiaddr::Multiaddr;
 use rand::rngs::OsRng;
@@ -20,7 +19,6 @@ use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
     num::NonZeroUsize,
     ops::RangeInclusive,
-    pin::Pin,
     sync::Arc,
 };
 use store::{reopen, rocks, rocks::DBMap, Store};
@@ -313,16 +311,6 @@ impl WorkerToWorker for WorkerToWorkerMockServer {
     ) -> Result<tonic::Response<Empty>, tonic::Status> {
         self.sender.send(request.into_inner()).await.unwrap();
         Ok(Response::new(Empty {}))
-    }
-
-    type ClientBatchRequestStream =
-        Pin<Box<dyn Stream<Item = Result<BincodeEncodedPayload, tonic::Status>> + Send>>;
-
-    async fn client_batch_request(
-        &self,
-        _request: tonic::Request<BincodeEncodedPayload>,
-    ) -> Result<tonic::Response<Self::ClientBatchRequestStream>, tonic::Status> {
-        todo!()
     }
 }
 
