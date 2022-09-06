@@ -4,28 +4,28 @@ expression: committee
 ---
 {
   "authorities": {
-    "O6EMZUvkFG2rPW2rgLPOJM4323x0XCslMgXWL5Z7ALM=": {
+    "gXRm2XC01U+fnSm/b5eUDX8s5bLTlnFvPq9m9TV13djXPIDmoBXR3LTZI4mx+47CBRrkXiOXAz8eb25orn3LlG4ce4ioHsC3G+rkrHASgYpuup3bYqh9SWGWryza6Qj2": {
       "stake": 1,
       "primary": {
         "primary_to_primary": "/ip4/127.0.0.1/tcp/0/http",
         "worker_to_primary": "/ip4/127.0.0.1/tcp/0/http"
       }
     },
-    "gznZnDM7s6J3/reAuNRsrDDNzZBQ2+I1+4zGe5HBsGo=": {
+    "jGbcLB6p5T8JhcF7TnrxmRK208QODFkgpaElCbTrNhn14H7Fbqd/CzBim6HMctdbE5RgeCpfDi+J+0xCtLil+uPSYBAiIOY9B1Tn4YRt7v05iOreTtN/E4VDfRneGhYY": {
       "stake": 1,
       "primary": {
         "primary_to_primary": "/ip4/127.0.0.1/tcp/0/http",
         "worker_to_primary": "/ip4/127.0.0.1/tcp/0/http"
       }
     },
-    "nUdhahjfIDkwfwZCImAliLUqaq6qe2/oxrTZ66inh7E=": {
+    "jzfr4XMAzwVrXp649awD3COGEb/1P36tEbDsHve3ykAgIoUu5DMoDgDwKvAG2XJjCkyO8zBhfGLN9kseI855aMw6MvgHRwEwgQyMwqYJHCh85eGUeSMpF54TR9FEakOJ": {
       "stake": 1,
       "primary": {
         "primary_to_primary": "/ip4/127.0.0.1/tcp/0/http",
         "worker_to_primary": "/ip4/127.0.0.1/tcp/0/http"
       }
     },
-    "ucbuFjDvPnERRKZI2wa7sihPcnTPvuU//O5QPMGkkgA=": {
+    "o9G+azrMTgG71uhpFHtiU+rjwpWA5gbxxlWY5xXxaw6XEytWoA6+3a2dcOLvXJFoEfalxLah8fKNlf8lMsctYJI8Wu6A6fgqYo7tE6VKcfqizkazJqsTN3zwr8I3pfRZ": {
       "stake": 1,
       "primary": {
         "primary_to_primary": "/ip4/127.0.0.1/tcp/0/http",

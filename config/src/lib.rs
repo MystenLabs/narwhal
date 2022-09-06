@@ -7,6 +7,7 @@
     rust_2018_idioms,
     rust_2021_compatibility
 )]
+#![allow(clippy::mutable_key_type)]
 
 use arc_swap::ArcSwap;
 use crypto::PublicKey;
@@ -18,7 +19,6 @@ use std::{
     collections::{BTreeMap, HashSet},
     fs::{self, OpenOptions},
     io::{BufWriter, Write as _},
-    ops::Deref,
     sync::Arc,
     time::Duration,
 };
@@ -549,7 +549,7 @@ impl Committee {
         self.authorities
             .iter()
             .filter(|(name, _)| *name != myself)
-            .map(|(name, authority)| (name.deref().clone(), authority.primary.clone()))
+            .map(|(name, authority)| (name.clone(), authority.primary.clone()))
             .collect()
     }
 

@@ -14,7 +14,7 @@ use config::{Committee, Import, Parameters, WorkerCache, WorkerId};
 use crypto::KeyPair;
 use executor::{SerializedTransaction, SubscriberResult};
 use eyre::Context;
-use fastcrypto::{ed25519::Ed25519KeyPair, generate_production_keypair, traits::KeyPair as _};
+use fastcrypto::{generate_production_keypair, traits::KeyPair as _};
 use futures::future::join_all;
 use node::{
     execution_state::SimpleExecutionState,

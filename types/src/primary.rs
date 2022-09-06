@@ -673,6 +673,7 @@ pub enum ReconfigureNotification {
 }
 
 /// The messages sent by the primary to its workers.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Serialize, Deserialize)]
 pub enum PrimaryWorkerMessage {
     /// The primary indicates that the worker need to sync the target missing batches.
