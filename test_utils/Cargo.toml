@@ -36,11 +36,11 @@ primary = { path = "../primary" }
 network = { path = "../network" }
 types = { path = "../types" }
 worker = { path = "../worker" }
-mysten-network = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "9deac015fbf66e24b6da9699630e06750eaa094a" }
+mysten-network = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "d96230a9272c322a7eefac49708aadfff1eed77e" }
 
-store = { git = "https://github.com/mystenlabs/mysten-infra.git", package = "typed-store", rev = "9deac015fbf66e24b6da9699630e06750eaa094a" }
+store = { git = "https://github.com/mystenlabs/mysten-infra.git", package = "typed-store", rev = "d96230a9272c322a7eefac49708aadfff1eed77e" }
 workspace-hack = { version = "0.1", path = "../workspace-hack" }
-telemetry-subscribers = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "9deac015fbf66e24b6da9699630e06750eaa094a" }
+telemetry-subscribers = { git = "https://github.com/mystenlabs/mysten-infra.git", rev = "d96230a9272c322a7eefac49708aadfff1eed77e" }
 
 anemo = { git = "https://github.com/mystenlabs/anemo.git", rev = "6278d0fa78147a49ff2cb9dd2e45e763886be0a0" }
 tower = { version = "0.4.13", features = ["full"] }
