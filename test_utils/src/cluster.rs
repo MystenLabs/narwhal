@@ -15,6 +15,7 @@ use node::{
 };
 use prometheus::{proto::Metric, Registry};
 use std::{cell::RefCell, collections::HashMap, path::PathBuf, rc::Rc, sync::Arc, time::Duration};
+use telemetry_subscribers::TelemetryGuards;
 use tokio::{
     sync::{broadcast::Sender, mpsc::channel, RwLock},
     task::JoinHandle,
@@ -774,4 +775,20 @@ impl AuthorityDetails {
         }
         false
     }
+}
+
+pub fn setup_tracing() -> TelemetryGuards {
+    // Setup tracing
+    let tracing_level = "debug";
+    let network_tracing_level = "info";
+
+    let log_filter = format!("{tracing_level},h2={network_tracing_level},tower={network_tracing_level},hyper={network_tracing_level},tonic::transport={network_tracing_level},quinn={network_tracing_level}");
+
+    telemetry_subscribers::TelemetryConfig::new("narwhal")
+        // load env variables
+        .with_env()
+        // load special log filter
+        .with_log_level(&log_filter)
+        .init()
+        .0
 }
