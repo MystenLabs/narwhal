@@ -130,6 +130,10 @@ pub fn keys(rng_seed: impl Into<Option<u64>>) -> Vec<KeyPair> {
     keys_with_len(rng_seed, 4)
 }
 
+pub fn random_key() -> KeyPair {
+    KeyPair::generate(&mut OsRng)
+}
+
 // Fixture
 pub fn committee(rng_seed: impl Into<Option<u64>>) -> Committee {
     pure_committee_from_keys(&keys(rng_seed))
