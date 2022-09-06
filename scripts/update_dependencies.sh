@@ -42,37 +42,12 @@ function check_cargo_hakari() {
 	fi
 }
 
-
-function latest_fc_revision() {
-	FC_CHECKOUT=$(mktemp -d)
-	cd "$FC_CHECKOUT"
-	git clone --depth 1 https://github.com/mystenlabs/fastcrypto
-	cd fastcrypto
-	git rev-parse HEAD
-}
-
 function latest_mi_revision() {
 	MI_CHECKOUT=$(mktemp -d)
 	cd "$MI_CHECKOUT"
 	git clone --depth 1 https://github.com/mystenlabs/mysten-infra
 	cd mysten-infra
 	git rev-parse HEAD
-}
-
-
-function current_fc_revision() {
-	cd "$TOPLEVEL"
-	readarray -t <<< "$(find ./ -iname '*.toml' -exec $GREP -oPe 'git = "https://github.com/[mM]ystenLabs/fastcrypto(\.git)?", *rev *= *\"\K[0-9a-fA-F]+' '{}' \;)"
-	watermark=${MAPFILE[0]}
-	for i in "${MAPFILE[@]}"; do
-	    if [[ "$watermark" != "$i" ]]; then
-        	not_equal=true
-	        break
-	    fi
-	done
-
-	[[ -n "$not_equal" ]] && echo "Different values found for the current Fastcrypto revision in NW, aborting" && exit 1
-	echo "$watermark"
 }
 
 function current_mi_revision() {
@@ -90,23 +65,9 @@ function current_mi_revision() {
 	echo "$watermark"
 }
 
-
 # Check for tooling
 check_gnu_grep
 check_cargo_hakari
-
-# Debug prints for fastcrypto
-CURRENT_FC=$(current_fc_revision)
-LATEST_FC=$(latest_fc_revision)
-if [[ "$CURRENT_FC" != "$LATEST_FC" ]]; then
-	echo "About to replace $CURRENT_FC with $LATEST_FC as the Fastcrypto pointer in Narwhal"
-else
-	exit 0
-fi
-
-# Edit the source & run hakari
-find ./ -iname "*.toml"  -execdir sed -i '' -re "s/$CURRENT_FC/$LATEST_FC/" '{}' \;
-cargo hakari generate
 
 # Debug prints for mysten-infra
 CURRENT_MI=$(current_mi_revision)
