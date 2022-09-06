@@ -1087,7 +1087,7 @@ dependencies = [
  "serde_bytes",
  "serde_json",
  "serde_with",
- "sha3 0.10.2",
+ "sha3 0.10.4",
  "signature",
  "tokio",
  "workspace-hack",
@@ -2110,7 +2110,7 @@ dependencies = [
  "ecdsa",
  "elliptic-curve",
  "sha2 0.10.2",
- "sha3 0.10.2",
+ "sha3 0.10.4",
 ]
 
 [[package]]
@@ -3438,9 +3438,9 @@ dependencies = [
 
 [[package]]
 name = "retain_mut"
-version = "0.1.9"
+version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4389f1d5789befaf6029ebd9f7dac4af7f7e3d61b69d4f30e2ac02b57e7712b0"
+checksum = "8c31b5c4033f8fdde8700e4657be2c497e7288f01515be52168c631e2e4d4086"
 
 [[package]]
 name = "rfc6979"
@@ -3479,9 +3479,9 @@ dependencies = [
 
 [[package]]
 name = "roaring"
-version = "0.9.0"
+version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd539cab4e32019956fe7e0cf160bb6d4802f4be2b52c4253d76d3bb0f85a5f7"
+checksum = "48de5b5febb28599c6d9d34817d8ee8c74417af507b90dde0d481b28ca55ed6f"
 dependencies = [
  "bytemuck",
  "byteorder",
@@ -3843,9 +3843,9 @@ dependencies = [
 
 [[package]]
 name = "sha3"
-version = "0.10.2"
+version = "0.10.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0a31480366ec990f395a61b7c08122d99bd40544fdb5abcfc1b06bb29994312c"
+checksum = "eaedf34ed289ea47c2b741bb72e5357a209512d67bcd4bda44359e5bf0470f56"
 dependencies = [
  "digest 0.10.3",
  "keccak",
@@ -4757,9 +4757,9 @@ dependencies = [
 
 [[package]]
 name = "ucd-trie"
-version = "0.1.4"
+version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "89570599c4fe5585de2b388aab47e99f7fa4e9238a1399f707a02e356058141c"
+checksum = "9e79c4d996edb816c91e4308506774452e55e95c3c9de07b6729e17e15a5ef81"
 
 [[package]]
 name = "unicode-bidi"
@@ -5418,7 +5418,7 @@ dependencies = [
  "serde_yaml",
  "sha2 0.10.2",
  "sha2 0.9.9",
- "sha3 0.10.2",
+ "sha3 0.10.4",
  "sha3 0.9.1",
  "sharded-slab",
  "shlex",
