@@ -106,16 +106,16 @@ impl UnreliableNetwork for PrimaryNetwork {
         &mut self,
         address: Multiaddr,
         message: BincodeEncodedPayload,
-    ) -> JoinHandle<()> {
+    ) -> Option<JoinHandle<()>> {
         let mut client = self.client(address.clone());
         let handle = self
             .executors
             .entry(address)
             .or_insert_with(default_executor)
-            .spawn(async move {
+            .try_spawn(async move {
                 let _ = client.send_message(message).await;
             })
-            .await;
+            .ok();
 
         self.update_metrics();
 
@@ -249,14 +249,14 @@ impl UnreliableNetwork for PrimaryToWorkerNetwork {
         &mut self,
         address: Multiaddr,
         message: BincodeEncodedPayload,
-    ) -> JoinHandle<()> {
+    ) -> Option<JoinHandle<()>> {
         let mut client = self.client(address.clone());
         let handler = self
             .executor
-            .spawn(async move {
+            .try_spawn(async move {
                 let _ = client.send_message(message).await;
             })
-            .await;
+            .ok();
 
         self.update_metrics();
 
