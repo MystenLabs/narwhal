@@ -993,54 +993,8 @@ impl<R: ::rand::RngCore + ::rand::CryptoRng> Builder<R> {
             }
         };
 
-        let primary_keys = (0..self.committee_size.get())
-            .map(|_| KeyPair::generate(&mut self.rng))
-            .collect::<Vec<_>>();
-
-        let authorities = primary_keys
-            .into_iter()
-            .map(|keypair| {
-                let primary_addresses = PrimaryAddresses {
-                    primary_to_primary: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
-                        .parse()
-                        .unwrap(),
-                    worker_to_primary: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
-                        .parse()
-                        .unwrap(),
-                };
-
-                let workers = (0..self.number_of_workers.get())
-                    .map(|idx| {
-                        let worker = WorkerFixture {
-                            keypair: KeyPair::generate(&mut self.rng),
-                            id: idx as u32,
-                            info: WorkerInfo {
-                                primary_to_worker: format!(
-                                    "/ip4/127.0.0.1/tcp/{}/http",
-                                    get_port()
-                                )
-                                .parse()
-                                .unwrap(),
-                                transactions: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
-                                    .parse()
-                                    .unwrap(),
-                                worker_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
-                                    .parse()
-                                    .unwrap(),
-                            },
-                        };
-
-                        (idx as u32, worker)
-                    })
-                    .collect();
-
-                AuthorityFixture {
-                    keypair,
-                    stake: 1,
-                    addresses: primary_addresses,
-                    workers,
-                }
-            })
+        let authorities = (0..self.committee_size.get())
+            .map(|_| AuthorityFixture::generate(&mut self.rng, self.number_of_workers, get_port))
             .collect();
 
         CommitteeFixture {
@@ -1132,6 +1086,20 @@ impl CommitteeFixture {
             .collect();
         Certificate::new(&committee, header.clone(), votes).unwrap()
     }
+
+    /// Add a new authority to the committ by randoming generating a key
+    pub fn add_authority(&mut self) {
+        let authority = AuthorityFixture::generate(
+            &mut OsRng,
+            NonZeroUsize::new(4).unwrap(),
+            get_available_port,
+        );
+        self.authorities.push(authority)
+    }
+
+    pub fn bump_epoch(&mut self) {
+        self.epoch += 1
+    }
 }
 
 pub struct AuthorityFixture {
@@ -1189,6 +1157,37 @@ impl AuthorityFixture {
     pub fn vote(&self, header: &Header) -> Vote {
         Vote::new_with_signer(header, self.keypair.public(), &self.keypair)
     }
+
+    fn generate<R, P>(mut rng: R, number_of_workers: NonZeroUsize, mut get_port: P) -> Self
+    where
+        R: ::rand::RngCore + ::rand::CryptoRng,
+        P: FnMut() -> u16,
+    {
+        let keypair = KeyPair::generate(&mut rng);
+        let primary_addresses = PrimaryAddresses {
+            primary_to_primary: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
+                .parse()
+                .unwrap(),
+            worker_to_primary: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
+                .parse()
+                .unwrap(),
+        };
+
+        let workers = (0..number_of_workers.get())
+            .map(|idx| {
+                let worker = WorkerFixture::generate(&mut rng, idx as u32, &mut get_port);
+
+                (idx as u32, worker)
+            })
+            .collect();
+
+        Self {
+            keypair,
+            stake: 1,
+            addresses: primary_addresses,
+            workers,
+        }
+    }
 }
 
 pub struct WorkerFixture {
@@ -1197,4 +1196,33 @@ pub struct WorkerFixture {
     #[allow(dead_code)]
     id: WorkerId,
     info: WorkerInfo,
+}
+
+impl WorkerFixture {
+    fn generate<R, P>(mut rng: R, id: WorkerId, mut get_port: P) -> Self
+    where
+        R: ::rand::RngCore + ::rand::CryptoRng,
+        P: FnMut() -> u16,
+    {
+        let keypair = KeyPair::generate(&mut rng);
+        let primary_to_worker = format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
+            .parse()
+            .unwrap();
+        let worker_to_worker = format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
+            .parse()
+            .unwrap();
+        let transactions = format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
+            .parse()
+            .unwrap();
+
+        Self {
+            keypair,
+            id,
+            info: WorkerInfo {
+                primary_to_worker,
+                worker_to_worker,
+                transactions,
+            },
+        }
+    }
 }
