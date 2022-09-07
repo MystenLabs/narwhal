@@ -785,18 +785,11 @@
 <span id="785">785</span>
 <span id="786">786</span>
 <span id="787">787</span>
-<span id="788">788</span>
-<span id="789">789</span>
-<span id="790">790</span>
-<span id="791">791</span>
-<span id="792">792</span>
-<span id="793">793</span>
-<span id="794">794</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-</span><span class="kw">use crate</span>::{keys, pure_committee_from_keys, shared_worker_cache_from_keys, temp_dir};
+</span><span class="kw">use crate</span>::{temp_dir, CommitteeFixture};
 <span class="kw">use </span>arc_swap::ArcSwap;
-<span class="kw">use </span>config::{Committee, Parameters, SharedCommittee, SharedWorkerCache, WorkerId};
+<span class="kw">use </span>config::{Parameters, SharedCommittee, SharedWorkerCache, WorkerId};
 <span class="kw">use </span>crypto::{KeyPair, PublicKey};
 <span class="kw">use </span>executor::{SerializedTransaction, SubscriberResult};
 <span class="kw">use </span>fastcrypto::traits::KeyPair <span class="kw">as _</span>;
@@ -823,6 +816,8 @@
 </span><span class="kw">pub mod </span>cluster_tests;
 
 <span class="kw">pub struct </span>Cluster {
+    <span class="attribute">#[allow(unused)]
+    </span>fixture: CommitteeFixture,
     authorities: HashMap&lt;usize, AuthorityDetails&gt;,
     <span class="kw">pub </span>committee_shared: SharedCommittee,
     <span class="kw">pub </span>worker_cache_shared: SharedWorkerCache,
@@ -834,38 +829,28 @@
     <span class="doccomment">/// Initialises a new cluster by the provided parameters. The cluster will
     /// create all the authorities (primaries &amp; workers) that are defined under
     /// the committee structure, but none of them will be started.
-    /// If an `input_committee` is provided then this will be used, otherwise the default
-    /// will be used instead.
-    /// If an `input_shared_worker_cache` is provided then this will be used,
-    /// otherwise the default will be used instead.
+    ///
     /// When the `internal_consensus_enabled` is true then the standard internal
     /// consensus engine will be enabled. If false, then the internal consensus will
     /// be disabled and the gRPC server will be enabled to manage the Collections &amp; the
     /// DAG externally.
-    </span><span class="kw">pub fn </span>new(
-        parameters: <span class="prelude-ty">Option</span>&lt;Parameters&gt;,
-        input_committee: <span class="prelude-ty">Option</span>&lt;Committee&gt;,
-        input_shared_worker_cache: <span class="prelude-ty">Option</span>&lt;SharedWorkerCache&gt;,
-        internal_consensus_enabled: bool,
-    ) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span>k = keys(<span class="prelude-val">None</span>);
-        <span class="kw">let </span>c = input_committee.unwrap_or_else(|| pure_committee_from_keys(<span class="kw-2">&amp;</span>k));
-        <span class="kw">let </span>shared_worker_cache =
-            input_shared_worker_cache.unwrap_or_else(|| shared_worker_cache_from_keys(<span class="kw-2">&amp;</span>k));
+    </span><span class="kw">pub fn </span>new(parameters: <span class="prelude-ty">Option</span>&lt;Parameters&gt;, internal_consensus_enabled: bool) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>fixture = CommitteeFixture::builder().randomize_ports(<span class="bool-val">true</span>).build();
+        <span class="kw">let </span>c = fixture.committee();
+        <span class="kw">let </span>shared_worker_cache = fixture.shared_worker_cache();
         <span class="kw">let </span>shared_committee = Arc::new(ArcSwap::from_pointee(c));
         <span class="kw">let </span>params = parameters.unwrap_or_else(<span class="self">Self</span>::parameters);
 
         <span class="macro">info!</span>(<span class="string">&quot;###### Creating new cluster ######&quot;</span>);
         <span class="macro">info!</span>(<span class="string">&quot;Validator keys:&quot;</span>);
-        <span class="kw">let </span>k = keys(<span class="prelude-val">None</span>);
         <span class="kw">let </span><span class="kw-2">mut </span>nodes = HashMap::new();
 
-        <span class="kw">for </span>(id, key_pair) <span class="kw">in </span>k.into_iter().enumerate() {
-            <span class="macro">info!</span>(<span class="string">&quot;Key {id} -&gt; {}&quot;</span>, key_pair.public().clone());
+        <span class="kw">for </span>(id, authority_fixture) <span class="kw">in </span>fixture.authorities().enumerate() {
+            <span class="macro">info!</span>(<span class="string">&quot;Key {id} -&gt; {}&quot;</span>, authority_fixture.public_key());
 
             <span class="kw">let </span>authority = AuthorityDetails::new(
                 id,
-                key_pair,
+                authority_fixture.keypair().copy(),
                 params.clone(),
                 shared_committee.clone(),
                 shared_worker_cache.clone(),
@@ -875,6 +860,7 @@
         }
 
         <span class="self">Self </span>{
+            fixture,
             authorities: nodes,
             committee_shared: shared_committee,
             worker_cache_shared: shared_worker_cache,
