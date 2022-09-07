@@ -284,6 +284,20 @@ impl CertificateStore {
         Ok(certificates)
     }
 
+    /// Retrieves the latest round number of certificates in store.
+    pub fn last_round_number(&self) -> StoreResult<Option<Round>> {
+        if let Some(((last_round_num, _), _)) = self
+            .certificate_ids_by_round
+            .iter()
+            .skip_to_last()
+            .reverse()
+            .next()
+        {
+            return Ok(Some(last_round_num));
+        }
+        Ok(None)
+    }
+
     /// Clears both the main storage of the certificates and the secondary index
     pub fn clear(&self) -> StoreResult<()> {
         self.certificates_by_id.clear()?;

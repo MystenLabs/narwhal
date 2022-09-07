@@ -476,6 +476,11 @@ impl PrimaryToPrimary for PrimaryReceiverHandler {
         let message = request.into_body();
 
         match message {
+            PrimaryMessage::CertificatesRangeResponse { .. } => self
+                .tx_range_responses
+                .send(message)
+                .await
+                .map_err(|_| DagError::ShuttingDown),
             PrimaryMessage::CertificatesRequest(_, _) => self
                 .tx_helper_requests
                 .send(message)
