@@ -1063,6 +1063,31 @@ impl CommitteeFixture {
             .collect()
     }
 
+    pub fn headers_round(
+        &self,
+        prior_round: Round,
+        parents: &BTreeSet<CertificateDigest>,
+    ) -> (Round, Vec<Header>) {
+        let round = prior_round + 1;
+        let next_headers = self
+            .authorities
+            .iter()
+            .map(|a| {
+                let builder = types::HeaderBuilder::default();
+                builder
+                    .author(a.public_key())
+                    .round(round)
+                    .epoch(0)
+                    .parents(parents.clone())
+                    .with_payload_batch(fixture_batch_with_transactions(10), 0)
+                    .build(a.keypair())
+                    .unwrap()
+            })
+            .collect();
+
+        (round, next_headers)
+    }
+
     pub fn votes(&self, header: &Header) -> Vec<Vote> {
         self.authorities()
             .flat_map(|a| {
