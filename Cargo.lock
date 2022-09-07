@@ -1528,8 +1528,9 @@ dependencies = [
 
 [[package]]
 name = "fastcrypto"
-version = "0.1.0"
-source = "git+https://github.com/MystenLabs/fastcrypto?rev=c022a2ae23ca7cc2778293fd3b1db42e8cd02d3b#c022a2ae23ca7cc2778293fd3b1db42e8cd02d3b"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "be026da5078d6443087b57e1f0ec1db294f2d00e1fcb5a31fb82ce71e1b36aaf"
 dependencies = [
  "base64ct",
  "blake2",
