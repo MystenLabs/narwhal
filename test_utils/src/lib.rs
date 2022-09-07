@@ -431,14 +431,6 @@ pub fn fixture_payload(number_of_batches: u8) -> IndexMap<BatchDigest, WorkerId>
     payload
 }
 
-pub fn fixture_header_with_payload(number_of_batches: u8) -> Header {
-    let kp = keys(None).pop().unwrap();
-    let payload = fixture_payload(number_of_batches);
-
-    let builder = fixture_header_builder();
-    builder.payload(payload).build(&kp).unwrap()
-}
-
 // will create a batch with randomly formed transactions
 // dictated by the parameter number_of_transactions
 pub fn fixture_batch_with_transactions(number_of_transactions: u32) -> Batch {
