@@ -245,7 +245,9 @@ impl Proposer {
                     Ok(()) => (),
                 }
                 self.payload_size = 0;
+            }
 
+            if timer_expired {
                 // Reschedule the timer.
                 let deadline = Instant::now() + self.max_header_delay;
                 timer.as_mut().reset(deadline);
