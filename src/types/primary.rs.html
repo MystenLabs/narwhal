@@ -756,6 +756,25 @@
 <span id="756">756</span>
 <span id="757">757</span>
 <span id="758">758</span>
+<span id="759">759</span>
+<span id="760">760</span>
+<span id="761">761</span>
+<span id="762">762</span>
+<span id="763">763</span>
+<span id="764">764</span>
+<span id="765">765</span>
+<span id="766">766</span>
+<span id="767">767</span>
+<span id="768">768</span>
+<span id="769">769</span>
+<span id="770">770</span>
+<span id="771">771</span>
+<span id="772">772</span>
+<span id="773">773</span>
+<span id="774">774</span>
+<span id="775">775</span>
+<span id="776">776</span>
+<span id="777">777</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -1036,6 +1055,25 @@
         <span class="kw">let </span>signature = signature_service
             .request_signature(vote.digest().into())
             .<span class="kw">await</span>;
+        <span class="self">Self </span>{ signature, ..vote }
+    }
+
+    <span class="kw">pub fn </span>new_with_signer&lt;S&gt;(header: <span class="kw-2">&amp;</span>Header, author: <span class="kw-2">&amp;</span>PublicKey, signer: <span class="kw-2">&amp;</span>S) -&gt; <span class="self">Self
+    </span><span class="kw">where
+        </span>S: Signer&lt;Signature&gt;,
+    {
+        <span class="kw">let </span>vote = <span class="self">Self </span>{
+            id: header.id,
+            round: header.round,
+            epoch: header.epoch,
+            origin: header.author.clone(),
+            author: author.clone(),
+            signature: Signature::default(),
+        };
+
+        <span class="kw">let </span>vote_digest: Digest = vote.digest().into();
+        <span class="kw">let </span>signature = signer.sign(vote_digest.as_ref());
+
         <span class="self">Self </span>{ signature, ..vote }
     }
 
