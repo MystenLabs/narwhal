@@ -6,7 +6,7 @@ use types::{PublicKeyProto, RoundsRequest};
 
 #[tokio::test]
 async fn basic_cluster_setup() {
-    let mut cluster = Cluster::new(None, None, None, true);
+    let mut cluster = Cluster::new(None, true);
 
     // start the cluster will all the possible nodes
     cluster.start(None, None, None).await;
@@ -37,7 +37,7 @@ async fn basic_cluster_setup() {
 
 #[tokio::test]
 async fn cluster_setup_with_consensus_disabled() {
-    let mut cluster = Cluster::new(None, None, None, false);
+    let mut cluster = Cluster::new(None, false);
 
     // start the cluster will all the possible nodes
     cluster.start(Some(2), Some(1), None).await;

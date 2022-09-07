@@ -1,8 +1,8 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crate::{keys, pure_committee_from_keys, shared_worker_cache_from_keys, temp_dir};
+use crate::{temp_dir, CommitteeFixture};
 use arc_swap::ArcSwap;
-use config::{Committee, Parameters, SharedCommittee, SharedWorkerCache, WorkerId};
+use config::{Parameters, SharedCommittee, SharedWorkerCache, WorkerId};
 use crypto::{KeyPair, PublicKey};
 use executor::{SerializedTransaction, SubscriberResult};
 use fastcrypto::traits::KeyPair as _;
@@ -29,6 +29,8 @@ use types::{ConfigurationClient, ProposerClient, TransactionsClient};
 pub mod cluster_tests;
 
 pub struct Cluster {
+    #[allow(unused)]
+    fixture: CommitteeFixture,
     authorities: HashMap<usize, AuthorityDetails>,
     pub committee_shared: SharedCommittee,
     pub worker_cache_shared: SharedWorkerCache,
@@ -40,38 +42,28 @@ impl Cluster {
     /// Initialises a new cluster by the provided parameters. The cluster will
     /// create all the authorities (primaries & workers) that are defined under
     /// the committee structure, but none of them will be started.
-    /// If an `input_committee` is provided then this will be used, otherwise the default
-    /// will be used instead.
-    /// If an `input_shared_worker_cache` is provided then this will be used,
-    /// otherwise the default will be used instead.
+    ///
     /// When the `internal_consensus_enabled` is true then the standard internal
     /// consensus engine will be enabled. If false, then the internal consensus will
     /// be disabled and the gRPC server will be enabled to manage the Collections & the
     /// DAG externally.
-    pub fn new(
-        parameters: Option<Parameters>,
-        input_committee: Option<Committee>,
-        input_shared_worker_cache: Option<SharedWorkerCache>,
-        internal_consensus_enabled: bool,
-    ) -> Self {
-        let k = keys(None);
-        let c = input_committee.unwrap_or_else(|| pure_committee_from_keys(&k));
-        let shared_worker_cache =
-            input_shared_worker_cache.unwrap_or_else(|| shared_worker_cache_from_keys(&k));
+    pub fn new(parameters: Option<Parameters>, internal_consensus_enabled: bool) -> Self {
+        let fixture = CommitteeFixture::builder().randomize_ports(true).build();
+        let c = fixture.committee();
+        let shared_worker_cache = fixture.shared_worker_cache();
         let shared_committee = Arc::new(ArcSwap::from_pointee(c));
         let params = parameters.unwrap_or_else(Self::parameters);
 
         info!("###### Creating new cluster ######");
         info!("Validator keys:");
-        let k = keys(None);
         let mut nodes = HashMap::new();
 
-        for (id, key_pair) in k.into_iter().enumerate() {
-            info!("Key {id} -> {}", key_pair.public().clone());
+        for (id, authority_fixture) in fixture.authorities().enumerate() {
+            info!("Key {id} -> {}", authority_fixture.public_key());
 
             let authority = AuthorityDetails::new(
                 id,
-                key_pair,
+                authority_fixture.keypair().copy(),
                 params.clone(),
                 shared_committee.clone(),
                 shared_worker_cache.clone(),
@@ -81,6 +73,7 @@ impl Cluster {
         }
 
         Self {
+            fixture,
             authorities: nodes,
             committee_shared: shared_committee,
             worker_cache_shared: shared_worker_cache,
