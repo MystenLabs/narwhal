@@ -475,7 +475,7 @@ pub fn votes(header: &Header) -> Vec<Vote> {
 }
 
 // Fixture
-pub fn certificate_from_committee(header: &Header, committee: &Committee) -> Certificate {
+fn certificate_from_committee(header: &Header, committee: &Committee) -> Certificate {
     let votes: Vec<_> = votes(header)
         .into_iter()
         .map(|x| (x.author, x.signature))
