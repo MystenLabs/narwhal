@@ -149,16 +149,6 @@ pub fn pure_committee_from_keys(keys: &[KeyPair]) -> Committee {
     }
 }
 
-pub fn pure_committee_from_keys_with_mock_ports(keys: &[KeyPair]) -> Committee {
-    Committee {
-        epoch: Epoch::default(),
-        authorities: keys
-            .iter()
-            .map(|kp| (kp.public().clone(), make_authority_with_port_getter(|| 0)))
-            .collect(),
-    }
-}
-
 pub fn make_authority_with_port_getter<F: FnMut() -> u16>(mut get_port: F) -> Authority {
     let primary = PrimaryAddresses {
         primary_to_primary: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
