@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use arc_swap::ArcSwap;
 use bytes::Bytes;
-use config::{Committee, Parameters, SharedWorkerCache};
+use config::{Committee, Parameters, SharedWorkerCache, WorkerCache, WorkerId};
 use consensus::ConsensusOutput;
 use crypto::{KeyPair, PublicKey};
 use executor::{ExecutionIndices, ExecutionState, ExecutionStateError};
@@ -16,7 +16,7 @@ use std::{
     fmt::Debug,
     sync::{Arc, Mutex},
 };
-use test_utils::CommitteeFixture;
+use test_utils::{keys, CommitteeFixture};
 use tokio::{
     sync::mpsc::{channel, Receiver, Sender},
     time::{interval, sleep, Duration, MissedTickBehavior},
@@ -27,14 +27,14 @@ use types::{ReconfigureNotification, TransactionProto, TransactionsClient, Worke
 struct SimpleExecutionState {
     keypair: KeyPair,
     committee: Arc<Mutex<Committee>>,
-    tx_reconfigure: Sender<(KeyPair, Committee)>,
+    tx_reconfigure: Sender<(KeyPair, Committee, Vec<(WorkerId, KeyPair)>, WorkerCache)>,
 }
 
 impl SimpleExecutionState {
     pub fn new(
         keypair: KeyPair,
         committee: Committee,
-        tx_reconfigure: Sender<(KeyPair, Committee)>,
+        tx_reconfigure: Sender<(KeyPair, Committee, Vec<(WorkerId, KeyPair)>, WorkerCache)>,
     ) -> Self {
         Self {
             keypair,
@@ -66,9 +66,30 @@ impl ExecutionState for SimpleExecutionState {
                 guard.epoch = epoch;
             };
 
+            let k = keys(None);
+            let worker_cache = worker_cache_from_keys(&k);
+            let keypair = k
+                .into_iter()
+                .enumerate()
+                .filter(|(i, _)| i == &self.index)
+                .map(|(_, x)| x)
+                .collect::<Vec<_>>()
+                .pop()
+                .unwrap();
+
+            let worker_keypairs = keys(None);
+            let worker_ids = 0..worker_keypairs.len() as u32;
+            let worker_ids_and_keypairs = worker_ids.zip(worker_keypairs.into_iter()).collect();
+
             let new_committee = self.committee.lock().unwrap().clone();
+
             self.tx_reconfigure
-                .send((self.keypair.copy(), new_committee))
+                .send((
+                    self.keypair.copy(),
+                    new_committee,
+                    worker_ids_and_keypairs,
+                    worker_cache,
+                ))
                 .await
                 .unwrap();
         }
@@ -182,6 +203,10 @@ async fn restart() {
         ));
         states.push(execution_state.clone());
 
+        let worker_keypairs = keys(None);
+        let worker_ids = 0..worker_keypairs.len() as u32;
+        let worker_ids_and_keypairs = worker_ids.zip(worker_keypairs.into_iter()).collect();
+
         let committee = committee.clone();
         let worker_cache = worker_cache.clone();
         let execution_state = execution_state.clone();
@@ -190,6 +215,7 @@ async fn restart() {
         tokio::spawn(async move {
             NodeRestarter::watch(
                 keypair,
+                worker_ids_and_keypairs,
                 &committee,
                 worker_cache,
                 /* base_store_path */ test_utils::temp_dir(),
@@ -281,7 +307,7 @@ async fn epoch_change() {
             let mut primary_network = WorkerToPrimaryNetwork::default();
             let mut worker_network = PrimaryToWorkerNetwork::default();
 
-            while let Some((_, committee)) = rx_node_reconfigure.recv().await {
+            while let Some((_, committee, _, _)) = rx_node_reconfigure.recv().await {
                 let address = committee
                     .primary(&name_clone)
                     .expect("Our key is not in the committee")
@@ -327,7 +353,7 @@ async fn epoch_change() {
 
         let _worker_handles = Node::spawn_workers(
             name,
-            /* worker_ids */ vec![0],
+            /* worker ids_and_keypairs */ vec![(0, keys(None).pop().unwrap())],
             Arc::new(ArcSwap::new(Arc::new(committee.clone()))),
             worker_cache.clone(),
             &store,

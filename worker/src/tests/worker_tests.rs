@@ -9,7 +9,7 @@ use prometheus::Registry;
 use std::time::Duration;
 use store::rocks;
 use test_utils::{
-    batch, digest_batch, serialize_batch_message, temp_dir, CommitteeFixture,
+    batch, digest_batch, keys, serialize_batch_message, temp_dir, CommitteeFixture,
     WorkerToPrimaryMockServer, WorkerToWorkerMockServer,
 };
 use types::{
@@ -48,6 +48,7 @@ async fn handle_clients_transactions() {
     // Spawn a `Worker` instance.
     Worker::spawn(
         name.clone(),
+        keys(None).pop().unwrap(),
         id,
         Arc::new(ArcSwap::from_pointee(committee.clone())),
         worker_cache.clone(),
@@ -131,6 +132,7 @@ async fn handle_client_batch_request() {
     // Spawn a `Worker` instance.
     Worker::spawn(
         name.clone(),
+        keys(None).pop().unwrap(),
         id,
         Arc::new(ArcSwap::from_pointee(committee.clone())),
         worker_cache.clone(),

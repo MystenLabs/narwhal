@@ -449,9 +449,10 @@ impl WorkerNodeDetails {
         };
 
         let worker_store = NodeStorage::reopen(store_path.clone());
+        let mut worker_keypairs = keys(None);
         let worker_handlers = Node::spawn_workers(
             self.name.clone(),
-            vec![self.id],
+            vec![(self.id, worker_keypairs.remove(self.id as usize))],
             self.committee.clone(),
             self.worker_cache.clone(),
             &worker_store,

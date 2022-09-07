@@ -145,6 +145,7 @@ async fn test_get_collections() {
     // Spawn a `Worker` instance.
     Worker::spawn(
         name.clone(),
+        keys(None).pop().unwrap(),
         worker_id,
         Arc::new(ArcSwap::from_pointee(committee.clone())),
         worker_cache.clone(),
@@ -363,6 +364,7 @@ async fn test_remove_collections() {
     // Spawn a `Worker` instance.
     Worker::spawn(
         name.clone(),
+        keys(None).pop().unwrap(),
         worker_id,
         Arc::new(ArcSwap::from_pointee(committee.clone())),
         worker_cache.clone(),
@@ -947,6 +949,7 @@ async fn test_get_collections_with_missing_certificates() {
     // Spawn a `Worker` instance for primary 1.
     Worker::spawn(
         name_1,
+        keys(None).pop().unwrap(),
         worker_id,
         Arc::new(ArcSwap::from_pointee(committee.clone())),
         worker_cache.clone(),
@@ -997,6 +1000,7 @@ async fn test_get_collections_with_missing_certificates() {
     // Spawn a `Worker` instance for primary 2.
     Worker::spawn(
         name_2,
+        keys(None).pop().unwrap(),
         worker_id,
         Arc::new(ArcSwap::from_pointee(committee.clone())),
         worker_cache.clone(),
