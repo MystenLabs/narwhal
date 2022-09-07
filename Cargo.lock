@@ -2383,7 +2383,8 @@ checksum = "e5ce46fe64a9d73be07dcbe690a38ce1b293be448fd8ce1e6c1b8062c9f72c6a"
 [[package]]
 name = "mysten-network"
 version = "0.1.0"
-source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=352091e92070c2ecfcccad444361a78249ecfe59#352091e92070c2ecfcccad444361a78249ecfe59"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e706e64bf9aeab7958ccc2de336e358c89869099f4e268d26833d5afd19f23fa"
 dependencies = [
  "bincode",
  "bytes",
@@ -4110,7 +4111,8 @@ checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 [[package]]
 name = "telemetry-subscribers"
 version = "0.1.0"
-source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=352091e92070c2ecfcccad444361a78249ecfe59#352091e92070c2ecfcccad444361a78249ecfe59"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cd5997cf07ccebedf30d53f94effb0c992b655278e4777d71762aada8766b027"
 dependencies = [
  "crossterm",
  "once_cell",
@@ -4692,7 +4694,8 @@ checksum = "59547bce71d9c38b83d9c0e92b6066c4253371f15005def0c30d9657f50c7642"
 [[package]]
 name = "typed-store"
 version = "0.1.0"
-source = "git+https://github.com/mystenlabs/mysten-infra.git?rev=352091e92070c2ecfcccad444361a78249ecfe59#352091e92070c2ecfcccad444361a78249ecfe59"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "21224c183bca74b370af8d75fcf32e0b1a98b33c56ae01248c099ec8c793c511"
 dependencies = [
  "bincode",
  "collectable",
