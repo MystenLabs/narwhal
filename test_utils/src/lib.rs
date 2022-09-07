@@ -6,7 +6,7 @@ use config::{
     utils::get_available_port, Authority, Committee, Epoch, PrimaryAddresses, SharedWorkerCache,
     WorkerCache, WorkerId, WorkerIndex, WorkerInfo,
 };
-use crypto::{KeyPair, PublicKey, Signature};
+use crypto::{KeyPair, PublicKey};
 use fastcrypto::{
     traits::{KeyPair as _, Signer as _},
     Digest, Hash as _,
@@ -324,95 +324,6 @@ pub fn make_consensus_store(store_path: &std::path::Path) -> Arc<ConsensusStore>
     Arc::new(ConsensusStore::new(last_committed_map, sequence_map))
 }
 
-// Fixture
-pub fn header() -> Header {
-    header_with_epoch(&committee(None))
-}
-
-// Fixture
-pub fn headers() -> Vec<Header> {
-    keys(None)
-        .into_iter()
-        .map(|kp| {
-            let header = Header {
-                author: kp.public().clone(),
-                round: 1,
-                parents: Certificate::genesis(&committee(None))
-                    .iter()
-                    .map(|x| x.digest())
-                    .collect(),
-                ..Header::default()
-            };
-            let header_digest = header.digest();
-            Header {
-                id: header_digest,
-                signature: kp.sign(Digest::from(header_digest).as_ref()),
-                ..header
-            }
-        })
-        .collect()
-}
-
-// Fixture
-pub fn header_with_epoch(committee: &Committee) -> Header {
-    let kp = keys(None).pop().unwrap();
-    let header = Header {
-        author: kp.public().clone(),
-        round: 1,
-        epoch: committee.epoch(),
-        parents: Certificate::genesis(committee)
-            .iter()
-            .map(|x| x.digest())
-            .collect(),
-        ..Header::default()
-    };
-
-    let header_digest = header.digest();
-    Header {
-        id: header_digest,
-        signature: kp.sign(Digest::from(header_digest).as_ref()),
-        ..header
-    }
-}
-
-pub fn fixture_header_builder() -> types::HeaderBuilder {
-    let kp = keys(None).pop().unwrap();
-
-    let builder = types::HeaderBuilder::default();
-    builder
-        .author(kp.public().clone())
-        .round(1)
-        .epoch(0)
-        .parents(
-            Certificate::genesis(&committee(None))
-                .iter()
-                .map(|x| x.digest())
-                .collect(),
-        )
-}
-
-pub fn fixture_headers_round(
-    prior_round: Round,
-    parents: &BTreeSet<CertificateDigest>,
-) -> (Round, Vec<Header>) {
-    let round = prior_round + 1;
-    let next_headers: Vec<_> = keys(None)
-        .into_iter()
-        .map(|kp| {
-            let builder = types::HeaderBuilder::default();
-            builder
-                .author(kp.public().clone())
-                .round(round)
-                .epoch(0)
-                .parents(parents.clone())
-                .with_payload_batch(fixture_batch_with_transactions(10), 0)
-                .build(&kp)
-                .unwrap()
-        })
-        .collect();
-    (round, next_headers)
-}
-
 pub fn fixture_payload(number_of_batches: u8) -> IndexMap<BatchDigest, WorkerId> {
     let mut payload: IndexMap<BatchDigest, WorkerId> = IndexMap::new();
 
@@ -445,46 +356,6 @@ pub fn fixture_batch_with_transactions(number_of_transactions: u32) -> Batch {
 pub fn transaction() -> Transaction {
     // generate random value transactions, but the length will be always 100 bytes
     (0..100).map(|_v| rand::random::<u8>()).collect()
-}
-
-// Fixture
-pub fn votes(header: &Header) -> Vec<Vote> {
-    keys(None)
-        .into_iter()
-        .flat_map(|kp| {
-            // we should not re-sign using the key of the authority
-            // that produced the header
-            if kp.public() == &header.author {
-                None
-            } else {
-                let vote = Vote {
-                    id: header.id,
-                    round: header.round,
-                    epoch: header.epoch,
-                    origin: header.author.clone(),
-                    author: kp.public().clone(),
-                    signature: Signature::default(),
-                };
-                Some(Vote {
-                    signature: kp.sign(Digest::from(vote.digest()).as_ref()),
-                    ..vote
-                })
-            }
-        })
-        .collect()
-}
-
-// Fixture
-fn certificate_from_committee(header: &Header, committee: &Committee) -> Certificate {
-    let votes: Vec<_> = votes(header)
-        .into_iter()
-        .map(|x| (x.author, x.signature))
-        .collect();
-    Certificate::new(committee, header.clone(), votes).unwrap()
-}
-
-pub fn certificate(header: &Header) -> Certificate {
-    certificate_from_committee(header, &committee(None))
 }
 
 #[derive(Clone)]
