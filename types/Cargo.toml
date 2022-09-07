@@ -24,7 +24,7 @@ roaring = "0.10.0"
 serde = { version = "1.0.144", features = ["derive"] }
 serde_with = "2.0.0"
 signature = "1.6.0"
-store = { git = "https://github.com/mystenlabs/mysten-infra.git", package = "typed-store", rev = "352091e92070c2ecfcccad444361a78249ecfe59" }
+store = { git = "https://github.com/mystenlabs/mysten-infra.git", package = "typed-store", rev = "163cdb92ad243ef107eaae6ad6b9965012ffdada" }
 thiserror = "1.0.34"
 tokio = { version = "1.20.1", features = ["sync", "rt", "macros"] }
 tokio-util = { version = "0.7.3", features = ["codec"] }
