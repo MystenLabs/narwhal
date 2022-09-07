@@ -434,7 +434,7 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> BlockWaiter<Synchroni
     }
 
     /// Helper method to retrieve a single certificate.
-    #[instrument(level = "trace", skip_all, fields(certificate_id = ?id))]
+    #[instrument(level = "debug", skip_all, fields(certificate_id = ?id))]
     async fn get_certificate(&mut self, id: CertificateDigest) -> Option<Certificate> {
         if let Some((_, c)) = self.get_certificates(vec![id]).await.first() {
             return c.to_owned();
@@ -447,7 +447,7 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> BlockWaiter<Synchroni
     /// fetch it via the peers. Otherwise if available on the storage
     /// should return the result immediately. The method is blocking to
     /// retrieve all the results.
-    #[instrument(level = "trace", skip_all, fields(num_certificate_ids = ids.len()))]
+    #[instrument(level = "debug", skip_all, fields(num_certificate_ids = ids.len()))]
     async fn get_certificates(
         &mut self,
         ids: Vec<CertificateDigest>,
@@ -605,7 +605,7 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> BlockWaiter<Synchroni
                 .or_insert_with(Vec::new)
                 .push(sender);
 
-            trace!("Block with id {} already has a pending request", id.clone());
+            debug!("Block with id {} already has a pending request", id.clone());
             return None;
         }
 

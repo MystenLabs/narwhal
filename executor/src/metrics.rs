@@ -4,6 +4,8 @@ use prometheus::{default_registry, register_int_gauge_with_registry, IntGauge, R
 
 #[derive(Clone, Debug)]
 pub struct ExecutorMetrics {
+    /// occupancy of the channel from the `Subscriber` to `BatchLoader`
+    pub tx_batch_loader: IntGauge,
     /// occupancy of the channel from the `Subscriber` to `Core`
     pub tx_executor: IntGauge,
     /// Number of elements in the waiting (ready-to-deliver) list of subscriber
@@ -13,6 +15,12 @@ pub struct ExecutorMetrics {
 impl ExecutorMetrics {
     pub fn new(registry: &Registry) -> Self {
         Self {
+            tx_batch_loader: register_int_gauge_with_registry!(
+                "tx_batch_loader",
+                "occupancy of the channel from the `Subscriber` to `BatchLoader`",
+                registry
+            )
+            .unwrap(),
             tx_executor: register_int_gauge_with_registry!(
                 "tx_executor",
                 "occupancy of the channel from the `Subscriber` to `Core`",

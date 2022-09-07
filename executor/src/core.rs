@@ -14,7 +14,10 @@ use tokio::{
     task::JoinHandle,
 };
 use tracing::debug;
-use types::{metered_channel, Batch, BatchDigest, ReconfigureNotification, SequenceNumber};
+use types::{
+    metered_channel, Batch, BatchDigest, ReconfigureNotification, SequenceNumber,
+    SerializedBatchMessage, WorkerMessage,
+};
 
 #[cfg(test)]
 #[path = "tests/executor_tests.rs"]
@@ -26,7 +29,7 @@ pub mod executor_tests;
 /// not processes twice the same transaction (despite crash-recovery).
 pub struct Core<State: ExecutionState> {
     /// The temporary storage holding all transactions' data (that may be too big to hold in memory).
-    store: Store<BatchDigest, Batch>,
+    store: Store<BatchDigest, SerializedBatchMessage>,
     /// The (global) state to perform execution.
     execution_state: Arc<State>,
     /// Receive reconfiguration updates.
@@ -54,7 +57,7 @@ where
     /// Spawn a new executor in a dedicated tokio task.
     #[must_use]
     pub fn spawn(
-        store: Store<BatchDigest, Batch>,
+        store: Store<BatchDigest, SerializedBatchMessage>,
         execution_state: Arc<State>,
         rx_reconfigure: watch::Receiver<ReconfigureNotification>,
         rx_subscriber: metered_channel::Receiver<ConsensusOutput>,
@@ -134,8 +137,8 @@ where
         total_batches: usize,
     ) -> SubscriberResult<()> {
         // The store should now hold all transaction data referenced by the input certificate.
-        let transactions = match self.store.read(batch_digest).await? {
-            Some(x) => x.0,
+        let batch = match self.store.read(batch_digest).await? {
+            Some(x) => x,
             None => {
                 // If two certificates contain the exact same batch (eg. by the actions of a Byzantine
                 // consensus node), some correct client may already have deleted the batch from their
@@ -146,6 +149,12 @@ where
                 self.execution_indices.skip_batch(total_batches);
                 return Ok(());
             }
+        };
+
+        // Deserialize the consensus workers' batch message to retrieve a list of transactions.
+        let transactions = match bincode::deserialize(&batch)? {
+            WorkerMessage::Batch(Batch(x)) => x,
+            _ => bail!(SubscriberError::UnexpectedProtocolMessage),
         };
 
         // Execute every transaction in the batch.

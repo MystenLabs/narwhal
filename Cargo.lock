@@ -1485,12 +1485,12 @@ name = "executor"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "backoff",
  "bincode",
  "blake2",
  "bytes",
  "config",
  "consensus",
+ "crypto",
  "fastcrypto",
  "futures",
  "indexmap",

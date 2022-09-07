@@ -697,24 +697,6 @@ impl AuthorityDetails {
             .collect()
     }
 
-    /// Creates a new proposer client that connects to the corresponding client.
-    /// This should be available only if the internal consensus is disabled. If
-    /// the internal consensus is enabled then a panic will be thrown instead.
-    pub async fn new_proposer_client(&self) -> ProposerClient<Channel> {
-        let internal = self.internal.read().await;
-
-        if internal.primary.internal_consensus_enabled {
-            panic!("External consensus is disabled, won't create a proposer client");
-        }
-
-        let config = mysten_network::config::Config::new();
-        let channel = config
-            .connect_lazy(&internal.primary.parameters.consensus_api_grpc.socket_addr)
-            .unwrap();
-
-        ProposerClient::new(channel)
-    }
-
     /// This method returns a new client to send transactions to the dictated
     /// worker identified by the `worker_id`. If the worker_id is not found then
     /// a panic is raised.
@@ -736,6 +718,24 @@ impl AuthorityDetails {
             .unwrap();
 
         TransactionsClient::new(channel)
+    }
+
+    /// Creates a new proposer client that connects to the corresponding client.
+    /// This should be available only if the internal consensus is disabled. If
+    /// the internal consensus is enabled then a panic will be thrown instead.
+    pub async fn new_proposer_client(&self) -> ProposerClient<Channel> {
+        let internal = self.internal.read().await;
+
+        if internal.primary.internal_consensus_enabled {
+            panic!("External consensus is disabled, won't create a proposer client");
+        }
+
+        let config = mysten_network::config::Config::new();
+        let channel = config
+            .connect_lazy(&internal.primary.parameters.consensus_api_grpc.socket_addr)
+            .unwrap();
+
+        ProposerClient::new(channel)
     }
 
     /// Creates a new configuration client that connects to the corresponding client.

@@ -15,7 +15,7 @@ use executor::{
 };
 use fastcrypto::traits::{KeyPair as _, VerifyingKey};
 use itertools::Itertools;
-use primary::{BlockCommand, NetworkModel, PayloadToken, Primary, PrimaryChannelMetrics};
+use primary::{NetworkModel, PayloadToken, Primary, PrimaryChannelMetrics};
 use prometheus::{IntGauge, Registry};
 use std::{fmt::Debug, sync::Arc};
 use storage::{CertificateStore, CertificateToken};
@@ -30,7 +30,7 @@ use tokio::{
 };
 use tracing::{debug, info};
 use types::{
-    metered_channel, Batch, BatchDigest, Certificate, CertificateDigest, ConsensusStore, Header,
+    metered_channel, BatchDigest, Certificate, CertificateDigest, ConsensusStore, Header,
     HeaderDigest, ReconfigureNotification, Round, SequenceNumber, SerializedBatchMessage,
 };
 use worker::{metrics::initialise_metrics, Worker};
@@ -46,7 +46,6 @@ pub struct NodeStorage {
     pub payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,
     pub batch_store: Store<BatchDigest, SerializedBatchMessage>,
     pub consensus_store: Arc<ConsensusStore>,
-    pub temp_batch_store: Store<BatchDigest, Batch>,
 }
 
 impl NodeStorage {
@@ -58,7 +57,6 @@ impl NodeStorage {
     const BATCHES_CF: &'static str = "batches";
     const LAST_COMMITTED_CF: &'static str = "last_committed";
     const SEQUENCE_CF: &'static str = "sequence";
-    const TEMP_BATCH_CF: &'static str = "temp_batches";
 
     /// Open or reopen all the storage of the node.
     pub fn reopen<Path: AsRef<std::path::Path>>(store_path: Path) -> Self {
@@ -73,7 +71,6 @@ impl NodeStorage {
                 Self::BATCHES_CF,
                 Self::LAST_COMMITTED_CF,
                 Self::SEQUENCE_CF,
-                Self::TEMP_BATCH_CF,
             ],
         )
         .expect("Cannot open database");
@@ -86,7 +83,6 @@ impl NodeStorage {
             batch_map,
             last_committed_map,
             sequence_map,
-            temp_batch_map,
         ) = reopen!(&rocksdb,
             Self::HEADERS_CF;<HeaderDigest, Header>,
             Self::CERTIFICATES_CF;<CertificateDigest, Certificate>,
@@ -94,8 +90,7 @@ impl NodeStorage {
             Self::PAYLOAD_CF;<(BatchDigest, WorkerId), PayloadToken>,
             Self::BATCHES_CF;<BatchDigest, SerializedBatchMessage>,
             Self::LAST_COMMITTED_CF;<PublicKey, Round>,
-            Self::SEQUENCE_CF;<SequenceNumber, CertificateDigest>,
-            Self::TEMP_BATCH_CF;<BatchDigest, Batch>
+            Self::SEQUENCE_CF;<SequenceNumber, CertificateDigest>
         );
 
         let header_store = Store::new(header_map);
@@ -103,7 +98,6 @@ impl NodeStorage {
         let payload_store = Store::new(payload_map);
         let batch_store = Store::new(batch_map);
         let consensus_store = Arc::new(ConsensusStore::new(last_committed_map, sequence_map));
-        let temp_batch_store = Store::new(temp_batch_map);
 
         Self {
             header_store,
@@ -111,7 +105,6 @@ impl NodeStorage {
             payload_store,
             batch_store,
             consensus_store,
-            temp_batch_store,
         }
     }
 }
@@ -174,14 +167,6 @@ impl Node {
         let (tx_consensus, rx_consensus) =
             metered_channel::channel(Self::CHANNEL_CAPACITY, &committed_certificates_counter);
 
-        let tx_get_block_commands_counter = IntGauge::new(
-            PrimaryChannelMetrics::NAME_GET_BLOCK_COMMANDS,
-            PrimaryChannelMetrics::DESC_GET_BLOCK_COMMANDS,
-        )
-        .unwrap();
-        let (tx_get_block_commands, rx_get_block_commands) =
-            metered_channel::channel(Self::CHANNEL_CAPACITY, &tx_get_block_commands_counter);
-
         // Compute the public key of this authority.
         let name = keypair.public().clone();
         let mut handles = Vec::new();
@@ -196,7 +181,9 @@ impl Node {
             (Some(Arc::new(dag)), NetworkModel::Asynchronous)
         } else {
             let consensus_handles = Self::spawn_consensus(
+                name.clone(),
                 committee.clone(),
+                worker_cache.clone(),
                 store,
                 parameters.clone(),
                 execution_state,
@@ -204,7 +191,6 @@ impl Node {
                 rx_new_certificates,
                 tx_consensus.clone(),
                 tx_confirmation,
-                tx_get_block_commands.clone(),
                 registry,
             )
             .await?;
@@ -239,8 +225,6 @@ impl Node {
             store.payload_store.clone(),
             tx_new_certificates,
             /* rx_consensus */ rx_consensus,
-            tx_get_block_commands,
-            rx_get_block_commands,
             /* dag */ dag,
             network_model,
             tx_reconfigure,
@@ -271,7 +255,9 @@ impl Node {
 
     /// Spawn the consensus core and the client executing transactions.
     async fn spawn_consensus<State>(
+        name: PublicKey,
         committee: SharedCommittee,
+        worker_cache: SharedWorkerCache,
         store: &NodeStorage,
         parameters: Parameters,
         execution_state: Arc<State>,
@@ -282,7 +268,6 @@ impl Node {
             SubscriberResult<<State as ExecutionState>::Outcome>,
             SerializedTransaction,
         )>,
-        tx_get_block_commands: metered_channel::Sender<BlockCommand>,
         registry: &Registry,
     ) -> SubscriberResult<Vec<JoinHandle<()>>>
     where
@@ -341,12 +326,14 @@ impl Node {
         // Spawn the client executing the transactions. It can also synchronize with the
         // subscriber handler if it missed some transactions.
         let executor_handles = Executor::spawn(
-            store.temp_batch_store.clone(),
+            name,
+            committee,
+            worker_cache,
+            store.batch_store.clone(),
             execution_state,
             tx_reconfigure,
             /* rx_consensus */ rx_sequence,
             /* tx_output */ tx_confirmation,
-            tx_get_block_commands,
             registry,
             restored_consensus_output,
         )
