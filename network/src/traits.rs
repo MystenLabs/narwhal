@@ -24,13 +24,13 @@ pub trait UnreliableNetwork: BaseNetwork {
         &mut self,
         address: Multiaddr,
         message: BincodeEncodedPayload,
-    ) -> JoinHandle<()>;
+    ) -> Option<JoinHandle<()>>;
 
     async fn unreliable_send(
         &mut self,
         address: Multiaddr,
         message: &Self::Message,
-    ) -> JoinHandle<()> {
+    ) -> Option<JoinHandle<()>> {
         let message =
             BincodeEncodedPayload::try_from(message).expect("Failed to serialize payload");
         self.unreliable_send_message(address, message).await
@@ -47,8 +47,12 @@ pub trait UnreliableNetwork: BaseNetwork {
             BincodeEncodedPayload::try_from(message).expect("Failed to serialize payload");
         let mut handlers = Vec::new();
         for address in addresses {
-            let handle = { self.unreliable_send_message(address, message.clone()).await };
-            handlers.push(handle);
+            if let Some(handle) = self.unreliable_send_message(address, message.clone()).await {
+                // todo - eventually unreliable_xxx should stop returning join handlers
+                // Currently there are few places (unit tests and p2w network reconfigure) that uses it so having this as a work around
+                // This current usage is broken anyway so we are not making things much worse here
+                handlers.push(handle);
+            }
         }
         handlers
     }
