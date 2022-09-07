@@ -202,7 +202,7 @@ class Bench:
 
         worker_keys = []
         worker_key_files = [PathMaker.worker_key_file(
-            i) for i in range(self.workers*hosts)]
+            i) for i in range(bench_parameters.workers*len(hosts))]
         for filename in worker_key_files:
             cmd = CommandMaker.generate_key(filename).split()
             subprocess.run(cmd, check=True)
@@ -212,7 +212,9 @@ class Bench:
         if bench_parameters.collocate:
             workers = OrderedDict(
                 (x, OrderedDict(
-                    (worker_names[i*bench_parameters.workers + y], [h] * (workers)) for y in range(workers))
+                    (worker_names[i*bench_parameters.workers + y],
+                     [h] * (bench_parameters.workers))
+                    for y in range(bench_parameters.workers))
                  ) for i, (x, h) in enumerate(zip(primary_names, hosts))
             )
         else:
@@ -278,7 +280,7 @@ class Bench:
             host = address.split(':')[1].strip("/")
             cmd = CommandMaker.run_primary(
                 PathMaker.primary_key_file(i),
-                PathMaker.worker_key_file(0),
+                PathMaker.worker_key_file(i),
                 PathMaker.committee_file(),
                 PathMaker.workers_file(),
                 PathMaker.db_path(i),
