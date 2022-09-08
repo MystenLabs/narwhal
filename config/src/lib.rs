@@ -664,9 +664,7 @@ mod tests {
         assert!(logs_contain("Sync retry nodes set to 3 nodes"));
         assert!(logs_contain("Batch size set to 500000 B"));
         assert!(logs_contain("Max batch delay set to 100 ms"));
-        assert!(logs_contain(
-            "Synchronize certificates timeout set to 30 s"
-        ));
+        assert!(logs_contain("Synchronize certificates timeout set to 30 s"));
         assert!(logs_contain(
             "Payload (batches) availability timeout set to 30 s"
         ));

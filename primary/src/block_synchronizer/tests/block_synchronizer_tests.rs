@@ -651,6 +651,10 @@ async fn test_timeout_while_waiting_for_certificates() {
         .unwrap();
 
     // AND create the synchronizer
+    let params = BlockSynchronizerParameters {
+        certificates_synchronize_timeout: Duration::from_secs(1),
+        ..Default::default()
+    };
     let _synchronizer_handle = BlockSynchronizer::spawn(
         name.clone(),
         committee.clone(),
@@ -662,7 +666,7 @@ async fn test_timeout_while_waiting_for_certificates() {
         PrimaryNetwork::new(network),
         payload_store.clone(),
         certificate_store.clone(),
-        BlockSynchronizerParameters::default(),
+        params,
     );
 
     // AND the channel to respond to
