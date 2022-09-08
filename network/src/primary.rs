@@ -94,7 +94,7 @@ impl UnreliableNetwork for PrimaryToWorkerNetwork {
         address: Multiaddr,
         message: BincodeEncodedPayload,
     ) -> Option<JoinHandle<()>> {
-        let mut client = self.client(address.clone());
+        let mut client = self.client(address);
         let handler = self
             .executor
             .try_spawn(async move {
