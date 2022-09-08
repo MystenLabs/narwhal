@@ -77,7 +77,7 @@ impl ExecutionState for SimpleExecutionState {
                 .pop()
                 .unwrap();
 
-            let worker_keypairs = keys(None);
+            let worker_keypairs = keys(100);
             let worker_ids = 0..worker_keypairs.len() as u32;
             let worker_ids_and_keypairs = worker_ids.zip(worker_keypairs.into_iter()).collect();
 
@@ -353,7 +353,7 @@ async fn epoch_change() {
 
         let _worker_handles = Node::spawn_workers(
             name,
-            /* worker ids_and_keypairs */ vec![(0, keys(None).pop().unwrap())],
+            /* worker ids_and_keypairs */ vec![(0, keys(100).pop().unwrap())],
             Arc::new(ArcSwap::new(Arc::new(committee.clone()))),
             worker_cache.clone(),
             &store,

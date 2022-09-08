@@ -4,12 +4,13 @@
 use super::*;
 
 use arc_swap::ArcSwap;
+use fastcrypto::traits::KeyPair;
 use futures::StreamExt;
 use prometheus::Registry;
 use std::time::Duration;
 use store::rocks;
 use test_utils::{
-    batch, digest_batch, keys, serialize_batch_message, temp_dir, CommitteeFixture,
+    batch, digest_batch, serialize_batch_message, temp_dir, CommitteeFixture,
     WorkerToPrimaryMockServer, WorkerToWorkerMockServer,
 };
 use types::{
@@ -21,8 +22,13 @@ async fn handle_clients_transactions() {
     let fixture = CommitteeFixture::builder().randomize_ports(true).build();
     let committee = fixture.committee();
     let worker_cache = fixture.shared_worker_cache();
-    let name = fixture.authorities().next().unwrap().public_key();
-    let id = 0;
+
+    let author = fixture.authorities().last().unwrap();
+    let name = author.public_key();
+
+    let worker_id = 0;
+    let worker_keypair = author.worker(worker_id).keypair().copy();
+
     let parameters = Parameters {
         batch_size: 200, // Two transactions.
         ..Parameters::default()
@@ -48,8 +54,8 @@ async fn handle_clients_transactions() {
     // Spawn a `Worker` instance.
     Worker::spawn(
         name.clone(),
-        keys(None).pop().unwrap(),
-        id,
+        worker_keypair,
+        worker_id,
         Arc::new(ArcSwap::from_pointee(committee.clone())),
         worker_cache.clone(),
         parameters,
@@ -63,12 +69,13 @@ async fn handle_clients_transactions() {
     let batch_digest = serialized_batch_digest(&serialized_batch).unwrap();
 
     let primary_address = committee.primary(&name).unwrap().worker_to_primary;
-    let expected = bincode::serialize(&WorkerPrimaryMessage::OurBatch(batch_digest, id)).unwrap();
+    let expected =
+        bincode::serialize(&WorkerPrimaryMessage::OurBatch(batch_digest, worker_id)).unwrap();
     let mut handle = WorkerToPrimaryMockServer::spawn(primary_address);
 
     // Spawn enough workers' listeners to acknowledge our batches.
     let mut other_workers = Vec::new();
-    for (_, addresses) in worker_cache.load().others_workers(&name, &id) {
+    for (_, addresses) in worker_cache.load().others_workers(&name, &worker_id) {
         let address = addresses.worker_to_worker;
         other_workers.push(WorkerToWorkerMockServer::spawn(address));
     }
@@ -76,7 +83,11 @@ async fn handle_clients_transactions() {
     // Wait till other services have been able to start up
     tokio::task::yield_now().await;
     // Send enough transactions to create a batch.
-    let address = worker_cache.load().worker(&name, &id).unwrap().transactions;
+    let address = worker_cache
+        .load()
+        .worker(&name, &worker_id)
+        .unwrap()
+        .transactions;
     let config = mysten_network::config::Config::new();
     let channel = config.connect_lazy(&address).unwrap();
     let mut client = TransactionsClient::new(channel);
@@ -93,11 +104,16 @@ async fn handle_clients_transactions() {
 
 #[tokio::test]
 async fn handle_client_batch_request() {
-    let id = 0;
     let fixture = CommitteeFixture::builder().randomize_ports(true).build();
     let committee = fixture.committee();
     let worker_cache = fixture.shared_worker_cache();
-    let name = fixture.authorities().next().unwrap().public_key();
+
+    let author = fixture.authorities().last().unwrap();
+    let name = author.public_key();
+
+    let worker_id = 0;
+    let worker_keypair = author.worker(worker_id).keypair().copy();
+
     let parameters = Parameters {
         max_header_delay: Duration::from_millis(100_000), // Ensure no batches are created.
         ..Parameters::default()
@@ -132,8 +148,8 @@ async fn handle_client_batch_request() {
     // Spawn a `Worker` instance.
     Worker::spawn(
         name.clone(),
-        keys(None).pop().unwrap(),
-        id,
+        worker_keypair,
+        worker_id,
         Arc::new(ArcSwap::from_pointee(committee.clone())),
         worker_cache.clone(),
         parameters,
@@ -145,7 +161,7 @@ async fn handle_client_batch_request() {
     tokio::task::yield_now().await;
     let address = worker_cache
         .load()
-        .worker(&name, &id)
+        .worker(&name, &worker_id)
         .unwrap()
         .worker_to_worker;
     let config = mysten_network::config::Config::new();

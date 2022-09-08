@@ -179,7 +179,7 @@ pub struct PrimaryToPrimaryMockServer {
 impl PrimaryToPrimaryMockServer {
     pub fn spawn(keypair: KeyPair, address: Multiaddr) -> (Receiver<PrimaryMessage>, Network) {
         let addr = network::multiaddr_to_address(&address).unwrap();
-        let (sender, reciever) = channel(1);
+        let (sender, receiver) = channel(1);
         let service = PrimaryToPrimaryServer::new(Self { sender });
 
         let routes = anemo::Router::new().add_rpc_service(service);
@@ -189,7 +189,7 @@ impl PrimaryToPrimaryMockServer {
             .start(routes)
             .unwrap();
         info!("starting network on: {}", network.local_addr());
-        (reciever, network)
+        (receiver, network)
     }
 }
 
@@ -800,6 +800,10 @@ pub struct AuthorityFixture {
 }
 
 impl AuthorityFixture {
+    pub fn worker(&self, id: WorkerId) -> &WorkerFixture {
+        self.workers.get(&id).unwrap()
+    }
+
     pub fn keypair(&self) -> &KeyPair {
         &self.keypair
     }
@@ -881,7 +885,6 @@ impl AuthorityFixture {
 }
 
 pub struct WorkerFixture {
-    #[allow(dead_code)]
     keypair: KeyPair,
     #[allow(dead_code)]
     id: WorkerId,
@@ -889,12 +892,17 @@ pub struct WorkerFixture {
 }
 
 impl WorkerFixture {
+    pub fn keypair(&self) -> &KeyPair {
+        &self.keypair
+    }
+
     fn generate<R, P>(mut rng: R, id: WorkerId, mut get_port: P) -> Self
     where
         R: ::rand::RngCore + ::rand::CryptoRng,
         P: FnMut() -> u16,
     {
         let keypair = KeyPair::generate(&mut rng);
+        let name = keypair.public().clone();
         let primary_to_worker = format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
             .parse()
             .unwrap();
@@ -909,6 +917,7 @@ impl WorkerFixture {
             keypair,
             id,
             info: WorkerInfo {
+                name,
                 primary_to_worker,
                 worker_to_worker,
                 transactions,

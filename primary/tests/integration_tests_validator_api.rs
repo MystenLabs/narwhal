@@ -49,10 +49,12 @@ async fn test_get_collections() {
     let name = author.public_key();
     let signer = author.keypair().copy();
 
+    let worker_id = 0;
+    let worker_keypair = author.worker(worker_id).keypair().copy();
+
     // Make the data store.
     let store = NodeStorage::reopen(temp_dir());
 
-    let worker_id = 0;
     let mut header_ids = Vec::new();
     // Blocks/Collections
     let mut collection_ids = Vec::new();
@@ -145,7 +147,7 @@ async fn test_get_collections() {
     // Spawn a `Worker` instance.
     Worker::spawn(
         name.clone(),
-        keys(None).pop().unwrap(),
+        worker_keypair,
         worker_id,
         Arc::new(ArcSwap::from_pointee(committee.clone())),
         worker_cache.clone(),
@@ -242,10 +244,11 @@ async fn test_remove_collections() {
     let name = author.public_key();
     let signer = author.keypair().copy();
 
+    let worker_id = 0;
+    let worker_keypair = author.worker(worker_id).keypair().copy();
+
     // Make the data store.
     let store = NodeStorage::reopen(temp_dir());
-
-    let worker_id = 0;
     let mut header_ids = Vec::new();
     // Blocks/Collections
     let mut collection_ids = Vec::new();
@@ -364,7 +367,7 @@ async fn test_remove_collections() {
     // Spawn a `Worker` instance.
     Worker::spawn(
         name.clone(),
-        keys(None).pop().unwrap(),
+        worker_keypair,
         worker_id,
         Arc::new(ArcSwap::from_pointee(committee.clone())),
         worker_cache.clone(),
@@ -896,6 +899,8 @@ async fn test_get_collections_with_missing_certificates() {
     let name_2 = authority_2.public_key();
 
     let worker_id = 0;
+    let worker_1_keypair = authority_1.worker(worker_id).keypair().copy();
+    let worker_2_keypair = authority_2.worker(worker_id).keypair().copy();
 
     // AND keep a map of batches and payload
     let mut batches_map = HashMap::new();
@@ -949,7 +954,7 @@ async fn test_get_collections_with_missing_certificates() {
     // Spawn a `Worker` instance for primary 1.
     Worker::spawn(
         name_1,
-        keys(None).pop().unwrap(),
+        worker_1_keypair,
         worker_id,
         Arc::new(ArcSwap::from_pointee(committee.clone())),
         worker_cache.clone(),
@@ -1000,7 +1005,7 @@ async fn test_get_collections_with_missing_certificates() {
     // Spawn a `Worker` instance for primary 2.
     Worker::spawn(
         name_2,
-        keys(None).pop().unwrap(),
+        worker_2_keypair,
         worker_id,
         Arc::new(ArcSwap::from_pointee(committee.clone())),
         worker_cache.clone(),
