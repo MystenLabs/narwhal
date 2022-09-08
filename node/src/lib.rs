@@ -13,20 +13,16 @@ use fastcrypto::traits::{KeyPair as _, VerifyingKey};
 use primary::{BlockCommand, NetworkModel, PayloadToken, Primary, PrimaryChannelMetrics};
 use prometheus::{IntGauge, Registry};
 use std::{fmt::Debug, sync::Arc};
-use storage::{CertificateStore, CertificateToken};
-use store::{
-    reopen,
-    rocks::{open_cf, DBMap},
-    Store,
-};
+use storage::CertificateStore;
+use store::{reopen, rocks::open_cf, Store};
 use tokio::{
     sync::{mpsc::Sender, watch},
     task::JoinHandle,
 };
 use tracing::debug;
 use types::{
-    metered_channel, Batch, BatchDigest, Certificate, CertificateDigest, ConsensusStore, Header,
-    HeaderDigest, ReconfigureNotification, Round, SequenceNumber, SerializedBatchMessage,
+    metered_channel, Batch, BatchDigest, Certificate, ConsensusStore, Header, HeaderDigest,
+    ReconfigureNotification, Round, SequenceNumber, SerializedBatchMessage,
 };
 use worker::{metrics::initialise_metrics, Worker};
 
@@ -42,6 +38,7 @@ pub struct NodeStorage {
     pub batch_store: Store<BatchDigest, SerializedBatchMessage>,
     pub consensus_store: Arc<ConsensusStore>,
     pub temp_batch_store: Store<BatchDigest, Batch>,
+    pub proposer_store: Store<BatchDigest, WorkerId>,
 }
 
 impl NodeStorage {
@@ -54,6 +51,7 @@ impl NodeStorage {
     const LAST_COMMITTED_CF: &'static str = "last_committed";
     const SEQUENCE_CF: &'static str = "sequence";
     const TEMP_BATCH_CF: &'static str = "temp_batches";
+    const PROPOSER_CF: &'static str = "proposer";
 
     /// Open or reopen all the storage of the node.
     pub fn reopen<Path: AsRef<std::path::Path>>(store_path: Path) -> Self {
@@ -69,6 +67,7 @@ impl NodeStorage {
                 Self::LAST_COMMITTED_CF,
                 Self::SEQUENCE_CF,
                 Self::TEMP_BATCH_CF,
+                Self::PROPOSER_CF,
             ],
         )
         .expect("Cannot open database");
@@ -82,6 +81,7 @@ impl NodeStorage {
             last_committed_map,
             sequence_map,
             temp_batch_map,
+            proposer_map,
         ) = reopen!(&rocksdb,
             Self::HEADERS_CF;<HeaderDigest, Header>,
             Self::CERTIFICATES_CF;<CertificateDigest, Certificate>,
@@ -90,7 +90,8 @@ impl NodeStorage {
             Self::BATCHES_CF;<BatchDigest, SerializedBatchMessage>,
             Self::LAST_COMMITTED_CF;<PublicKey, Round>,
             Self::SEQUENCE_CF;<SequenceNumber, CertificateDigest>,
-            Self::TEMP_BATCH_CF;<BatchDigest, Batch>
+            Self::TEMP_BATCH_CF;<BatchDigest, Batch>,
+            Self::PROPOSER_CF;<BatchDigest, WorkerId>,
         );
 
         let header_store = Store::new(header_map);
@@ -99,6 +100,7 @@ impl NodeStorage {
         let batch_store = Store::new(batch_map);
         let consensus_store = Arc::new(ConsensusStore::new(last_committed_map, sequence_map));
         let temp_batch_store = Store::new(temp_batch_map);
+        let proposer_store = Store::new(proposer_map);
 
         Self {
             header_store,
@@ -107,6 +109,7 @@ impl NodeStorage {
             batch_store,
             consensus_store,
             temp_batch_store,
+            proposer_store,
         }
     }
 }
@@ -241,6 +244,7 @@ impl Node {
             tx_reconfigure,
             tx_consensus,
             registry,
+            store.proposer_store.clone(),
         );
         handles.extend(primary_handles);
 

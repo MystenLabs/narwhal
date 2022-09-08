@@ -81,6 +81,7 @@ impl Primary {
         tx_reconfigure: watch::Sender<ReconfigureNotification>,
         tx_committed_certificates: Sender<Certificate>,
         registry: &Registry,
+        proposer_store: Store<BatchDigest, WorkerId>,
     ) -> Vec<JoinHandle<()>> {
         // Write the parameters to the logs.
         parameters.tracing();
@@ -398,6 +399,7 @@ impl Primary {
             /* rx_workers */ rx_our_digests,
             /* tx_core */ tx_headers,
             node_metrics,
+            proposer_store,
         );
 
         // The `Helper` is dedicated to reply to certificates & payload availability requests

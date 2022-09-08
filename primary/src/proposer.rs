@@ -6,6 +6,7 @@ use config::{Committee, Epoch, WorkerId};
 use crypto::{PublicKey, Signature};
 use fastcrypto::{Digest, Hash as _, SignatureService};
 use std::{cmp::Ordering, sync::Arc};
+use store::Store;
 use tokio::{
     sync::watch,
     task::JoinHandle,
@@ -45,6 +46,8 @@ pub struct Proposer {
     rx_workers: Receiver<(BatchDigest, WorkerId)>,
     /// Sends newly created headers to the `Core`.
     tx_core: Sender<Header>,
+    /// Proposer store to back up digests for crash recovery
+    proposer_store: Store<BatchDigest, WorkerId>,
 
     /// The current round of the dag.
     round: Round,
@@ -75,6 +78,7 @@ impl Proposer {
         rx_workers: Receiver<(BatchDigest, WorkerId)>,
         tx_core: Sender<Header>,
         metrics: Arc<PrimaryMetrics>,
+        proposer_store: Store<BatchDigest, WorkerId>,
     ) -> JoinHandle<()> {
         let genesis = Certificate::genesis(&committee);
         tokio::spawn(async move {
