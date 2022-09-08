@@ -685,6 +685,8 @@
 <span id="685">685</span>
 <span id="686">686</span>
 <span id="687">687</span>
+<span id="688">688</span>
+<span id="689">689</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -985,6 +987,8 @@
 
 <span class="attribute">#[derive(Clone, Serialize, Deserialize, Eq, Hash, PartialEq, Debug)]
 </span><span class="kw">pub struct </span>WorkerInfo {
+    <span class="doccomment">/// The public key of this worker.
+    </span><span class="kw">pub </span>name: PublicKey,
     <span class="doccomment">/// Address to receive client transactions (WAN).
     </span><span class="kw">pub </span>transactions: Multiaddr,
     <span class="doccomment">/// Address to receive messages from other workers (WAN).

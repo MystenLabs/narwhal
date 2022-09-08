@@ -916,6 +916,22 @@
 <span id="916">916</span>
 <span id="917">917</span>
 <span id="918">918</span>
+<span id="919">919</span>
+<span id="920">920</span>
+<span id="921">921</span>
+<span id="922">922</span>
+<span id="923">923</span>
+<span id="924">924</span>
+<span id="925">925</span>
+<span id="926">926</span>
+<span id="927">927</span>
+<span id="928">928</span>
+<span id="929">929</span>
+<span id="930">930</span>
+<span id="931">931</span>
+<span id="932">932</span>
+<span id="933">933</span>
+<span id="934">934</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -1097,7 +1113,7 @@
 <span class="kw">impl </span>PrimaryToPrimaryMockServer {
     <span class="kw">pub fn </span>spawn(keypair: KeyPair, address: Multiaddr) -&gt; (Receiver&lt;PrimaryMessage&gt;, Network) {
         <span class="kw">let </span>addr = network::multiaddr_to_address(<span class="kw-2">&amp;</span>address).unwrap();
-        <span class="kw">let </span>(sender, reciever) = channel(<span class="number">1</span>);
+        <span class="kw">let </span>(sender, receiver) = channel(<span class="number">1</span>);
         <span class="kw">let </span>service = PrimaryToPrimaryServer::new(<span class="self">Self </span>{ sender });
 
         <span class="kw">let </span>routes = anemo::Router::new().add_rpc_service(service);
@@ -1107,7 +1123,7 @@
             .start(routes)
             .unwrap();
         <span class="macro">info!</span>(<span class="string">&quot;starting network on: {}&quot;</span>, network.local_addr());
-        (reciever, network)
+        (receiver, network)
     }
 }
 
@@ -1695,7 +1711,7 @@
         Certificate::new(<span class="kw-2">&amp;</span>committee, header.clone(), votes).unwrap()
     }
 
-    <span class="doccomment">/// Add a new authority to the committ by randoming generating a key
+    <span class="doccomment">/// Add a new authority to the commit by randoming generating a key
     </span><span class="kw">pub fn </span>add_authority(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="kw">let </span>authority = AuthorityFixture::generate(
             <span class="kw-2">&amp;mut </span>OsRng,
@@ -1720,6 +1736,17 @@
 <span class="kw">impl </span>AuthorityFixture {
     <span class="kw">pub fn </span>keypair(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>KeyPair {
         <span class="kw-2">&amp;</span><span class="self">self</span>.keypair
+    }
+
+    <span class="kw">pub fn </span>worker(<span class="kw-2">&amp;</span><span class="self">self</span>, id: WorkerId) -&gt; <span class="kw-2">&amp;</span>WorkerFixture {
+        <span class="self">self</span>.workers.get(<span class="kw-2">&amp;</span>id).unwrap()
+    }
+
+    <span class="kw">pub fn </span>worker_keypairs(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;KeyPair&gt; {
+        <span class="self">self</span>.workers
+            .values()
+            .map(|worker| worker.keypair.copy())
+            .collect()
     }
 
     <span class="kw">pub fn </span>public_key(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; PublicKey {
@@ -1799,20 +1826,24 @@
 }
 
 <span class="kw">pub struct </span>WorkerFixture {
-    <span class="attribute">#[allow(dead_code)]
-    </span>keypair: KeyPair,
+    keypair: KeyPair,
     <span class="attribute">#[allow(dead_code)]
     </span>id: WorkerId,
     info: WorkerInfo,
 }
 
 <span class="kw">impl </span>WorkerFixture {
+    <span class="kw">pub fn </span>keypair(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>KeyPair {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.keypair
+    }
+
     <span class="kw">fn </span>generate&lt;R, P&gt;(<span class="kw-2">mut </span>rng: R, id: WorkerId, <span class="kw-2">mut </span>get_port: P) -&gt; <span class="self">Self
     </span><span class="kw">where
         </span>R: ::rand::RngCore + ::rand::CryptoRng,
         P: FnMut() -&gt; u16,
     {
         <span class="kw">let </span>keypair = KeyPair::generate(<span class="kw-2">&amp;mut </span>rng);
+        <span class="kw">let </span>name = keypair.public().clone();
         <span class="kw">let </span>primary_to_worker = <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, get_port())
             .parse()
             .unwrap();
@@ -1827,6 +1858,7 @@
             keypair,
             id,
             info: WorkerInfo {
+                name,
                 primary_to_worker,
                 worker_to_worker,
                 transactions,

@@ -592,6 +592,13 @@
 <span id="592">592</span>
 <span id="593">593</span>
 <span id="594">594</span>
+<span id="595">595</span>
+<span id="596">596</span>
+<span id="597">597</span>
+<span id="598">598</span>
+<span id="599">599</span>
+<span id="600">600</span>
+<span id="601">601</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -603,7 +610,7 @@
 <span class="kw">use </span>async_trait::async_trait;
 <span class="kw">use </span>bytes::Bytes;
 <span class="kw">use </span>config::{Parameters, SharedCommittee, SharedWorkerCache, WorkerId};
-<span class="kw">use </span>crypto::PublicKey;
+<span class="kw">use </span>crypto::{KeyPair, PublicKey};
 <span class="kw">use </span>futures::{Stream, StreamExt};
 <span class="kw">use </span>multiaddr::{Multiaddr, Protocol};
 <span class="kw">use </span>network::{metrics::WorkerNetworkMetrics, WorkerNetwork};
@@ -637,8 +644,12 @@
 
 <span class="kw">pub struct </span>Worker {
     <span class="doccomment">/// The public key of this authority.
-    </span>name: PublicKey,
-    <span class="doccomment">/// The id of this worker.
+    </span>primary_name: PublicKey,
+    <span class="comment">// The private-public key pair of this worker.
+    // TODO: utilize keypair in network communication
+    </span><span class="attribute">#[allow(dead_code)]
+    </span>keypair: KeyPair,
+    <span class="doccomment">/// The id of this worker used for index-based lookup by other NW nodes.
     </span>id: WorkerId,
     <span class="doccomment">/// The committee information.
     </span>committee: SharedCommittee,
@@ -654,7 +665,8 @@
 
 <span class="kw">impl </span>Worker {
     <span class="kw">pub fn </span>spawn(
-        name: PublicKey,
+        primary_name: PublicKey,
+        keypair: KeyPair,
         id: WorkerId,
         committee: SharedCommittee,
         worker_cache: SharedWorkerCache,
@@ -664,7 +676,8 @@
     ) -&gt; Vec&lt;JoinHandle&lt;()&gt;&gt; {
         <span class="comment">// Define a worker instance.
         </span><span class="kw">let </span>worker = <span class="self">Self </span>{
-            name: name.clone(),
+            primary_name: primary_name.clone(),
+            keypair,
             id,
             committee: committee.clone(),
             worker_cache,
@@ -707,7 +720,8 @@
         );
 
         <span class="comment">// The `PrimaryConnector` allows the worker to send messages to its primary.
-        </span><span class="kw">let </span>handle = PrimaryConnector::spawn(name, initial_committee, rx_reconfigure, rx_primary);
+        </span><span class="kw">let </span>handle =
+            PrimaryConnector::spawn(primary_name, initial_committee, rx_reconfigure, rx_primary);
 
         <span class="comment">// NOTE: This log entry is used to compute performance.
         </span><span class="macro">info!</span>(
@@ -716,7 +730,7 @@
             worker
                 .worker_cache
                 .load()
-                .worker(<span class="kw-2">&amp;</span>worker.name, <span class="kw-2">&amp;</span>worker.id)
+                .worker(<span class="kw-2">&amp;</span>worker.primary_name, <span class="kw-2">&amp;</span>worker.id)
                 .expect(<span class="string">&quot;Our public key or worker id is not in the worker cache&quot;</span>)
                 .transactions
         );
@@ -744,7 +758,7 @@
         </span><span class="kw">let </span>address = <span class="self">self
             </span>.worker_cache
             .load()
-            .worker(<span class="kw-2">&amp;</span><span class="self">self</span>.name, <span class="kw-2">&amp;</span><span class="self">self</span>.id)
+            .worker(<span class="kw-2">&amp;</span><span class="self">self</span>.primary_name, <span class="kw-2">&amp;</span><span class="self">self</span>.id)
             .expect(<span class="string">&quot;Our public key or worker id is not in the worker cache&quot;</span>)
             .primary_to_worker;
         <span class="kw">let </span>address = address
@@ -760,7 +774,7 @@
             <span class="string">&quot;synchronizer&quot;</span>.to_string(),
         ));
         <span class="kw">let </span>handle = Synchronizer::spawn(
-            <span class="self">self</span>.name.clone(),
+            <span class="self">self</span>.primary_name.clone(),
             <span class="self">self</span>.id,
             <span class="self">self</span>.committee.clone(),
             <span class="self">self</span>.worker_cache.clone(),
@@ -804,7 +818,7 @@
         </span><span class="kw">let </span>address = <span class="self">self
             </span>.worker_cache
             .load()
-            .worker(<span class="kw-2">&amp;</span><span class="self">self</span>.name, <span class="kw-2">&amp;</span><span class="self">self</span>.id)
+            .worker(<span class="kw-2">&amp;</span><span class="self">self</span>.primary_name, <span class="kw-2">&amp;</span><span class="self">self</span>.id)
             .expect(<span class="string">&quot;Our public key or worker id is not in the worker cache&quot;</span>)
             .transactions;
         <span class="kw">let </span>address = address
@@ -836,7 +850,7 @@
             <span class="string">&quot;quorum_waiter&quot;</span>.to_string(),
         ));
         <span class="kw">let </span>quorum_waiter_handle = QuorumWaiter::spawn(
-            <span class="self">self</span>.name.clone(),
+            <span class="self">self</span>.primary_name.clone(),
             <span class="self">self</span>.id,
             (<span class="kw-2">*</span>(<span class="kw-2">*</span>(<span class="kw-2">*</span><span class="self">self</span>.committee).load()).clone()).clone(),
             <span class="self">self</span>.worker_cache.clone(),
@@ -889,7 +903,7 @@
         </span><span class="kw">let </span>address = <span class="self">self
             </span>.worker_cache
             .load()
-            .worker(<span class="kw-2">&amp;</span><span class="self">self</span>.name, <span class="kw-2">&amp;</span><span class="self">self</span>.id)
+            .worker(<span class="kw-2">&amp;</span><span class="self">self</span>.primary_name, <span class="kw-2">&amp;</span><span class="self">self</span>.id)
             .expect(<span class="string">&quot;Our public key or worker id is not in the worker cache&quot;</span>)
             .worker_to_worker;
         <span class="kw">let </span>address = address

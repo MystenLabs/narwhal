@@ -394,6 +394,7 @@
 <span id="394">394</span>
 <span id="395">395</span>
 <span id="396">396</span>
+<span id="397">397</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span>config::{Parameters, SharedCommittee, SharedWorkerCache, WorkerId};
@@ -757,9 +758,9 @@
     <span class="doccomment">/// Spawn a specified number of workers.
     </span><span class="kw">pub fn </span>spawn_workers(
         <span class="comment">// The public key of this authority.
-        </span>name: PublicKey,
-        <span class="comment">// The ids of the validators to spawn.
-        </span>ids: Vec&lt;WorkerId&gt;,
+        </span>primary_name: PublicKey,
+        <span class="comment">// The ids &amp; keypairs of the workers to spawn.
+        </span>ids_and_keypairs: Vec&lt;(WorkerId, KeyPair)&gt;,
         <span class="comment">// The committee information.
         </span>committee: SharedCommittee,
         <span class="comment">// The worker information cache.
@@ -775,9 +776,10 @@
 
         <span class="kw">let </span>metrics = initialise_metrics(registry);
 
-        <span class="kw">for </span>id <span class="kw">in </span>ids {
+        <span class="kw">for </span>(id, keypair) <span class="kw">in </span>ids_and_keypairs {
             <span class="kw">let </span>worker_handles = Worker::spawn(
-                name.clone(),
+                primary_name.clone(),
+                keypair,
                 id,
                 committee.clone(),
                 worker_cache.clone(),

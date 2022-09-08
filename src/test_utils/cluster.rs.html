@@ -785,6 +785,19 @@
 <span id="785">785</span>
 <span id="786">786</span>
 <span id="787">787</span>
+<span id="788">788</span>
+<span id="789">789</span>
+<span id="790">790</span>
+<span id="791">791</span>
+<span id="792">792</span>
+<span id="793">793</span>
+<span id="794">794</span>
+<span id="795">795</span>
+<span id="796">796</span>
+<span id="797">797</span>
+<span id="798">798</span>
+<span id="799">799</span>
+<span id="800">800</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use crate</span>::{temp_dir, CommitteeFixture};
@@ -851,6 +864,7 @@
             <span class="kw">let </span>authority = AuthorityDetails::new(
                 id,
                 authority_fixture.keypair().copy(),
+                authority_fixture.worker_keypairs(),
                 params.clone(),
                 shared_committee.clone(),
                 shared_worker_cache.clone(),
@@ -1218,7 +1232,7 @@
     }
 
     <span class="doccomment">/// Starts the node. When preserve_store is true then the last used
-    </span><span class="kw">async fn </span>start(<span class="kw-2">&amp;mut </span><span class="self">self</span>, preserve_store: bool) {
+    </span><span class="kw">async fn </span>start(<span class="kw-2">&amp;mut </span><span class="self">self</span>, keypair: KeyPair, preserve_store: bool) {
         <span class="kw">if </span><span class="self">self</span>.is_running() {
             <span class="macro">panic!</span>(
                 <span class="string">&quot;Worker with id {} is already running, can&#39;t start again&quot;</span>,
@@ -1238,7 +1252,7 @@
         <span class="kw">let </span>worker_store = NodeStorage::reopen(store_path.clone());
         <span class="kw">let </span>worker_handlers = Node::spawn_workers(
             <span class="self">self</span>.name.clone(),
-            <span class="macro">vec!</span>[<span class="self">self</span>.id],
+            <span class="macro">vec!</span>[(<span class="self">self</span>.id, keypair)],
             <span class="self">self</span>.committee.clone(),
             <span class="self">self</span>.worker_cache.clone(),
             <span class="kw-2">&amp;</span>worker_store,
@@ -1282,6 +1296,7 @@
 
 <span class="kw">struct </span>AuthorityDetailsInternal {
     primary: PrimaryNodeDetails,
+    worker_keypairs: Vec&lt;KeyPair&gt;,
     workers: HashMap&lt;WorkerId, WorkerNodeDetails&gt;,
 }
 
@@ -1289,6 +1304,7 @@
     <span class="kw">pub fn </span>new(
         id: usize,
         key_pair: KeyPair,
+        worker_keypairs: Vec&lt;KeyPair&gt;,
         parameters: Parameters,
         committee: SharedCommittee,
         worker_cache: SharedWorkerCache,
@@ -1321,7 +1337,11 @@
             workers.insert(worker_id, worker);
         }
 
-        <span class="kw">let </span>internal = AuthorityDetailsInternal { primary, workers };
+        <span class="kw">let </span>internal = AuthorityDetailsInternal {
+            primary,
+            worker_keypairs,
+            workers,
+        };
 
         <span class="self">Self </span>{
             id,
@@ -1367,9 +1387,15 @@
 
     <span class="kw">pub async fn </span>start_all_workers(<span class="kw-2">&amp;</span><span class="self">self</span>, preserve_store: bool) {
         <span class="kw">let </span><span class="kw-2">mut </span>internal = <span class="self">self</span>.internal.write().<span class="kw">await</span>;
+        <span class="kw">let </span>worker_keypairs = internal
+            .worker_keypairs
+            .iter()
+            .map(|kp| kp.copy())
+            .collect::&lt;Vec&lt;KeyPair&gt;&gt;();
 
-        <span class="kw">for </span>(<span class="kw">_</span>, worker) <span class="kw">in </span>internal.workers.iter_mut() {
-            worker.start(preserve_store).<span class="kw">await</span>;
+        <span class="kw">for </span>(id, worker) <span class="kw">in </span>internal.workers.iter_mut() {
+            <span class="kw">let </span>keypair = worker_keypairs.get(<span class="kw-2">*</span>id <span class="kw">as </span>usize).unwrap().copy();
+            worker.start(keypair, preserve_store).<span class="kw">await</span>;
         }
     }
 
@@ -1379,13 +1405,13 @@
     /// start with a fresh (empty) storage.
     </span><span class="kw">pub async fn </span>start_worker(<span class="kw-2">&amp;</span><span class="self">self</span>, id: WorkerId, preserve_store: bool) {
         <span class="kw">let </span><span class="kw-2">mut </span>internal = <span class="self">self</span>.internal.write().<span class="kw">await</span>;
-
+        <span class="kw">let </span>keypair = internal.worker_keypairs.get(id <span class="kw">as </span>usize).unwrap().copy();
         <span class="kw">let </span>worker = internal
             .workers
             .get_mut(<span class="kw-2">&amp;</span>id)
             .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">&quot;Worker with id {} not found &quot;</span>, id));
 
-        worker.start(preserve_store).<span class="kw">await</span>;
+        worker.start(keypair, preserve_store).<span class="kw">await</span>;
     }
 
     <span class="kw">pub async fn </span>stop_worker(<span class="kw-2">&amp;</span><span class="self">self</span>, id: WorkerId) {

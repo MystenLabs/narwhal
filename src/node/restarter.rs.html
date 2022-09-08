@@ -131,11 +131,16 @@
 <span id="131">131</span>
 <span id="132">132</span>
 <span id="133">133</span>
+<span id="134">134</span>
+<span id="135">135</span>
+<span id="136">136</span>
+<span id="137">137</span>
+<span id="138">138</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use crate</span>::{Node, NodeStorage};
 <span class="kw">use </span>arc_swap::ArcSwap;
-<span class="kw">use </span>config::{Committee, Parameters, SharedWorkerCache};
+<span class="kw">use </span>config::{Committee, Parameters, SharedWorkerCache, WorkerCache, WorkerId};
 <span class="kw">use </span>crypto::KeyPair;
 <span class="kw">use </span>executor::{ExecutionState, ExecutorOutput};
 <span class="kw">use </span>fastcrypto::traits::KeyPair <span class="kw">as _</span>;
@@ -152,13 +157,14 @@
 
 <span class="kw">impl </span>NodeRestarter {
     <span class="kw">pub async fn </span>watch&lt;State&gt;(
-        keypair: KeyPair,
+        primary_keypair: KeyPair,
+        worker_ids_and_keypairs: Vec&lt;(WorkerId, KeyPair)&gt;,
         committee: <span class="kw-2">&amp;</span>Committee,
         worker_cache: SharedWorkerCache,
         storage_base_path: PathBuf,
         execution_state: Arc&lt;State&gt;,
         parameters: Parameters,
-        <span class="kw-2">mut </span>rx_reconfigure: Receiver&lt;(KeyPair, Committee)&gt;,
+        <span class="kw-2">mut </span>rx_reconfigure: Receiver&lt;(KeyPair, Committee, Vec&lt;(WorkerId, KeyPair)&gt;, WorkerCache)&gt;,
         tx_output: Sender&lt;ExecutorOutput&lt;State&gt;&gt;,
         registry: <span class="kw-2">&amp;</span>Registry,
     ) <span class="kw">where
@@ -166,8 +172,9 @@
         State::Outcome: Send + <span class="lifetime">&#39;static</span>,
         State::Error: Debug,
     {
-        <span class="kw">let </span><span class="kw-2">mut </span>keypair = keypair;
-        <span class="kw">let </span><span class="kw-2">mut </span>name = keypair.public().clone();
+        <span class="kw">let </span><span class="kw-2">mut </span>primary_keypair = primary_keypair;
+        <span class="kw">let </span><span class="kw-2">mut </span>name = primary_keypair.public().clone();
+        <span class="kw">let </span><span class="kw-2">mut </span>worker_ids_and_keypairs = worker_ids_and_keypairs;
         <span class="kw">let </span><span class="kw-2">mut </span>committee = committee.clone();
 
         <span class="kw">let </span><span class="kw-2">mut </span>handles = Vec::new();
@@ -185,7 +192,7 @@
 
             <span class="comment">// Restart the relevant components.
             </span><span class="kw">let </span>primary_handles = Node::spawn_primary(
-                keypair,
+                primary_keypair,
                 Arc::new(ArcSwap::new(Arc::new(committee.clone()))),
                 worker_cache.clone(),
                 <span class="kw-2">&amp;</span>store,
@@ -200,7 +207,7 @@
 
             <span class="kw">let </span>worker_handles = Node::spawn_workers(
                 name.clone(),
-                <span class="comment">/* worker_ids */ </span><span class="macro">vec!</span>[<span class="number">0</span>],
+                worker_ids_and_keypairs,
                 Arc::new(ArcSwap::new(Arc::new(committee.clone()))),
                 worker_cache.clone(),
                 <span class="kw-2">&amp;</span>store,
@@ -212,10 +219,11 @@
             handles.extend(worker_handles);
 
             <span class="comment">// Wait for a committee change.
-            </span><span class="kw">let </span>(new_keypair, new_committee) = <span class="kw">match </span>rx_reconfigure.recv().<span class="kw">await </span>{
-                <span class="prelude-val">Some</span>(x) =&gt; x,
-                <span class="prelude-val">None </span>=&gt; <span class="kw">break</span>,
-            };
+            </span><span class="kw">let </span>(new_keypair, new_committee, new_worker_ids_and_keypairs, new_worker_cache) =
+                <span class="kw">match </span>rx_reconfigure.recv().<span class="kw">await </span>{
+                    <span class="prelude-val">Some</span>(x) =&gt; x,
+                    <span class="prelude-val">None </span>=&gt; <span class="kw">break</span>,
+                };
             <span class="macro">tracing::info!</span>(<span class="string">&quot;Starting reconfiguration with committee {committee}&quot;</span>);
 
             <span class="comment">// Shutdown all relevant components.
@@ -258,9 +266,11 @@
             <span class="macro">tracing::debug!</span>(<span class="string">&quot;Epoch E{} terminated&quot;</span>, committee.epoch());
 
             <span class="comment">// Update the settings for the next epoch.
-            </span>keypair = new_keypair;
-            name = keypair.public().clone();
+            </span>primary_keypair = new_keypair;
+            name = primary_keypair.public().clone();
+            worker_ids_and_keypairs = new_worker_ids_and_keypairs;
             committee = new_committee;
+            worker_cache.swap(Arc::new(new_worker_cache));
         }
     }
 }
