@@ -16,7 +16,7 @@ use std::{
     fmt::Debug,
     sync::{Arc, Mutex},
 };
-use test_utils::{keys, CommitteeFixture};
+use test_utils::CommitteeFixture;
 use tokio::{
     sync::mpsc::{channel, Receiver, Sender},
     time::{interval, sleep, Duration, MissedTickBehavior},
@@ -26,6 +26,8 @@ use types::{ReconfigureNotification, TransactionProto, TransactionsClient, Worke
 /// A simple/dumb execution engine.
 struct SimpleExecutionState {
     keypair: KeyPair,
+    worker_keypairs: Vec<KeyPair>,
+    worker_cache: WorkerCache,
     committee: Arc<Mutex<Committee>>,
     tx_reconfigure: Sender<(KeyPair, Committee, Vec<(WorkerId, KeyPair)>, WorkerCache)>,
 }
@@ -33,11 +35,15 @@ struct SimpleExecutionState {
 impl SimpleExecutionState {
     pub fn new(
         keypair: KeyPair,
+        worker_keypairs: Vec<KeyPair>,
+        worker_cache: WorkerCache,
         committee: Committee,
         tx_reconfigure: Sender<(KeyPair, Committee, Vec<(WorkerId, KeyPair)>, WorkerCache)>,
     ) -> Self {
         Self {
             keypair,
+            worker_keypairs,
+            worker_cache,
             committee: Arc::new(Mutex::new(committee)),
             tx_reconfigure,
         }
@@ -66,20 +72,9 @@ impl ExecutionState for SimpleExecutionState {
                 guard.epoch = epoch;
             };
 
-            let k = keys(None);
-            let worker_cache = worker_cache_from_keys(&k);
-            let keypair = k
-                .into_iter()
-                .enumerate()
-                .filter(|(i, _)| i == &self.index)
-                .map(|(_, x)| x)
-                .collect::<Vec<_>>()
-                .pop()
-                .unwrap();
-
-            let worker_keypairs = keys(100);
-            let worker_ids = 0..worker_keypairs.len() as u32;
-            let worker_ids_and_keypairs = worker_ids.zip(worker_keypairs.into_iter()).collect();
+            let worker_keypairs = self.worker_keypairs.iter().map(|kp| kp.copy());
+            let worker_ids = 0..self.worker_keypairs.len() as u32;
+            let worker_ids_and_keypairs = worker_ids.zip(worker_keypairs).collect();
 
             let new_committee = self.committee.lock().unwrap().clone();
 
@@ -88,7 +83,7 @@ impl ExecutionState for SimpleExecutionState {
                     self.keypair.copy(),
                     new_committee,
                     worker_ids_and_keypairs,
-                    worker_cache,
+                    self.worker_cache.clone(),
                 ))
                 .await
                 .unwrap();
@@ -198,12 +193,14 @@ async fn restart() {
 
         let execution_state = Arc::new(SimpleExecutionState::new(
             a.keypair().copy(),
+            a.worker_keypairs(),
+            fixture.worker_cache(),
             committee.clone(),
             tx_node_reconfigure,
         ));
         states.push(execution_state.clone());
 
-        let worker_keypairs = keys(None);
+        let worker_keypairs = a.worker_keypairs();
         let worker_ids = 0..worker_keypairs.len() as u32;
         let worker_ids_and_keypairs = worker_ids.zip(worker_keypairs.into_iter()).collect();
 
@@ -295,6 +292,8 @@ async fn epoch_change() {
 
         let execution_state = Arc::new(SimpleExecutionState::new(
             a.keypair().copy(),
+            a.worker_keypairs(),
+            fixture.worker_cache(),
             committee.clone(),
             tx_node_reconfigure,
         ));
@@ -353,7 +352,7 @@ async fn epoch_change() {
 
         let _worker_handles = Node::spawn_workers(
             name,
-            /* worker ids_and_keypairs */ vec![(0, keys(100).pop().unwrap())],
+            /* worker ids_and_keypairs */ vec![(0, a.worker(0).keypair().copy())],
             Arc::new(ArcSwap::new(Arc::new(committee.clone()))),
             worker_cache.clone(),
             &store,
