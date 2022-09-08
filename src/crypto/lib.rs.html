@@ -46,6 +46,9 @@
 <span id="46">46</span>
 <span id="47">47</span>
 <span id="48">48</span>
+<span id="49">49</span>
+<span id="50">50</span>
+<span id="51">51</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -57,6 +60,9 @@
 )]
 
 </span><span class="kw">use </span>fastcrypto::ed25519;
+
+<span class="comment">// This re-export allows using the trait-defined APIs
+</span><span class="kw">pub use </span>fastcrypto::traits;
 
 <span class="comment">////////////////////////////////////////////////////////////////////////
 </span><span class="doccomment">/// Type aliases selecting the signature algorithm for the code base.
