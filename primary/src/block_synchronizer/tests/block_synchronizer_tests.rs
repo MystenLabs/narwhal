@@ -535,9 +535,9 @@ async fn test_multiple_overlapping_requests() {
         worker_network: PrimaryToWorkerNetwork::default(),
         payload_store,
         certificate_store,
-        certificates_synchronize_timeout: Duration::from_millis(2_000),
-        payload_synchronize_timeout: Duration::from_millis(2_000),
-        payload_availability_timeout: Duration::from_millis(2_000),
+        certificates_synchronize_timeout: Default::default(),
+        payload_synchronize_timeout: Default::default(),
+        payload_availability_timeout: Default::default(),
     };
 
     // ResultSender

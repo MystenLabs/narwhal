@@ -203,10 +203,10 @@ pub struct BlockSynchronizerParameters {
 impl Default for BlockSynchronizerParameters {
     fn default() -> Self {
         Self {
-            certificates_synchronize_timeout: Duration::from_millis(2_000),
-            payload_synchronize_timeout: Duration::from_millis(2_000),
-            payload_availability_timeout: Duration::from_millis(2_000),
-            handler_certificate_deliver_timeout: Duration::from_millis(2_000),
+            certificates_synchronize_timeout: Duration::from_secs(30),
+            payload_synchronize_timeout: Duration::from_secs(30),
+            payload_availability_timeout: Duration::from_secs(30),
+            handler_certificate_deliver_timeout: Duration::from_secs(30),
         }
     }
 }
@@ -248,22 +248,22 @@ impl Parameters {
             self.max_batch_delay.as_millis()
         );
         info!(
-            "Synchronize certificates timeout set to {} ms",
+            "Synchronize certificates timeout set to {} s",
             self.block_synchronizer
                 .certificates_synchronize_timeout
-                .as_millis()
+                .as_secs()
         );
         info!(
-            "Payload (batches) availability timeout set to {} ms",
+            "Payload (batches) availability timeout set to {} s",
             self.block_synchronizer
                 .payload_availability_timeout
-                .as_millis()
+                .as_secs()
         );
         info!(
-            "Synchronize payload (batches) timeout set to {} ms",
+            "Synchronize payload (batches) timeout set to {} s",
             self.block_synchronizer
                 .payload_synchronize_timeout
-                .as_millis()
+                .as_secs()
         );
         info!(
             "Consensus API gRPC Server set to listen on on {}",
@@ -280,10 +280,10 @@ impl Parameters {
                 .as_millis()
         );
         info!(
-            "Handler certificate deliver timeout set to {} ms",
+            "Handler certificate deliver timeout set to {} s",
             self.block_synchronizer
                 .handler_certificate_deliver_timeout
-                .as_millis()
+                .as_secs()
         );
         info!(
             "Max concurrent requests set to {}",
@@ -665,16 +665,16 @@ mod tests {
         assert!(logs_contain("Batch size set to 500000 B"));
         assert!(logs_contain("Max batch delay set to 100 ms"));
         assert!(logs_contain(
-            "Synchronize certificates timeout set to 2000 ms"
+            "Synchronize certificates timeout set to 30 s"
         ));
         assert!(logs_contain(
-            "Payload (batches) availability timeout set to 2000 ms"
+            "Payload (batches) availability timeout set to 30 s"
         ));
         assert!(logs_contain(
-            "Synchronize payload (batches) timeout set to 2000 ms"
+            "Synchronize payload (batches) timeout set to 30 s"
         ));
         assert!(logs_contain(
-            "Handler certificate deliver timeout set to 2000 ms"
+            "Handler certificate deliver timeout set to 30 s"
         ));
         assert!(logs_contain(
             "Consensus API gRPC Server set to listen on on /ip4/127.0.0.1/tcp"
