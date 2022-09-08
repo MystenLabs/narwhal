@@ -1992,6 +1992,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "idna"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e14ddfc70884202db2244c223200c204c2bda1bc6e0998d11b5e024d657209e6"
+dependencies = [
+ "unicode-bidi",
+ "unicode-normalization",
+]
+
+[[package]]
 name = "indenter"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3480,9 +3490,9 @@ dependencies = [
 
 [[package]]
 name = "roaring"
-version = "0.10.0"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "48de5b5febb28599c6d9d34817d8ee8c74417af507b90dde0d481b28ca55ed6f"
+checksum = "ef0fb5e826a8bde011ecae6a8539dd333884335c57ff0f003fbe27c25bbe8f71"
 dependencies = [
  "bytemuck",
  "byteorder",
@@ -4828,7 +4838,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "22fe195a4f217c25b25cb5058ced57059824a678474874038dc88d211bf508d3"
 dependencies = [
  "form_urlencoded",
- "idna",
+ "idna 0.2.3",
  "percent-encoding",
 ]
 
@@ -5262,7 +5272,7 @@ dependencies = [
  "hyper",
  "hyper-timeout",
  "ident_case",
- "idna",
+ "idna 0.3.0",
  "indenter",
  "indexmap",
  "insta",
