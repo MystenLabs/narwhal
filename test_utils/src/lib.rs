@@ -15,7 +15,7 @@ use futures::Stream;
 use indexmap::IndexMap;
 use multiaddr::Multiaddr;
 use rand::rngs::OsRng;
-use rand::{rngs::StdRng, Rng, SeedableRng as _};
+use rand::Rng;
 use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
     num::NonZeroUsize,
@@ -114,200 +114,13 @@ macro_rules! test_get_block_commands {
 /// Keys, Committee
 ////////////////////////////////////////////////////////////////
 
-// Fixture
-fn keys_with_len(rng_seed: impl Into<Option<u64>>, num_keys: usize) -> Vec<KeyPair> {
-    let seed = rng_seed.into().unwrap_or(0u64).to_le_bytes();
-    let mut rng_arg = [0u8; 32];
-    for i in 0..4 {
-        rng_arg[i * 8..(i + 1) * 8].copy_from_slice(&seed[..]);
-    }
-
-    let mut rng = StdRng::from_seed(rng_arg);
-    (0..num_keys).map(|_| KeyPair::generate(&mut rng)).collect()
-}
-
-pub fn keys(rng_seed: impl Into<Option<u64>>) -> Vec<KeyPair> {
-    keys_with_len(rng_seed, 4)
-}
-
 pub fn random_key() -> KeyPair {
     KeyPair::generate(&mut OsRng)
-}
-
-// Fixture
-pub fn committee(rng_seed: impl Into<Option<u64>>) -> Committee {
-    pure_committee_from_keys(&keys(rng_seed))
-}
-
-pub fn pure_committee_from_keys(keys: &[KeyPair]) -> Committee {
-    Committee {
-        epoch: Epoch::default(),
-        authorities: keys
-            .iter()
-            .map(|kp| (kp.public().clone(), make_authority()))
-            .collect(),
-    }
-}
-
-pub fn make_authority_with_port_getter<F: FnMut() -> u16>(mut get_port: F) -> Authority {
-    let primary = PrimaryAddresses {
-        primary_to_primary: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
-            .parse()
-            .unwrap(),
-        worker_to_primary: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
-            .parse()
-            .unwrap(),
-    };
-
-    Authority { stake: 1, primary }
-}
-
-pub fn make_authority() -> Authority {
-    make_authority_with_port_getter(get_available_port)
-}
-
-// Fixture
-pub fn shared_worker_cache(rng_seed: impl Into<Option<u64>>) -> SharedWorkerCache {
-    shared_worker_cache_from_keys(&keys(rng_seed))
-}
-
-pub fn shared_worker_cache_from_keys(keys: &[KeyPair]) -> SharedWorkerCache {
-    worker_cache_from_keys(keys).into()
-}
-
-pub fn worker_cache_from_keys(keys: &[KeyPair]) -> WorkerCache {
-    WorkerCache {
-        epoch: Epoch::default(),
-        workers: keys
-            .iter()
-            .map(|kp| (kp.public().clone(), make_worker_index()))
-            .collect(),
-    }
-}
-
-pub fn make_worker_index() -> WorkerIndex {
-    initialize_worker_index_with_port_getter(get_available_port)
-}
-
-pub fn initialize_worker_index_with_port_getter<F: FnMut() -> u16>(mut get_port: F) -> WorkerIndex {
-    let workers = vec![
-        (
-            0,
-            WorkerInfo {
-                primary_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
-                    .parse()
-                    .unwrap(),
-                transactions: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
-                    .parse()
-                    .unwrap(),
-                worker_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
-                    .parse()
-                    .unwrap(),
-            },
-        ),
-        (
-            1,
-            WorkerInfo {
-                primary_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
-                    .parse()
-                    .unwrap(),
-                transactions: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
-                    .parse()
-                    .unwrap(),
-                worker_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
-                    .parse()
-                    .unwrap(),
-            },
-        ),
-        (
-            2,
-            WorkerInfo {
-                primary_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
-                    .parse()
-                    .unwrap(),
-                transactions: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
-                    .parse()
-                    .unwrap(),
-                worker_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
-                    .parse()
-                    .unwrap(),
-            },
-        ),
-        (
-            3,
-            WorkerInfo {
-                primary_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
-                    .parse()
-                    .unwrap(),
-                transactions: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
-                    .parse()
-                    .unwrap(),
-                worker_to_worker: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
-                    .parse()
-                    .unwrap(),
-            },
-        ),
-    ]
-    .iter()
-    .cloned()
-    .collect();
-
-    WorkerIndex(workers)
 }
 
 ////////////////////////////////////////////////////////////////
 /// Headers, Votes, Certificates
 ////////////////////////////////////////////////////////////////
-
-// Fixture
-pub fn mock_committee(keys: &[PublicKey]) -> Committee {
-    Committee {
-        epoch: Epoch::default(),
-        authorities: keys
-            .iter()
-            .map(|id| {
-                (
-                    id.clone(),
-                    Authority {
-                        stake: 1,
-                        primary: PrimaryAddresses {
-                            primary_to_primary: "/ip4/0.0.0.0/tcp/0/http".parse().unwrap(),
-                            worker_to_primary: "/ip4/0.0.0.0/tcp/0/http".parse().unwrap(),
-                        },
-                    },
-                )
-            })
-            .collect(),
-    }
-}
-
-// Fixture
-pub fn mock_worker_cache(keys: &[PublicKey]) -> WorkerCache {
-    WorkerCache {
-        epoch: Epoch::default(),
-        workers: keys
-            .iter()
-            .map(|id| {
-                (
-                    id.clone(),
-                    WorkerIndex(
-                        vec![(
-                            0,
-                            WorkerInfo {
-                                primary_to_worker: "/ip4/0.0.0.0/tcp/0/http".parse().unwrap(),
-                                transactions: "/ip4/0.0.0.0/tcp/0/http".parse().unwrap(),
-                                worker_to_worker: "/ip4/0.0.0.0/tcp/0/http".parse().unwrap(),
-                            },
-                        )]
-                        .iter()
-                        .cloned()
-                        .collect(),
-                    ),
-                )
-            })
-            .collect(),
-    }
-}
 
 pub fn make_consensus_store(store_path: &std::path::Path) -> Arc<ConsensusStore> {
     const LAST_COMMITTED_CF: &str = "last_committed";
@@ -513,18 +326,6 @@ impl WorkerToWorker for WorkerToWorkerMockServer {
     }
 }
 
-// helper method to get a name and a committee + worker_cache.
-pub fn resolve_name_committee_and_worker_cache() -> (PublicKey, Committee, SharedWorkerCache) {
-    let mut keys = keys(None);
-    let committee = pure_committee_from_keys(&keys);
-    let worker_cache = shared_worker_cache_from_keys(&keys);
-    let _ = keys.pop().unwrap(); // Skip the header' author.
-    let kp = keys.pop().unwrap();
-    let name = kp.public().clone();
-
-    (name, committee, worker_cache)
-}
-
 ////////////////////////////////////////////////////////////////
 /// Batches
 ////////////////////////////////////////////////////////////////
@@ -593,11 +394,12 @@ pub fn open_batch_store() -> Store<BatchDigest, types::SerializedBatchMessage> {
 // of digests to be used as parents for the certificates of the next round.
 // Note : the certificates are unsigned
 pub fn make_optimal_certificates(
+    committee: &Committee,
     range: RangeInclusive<Round>,
     initial_parents: &BTreeSet<CertificateDigest>,
     keys: &[PublicKey],
 ) -> (VecDeque<Certificate>, BTreeSet<CertificateDigest>) {
-    make_certificates(range, initial_parents, keys, 0.0)
+    make_certificates(committee, range, initial_parents, keys, 0.0)
 }
 
 // Outputs rounds worth of certificates with optimal parents, signed
@@ -659,22 +461,20 @@ fn rounds_of_certificates(
 
 // make rounds worth of unsigned certificates with the sampled number of parents
 pub fn make_certificates(
+    committee: &Committee,
     range: RangeInclusive<Round>,
     initial_parents: &BTreeSet<CertificateDigest>,
     keys: &[PublicKey],
     failure_probability: f64,
 ) -> (VecDeque<Certificate>, BTreeSet<CertificateDigest>) {
-    rounds_of_certificates(
-        range,
-        initial_parents,
-        keys,
-        failure_probability,
-        mock_certificate,
-    )
+    let generator = |pk, round, parents| mock_certificate(committee, pk, round, parents);
+
+    rounds_of_certificates(range, initial_parents, keys, failure_probability, generator)
 }
 
 // make rounds worth of unsigned certificates with the sampled number of parents
 pub fn make_certificates_with_epoch(
+    committee: &Committee,
     range: RangeInclusive<Round>,
     epoch: Epoch,
     initial_parents: &BTreeSet<CertificateDigest>,
@@ -688,7 +488,7 @@ pub fn make_certificates_with_epoch(
         next_parents.clear();
         for name in keys {
             let (digest, certificate) =
-                mock_certificate_with_epoch(name.clone(), round, epoch, parents.clone());
+                mock_certificate_with_epoch(committee, name.clone(), round, epoch, parents.clone());
             certificates.push_back(certificate);
             next_parents.insert(digest);
         }
@@ -721,12 +521,13 @@ pub fn make_signed_certificates(
 // Creates an unsigned certificate from its given round, origin and parents,
 // Note: the certificate is unsigned
 pub fn mock_certificate(
+    committee: &Committee,
     origin: PublicKey,
     round: Round,
     parents: BTreeSet<CertificateDigest>,
 ) -> (CertificateDigest, Certificate) {
     let certificate = Certificate::new_unsigned(
-        &committee(None),
+        committee,
         Header {
             author: origin,
             round,
@@ -743,13 +544,14 @@ pub fn mock_certificate(
 // Creates an unsigned certificate from its given round, epoch, origin, and parents,
 // Note: the certificate is unsigned
 pub fn mock_certificate_with_epoch(
+    committee: &Committee,
     origin: PublicKey,
     round: Round,
     epoch: Epoch,
     parents: BTreeSet<CertificateDigest>,
 ) -> (CertificateDigest, Certificate) {
     let certificate = Certificate::new_unsigned(
-        &committee(None),
+        committee,
         Header {
             author: origin,
             round,
