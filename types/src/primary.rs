@@ -466,9 +466,12 @@ impl Certificate {
             DagError::CertificateRequiresQuorum
         );
 
-        let aggregated_signature =
+        let aggregated_signature = if sigs.is_empty() {
+            AggregateSignature::default()
+        } else {
             AggregateSignature::aggregate(sigs.into_iter().map(|(_, sig)| sig).collect())
-                .map_err(DagError::InvalidSignature)?;
+                .map_err(DagError::InvalidSignature)?
+        };
 
         Ok(Certificate {
             header,

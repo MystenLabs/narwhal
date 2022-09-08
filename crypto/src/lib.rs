@@ -8,7 +8,7 @@
     rust_2021_compatibility
 )]
 
-use fastcrypto::bls12381;
+use fastcrypto::{bls12381, ed25519};
 
 // This re-export allows using the trait-defined APIs
 pub use fastcrypto::traits;
@@ -41,6 +41,10 @@ pub type KeyPair = bls12381::BLS12381KeyPair;
 // pub type PrivateKey = bls12377::BLS12377PrivateKey;
 // #[cfg(feature = "celo")]
 // pub type KeyPair = bls12377::BLS12377KeyPair;
+
+pub type NetworkPublicKey = ed25519::Ed25519PublicKey;
+pub type NetworkKeyPair = ed25519::Ed25519KeyPair;
+
 ////////////////////////////////////////////////////////////////////////
 
 #[cfg(all(test, feature = "celo"))]

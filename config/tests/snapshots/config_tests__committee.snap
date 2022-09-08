@@ -4,33 +4,37 @@ expression: committee
 ---
 {
   "authorities": {
-    "gXRm2XC01U+fnSm/b5eUDX8s5bLTlnFvPq9m9TV13djXPIDmoBXR3LTZI4mx+47CBRrkXiOXAz8eb25orn3LlG4ce4ioHsC3G+rkrHASgYpuup3bYqh9SWGWryza6Qj2": {
+    "imU9ZewykCt0OOx70OkQCqKzj1TbVdD9nLqdCSutEIvSrtOWllaN9v/8w4B6dyrRE/Gacj+Cx/q5L15FycCX1spJIWMrt54HVB4beTy/MsgwvN6XZS6B4O4jCHbSqqiJ": {
       "stake": 1,
       "primary": {
         "primary_to_primary": "/ip4/127.0.0.1/tcp/0/http",
         "worker_to_primary": "/ip4/127.0.0.1/tcp/0/http"
-      }
+      },
+      "network_key": "u8qKILpUof274Kfj23GlMvka4OUUaYoRt2i/pigwivY="
     },
     "jGbcLB6p5T8JhcF7TnrxmRK208QODFkgpaElCbTrNhn14H7Fbqd/CzBim6HMctdbE5RgeCpfDi+J+0xCtLil+uPSYBAiIOY9B1Tn4YRt7v05iOreTtN/E4VDfRneGhYY": {
       "stake": 1,
       "primary": {
         "primary_to_primary": "/ip4/127.0.0.1/tcp/0/http",
         "worker_to_primary": "/ip4/127.0.0.1/tcp/0/http"
-      }
+      },
+      "network_key": "rvP0pLjsod/DQzYb+OQ2vULeklnAS4MU644gVN1ugqs="
     },
-    "jzfr4XMAzwVrXp649awD3COGEb/1P36tEbDsHve3ykAgIoUu5DMoDgDwKvAG2XJjCkyO8zBhfGLN9kseI855aMw6MvgHRwEwgQyMwqYJHCh85eGUeSMpF54TR9FEakOJ": {
+    "qFBJ9C1pDBTCGNrGZTsHjiByNT1f4Shn++FfLXahY9V972gwsu8Qil1Kx1uDCuCPAkErNvcm91//7LK1bZKtwxxFIB0oibvW8UQwAVmbdQT0ZwCaJv02t25Zkpw0j9Kx": {
       "stake": 1,
       "primary": {
         "primary_to_primary": "/ip4/127.0.0.1/tcp/0/http",
         "worker_to_primary": "/ip4/127.0.0.1/tcp/0/http"
-      }
+      },
+      "network_key": "fBEBLo4XV9uxBFd2fOjqDAkLzwJJ4sBIDtEayytwO7A="
     },
-    "o9G+azrMTgG71uhpFHtiU+rjwpWA5gbxxlWY5xXxaw6XEytWoA6+3a2dcOLvXJFoEfalxLah8fKNlf8lMsctYJI8Wu6A6fgqYo7tE6VKcfqizkazJqsTN3zwr8I3pfRZ": {
+    "tOu6CCUfQFvA7Oo9IQsi6Q25ThGDmgcTXMYn4QVX8D8HeuI1DBmnctVFka/y0GijF5oKKOglBJNWsPz6LaE5YczKopYHmwm2kIxBwYHPdj186+KU8QfuvlZpHn/OnuCS": {
       "stake": 1,
       "primary": {
         "primary_to_primary": "/ip4/127.0.0.1/tcp/0/http",
         "worker_to_primary": "/ip4/127.0.0.1/tcp/0/http"
-      }
+      },
+      "network_key": "hkGX9Mxcq2yO3Ut5xIXvuaVVcYt1tgPi6LmPVewN4mc="
     }
   },
   "epoch": 0

@@ -8,7 +8,7 @@ use crate::{
 };
 use anemo::PeerId;
 use async_trait::async_trait;
-use crypto::PublicKey;
+use crypto::NetworkPublicKey;
 use multiaddr::Multiaddr;
 use rand::{rngs::SmallRng, SeedableRng as _};
 use std::collections::HashMap;
@@ -147,7 +147,7 @@ impl PrimaryNetwork {
 impl UnreliableNetwork2<PrimaryMessage> for PrimaryNetwork {
     async fn unreliable_send(
         &mut self,
-        peer: PublicKey,
+        peer: NetworkPublicKey,
         message: &PrimaryMessage,
     ) -> JoinHandle<()> {
         let network = self.network.clone();
@@ -177,7 +177,7 @@ impl Lucky for PrimaryNetwork {
 impl ReliableNetwork2<PrimaryMessage> for PrimaryNetwork {
     async fn send(
         &mut self,
-        peer: PublicKey,
+        peer: NetworkPublicKey,
         message: &PrimaryMessage,
     ) -> CancelOnDropHandler<anyhow::Result<anemo::Response<()>>> {
         // Safety

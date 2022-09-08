@@ -6,7 +6,7 @@ use config::{
     utils::get_available_port, Authority, Committee, Epoch, PrimaryAddresses, SharedWorkerCache,
     WorkerCache, WorkerId, WorkerIndex, WorkerInfo,
 };
-use crypto::{KeyPair, PublicKey};
+use crypto::{KeyPair, NetworkKeyPair, NetworkPublicKey, PublicKey};
 use fastcrypto::{
     traits::{KeyPair as _, Signer as _},
     Digest, Hash as _,
@@ -177,7 +177,10 @@ pub struct PrimaryToPrimaryMockServer {
 }
 
 impl PrimaryToPrimaryMockServer {
-    pub fn spawn(keypair: KeyPair, address: Multiaddr) -> (Receiver<PrimaryMessage>, Network) {
+    pub fn spawn(
+        network_keypair: NetworkKeyPair,
+        address: Multiaddr,
+    ) -> (Receiver<PrimaryMessage>, Network) {
         let addr = network::multiaddr_to_address(&address).unwrap();
         let (sender, receiver) = channel(1);
         let service = PrimaryToPrimaryServer::new(Self { sender });
@@ -185,7 +188,7 @@ impl PrimaryToPrimaryMockServer {
         let routes = anemo::Router::new().add_rpc_service(service);
         let network = anemo::Network::bind(addr)
             .server_name("narwhal")
-            .private_key(keypair.private().0.to_bytes())
+            .private_key(network_keypair.private().0.to_bytes())
             .start(routes)
             .unwrap();
         info!("starting network on: {}", network.local_addr());
@@ -794,6 +797,7 @@ impl CommitteeFixture {
 
 pub struct AuthorityFixture {
     keypair: KeyPair,
+    network_keypair: NetworkKeyPair,
     stake: u32,
     addresses: PrimaryAddresses,
     workers: BTreeMap<WorkerId, WorkerFixture>,
@@ -804,11 +808,15 @@ impl AuthorityFixture {
         &self.keypair
     }
 
+    pub fn network_keypair(&self) -> &NetworkKeyPair {
+        &self.network_keypair
+    }
+
     pub fn worker(&self, id: WorkerId) -> &WorkerFixture {
         self.workers.get(&id).unwrap()
     }
 
-    pub fn worker_keypairs(&self) -> Vec<KeyPair> {
+    pub fn worker_keypairs(&self) -> Vec<NetworkKeyPair> {
         self.workers
             .values()
             .map(|worker| worker.keypair.copy())
@@ -819,10 +827,15 @@ impl AuthorityFixture {
         self.keypair.public().clone()
     }
 
+    pub fn network_public_key(&self) -> NetworkPublicKey {
+        self.network_keypair.public().clone()
+    }
+
     pub fn authority(&self) -> Authority {
         Authority {
             stake: self.stake,
             primary: self.addresses.clone(),
+            network_key: self.network_keypair.public().clone(),
         }
     }
 
@@ -865,6 +878,7 @@ impl AuthorityFixture {
         P: FnMut() -> u16,
     {
         let keypair = KeyPair::generate(&mut rng);
+        let network_keypair = NetworkKeyPair::generate(&mut rng);
         let primary_addresses = PrimaryAddresses {
             primary_to_primary: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
                 .parse()
@@ -884,6 +898,7 @@ impl AuthorityFixture {
 
         Self {
             keypair,
+            network_keypair,
             stake: 1,
             addresses: primary_addresses,
             workers,
@@ -892,14 +907,14 @@ impl AuthorityFixture {
 }
 
 pub struct WorkerFixture {
-    keypair: KeyPair,
+    keypair: NetworkKeyPair,
     #[allow(dead_code)]
     id: WorkerId,
     info: WorkerInfo,
 }
 
 impl WorkerFixture {
-    pub fn keypair(&self) -> &KeyPair {
+    pub fn keypair(&self) -> &NetworkKeyPair {
         &self.keypair
     }
 
@@ -908,8 +923,9 @@ impl WorkerFixture {
         R: ::rand::RngCore + ::rand::CryptoRng,
         P: FnMut() -> u16,
     {
-        let keypair = KeyPair::generate(&mut rng);
-        let name = keypair.public().clone();
+        let keypair = NetworkKeyPair::generate(&mut rng);
+        let network_keypair = NetworkKeyPair::generate(&mut rng);
+        let worker_name = network_keypair.public().clone();
         let primary_to_worker = format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
             .parse()
             .unwrap();
@@ -924,7 +940,7 @@ impl WorkerFixture {
             keypair,
             id,
             info: WorkerInfo {
-                name,
+                name: worker_name,
                 primary_to_worker,
                 worker_to_worker,
                 transactions,

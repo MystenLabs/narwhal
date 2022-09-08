@@ -10,7 +10,7 @@
 #![allow(clippy::mutable_key_type)]
 
 use arc_swap::ArcSwap;
-use crypto::PublicKey;
+use crypto::{NetworkPublicKey, PublicKey};
 use fastcrypto::traits::EncodeDecodeBase64;
 use multiaddr::Multiaddr;
 use rand::{rngs::StdRng, seq::SliceRandom, SeedableRng};
@@ -299,7 +299,7 @@ impl Parameters {
 #[derive(Clone, Serialize, Deserialize, Eq, Hash, PartialEq, Debug)]
 pub struct WorkerInfo {
     /// The public key of this worker.
-    pub name: PublicKey,
+    pub name: NetworkPublicKey,
     /// Address to receive client transactions (WAN).
     pub transactions: Multiaddr,
     /// Address to receive messages from other workers (WAN).
@@ -450,6 +450,8 @@ pub struct Authority {
     pub stake: Stake,
     /// The network addresses of the primary.
     pub primary: PrimaryAddresses,
+    /// Network key of the primary.
+    pub network_key: NetworkPublicKey,
 }
 
 pub type SharedCommittee = Arc<ArcSwap<Committee>>;
@@ -544,16 +546,31 @@ impl Committee {
             .ok_or_else(|| ConfigError::NotInCommittee((*to).encode_base64()))
     }
 
-    /// Returns the addresses of all primaries except `myself`.
-    pub fn others_primaries(&self, myself: &PublicKey) -> Vec<(PublicKey, PrimaryAddresses)> {
+    pub fn network_key(&self, pk: &PublicKey) -> Result<NetworkPublicKey, ConfigError> {
         self.authorities
-            .iter()
-            .filter(|(name, _)| *name != myself)
-            .map(|(name, authority)| (name.clone(), authority.primary.clone()))
-            .collect()
+            .get(&pk.clone())
+            .map(|x| x.network_key.clone())
+            .ok_or_else(|| ConfigError::NotInCommittee((*pk).encode_base64()))
     }
 
     /// Return all the network addresses in the committee.
+    pub fn others_primaries(
+        &self,
+        myself: &PublicKey,
+    ) -> Vec<(PublicKey, PrimaryAddresses, NetworkPublicKey)> {
+        self.authorities
+            .iter()
+            .filter(|(name, _)| *name != myself)
+            .map(|(name, authority)| {
+                (
+                    name.clone(),
+                    authority.primary.clone(),
+                    authority.network_key.clone(),
+                )
+            })
+            .collect()
+    }
+
     fn get_all_network_addresses(&self) -> HashSet<&Multiaddr> {
         self.authorities
             .values()

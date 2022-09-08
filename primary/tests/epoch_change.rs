@@ -49,7 +49,8 @@ async fn test_simple_epoch_change() {
 
         Primary::spawn(
             name,
-            signer,
+            signer.copy(),
+            authority.network_keypair().copy(),
             Arc::new(ArcSwap::from_pointee(committee_0.clone())),
             worker_cache_0.clone(),
             parameters.clone(),
@@ -155,7 +156,8 @@ async fn test_partial_committee_change() {
 
         Primary::spawn(
             name,
-            signer,
+            signer.copy(),
+            authority.network_keypair().copy(),
             Arc::new(ArcSwap::from_pointee(committee_0.clone())),
             worker_cache_0.clone(),
             parameters.clone(),
@@ -214,7 +216,8 @@ async fn test_partial_committee_change() {
 
         Primary::spawn(
             name,
-            signer,
+            signer.copy(),
+            authority.network_keypair().copy(),
             Arc::new(ArcSwap::from_pointee(committee_1.clone())),
             worker_cache_1.clone(),
             parameters.clone(),
@@ -300,7 +303,8 @@ async fn test_restart_with_new_committee_change() {
 
         let primary_handles = Primary::spawn(
             name,
-            signer,
+            signer.copy(),
+            authority.network_keypair().copy(),
             Arc::new(ArcSwap::new(Arc::new(committee_0.clone()))),
             worker_cache_0.clone(),
             parameters.clone(),
@@ -383,7 +387,8 @@ async fn test_restart_with_new_committee_change() {
 
             let primary_handles = Primary::spawn(
                 name,
-                signer,
+                signer.copy(),
+                authority.network_keypair().copy(),
                 Arc::new(ArcSwap::new(Arc::new(new_committee.clone()))),
                 Arc::new(ArcSwap::new(Arc::new(new_worker_cache.clone()))),
                 parameters.clone(),
@@ -472,7 +477,8 @@ async fn test_simple_committee_update() {
 
         Primary::spawn(
             name,
-            signer,
+            signer.copy(),
+            authority.network_keypair().copy(),
             Arc::new(ArcSwap::from_pointee(committee_0.clone())),
             worker_cache_0.clone(),
             parameters.clone(),
