@@ -28,7 +28,7 @@ tonic = "0.7.2"
 tracing = "0.1.36"
 
 config = { path = "../config" }
-fastcrypto = { version = "0.1.1" }
+fastcrypto = "0.1.2"
 crypto = { path = "../crypto" }
 executor = { path = "../executor" }
 node = { path = "../node" }
