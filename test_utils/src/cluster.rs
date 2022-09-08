@@ -64,6 +64,7 @@ impl Cluster {
             let authority = AuthorityDetails::new(
                 id,
                 authority_fixture.keypair().copy(),
+                authority_fixture.worker_keypairs(),
                 params.clone(),
                 shared_committee.clone(),
                 shared_worker_cache.clone(),
@@ -431,7 +432,7 @@ impl WorkerNodeDetails {
     }
 
     /// Starts the node. When preserve_store is true then the last used
-    async fn start(&mut self, preserve_store: bool) {
+    async fn start(&mut self, keypair: KeyPair, preserve_store: bool) {
         if self.is_running() {
             panic!(
                 "Worker with id {} is already running, can't start again",
@@ -449,10 +450,9 @@ impl WorkerNodeDetails {
         };
 
         let worker_store = NodeStorage::reopen(store_path.clone());
-        let mut worker_keypairs = keys(None);
         let worker_handlers = Node::spawn_workers(
             self.name.clone(),
-            vec![(self.id, worker_keypairs.remove(self.id as usize))],
+            vec![(self.id, keypair)],
             self.committee.clone(),
             self.worker_cache.clone(),
             &worker_store,
@@ -496,6 +496,7 @@ pub struct AuthorityDetails {
 
 struct AuthorityDetailsInternal {
     primary: PrimaryNodeDetails,
+    worker_keypairs: Vec<KeyPair>,
     workers: HashMap<WorkerId, WorkerNodeDetails>,
 }
 
@@ -503,6 +504,7 @@ impl AuthorityDetails {
     pub fn new(
         id: usize,
         key_pair: KeyPair,
+        worker_keypairs: Vec<KeyPair>,
         parameters: Parameters,
         committee: SharedCommittee,
         worker_cache: SharedWorkerCache,
@@ -535,7 +537,11 @@ impl AuthorityDetails {
             workers.insert(worker_id, worker);
         }
 
-        let internal = AuthorityDetailsInternal { primary, workers };
+        let internal = AuthorityDetailsInternal {
+            primary,
+            worker_keypairs,
+            workers,
+        };
 
         Self {
             id,
@@ -581,9 +587,15 @@ impl AuthorityDetails {
 
     pub async fn start_all_workers(&self, preserve_store: bool) {
         let mut internal = self.internal.write().await;
+        let worker_keypairs = internal
+            .worker_keypairs
+            .iter()
+            .map(|kp| kp.copy())
+            .collect::<Vec<KeyPair>>();
 
-        for (_, worker) in internal.workers.iter_mut() {
-            worker.start(preserve_store).await;
+        for (id, worker) in internal.workers.iter_mut() {
+            let keypair = worker_keypairs.get(*id as usize).unwrap().copy();
+            worker.start(keypair, preserve_store).await;
         }
     }
 
@@ -593,13 +605,13 @@ impl AuthorityDetails {
     /// start with a fresh (empty) storage.
     pub async fn start_worker(&self, id: WorkerId, preserve_store: bool) {
         let mut internal = self.internal.write().await;
-
+        let keypair = internal.worker_keypairs.get(id as usize).unwrap().copy();
         let worker = internal
             .workers
             .get_mut(&id)
             .unwrap_or_else(|| panic!("Worker with id {} not found ", id));
 
-        worker.start(preserve_store).await;
+        worker.start(keypair, preserve_store).await;
     }
 
     pub async fn stop_worker(&self, id: WorkerId) {

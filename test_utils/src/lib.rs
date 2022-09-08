@@ -777,7 +777,7 @@ impl CommitteeFixture {
         Certificate::new(&committee, header.clone(), votes).unwrap()
     }
 
-    /// Add a new authority to the committ by randoming generating a key
+    /// Add a new authority to the commit by randoming generating a key
     pub fn add_authority(&mut self) {
         let authority = AuthorityFixture::generate(
             &mut OsRng,
@@ -800,12 +800,19 @@ pub struct AuthorityFixture {
 }
 
 impl AuthorityFixture {
+    pub fn keypair(&self) -> &KeyPair {
+        &self.keypair
+    }
+
     pub fn worker(&self, id: WorkerId) -> &WorkerFixture {
         self.workers.get(&id).unwrap()
     }
 
-    pub fn keypair(&self) -> &KeyPair {
-        &self.keypair
+    pub fn worker_keypairs(&self) -> Vec<KeyPair> {
+        self.workers
+            .values()
+            .map(|worker| worker.keypair.copy())
+            .collect()
     }
 
     pub fn public_key(&self) -> PublicKey {
