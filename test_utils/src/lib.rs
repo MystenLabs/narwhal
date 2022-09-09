@@ -26,11 +26,10 @@ use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tonic::{async_trait, Response};
 use tracing::info;
 use types::{
-    serialized_batch_digest, Batch, BatchDigest, BincodeEncodedPayload, Certificate,
-    CertificateDigest, ConsensusStore, Empty, Header, HeaderBuilder, PrimaryMessage,
-    PrimaryToPrimary, PrimaryToPrimaryServer, PrimaryToWorker, PrimaryToWorkerServer, Round,
-    SequenceNumber, Transaction, Vote, WorkerToPrimary, WorkerToPrimaryServer, WorkerToWorker,
-    WorkerToWorkerServer,
+    Batch, BatchDigest, BincodeEncodedPayload, Certificate, CertificateDigest, ConsensusStore,
+    Empty, Header, HeaderBuilder, PrimaryMessage, PrimaryToPrimary, PrimaryToPrimaryServer,
+    PrimaryToWorker, PrimaryToWorkerServer, Round, SequenceNumber, Transaction, Vote,
+    WorkerMessage, WorkerToPrimary, WorkerToPrimaryServer, WorkerToWorker, WorkerToWorkerServer,
 };
 
 pub mod cluster;
@@ -138,14 +137,8 @@ pub fn make_consensus_store(store_path: &std::path::Path) -> Arc<ConsensusStore>
 pub fn fixture_payload(number_of_batches: u8) -> IndexMap<BatchDigest, WorkerId> {
     let mut payload: IndexMap<BatchDigest, WorkerId> = IndexMap::new();
 
-    for i in 0..number_of_batches {
-        let dummy_serialized_batch = vec![
-            0u8, 0u8, 0u8, 0u8, // enum variant prefix
-            1u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, // num txes
-            5u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, // tx length
-            10u8, 5u8, 8u8, 20u8, i, //tx
-        ];
-        let batch_digest = serialized_batch_digest(&dummy_serialized_batch).unwrap();
+    for _ in 0..number_of_batches {
+        let batch_digest = batch().digest();
 
         payload.insert(batch_digest, 0);
     }
@@ -284,25 +277,26 @@ impl PrimaryToWorker for PrimaryToWorkerMockServer {
 }
 
 pub struct WorkerToWorkerMockServer {
-    sender: Sender<BincodeEncodedPayload>,
+    sender: Sender<WorkerMessage>,
 }
 
 impl WorkerToWorkerMockServer {
-    pub fn spawn(address: Multiaddr) -> Receiver<BincodeEncodedPayload> {
+    pub fn spawn(
+        keypair: NetworkKeyPair,
+        address: Multiaddr,
+    ) -> (Receiver<WorkerMessage>, Network) {
+        let addr = network::multiaddr_to_address(&address).unwrap();
         let (sender, receiver) = channel(1);
-        tokio::spawn(async move {
-            let config = mysten_network::config::Config::new();
-            let mock = Self { sender };
-            config
-                .server_builder()
-                .add_service(WorkerToWorkerServer::new(mock))
-                .bind(&address)
-                .await
-                .unwrap()
-                .serve()
-                .await
-        });
-        receiver
+        let service = WorkerToWorkerServer::new(Self { sender });
+
+        let routes = anemo::Router::new().add_rpc_service(service);
+        let network = anemo::Network::bind(addr)
+            .server_name("narwhal")
+            .private_key(keypair.private().0.to_bytes())
+            .start(routes)
+            .unwrap();
+        info!("starting network on: {}", network.local_addr());
+        (receiver, network)
     }
 }
 
@@ -310,10 +304,13 @@ impl WorkerToWorkerMockServer {
 impl WorkerToWorker for WorkerToWorkerMockServer {
     async fn send_message(
         &self,
-        request: tonic::Request<BincodeEncodedPayload>,
-    ) -> Result<tonic::Response<Empty>, tonic::Status> {
-        self.sender.send(request.into_inner()).await.unwrap();
-        Ok(Response::new(Empty {}))
+        request: anemo::Request<types::WorkerMessage>,
+    ) -> Result<anemo::Response<()>, anemo::rpc::Status> {
+        let message = request.into_body();
+
+        self.sender.send(message).await.unwrap();
+
+        Ok(anemo::Response::new(()))
     }
 }
 
@@ -324,26 +321,6 @@ impl WorkerToWorker for WorkerToWorkerMockServer {
 // Fixture
 pub fn batch() -> Batch {
     Batch(vec![transaction(), transaction()])
-}
-
-// Fixture
-pub fn batch_digest() -> BatchDigest {
-    serialized_batch_digest(&serialized_batch()).unwrap()
-}
-
-pub fn digest_batch(batch: Batch) -> BatchDigest {
-    let serialized_batch = serialize_batch_message(batch);
-    serialized_batch_digest(&serialized_batch).unwrap()
-}
-
-// Fixture
-pub fn serialized_batch() -> Vec<u8> {
-    serialize_batch_message(batch())
-}
-
-pub fn serialize_batch_message(batch: Batch) -> Vec<u8> {
-    let message = worker::WorkerMessage::Batch(batch);
-    bincode::serialize(&message).unwrap()
 }
 
 /// generate multiple fixture batches. The number of generated batches
@@ -370,13 +347,9 @@ pub fn batch_with_transactions(num_of_transactions: usize) -> Batch {
 
 const BATCHES_CF: &str = "batches";
 
-pub fn open_batch_store() -> Store<BatchDigest, types::SerializedBatchMessage> {
-    let db = rocks::DBMap::<BatchDigest, types::SerializedBatchMessage>::open(
-        temp_dir(),
-        None,
-        Some(BATCHES_CF),
-    )
-    .unwrap();
+pub fn open_batch_store() -> Store<BatchDigest, types::Batch> {
+    let db = rocks::DBMap::<BatchDigest, types::Batch>::open(temp_dir(), None, Some(BATCHES_CF))
+        .unwrap();
     Store::new(db)
 }
 
@@ -902,8 +875,12 @@ pub struct WorkerFixture {
 }
 
 impl WorkerFixture {
-    pub fn keypair(&self) -> &NetworkKeyPair {
-        &self.keypair
+    pub fn keypair(&self) -> NetworkKeyPair {
+        self.keypair.copy()
+    }
+
+    pub fn info(&self) -> &WorkerInfo {
+        &self.info
     }
 
     fn generate<R, P>(mut rng: R, id: WorkerId, mut get_port: P) -> Self
@@ -912,8 +889,7 @@ impl WorkerFixture {
         P: FnMut() -> u16,
     {
         let keypair = NetworkKeyPair::generate(&mut rng);
-        let network_keypair = NetworkKeyPair::generate(&mut rng);
-        let worker_name = network_keypair.public().clone();
+        let worker_name = keypair.public().clone();
         let primary_to_worker = format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
             .parse()
             .unwrap();
@@ -935,4 +911,14 @@ impl WorkerFixture {
             },
         }
     }
+}
+
+pub fn mock_network(keypair: NetworkKeyPair, address: &Multiaddr) -> anemo::Network {
+    let address = network::multiaddr_to_address(address).unwrap();
+    let network_key = keypair.private().0.to_bytes();
+    anemo::Network::bind(address)
+        .server_name("narwhal")
+        .private_key(network_key)
+        .start(anemo::Router::new())
+        .unwrap()
 }
