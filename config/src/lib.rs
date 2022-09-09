@@ -177,18 +177,32 @@ impl Default for ConsensusAPIGrpcParameters {
     }
 }
 
+fn block_synchronizer_params_default_value() -> Duration {
+    Duration::from_secs(30)
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(default)]
 pub struct BlockSynchronizerParameters {
     /// The timeout configuration when requesting certificates from peers.
-    #[serde(with = "duration_format")]
+    #[serde(
+        with = "duration_format",
+        default = "block_synchronizer_params_default_value"
+    )]
     pub certificates_synchronize_timeout: Duration,
     /// Timeout when has requested the payload for a certificate and is
     /// waiting to receive them.
-    #[serde(with = "duration_format")]
+    #[serde(
+        with = "duration_format",
+        default = "block_synchronizer_params_default_value"
+    )]
     pub payload_synchronize_timeout: Duration,
     /// The timeout configuration when for when we ask the other peers to
     /// discover who has the payload available for the dictated certificates.
-    #[serde(with = "duration_format")]
+    #[serde(
+        with = "duration_format",
+        default = "block_synchronizer_params_default_value"
+    )]
     pub payload_availability_timeout: Duration,
     /// When a certificate is fetched on the fly from peers, it is submitted
     /// from the block synchronizer handler for further processing to core
@@ -196,17 +210,20 @@ pub struct BlockSynchronizerParameters {
     /// complete. This property is the timeout while we wait for core to
     /// perform this processes and the certificate to become available to
     /// the handler to consume.
-    #[serde(with = "duration_format")]
+    #[serde(
+        with = "duration_format",
+        default = "block_synchronizer_params_default_value"
+    )]
     pub handler_certificate_deliver_timeout: Duration,
 }
 
 impl Default for BlockSynchronizerParameters {
     fn default() -> Self {
         Self {
-            certificates_synchronize_timeout: Duration::from_secs(30),
-            payload_synchronize_timeout: Duration::from_secs(30),
-            payload_availability_timeout: Duration::from_secs(30),
-            handler_certificate_deliver_timeout: Duration::from_secs(30),
+            certificates_synchronize_timeout: block_synchronizer_params_default_value(),
+            payload_synchronize_timeout: block_synchronizer_params_default_value(),
+            payload_availability_timeout: block_synchronizer_params_default_value(),
+            handler_certificate_deliver_timeout: block_synchronizer_params_default_value(),
         }
     }
 }
