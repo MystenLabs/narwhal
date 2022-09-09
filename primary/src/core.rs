@@ -69,8 +69,6 @@ pub struct Core {
 
     /// The last garbage collected round.
     gc_round: Round,
-    /// The authors of the last voted headers.
-    last_voted: HashMap<Round, HashSet<PublicKey>>,
     /// The set of headers we are currently processing.
     processing: HashMap<Round, HashSet<HeaderDigest>>,
     /// The last header we proposed (for which we are waiting votes).
@@ -132,7 +130,6 @@ impl Core {
                 tx_consensus,
                 tx_proposer,
                 gc_round: 0,
-                last_voted: HashMap::with_capacity(2 * gc_depth as usize),
                 processing: HashMap::with_capacity(2 * gc_depth as usize),
                 current_header: Header::default(),
                 vote_store,
@@ -267,26 +264,39 @@ impl Core {
             .inc();
 
         // Check if we can vote for this header.
-        // TODO: compute from a persisted last_voted (issue #488)
-        if self
-            .last_voted
-            .entry(header.round)
-            .or_insert_with(HashSet::new)
-            .insert(header.author.clone())
-        {
-            // Make a vote and send it to the header's creator.
-            let vote = Vote::new(header, &self.name, &mut self.signature_service).await;
-            debug!(
-                "Created vote {vote:?} for {header} at round {}",
-                header.round
-            );
-            if vote.origin == self.name {
-                // This used to be a panic, but this may fail if we're processing a late-received
-                // header where we were already are part of the signers (as a restart could have blown our `last_voted`)
-                // TODO: change this back to a panic-on-error once we have persisted last_voted (issue #488)
-                let res = self.process_vote(vote).await;
-                if let Err(e) = res {
-                    error!("Failed to process our own vote: {}", e.to_string());
+        // Send the vote when:
+        // 1. when there is no existing vote for this publicKey & round
+        //    (for this publicKey the last voted round in the votes store < header.round)
+        // 2. when there is a vote for this publicKey & round,
+        //    (for this publicKey the last voted round in the votes store = header.round)
+        //    and the hash also corresponding to the vote we already sent matches the hash of
+        //    the vote we create for this header we received
+        // Taking the inverse of these two, the only time we don't want to vote is when:
+        // there is a digest for the publicKey & round, and it does not match the digest of the
+        // vote we create for this header.
+        // Also when the header round is less than the latest round we have already voted for,
+        // then it is useless to vote, so we don't.
+
+        let result = self.vote_store.read(header.author.clone()).await;
+        let inner = match result {
+            Ok(i) => i,
+            Err(e) => {
+                error!("Failed read from vote store: {}", e.to_string());
+                None
+            }
+        };
+
+        if let Some(round_digest_pair) = inner {
+            if header.round < round_digest_pair.round {
+                return Ok(());
+            }
+            if round_digest_pair.round == header.round {
+                // check the hash first
+                let temp_vote = Vote::new(header, &self.name, &mut self.signature_service).await;
+                if temp_vote.digest() != round_digest_pair.vote_digest {
+                    // we already sent a vote for a different header to the authority for this round
+                    // don't equivocate by voting again
+                    return Ok(());
                 }
             } else {
                 let handler = self
@@ -302,6 +312,42 @@ impl Core {
                     .push(handler);
             }
         }
+
+        // Make a vote and send it to the header's creator.
+        let vote = Vote::new(header, &self.name, &mut self.signature_service).await;
+        debug!(
+            "Created vote {vote:?} for {header} at round {}",
+            header.round
+        );
+        let vote_digest = vote.digest();
+
+        if vote.origin == self.name {
+            let res = self.process_vote(vote).await;
+            if let Err(e) = res {
+                error!("Failed to process our own vote: {}", e.to_string());
+            }
+        } else {
+            let handler = self
+                .network
+                .send(header.author.clone(), &PrimaryMessage::Vote(vote))
+                .await;
+            self.cancel_handlers
+                .entry(header.round)
+                .or_insert_with(Vec::new)
+                .push(handler);
+        }
+
+        // Update the vote store with the vote we just sent.
+        self.vote_store
+            .write(
+                header.author.clone(),
+                RoundVoteDigestPair {
+                    round: header.round,
+                    vote_digest,
+                },
+            )
+            .await;
+
         Ok(())
     }
 
@@ -546,7 +592,6 @@ impl Core {
             .cleanup(self.committee.network_diff(&committee));
 
         // Cleanup internal state.
-        self.last_voted.clear();
         self.processing.clear();
         self.certificates_aggregators.clear();
         self.cancel_handlers.clear();
@@ -628,7 +673,6 @@ impl Core {
                         let now = Instant::now();
 
                         let gc_round = round - self.gc_depth;
-                        self.last_voted.retain(|k, _| k > &gc_round);
                         self.processing.retain(|k, _| k > &gc_round);
                         self.certificates_aggregators.retain(|k, _| k > &gc_round);
                         self.cancel_handlers.retain(|k, _| k > &gc_round);
