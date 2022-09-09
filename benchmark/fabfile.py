@@ -180,7 +180,7 @@ def remote(ctx, debug=False):
         'collocate': True,
         'rate': [50_000],
         'tx_size': 32,
-        'duration': 300,
+        'duration': 120,
         'runs': 10,
         'mem_profiling': False
     }

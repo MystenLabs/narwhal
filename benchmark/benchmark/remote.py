@@ -347,12 +347,12 @@ class Bench:
             Print.warn('There are not enough instances available')
             return
 
-        # Update nodes.
-        try:
-            self._update(selected_hosts, bench_parameters)
-        except (GroupException, ExecutionError) as e:
-            e = FabricError(e) if isinstance(e, GroupException) else e
-            raise BenchError('Failed to update nodes', e)
+        # # Update nodes.
+        # try:
+        #     self._update(selected_hosts, bench_parameters)
+        # except (GroupException, ExecutionError) as e:
+        #     e = FabricError(e) if isinstance(e, GroupException) else e
+        #     raise BenchError('Failed to update nodes', e)
 
         # Upload all configuration files.
         try:
