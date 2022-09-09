@@ -20,17 +20,15 @@ pub trait BaseNetwork {
 
 #[async_trait]
 pub trait UnreliableNetwork: BaseNetwork {
+    /// Sends a serialized message to a network destination
+    /// Implementations of this method must not block on I/O.
     async fn unreliable_send_message(
         &mut self,
         address: Multiaddr,
         message: BincodeEncodedPayload,
-    ) -> Option<JoinHandle<()>>;
+    ) -> ();
 
-    async fn unreliable_send(
-        &mut self,
-        address: Multiaddr,
-        message: &Self::Message,
-    ) -> Option<JoinHandle<()>> {
+    async fn unreliable_send(&mut self, address: Multiaddr, message: &Self::Message) -> () {
         let message =
             BincodeEncodedPayload::try_from(message).expect("Failed to serialize payload");
         self.unreliable_send_message(address, message).await
@@ -42,19 +40,13 @@ pub trait UnreliableNetwork: BaseNetwork {
         &mut self,
         addresses: Vec<Multiaddr>,
         message: &Self::Message,
-    ) -> Vec<JoinHandle<()>> {
+    ) -> () {
         let message =
             BincodeEncodedPayload::try_from(message).expect("Failed to serialize payload");
-        let mut handlers = Vec::new();
         for address in addresses {
-            if let Some(handle) = self.unreliable_send_message(address, message.clone()).await {
-                // todo - eventually unreliable_xxx should stop returning join handlers
-                // Currently there are few places (unit tests and p2w network reconfigure) that uses it so having this as a work around
-                // This current usage is broken anyway so we are not making things much worse here
-                handlers.push(handle);
-            }
+            // this is ok assuming implementations make unreliable_send_message non-blocking
+            self.unreliable_send_message(address, message.clone()).await
         }
-        handlers
     }
 }
 
@@ -69,7 +61,7 @@ pub trait LuckyNetwork: UnreliableNetwork {
         mut addresses: Vec<Multiaddr>,
         message: &Self::Message,
         nodes: usize,
-    ) -> Vec<JoinHandle<()>> {
+    ) -> () {
         addresses.shuffle(self.rng());
         addresses.truncate(nodes);
         self.unreliable_broadcast(addresses, message).await

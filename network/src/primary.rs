@@ -4,7 +4,8 @@
 use crate::{
     metrics::{Metrics, PrimaryNetworkMetrics},
     traits::{BaseNetwork, Lucky, ReliableNetwork2, UnreliableNetwork, UnreliableNetwork2},
-    BoundedExecutor, CancelOnDropHandler, RetryConfig, MAX_TASK_CONCURRENCY,
+    BoundedExecutor, CancelOnDropHandler, MessageResult, ReliableNetwork, RetryConfig,
+    MAX_TASK_CONCURRENCY,
 };
 use anemo::PeerId;
 use async_trait::async_trait;
@@ -14,6 +15,7 @@ use rand::{rngs::SmallRng, SeedableRng as _};
 use std::collections::HashMap;
 use tokio::{runtime::Handle, task::JoinHandle};
 use tonic::transport::Channel;
+use tracing::error;
 use types::{
     BincodeEncodedPayload, PrimaryMessage, PrimaryToPrimaryClient, PrimaryToWorkerClient,
     PrimaryWorkerMessage,
@@ -27,6 +29,7 @@ pub struct PrimaryToWorkerNetwork {
     clients: HashMap<Multiaddr, PrimaryToWorkerClient<Channel>>,
     config: mysten_network::config::Config,
     executor: BoundedExecutor,
+    retry_config: RetryConfig,
     metrics: Option<Metrics<PrimaryNetworkMetrics>>,
 }
 
@@ -61,6 +64,7 @@ impl Default for PrimaryToWorkerNetwork {
             clients: Default::default(),
             config: Default::default(),
             executor: BoundedExecutor::new(MAX_TASK_CONCURRENCY, Handle::current()),
+            retry_config: RetryConfig::default(),
             metrics: None,
         }
     }
@@ -93,18 +97,63 @@ impl UnreliableNetwork for PrimaryToWorkerNetwork {
         &mut self,
         address: Multiaddr,
         message: BincodeEncodedPayload,
-    ) -> Option<JoinHandle<()>> {
+    ) -> () {
         let mut client = self.client(address);
-        let handler = self
-            .executor
+        self.executor
             .try_spawn(async move {
                 let _ = client.send_message(message).await;
             })
             .ok();
 
         self.update_metrics();
+    }
+}
 
-        handler
+#[async_trait]
+impl ReliableNetwork for PrimaryToWorkerNetwork {
+    // Safety
+    // Since this spawns an unbounded task, this should be called in a time-restricted fashion.
+    // Here the callers are [`PrimaryNetwork::broadcast`] and [`PrimaryNetwork::send`],
+    // at respectively N and K calls per round.
+    //  (where N is the number of primaries, K the number of workers for this primary)
+    // See the TODO on spawn_with_retries for lifting this restriction.
+    async fn send_message(
+        &mut self,
+        address: Multiaddr,
+        message: BincodeEncodedPayload,
+    ) -> CancelOnDropHandler<MessageResult> {
+        let client = self.client(address);
+
+        let message_send = move || {
+            let mut client = client.clone();
+            let message = message.clone();
+
+            async move {
+                client.send_message(message).await.map_err(|e| {
+                    match e.code() {
+                        tonic::Code::FailedPrecondition | tonic::Code::InvalidArgument => {
+                            // these errors are not recoverable through retrying, see
+                            // https://github.com/hyperium/tonic/blob/master/tonic/src/status.rs
+                            error!("Irrecoverable network error: {e}");
+                            backoff::Error::permanent(eyre::Report::from(e))
+                        }
+                        _ => {
+                            // this returns a backoff::Error::Transient
+                            // so that if tonic::Status is returned, we retry
+                            Into::<backoff::Error<eyre::Report>>::into(eyre::Report::from(e))
+                        }
+                    }
+                })
+            }
+        };
+
+        let handle = self
+            .executor
+            .spawn_with_retries(self.retry_config, message_send);
+
+        self.update_metrics();
+
+        CancelOnDropHandler(handle)
     }
 }
 

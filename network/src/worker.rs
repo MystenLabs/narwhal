@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use multiaddr::Multiaddr;
 use rand::{rngs::SmallRng, SeedableRng as _};
 use std::collections::HashMap;
-use tokio::{runtime::Handle, task::JoinHandle};
+use tokio::runtime::Handle;
 use tonic::{transport::Channel, Code};
 use tracing::error;
 use types::{
@@ -107,10 +107,9 @@ impl UnreliableNetwork for WorkerNetwork {
         &mut self,
         address: Multiaddr,
         message: BincodeEncodedPayload,
-    ) -> Option<JoinHandle<()>> {
+    ) -> () {
         let mut client = self.client(address.clone());
-        let handler = self
-            .executors
+        self.executors
             .entry(address)
             .or_insert_with(default_executor)
             .try_spawn(async move {
@@ -118,8 +117,6 @@ impl UnreliableNetwork for WorkerNetwork {
             })
             .ok();
         self.update_metrics();
-
-        handler
     }
 }
 
