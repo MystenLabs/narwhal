@@ -2,7 +2,7 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use super::*;
-use crate::common::create_db_stores;
+use crate::common::{create_db_stores, create_test_vote_store};
 use anemo::{types::PeerInfo, PeerId};
 use fastcrypto::traits::KeyPair;
 use prometheus::Registry;
@@ -84,6 +84,7 @@ async fn process_header() {
         worker_cache,
         header_store.clone(),
         certificates_store.clone(),
+        create_test_vote_store(),
         synchronizer,
         signature_service,
         rx_consensus_round_updates,
@@ -175,6 +176,7 @@ async fn process_header_missing_parent() {
         worker_cache,
         header_store.clone(),
         certificates_store.clone(),
+        create_test_vote_store(),
         synchronizer,
         signature_service,
         rx_consensus_round_updates,
@@ -262,6 +264,7 @@ async fn process_header_missing_payload() {
         worker_cache,
         header_store.clone(),
         certificates_store.clone(),
+        create_test_vote_store(),
         synchronizer,
         signature_service,
         rx_consensus_round_updates,
@@ -360,6 +363,7 @@ async fn process_votes() {
         worker_cache,
         header_store.clone(),
         certificates_store.clone(),
+        create_test_vote_store(),
         synchronizer,
         signature_service,
         rx_consensus_round_updates,
@@ -468,6 +472,7 @@ async fn process_certificates() {
         worker_cache,
         header_store.clone(),
         certificates_store.clone(),
+        create_test_vote_store(),
         synchronizer,
         signature_service,
         rx_consensus_round_updates,
@@ -584,6 +589,7 @@ async fn shutdown_core() {
         worker_cache,
         header_store,
         certificates_store,
+        create_test_vote_store(),
         synchronizer,
         signature_service,
         rx_consensus_round_updates,
@@ -678,6 +684,7 @@ async fn reconfigure_core() {
         worker_cache,
         header_store.clone(),
         certificates_store.clone(),
+        create_test_vote_store(),
         synchronizer,
         signature_service,
         rx_consensus_round_updates,

@@ -43,9 +43,11 @@ use tracing::info;
 use types::{
     error::DagError,
     metered_channel::{channel, Receiver, Sender},
-    BatchDigest, BatchMessage, Certificate, Header, HeaderDigest, PrimaryToPrimary,
-    PrimaryToPrimaryServer, ReconfigureNotification, WorkerInfoResponse, WorkerPrimaryError,
-    WorkerPrimaryMessage, WorkerToPrimary, WorkerToPrimaryServer,
+    BatchDigest, BatchMessage, BincodeEncodedPayload, Certificate, Empty, Header, HeaderDigest,
+    PrimaryToPrimary, PrimaryToPrimary, PrimaryToPrimaryServer, ReconfigureNotification,
+    RoundVoteDigestPair, WorkerInfoResponse, WorkerPrimaryError,,
+    WorkerPrimaryMessage, WorkerToPrimary, WorkerToPrimary,
+    WorkerToPrimaryServer, WorkerToPrimaryServer,
 };
 pub use types::{PrimaryMessage, PrimaryWorkerMessage};
 
@@ -78,6 +80,7 @@ impl Primary {
         header_store: Store<HeaderDigest, Header>,
         certificate_store: CertificateStore,
         payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,
+        vote_store: Store<PublicKey, RoundVoteDigestPair>,
         tx_consensus: Sender<Certificate>,
         rx_consensus: Receiver<Certificate>,
         tx_get_block_commands: Sender<BlockCommand>,
@@ -257,6 +260,7 @@ impl Primary {
             worker_cache.clone(),
             header_store.clone(),
             certificate_store.clone(),
+            vote_store.clone(),
             synchronizer,
             signature_service.clone(),
             tx_consensus_round_updates.subscribe(),

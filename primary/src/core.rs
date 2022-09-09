@@ -25,7 +25,7 @@ use types::{
     ensure,
     error::{DagError, DagResult},
     metered_channel::{Receiver, Sender},
-    Certificate, Header, HeaderDigest, ReconfigureNotification, Round, Vote,
+    Certificate, Header, HeaderDigest, ReconfigureNotification, Round, RoundVoteDigestPair, Vote,
 };
 
 #[cfg(test)]
@@ -75,6 +75,8 @@ pub struct Core {
     processing: HashMap<Round, HashSet<HeaderDigest>>,
     /// The last header we proposed (for which we are waiting votes).
     current_header: Header,
+    /// The store to persist the last voted round per authority, used to ensure idempotence.
+    vote_store: Store<PublicKey, RoundVoteDigestPair>,
     /// Aggregates votes into a certificate.
     votes_aggregator: VotesAggregator,
     /// Aggregates certificates to use as parents for new headers.
@@ -96,6 +98,7 @@ impl Core {
         worker_cache: SharedWorkerCache,
         header_store: Store<HeaderDigest, Header>,
         certificate_store: CertificateStore,
+        vote_store: Store<PublicKey, RoundVoteDigestPair>,
         synchronizer: Synchronizer,
         signature_service: SignatureService<Signature>,
         rx_consensus_round_updates: watch::Receiver<u64>,
@@ -132,6 +135,7 @@ impl Core {
                 last_voted: HashMap::with_capacity(2 * gc_depth as usize),
                 processing: HashMap::with_capacity(2 * gc_depth as usize),
                 current_header: Header::default(),
+                vote_store,
                 votes_aggregator: VotesAggregator::new(),
                 certificates_aggregators: HashMap::with_capacity(2 * gc_depth as usize),
                 network: primary_network,
