@@ -102,6 +102,8 @@ impl Synchronizer {
             return Ok(false);
         }
 
+        tracing::debug!("Missing payload: {:?}", missing);
+
         self.tx_header_waiter
             .send(WaiterMessage::SyncBatches(missing, header.clone()))
             .await
