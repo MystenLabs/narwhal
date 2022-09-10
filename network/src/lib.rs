@@ -56,4 +56,9 @@ impl<T> std::future::Future for CancelOnDropHandler<T> {
 // The exact number here probably isn't important, the key things is that it should be finite so
 // that we don't create unbounded numbers of tasks.
 pub const MAX_TASK_CONCURRENCY: usize = 500;
+// The size of the [mpsc::channel](tokio::sync::mpsc::channel) bound to the [`RetryManager`].
 pub const RETRY_CHANNEL_BUFFER: usize = 100;
+// By default, the [`RetryManager`] execution queue is exactly the [`BoundedExecutor`] capacity.
+// However, it could be advantageous to scale the queue size differently.
+// TODO(erwan): remove this knob, if tuning shows that it's useless.
+pub const RETRY_QUEUE_SCALE_FACTOR: usize = 1;
