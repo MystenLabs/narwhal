@@ -221,7 +221,7 @@
                     </span><span class="kw">for </span>digest <span class="kw">in </span>digests {
                         <span class="kw">match </span><span class="self">self</span>.store.read(digest).<span class="kw">await </span>{
                             <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(data)) =&gt; {
-                                <span class="kw">let _ </span>= <span class="self">self</span>.network.unreliable_send_message(address.clone(), Bytes::from(data).into()).<span class="kw">await</span>;
+                                <span class="self">self</span>.network.unreliable_send_message(address.clone(), Bytes::from(data).into()).<span class="kw">await</span>;
                             }
                             <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>) =&gt; {
                                 <span class="macro">trace!</span>(<span class="string">&quot;No Batches found for requested digests {:?}&quot;</span>, digest);
@@ -269,4 +269,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (1120c5e01 2022-09-08)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (1d37ed661 2022-09-09)" ></div></body></html>

@@ -178,10 +178,6 @@
 <span id="178">178</span>
 <span id="179">179</span>
 <span id="180">180</span>
-<span id="181">181</span>
-<span id="182">182</span>
-<span id="183">183</span>
-<span id="184">184</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span>async_trait::async_trait;
@@ -204,17 +200,15 @@
 
 <span class="attribute">#[async_trait]
 </span><span class="kw">pub trait </span>UnreliableNetwork: BaseNetwork {
-    <span class="kw">async fn </span>unreliable_send_message(
+    <span class="doccomment">/// Sends a serialized message to a network destination
+    /// Implementations of this method must not block on I/O.
+    </span><span class="kw">async fn </span>unreliable_send_message(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         address: Multiaddr,
         message: BincodeEncodedPayload,
-    ) -&gt; JoinHandle&lt;()&gt;;
+    ) -&gt; ();
 
-    <span class="kw">async fn </span>unreliable_send(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        address: Multiaddr,
-        message: <span class="kw-2">&amp;</span><span class="self">Self</span>::Message,
-    ) -&gt; JoinHandle&lt;()&gt; {
+    <span class="kw">async fn </span>unreliable_send(<span class="kw-2">&amp;mut </span><span class="self">self</span>, address: Multiaddr, message: <span class="kw-2">&amp;</span><span class="self">Self</span>::Message) -&gt; () {
         <span class="kw">let </span>message =
             BincodeEncodedPayload::try_from(message).expect(<span class="string">&quot;Failed to serialize payload&quot;</span>);
         <span class="self">self</span>.unreliable_send_message(address, message).<span class="kw">await
@@ -226,15 +220,13 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         addresses: Vec&lt;Multiaddr&gt;,
         message: <span class="kw-2">&amp;</span><span class="self">Self</span>::Message,
-    ) -&gt; Vec&lt;JoinHandle&lt;()&gt;&gt; {
+    ) -&gt; () {
         <span class="kw">let </span>message =
             BincodeEncodedPayload::try_from(message).expect(<span class="string">&quot;Failed to serialize payload&quot;</span>);
-        <span class="kw">let </span><span class="kw-2">mut </span>handlers = Vec::new();
         <span class="kw">for </span>address <span class="kw">in </span>addresses {
-            <span class="kw">let </span>handle = { <span class="self">self</span>.unreliable_send_message(address, message.clone()).<span class="kw">await </span>};
-            handlers.push(handle);
-        }
-        handlers
+            <span class="comment">// this is ok assuming implementations make unreliable_send_message non-blocking
+            </span><span class="self">self</span>.unreliable_send_message(address, message.clone()).<span class="kw">await
+        </span>}
     }
 }
 
@@ -249,7 +241,7 @@
         <span class="kw-2">mut </span>addresses: Vec&lt;Multiaddr&gt;,
         message: <span class="kw-2">&amp;</span><span class="self">Self</span>::Message,
         nodes: usize,
-    ) -&gt; Vec&lt;JoinHandle&lt;()&gt;&gt; {
+    ) -&gt; () {
         addresses.shuffle(<span class="self">self</span>.rng());
         addresses.truncate(nodes);
         <span class="self">self</span>.unreliable_broadcast(addresses, message).<span class="kw">await
@@ -367,4 +359,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="network" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (1120c5e01 2022-09-08)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="network" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (1d37ed661 2022-09-09)" ></div></body></html>

@@ -272,6 +272,50 @@
 <span id="272">272</span>
 <span id="273">273</span>
 <span id="274">274</span>
+<span id="275">275</span>
+<span id="276">276</span>
+<span id="277">277</span>
+<span id="278">278</span>
+<span id="279">279</span>
+<span id="280">280</span>
+<span id="281">281</span>
+<span id="282">282</span>
+<span id="283">283</span>
+<span id="284">284</span>
+<span id="285">285</span>
+<span id="286">286</span>
+<span id="287">287</span>
+<span id="288">288</span>
+<span id="289">289</span>
+<span id="290">290</span>
+<span id="291">291</span>
+<span id="292">292</span>
+<span id="293">293</span>
+<span id="294">294</span>
+<span id="295">295</span>
+<span id="296">296</span>
+<span id="297">297</span>
+<span id="298">298</span>
+<span id="299">299</span>
+<span id="300">300</span>
+<span id="301">301</span>
+<span id="302">302</span>
+<span id="303">303</span>
+<span id="304">304</span>
+<span id="305">305</span>
+<span id="306">306</span>
+<span id="307">307</span>
+<span id="308">308</span>
+<span id="309">309</span>
+<span id="310">310</span>
+<span id="311">311</span>
+<span id="312">312</span>
+<span id="313">313</span>
+<span id="314">314</span>
+<span id="315">315</span>
+<span id="316">316</span>
+<span id="317">317</span>
+<span id="318">318</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use crate</span>::{
@@ -283,7 +327,7 @@
 <span class="kw">use </span>multiaddr::Multiaddr;
 <span class="kw">use </span>rand::{rngs::SmallRng, SeedableRng <span class="kw">as _</span>};
 <span class="kw">use </span>std::collections::HashMap;
-<span class="kw">use </span>tokio::{runtime::Handle, task::JoinHandle};
+<span class="kw">use </span>tokio::runtime::Handle;
 <span class="kw">use </span>tonic::{transport::Channel, Code};
 <span class="kw">use </span>tracing::error;
 <span class="kw">use </span>types::{
@@ -297,6 +341,7 @@
     retry_config: RetryConfig,
     <span class="doccomment">/// Small RNG just used to shuffle nodes and randomize connections (not crypto related).
     </span>rng: SmallRng,
+    concurrency_limit_per_client: usize,
     executors: HashMap&lt;Multiaddr, BoundedExecutor&gt;,
     metrics: <span class="prelude-ty">Option</span>&lt;Metrics&lt;WorkerNetworkMetrics&gt;&gt;,
 }
@@ -318,6 +363,7 @@
             config: Default::default(),
             retry_config,
             rng: SmallRng::from_entropy(),
+            concurrency_limit_per_client: MAX_TASK_CONCURRENCY,
             executors: HashMap::new(),
             metrics: <span class="prelude-val">None</span>,
         }
@@ -329,6 +375,15 @@
         <span class="self">Self </span>{
             metrics: <span class="prelude-val">Some</span>(Metrics::from(metrics, <span class="string">&quot;worker&quot;</span>.to_string())),
             ..Default::default()
+        }
+    }
+
+    <span class="comment">// used for testing non-blocking behavior
+    </span><span class="attribute">#[cfg(test)]
+    </span><span class="kw">fn </span>new_with_concurrency_limit(concurrency_limit: usize) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            concurrency_limit_per_client: concurrency_limit,
+            ..<span class="self">Self</span>::default()
         }
     }
 
@@ -381,19 +436,18 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         address: Multiaddr,
         message: BincodeEncodedPayload,
-    ) -&gt; JoinHandle&lt;()&gt; {
+    ) -&gt; () {
         <span class="kw">let </span><span class="kw-2">mut </span>client = <span class="self">self</span>.client(address.clone());
-        <span class="kw">let </span>handler = <span class="self">self
-            </span>.executors
+        <span class="self">self</span>.executors
             .entry(address)
-            .or_insert_with(default_executor)
-            .spawn(<span class="kw">async move </span>{
+            .or_insert_with(|| {
+                BoundedExecutor::new(<span class="self">self</span>.concurrency_limit_per_client, Handle::current())
+            })
+            .try_spawn(<span class="kw">async move </span>{
                 <span class="kw">let _ </span>= client.send_message(message).<span class="kw">await</span>;
             })
-            .<span class="kw">await</span>;
+            .ok();
         <span class="self">self</span>.update_metrics();
-
-        handler
     }
 }
 
@@ -546,5 +600,39 @@
         CancelOnDropHandler(handle)
     }
 }
+
+<span class="attribute">#[cfg(test)]
+</span><span class="kw">mod </span>tests {
+    <span class="kw">use </span>std::time::Duration;
+
+    <span class="kw">use </span>types::Batch;
+
+    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+
+    <span class="attribute">#[tokio::test]
+    </span><span class="kw">async fn </span>unreliable_send_doesnt_block() {
+        <span class="kw">let </span>test_concurrency_limit = <span class="number">2</span>;
+        <span class="kw">let </span><span class="kw-2">mut </span>p2p = WorkerNetwork::new_with_concurrency_limit(test_concurrency_limit);
+        <span class="comment">// send those messages to localhost. THey won&#39;t actually land
+        </span><span class="kw">let </span>addr: Multiaddr = <span class="string">&quot;/ip4/127.0.0.1/tcp/0/http&quot;</span>.parse().unwrap();
+        <span class="kw">let </span>serialized_msg =
+            BincodeEncodedPayload::try_from(<span class="kw-2">&amp;</span>WorkerMessage::Batch(Batch::default())).unwrap();
+
+        <span class="kw">let </span>blast_a_few = <span class="kw">async move </span>{
+            <span class="kw">for </span>_i <span class="kw">in </span><span class="number">0</span>..test_concurrency_limit * <span class="number">2 </span>{
+                <span class="kw">let </span>addr = addr.clone();
+                <span class="kw">let </span>msg = serialized_msg.clone();
+                p2p.unreliable_send_message(addr, msg).<span class="kw">await
+            </span>}
+        };
+
+        <span class="comment">// beware: if we happen to set a default connect timeout
+        // (we don&#39;t at the time of writing) then the following delay needs to be smaller
+        </span><span class="kw">let </span>blast_timeout = Duration::from_millis(<span class="number">100</span>);
+        tokio::time::timeout(blast_timeout, blast_a_few)
+            .<span class="kw">await
+            </span>.expect(<span class="string">&quot;The unreliable sends should all have completed instantly!&quot;</span>);
+    }
+}
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="network" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (1120c5e01 2022-09-08)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="network" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (1d37ed661 2022-09-09)" ></div></body></html>
