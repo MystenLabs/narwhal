@@ -126,7 +126,7 @@ pub struct InternalBoundedExecutor {
     executor: Handle,
     /// Outbound channel to the retry scheduler task.
     /// Tasks equipped with a retry strategy hold a shared reference to this [`mpsc::Sender`].
-    tx_retry_manager: Arc<mpsc::Sender<Job>>,
+    tx_retry_manager: Arc<mpsc::Sender<RetryJob>>,
 }
 
 impl InternalBoundedExecutor {
@@ -137,7 +137,7 @@ impl InternalBoundedExecutor {
     pub fn new(
         executor: Handle,
         semaphore: Arc<Semaphore>,
-        tx_retry_manager: Arc<mpsc::Sender<Job>>,
+        tx_retry_manager: Arc<mpsc::Sender<RetryJob>>,
     ) -> Self {
         Self {
             semaphore,
@@ -208,8 +208,7 @@ impl InternalBoundedExecutor {
         self.executor.spawn(f)
     }
 
-    /// Equips a task with a retry strategy, the onus for surfacing results, and mapping error
-    /// types to failure cases (Transient, vs. Permanent)
+    /// Returns a future equipped with retry logic.
     fn with_retries<F, Fut>(
         &self,
         mut factory: F,
@@ -222,7 +221,7 @@ impl InternalBoundedExecutor {
         let mut boxed_factory: Box<FutureFactory> = Box::new(move || Box::pin(factory()));
 
         let task = boxed_factory();
-        let job = Job::new(boxed_factory, backoff);
+        let job = RetryJob::new(boxed_factory, backoff);
         let tx_scheduler = self.tx_retry_manager.clone();
         task.then(
             |result| async move { RetryManager::retry_logic(result, job, tx_scheduler).await },
@@ -230,8 +229,11 @@ impl InternalBoundedExecutor {
     }
 
     /// Asynchronously spawns a [`Future`] equipped with a retry strategy, and
-    /// returns a handle to the task executing for the first time. If retries are
-    /// needed, one needs to embed a callback inside the factory closure.
+    /// returns a handle to the first attempt at executing the task. This function
+    /// is async and will block if the executor is at capacity until one of the
+    /// other spawned futures completes. If retries are needed, the future is
+    /// handed to a [`RetryManager`] which will schedule future execution within
+    /// the specified [`Backoff`] policy.
     pub async fn spawn_with_retries<F, Fut>(
         &self,
         backoff: Backoff,
@@ -245,9 +247,9 @@ impl InternalBoundedExecutor {
         self.spawn(retry_task).await
     }
 
-    /// Asynchronously spawns a task equipped with a retry strategy, and an
-    /// adapter closure to map `Result<(), RetryError>` to a custom result.
-    /// TODO(erwan): conversion trait bounds would be cleaner once API matures.
+    /// Asynchronously spawns a task equipped with a retry strategy, and use an
+    /// adapater to map the retry result (`Result<(), RetryError>`) to `Result<T, E>`
+    /// TODO(erwan): conversion trait bounds could be cleaner once API matures.
     pub async fn spawn_with_retries_and_adapter<F, Fut, A, T, E>(
         &self,
         backoff: Backoff,
@@ -308,19 +310,18 @@ struct RetryManager {
     /// Bounded execution semaphore.
     semaphore: Arc<Semaphore>,
     /// A queue of jobs eligible for execution.
-    execution_queue: DelayQueue<Job>,
+    execution_queue: DelayQueue<RetryJob>,
     /// A sink of failed jobs going to the scheduler.
-    tx_new_jobs: Arc<mpsc::Sender<Job>>,
+    tx_new_jobs: Arc<mpsc::Sender<RetryJob>>,
     /// A stream of failed jobs that need scheduling.
-    rx_new_jobs: mpsc::Receiver<Job>,
+    rx_new_jobs: mpsc::Receiver<RetryJob>,
 }
 
 impl RetryManager {
     pub fn new(capacity: usize, semaphore: Arc<Semaphore>) -> Self {
         let (tx, rx) = mpsc::channel(crate::RETRY_CHANNEL_BUFFER);
         Self {
-            // TODO(erwan): scaling factor for capacity?
-            execution_queue: DelayQueue::with_capacity(capacity),
+            execution_queue: DelayQueue::with_capacity(capacity * crate::RETRY_QUEUE_SCALE_FACTOR),
             tx_new_jobs: Arc::new(tx),
             rx_new_jobs: rx,
             semaphore,
@@ -328,7 +329,7 @@ impl RetryManager {
     }
 
     /// Returns an [`Arc`] reference to the channel consumed by `run_scheduler`.
-    pub fn inbound_channel(&self) -> Arc<mpsc::Sender<Job>> {
+    pub fn inbound_channel(&self) -> Arc<mpsc::Sender<RetryJob>> {
         self.tx_new_jobs.clone()
     }
 
@@ -336,10 +337,13 @@ impl RetryManager {
     async fn run_scheduler(mut self, executor: Arc<InternalBoundedExecutor>) {
         loop {
             tokio::select! {
-                 // Pull jobs that are ready for execution, and forward them to the executor if
-                 // resources can be acquired (semaphore permit).
-                 // TODO(erwan): refactor this or turn into a macro.
-                 Some((job_ready, permit)) = async {
+                // Pull jobs that are ready for execution, and forward them to the executor if
+                // resources can be acquired.
+                Some((job_ready, permit)) = async {
+                    // Unlike most [`Stream`] implementations, `DelayQueue::poll_expired` returning
+                    // `Poll::Ready(None)` does not signal a "closed" stream. Instead, that value
+                    // is used to indicate an empty queue. If an item is inserted later, polling
+                    // the queue will return `Poll::Ready(Some<T>)`.
                     if let Some(job_ready) = self.execution_queue.next().await {
                         let permit = InternalBoundedExecutor::acquire_permit(self.semaphore.clone()).await;
                         Some((job_ready, permit))
@@ -353,33 +357,30 @@ impl RetryManager {
                     let tx_scheduler = self.tx_new_jobs.clone();
                     let task = (job.task_factory)();
                     let retry_task = task.then(|result| async move { RetryManager::retry_logic(result, job, tx_scheduler).await });
-
-
                     if let Err(e) = executor.spawn_with_permit(retry_task, permit).await {
                         error!("run_scheduler: inbound channel is closed; tasks won't be retried ({e})")
                     }
-                 },
-                 // Pull new jobs that need to be scheduled, and insert them in the execution
-                 // queue if their backoff policy allows it.
-                 new_job = self.rx_new_jobs.recv() => {
-                     let job = new_job.unwrap();
-                     let cooldown_time = job.cooldown_time();
-                     if let Some(duration) = cooldown_time {
-                         self.execution_queue.insert(job, duration);
-                     } else {
-                         warn!("run_scheduler: expired jobs are being queued, this should not happen");
-                     }
                 },
+                // Pull new jobs that need scheduling, and insert them in the execution queue
+                // if their backoff policy allows it.
+                new_job = self.rx_new_jobs.recv() => {
+                    let job = new_job.unwrap();
+                    let cooldown_time = job.cooldown_time();
+                    if let Some(duration) = cooldown_time {
+                        self.execution_queue.insert(job, duration);
+                    } else {
+                        warn!("run_scheduler: expired jobs are being queued, this should not happen");
+                    }
+                }
             }
         }
     }
 
-    /// Implements the retry logic to effect a result into a retry attempt,
     /// or forward that result.
     async fn retry_logic(
         result: Result<(), RetryError>,
-        mut job: Job,
-        tx_scheduler: Arc<Sender<Job>>,
+        mut job: RetryJob,
+        tx_scheduler: Arc<Sender<RetryJob>>,
     ) -> Result<(), RetryError> {
         match result {
             Ok(_) => Ok(()),
@@ -423,8 +424,8 @@ pub enum RetryError {
 pub type FutureFactory = dyn FnMut() -> BoxFuture<'static, Result<(), RetryError>> + Send;
 
 /// A computation to be retried.
-pub struct Job {
-    /// A factory producing fresh tasks for polling.
+pub struct RetryJob {
+    /// A factory producing fresh futures of the task to be retried.
     pub task_factory: Box<FutureFactory>,
     /// Retry policy specifying the backoff strategy as well as the max number of attempts.
     backoff: Backoff,
@@ -432,8 +433,8 @@ pub struct Job {
     retry_counter: u32,
 }
 
-impl Job {
-    /// Creates a new `Job` for submission to the scheduler task.
+impl RetryJob {
+    /// Creates a new `RetryJob` for submission to the scheduler task.
     ///
     /// The struct wraps a task factory that is used to create fresh futures to poll, a backoff
     /// policy specifying the duration between each call, and the maximum number of retries.

@@ -157,14 +157,15 @@ impl ReliableNetwork for PrimaryNetwork {
                     Ok(_) => Ok(()),
                     Err(e) => match e.code() {
                         Code::FailedPrecondition | Code::InvalidArgument => {
-                            // these errors are not recoverable through retrying, see
+                            // These errors are not recoverable through retrying, see
                             // https://github.com/hyperium/tonic/blob/master/tonic/src/status.rs
+                            // so we map them to `RetryError::Permanent`.
                             error!("Irrecoverable network error: {e}");
                             Err(RetryError::Permanent)
                         }
                         _ => {
-                            // this returns a backoff::Error::Transient
-                            // so that if tonic::Status is returned, we retry
+                            // Returns a `RetryError::Transient` so that if `tonic::Status`
+                            // is returned, we retry.
                             Err(RetryError::Transient)
                         }
                     },
