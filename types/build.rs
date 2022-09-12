@@ -20,7 +20,7 @@ fn main() -> Result<()> {
 
     // Use `Bytes` instead of `Vec<u8>` for bytes fields
     let mut config = prost_build::Config::new();
-    config.bytes(&["."]);
+    config.bytes(["."]);
 
     tonic_build::configure()
         .out_dir(&out_dir)

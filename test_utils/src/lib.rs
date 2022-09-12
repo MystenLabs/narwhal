@@ -13,8 +13,7 @@ use fastcrypto::{
 };
 use indexmap::IndexMap;
 use multiaddr::Multiaddr;
-use rand::rngs::OsRng;
-use rand::Rng;
+use rand::{rngs::OsRng, Rng};
 use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
     num::NonZeroUsize,
@@ -743,11 +742,8 @@ impl CommitteeFixture {
 
     /// Add a new authority to the commit by randoming generating a key
     pub fn add_authority(&mut self) {
-        let authority = AuthorityFixture::generate(
-            &mut OsRng,
-            NonZeroUsize::new(4).unwrap(),
-            get_available_port,
-        );
+        let authority =
+            AuthorityFixture::generate(OsRng, NonZeroUsize::new(4).unwrap(), get_available_port);
         self.authorities.push(authority)
     }
 
