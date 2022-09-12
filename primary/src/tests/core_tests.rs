@@ -79,7 +79,7 @@ async fn process_header() {
 
     // Spawn the core.
     let _core_handle = Core::spawn(
-        name,
+        name.clone(),
         committee.clone(),
         worker_cache,
         header_store.clone(),
@@ -114,7 +114,7 @@ async fn process_header() {
 
     // Ensure the header is correctly stored.
     let stored = header_store.read(header.id).await.unwrap();
-    assert_eq!(stored, Some(header));
+    assert_eq!(stored, Some(header.clone()));
 
     let mut m = HashMap::new();
     m.insert("epoch", "0");
@@ -122,6 +122,25 @@ async fn process_header() {
     assert_eq!(
         metrics.headers_processed.get_metric_with(&m).unwrap().get(),
         1
+    );
+
+    // Test idempotence by re-sending the same header and expecting the vote
+
+    // Send the header to the core again.
+    tx_primary_messages
+        .send(PrimaryMessage::Header(header.clone()))
+        .await
+        .unwrap();
+
+    // Ensure the listener correctly received the vote again.
+    match handle.recv().await.unwrap() {
+        PrimaryMessage::Vote(x) => assert_eq!(x, expected),
+        x => panic!("Unexpected message: {:?}", x),
+    }
+
+    assert_eq!(
+        metrics.headers_processed.get_metric_with(&m).unwrap().get(),
+        2
     );
 }
 

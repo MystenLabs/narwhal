@@ -21,6 +21,7 @@ use storage::CertificateStore;
 use store::Store;
 use tokio::{sync::watch, task::JoinHandle};
 use tracing::{debug, error, info, instrument, warn};
+use types::error::DagError::StoreError;
 use types::{
     ensure,
     error::{DagError, DagResult},
@@ -277,16 +278,13 @@ impl Core {
         // Also when the header round is less than the latest round we have already voted for,
         // then it is useless to vote, so we don't.
 
-        let result = self.vote_store.read(header.author.clone()).await;
-        let inner = match result {
-            Ok(i) => i,
-            Err(e) => {
-                error!("Failed read from vote store: {}", e.to_string());
-                None
-            }
-        };
+        let result = self
+            .vote_store
+            .read(header.author.clone())
+            .await
+            .map_err(StoreError)?;
 
-        if let Some(round_digest_pair) = inner {
+        if let Some(round_digest_pair) = result {
             if header.round < round_digest_pair.round {
                 return Ok(());
             }
@@ -296,6 +294,10 @@ impl Core {
                 if temp_vote.digest() != round_digest_pair.vote_digest {
                     // we already sent a vote for a different header to the authority for this round
                     // don't equivocate by voting again
+                    self.metrics
+                        .votes_dropped_equivocation_protection
+                        .with_label_values(&[&header.epoch.to_string(), header_source])
+                        .inc();
                     return Ok(());
                 }
             } else {
@@ -322,8 +324,7 @@ impl Core {
         let vote_digest = vote.digest();
 
         if vote.origin == self.name {
-            let res = self.process_vote(vote).await;
-            if let Err(e) = res {
+            if let Err(e) = self.process_vote(vote).await {
                 error!("Failed to process our own vote: {}", e.to_string());
             }
         } else {
@@ -335,19 +336,18 @@ impl Core {
                 .entry(header.round)
                 .or_insert_with(Vec::new)
                 .push(handler);
+
+            // Update the vote store with the vote we just sent.
+            self.vote_store
+                .write(
+                    header.author.clone(),
+                    RoundVoteDigestPair {
+                        round: header.round,
+                        vote_digest,
+                    },
+                )
+                .await;
         }
-
-        // Update the vote store with the vote we just sent.
-        self.vote_store
-            .write(
-                header.author.clone(),
-                RoundVoteDigestPair {
-                    round: header.round,
-                    vote_digest,
-                },
-            )
-            .await;
-
         Ok(())
     }
 
