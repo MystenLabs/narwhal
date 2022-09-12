@@ -18,17 +18,11 @@ mod worker;
 
 pub use crate::{
     bounded_executor::BoundedExecutor,
-    primary::{P2pNetwork, PrimaryToWorkerNetwork},
+    primary::P2pNetwork,
     retry::RetryConfig,
-    traits::{
-        Lucky, LuckyNetwork, LuckyNetwork2, ReliableNetwork, ReliableNetwork2, UnreliableNetwork,
-        UnreliableNetwork2,
-    },
+    traits::{Lucky, LuckyNetwork2, ReliableNetwork2, UnreliableNetwork2},
     worker::WorkerToPrimaryNetwork,
 };
-
-// the result of our network messages
-pub type MessageResult = Result<tonic::Response<types::Empty>, eyre::Report>;
 
 /// This adapter will make a [`tokio::task::JoinHandle`] abort its handled task when the handle is dropped.
 #[derive(Debug)]

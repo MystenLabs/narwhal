@@ -7,7 +7,7 @@ use crypto::{KeyPair, NetworkKeyPair};
 use executor::{ExecutionState, ExecutorOutput};
 use fastcrypto::traits::KeyPair as _;
 use futures::future::join_all;
-use network::{PrimaryToWorkerNetwork, ReliableNetwork, ReliableNetwork2, WorkerToPrimaryNetwork};
+use network::{P2pNetwork, ReliableNetwork2, WorkerToPrimaryNetwork};
 use prometheus::Registry;
 use std::{fmt::Debug, path::PathBuf, sync::Arc};
 use tokio::sync::mpsc::{Receiver, Sender};
@@ -48,7 +48,16 @@ impl NodeRestarter {
         let mut committee = committee.clone();
 
         let mut handles = Vec::new();
-        let mut worker_network = PrimaryToWorkerNetwork::default();
+        let network = anemo::Network::bind("127.0.0.1:0")
+            .server_name("narwhal")
+            .private_key(
+                NetworkKeyPair::generate(&mut rand::rngs::OsRng)
+                    .private()
+                    .0
+                    .to_bytes(),
+            )
+            .start(anemo::Router::new())
+            .unwrap();
 
         // Listen for new committees.
         loop {
@@ -120,15 +129,24 @@ impl NodeRestarter {
             let primary_cancel_handle =
                 primary_network.send(network_key.to_owned(), &message).await;
 
-            let addresses = worker_cache
+            let message = PrimaryWorkerMessage::Reconfigure(ReconfigureNotification::Shutdown);
+            let mut worker_names = Vec::new();
+            for worker in worker_cache
                 .load()
                 .our_workers(&name)
                 .expect("Our key is not in the worker cache")
-                .into_iter()
-                .map(|x| x.primary_to_worker)
-                .collect();
-            let message = PrimaryWorkerMessage::Reconfigure(ReconfigureNotification::Shutdown);
-            let worker_cancel_handles = worker_network.broadcast(addresses, &message).await;
+            {
+                let address = network::multiaddr_to_address(&worker.worker_to_worker).unwrap();
+                let peer_id = anemo::PeerId(worker.name.0.to_bytes());
+                network
+                    .connect_with_peer_id(address, peer_id)
+                    .await
+                    .unwrap();
+                worker_names.push(worker.name);
+            }
+            let worker_cancel_handles = P2pNetwork::new(network.clone())
+                .broadcast(worker_names, &message)
+                .await;
 
             // Ensure the message has been received.
             primary_cancel_handle
@@ -136,9 +154,6 @@ impl NodeRestarter {
                 .expect("Failed to notify primary");
             join_all(worker_cancel_handles).await;
             tracing::debug!("Committee reconfiguration message successfully sent");
-
-            // Cleanup the network.
-            worker_network.cleanup(committee.network_diff(&new_committee));
 
             // Wait for the components to shut down.
             join_all(handles.drain(..)).await;

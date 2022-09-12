@@ -2,6 +2,7 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+use anemo::async_trait;
 use config::{
     utils::get_available_port, Authority, Committee, Epoch, SharedWorkerCache, Stake, WorkerCache,
     WorkerId, WorkerIndex, WorkerInfo,
@@ -22,12 +23,11 @@ use std::{
 };
 use store::{reopen, rocks, rocks::DBMap, Store};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
-use tonic::async_trait;
 use tracing::info;
 use types::{
-    Batch, BatchDigest, BincodeEncodedPayload, Certificate, CertificateDigest, ConsensusStore,
-    Empty, Header, HeaderBuilder, PrimaryMessage, PrimaryToPrimary, PrimaryToPrimaryServer,
-    PrimaryToWorker, PrimaryToWorkerServer, Round, SequenceNumber, Transaction, Vote,
+    Batch, BatchDigest, Certificate, CertificateDigest, ConsensusStore, Header, HeaderBuilder,
+    PrimaryMessage, PrimaryToPrimary, PrimaryToPrimaryServer, PrimaryToWorker,
+    PrimaryToWorkerServer, PrimaryWorkerMessage, Round, SequenceNumber, Transaction, Vote,
     WorkerInfoResponse, WorkerMessage, WorkerPrimaryMessage, WorkerToPrimary,
     WorkerToPrimaryServer, WorkerToWorker, WorkerToWorkerServer,
 };
@@ -247,25 +247,26 @@ impl WorkerToPrimary for WorkerToPrimaryMockServer {
 }
 
 pub struct PrimaryToWorkerMockServer {
-    sender: Sender<BincodeEncodedPayload>,
+    sender: Sender<PrimaryWorkerMessage>,
 }
 
 impl PrimaryToWorkerMockServer {
-    pub fn spawn(address: Multiaddr) -> Receiver<BincodeEncodedPayload> {
+    pub fn spawn(
+        keypair: NetworkKeyPair,
+        address: Multiaddr,
+    ) -> (Receiver<PrimaryWorkerMessage>, anemo::Network) {
+        let addr = network::multiaddr_to_address(&address).unwrap();
         let (sender, receiver) = channel(1);
-        tokio::spawn(async move {
-            let config = mysten_network::config::Config::new();
-            let mock = Self { sender };
-            config
-                .server_builder()
-                .add_service(PrimaryToWorkerServer::new(mock))
-                .bind(&address)
-                .await
-                .unwrap()
-                .serve()
-                .await
-        });
-        receiver
+        let service = PrimaryToWorkerServer::new(Self { sender });
+
+        let routes = anemo::Router::new().add_rpc_service(service);
+        let network = anemo::Network::bind(addr)
+            .server_name("narwhal")
+            .private_key(keypair.private().0.to_bytes())
+            .start(routes)
+            .unwrap();
+        info!("starting network on: {}", network.local_addr());
+        (receiver, network)
     }
 }
 
@@ -273,10 +274,11 @@ impl PrimaryToWorkerMockServer {
 impl PrimaryToWorker for PrimaryToWorkerMockServer {
     async fn send_message(
         &self,
-        request: tonic::Request<BincodeEncodedPayload>,
-    ) -> Result<tonic::Response<Empty>, tonic::Status> {
-        self.sender.send(request.into_inner()).await.unwrap();
-        Ok(tonic::Response::new(Empty {}))
+        request: anemo::Request<PrimaryWorkerMessage>,
+    ) -> Result<anemo::Response<()>, anemo::rpc::Status> {
+        let message = request.into_body();
+        self.sender.send(message).await.unwrap();
+        Ok(anemo::Response::new(()))
     }
 }
 
@@ -769,8 +771,12 @@ impl AuthorityFixture {
         &self.keypair
     }
 
-    pub fn network_keypair(&self) -> &NetworkKeyPair {
-        &self.network_keypair
+    pub fn network_keypair(&self) -> NetworkKeyPair {
+        self.network_keypair.copy()
+    }
+
+    pub fn address(&self) -> &Multiaddr {
+        &self.address
     }
 
     pub fn worker(&self, id: WorkerId) -> &WorkerFixture {
@@ -912,6 +918,15 @@ pub fn mock_network(keypair: NetworkKeyPair, address: &Multiaddr) -> anemo::Netw
     let address = network::multiaddr_to_address(address).unwrap();
     let network_key = keypair.private().0.to_bytes();
     anemo::Network::bind(address)
+        .server_name("narwhal")
+        .private_key(network_key)
+        .start(anemo::Router::new())
+        .unwrap()
+}
+
+pub fn random_network() -> anemo::Network {
+    let network_key = NetworkKeyPair::generate(&mut OsRng).private().0.to_bytes();
+    anemo::Network::bind("localhost:0")
         .server_name("narwhal")
         .private_key(network_key)
         .start(anemo::Router::new())
