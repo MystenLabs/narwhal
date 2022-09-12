@@ -553,7 +553,7 @@
     <span class="doccomment">/// Small RNG just used to shuffle nodes and randomize connections (not crypto related).
     </span>rng: SmallRng,
     <span class="comment">// One bounded executor per address
-    </span>executors: HashMap&lt;anemo::PeerId, BoundedExecutor&gt;,
+    </span>executors: HashMap&lt;PeerId, BoundedExecutor&gt;,
 }
 
 <span class="kw">impl </span>P2pNetwork {

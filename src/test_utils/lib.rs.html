@@ -917,16 +917,11 @@
 <span id="917">917</span>
 <span id="918">918</span>
 <span id="919">919</span>
-<span id="920">920</span>
-<span id="921">921</span>
-<span id="922">922</span>
-<span id="923">923</span>
-<span id="924">924</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-</span><span class="kw">use </span>anemo::Network;
-<span class="kw">use </span>config::{
+
+</span><span class="kw">use </span>config::{
     utils::get_available_port, Authority, Committee, Epoch, PrimaryAddresses, SharedWorkerCache,
     WorkerCache, WorkerId, WorkerIndex, WorkerInfo,
 };
@@ -937,8 +932,7 @@
 };
 <span class="kw">use </span>indexmap::IndexMap;
 <span class="kw">use </span>multiaddr::Multiaddr;
-<span class="kw">use </span>rand::rngs::OsRng;
-<span class="kw">use </span>rand::Rng;
+<span class="kw">use </span>rand::{rngs::OsRng, Rng};
 <span class="kw">use </span>std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
     num::NonZeroUsize,
@@ -947,7 +941,7 @@
 };
 <span class="kw">use </span>store::{reopen, rocks, rocks::DBMap, Store};
 <span class="kw">use </span>tokio::sync::mpsc::{channel, Receiver, Sender};
-<span class="kw">use </span>tonic::{async_trait, Response};
+<span class="kw">use </span>tonic::async_trait;
 <span class="kw">use </span>tracing::info;
 <span class="kw">use </span>types::{
     Batch, BatchDigest, BincodeEncodedPayload, Certificate, CertificateDigest, ConsensusStore,
@@ -1095,7 +1089,7 @@
     <span class="kw">pub fn </span>spawn(
         network_keypair: NetworkKeyPair,
         address: Multiaddr,
-    ) -&gt; (Receiver&lt;PrimaryMessage&gt;, Network) {
+    ) -&gt; (Receiver&lt;PrimaryMessage&gt;, anemo::Network) {
         <span class="kw">let </span>addr = network::multiaddr_to_address(<span class="kw-2">&amp;</span>address).unwrap();
         <span class="kw">let </span>(sender, receiver) = channel(<span class="number">1</span>);
         <span class="kw">let </span>service = PrimaryToPrimaryServer::new(<span class="self">Self </span>{ sender });
@@ -1115,7 +1109,7 @@
 </span><span class="kw">impl </span>PrimaryToPrimary <span class="kw">for </span>PrimaryToPrimaryMockServer {
     <span class="kw">async fn </span>send_message(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        request: anemo::Request&lt;types::PrimaryMessage&gt;,
+        request: anemo::Request&lt;PrimaryMessage&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;anemo::Response&lt;()&gt;, anemo::rpc::Status&gt; {
         <span class="kw">let </span>message = request.into_body();
 
@@ -1148,14 +1142,14 @@
     }
 }
 
-<span class="attribute">#[tonic::async_trait]
+<span class="attribute">#[async_trait]
 </span><span class="kw">impl </span>WorkerToPrimary <span class="kw">for </span>WorkerToPrimaryMockServer {
     <span class="kw">async fn </span>send_message(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         request: tonic::Request&lt;BincodeEncodedPayload&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;tonic::Response&lt;Empty&gt;, tonic::Status&gt; {
         <span class="self">self</span>.sender.send(request.into_inner()).<span class="kw">await</span>.unwrap();
-        <span class="prelude-val">Ok</span>(Response::new(Empty {}))
+        <span class="prelude-val">Ok</span>(tonic::Response::new(Empty {}))
     }
 
     <span class="kw">async fn </span>worker_info(
@@ -1189,14 +1183,14 @@
     }
 }
 
-<span class="attribute">#[tonic::async_trait]
+<span class="attribute">#[async_trait]
 </span><span class="kw">impl </span>PrimaryToWorker <span class="kw">for </span>PrimaryToWorkerMockServer {
     <span class="kw">async fn </span>send_message(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         request: tonic::Request&lt;BincodeEncodedPayload&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;tonic::Response&lt;Empty&gt;, tonic::Status&gt; {
         <span class="self">self</span>.sender.send(request.into_inner()).<span class="kw">await</span>.unwrap();
-        <span class="prelude-val">Ok</span>(Response::new(Empty {}))
+        <span class="prelude-val">Ok</span>(tonic::Response::new(Empty {}))
     }
 }
 
@@ -1208,7 +1202,7 @@
     <span class="kw">pub fn </span>spawn(
         keypair: NetworkKeyPair,
         address: Multiaddr,
-    ) -&gt; (Receiver&lt;WorkerMessage&gt;, Network) {
+    ) -&gt; (Receiver&lt;WorkerMessage&gt;, anemo::Network) {
         <span class="kw">let </span>addr = network::multiaddr_to_address(<span class="kw-2">&amp;</span>address).unwrap();
         <span class="kw">let </span>(sender, receiver) = channel(<span class="number">1</span>);
         <span class="kw">let </span>service = WorkerToWorkerServer::new(<span class="self">Self </span>{ sender });
@@ -1224,11 +1218,11 @@
     }
 }
 
-<span class="attribute">#[tonic::async_trait]
+<span class="attribute">#[async_trait]
 </span><span class="kw">impl </span>WorkerToWorker <span class="kw">for </span>WorkerToWorkerMockServer {
     <span class="kw">async fn </span>send_message(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        request: anemo::Request&lt;types::WorkerMessage&gt;,
+        request: anemo::Request&lt;WorkerMessage&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;anemo::Response&lt;()&gt;, anemo::rpc::Status&gt; {
         <span class="kw">let </span>message = request.into_body();
 
@@ -1271,9 +1265,8 @@
 
 <span class="kw">const </span>BATCHES_CF: <span class="kw-2">&amp;</span>str = <span class="string">&quot;batches&quot;</span>;
 
-<span class="kw">pub fn </span>open_batch_store() -&gt; Store&lt;BatchDigest, types::Batch&gt; {
-    <span class="kw">let </span>db = rocks::DBMap::&lt;BatchDigest, types::Batch&gt;::open(temp_dir(), <span class="prelude-val">None</span>, <span class="prelude-val">Some</span>(BATCHES_CF))
-        .unwrap();
+<span class="kw">pub fn </span>open_batch_store() -&gt; Store&lt;BatchDigest, Batch&gt; {
+    <span class="kw">let </span>db = DBMap::&lt;BatchDigest, Batch&gt;::open(temp_dir(), <span class="prelude-val">None</span>, <span class="prelude-val">Some</span>(BATCHES_CF)).unwrap();
     Store::new(db)
 }
 
@@ -1526,7 +1519,7 @@
         <span class="self">self
     </span>}
 
-    <span class="kw">pub fn </span>rng&lt;N: ::rand::RngCore + ::rand::CryptoRng&gt;(<span class="self">self</span>, rng: N) -&gt; Builder&lt;N&gt; {
+    <span class="kw">pub fn </span>rng&lt;N: rand::RngCore + rand::CryptoRng&gt;(<span class="self">self</span>, rng: N) -&gt; Builder&lt;N&gt; {
         Builder {
             rng,
             committee_size: <span class="self">self</span>.committee_size,
@@ -1536,7 +1529,7 @@
     }
 }
 
-<span class="kw">impl</span>&lt;R: ::rand::RngCore + ::rand::CryptoRng&gt; Builder&lt;R&gt; {
+<span class="kw">impl</span>&lt;R: rand::RngCore + rand::CryptoRng&gt; Builder&lt;R&gt; {
     <span class="kw">pub fn </span>build(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; CommitteeFixture {
         <span class="kw">let </span>get_port = || {
             <span class="kw">if </span><span class="self">self</span>.randomize_ports {
@@ -1667,11 +1660,8 @@
 
     <span class="doccomment">/// Add a new authority to the commit by randoming generating a key
     </span><span class="kw">pub fn </span>add_authority(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="kw">let </span>authority = AuthorityFixture::generate(
-            <span class="kw-2">&amp;mut </span>OsRng,
-            NonZeroUsize::new(<span class="number">4</span>).unwrap(),
-            get_available_port,
-        );
+        <span class="kw">let </span>authority =
+            AuthorityFixture::generate(OsRng, NonZeroUsize::new(<span class="number">4</span>).unwrap(), get_available_port);
         <span class="self">self</span>.authorities.push(authority)
     }
 
@@ -1759,7 +1749,7 @@
 
     <span class="kw">fn </span>generate&lt;R, P&gt;(<span class="kw-2">mut </span>rng: R, number_of_workers: NonZeroUsize, <span class="kw-2">mut </span>get_port: P) -&gt; <span class="self">Self
     </span><span class="kw">where
-        </span>R: ::rand::RngCore + ::rand::CryptoRng,
+        </span>R: rand::RngCore + rand::CryptoRng,
         P: FnMut() -&gt; u16,
     {
         <span class="kw">let </span>keypair = KeyPair::generate(<span class="kw-2">&amp;mut </span>rng);
@@ -1809,7 +1799,7 @@
 
     <span class="kw">fn </span>generate&lt;R, P&gt;(<span class="kw-2">mut </span>rng: R, id: WorkerId, <span class="kw-2">mut </span>get_port: P) -&gt; <span class="self">Self
     </span><span class="kw">where
-        </span>R: ::rand::RngCore + ::rand::CryptoRng,
+        </span>R: rand::RngCore + rand::CryptoRng,
         P: FnMut() -&gt; u16,
     {
         <span class="kw">let </span>keypair = NetworkKeyPair::generate(<span class="kw-2">&amp;mut </span>rng);

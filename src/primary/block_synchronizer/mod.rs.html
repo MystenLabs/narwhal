@@ -1863,7 +1863,7 @@
                             </span>peers.add_peer(response.from.clone(), certificates);
 
                             <span class="comment">// We have received all possible responses
-                            </span><span class="kw">if </span>(peers.unique_values().len() == total_expected_certificates &amp;&amp;
+                            </span><span class="kw">if </span>(peers.unique_value_count() == total_expected_certificates &amp;&amp;
                             <span class="self">Self</span>::reached_response_ratio(num_of_responses, num_of_requests_sent))
                             || num_of_responses == num_of_requests_sent
                             {
@@ -1953,7 +1953,7 @@
                     </span>peers.add_peer(response.from.clone(), available_certs_for_peer);
 
                     <span class="comment">// We have received all possible responses
-                    </span><span class="kw">if </span>(peers.unique_values().len() == total_expected_block_ids &amp;&amp;
+                    </span><span class="kw">if </span>(peers.unique_value_count() == total_expected_block_ids &amp;&amp;
                     <span class="self">Self</span>::reached_response_ratio(num_of_responses, num_of_requests_sent))
                     || num_of_responses == num_of_requests_sent
                     {

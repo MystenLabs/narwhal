@@ -778,7 +778,6 @@
 <span id="778">778</span>
 <span id="779">779</span>
 <span id="780">780</span>
-<span id="781">781</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -804,7 +803,6 @@
 <span class="kw">use </span>std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
     fmt,
-    fmt::Formatter,
 };
 
 <span class="doccomment">/// The round number.
@@ -815,17 +813,17 @@
 </span><span class="kw">pub struct </span>Batch(<span class="kw">pub </span>Vec&lt;Transaction&gt;);
 
 <span class="attribute">#[derive(Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
-</span><span class="kw">pub struct </span>BatchDigest(<span class="kw">pub </span>[u8; fastcrypto::DIGEST_LEN]);
+</span><span class="kw">pub struct </span>BatchDigest(<span class="kw">pub </span>[u8; DIGEST_LEN]);
 
 <span class="kw">impl </span>fmt::Debug <span class="kw">for </span>BatchDigest {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), fmt::Error&gt; {
-        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, base64::encode(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>))
+        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, base64::encode(<span class="self">self</span>.<span class="number">0</span>))
     }
 }
 
 <span class="kw">impl </span>fmt::Display <span class="kw">for </span>BatchDigest {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), fmt::Error&gt; {
-        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, base64::encode(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>).get(<span class="number">0</span>..<span class="number">16</span>).unwrap())
+        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, base64::encode(<span class="self">self</span>.<span class="number">0</span>).get(<span class="number">0</span>..<span class="number">16</span>).unwrap())
     }
 }
 
@@ -973,13 +971,13 @@
 
 <span class="kw">impl </span>fmt::Debug <span class="kw">for </span>HeaderDigest {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), fmt::Error&gt; {
-        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, base64::encode(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>))
+        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, base64::encode(<span class="self">self</span>.<span class="number">0</span>))
     }
 }
 
 <span class="kw">impl </span>fmt::Display <span class="kw">for </span>HeaderDigest {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), fmt::Error&gt; {
-        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, base64::encode(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>).get(<span class="number">0</span>..<span class="number">16</span>).unwrap())
+        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, base64::encode(<span class="self">self</span>.<span class="number">0</span>).get(<span class="number">0</span>..<span class="number">16</span>).unwrap())
     }
 }
 
@@ -1115,13 +1113,13 @@
 
 <span class="kw">impl </span>fmt::Debug <span class="kw">for </span>VoteDigest {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), fmt::Error&gt; {
-        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, base64::encode(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>))
+        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, base64::encode(<span class="self">self</span>.<span class="number">0</span>))
     }
 }
 
 <span class="kw">impl </span>fmt::Display <span class="kw">for </span>VoteDigest {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), fmt::Error&gt; {
-        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, base64::encode(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>).get(<span class="number">0</span>..<span class="number">16</span>).unwrap())
+        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, base64::encode(<span class="self">self</span>.<span class="number">0</span>).get(<span class="number">0</span>..<span class="number">16</span>).unwrap())
     }
 }
 
@@ -1356,13 +1354,13 @@
 
 <span class="kw">impl </span>fmt::Debug <span class="kw">for </span>CertificateDigest {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), fmt::Error&gt; {
-        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, base64::encode(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>))
+        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, base64::encode(<span class="self">self</span>.<span class="number">0</span>))
     }
 }
 
 <span class="kw">impl </span>fmt::Display <span class="kw">for </span>CertificateDigest {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), fmt::Error&gt; {
-        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, base64::encode(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>).get(<span class="number">0</span>..<span class="number">16</span>).unwrap())
+        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, base64::encode(<span class="self">self</span>.<span class="number">0</span>).get(<span class="number">0</span>..<span class="number">16</span>).unwrap())
     }
 }
 
@@ -1406,7 +1404,7 @@
 }
 
 <span class="kw">impl </span>Affiliated <span class="kw">for </span>Certificate {
-    <span class="kw">fn </span>parents(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;&lt;<span class="self">Self </span><span class="kw">as </span>fastcrypto::Hash&gt;::TypedDigest&gt; {
+    <span class="kw">fn </span>parents(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;&lt;<span class="self">Self </span><span class="kw">as </span>Hash&gt;::TypedDigest&gt; {
         <span class="self">self</span>.header.parents.iter().cloned().collect()
     }
 
@@ -1512,18 +1510,18 @@
 
 <span class="kw">impl</span>&lt;T&gt; From&lt;BlockError&gt; <span class="kw">for </span>BlockResult&lt;T&gt; {
     <span class="kw">fn </span>from(error: BlockError) -&gt; <span class="self">Self </span>{
-        BlockResult::Err(error)
+        <span class="prelude-val">Err</span>(error)
     }
 }
 
 <span class="kw">impl </span>fmt::Display <span class="kw">for </span>BlockError {
-    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; fmt::Result {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; fmt::Result {
         <span class="macro">write!</span>(f, <span class="string">&quot;block id: {}, error type: {}&quot;</span>, <span class="self">self</span>.id, <span class="self">self</span>.error)
     }
 }
 
 <span class="kw">impl </span>fmt::Display <span class="kw">for </span>BlockErrorKind {
-    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; fmt::Result {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; fmt::Result {
         <span class="macro">write!</span>(f, <span class="string">&quot;{:?}&quot;</span>, <span class="self">self</span>)
     }
 }

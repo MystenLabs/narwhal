@@ -1171,7 +1171,7 @@
 </span><span class="kw">impl </span>PrimaryToPrimary <span class="kw">for </span>PrimaryReceiverHandler {
     <span class="kw">async fn </span>send_message(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        request: anemo::Request&lt;types::PrimaryMessage&gt;,
+        request: anemo::Request&lt;PrimaryMessage&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;anemo::Response&lt;()&gt;, anemo::rpc::Status&gt; {
         <span class="kw">let </span>message = request.into_body();
 
