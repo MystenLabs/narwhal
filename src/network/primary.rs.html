@@ -311,6 +311,74 @@
 <span id="311">311</span>
 <span id="312">312</span>
 <span id="313">313</span>
+<span id="314">314</span>
+<span id="315">315</span>
+<span id="316">316</span>
+<span id="317">317</span>
+<span id="318">318</span>
+<span id="319">319</span>
+<span id="320">320</span>
+<span id="321">321</span>
+<span id="322">322</span>
+<span id="323">323</span>
+<span id="324">324</span>
+<span id="325">325</span>
+<span id="326">326</span>
+<span id="327">327</span>
+<span id="328">328</span>
+<span id="329">329</span>
+<span id="330">330</span>
+<span id="331">331</span>
+<span id="332">332</span>
+<span id="333">333</span>
+<span id="334">334</span>
+<span id="335">335</span>
+<span id="336">336</span>
+<span id="337">337</span>
+<span id="338">338</span>
+<span id="339">339</span>
+<span id="340">340</span>
+<span id="341">341</span>
+<span id="342">342</span>
+<span id="343">343</span>
+<span id="344">344</span>
+<span id="345">345</span>
+<span id="346">346</span>
+<span id="347">347</span>
+<span id="348">348</span>
+<span id="349">349</span>
+<span id="350">350</span>
+<span id="351">351</span>
+<span id="352">352</span>
+<span id="353">353</span>
+<span id="354">354</span>
+<span id="355">355</span>
+<span id="356">356</span>
+<span id="357">357</span>
+<span id="358">358</span>
+<span id="359">359</span>
+<span id="360">360</span>
+<span id="361">361</span>
+<span id="362">362</span>
+<span id="363">363</span>
+<span id="364">364</span>
+<span id="365">365</span>
+<span id="366">366</span>
+<span id="367">367</span>
+<span id="368">368</span>
+<span id="369">369</span>
+<span id="370">370</span>
+<span id="371">371</span>
+<span id="372">372</span>
+<span id="373">373</span>
+<span id="374">374</span>
+<span id="375">375</span>
+<span id="376">376</span>
+<span id="377">377</span>
+<span id="378">378</span>
+<span id="379">379</span>
+<span id="380">380</span>
+<span id="381">381</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
@@ -331,7 +399,7 @@
 <span class="kw">use </span>tracing::error;
 <span class="kw">use </span>types::{
     BincodeEncodedPayload, PrimaryMessage, PrimaryToPrimaryClient, PrimaryToWorkerClient,
-    PrimaryWorkerMessage,
+    PrimaryWorkerMessage, WorkerMessage, WorkerToWorkerClient,
 };
 
 <span class="kw">fn </span>default_executor() -&gt; BoundedExecutor {
@@ -479,7 +547,7 @@
     }
 }
 
-<span class="kw">pub struct </span>PrimaryNetwork {
+<span class="kw">pub struct </span>P2pNetwork {
     network: anemo::Network,
     retry_config: RetryConfig,
     <span class="doccomment">/// Small RNG just used to shuffle nodes and randomize connections (not crypto related).
@@ -488,7 +556,7 @@
     </span>executors: HashMap&lt;anemo::PeerId, BoundedExecutor&gt;,
 }
 
-<span class="kw">impl </span>PrimaryNetwork {
+<span class="kw">impl </span>P2pNetwork {
     <span class="kw">pub fn </span>new(network: anemo::Network) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>retry_config = RetryConfig {
             <span class="comment">// Retry forever
@@ -512,45 +580,34 @@
         // not be necessary with the new networking stack so we&#39;ll need to revisit if this function
         // is even needed. For now do nothing.
     </span>}
-}
 
-<span class="attribute">#[async_trait]
-</span><span class="kw">impl </span>UnreliableNetwork2&lt;PrimaryMessage&gt; <span class="kw">for </span>PrimaryNetwork {
-    <span class="kw">async fn </span>unreliable_send(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        peer: NetworkPublicKey,
-        message: <span class="kw-2">&amp;</span>PrimaryMessage,
-    ) -&gt; JoinHandle&lt;()&gt; {
+    <span class="kw">async fn </span>unreliable_send&lt;F, Fut, O&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, peer: NetworkPublicKey, f: F) -&gt; JoinHandle&lt;()&gt;
+    <span class="kw">where
+        </span>F: FnOnce(anemo::Peer) -&gt; Fut + Send + Sync + <span class="lifetime">&#39;static</span>,
+        Fut: std::future::Future&lt;Output = O&gt; + Send,
+    {
         <span class="kw">let </span>network = <span class="self">self</span>.network.clone();
         <span class="kw">let </span>peer_id = PeerId(peer.<span class="number">0</span>.to_bytes());
-        <span class="kw">let </span>message = message.to_owned();
         <span class="self">self</span>.executors
             .entry(peer_id)
             .or_insert_with(default_executor)
             .spawn(<span class="kw">async move </span>{
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(peer) = network.peer(peer_id) {
-                    <span class="kw">let _ </span>= PrimaryToPrimaryClient::new(peer)
-                        .send_message(message)
-                        .<span class="kw">await</span>;
+                    <span class="kw">let _ </span>= f(peer).<span class="kw">await</span>;
                 }
             })
             .<span class="kw">await
     </span>}
-}
 
-<span class="kw">impl </span>Lucky <span class="kw">for </span>PrimaryNetwork {
-    <span class="kw">fn </span>rng(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>SmallRng {
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>.rng
-    }
-}
-
-<span class="attribute">#[async_trait]
-</span><span class="kw">impl </span>ReliableNetwork2&lt;PrimaryMessage&gt; <span class="kw">for </span>PrimaryNetwork {
-    <span class="kw">async fn </span>send(
+    <span class="kw">async fn </span>send&lt;F, Fut&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         peer: NetworkPublicKey,
-        message: <span class="kw-2">&amp;</span>PrimaryMessage,
-    ) -&gt; CancelOnDropHandler&lt;anyhow::Result&lt;anemo::Response&lt;()&gt;&gt;&gt; {
+        f: F,
+    ) -&gt; CancelOnDropHandler&lt;anyhow::Result&lt;anemo::Response&lt;()&gt;&gt;&gt;
+    <span class="kw">where
+        </span>F: Fn(anemo::Peer) -&gt; Fut + Send + Sync + <span class="lifetime">&#39;static </span>+ Clone,
+        Fut: std::future::Future&lt;Output = <span class="prelude-ty">Result</span>&lt;anemo::Response&lt;()&gt;, anemo::rpc::Status&gt;&gt; + Send,
+    {
         <span class="comment">// Safety
         // Since this spawns an unbounded task, this should be called in a time-restricted fashion.
         // Here the callers are [`PrimaryNetwork::broadcast`] and [`PrimaryNetwork::send`],
@@ -560,21 +617,17 @@
 
         </span><span class="kw">let </span>network = <span class="self">self</span>.network.clone();
         <span class="kw">let </span>peer_id = PeerId(peer.<span class="number">0</span>.to_bytes());
-        <span class="kw">let </span>message = message.to_owned();
         <span class="kw">let </span>message_send = <span class="kw">move </span>|| {
             <span class="kw">let </span>network = network.clone();
-            <span class="kw">let </span>message = message.clone();
+            <span class="kw">let </span>f = f.clone();
 
             <span class="kw">async move </span>{
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(peer) = network.peer(peer_id) {
-                    PrimaryToPrimaryClient::new(peer)
-                        .send_message(message)
-                        .<span class="kw">await
-                        </span>.map_err(|e| {
-                            <span class="comment">// this returns a backoff::Error::Transient
-                            // so that if anemo::Status is returned, we retry
-                            </span>backoff::Error::transient(<span class="macro">anyhow::anyhow!</span>(<span class="string">&quot;RPC error: {e:?}&quot;</span>))
-                        })
+                    f(peer).<span class="kw">await</span>.map_err(|e| {
+                        <span class="comment">// this returns a backoff::Error::Transient
+                        // so that if anemo::Status is returned, we retry
+                        </span>backoff::Error::transient(<span class="macro">anyhow::anyhow!</span>(<span class="string">&quot;RPC error: {e:?}&quot;</span>))
+                    })
                 } <span class="kw">else </span>{
                     <span class="prelude-val">Err</span>(backoff::Error::transient(<span class="macro">anyhow::anyhow!</span>(
                         <span class="string">&quot;not connected to peer {peer_id}&quot;
@@ -591,6 +644,89 @@
 
         CancelOnDropHandler(handle)
     }
+}
+
+<span class="kw">impl </span>Lucky <span class="kw">for </span>P2pNetwork {
+    <span class="kw">fn </span>rng(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>SmallRng {
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>.rng
+    }
+}
+
+<span class="comment">//
+// Primary-to-Primary
+//
+
+</span><span class="attribute">#[async_trait]
+</span><span class="kw">impl </span>UnreliableNetwork2&lt;PrimaryMessage&gt; <span class="kw">for </span>P2pNetwork {
+    <span class="kw">async fn </span>unreliable_send(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        peer: NetworkPublicKey,
+        message: <span class="kw-2">&amp;</span>PrimaryMessage,
+    ) -&gt; JoinHandle&lt;()&gt; {
+        <span class="kw">let </span>message = message.to_owned();
+        <span class="kw">let </span>f = <span class="kw">move </span>|peer| <span class="kw">async move </span>{
+            PrimaryToPrimaryClient::new(peer)
+                .send_message(message)
+                .<span class="kw">await
+        </span>};
+        <span class="self">self</span>.unreliable_send(peer, f).<span class="kw">await
+    </span>}
+}
+
+<span class="attribute">#[async_trait]
+</span><span class="kw">impl </span>ReliableNetwork2&lt;PrimaryMessage&gt; <span class="kw">for </span>P2pNetwork {
+    <span class="kw">async fn </span>send(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        peer: NetworkPublicKey,
+        message: <span class="kw-2">&amp;</span>PrimaryMessage,
+    ) -&gt; CancelOnDropHandler&lt;anyhow::Result&lt;anemo::Response&lt;()&gt;&gt;&gt; {
+        <span class="kw">let </span>message = message.to_owned();
+        <span class="kw">let </span>f = <span class="kw">move </span>|peer| {
+            <span class="kw">let </span>message = message.clone();
+            <span class="kw">async move </span>{
+                PrimaryToPrimaryClient::new(peer)
+                    .send_message(message)
+                    .<span class="kw">await
+            </span>}
+        };
+
+        <span class="self">self</span>.send(peer, f).<span class="kw">await
+    </span>}
+}
+
+<span class="comment">//
+// Worker-to-Worker
+//
+
+</span><span class="attribute">#[async_trait]
+</span><span class="kw">impl </span>UnreliableNetwork2&lt;WorkerMessage&gt; <span class="kw">for </span>P2pNetwork {
+    <span class="kw">async fn </span>unreliable_send(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        peer: NetworkPublicKey,
+        message: <span class="kw-2">&amp;</span>WorkerMessage,
+    ) -&gt; JoinHandle&lt;()&gt; {
+        <span class="kw">let </span>message = message.to_owned();
+        <span class="kw">let </span>f =
+            <span class="kw">move </span>|peer| <span class="kw">async move </span>{ WorkerToWorkerClient::new(peer).send_message(message).<span class="kw">await </span>};
+        <span class="self">self</span>.unreliable_send(peer, f).<span class="kw">await
+    </span>}
+}
+
+<span class="attribute">#[async_trait]
+</span><span class="kw">impl </span>ReliableNetwork2&lt;WorkerMessage&gt; <span class="kw">for </span>P2pNetwork {
+    <span class="kw">async fn </span>send(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        peer: NetworkPublicKey,
+        message: <span class="kw-2">&amp;</span>WorkerMessage,
+    ) -&gt; CancelOnDropHandler&lt;anyhow::Result&lt;anemo::Response&lt;()&gt;&gt;&gt; {
+        <span class="kw">let </span>message = message.to_owned();
+        <span class="kw">let </span>f = <span class="kw">move </span>|peer| {
+            <span class="kw">let </span>message = message.clone();
+            <span class="kw">async move </span>{ WorkerToWorkerClient::new(peer).send_message(message).<span class="kw">await </span>}
+        };
+
+        <span class="self">self</span>.send(peer, f).<span class="kw">await
+    </span>}
 }
 
 <span class="attribute">#[cfg(test)]

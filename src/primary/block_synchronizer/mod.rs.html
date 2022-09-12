@@ -1034,7 +1034,7 @@
     stream::FuturesUnordered,
     FutureExt, StreamExt,
 };
-<span class="kw">use </span>network::{PrimaryNetwork, PrimaryToWorkerNetwork, UnreliableNetwork, UnreliableNetwork2};
+<span class="kw">use </span>network::{P2pNetwork, PrimaryToWorkerNetwork, UnreliableNetwork, UnreliableNetwork2};
 <span class="kw">use </span>rand::{rngs::SmallRng, SeedableRng};
 <span class="kw">use </span>std::{
     collections::{HashMap, HashSet},
@@ -1202,7 +1202,7 @@
         HashMap&lt;RequestID, Sender&lt;PayloadAvailabilityResponse&gt;&gt;,
 
     <span class="doccomment">/// Send network requests
-    </span>primary_network: PrimaryNetwork,
+    </span>primary_network: P2pNetwork,
     worker_network: PrimaryToWorkerNetwork,
 
     <span class="doccomment">/// The store that holds the certificates
@@ -1231,7 +1231,7 @@
         rx_commands: metered_channel::Receiver&lt;Command&gt;,
         rx_certificate_responses: metered_channel::Receiver&lt;CertificatesResponse&gt;,
         rx_payload_availability_responses: metered_channel::Receiver&lt;PayloadAvailabilityResponse&gt;,
-        network: PrimaryNetwork,
+        network: P2pNetwork,
         payload_store: Store&lt;(BatchDigest, WorkerId), PayloadToken&gt;,
         certificate_store: CertificateStore,
         parameters: BlockSynchronizerParameters,

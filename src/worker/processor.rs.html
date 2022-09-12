@@ -71,27 +71,18 @@
 <span id="71">71</span>
 <span id="72">72</span>
 <span id="73">73</span>
-<span id="74">74</span>
-<span id="75">75</span>
-<span id="76">76</span>
-<span id="77">77</span>
-<span id="78">78</span>
-<span id="79">79</span>
-<span id="80">80</span>
-<span id="81">81</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
 </span><span class="kw">use </span>config::WorkerId;
+<span class="kw">use </span>fastcrypto::Hash;
 <span class="kw">use </span>store::Store;
 <span class="kw">use </span>tokio::{sync::watch, task::JoinHandle};
-<span class="kw">use </span>tracing::error;
 <span class="kw">use </span>types::{
     error::DagError,
     metered_channel::{Receiver, Sender},
-    serialized_batch_digest, BatchDigest, ReconfigureNotification, SerializedBatchMessage,
-    WorkerPrimaryMessage,
+    Batch, BatchDigest, ReconfigureNotification, WorkerPrimaryMessage,
 };
 
 <span class="attribute">#[cfg(test)]
@@ -107,11 +98,11 @@
         <span class="comment">// Our worker&#39;s id.
         </span>id: WorkerId,
         <span class="comment">// The persistent storage.
-        </span>store: Store&lt;BatchDigest, SerializedBatchMessage&gt;,
+        </span>store: Store&lt;BatchDigest, Batch&gt;,
         <span class="comment">// Receive reconfiguration signals.
         </span><span class="kw-2">mut </span>rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;,
         <span class="comment">// Input channel to receive batches.
-        </span><span class="kw-2">mut </span>rx_batch: Receiver&lt;SerializedBatchMessage&gt;,
+        </span><span class="kw-2">mut </span>rx_batch: Receiver&lt;Batch&gt;,
         <span class="comment">// Output channel to send out batches&#39; digests.
         </span>tx_digest: Sender&lt;WorkerPrimaryMessage&gt;,
         <span class="comment">// Whether we are processing our own batches or the batches of other nodes.
@@ -122,29 +113,22 @@
                 <span class="macro">tokio::select! </span>{
                     <span class="prelude-val">Some</span>(batch) = rx_batch.recv() =&gt; {
                         <span class="comment">// Hash the batch.
-                        </span><span class="kw">let </span>res_digest = serialized_batch_digest(<span class="kw-2">&amp;</span>batch);
+                        </span><span class="kw">let </span>digest = batch.digest();
 
-                        <span class="kw">match </span>res_digest {
-                            <span class="prelude-val">Ok</span>(digest) =&gt; {
-                                <span class="comment">// Store the batch.
-                                </span>store.write(digest, batch).<span class="kw">await</span>;
+                        <span class="comment">// Store the batch.
+                        </span>store.write(digest, batch).<span class="kw">await</span>;
 
-                                <span class="comment">// Deliver the batch&#39;s digest.
-                                </span><span class="kw">let </span>message = <span class="kw">match </span>own_digest {
-                                    <span class="bool-val">true </span>=&gt; WorkerPrimaryMessage::OurBatch(digest, id),
-                                    <span class="bool-val">false </span>=&gt; WorkerPrimaryMessage::OthersBatch(digest, id),
-                                };
-                                <span class="kw">if </span>tx_digest
-                                    .send(message)
-                                    .<span class="kw">await
-                                    </span>.is_err() {
-                                    <span class="macro">tracing::debug!</span>(<span class="string">&quot;{}&quot;</span>, DagError::ShuttingDown);
-                                };
-                            }
-                            <span class="prelude-val">Err</span>(error) =&gt; {
-                                <span class="macro">error!</span>(<span class="string">&quot;Received invalid batch, serialization failure: {error}&quot;</span>);
-                            }
-                        }
+                        <span class="comment">// Deliver the batch&#39;s digest.
+                        </span><span class="kw">let </span>message = <span class="kw">match </span>own_digest {
+                            <span class="bool-val">true </span>=&gt; WorkerPrimaryMessage::OurBatch(digest, id),
+                            <span class="bool-val">false </span>=&gt; WorkerPrimaryMessage::OthersBatch(digest, id),
+                        };
+                        <span class="kw">if </span>tx_digest
+                            .send(message)
+                            .<span class="kw">await
+                            </span>.is_err() {
+                            <span class="macro">tracing::debug!</span>(<span class="string">&quot;{}&quot;</span>, DagError::ShuttingDown);
+                        };
                     },
 
                     <span class="comment">// Trigger reconfigure.

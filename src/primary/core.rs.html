@@ -672,7 +672,7 @@
 <span class="kw">use </span>config::{Committee, Epoch, SharedWorkerCache};
 <span class="kw">use </span>crypto::{PublicKey, Signature};
 <span class="kw">use </span>fastcrypto::{Hash <span class="kw">as _</span>, SignatureService};
-<span class="kw">use </span>network::{CancelOnDropHandler, PrimaryNetwork, ReliableNetwork2};
+<span class="kw">use </span>network::{CancelOnDropHandler, P2pNetwork, ReliableNetwork2};
 <span class="kw">use </span>std::{
     collections::{HashMap, HashSet},
     sync::Arc,
@@ -741,7 +741,7 @@
     <span class="doccomment">/// Aggregates certificates to use as parents for new headers.
     </span>certificates_aggregators: HashMap&lt;Round, Box&lt;CertificatesAggregator&gt;&gt;,
     <span class="doccomment">/// A network sender to send the batches to the other workers.
-    </span>network: PrimaryNetwork,
+    </span>network: P2pNetwork,
     <span class="doccomment">/// Keeps the cancel handlers of the messages we sent.
     </span>cancel_handlers: HashMap&lt;Round, Vec&lt;CancelOnDropHandler&lt;anyhow::Result&lt;anemo::Response&lt;()&gt;&gt;&gt;&gt;&gt;,
     <span class="doccomment">/// Metrics handler
@@ -769,7 +769,7 @@
         tx_consensus: Sender&lt;Certificate&gt;,
         tx_proposer: Sender&lt;(Vec&lt;Certificate&gt;, Round, Epoch)&gt;,
         metrics: Arc&lt;PrimaryMetrics&gt;,
-        primary_network: PrimaryNetwork,
+        primary_network: P2pNetwork,
     ) -&gt; JoinHandle&lt;()&gt; {
         tokio::spawn(<span class="kw">async move </span>{
             <span class="self">Self </span>{

@@ -187,13 +187,6 @@
 <span id="187">187</span>
 <span id="188">188</span>
 <span id="189">189</span>
-<span id="190">190</span>
-<span id="191">191</span>
-<span id="192">192</span>
-<span id="193">193</span>
-<span id="194">194</span>
-<span id="195">195</span>
-<span id="196">196</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span>mysten_network::metrics::MetricsCallbackProvider;
@@ -287,8 +280,6 @@
     </span><span class="kw">pub </span>tx_client_processor: IntGauge,
     <span class="doccomment">/// occupancy of the channel from the `worker::WorkerReceiverHandler` to the `worker::Helper` (carrying worker requests)
     </span><span class="kw">pub </span>tx_worker_helper: IntGauge,
-    <span class="doccomment">/// occupancy of the channel from the `worker::WorkerReceiverHandler` to the `worker::Helper` (carrying client requests)
-    </span><span class="kw">pub </span>tx_client_helper: IntGauge,
 }
 
 <span class="kw">impl </span>WorkerChannelMetrics {
@@ -329,11 +320,6 @@
                 <span class="string">&quot;occupancy of the channel from the `worker::WorkerReceiverHandler` to the `worker::Helper` (carrying worker requests)&quot;</span>,
                 registry
             ).unwrap(),
-            tx_client_helper: <span class="macro">register_int_gauge_with_registry!</span>(
-                <span class="string">&quot;tx_client_helper&quot;</span>,
-                <span class="string">&quot;occupancy of the channel from the `worker::WorkerReceiverHandler` to the `worker::Helper` (carrying client requests)&quot;</span>,
-                registry
-            ).unwrap()
         }
     }
 }

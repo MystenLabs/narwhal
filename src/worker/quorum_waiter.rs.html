@@ -155,18 +155,19 @@
 <span id="155">155</span>
 <span id="156">156</span>
 <span id="157">157</span>
+<span id="158">158</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span>config::{Committee, SharedWorkerCache, Stake, WorkerId};
 <span class="kw">use </span>crypto::PublicKey;
 <span class="kw">use </span>futures::stream::{futures_unordered::FuturesUnordered, StreamExt <span class="kw">as _</span>};
-<span class="kw">use </span>network::{CancelOnDropHandler, MessageResult, ReliableNetwork, WorkerNetwork};
+<span class="kw">use </span>network::{CancelOnDropHandler, P2pNetwork, ReliableNetwork2};
 <span class="kw">use </span>tokio::{sync::watch, task::JoinHandle};
 <span class="kw">use </span>types::{
     error::DagError,
     metered_channel::{Receiver, Sender},
-    Batch, ReconfigureNotification, SerializedBatchMessage, WorkerMessage,
+    Batch, ReconfigureNotification, WorkerMessage,
 };
 
 <span class="attribute">#[cfg(test)]
@@ -188,9 +189,9 @@
     <span class="doccomment">/// Input Channel to receive commands.
     </span>rx_message: Receiver&lt;Batch&gt;,
     <span class="doccomment">/// Channel to deliver batches for which we have enough acknowledgments.
-    </span>tx_batch: Sender&lt;SerializedBatchMessage&gt;,
+    </span>tx_batch: Sender&lt;Batch&gt;,
     <span class="doccomment">/// A network sender to broadcast the batches to the other workers.
-    </span>network: WorkerNetwork,
+    </span>network: P2pNetwork,
 }
 
 <span class="kw">impl </span>QuorumWaiter {
@@ -203,8 +204,8 @@
         worker_cache: SharedWorkerCache,
         rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;,
         rx_message: Receiver&lt;Batch&gt;,
-        tx_batch: Sender&lt;Vec&lt;u8&gt;&gt;,
-        network: WorkerNetwork,
+        tx_batch: Sender&lt;Batch&gt;,
+        network: P2pNetwork,
     ) -&gt; JoinHandle&lt;()&gt; {
         tokio::spawn(<span class="kw">async move </span>{
             <span class="self">Self </span>{
@@ -223,7 +224,10 @@
     }
 
     <span class="doccomment">/// Helper function. It waits for a future to complete and then delivers a value.
-    </span><span class="kw">async fn </span>waiter(wait_for: CancelOnDropHandler&lt;MessageResult&gt;, deliver: Stake) -&gt; Stake {
+    </span><span class="kw">async fn </span>waiter(
+        wait_for: CancelOnDropHandler&lt;anemo::Result&lt;anemo::Response&lt;()&gt;&gt;&gt;,
+        deliver: Stake,
+    ) -&gt; Stake {
         <span class="kw">let _ </span>= wait_for.<span class="kw">await</span>;
         deliver
     }
@@ -234,21 +238,19 @@
             <span class="macro">tokio::select! </span>{
                 <span class="prelude-val">Some</span>(batch) = <span class="self">self</span>.rx_message.recv() =&gt; {
                     <span class="comment">// Broadcast the batch to the other workers.
-                    </span><span class="kw">let </span>workers_addresses: Vec&lt;<span class="kw">_</span>&gt; = <span class="self">self
+                    </span><span class="kw">let </span>workers: Vec&lt;<span class="kw">_</span>&gt; = <span class="self">self
                         </span>.worker_cache
                         .load()
                         .others_workers(<span class="kw-2">&amp;</span><span class="self">self</span>.name, <span class="kw-2">&amp;</span><span class="self">self</span>.id)
                         .into_iter()
-                        .map(|(name, addresses)| (name, addresses.worker_to_worker))
+                        .map(|(name, info)| (name, info.name))
                         .collect();
-                    <span class="kw">let </span>(names, addresses): (Vec&lt;<span class="kw">_</span>&gt;, <span class="kw">_</span>) = workers_addresses.iter().cloned().unzip();
-                    <span class="kw">let </span>message = WorkerMessage::Batch(batch);
-                    <span class="kw">let </span>serialized =
-                        bincode::serialize(<span class="kw-2">&amp;</span>message).expect(<span class="string">&quot;Failed to serialize our own batch&quot;</span>);
-                    <span class="kw">let </span>handlers = <span class="self">self</span>.network.broadcast(addresses, <span class="kw-2">&amp;</span>message).<span class="kw">await</span>;
+                    <span class="kw">let </span>(primary_names, worker_names): (Vec&lt;<span class="kw">_</span>&gt;, <span class="kw">_</span>) = workers.into_iter().unzip();
+                    <span class="kw">let </span>message = WorkerMessage::Batch(batch.clone());
+                    <span class="kw">let </span>handlers = <span class="self">self</span>.network.broadcast(worker_names, <span class="kw-2">&amp;</span>message).<span class="kw">await</span>;
 
                     <span class="comment">// Collect all the handlers to receive acknowledgements.
-                    </span><span class="kw">let </span><span class="kw-2">mut </span>wait_for_quorum: FuturesUnordered&lt;<span class="kw">_</span>&gt; = names
+                    </span><span class="kw">let </span><span class="kw-2">mut </span>wait_for_quorum: FuturesUnordered&lt;<span class="kw">_</span>&gt; = primary_names
                         .into_iter()
                         .zip(handlers.into_iter())
                         .map(|(name, handler)| {
@@ -267,7 +269,7 @@
                             <span class="prelude-val">Some</span>(stake) = wait_for_quorum.next() =&gt; {
                                 total_stake += stake;
                                 <span class="kw">if </span>total_stake &gt;= threshold {
-                                    <span class="kw">if </span><span class="self">self</span>.tx_batch.send(serialized).<span class="kw">await</span>.is_err() {
+                                    <span class="kw">if </span><span class="self">self</span>.tx_batch.send(batch).<span class="kw">await</span>.is_err() {
                                         <span class="macro">tracing::debug!</span>(<span class="string">&quot;{}&quot;</span>, DagError::ShuttingDown);
                                     }
                                     <span class="kw">break</span>;

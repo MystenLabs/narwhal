@@ -521,84 +521,6 @@
 <span id="521">521</span>
 <span id="522">522</span>
 <span id="523">523</span>
-<span id="524">524</span>
-<span id="525">525</span>
-<span id="526">526</span>
-<span id="527">527</span>
-<span id="528">528</span>
-<span id="529">529</span>
-<span id="530">530</span>
-<span id="531">531</span>
-<span id="532">532</span>
-<span id="533">533</span>
-<span id="534">534</span>
-<span id="535">535</span>
-<span id="536">536</span>
-<span id="537">537</span>
-<span id="538">538</span>
-<span id="539">539</span>
-<span id="540">540</span>
-<span id="541">541</span>
-<span id="542">542</span>
-<span id="543">543</span>
-<span id="544">544</span>
-<span id="545">545</span>
-<span id="546">546</span>
-<span id="547">547</span>
-<span id="548">548</span>
-<span id="549">549</span>
-<span id="550">550</span>
-<span id="551">551</span>
-<span id="552">552</span>
-<span id="553">553</span>
-<span id="554">554</span>
-<span id="555">555</span>
-<span id="556">556</span>
-<span id="557">557</span>
-<span id="558">558</span>
-<span id="559">559</span>
-<span id="560">560</span>
-<span id="561">561</span>
-<span id="562">562</span>
-<span id="563">563</span>
-<span id="564">564</span>
-<span id="565">565</span>
-<span id="566">566</span>
-<span id="567">567</span>
-<span id="568">568</span>
-<span id="569">569</span>
-<span id="570">570</span>
-<span id="571">571</span>
-<span id="572">572</span>
-<span id="573">573</span>
-<span id="574">574</span>
-<span id="575">575</span>
-<span id="576">576</span>
-<span id="577">577</span>
-<span id="578">578</span>
-<span id="579">579</span>
-<span id="580">580</span>
-<span id="581">581</span>
-<span id="582">582</span>
-<span id="583">583</span>
-<span id="584">584</span>
-<span id="585">585</span>
-<span id="586">586</span>
-<span id="587">587</span>
-<span id="588">588</span>
-<span id="589">589</span>
-<span id="590">590</span>
-<span id="591">591</span>
-<span id="592">592</span>
-<span id="593">593</span>
-<span id="594">594</span>
-<span id="595">595</span>
-<span id="596">596</span>
-<span id="597">597</span>
-<span id="598">598</span>
-<span id="599">599</span>
-<span id="600">600</span>
-<span id="601">601</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -607,29 +529,25 @@
     primary_connector::PrimaryConnector, processor::Processor, quorum_waiter::QuorumWaiter,
     synchronizer::Synchronizer,
 };
+<span class="kw">use </span>anemo::{types::PeerInfo, PeerId};
 <span class="kw">use </span>async_trait::async_trait;
-<span class="kw">use </span>bytes::Bytes;
 <span class="kw">use </span>config::{Parameters, SharedCommittee, SharedWorkerCache, WorkerId};
-<span class="kw">use </span>crypto::{NetworkKeyPair, PublicKey};
-<span class="kw">use </span>futures::{Stream, StreamExt};
+<span class="kw">use </span>crypto::{traits::KeyPair <span class="kw">as _</span>, NetworkKeyPair, PublicKey};
+<span class="kw">use </span>futures::StreamExt;
 <span class="kw">use </span>multiaddr::{Multiaddr, Protocol};
-<span class="kw">use </span>network::{metrics::WorkerNetworkMetrics, WorkerNetwork};
+<span class="kw">use </span>network::P2pNetwork;
 <span class="kw">use </span>primary::PrimaryWorkerMessage;
-<span class="kw">use </span>std::{net::Ipv4Addr, pin::Pin, sync::Arc};
+<span class="kw">use </span>std::{net::Ipv4Addr, sync::Arc};
 <span class="kw">use </span>store::Store;
-<span class="kw">use </span>tokio::{
-    sync::{mpsc, watch},
-    task::JoinHandle,
-};
+<span class="kw">use </span>tokio::{sync::watch, task::JoinHandle};
 <span class="kw">use </span>tonic::{Request, Response, Status};
 <span class="kw">use </span>tracing::info;
 <span class="kw">use </span>types::{
     error::DagError,
     metered_channel::{channel, Sender},
-    BatchDigest, BincodeEncodedPayload, ClientBatchRequest, Empty, PrimaryToWorker,
-    PrimaryToWorkerServer, ReconfigureNotification, SerializedBatchMessage, Transaction,
-    TransactionProto, Transactions, TransactionsServer, WorkerPrimaryMessage, WorkerToWorker,
-    WorkerToWorkerServer,
+    Batch, BatchDigest, BincodeEncodedPayload, Empty, PrimaryToWorker, PrimaryToWorkerServer,
+    ReconfigureNotification, Transaction, TransactionProto, Transactions, TransactionsServer,
+    WorkerPrimaryMessage, WorkerToWorker, WorkerToWorkerServer,
 };
 
 <span class="attribute">#[cfg(test)]
@@ -658,7 +576,7 @@
     <span class="doccomment">/// The configuration parameters
     </span>parameters: Parameters,
     <span class="doccomment">/// The persistent storage.
-    </span>store: Store&lt;BatchDigest, SerializedBatchMessage&gt;,
+    </span>store: Store&lt;BatchDigest, Batch&gt;,
 }
 
 <span class="kw">const </span>INADDR_ANY: Ipv4Addr = Ipv4Addr::new(<span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>);
@@ -671,7 +589,7 @@
         committee: SharedCommittee,
         worker_cache: SharedWorkerCache,
         parameters: Parameters,
-        store: Store&lt;BatchDigest, SerializedBatchMessage&gt;,
+        store: Store&lt;BatchDigest, Batch&gt;,
         metrics: Metrics,
     ) -&gt; Vec&lt;JoinHandle&lt;()&gt;&gt; {
         <span class="comment">// Define a worker instance.
@@ -687,7 +605,6 @@
 
         <span class="kw">let </span>node_metrics = Arc::new(metrics.worker_metrics.unwrap());
         <span class="kw">let </span>endpoint_metrics = metrics.endpoint_metrics.unwrap();
-        <span class="kw">let </span>network_metrics = Arc::new(metrics.network_metrics.unwrap());
         <span class="kw">let </span>channel_metrics: Arc&lt;WorkerChannelMetrics&gt; = Arc::new(metrics.channel_metrics.unwrap());
 
         <span class="comment">// Spawn all worker tasks.
@@ -697,26 +614,75 @@
         <span class="kw">let </span>(tx_reconfigure, rx_reconfigure) =
             watch::channel(ReconfigureNotification::NewEpoch(initial_committee.clone()));
 
+        <span class="kw">let </span>(tx_worker_helper, rx_worker_helper) =
+            channel(CHANNEL_CAPACITY, <span class="kw-2">&amp;</span>channel_metrics.tx_worker_helper);
+        <span class="kw">let </span>(tx_worker_processor, rx_worker_processor) =
+            channel(CHANNEL_CAPACITY, <span class="kw-2">&amp;</span>channel_metrics.tx_worker_processor);
+
+        <span class="kw">let </span>worker_service = WorkerToWorkerServer::new(WorkerReceiverHandler {
+            tx_worker_helper,
+            tx_processor: tx_worker_processor,
+        });
+
+        <span class="comment">// Receive incoming messages from other workers.
+        </span><span class="kw">let </span>address = worker
+            .worker_cache
+            .load()
+            .worker(<span class="kw-2">&amp;</span>primary_name, <span class="kw-2">&amp;</span>id)
+            .expect(<span class="string">&quot;Our public key or worker id is not in the worker cache&quot;</span>)
+            .worker_to_worker;
+        <span class="kw">let </span>address = address
+            .replace(<span class="number">0</span>, |_protocol| <span class="prelude-val">Some</span>(Protocol::Ip4(Ipv4Addr::UNSPECIFIED)))
+            .unwrap();
+        <span class="kw">let </span>addr = network::multiaddr_to_address(<span class="kw-2">&amp;</span>address).unwrap();
+
+        <span class="comment">// Set up anemo Network.
+        </span><span class="kw">let </span>routes = anemo::Router::new().add_rpc_service(worker_service);
+        <span class="kw">let </span>network = anemo::Network::bind(addr)
+            .server_name(<span class="string">&quot;narwhal&quot;</span>)
+            .private_key(worker.keypair.copy().private().<span class="number">0</span>.to_bytes())
+            .start(routes)
+            .unwrap();
+
+        <span class="macro">info!</span>(<span class="string">&quot;Worker {} listening to worker messages on {}&quot;</span>, id, address);
+
+        <span class="comment">// add other workers we want to talk with to the known peers set
+        </span><span class="kw">for </span>(_primary_pubkey, worker_info) <span class="kw">in </span>worker
+            .worker_cache
+            .load()
+            .others_workers(<span class="kw-2">&amp;</span>primary_name, <span class="kw-2">&amp;</span>id)
+        {
+            <span class="kw">let </span>peer_id = PeerId(worker_info.name.<span class="number">0</span>.to_bytes());
+            <span class="kw">let </span>address = network::multiaddr_to_address(<span class="kw-2">&amp;</span>worker_info.worker_to_worker).unwrap();
+            <span class="kw">let </span>peer_info = PeerInfo {
+                peer_id,
+                affinity: anemo::types::PeerAffinity::High,
+                address: <span class="macro">vec!</span>[address],
+            };
+            network.known_peers().insert(peer_info);
+        }
+
         <span class="kw">let </span>client_flow_handles = worker.handle_clients_transactions(
             <span class="kw-2">&amp;</span>tx_reconfigure,
             tx_primary.clone(),
             node_metrics.clone(),
             channel_metrics.clone(),
             endpoint_metrics,
-            network_metrics.clone(),
+            network.clone(),
         );
         <span class="kw">let </span>worker_flow_handles = worker.handle_workers_messages(
             <span class="kw-2">&amp;</span>tx_reconfigure,
             tx_primary.clone(),
-            channel_metrics.clone(),
-            network_metrics.clone(),
+            rx_worker_helper,
+            rx_worker_processor,
+            network.clone(),
         );
         <span class="kw">let </span>primary_flow_handles = worker.handle_primary_messages(
             tx_reconfigure,
             tx_primary,
             node_metrics,
             channel_metrics,
-            network_metrics,
+            network,
         );
 
         <span class="comment">// The `PrimaryConnector` allows the worker to send messages to its primary.
@@ -749,7 +715,7 @@
         tx_primary: Sender&lt;WorkerPrimaryMessage&gt;,
         node_metrics: Arc&lt;WorkerMetrics&gt;,
         channel_metrics: Arc&lt;WorkerChannelMetrics&gt;,
-        network_metrics: Arc&lt;WorkerNetworkMetrics&gt;,
+        network: anemo::Network,
     ) -&gt; Vec&lt;JoinHandle&lt;()&gt;&gt; {
         <span class="kw">let </span>(tx_synchronizer, rx_synchronizer) =
             channel(CHANNEL_CAPACITY, <span class="kw-2">&amp;</span>channel_metrics.tx_synchronizer);
@@ -769,11 +735,7 @@
 
         <span class="comment">// The `Synchronizer` is responsible to keep the worker in sync with the others. It handles the commands
         // it receives from the primary (which are mainly notifications that we are out of sync).
-        </span><span class="kw">let </span>worker_network = WorkerNetwork::new(network::metrics::Metrics::new(
-            network_metrics,
-            <span class="string">&quot;synchronizer&quot;</span>.to_string(),
-        ));
-        <span class="kw">let </span>handle = Synchronizer::spawn(
+        </span><span class="kw">let </span>handle = Synchronizer::spawn(
             <span class="self">self</span>.primary_name.clone(),
             <span class="self">self</span>.id,
             <span class="self">self</span>.committee.clone(),
@@ -786,7 +748,7 @@
             tx_reconfigure,
             tx_primary,
             node_metrics,
-            worker_network,
+            P2pNetwork::new(network),
         );
 
         <span class="macro">info!</span>(
@@ -805,7 +767,7 @@
         node_metrics: Arc&lt;WorkerMetrics&gt;,
         channel_metrics: Arc&lt;WorkerChannelMetrics&gt;,
         endpoint_metrics: WorkerEndpointMetrics,
-        network_metrics: Arc&lt;WorkerNetworkMetrics&gt;,
+        network: anemo::Network,
     ) -&gt; Vec&lt;JoinHandle&lt;()&gt;&gt; {
         <span class="kw">let </span>(tx_batch_maker, rx_batch_maker) =
             channel(CHANNEL_CAPACITY, <span class="kw-2">&amp;</span>channel_metrics.tx_batch_maker);
@@ -845,11 +807,7 @@
 
         <span class="comment">// The `QuorumWaiter` waits for 2f authorities to acknowledge reception of the batch. It then forwards
         // the batch to the `Processor`.
-        </span><span class="kw">let </span>worker_network = WorkerNetwork::new(network::metrics::Metrics::new(
-            network_metrics,
-            <span class="string">&quot;quorum_waiter&quot;</span>.to_string(),
-        ));
-        <span class="kw">let </span>quorum_waiter_handle = QuorumWaiter::spawn(
+        </span><span class="kw">let </span>quorum_waiter_handle = QuorumWaiter::spawn(
             <span class="self">self</span>.primary_name.clone(),
             <span class="self">self</span>.id,
             (<span class="kw-2">*</span>(<span class="kw-2">*</span>(<span class="kw-2">*</span><span class="self">self</span>.committee).load()).clone()).clone(),
@@ -857,7 +815,7 @@
             tx_reconfigure.subscribe(),
             <span class="comment">/* rx_message */ </span>rx_quorum_waiter,
             <span class="comment">/* tx_batch */ </span>tx_client_processor,
-            worker_network,
+            P2pNetwork::new(network),
         );
 
         <span class="comment">// The `Processor` hashes and stores the batch. It then forwards the batch&#39;s digest to the `PrimaryConnector`
@@ -889,51 +847,19 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         tx_reconfigure: <span class="kw-2">&amp;</span>watch::Sender&lt;ReconfigureNotification&gt;,
         tx_primary: Sender&lt;WorkerPrimaryMessage&gt;,
-        channel_metrics: Arc&lt;WorkerChannelMetrics&gt;,
-        network_metrics: Arc&lt;WorkerNetworkMetrics&gt;,
+        rx_worker_request: types::metered_channel::Receiver&lt;(Vec&lt;BatchDigest&gt;, PublicKey)&gt;,
+        rx_worker_processor: types::metered_channel::Receiver&lt;Batch&gt;,
+        network: anemo::Network,
     ) -&gt; Vec&lt;JoinHandle&lt;()&gt;&gt; {
-        <span class="kw">let </span>(tx_worker_helper, rx_worker_helper) =
-            channel(CHANNEL_CAPACITY, <span class="kw-2">&amp;</span>channel_metrics.tx_worker_helper);
-        <span class="kw">let </span>(tx_client_helper, rx_client_helper) =
-            channel(CHANNEL_CAPACITY, <span class="kw-2">&amp;</span>channel_metrics.tx_client_helper);
-        <span class="kw">let </span>(tx_worker_processor, rx_worker_processor) =
-            channel(CHANNEL_CAPACITY, <span class="kw-2">&amp;</span>channel_metrics.tx_worker_processor);
-
-        <span class="comment">// Receive incoming messages from other workers.
-        </span><span class="kw">let </span>address = <span class="self">self
-            </span>.worker_cache
-            .load()
-            .worker(<span class="kw-2">&amp;</span><span class="self">self</span>.primary_name, <span class="kw-2">&amp;</span><span class="self">self</span>.id)
-            .expect(<span class="string">&quot;Our public key or worker id is not in the worker cache&quot;</span>)
-            .worker_to_worker;
-        <span class="kw">let </span>address = address
-            .replace(<span class="number">0</span>, |_protocol| <span class="prelude-val">Some</span>(Protocol::Ip4(INADDR_ANY)))
-            .unwrap();
-        <span class="kw">let </span>worker_handle = WorkerReceiverHandler {
-            tx_worker_helper,
-            tx_client_helper,
-            tx_processor: tx_worker_processor,
-        }
-        .spawn(
-            address.clone(),
-            <span class="self">self</span>.parameters.max_concurrent_requests,
-            tx_reconfigure.subscribe(),
-        );
-
         <span class="comment">// The `Helper` is dedicated to reply to batch requests from other workers.
-        </span><span class="kw">let </span>worker_network = WorkerNetwork::new(network::metrics::Metrics::new(
-            network_metrics,
-            <span class="string">&quot;worker_helper&quot;</span>.to_string(),
-        ));
-        <span class="kw">let </span>helper_handle = Helper::spawn(
+        </span><span class="kw">let </span>helper_handle = Helper::spawn(
             <span class="self">self</span>.id,
             (<span class="kw-2">*</span>(<span class="kw-2">*</span>(<span class="kw-2">*</span><span class="self">self</span>.committee).load()).clone()).clone(),
             <span class="self">self</span>.worker_cache.clone(),
             <span class="self">self</span>.store.clone(),
             tx_reconfigure.subscribe(),
-            <span class="comment">/* rx_worker_request */ </span>rx_worker_helper,
-            <span class="comment">/* rx_client_request */ </span>rx_client_helper,
-            worker_network,
+            rx_worker_request,
+            P2pNetwork::new(network),
         );
 
         <span class="comment">// This `Processor` hashes and stores the batches we receive from the other workers. It then forwards the
@@ -947,12 +873,7 @@
             <span class="comment">/* own_batch */ </span><span class="bool-val">false</span>,
         );
 
-        <span class="macro">info!</span>(
-            <span class="string">&quot;Worker {} listening to worker messages on {}&quot;</span>,
-            <span class="self">self</span>.id, address
-        );
-
-        <span class="macro">vec!</span>[helper_handle, processor_handle, worker_handle]
+        <span class="macro">vec!</span>[helper_handle, processor_handle]
     }
 }
 
@@ -1035,61 +956,20 @@
 </span><span class="attribute">#[derive(Clone)]
 </span><span class="kw">struct </span>WorkerReceiverHandler {
     tx_worker_helper: Sender&lt;(Vec&lt;BatchDigest&gt;, PublicKey)&gt;,
-    tx_client_helper: Sender&lt;(Vec&lt;BatchDigest&gt;, mpsc::Sender&lt;SerializedBatchMessage&gt;)&gt;,
-    tx_processor: Sender&lt;SerializedBatchMessage&gt;,
-}
-
-<span class="kw">impl </span>WorkerReceiverHandler {
-    <span class="kw">async fn </span>wait_for_shutdown(<span class="kw-2">mut </span>rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;) {
-        <span class="kw">loop </span>{
-            <span class="kw">let </span>result = rx_reconfigure.changed().<span class="kw">await</span>;
-            result.expect(<span class="string">&quot;Committee channel dropped&quot;</span>);
-            <span class="kw">let </span>message = rx_reconfigure.borrow().clone();
-            <span class="kw">if let </span>ReconfigureNotification::Shutdown = message {
-                <span class="kw">break</span>;
-            }
-        }
-    }
-
-    <span class="attribute">#[must_use]
-    </span><span class="kw">fn </span>spawn(
-        <span class="self">self</span>,
-        address: Multiaddr,
-        max_concurrent_requests: usize,
-        rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;,
-    ) -&gt; JoinHandle&lt;()&gt; {
-        tokio::spawn(<span class="kw">async move </span>{
-            <span class="kw">let </span><span class="kw-2">mut </span>config = mysten_network::config::Config::new();
-            config.concurrency_limit_per_connection = <span class="prelude-val">Some</span>(max_concurrent_requests);
-            <span class="macro">tokio::select! </span>{
-                _result = config
-                .server_builder()
-                .add_service(WorkerToWorkerServer::new(<span class="self">self</span>))
-                .bind(<span class="kw-2">&amp;</span>address)
-                .<span class="kw">await
-                </span>.unwrap()
-                .serve() =&gt; (),
-
-                () = <span class="self">Self</span>::wait_for_shutdown(rx_reconfigure) =&gt; ()
-            }
-        })
-    }
+    tx_processor: Sender&lt;Batch&gt;,
 }
 
 <span class="attribute">#[async_trait]
 </span><span class="kw">impl </span>WorkerToWorker <span class="kw">for </span>WorkerReceiverHandler {
     <span class="kw">async fn </span>send_message(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        request: Request&lt;BincodeEncodedPayload&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;Response&lt;Empty&gt;, Status&gt; {
-        <span class="kw">let </span>message: WorkerMessage = request
-            .get_ref()
-            .deserialize()
-            .map_err(|e| Status::invalid_argument(e.to_string()))<span class="question-mark">?</span>;
+        request: anemo::Request&lt;types::WorkerMessage&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;anemo::Response&lt;()&gt;, anemo::rpc::Status&gt; {
+        <span class="kw">let </span>message = request.into_body();
         <span class="kw">match </span>message {
-            WorkerMessage::Batch(..) =&gt; <span class="self">self
+            WorkerMessage::Batch(batch) =&gt; <span class="self">self
                 </span>.tx_processor
-                .send(request.get_ref().payload.to_vec())
+                .send(batch)
                 .<span class="kw">await
                 </span>.map_err(|<span class="kw">_</span>| DagError::ShuttingDown),
 
@@ -1099,44 +979,8 @@
                 .<span class="kw">await
                 </span>.map_err(|<span class="kw">_</span>| DagError::ShuttingDown),
         }
-        .map_err(|e| Status::not_found(e.to_string()))<span class="question-mark">?</span>;
-
-        <span class="prelude-val">Ok</span>(Response::new(Empty {}))
-    }
-
-    <span class="kw">type </span>ClientBatchRequestStream =
-        Pin&lt;Box&lt;<span class="kw">dyn </span>Stream&lt;Item = <span class="prelude-ty">Result</span>&lt;BincodeEncodedPayload, Status&gt;&gt; + Send&gt;&gt;;
-
-    <span class="kw">async fn </span>client_batch_request(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        request: Request&lt;BincodeEncodedPayload&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;Response&lt;<span class="self">Self</span>::ClientBatchRequestStream&gt;, Status&gt; {
-        <span class="kw">let </span>missing = request
-            .into_inner()
-            .deserialize::&lt;ClientBatchRequest&gt;()
-            .map_err(|e| Status::invalid_argument(e.to_string()))<span class="question-mark">?
-            </span>.<span class="number">0</span>;
-
-        <span class="comment">// TODO [issue #7]: Do some accounting to prevent bad actors from use all our
-        // resources (in this case allocate a gigantic channel).
-        </span><span class="kw">let </span>(sender, receiver) = mpsc::channel(missing.len());
-
-        <span class="self">self</span>.tx_client_helper
-            .send((missing, sender))
-            .<span class="kw">await
-            </span>.map_err(|<span class="kw">_</span>| DagError::ShuttingDown)
-            .map_err(|e| Status::not_found(e.to_string()))<span class="question-mark">?</span>;
-
-        <span class="kw">let </span>stream = tokio_stream::wrappers::ReceiverStream::new(receiver).map(|batch| {
-            <span class="kw">let </span>payload = BincodeEncodedPayload {
-                payload: Bytes::from(batch),
-            };
-            <span class="prelude-val">Ok</span>(payload)
-        });
-
-        <span class="prelude-val">Ok</span>(Response::new(
-            Box::pin(stream) <span class="kw">as </span><span class="self">Self</span>::ClientBatchRequestStream
-        ))
+        .map(|<span class="kw">_</span>| anemo::Response::new(()))
+        .map_err(|e| anemo::rpc::Status::internal(e.to_string()))
     }
 }
 

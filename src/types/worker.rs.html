@@ -74,16 +74,19 @@
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-</span><span class="kw">use </span>blake2::digest::Update;
+</span><span class="kw">use crate</span>::{Batch, BatchDigest};
+<span class="kw">use </span>blake2::digest::Update;
 <span class="kw">use </span>crypto::PublicKey;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>thiserror::Error;
 
-<span class="kw">use crate</span>::{Batch, BatchDigest};
+<span class="attribute">#[cfg(test)]
+#[path = <span class="string">&quot;tests/batch_serde.rs&quot;</span>]
+</span><span class="kw">mod </span>batch_serde;
 
 <span class="doccomment">/// The message exchanged between workers.
 </span><span class="attribute">#[allow(clippy::large_enum_variant)]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 </span><span class="kw">pub enum </span>WorkerMessage {
     <span class="doccomment">/// Used by workers to send a new batch or to reply to a batch request.
     </span>Batch(Batch),
@@ -93,9 +96,6 @@
 
 <span class="attribute">#[derive(Debug, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>ClientBatchRequest(<span class="kw">pub </span>Vec&lt;BatchDigest&gt;);
-
-<span class="doccomment">/// Indicates a serialized `WorkerMessage::Batch` message.
-</span><span class="kw">pub type </span>SerializedBatchMessage = Vec&lt;u8&gt;;
 
 <span class="doccomment">/// Hashes a serialized batch message without deserializing it into a batch.
 ///

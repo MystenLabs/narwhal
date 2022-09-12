@@ -705,7 +705,7 @@
     SignatureService,
 };
 <span class="kw">use </span>multiaddr::{Multiaddr, Protocol};
-<span class="kw">use </span>network::{metrics::Metrics, PrimaryNetwork, PrimaryToWorkerNetwork};
+<span class="kw">use </span>network::{metrics::Metrics, P2pNetwork, PrimaryToWorkerNetwork};
 <span class="kw">use </span>prometheus::Registry;
 <span class="kw">use </span>std::{collections::BTreeMap, net::Ipv4Addr, sync::Arc};
 <span class="kw">use </span>storage::CertificateStore;
@@ -936,7 +936,7 @@
         </span><span class="kw">let </span>signature_service = SignatureService::new(signer);
 
         <span class="comment">// The `Core` receives and handles headers, votes, and certificates from the other primaries.
-        </span><span class="kw">let </span>core_primary_network = PrimaryNetwork::new(network.clone());
+        </span><span class="kw">let </span>core_primary_network = P2pNetwork::new(network.clone());
         <span class="kw">let </span>core_handle = Core::spawn(
             name.clone(),
             (<span class="kw-2">**</span>committee.load()).clone(),
@@ -1015,7 +1015,7 @@
 
         <span class="comment">// Responsible for finding missing blocks (certificates) and fetching
         // them from the primary peers by synchronizing also their batches.
-        </span><span class="kw">let </span>block_synchronizer_network = PrimaryNetwork::new(network.clone());
+        </span><span class="kw">let </span>block_synchronizer_network = P2pNetwork::new(network.clone());
         <span class="kw">let </span>block_synchronizer_handle = BlockSynchronizer::spawn(
             name.clone(),
             (<span class="kw-2">**</span>committee.load()).clone(),
@@ -1033,7 +1033,7 @@
         <span class="comment">// Whenever the `Synchronizer` does not manage to validate a header due to missing parent certificates of
         // batch digests, it commands the `HeaderWaiter` to synchronize with other nodes, wait for their reply, and
         // re-schedule execution of the header once we have all missing data.
-        </span><span class="kw">let </span>header_waiter_primary_network = PrimaryNetwork::new(network.clone());
+        </span><span class="kw">let </span>header_waiter_primary_network = P2pNetwork::new(network.clone());
         <span class="kw">let </span>header_waiter_worker_network =
             PrimaryToWorkerNetwork::new(Metrics::new(network_metrics, <span class="string">&quot;header_waiter&quot;</span>.to_string()));
         <span class="kw">let </span>header_waiter_handle = HeaderWaiter::spawn(
@@ -1085,7 +1085,7 @@
 
         <span class="comment">// The `Helper` is dedicated to reply to certificates &amp; payload availability requests
         // from other primaries.
-        </span><span class="kw">let </span>helper_primary_network = PrimaryNetwork::new(network);
+        </span><span class="kw">let </span>helper_primary_network = P2pNetwork::new(network);
         <span class="kw">let </span>helper_handle = Helper::spawn(
             name.clone(),
             (<span class="kw-2">**</span>committee.load()).clone(),

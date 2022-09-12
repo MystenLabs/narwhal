@@ -102,13 +102,13 @@
 
 <span class="kw">pub use crate</span>::{
     bounded_executor::BoundedExecutor,
-    primary::{PrimaryNetwork, PrimaryToWorkerNetwork},
+    primary::{P2pNetwork, PrimaryToWorkerNetwork},
     retry::RetryConfig,
     traits::{
         Lucky, LuckyNetwork, LuckyNetwork2, ReliableNetwork, ReliableNetwork2, UnreliableNetwork,
         UnreliableNetwork2,
     },
-    worker::{WorkerNetwork, WorkerToPrimaryNetwork},
+    worker::WorkerToPrimaryNetwork,
 };
 
 <span class="comment">// the result of our network messages

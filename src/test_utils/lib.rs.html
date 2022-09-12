@@ -922,32 +922,6 @@
 <span id="922">922</span>
 <span id="923">923</span>
 <span id="924">924</span>
-<span id="925">925</span>
-<span id="926">926</span>
-<span id="927">927</span>
-<span id="928">928</span>
-<span id="929">929</span>
-<span id="930">930</span>
-<span id="931">931</span>
-<span id="932">932</span>
-<span id="933">933</span>
-<span id="934">934</span>
-<span id="935">935</span>
-<span id="936">936</span>
-<span id="937">937</span>
-<span id="938">938</span>
-<span id="939">939</span>
-<span id="940">940</span>
-<span id="941">941</span>
-<span id="942">942</span>
-<span id="943">943</span>
-<span id="944">944</span>
-<span id="945">945</span>
-<span id="946">946</span>
-<span id="947">947</span>
-<span id="948">948</span>
-<span id="949">949</span>
-<span id="950">950</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -961,7 +935,6 @@
     traits::{KeyPair <span class="kw">as _</span>, Signer <span class="kw">as _</span>},
     Digest, Hash <span class="kw">as _</span>,
 };
-<span class="kw">use </span>futures::Stream;
 <span class="kw">use </span>indexmap::IndexMap;
 <span class="kw">use </span>multiaddr::Multiaddr;
 <span class="kw">use </span>rand::rngs::OsRng;
@@ -970,7 +943,6 @@
     collections::{BTreeMap, BTreeSet, VecDeque},
     num::NonZeroUsize,
     ops::RangeInclusive,
-    pin::Pin,
     sync::Arc,
 };
 <span class="kw">use </span>store::{reopen, rocks, rocks::DBMap, Store};
@@ -978,11 +950,10 @@
 <span class="kw">use </span>tonic::{async_trait, Response};
 <span class="kw">use </span>tracing::info;
 <span class="kw">use </span>types::{
-    serialized_batch_digest, Batch, BatchDigest, BincodeEncodedPayload, Certificate,
-    CertificateDigest, ConsensusStore, Empty, Header, HeaderBuilder, PrimaryMessage,
-    PrimaryToPrimary, PrimaryToPrimaryServer, PrimaryToWorker, PrimaryToWorkerServer, Round,
-    SequenceNumber, Transaction, Vote, WorkerToPrimary, WorkerToPrimaryServer, WorkerToWorker,
-    WorkerToWorkerServer,
+    Batch, BatchDigest, BincodeEncodedPayload, Certificate, CertificateDigest, ConsensusStore,
+    Empty, Header, HeaderBuilder, PrimaryMessage, PrimaryToPrimary, PrimaryToPrimaryServer,
+    PrimaryToWorker, PrimaryToWorkerServer, Round, SequenceNumber, Transaction, Vote,
+    WorkerMessage, WorkerToPrimary, WorkerToPrimaryServer, WorkerToWorker, WorkerToWorkerServer,
 };
 
 <span class="kw">pub mod </span>cluster;
@@ -1090,14 +1061,8 @@
 <span class="kw">pub fn </span>fixture_payload(number_of_batches: u8) -&gt; IndexMap&lt;BatchDigest, WorkerId&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>payload: IndexMap&lt;BatchDigest, WorkerId&gt; = IndexMap::new();
 
-    <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..number_of_batches {
-        <span class="kw">let </span>dummy_serialized_batch = <span class="macro">vec!</span>[
-            <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="comment">// enum variant prefix
-            </span><span class="number">1u8</span>, <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="comment">// num txes
-            </span><span class="number">5u8</span>, <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="number">0u8</span>, <span class="comment">// tx length
-            </span><span class="number">10u8</span>, <span class="number">5u8</span>, <span class="number">8u8</span>, <span class="number">20u8</span>, i, <span class="comment">//tx
-        </span>];
-        <span class="kw">let </span>batch_digest = serialized_batch_digest(<span class="kw-2">&amp;</span>dummy_serialized_batch).unwrap();
+    <span class="kw">for _ in </span><span class="number">0</span>..number_of_batches {
+        <span class="kw">let </span>batch_digest = batch().digest();
 
         payload.insert(batch_digest, <span class="number">0</span>);
     }
@@ -1236,25 +1201,26 @@
 }
 
 <span class="kw">pub struct </span>WorkerToWorkerMockServer {
-    sender: Sender&lt;BincodeEncodedPayload&gt;,
+    sender: Sender&lt;WorkerMessage&gt;,
 }
 
 <span class="kw">impl </span>WorkerToWorkerMockServer {
-    <span class="kw">pub fn </span>spawn(address: Multiaddr) -&gt; Receiver&lt;BincodeEncodedPayload&gt; {
+    <span class="kw">pub fn </span>spawn(
+        keypair: NetworkKeyPair,
+        address: Multiaddr,
+    ) -&gt; (Receiver&lt;WorkerMessage&gt;, Network) {
+        <span class="kw">let </span>addr = network::multiaddr_to_address(<span class="kw-2">&amp;</span>address).unwrap();
         <span class="kw">let </span>(sender, receiver) = channel(<span class="number">1</span>);
-        tokio::spawn(<span class="kw">async move </span>{
-            <span class="kw">let </span>config = mysten_network::config::Config::new();
-            <span class="kw">let </span>mock = <span class="self">Self </span>{ sender };
-            config
-                .server_builder()
-                .add_service(WorkerToWorkerServer::new(mock))
-                .bind(<span class="kw-2">&amp;</span>address)
-                .<span class="kw">await
-                </span>.unwrap()
-                .serve()
-                .<span class="kw">await
-        </span>});
-        receiver
+        <span class="kw">let </span>service = WorkerToWorkerServer::new(<span class="self">Self </span>{ sender });
+
+        <span class="kw">let </span>routes = anemo::Router::new().add_rpc_service(service);
+        <span class="kw">let </span>network = anemo::Network::bind(addr)
+            .server_name(<span class="string">&quot;narwhal&quot;</span>)
+            .private_key(keypair.private().<span class="number">0</span>.to_bytes())
+            .start(routes)
+            .unwrap();
+        <span class="macro">info!</span>(<span class="string">&quot;starting network on: {}&quot;</span>, network.local_addr());
+        (receiver, network)
     }
 }
 
@@ -1262,20 +1228,13 @@
 </span><span class="kw">impl </span>WorkerToWorker <span class="kw">for </span>WorkerToWorkerMockServer {
     <span class="kw">async fn </span>send_message(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        request: tonic::Request&lt;BincodeEncodedPayload&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;tonic::Response&lt;Empty&gt;, tonic::Status&gt; {
-        <span class="self">self</span>.sender.send(request.into_inner()).<span class="kw">await</span>.unwrap();
-        <span class="prelude-val">Ok</span>(Response::new(Empty {}))
-    }
+        request: anemo::Request&lt;types::WorkerMessage&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;anemo::Response&lt;()&gt;, anemo::rpc::Status&gt; {
+        <span class="kw">let </span>message = request.into_body();
 
-    <span class="kw">type </span>ClientBatchRequestStream =
-        Pin&lt;Box&lt;<span class="kw">dyn </span>Stream&lt;Item = <span class="prelude-ty">Result</span>&lt;BincodeEncodedPayload, tonic::Status&gt;&gt; + Send&gt;&gt;;
+        <span class="self">self</span>.sender.send(message).<span class="kw">await</span>.unwrap();
 
-    <span class="kw">async fn </span>client_batch_request(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        _request: tonic::Request&lt;BincodeEncodedPayload&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;tonic::Response&lt;<span class="self">Self</span>::ClientBatchRequestStream&gt;, tonic::Status&gt; {
-        <span class="macro">todo!</span>()
+        <span class="prelude-val">Ok</span>(anemo::Response::new(()))
     }
 }
 
@@ -1286,26 +1245,6 @@
 // Fixture
 </span><span class="kw">pub fn </span>batch() -&gt; Batch {
     Batch(<span class="macro">vec!</span>[transaction(), transaction()])
-}
-
-<span class="comment">// Fixture
-</span><span class="kw">pub fn </span>batch_digest() -&gt; BatchDigest {
-    serialized_batch_digest(<span class="kw-2">&amp;</span>serialized_batch()).unwrap()
-}
-
-<span class="kw">pub fn </span>digest_batch(batch: Batch) -&gt; BatchDigest {
-    <span class="kw">let </span>serialized_batch = serialize_batch_message(batch);
-    serialized_batch_digest(<span class="kw-2">&amp;</span>serialized_batch).unwrap()
-}
-
-<span class="comment">// Fixture
-</span><span class="kw">pub fn </span>serialized_batch() -&gt; Vec&lt;u8&gt; {
-    serialize_batch_message(batch())
-}
-
-<span class="kw">pub fn </span>serialize_batch_message(batch: Batch) -&gt; Vec&lt;u8&gt; {
-    <span class="kw">let </span>message = worker::WorkerMessage::Batch(batch);
-    bincode::serialize(<span class="kw-2">&amp;</span>message).unwrap()
 }
 
 <span class="doccomment">/// generate multiple fixture batches. The number of generated batches
@@ -1332,13 +1271,9 @@
 
 <span class="kw">const </span>BATCHES_CF: <span class="kw-2">&amp;</span>str = <span class="string">&quot;batches&quot;</span>;
 
-<span class="kw">pub fn </span>open_batch_store() -&gt; Store&lt;BatchDigest, types::SerializedBatchMessage&gt; {
-    <span class="kw">let </span>db = rocks::DBMap::&lt;BatchDigest, types::SerializedBatchMessage&gt;::open(
-        temp_dir(),
-        <span class="prelude-val">None</span>,
-        <span class="prelude-val">Some</span>(BATCHES_CF),
-    )
-    .unwrap();
+<span class="kw">pub fn </span>open_batch_store() -&gt; Store&lt;BatchDigest, types::Batch&gt; {
+    <span class="kw">let </span>db = rocks::DBMap::&lt;BatchDigest, types::Batch&gt;::open(temp_dir(), <span class="prelude-val">None</span>, <span class="prelude-val">Some</span>(BATCHES_CF))
+        .unwrap();
     Store::new(db)
 }
 
@@ -1864,8 +1799,12 @@
 }
 
 <span class="kw">impl </span>WorkerFixture {
-    <span class="kw">pub fn </span>keypair(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>NetworkKeyPair {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.keypair
+    <span class="kw">pub fn </span>keypair(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; NetworkKeyPair {
+        <span class="self">self</span>.keypair.copy()
+    }
+
+    <span class="kw">pub fn </span>info(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>WorkerInfo {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.info
     }
 
     <span class="kw">fn </span>generate&lt;R, P&gt;(<span class="kw-2">mut </span>rng: R, id: WorkerId, <span class="kw-2">mut </span>get_port: P) -&gt; <span class="self">Self
@@ -1874,8 +1813,7 @@
         P: FnMut() -&gt; u16,
     {
         <span class="kw">let </span>keypair = NetworkKeyPair::generate(<span class="kw-2">&amp;mut </span>rng);
-        <span class="kw">let </span>network_keypair = NetworkKeyPair::generate(<span class="kw-2">&amp;mut </span>rng);
-        <span class="kw">let </span>worker_name = network_keypair.public().clone();
+        <span class="kw">let </span>worker_name = keypair.public().clone();
         <span class="kw">let </span>primary_to_worker = <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, get_port())
             .parse()
             .unwrap();
@@ -1897,6 +1835,16 @@
             },
         }
     }
+}
+
+<span class="kw">pub fn </span>mock_network(keypair: NetworkKeyPair, address: <span class="kw-2">&amp;</span>Multiaddr) -&gt; anemo::Network {
+    <span class="kw">let </span>address = network::multiaddr_to_address(address).unwrap();
+    <span class="kw">let </span>network_key = keypair.private().<span class="number">0</span>.to_bytes();
+    anemo::Network::bind(address)
+        .server_name(<span class="string">&quot;narwhal&quot;</span>)
+        .private_key(network_key)
+        .start(anemo::Router::new())
+        .unwrap()
 }
 </code></pre></div>
 </section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="test_utils" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (59e7a308e 2022-09-11)" ></div></body></html>

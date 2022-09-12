@@ -421,7 +421,7 @@
 <span class="kw">use </span>crypto::PublicKey;
 <span class="kw">use </span>futures::future::{try_join_all, BoxFuture};
 <span class="kw">use </span>network::{
-    LuckyNetwork2, PrimaryNetwork, PrimaryToWorkerNetwork, UnreliableNetwork, UnreliableNetwork2,
+    LuckyNetwork2, P2pNetwork, PrimaryToWorkerNetwork, UnreliableNetwork, UnreliableNetwork2,
 };
 <span class="kw">use </span>serde::{de::DeserializeOwned, Serialize};
 <span class="kw">use </span>std::{
@@ -489,7 +489,7 @@
     </span>tx_core: Sender&lt;Header&gt;,
 
     <span class="doccomment">/// Network driver allowing to send messages.
-    </span>primary_network: PrimaryNetwork,
+    </span>primary_network: P2pNetwork,
     worker_network: PrimaryToWorkerNetwork,
     <span class="doccomment">/// Keeps the digests of the all certificates for which we sent a sync request,
     /// along with a time stamp (`u128`) indicating when we sent the request.
@@ -526,7 +526,7 @@
         rx_synchronizer: Receiver&lt;WaiterMessage&gt;,
         tx_core: Sender&lt;Header&gt;,
         metrics: Arc&lt;PrimaryMetrics&gt;,
-        primary_network: PrimaryNetwork,
+        primary_network: P2pNetwork,
         worker_network: PrimaryToWorkerNetwork,
     ) -&gt; JoinHandle&lt;()&gt; {
         tokio::spawn(<span class="kw">async move </span>{

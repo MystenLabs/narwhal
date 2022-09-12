@@ -391,14 +391,6 @@
 <span id="391">391</span>
 <span id="392">392</span>
 <span id="393">393</span>
-<span id="394">394</span>
-<span id="395">395</span>
-<span id="396">396</span>
-<span id="397">397</span>
-<span id="398">398</span>
-<span id="399">399</span>
-<span id="400">400</span>
-<span id="401">401</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -406,7 +398,7 @@
 <span class="kw">use </span>config::{SharedCommittee, SharedWorkerCache, WorkerCache, WorkerId, WorkerIndex};
 <span class="kw">use </span>crypto::PublicKey;
 <span class="kw">use </span>futures::stream::{futures_unordered::FuturesUnordered, StreamExt <span class="kw">as _</span>};
-<span class="kw">use </span>network::{LuckyNetwork, UnreliableNetwork, WorkerNetwork};
+<span class="kw">use </span>network::{LuckyNetwork2, P2pNetwork, UnreliableNetwork2};
 <span class="kw">use </span>primary::PrimaryWorkerMessage;
 <span class="kw">use </span>std::{
     collections::{BTreeMap, HashMap, HashSet},
@@ -424,8 +416,8 @@
 <span class="kw">use </span>types::{
     error::DagError,
     metered_channel::{Receiver, Sender},
-    BatchDigest, ReconfigureNotification, Round, SerializedBatchMessage, WorkerMessage,
-    WorkerPrimaryError, WorkerPrimaryMessage,
+    Batch, BatchDigest, ReconfigureNotification, Round, WorkerMessage, WorkerPrimaryError,
+    WorkerPrimaryMessage,
 };
 
 <span class="attribute">#[cfg(test)]
@@ -446,7 +438,7 @@
     <span class="doccomment">/// The worker information cache.
     </span>worker_cache: SharedWorkerCache,
     <span class="comment">// The persistent storage.
-    </span>store: Store&lt;BatchDigest, SerializedBatchMessage&gt;,
+    </span>store: Store&lt;BatchDigest, Batch&gt;,
     <span class="doccomment">/// The depth of the garbage collection.
     </span>gc_depth: Round,
     <span class="doccomment">/// The delay to wait before re-trying to send sync requests.
@@ -457,7 +449,7 @@
     <span class="doccomment">/// Input channel to receive the commands from the primary.
     </span>rx_message: Receiver&lt;PrimaryWorkerMessage&gt;,
     <span class="doccomment">/// A network sender to send requests to the other workers.
-    </span>network: WorkerNetwork,
+    </span>network: P2pNetwork,
     <span class="doccomment">/// Loosely keep track of the primary&#39;s round number (only used for cleanup).
     </span>round: Round,
     <span class="doccomment">/// Keeps the digests (of batches) that are waiting to be processed by the primary. Their
@@ -479,7 +471,7 @@
         id: WorkerId,
         committee: SharedCommittee,
         worker_cache: SharedWorkerCache,
-        store: Store&lt;BatchDigest, SerializedBatchMessage&gt;,
+        store: Store&lt;BatchDigest, Batch&gt;,
         gc_depth: Round,
         sync_retry_delay: Duration,
         sync_retry_nodes: usize,
@@ -487,7 +479,7 @@
         tx_reconfigure: watch::Sender&lt;ReconfigureNotification&gt;,
         tx_primary: Sender&lt;WorkerPrimaryMessage&gt;,
         metrics: Arc&lt;WorkerMetrics&gt;,
-        network: WorkerNetwork,
+        network: P2pNetwork,
     ) -&gt; JoinHandle&lt;()&gt; {
         tokio::spawn(<span class="kw">async move </span>{
             <span class="self">Self </span>{
@@ -516,7 +508,7 @@
     /// and then delivers its digest.
     </span><span class="kw">async fn </span>waiter(
         missing: BatchDigest,
-        store: Store&lt;BatchDigest, SerializedBatchMessage&gt;,
+        store: Store&lt;BatchDigest, Batch&gt;,
         deliver: BatchDigest,
         <span class="kw-2">mut </span>handler: mpsc::Receiver&lt;()&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;BatchDigest&gt;, StoreError&gt; {
@@ -599,18 +591,18 @@
 
                             <span class="comment">// Send sync request to a single node. If this fails, we will send it
                             // to other nodes when a timer times out.
-                            </span><span class="kw">let </span>address = <span class="kw">match </span><span class="self">self</span>.worker_cache.load().worker(<span class="kw-2">&amp;</span>target, <span class="kw-2">&amp;</span><span class="self">self</span>.id) {
-                                <span class="prelude-val">Ok</span>(address) =&gt; address.worker_to_worker,
+                            </span><span class="kw">let </span>worker_name = <span class="kw">match </span><span class="self">self</span>.worker_cache.load().worker(<span class="kw-2">&amp;</span>target, <span class="kw-2">&amp;</span><span class="self">self</span>.id) {
+                                <span class="prelude-val">Ok</span>(worker_info) =&gt; worker_info.name,
                                 <span class="prelude-val">Err</span>(e) =&gt; {
                                     <span class="macro">error!</span>(<span class="string">&quot;The primary asked us to sync with an unknown node: {e}&quot;</span>);
                                     <span class="kw">continue</span>;
                                 }
                             };
 
-                            <span class="macro">debug!</span>(<span class="string">&quot;Sending BatchRequest message to {} for missing batches {:?}&quot;</span>, address, missing.clone());
+                            <span class="macro">debug!</span>(<span class="string">&quot;Sending BatchRequest message to {} for missing batches {:?}&quot;</span>, worker_name, missing.clone());
 
                             <span class="kw">let </span>message = WorkerMessage::BatchRequest(missing.into_iter().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;(), <span class="self">self</span>.name.clone());
-                            <span class="self">self</span>.network.unreliable_send(address, <span class="kw-2">&amp;</span>message).<span class="kw">await</span>;
+                            <span class="self">self</span>.network.unreliable_send(worker_name, <span class="kw-2">&amp;</span>message).<span class="kw">await</span>;
                         } <span class="kw">else </span>{
                             <span class="macro">debug!</span>(<span class="string">&quot;All batches are already available {:?} nothing to request from peers&quot;</span>, digests);
                         }
@@ -740,14 +732,14 @@
                         }
                     }
                     <span class="kw">if </span>!retry.is_empty() {
-                        <span class="kw">let </span>addresses = <span class="self">self</span>.worker_cache.load()
+                        <span class="kw">let </span>names = <span class="self">self</span>.worker_cache.load()
                             .others_workers(<span class="kw-2">&amp;</span><span class="self">self</span>.name, <span class="kw-2">&amp;</span><span class="self">self</span>.id)
                             .into_iter()
-                            .map(|(<span class="kw">_</span>, address)| address.worker_to_worker)
+                            .map(|(<span class="kw">_</span>, info)| info.name)
                             .collect();
                         <span class="kw">let </span>message = WorkerMessage::BatchRequest(retry, <span class="self">self</span>.name.clone());
                         <span class="self">self</span>.network
-                            .lucky_broadcast(addresses, <span class="kw-2">&amp;</span>message, <span class="self">self</span>.sync_retry_nodes)
+                            .lucky_broadcast(names, <span class="kw-2">&amp;</span>message, <span class="self">self</span>.sync_retry_nodes)
                             .<span class="kw">await</span>;
                     }
 
@@ -765,15 +757,7 @@
 
     <span class="kw">async fn </span>handle_request_batch(<span class="kw-2">&amp;mut </span><span class="self">self</span>, digest: BatchDigest) {
         <span class="kw">let </span>message = <span class="kw">match </span><span class="self">self</span>.store.read(digest).<span class="kw">await </span>{
-            <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(batch_serialised)) =&gt; {
-                <span class="kw">let </span>batch = <span class="kw">match </span>bincode::deserialize(<span class="kw-2">&amp;</span>batch_serialised).unwrap() {
-                    WorkerMessage::Batch(batch) =&gt; batch,
-                    <span class="kw">_ </span>=&gt; {
-                        <span class="macro">panic!</span>(<span class="string">&quot;Wrong type has been stored!&quot;</span>);
-                    }
-                };
-                WorkerPrimaryMessage::RequestedBatch(digest, batch)
-            }
+            <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(batch)) =&gt; WorkerPrimaryMessage::RequestedBatch(digest, batch),
             <span class="kw">_ </span>=&gt; WorkerPrimaryMessage::Error(WorkerPrimaryError::RequestedBatchNotFound(digest)),
         };
 

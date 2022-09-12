@@ -106,6 +106,7 @@
 <span id="106">106</span>
 <span id="107">107</span>
 <span id="108">108</span>
+<span id="109">109</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">mod </span>narwhal {
@@ -113,6 +114,7 @@
     </span><span class="macro">tonic::include_proto!</span>(<span class="string">&quot;narwhal&quot;</span>);
 
     <span class="macro">include!</span>(<span class="macro">concat!</span>(<span class="macro">env!</span>(<span class="string">&quot;OUT_DIR&quot;</span>), <span class="string">&quot;/narwhal.PrimaryToPrimary.rs&quot;</span>));
+    <span class="macro">include!</span>(<span class="macro">concat!</span>(<span class="macro">env!</span>(<span class="string">&quot;OUT_DIR&quot;</span>), <span class="string">&quot;/narwhal.WorkerToWorker.rs&quot;</span>));
 }
 
 <span class="kw">use </span>std::{array::TryFromSliceError, ops::Deref};
