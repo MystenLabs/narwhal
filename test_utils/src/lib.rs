@@ -1,7 +1,7 @@
 // Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use anemo::Network;
+
 use config::{
     utils::get_available_port, Authority, Committee, Epoch, PrimaryAddresses, SharedWorkerCache,
     WorkerCache, WorkerId, WorkerIndex, WorkerInfo,
@@ -22,7 +22,7 @@ use std::{
 };
 use store::{reopen, rocks, rocks::DBMap, Store};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
-use tonic::{async_trait, Response};
+use tonic::async_trait;
 use tracing::info;
 use types::{
     Batch, BatchDigest, BincodeEncodedPayload, Certificate, CertificateDigest, ConsensusStore,
@@ -170,7 +170,7 @@ impl PrimaryToPrimaryMockServer {
     pub fn spawn(
         network_keypair: NetworkKeyPair,
         address: Multiaddr,
-    ) -> (Receiver<PrimaryMessage>, Network) {
+    ) -> (Receiver<PrimaryMessage>, anemo::Network) {
         let addr = network::multiaddr_to_address(&address).unwrap();
         let (sender, receiver) = channel(1);
         let service = PrimaryToPrimaryServer::new(Self { sender });
@@ -190,7 +190,7 @@ impl PrimaryToPrimaryMockServer {
 impl PrimaryToPrimary for PrimaryToPrimaryMockServer {
     async fn send_message(
         &self,
-        request: anemo::Request<types::PrimaryMessage>,
+        request: anemo::Request<PrimaryMessage>,
     ) -> Result<anemo::Response<()>, anemo::rpc::Status> {
         let message = request.into_body();
 
@@ -223,14 +223,14 @@ impl WorkerToPrimaryMockServer {
     }
 }
 
-#[tonic::async_trait]
+#[async_trait]
 impl WorkerToPrimary for WorkerToPrimaryMockServer {
     async fn send_message(
         &self,
         request: tonic::Request<BincodeEncodedPayload>,
     ) -> Result<tonic::Response<Empty>, tonic::Status> {
         self.sender.send(request.into_inner()).await.unwrap();
-        Ok(Response::new(Empty {}))
+        Ok(tonic::Response::new(Empty {}))
     }
 
     async fn worker_info(
@@ -264,14 +264,14 @@ impl PrimaryToWorkerMockServer {
     }
 }
 
-#[tonic::async_trait]
+#[async_trait]
 impl PrimaryToWorker for PrimaryToWorkerMockServer {
     async fn send_message(
         &self,
         request: tonic::Request<BincodeEncodedPayload>,
     ) -> Result<tonic::Response<Empty>, tonic::Status> {
         self.sender.send(request.into_inner()).await.unwrap();
-        Ok(Response::new(Empty {}))
+        Ok(tonic::Response::new(Empty {}))
     }
 }
 
@@ -283,7 +283,7 @@ impl WorkerToWorkerMockServer {
     pub fn spawn(
         keypair: NetworkKeyPair,
         address: Multiaddr,
-    ) -> (Receiver<WorkerMessage>, Network) {
+    ) -> (Receiver<WorkerMessage>, anemo::Network) {
         let addr = network::multiaddr_to_address(&address).unwrap();
         let (sender, receiver) = channel(1);
         let service = WorkerToWorkerServer::new(Self { sender });
@@ -299,11 +299,11 @@ impl WorkerToWorkerMockServer {
     }
 }
 
-#[tonic::async_trait]
+#[async_trait]
 impl WorkerToWorker for WorkerToWorkerMockServer {
     async fn send_message(
         &self,
-        request: anemo::Request<types::WorkerMessage>,
+        request: anemo::Request<WorkerMessage>,
     ) -> Result<anemo::Response<()>, anemo::rpc::Status> {
         let message = request.into_body();
 
@@ -346,9 +346,8 @@ pub fn batch_with_transactions(num_of_transactions: usize) -> Batch {
 
 const BATCHES_CF: &str = "batches";
 
-pub fn open_batch_store() -> Store<BatchDigest, types::Batch> {
-    let db = rocks::DBMap::<BatchDigest, types::Batch>::open(temp_dir(), None, Some(BATCHES_CF))
-        .unwrap();
+pub fn open_batch_store() -> Store<BatchDigest, Batch> {
+    let db = DBMap::<BatchDigest, Batch>::open(temp_dir(), None, Some(BATCHES_CF)).unwrap();
     Store::new(db)
 }
 
@@ -601,7 +600,7 @@ impl<R> Builder<R> {
         self
     }
 
-    pub fn rng<N: ::rand::RngCore + ::rand::CryptoRng>(self, rng: N) -> Builder<N> {
+    pub fn rng<N: rand::RngCore + rand::CryptoRng>(self, rng: N) -> Builder<N> {
         Builder {
             rng,
             committee_size: self.committee_size,
@@ -611,7 +610,7 @@ impl<R> Builder<R> {
     }
 }
 
-impl<R: ::rand::RngCore + ::rand::CryptoRng> Builder<R> {
+impl<R: rand::RngCore + rand::CryptoRng> Builder<R> {
     pub fn build(mut self) -> CommitteeFixture {
         let get_port = || {
             if self.randomize_ports {
@@ -831,7 +830,7 @@ impl AuthorityFixture {
 
     fn generate<R, P>(mut rng: R, number_of_workers: NonZeroUsize, mut get_port: P) -> Self
     where
-        R: ::rand::RngCore + ::rand::CryptoRng,
+        R: rand::RngCore + rand::CryptoRng,
         P: FnMut() -> u16,
     {
         let keypair = KeyPair::generate(&mut rng);
@@ -881,7 +880,7 @@ impl WorkerFixture {
 
     fn generate<R, P>(mut rng: R, id: WorkerId, mut get_port: P) -> Self
     where
-        R: ::rand::RngCore + ::rand::CryptoRng,
+        R: rand::RngCore + rand::CryptoRng,
         P: FnMut() -> u16,
     {
         let keypair = NetworkKeyPair::generate(&mut rng);
