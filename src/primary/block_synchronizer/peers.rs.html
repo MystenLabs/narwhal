@@ -404,8 +404,12 @@
 <span id="404">404</span>
 <span id="405">405</span>
 <span id="406">406</span>
+<span id="407">407</span>
+<span id="408">408</span>
+<span id="409">409</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
+
 </span><span class="kw">use </span>crypto::PublicKey;
 <span class="kw">use </span>fastcrypto::Hash;
 <span class="kw">use </span>rand::{prelude::SliceRandom <span class="kw">as _</span>, rngs::SmallRng};
@@ -480,7 +484,8 @@
         }
     }
 
-    <span class="kw">pub fn </span>peers(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>HashMap&lt;PublicKey, Peer&lt;Value&gt;&gt; {
+    <span class="attribute">#[allow(clippy::mutable_key_type)]
+    </span><span class="kw">pub fn </span>peers(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>HashMap&lt;PublicKey, Peer&lt;Value&gt;&gt; {
         <span class="kw-2">&amp;</span><span class="self">self</span>.peers
     }
 
@@ -674,7 +679,8 @@
         }
     }
 
-    <span class="attribute">#[test]
+    <span class="attribute">#[allow(clippy::mutable_key_type)]
+    #[test]
     </span><span class="kw">fn </span>test_assign_certificates_to_peers_when_all_respond_uniquely() {
         <span class="kw">struct </span>TestCase {
             num_of_certificates_each_peer: u8,

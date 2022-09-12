@@ -33,7 +33,7 @@ the result of it.</p>
     <span class="kw">let </span>(tx_batches, rx_batches) = <span class="macro">test_utils::test_channel!</span>(<span class="number">1</span>);
     <span class="kw">let </span>(tx_get_block, <span class="kw-2">mut </span>rx_get_block) = oneshot::channel();
 
-    <span class="kw">let </span>name = Ed25519PublicKey::default();
+    <span class="kw">let </span>name = PublicKey::default();
     <span class="kw">let </span>committee = Committee{ epoch: <span class="number">0</span>, authorities: BTreeMap::new() };
     <span class="kw">let </span>worker_cache: SharedWorkerCache = WorkerCache{ epoch: <span class="number">0</span>, workers: BTreeMap::new() }.into();
     <span class="kw">let </span>(_tx_reconfigure, rx_reconfigure) = watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));

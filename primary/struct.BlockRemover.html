@@ -37,7 +37,7 @@ the result of it.</p>
     <span class="kw">let </span>(tx_removed_certificates, _rx_removed_certificates) = <span class="macro">test_utils::test_channel!</span>(<span class="number">1</span>);
     <span class="kw">let </span>(tx_delete_block_result, <span class="kw-2">mut </span>rx_delete_block_result) = channel(<span class="number">1</span>);
 
-    <span class="kw">let </span>name = Ed25519PublicKey::default();
+    <span class="kw">let </span>name = PublicKey::default();
     <span class="kw">let </span>committee = Committee{ epoch: <span class="number">0</span>, authorities: BTreeMap::new() };
     <span class="kw">let </span>worker_cache: SharedWorkerCache = WorkerCache{ epoch: <span class="number">0</span>, workers: BTreeMap::new() }.into();
     <span class="kw">let </span>(_tx_reconfigure, rx_reconfigure) = watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));

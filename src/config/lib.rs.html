@@ -717,6 +717,23 @@
 <span id="717">717</span>
 <span id="718">718</span>
 <span id="719">719</span>
+<span id="720">720</span>
+<span id="721">721</span>
+<span id="722">722</span>
+<span id="723">723</span>
+<span id="724">724</span>
+<span id="725">725</span>
+<span id="726">726</span>
+<span id="727">727</span>
+<span id="728">728</span>
+<span id="729">729</span>
+<span id="730">730</span>
+<span id="731">731</span>
+<span id="732">732</span>
+<span id="733">733</span>
+<span id="734">734</span>
+<span id="735">735</span>
+<span id="736">736</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -726,9 +743,10 @@
     rust_2018_idioms,
     rust_2021_compatibility
 )]
+#![allow(clippy::mutable_key_type)]
 
 </span><span class="kw">use </span>arc_swap::ArcSwap;
-<span class="kw">use </span>crypto::PublicKey;
+<span class="kw">use </span>crypto::{NetworkPublicKey, PublicKey};
 <span class="kw">use </span>fastcrypto::traits::EncodeDecodeBase64;
 <span class="kw">use </span>multiaddr::Multiaddr;
 <span class="kw">use </span>rand::{rngs::StdRng, seq::SliceRandom, SeedableRng};
@@ -737,7 +755,6 @@
     collections::{BTreeMap, HashSet},
     fs::{<span class="self">self</span>, OpenOptions},
     io::{BufWriter, Write <span class="kw">as _</span>},
-    ops::Deref,
     sync::Arc,
     time::Duration,
 };
@@ -1050,7 +1067,7 @@
 <span class="attribute">#[derive(Clone, Serialize, Deserialize, Eq, Hash, PartialEq, Debug)]
 </span><span class="kw">pub struct </span>WorkerInfo {
     <span class="doccomment">/// The public key of this worker.
-    </span><span class="kw">pub </span>name: PublicKey,
+    </span><span class="kw">pub </span>name: NetworkPublicKey,
     <span class="doccomment">/// Address to receive client transactions (WAN).
     </span><span class="kw">pub </span>transactions: Multiaddr,
     <span class="doccomment">/// Address to receive messages from other workers (WAN).
@@ -1201,6 +1218,8 @@
     </span><span class="kw">pub </span>stake: Stake,
     <span class="doccomment">/// The network addresses of the primary.
     </span><span class="kw">pub </span>primary: PrimaryAddresses,
+    <span class="doccomment">/// Network key of the primary.
+    </span><span class="kw">pub </span>network_key: NetworkPublicKey,
 }
 
 <span class="kw">pub type </span>SharedCommittee = Arc&lt;ArcSwap&lt;Committee&gt;&gt;;
@@ -1295,17 +1314,32 @@
             .ok_or_else(|| ConfigError::NotInCommittee((<span class="kw-2">*</span>to).encode_base64()))
     }
 
-    <span class="doccomment">/// Returns the addresses of all primaries except `myself`.
-    </span><span class="kw">pub fn </span>others_primaries(<span class="kw-2">&amp;</span><span class="self">self</span>, myself: <span class="kw-2">&amp;</span>PublicKey) -&gt; Vec&lt;(PublicKey, PrimaryAddresses)&gt; {
+    <span class="kw">pub fn </span>network_key(<span class="kw-2">&amp;</span><span class="self">self</span>, pk: <span class="kw-2">&amp;</span>PublicKey) -&gt; <span class="prelude-ty">Result</span>&lt;NetworkPublicKey, ConfigError&gt; {
         <span class="self">self</span>.authorities
-            .iter()
-            .filter(|(name, <span class="kw">_</span>)| <span class="kw-2">*</span>name != myself)
-            .map(|(name, authority)| (name.deref().clone(), authority.primary.clone()))
-            .collect()
+            .get(<span class="kw-2">&amp;</span>pk.clone())
+            .map(|x| x.network_key.clone())
+            .ok_or_else(|| ConfigError::NotInCommittee((<span class="kw-2">*</span>pk).encode_base64()))
     }
 
     <span class="doccomment">/// Return all the network addresses in the committee.
-    </span><span class="kw">fn </span>get_all_network_addresses(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; HashSet&lt;<span class="kw-2">&amp;</span>Multiaddr&gt; {
+    </span><span class="kw">pub fn </span>others_primaries(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        myself: <span class="kw-2">&amp;</span>PublicKey,
+    ) -&gt; Vec&lt;(PublicKey, PrimaryAddresses, NetworkPublicKey)&gt; {
+        <span class="self">self</span>.authorities
+            .iter()
+            .filter(|(name, <span class="kw">_</span>)| <span class="kw-2">*</span>name != myself)
+            .map(|(name, authority)| {
+                (
+                    name.clone(),
+                    authority.primary.clone(),
+                    authority.network_key.clone(),
+                )
+            })
+            .collect()
+    }
+
+    <span class="kw">fn </span>get_all_network_addresses(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; HashSet&lt;<span class="kw-2">&amp;</span>Multiaddr&gt; {
         <span class="self">self</span>.authorities
             .values()
             .flat_map(|authority| {

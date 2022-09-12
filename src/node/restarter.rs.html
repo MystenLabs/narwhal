@@ -134,12 +134,27 @@
 <span id="134">134</span>
 <span id="135">135</span>
 <span id="136">136</span>
+<span id="137">137</span>
+<span id="138">138</span>
+<span id="139">139</span>
+<span id="140">140</span>
+<span id="141">141</span>
+<span id="142">142</span>
+<span id="143">143</span>
+<span id="144">144</span>
+<span id="145">145</span>
+<span id="146">146</span>
+<span id="147">147</span>
+<span id="148">148</span>
+<span id="149">149</span>
+<span id="150">150</span>
+<span id="151">151</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use crate</span>::{Node, NodeStorage};
 <span class="kw">use </span>arc_swap::ArcSwap;
 <span class="kw">use </span>config::{Committee, Parameters, SharedWorkerCache, WorkerCache, WorkerId};
-<span class="kw">use </span>crypto::KeyPair;
+<span class="kw">use </span>crypto::{KeyPair, NetworkKeyPair};
 <span class="kw">use </span>executor::{ExecutionState, ExecutorOutput};
 <span class="kw">use </span>fastcrypto::traits::KeyPair <span class="kw">as _</span>;
 <span class="kw">use </span>futures::future::join_all;
@@ -156,13 +171,20 @@
 <span class="kw">impl </span>NodeRestarter {
     <span class="kw">pub async fn </span>watch&lt;State&gt;(
         primary_keypair: KeyPair,
-        worker_ids_and_keypairs: Vec&lt;(WorkerId, KeyPair)&gt;,
+        primary_network_keypair: NetworkKeyPair,
+        worker_ids_and_keypairs: Vec&lt;(WorkerId, NetworkKeyPair)&gt;,
         committee: <span class="kw-2">&amp;</span>Committee,
         worker_cache: SharedWorkerCache,
         storage_base_path: PathBuf,
         execution_state: Arc&lt;State&gt;,
         parameters: Parameters,
-        <span class="kw-2">mut </span>rx_reconfigure: Receiver&lt;(KeyPair, Committee, Vec&lt;(WorkerId, KeyPair)&gt;, WorkerCache)&gt;,
+        <span class="kw-2">mut </span>rx_reconfigure: Receiver&lt;(
+            KeyPair,
+            NetworkKeyPair,
+            Committee,
+            Vec&lt;(WorkerId, NetworkKeyPair)&gt;,
+            WorkerCache,
+        )&gt;,
         tx_output: Sender&lt;ExecutorOutput&lt;State&gt;&gt;,
         registry: <span class="kw-2">&amp;</span>Registry,
     ) <span class="kw">where
@@ -171,6 +193,7 @@
         State::Error: Debug,
     {
         <span class="kw">let </span><span class="kw-2">mut </span>primary_keypair = primary_keypair;
+        <span class="kw">let </span><span class="kw-2">mut </span>primary_network_keypair = primary_network_keypair;
         <span class="kw">let </span><span class="kw-2">mut </span>name = primary_keypair.public().clone();
         <span class="kw">let </span><span class="kw-2">mut </span>worker_ids_and_keypairs = worker_ids_and_keypairs;
         <span class="kw">let </span><span class="kw-2">mut </span>committee = committee.clone();
@@ -191,6 +214,7 @@
             <span class="comment">// Restart the relevant components.
             </span><span class="kw">let </span>primary_handles = Node::spawn_primary(
                 primary_keypair,
+                primary_network_keypair,
                 Arc::new(ArcSwap::new(Arc::new(committee.clone()))),
                 worker_cache.clone(),
                 <span class="kw-2">&amp;</span>store,
@@ -217,11 +241,16 @@
             handles.extend(worker_handles);
 
             <span class="comment">// Wait for a committee change.
-            </span><span class="kw">let </span>(new_keypair, new_committee, new_worker_ids_and_keypairs, new_worker_cache) =
-                <span class="kw">match </span>rx_reconfigure.recv().<span class="kw">await </span>{
-                    <span class="prelude-val">Some</span>(x) =&gt; x,
-                    <span class="prelude-val">None </span>=&gt; <span class="kw">break</span>,
-                };
+            </span><span class="kw">let </span>(
+                new_keypair,
+                new_network_keypair,
+                new_committee,
+                new_worker_ids_and_keypairs,
+                new_worker_cache,
+            ) = <span class="kw">match </span>rx_reconfigure.recv().<span class="kw">await </span>{
+                <span class="prelude-val">Some</span>(x) =&gt; x,
+                <span class="prelude-val">None </span>=&gt; <span class="kw">break</span>,
+            };
             <span class="macro">tracing::info!</span>(<span class="string">&quot;Starting reconfiguration with committee {committee}&quot;</span>);
 
             <span class="comment">// Shutdown all relevant components.
@@ -263,6 +292,7 @@
 
             <span class="comment">// Update the settings for the next epoch.
             </span>primary_keypair = new_keypair;
+            primary_network_keypair = new_network_keypair;
             name = primary_keypair.public().clone();
             worker_ids_and_keypairs = new_worker_ids_and_keypairs;
             committee = new_committee;

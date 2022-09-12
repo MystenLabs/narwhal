@@ -70,6 +70,7 @@
 <span id="70">70</span>
 <span id="71">71</span>
 <span id="72">72</span>
+<span id="73">73</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
@@ -81,7 +82,8 @@
 <span class="kw">use crate</span>::{Batch, BatchDigest};
 
 <span class="doccomment">/// The message exchanged between workers.
-</span><span class="attribute">#[derive(Debug, Serialize, Deserialize)]
+</span><span class="attribute">#[allow(clippy::large_enum_variant)]
+#[derive(Debug, Serialize, Deserialize)]
 </span><span class="kw">pub enum </span>WorkerMessage {
     <span class="doccomment">/// Used by workers to send a new batch or to reply to a batch request.
     </span>Batch(Batch),

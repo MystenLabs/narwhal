@@ -688,7 +688,7 @@
                             }
                             <span class="kw">if </span>!requires_sync.is_empty() {
                                 <span class="kw">let </span>message = PrimaryMessage::CertificatesRequest(requires_sync, <span class="self">self</span>.name.clone());
-                                <span class="self">self</span>.primary_network.unreliable_send(author.clone(), <span class="kw-2">&amp;</span>message).<span class="kw">await</span>;
+                                <span class="self">self</span>.primary_network.unreliable_send(<span class="self">self</span>.committee.network_key(<span class="kw-2">&amp;</span>author).unwrap(), <span class="kw-2">&amp;</span>message).<span class="kw">await</span>;
                             }
                         }
                     }
@@ -726,13 +726,13 @@
                     }
 
                     <span class="kw">if </span>!retry.is_empty() {
-                        <span class="kw">let </span>addresses = <span class="self">self</span>.committee
+                        <span class="kw">let </span>network_keys = <span class="self">self</span>.committee
                             .others_primaries(<span class="kw-2">&amp;</span><span class="self">self</span>.name)
                             .into_iter()
-                            .map(|(pubkey, _x)| pubkey)
+                            .map(|(<span class="kw">_</span>, <span class="kw">_</span>, network_key)| network_key)
                             .collect();
                         <span class="kw">let </span>message = PrimaryMessage::CertificatesRequest(retry, <span class="self">self</span>.name.clone());
-                        <span class="self">self</span>.primary_network.lucky_broadcast(addresses, <span class="kw-2">&amp;</span>message, <span class="self">self</span>.sync_retry_nodes).<span class="kw">await</span>;
+                        <span class="self">self</span>.primary_network.lucky_broadcast(network_keys, <span class="kw-2">&amp;</span>message, <span class="self">self</span>.sync_retry_nodes).<span class="kw">await</span>;
                     }
                     <span class="comment">// Reschedule the timer.
                     </span>timer.as_mut().reset(Instant::now() + Duration::from_millis(TIMER_RESOLUTION));

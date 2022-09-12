@@ -656,6 +656,9 @@
 <span id="656">656</span>
 <span id="657">657</span>
 <span id="658">658</span>
+<span id="659">659</span>
+<span id="660">660</span>
+<span id="661">661</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -820,7 +823,7 @@
             </span>.committee
             .others_primaries(<span class="kw-2">&amp;</span><span class="self">self</span>.name)
             .into_iter()
-            .map(|(pubkey, <span class="kw">_</span>)| pubkey)
+            .map(|(<span class="kw">_</span>, <span class="kw">_</span>, network_key)| network_key)
             .collect();
 
         <span class="kw">let </span>message = PrimaryMessage::Header(header.clone());
@@ -945,7 +948,10 @@
             } <span class="kw">else </span>{
                 <span class="kw">let </span>handler = <span class="self">self
                     </span>.network
-                    .send(header.author.clone(), <span class="kw-2">&amp;</span>PrimaryMessage::Vote(vote))
+                    .send(
+                        <span class="self">self</span>.committee.network_key(<span class="kw-2">&amp;</span>header.author).unwrap(),
+                        <span class="kw-2">&amp;</span>PrimaryMessage::Vote(vote),
+                    )
                     .<span class="kw">await</span>;
                 <span class="self">self</span>.cancel_handlers
                     .entry(header.round)
@@ -969,14 +975,14 @@
             <span class="macro">debug!</span>(<span class="string">&quot;Assembled {:?}&quot;</span>, certificate);
 
             <span class="comment">// Broadcast the certificate.
-            </span><span class="kw">let </span>peers = <span class="self">self
+            </span><span class="kw">let </span>network_keys = <span class="self">self
                 </span>.committee
                 .others_primaries(<span class="kw-2">&amp;</span><span class="self">self</span>.name)
                 .into_iter()
-                .map(|(pubkey, <span class="kw">_</span>)| pubkey)
+                .map(|(<span class="kw">_</span>, <span class="kw">_</span>, network_key)| network_key)
                 .collect();
             <span class="kw">let </span>message = PrimaryMessage::Certificate(certificate.clone());
-            <span class="kw">let </span>handlers = <span class="self">self</span>.network.broadcast(peers, <span class="kw-2">&amp;</span>message).<span class="kw">await</span>;
+            <span class="kw">let </span>handlers = <span class="self">self</span>.network.broadcast(network_keys, <span class="kw-2">&amp;</span>message).<span class="kw">await</span>;
             <span class="self">self</span>.cancel_handlers
                 .entry(certificate.round())
                 .or_insert_with(Vec::new)

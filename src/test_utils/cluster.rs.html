@@ -798,12 +798,19 @@
 <span id="798">798</span>
 <span id="799">799</span>
 <span id="800">800</span>
+<span id="801">801</span>
+<span id="802">802</span>
+<span id="803">803</span>
+<span id="804">804</span>
+<span id="805">805</span>
+<span id="806">806</span>
+<span id="807">807</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use crate</span>::{temp_dir, CommitteeFixture};
 <span class="kw">use </span>arc_swap::ArcSwap;
 <span class="kw">use </span>config::{Parameters, SharedCommittee, SharedWorkerCache, WorkerId};
-<span class="kw">use </span>crypto::{KeyPair, PublicKey};
+<span class="kw">use </span>crypto::{KeyPair, NetworkKeyPair, PublicKey};
 <span class="kw">use </span>executor::{SerializedTransaction, SubscriberResult};
 <span class="kw">use </span>fastcrypto::traits::KeyPair <span class="kw">as _</span>;
 <span class="kw">use </span>itertools::Itertools;
@@ -864,6 +871,7 @@
             <span class="kw">let </span>authority = AuthorityDetails::new(
                 id,
                 authority_fixture.keypair().copy(),
+                authority_fixture.network_keypair().copy(),
                 authority_fixture.worker_keypairs(),
                 params.clone(),
                 shared_committee.clone(),
@@ -1069,6 +1077,7 @@
 </span><span class="kw">pub struct </span>PrimaryNodeDetails {
     <span class="kw">pub </span>id: usize,
     <span class="kw">pub </span>key_pair: Arc&lt;KeyPair&gt;,
+    <span class="kw">pub </span>network_key_pair: Arc&lt;NetworkKeyPair&gt;,
     <span class="kw">pub </span>tx_transaction_confirmation: Sender&lt;(SubscriberResult&lt;Vec&lt;u8&gt;&gt;, SerializedTransaction)&gt;,
     registry: Registry,
     store_path: PathBuf,
@@ -1083,6 +1092,7 @@
     <span class="kw">fn </span>new(
         id: usize,
         key_pair: KeyPair,
+        network_key_pair: NetworkKeyPair,
         parameters: Parameters,
         committee: SharedCommittee,
         worker_cache: SharedWorkerCache,
@@ -1094,6 +1104,7 @@
         <span class="self">Self </span>{
             id,
             key_pair: Arc::new(key_pair),
+            network_key_pair: Arc::new(network_key_pair),
             registry: Registry::new(),
             store_path: temp_dir(),
             tx_transaction_confirmation: tx,
@@ -1142,6 +1153,7 @@
         </span><span class="kw">let </span>primary_store: NodeStorage = NodeStorage::reopen(store_path.clone());
         <span class="kw">let </span><span class="kw-2">mut </span>primary_handlers = Node::spawn_primary(
             <span class="self">self</span>.key_pair.copy(),
+            <span class="self">self</span>.network_key_pair.copy(),
             <span class="self">self</span>.committee.clone(),
             <span class="self">self</span>.worker_cache.clone(),
             <span class="kw-2">&amp;</span>primary_store,
@@ -1232,7 +1244,7 @@
     }
 
     <span class="doccomment">/// Starts the node. When preserve_store is true then the last used
-    </span><span class="kw">async fn </span>start(<span class="kw-2">&amp;mut </span><span class="self">self</span>, keypair: KeyPair, preserve_store: bool) {
+    </span><span class="kw">async fn </span>start(<span class="kw-2">&amp;mut </span><span class="self">self</span>, keypair: NetworkKeyPair, preserve_store: bool) {
         <span class="kw">if </span><span class="self">self</span>.is_running() {
             <span class="macro">panic!</span>(
                 <span class="string">&quot;Worker with id {} is already running, can&#39;t start again&quot;</span>,
@@ -1296,7 +1308,7 @@
 
 <span class="kw">struct </span>AuthorityDetailsInternal {
     primary: PrimaryNodeDetails,
-    worker_keypairs: Vec&lt;KeyPair&gt;,
+    worker_keypairs: Vec&lt;NetworkKeyPair&gt;,
     workers: HashMap&lt;WorkerId, WorkerNodeDetails&gt;,
 }
 
@@ -1304,7 +1316,8 @@
     <span class="kw">pub fn </span>new(
         id: usize,
         key_pair: KeyPair,
-        worker_keypairs: Vec&lt;KeyPair&gt;,
+        network_key_pair: NetworkKeyPair,
+        worker_keypairs: Vec&lt;NetworkKeyPair&gt;,
         parameters: Parameters,
         committee: SharedCommittee,
         worker_cache: SharedWorkerCache,
@@ -1315,6 +1328,7 @@
         <span class="kw">let </span>primary = PrimaryNodeDetails::new(
             id,
             key_pair,
+            network_key_pair,
             parameters.clone(),
             committee.clone(),
             worker_cache.clone(),
@@ -1391,7 +1405,7 @@
             .worker_keypairs
             .iter()
             .map(|kp| kp.copy())
-            .collect::&lt;Vec&lt;KeyPair&gt;&gt;();
+            .collect::&lt;Vec&lt;NetworkKeyPair&gt;&gt;();
 
         <span class="kw">for </span>(id, worker) <span class="kw">in </span>internal.workers.iter_mut() {
             <span class="kw">let </span>keypair = worker_keypairs.get(<span class="kw-2">*</span>id <span class="kw">as </span>usize).unwrap().copy();

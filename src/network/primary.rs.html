@@ -322,7 +322,7 @@
 };
 <span class="kw">use </span>anemo::PeerId;
 <span class="kw">use </span>async_trait::async_trait;
-<span class="kw">use </span>crypto::PublicKey;
+<span class="kw">use </span>crypto::NetworkPublicKey;
 <span class="kw">use </span>multiaddr::Multiaddr;
 <span class="kw">use </span>rand::{rngs::SmallRng, SeedableRng <span class="kw">as _</span>};
 <span class="kw">use </span>std::collections::HashMap;
@@ -518,7 +518,7 @@
 </span><span class="kw">impl </span>UnreliableNetwork2&lt;PrimaryMessage&gt; <span class="kw">for </span>PrimaryNetwork {
     <span class="kw">async fn </span>unreliable_send(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        peer: PublicKey,
+        peer: NetworkPublicKey,
         message: <span class="kw-2">&amp;</span>PrimaryMessage,
     ) -&gt; JoinHandle&lt;()&gt; {
         <span class="kw">let </span>network = <span class="self">self</span>.network.clone();
@@ -548,7 +548,7 @@
 </span><span class="kw">impl </span>ReliableNetwork2&lt;PrimaryMessage&gt; <span class="kw">for </span>PrimaryNetwork {
     <span class="kw">async fn </span>send(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        peer: PublicKey,
+        peer: NetworkPublicKey,
         message: <span class="kw-2">&amp;</span>PrimaryMessage,
     ) -&gt; CancelOnDropHandler&lt;anyhow::Result&lt;anemo::Response&lt;()&gt;&gt;&gt; {
         <span class="comment">// Safety

@@ -1648,18 +1648,18 @@
     </span><span class="kw">async fn </span>broadcast_batch_request(<span class="kw-2">&amp;mut </span><span class="self">self</span>, message: PrimaryMessage) -&gt; Vec&lt;PublicKey&gt; {
         <span class="comment">// Naively now just broadcast the request to all the primaries
 
-        </span><span class="kw">let </span>primaries_names: Vec&lt;<span class="kw">_</span>&gt; = <span class="self">self
+        </span><span class="kw">let </span>(keys, network_keys): (Vec&lt;<span class="kw">_</span>&gt;, Vec&lt;<span class="kw">_</span>&gt;) = <span class="self">self
             </span>.committee
             .others_primaries(<span class="kw-2">&amp;</span><span class="self">self</span>.name)
             .into_iter()
-            .map(|(name, _address)| name)
-            .collect();
+            .map(|(name, _address, network_key)| (name, network_key))
+            .unzip();
 
         <span class="self">self</span>.primary_network
-            .unreliable_broadcast(primaries_names.clone(), <span class="kw-2">&amp;</span>message)
+            .unreliable_broadcast(network_keys.clone(), <span class="kw-2">&amp;</span>message)
             .<span class="kw">await</span>;
 
-        primaries_names
+        keys
     }
 
     <span class="attribute">#[instrument(level=<span class="string">&quot;trace&quot;</span>, skip_all, fields(request_id = <span class="question-mark">?</span>request_id))]

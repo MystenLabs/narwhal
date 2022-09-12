@@ -610,7 +610,7 @@
 <span class="kw">use </span>async_trait::async_trait;
 <span class="kw">use </span>bytes::Bytes;
 <span class="kw">use </span>config::{Parameters, SharedCommittee, SharedWorkerCache, WorkerId};
-<span class="kw">use </span>crypto::{KeyPair, PublicKey};
+<span class="kw">use </span>crypto::{NetworkKeyPair, PublicKey};
 <span class="kw">use </span>futures::{Stream, StreamExt};
 <span class="kw">use </span>multiaddr::{Multiaddr, Protocol};
 <span class="kw">use </span>network::{metrics::WorkerNetworkMetrics, WorkerNetwork};
@@ -648,7 +648,7 @@
     <span class="comment">// The private-public key pair of this worker.
     // TODO: utilize keypair in network communication
     </span><span class="attribute">#[allow(dead_code)]
-    </span>keypair: KeyPair,
+    </span>keypair: NetworkKeyPair,
     <span class="doccomment">/// The id of this worker used for index-based lookup by other NW nodes.
     </span>id: WorkerId,
     <span class="doccomment">/// The committee information.
@@ -666,7 +666,7 @@
 <span class="kw">impl </span>Worker {
     <span class="kw">pub fn </span>spawn(
         primary_name: PublicKey,
-        keypair: KeyPair,
+        keypair: NetworkKeyPair,
         id: WorkerId,
         committee: SharedCommittee,
         worker_cache: SharedWorkerCache,

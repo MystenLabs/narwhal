@@ -49,6 +49,10 @@
 <span id="49">49</span>
 <span id="50">50</span>
 <span id="51">51</span>
+<span id="52">52</span>
+<span id="53">53</span>
+<span id="54">54</span>
+<span id="55">55</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -59,7 +63,7 @@
     rust_2021_compatibility
 )]
 
-</span><span class="kw">use </span>fastcrypto::ed25519;
+</span><span class="kw">use </span>fastcrypto::{bls12381, ed25519};
 
 <span class="comment">// This re-export allows using the trait-defined APIs
 </span><span class="kw">pub use </span>fastcrypto::traits;
@@ -77,11 +81,11 @@
 // to change all four aliases to point to concrete types that work with each other. Failure to do
 // so will result in a ton of compilation errors, and worse: it will not make sense!
 
-</span><span class="kw">pub type </span>PublicKey = ed25519::Ed25519PublicKey;
-<span class="kw">pub type </span>Signature = ed25519::Ed25519Signature;
-<span class="kw">pub type </span>AggregateSignature = ed25519::Ed25519AggregateSignature;
-<span class="kw">pub type </span>PrivateKey = ed25519::Ed25519PrivateKey;
-<span class="kw">pub type </span>KeyPair = ed25519::Ed25519KeyPair;
+</span><span class="kw">pub type </span>PublicKey = bls12381::BLS12381PublicKey;
+<span class="kw">pub type </span>Signature = bls12381::BLS12381Signature;
+<span class="kw">pub type </span>AggregateSignature = bls12381::BLS12381AggregateSignature;
+<span class="kw">pub type </span>PrivateKey = bls12381::BLS12381PrivateKey;
+<span class="kw">pub type </span>KeyPair = bls12381::BLS12381KeyPair;
 
 <span class="comment">// Example to use BLS12-377 instead:
 // #[cfg(feature = &quot;celo&quot;)]
@@ -92,7 +96,11 @@
 // pub type PrivateKey = bls12377::BLS12377PrivateKey;
 // #[cfg(feature = &quot;celo&quot;)]
 // pub type KeyPair = bls12377::BLS12377KeyPair;
-////////////////////////////////////////////////////////////////////////
+
+</span><span class="kw">pub type </span>NetworkPublicKey = ed25519::Ed25519PublicKey;
+<span class="kw">pub type </span>NetworkKeyPair = ed25519::Ed25519KeyPair;
+
+<span class="comment">////////////////////////////////////////////////////////////////////////
 
 </span><span class="attribute">#[cfg(all(test, feature = <span class="string">&quot;celo&quot;</span>))]
 #[path = <span class="string">&quot;tests/bls12377_tests.rs&quot;</span>]

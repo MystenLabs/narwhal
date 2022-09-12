@@ -395,6 +395,9 @@
 <span id="395">395</span>
 <span id="396">396</span>
 <span id="397">397</span>
+<span id="398">398</span>
+<span id="399">399</span>
+<span id="400">400</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span>config::{Parameters, SharedCommittee, SharedWorkerCache, WorkerId};
@@ -405,7 +408,7 @@
     Consensus, ConsensusOutput,
 };
 
-<span class="kw">use </span>crypto::{KeyPair, PublicKey};
+<span class="kw">use </span>crypto::{KeyPair, NetworkKeyPair, PublicKey};
 <span class="kw">use </span>executor::{
     get_restored_consensus_output, ExecutionState, Executor, ExecutorOutput, SerializedTransaction,
     SubscriberResult,
@@ -524,6 +527,8 @@
     </span><span class="kw">pub async fn </span>spawn_primary&lt;State&gt;(
         <span class="comment">// The private-public key pair of this authority.
         </span>keypair: KeyPair,
+        <span class="comment">// The private-public network key pair of this authority.
+        </span>network_keypair: NetworkKeyPair,
         <span class="comment">// The committee information.
         </span>committee: SharedCommittee,
         <span class="comment">// The worker information cache.
@@ -628,6 +633,7 @@
         </span><span class="kw">let </span>primary_handles = Primary::spawn(
             name.clone(),
             keypair,
+            network_keypair,
             committee.clone(),
             worker_cache.clone(),
             parameters.clone(),
@@ -760,7 +766,7 @@
         <span class="comment">// The public key of this authority.
         </span>primary_name: PublicKey,
         <span class="comment">// The ids &amp; keypairs of the workers to spawn.
-        </span>ids_and_keypairs: Vec&lt;(WorkerId, KeyPair)&gt;,
+        </span>ids_and_keypairs: Vec&lt;(WorkerId, NetworkKeyPair)&gt;,
         <span class="comment">// The committee information.
         </span>committee: SharedCommittee,
         <span class="comment">// The worker information cache.

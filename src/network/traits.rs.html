@@ -178,10 +178,14 @@
 <span id="178">178</span>
 <span id="179">179</span>
 <span id="180">180</span>
+<span id="181">181</span>
+<span id="182">182</span>
+<span id="183">183</span>
+<span id="184">184</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span>async_trait::async_trait;
-<span class="kw">use </span>crypto::PublicKey;
+<span class="kw">use </span>crypto::NetworkPublicKey;
 <span class="kw">use </span>multiaddr::Multiaddr;
 <span class="kw">use </span>rand::prelude::{SliceRandom, SmallRng};
 <span class="kw">use </span>serde::Serialize;
@@ -284,13 +288,17 @@
 
 <span class="attribute">#[async_trait]
 </span><span class="kw">pub trait </span>UnreliableNetwork2&lt;Message: Clone + Send + Sync&gt; {
-    <span class="kw">async fn </span>unreliable_send(<span class="kw-2">&amp;mut </span><span class="self">self</span>, peer: PublicKey, message: <span class="kw-2">&amp;</span>Message) -&gt; JoinHandle&lt;()&gt;;
+    <span class="kw">async fn </span>unreliable_send(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        peer: NetworkPublicKey,
+        message: <span class="kw-2">&amp;</span>Message,
+    ) -&gt; JoinHandle&lt;()&gt;;
 
     <span class="doccomment">/// Broadcasts a message to all `peers` passed as an argument.
     /// The attempts to send individual messages are best effort and will not be retried.
     </span><span class="kw">async fn </span>unreliable_broadcast(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        peers: Vec&lt;PublicKey&gt;,
+        peers: Vec&lt;NetworkPublicKey&gt;,
         message: <span class="kw-2">&amp;</span>Message,
     ) -&gt; Vec&lt;JoinHandle&lt;()&gt;&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>handlers = Vec::new();
@@ -312,7 +320,7 @@
     /// message only to them. This is useful to pick nodes with whom to sync.
     </span><span class="kw">async fn </span>lucky_broadcast(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        <span class="kw-2">mut </span>peers: Vec&lt;PublicKey&gt;,
+        <span class="kw-2">mut </span>peers: Vec&lt;NetworkPublicKey&gt;,
         message: <span class="kw-2">&amp;</span>Message,
         num_nodes: usize,
     ) -&gt; Vec&lt;JoinHandle&lt;()&gt;&gt;;
@@ -327,7 +335,7 @@
 {
     <span class="kw">async fn </span>lucky_broadcast(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        <span class="kw-2">mut </span>peers: Vec&lt;PublicKey&gt;,
+        <span class="kw-2">mut </span>peers: Vec&lt;NetworkPublicKey&gt;,
         message: <span class="kw-2">&amp;</span>M,
         nodes: usize,
     ) -&gt; Vec&lt;JoinHandle&lt;()&gt;&gt; {
@@ -341,13 +349,13 @@
 </span><span class="kw">pub trait </span>ReliableNetwork2&lt;Message: Clone + Send + Sync&gt; {
     <span class="kw">async fn </span>send(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        peer: PublicKey,
+        peer: NetworkPublicKey,
         message: <span class="kw-2">&amp;</span>Message,
     ) -&gt; CancelOnDropHandler&lt;anyhow::Result&lt;anemo::Response&lt;()&gt;&gt;&gt;;
 
     <span class="kw">async fn </span>broadcast(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        peers: Vec&lt;PublicKey&gt;,
+        peers: Vec&lt;NetworkPublicKey&gt;,
         message: <span class="kw-2">&amp;</span>Message,
     ) -&gt; Vec&lt;CancelOnDropHandler&lt;anyhow::Result&lt;anemo::Response&lt;()&gt;&gt;&gt;&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>handlers = Vec::new();
