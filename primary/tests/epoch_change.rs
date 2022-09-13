@@ -80,6 +80,28 @@ async fn test_simple_epoch_change() {
         }
     }
 
+    let network = anemo::Network::bind("127.0.0.1:0")
+        .server_name("narwhal")
+        .private_key(
+            crypto::NetworkKeyPair::generate(&mut rand::rngs::OsRng)
+                .private()
+                .0
+                .to_bytes(),
+        )
+        .start(anemo::Router::new())
+        .unwrap();
+
+    for authority in committee_0.authorities.values() {
+        let address = network::multiaddr_to_address(&authority.primary_address).unwrap();
+        let peer_id = anemo::PeerId(authority.network_key.0.to_bytes());
+
+        network
+            .connect_with_peer_id(address, peer_id)
+            .await
+            .unwrap();
+    }
+    let mut network = WorkerToPrimaryNetwork::new(network);
+
     // Move to the next epochs.
     let mut old_committee = committee_0;
     for epoch in 1..=3 {
@@ -95,11 +117,6 @@ async fn test_simple_epoch_change() {
         ));
         let mut _do_not_drop: Vec<CancelOnDropHandler<_>> = Vec::new();
         for authority in old_committee.authorities.values() {
-            let mut network = WorkerToPrimaryNetwork::new_for_single_address(
-                authority.network_key.to_owned(),
-                network::multiaddr_to_address(&authority.primary_address).unwrap(),
-            )
-            .await;
             _do_not_drop.push(
                 network
                     .send(authority.network_key.to_owned(), &message)
