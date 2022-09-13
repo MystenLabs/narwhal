@@ -73,7 +73,7 @@ async fn test_successfully_retrieve_block() {
     let worker = primary.worker(worker_id);
     let network_key = worker.keypair();
     let worker_name = network_key.public().clone();
-    let worker_address = &worker.info().worker_to_worker;
+    let worker_address = &worker.info().worker_address;
 
     let handle = worker_listener(
         network_key,
@@ -289,7 +289,7 @@ async fn test_successfully_retrieve_multiple_blocks() {
     let worker = primary.worker(worker_id);
     let network_key = worker.keypair();
     let worker_name = network_key.public().clone();
-    let worker_address = &worker.info().worker_to_worker;
+    let worker_address = &worker.info().worker_address;
 
     let handle = worker_listener(
         network_key,

@@ -891,10 +891,7 @@ impl WorkerFixture {
     {
         let keypair = NetworkKeyPair::generate(&mut rng);
         let worker_name = keypair.public().clone();
-        let primary_to_worker = format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
-            .parse()
-            .unwrap();
-        let worker_to_worker = format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
+        let worker_address = format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
             .parse()
             .unwrap();
         let transactions = format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
@@ -906,8 +903,7 @@ impl WorkerFixture {
             id,
             info: WorkerInfo {
                 name: worker_name,
-                primary_to_worker,
-                worker_to_worker,
+                worker_address,
                 transactions,
             },
         }

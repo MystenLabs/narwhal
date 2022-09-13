@@ -63,7 +63,7 @@ async fn successfully_synchronize_batches() {
     let worker = primary.worker(worker_id);
     let worker_keypair = worker.keypair();
     let worker_name = worker_keypair.public().to_owned();
-    let worker_address = &worker.info().worker_to_worker;
+    let worker_address = &worker.info().worker_address;
 
     let handle = worker_listener(1, worker_address.clone(), worker_keypair);
     let address = network::multiaddr_to_address(worker_address).unwrap();

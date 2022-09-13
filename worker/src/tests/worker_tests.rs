@@ -67,7 +67,7 @@ async fn handle_clients_transactions() {
     for worker in fixture.authorities().skip(1).map(|a| a.worker(worker_id)) {
         let handle = WorkerToWorkerMockServer::spawn(
             worker.keypair(),
-            worker.info().worker_to_worker.clone(),
+            worker.info().worker_address.clone(),
         );
         other_workers.push(handle);
     }

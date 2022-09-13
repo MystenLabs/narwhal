@@ -322,7 +322,7 @@ async fn test_successful_payload_synchronization() {
         let worker = primary.worker(*worker_id);
         let network_key = worker.keypair();
         let worker_name = network_key.public().clone();
-        let worker_address = &worker.info().worker_to_worker;
+        let worker_address = &worker.info().worker_address;
 
         println!("New worker added: {:?}", worker_name);
         let handler = worker_listener(-1, worker_address.clone(), network_key);

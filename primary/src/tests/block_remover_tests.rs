@@ -130,7 +130,7 @@ async fn test_successful_blocks_delete() {
     for (worker_id, batch_digests) in worker_batches.clone() {
         let worker = primary.worker(worker_id);
         let network_key = worker.keypair();
-        let address = &worker.info().worker_to_worker;
+        let address = &worker.info().worker_address;
 
         let handle = worker_listener(
             network_key,

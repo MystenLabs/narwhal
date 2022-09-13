@@ -224,7 +224,7 @@ impl Primary {
             .our_workers(&name)
             .unwrap()
             .into_iter()
-            .map(|info| (info.name, info.worker_to_worker));
+            .map(|info| (info.name, info.worker_address));
         for (public_key, address) in primaries.chain(workers) {
             let peer_id = PeerId(public_key.0.to_bytes());
             let address = network::multiaddr_to_address(&address).unwrap();

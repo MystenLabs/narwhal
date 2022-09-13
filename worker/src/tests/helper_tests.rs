@@ -30,7 +30,7 @@ async fn worker_batch_reply() {
     store.write(batch_digest, batch.clone()).await;
 
     // setup network
-    let network = mock_network(worker_1.keypair(), &worker_1.info().worker_to_worker);
+    let network = mock_network(worker_1.keypair(), &worker_1.info().worker_address);
     // Spawn an `Helper` instance.
     let _helper_handle = Helper::spawn(
         id,
@@ -45,12 +45,12 @@ async fn worker_batch_reply() {
     // Spawn a listener to receive the batch reply.
     let (mut handle, _network) = WorkerToWorkerMockServer::spawn(
         worker_2.keypair(),
-        worker_2.info().worker_to_worker.clone(),
+        worker_2.info().worker_address.clone(),
     );
 
     // ensure that the two networks are connected
     network
-        .connect(network::multiaddr_to_address(&worker_2.info().worker_to_worker).unwrap())
+        .connect(network::multiaddr_to_address(&worker_2.info().worker_address).unwrap())
         .await
         .unwrap();
 

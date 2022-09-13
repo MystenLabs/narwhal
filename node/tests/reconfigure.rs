@@ -364,7 +364,7 @@ async fn epoch_change() {
                     .our_workers(&name_clone)
                     .expect("Our key is not in the worker cache")
                 {
-                    let address = network::multiaddr_to_address(&worker.worker_to_worker).unwrap();
+                    let address = network::multiaddr_to_address(&worker.worker_address).unwrap();
                     let peer_id = anemo::PeerId(worker.name.0.to_bytes());
                     network
                         .connect_with_peer_id(address, peer_id)

@@ -107,7 +107,7 @@ impl Worker {
             .load()
             .worker(&primary_name, &id)
             .expect("Our public key or worker id is not in the worker cache")
-            .worker_to_worker;
+            .worker_address;
         let address = address
             .replace(0, |_protocol| Some(Protocol::Ip4(Ipv4Addr::UNSPECIFIED)))
             .unwrap();
@@ -130,7 +130,7 @@ impl Worker {
             .load()
             .others_workers(&primary_name, &id)
             .into_iter()
-            .map(|(_, info)| (info.name, info.worker_to_worker));
+            .map(|(_, info)| (info.name, info.worker_address));
         let our_primary = std::iter::once((
             committee.load().network_key(&primary_name).unwrap(),
             committee.load().primary(&primary_name).unwrap(),
