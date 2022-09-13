@@ -212,15 +212,32 @@ async fn test_partial_committee_change() {
     let worker_cache_1 = fixture.shared_worker_cache();
 
     // Tell the nodes of epoch 0 to transition to epoch 1.
+    let network = anemo::Network::bind("127.0.0.1:0")
+        .server_name("narwhal")
+        .private_key(
+            crypto::NetworkKeyPair::generate(&mut rand::rngs::OsRng)
+                .private()
+                .0
+                .to_bytes(),
+        )
+        .start(anemo::Router::new())
+        .unwrap();
+
+    for authority in committee_0.authorities.values() {
+        let address = network::multiaddr_to_address(&authority.primary_address).unwrap();
+        let peer_id = anemo::PeerId(authority.network_key.0.to_bytes());
+
+        network
+            .connect_with_peer_id(address, peer_id)
+            .await
+            .unwrap();
+    }
+    let mut network = WorkerToPrimaryNetwork::new(network);
+
     let message =
         WorkerPrimaryMessage::Reconfigure(ReconfigureNotification::NewEpoch(committee_1.clone()));
     let mut _do_not_drop: Vec<CancelOnDropHandler<_>> = Vec::new();
     for authority in committee_0.authorities.values() {
-        let mut network = WorkerToPrimaryNetwork::new_for_single_address(
-            authority.network_key.to_owned(),
-            network::multiaddr_to_address(&authority.primary_address).unwrap(),
-        )
-        .await;
         _do_not_drop.push(
             network
                 .send(authority.network_key.to_owned(), &message)
