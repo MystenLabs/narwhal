@@ -492,51 +492,6 @@
 <span id="492">492</span>
 <span id="493">493</span>
 <span id="494">494</span>
-<span id="495">495</span>
-<span id="496">496</span>
-<span id="497">497</span>
-<span id="498">498</span>
-<span id="499">499</span>
-<span id="500">500</span>
-<span id="501">501</span>
-<span id="502">502</span>
-<span id="503">503</span>
-<span id="504">504</span>
-<span id="505">505</span>
-<span id="506">506</span>
-<span id="507">507</span>
-<span id="508">508</span>
-<span id="509">509</span>
-<span id="510">510</span>
-<span id="511">511</span>
-<span id="512">512</span>
-<span id="513">513</span>
-<span id="514">514</span>
-<span id="515">515</span>
-<span id="516">516</span>
-<span id="517">517</span>
-<span id="518">518</span>
-<span id="519">519</span>
-<span id="520">520</span>
-<span id="521">521</span>
-<span id="522">522</span>
-<span id="523">523</span>
-<span id="524">524</span>
-<span id="525">525</span>
-<span id="526">526</span>
-<span id="527">527</span>
-<span id="528">528</span>
-<span id="529">529</span>
-<span id="530">530</span>
-<span id="531">531</span>
-<span id="532">532</span>
-<span id="533">533</span>
-<span id="534">534</span>
-<span id="535">535</span>
-<span id="536">536</span>
-<span id="537">537</span>
-<span id="538">538</span>
-<span id="539">539</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -560,10 +515,10 @@
 <span class="kw">use </span>tracing::info;
 <span class="kw">use </span>types::{
     error::DagError,
-    metered_channel::{channel, Sender},
-    Batch, BatchDigest, BincodeEncodedPayload, Empty, PrimaryToWorker, PrimaryToWorkerServer,
-    ReconfigureNotification, Transaction, TransactionProto, Transactions, TransactionsServer,
-    WorkerPrimaryMessage, WorkerToWorker, WorkerToWorkerServer,
+    metered_channel::{channel, Receiver, Sender},
+    Batch, BatchDigest, Empty, PrimaryToWorker, PrimaryToWorkerServer, ReconfigureNotification,
+    Transaction, TransactionProto, Transactions, TransactionsServer, WorkerPrimaryMessage,
+    WorkerToWorker, WorkerToWorkerServer,
 };
 
 <span class="attribute">#[cfg(test)]
@@ -630,11 +585,15 @@
             channel(CHANNEL_CAPACITY, <span class="kw-2">&amp;</span>channel_metrics.tx_worker_helper);
         <span class="kw">let </span>(tx_worker_processor, rx_worker_processor) =
             channel(CHANNEL_CAPACITY, <span class="kw-2">&amp;</span>channel_metrics.tx_worker_processor);
+        <span class="kw">let </span>(tx_synchronizer, rx_synchronizer) =
+            channel(CHANNEL_CAPACITY, <span class="kw-2">&amp;</span>channel_metrics.tx_synchronizer);
 
         <span class="kw">let </span>worker_service = WorkerToWorkerServer::new(WorkerReceiverHandler {
             tx_worker_helper,
             tx_processor: tx_worker_processor,
         });
+        <span class="kw">let </span>primary_service =
+            PrimaryToWorkerServer::new(PrimaryReceiverHandler { tx_synchronizer });
 
         <span class="comment">// Receive incoming messages from other workers.
         </span><span class="kw">let </span>address = worker
@@ -642,14 +601,16 @@
             .load()
             .worker(<span class="kw-2">&amp;</span>primary_name, <span class="kw-2">&amp;</span>id)
             .expect(<span class="string">&quot;Our public key or worker id is not in the worker cache&quot;</span>)
-            .worker_to_worker;
+            .worker_address;
         <span class="kw">let </span>address = address
             .replace(<span class="number">0</span>, |_protocol| <span class="prelude-val">Some</span>(Protocol::Ip4(Ipv4Addr::UNSPECIFIED)))
             .unwrap();
         <span class="kw">let </span>addr = network::multiaddr_to_address(<span class="kw-2">&amp;</span>address).unwrap();
 
         <span class="comment">// Set up anemo Network.
-        </span><span class="kw">let </span>routes = anemo::Router::new().add_rpc_service(worker_service);
+        </span><span class="kw">let </span>routes = anemo::Router::new()
+            .add_rpc_service(worker_service)
+            .add_rpc_service(primary_service);
         <span class="kw">let </span>network = anemo::Network::bind(addr)
             .server_name(<span class="string">&quot;narwhal&quot;</span>)
             .private_key(worker.keypair.copy().private().<span class="number">0</span>.to_bytes())
@@ -658,14 +619,21 @@
 
         <span class="macro">info!</span>(<span class="string">&quot;Worker {} listening to worker messages on {}&quot;</span>, id, address);
 
-        <span class="comment">// Add other workers we want to talk with to the known peers set.
-        </span><span class="kw">for </span>(_primary_pubkey, worker_info) <span class="kw">in </span>worker
+        <span class="kw">let </span>other_workers = worker
             .worker_cache
             .load()
             .others_workers(<span class="kw-2">&amp;</span>primary_name, <span class="kw-2">&amp;</span>id)
-        {
-            <span class="kw">let </span>peer_id = PeerId(worker_info.name.<span class="number">0</span>.to_bytes());
-            <span class="kw">let </span>address = network::multiaddr_to_address(<span class="kw-2">&amp;</span>worker_info.worker_to_worker).unwrap();
+            .into_iter()
+            .map(|(<span class="kw">_</span>, info)| (info.name, info.worker_address));
+        <span class="kw">let </span>our_primary = std::iter::once((
+            committee.load().network_key(<span class="kw-2">&amp;</span>primary_name).unwrap(),
+            committee.load().primary(<span class="kw-2">&amp;</span>primary_name).unwrap(),
+        ));
+
+        <span class="comment">// Add other workers we want to talk with to the known peers set.
+        </span><span class="kw">for </span>(public_key, address) <span class="kw">in </span>other_workers.chain(our_primary) {
+            <span class="kw">let </span>peer_id = PeerId(public_key.<span class="number">0</span>.to_bytes());
+            <span class="kw">let </span>address = network::multiaddr_to_address(<span class="kw-2">&amp;</span>address).unwrap();
             <span class="kw">let </span>peer_info = PeerInfo {
                 peer_id,
                 affinity: anemo::types::PeerAffinity::High,
@@ -695,14 +663,14 @@
             primary_network_key,
             rx_reconfigure,
             rx_primary,
-            network::WorkerToPrimaryNetwork::new(network.clone()),
+            network::P2pNetwork::new(network.clone()),
         );
 
         <span class="kw">let </span>client_flow_handles = worker.handle_clients_transactions(
             <span class="kw-2">&amp;</span>tx_reconfigure,
             tx_primary.clone(),
             node_metrics.clone(),
-            channel_metrics.clone(),
+            channel_metrics,
             endpoint_metrics,
             network.clone(),
         );
@@ -714,10 +682,10 @@
             network.clone(),
         );
         <span class="kw">let </span>primary_flow_handles = worker.handle_primary_messages(
+            rx_synchronizer,
             tx_reconfigure,
             tx_primary,
             node_metrics,
-            channel_metrics,
             network,
         );
 
@@ -743,28 +711,12 @@
     <span class="doccomment">/// Spawn all tasks responsible to handle messages from our primary.
     </span><span class="kw">fn </span>handle_primary_messages(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
+        rx_synchronizer: Receiver&lt;PrimaryWorkerMessage&gt;,
         tx_reconfigure: watch::Sender&lt;ReconfigureNotification&gt;,
         tx_primary: Sender&lt;WorkerPrimaryMessage&gt;,
         node_metrics: Arc&lt;WorkerMetrics&gt;,
-        channel_metrics: Arc&lt;WorkerChannelMetrics&gt;,
         network: anemo::Network,
     ) -&gt; Vec&lt;JoinHandle&lt;()&gt;&gt; {
-        <span class="kw">let </span>(tx_synchronizer, rx_synchronizer) =
-            channel(CHANNEL_CAPACITY, <span class="kw-2">&amp;</span>channel_metrics.tx_synchronizer);
-
-        <span class="comment">// Receive incoming messages from our primary.
-        </span><span class="kw">let </span>address = <span class="self">self
-            </span>.worker_cache
-            .load()
-            .worker(<span class="kw-2">&amp;</span><span class="self">self</span>.primary_name, <span class="kw-2">&amp;</span><span class="self">self</span>.id)
-            .expect(<span class="string">&quot;Our public key or worker id is not in the worker cache&quot;</span>)
-            .primary_to_worker;
-        <span class="kw">let </span>address = address
-            .replace(<span class="number">0</span>, |_protocol| <span class="prelude-val">Some</span>(Protocol::Ip4(Ipv4Addr::UNSPECIFIED)))
-            .unwrap();
-        <span class="kw">let </span>primary_handle = PrimaryReceiverHandler { tx_synchronizer }
-            .spawn(address.clone(), tx_reconfigure.subscribe());
-
         <span class="comment">// The `Synchronizer` is responsible to keep the worker in sync with the others. It handles the commands
         // it receives from the primary (which are mainly notifications that we are out of sync).
         </span><span class="kw">let </span>handle = Synchronizer::spawn(
@@ -783,12 +735,7 @@
             P2pNetwork::new(network),
         );
 
-        <span class="macro">info!</span>(
-            <span class="string">&quot;Worker {} listening to primary messages on {}&quot;</span>,
-            <span class="self">self</span>.id, address
-        );
-
-        <span class="macro">vec!</span>[handle, primary_handle]
+        <span class="macro">vec!</span>[handle]
     }
 
     <span class="doccomment">/// Spawn all tasks responsible to handle clients transactions.
@@ -1022,58 +969,21 @@
     tx_synchronizer: Sender&lt;PrimaryWorkerMessage&gt;,
 }
 
-<span class="kw">impl </span>PrimaryReceiverHandler {
-    <span class="kw">async fn </span>wait_for_shutdown(<span class="kw-2">mut </span>rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;) {
-        <span class="kw">loop </span>{
-            <span class="kw">let </span>result = rx_reconfigure.changed().<span class="kw">await</span>;
-            result.expect(<span class="string">&quot;Committee channel dropped&quot;</span>);
-            <span class="kw">let </span>message = rx_reconfigure.borrow().clone();
-            <span class="kw">if let </span>ReconfigureNotification::Shutdown = message {
-                <span class="kw">break</span>;
-            }
-        }
-    }
-
-    <span class="attribute">#[must_use]
-    </span><span class="kw">fn </span>spawn(
-        <span class="self">self</span>,
-        address: Multiaddr,
-        rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;,
-    ) -&gt; JoinHandle&lt;()&gt; {
-        tokio::spawn(<span class="kw">async move </span>{
-            <span class="macro">tokio::select! </span>{
-                _result = mysten_network::config::Config::new()
-                    .server_builder()
-                    .add_service(PrimaryToWorkerServer::new(<span class="self">self</span>))
-                    .bind(<span class="kw-2">&amp;</span>address)
-                    .<span class="kw">await
-                    </span>.unwrap()
-                    .serve() =&gt; (),
-
-                () = <span class="self">Self</span>::wait_for_shutdown(rx_reconfigure) =&gt; ()
-            }
-        })
-    }
-}
-
 <span class="attribute">#[async_trait]
 </span><span class="kw">impl </span>PrimaryToWorker <span class="kw">for </span>PrimaryReceiverHandler {
     <span class="kw">async fn </span>send_message(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        request: Request&lt;BincodeEncodedPayload&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;Response&lt;Empty&gt;, Status&gt; {
-        <span class="kw">let </span>message: PrimaryWorkerMessage = request
-            .into_inner()
-            .deserialize()
-            .map_err(|e| Status::invalid_argument(e.to_string()))<span class="question-mark">?</span>;
+        request: anemo::Request&lt;PrimaryWorkerMessage&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;anemo::Response&lt;()&gt;, anemo::rpc::Status&gt; {
+        <span class="kw">let </span>message = request.into_body();
 
         <span class="self">self</span>.tx_synchronizer
             .send(message)
             .<span class="kw">await
             </span>.map_err(|<span class="kw">_</span>| DagError::ShuttingDown)
-            .map_err(|e| Status::not_found(e.to_string()))<span class="question-mark">?</span>;
+            .map_err(|e| anemo::rpc::Status::internal(e.to_string()))<span class="question-mark">?</span>;
 
-        <span class="prelude-val">Ok</span>(Response::new(Empty {}))
+        <span class="prelude-val">Ok</span>(anemo::Response::new(()))
     }
 }
 </code></pre></div>

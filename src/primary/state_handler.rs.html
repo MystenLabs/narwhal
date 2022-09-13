@@ -175,14 +175,13 @@
 <span id="175">175</span>
 <span id="176">176</span>
 <span id="177">177</span>
-<span id="178">178</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span><span class="kw">crate</span>::primary::PrimaryWorkerMessage;
 <span class="kw">use </span>config::{SharedCommittee, SharedWorkerCache, WorkerCache, WorkerIndex};
 <span class="kw">use </span>crypto::PublicKey;
-<span class="kw">use </span>network::{PrimaryToWorkerNetwork, UnreliableNetwork};
+<span class="kw">use </span>network::{P2pNetwork, UnreliableNetwork};
 <span class="kw">use </span>std::{collections::BTreeMap, sync::Arc};
 <span class="kw">use </span>tap::TapOptional;
 <span class="kw">use </span>tokio::{sync::watch, task::JoinHandle};
@@ -208,7 +207,7 @@
     <span class="doccomment">/// The latest round committed by consensus.
     </span>last_committed_round: Round,
     <span class="doccomment">/// A network sender to notify our workers of cleanup events.
-    </span>worker_network: PrimaryToWorkerNetwork,
+    </span>network: P2pNetwork,
 }
 
 <span class="kw">impl </span>StateHandler {
@@ -221,6 +220,7 @@
         tx_consensus_round_updates: watch::Sender&lt;u64&gt;,
         rx_reconfigure: Receiver&lt;ReconfigureNotification&gt;,
         tx_reconfigure: watch::Sender&lt;ReconfigureNotification&gt;,
+        network: P2pNetwork,
     ) -&gt; JoinHandle&lt;()&gt; {
         tokio::spawn(<span class="kw">async move </span>{
             <span class="self">Self </span>{
@@ -232,7 +232,7 @@
                 rx_reconfigure,
                 tx_reconfigure,
                 last_committed_round: <span class="number">0</span>,
-                worker_network: Default::default(),
+                network,
             }
             .run()
             .<span class="kw">await</span>;
@@ -256,12 +256,10 @@
                 .our_workers(<span class="kw-2">&amp;</span><span class="self">self</span>.name)
                 .expect(<span class="string">&quot;Our public key or worker id is not in the worker cache&quot;</span>)
                 .into_iter()
-                .map(|x| x.primary_to_worker)
+                .map(|x| x.name)
                 .collect();
             <span class="kw">let </span>message = PrimaryWorkerMessage::Cleanup(round);
-            <span class="self">self</span>.worker_network
-                .unreliable_broadcast(addresses, <span class="kw-2">&amp;</span>message)
-                .<span class="kw">await</span>;
+            <span class="self">self</span>.network.unreliable_broadcast(addresses, <span class="kw-2">&amp;</span>message).<span class="kw">await</span>;
         }
     }
 
@@ -280,7 +278,7 @@
                     <span class="kw">let </span>shutdown = <span class="kw">match </span><span class="kw-2">&amp;</span>message {
                         ReconfigureNotification::NewEpoch(committee) =&gt; {
                             <span class="comment">// Cleanup the network.
-                            </span><span class="self">self</span>.worker_network.cleanup(<span class="self">self</span>.worker_cache.load().network_diff(committee.keys()));
+                            </span><span class="self">self</span>.network.cleanup(<span class="self">self</span>.worker_cache.load().network_diff(committee.keys()));
 
                             <span class="comment">// Update the worker cache.
                             </span><span class="self">self</span>.worker_cache.swap(Arc::new(WorkerCache {
@@ -310,7 +308,7 @@
                         </span>},
                         ReconfigureNotification::UpdateCommittee(committee) =&gt; {
                             <span class="comment">// Cleanup the network.
-                            </span><span class="self">self</span>.worker_network.cleanup(<span class="self">self</span>.worker_cache.load().network_diff(committee.keys()));
+                            </span><span class="self">self</span>.network.cleanup(<span class="self">self</span>.worker_cache.load().network_diff(committee.keys()));
 
                             <span class="comment">// Update the worker cache.
                             </span><span class="self">self</span>.worker_cache.swap(Arc::new(WorkerCache {

@@ -162,7 +162,7 @@
 </span><span class="kw">use </span>config::{Committee, SharedWorkerCache, Stake, WorkerId};
 <span class="kw">use </span>crypto::PublicKey;
 <span class="kw">use </span>futures::stream::{futures_unordered::FuturesUnordered, StreamExt <span class="kw">as _</span>};
-<span class="kw">use </span>network::{CancelOnDropHandler, P2pNetwork, ReliableNetwork2};
+<span class="kw">use </span>network::{CancelOnDropHandler, P2pNetwork, ReliableNetwork};
 <span class="kw">use </span>tokio::{sync::watch, task::JoinHandle};
 <span class="kw">use </span>types::{
     error::DagError,

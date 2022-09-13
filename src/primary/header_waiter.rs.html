@@ -404,12 +404,6 @@
 <span id="404">404</span>
 <span id="405">405</span>
 <span id="406">406</span>
-<span id="407">407</span>
-<span id="408">408</span>
-<span id="409">409</span>
-<span id="410">410</span>
-<span id="411">411</span>
-<span id="412">412</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -420,9 +414,7 @@
 <span class="kw">use </span>config::{Committee, SharedWorkerCache, WorkerId};
 <span class="kw">use </span>crypto::PublicKey;
 <span class="kw">use </span>futures::future::{try_join_all, BoxFuture};
-<span class="kw">use </span>network::{
-    LuckyNetwork2, P2pNetwork, PrimaryToWorkerNetwork, UnreliableNetwork, UnreliableNetwork2,
-};
+<span class="kw">use </span>network::{LuckyNetwork, P2pNetwork, UnreliableNetwork};
 <span class="kw">use </span>serde::{de::DeserializeOwned, Serialize};
 <span class="kw">use </span>std::{
     collections::HashMap,
@@ -489,8 +481,8 @@
     </span>tx_core: Sender&lt;Header&gt;,
 
     <span class="doccomment">/// Network driver allowing to send messages.
-    </span>primary_network: P2pNetwork,
-    worker_network: PrimaryToWorkerNetwork,
+    </span>network: P2pNetwork,
+
     <span class="doccomment">/// Keeps the digests of the all certificates for which we sent a sync request,
     /// along with a time stamp (`u128`) indicating when we sent the request.
     </span>parent_requests: HashMap&lt;CertificateDigest, (Round, u128)&gt;,
@@ -527,7 +519,6 @@
         tx_core: Sender&lt;Header&gt;,
         metrics: Arc&lt;PrimaryMetrics&gt;,
         primary_network: P2pNetwork,
-        worker_network: PrimaryToWorkerNetwork,
     ) -&gt; JoinHandle&lt;()&gt; {
         tokio::spawn(<span class="kw">async move </span>{
             <span class="self">Self </span>{
@@ -543,8 +534,7 @@
                 rx_reconfigure,
                 rx_synchronizer,
                 tx_core,
-                primary_network,
-                worker_network,
+                network: primary_network,
                 parent_requests: HashMap::new(),
                 batch_requests: HashMap::new(),
                 pending: HashMap::new(),
@@ -640,15 +630,15 @@
                                 });
                             }
                             <span class="kw">for </span>(worker_id, digests) <span class="kw">in </span>requires_sync {
-                                <span class="kw">let </span>address = <span class="self">self</span>.worker_cache
+                                <span class="kw">let </span>worker_name = <span class="self">self</span>.worker_cache
                                     .load()
                                     .worker(<span class="kw-2">&amp;</span><span class="self">self</span>.name, <span class="kw-2">&amp;</span>worker_id)
                                     .expect(<span class="string">&quot;Author of valid header is not in the worker cache&quot;</span>)
-                                    .primary_to_worker;
+                                    .name;
 
                                 <span class="comment">// TODO [issue #423]: This network transmission needs to be reliable: the worker may crash-recover.
                                 </span><span class="kw">let </span>message = PrimaryWorkerMessage::Synchronize(digests, author.clone());
-                                <span class="self">self</span>.worker_network.unreliable_send(address, <span class="kw-2">&amp;</span>message).<span class="kw">await</span>;
+                                <span class="self">self</span>.network.unreliable_send(worker_name, <span class="kw-2">&amp;</span>message).<span class="kw">await</span>;
                             }
                         }
 
@@ -688,7 +678,7 @@
                             }
                             <span class="kw">if </span>!requires_sync.is_empty() {
                                 <span class="kw">let </span>message = PrimaryMessage::CertificatesRequest(requires_sync, <span class="self">self</span>.name.clone());
-                                <span class="self">self</span>.primary_network.unreliable_send(<span class="self">self</span>.committee.network_key(<span class="kw-2">&amp;</span>author).unwrap(), <span class="kw-2">&amp;</span>message).<span class="kw">await</span>;
+                                <span class="self">self</span>.network.unreliable_send(<span class="self">self</span>.committee.network_key(<span class="kw-2">&amp;</span>author).unwrap(), <span class="kw-2">&amp;</span>message).<span class="kw">await</span>;
                             }
                         }
                     }
@@ -732,7 +722,7 @@
                             .map(|(<span class="kw">_</span>, <span class="kw">_</span>, network_key)| network_key)
                             .collect();
                         <span class="kw">let </span>message = PrimaryMessage::CertificatesRequest(retry, <span class="self">self</span>.name.clone());
-                        <span class="self">self</span>.primary_network.lucky_broadcast(network_keys, <span class="kw-2">&amp;</span>message, <span class="self">self</span>.sync_retry_nodes).<span class="kw">await</span>;
+                        <span class="self">self</span>.network.lucky_broadcast(network_keys, <span class="kw-2">&amp;</span>message, <span class="self">self</span>.sync_retry_nodes).<span class="kw">await</span>;
                     }
                     <span class="comment">// Reschedule the timer.
                     </span>timer.as_mut().reset(Instant::now() + Duration::from_millis(TIMER_RESOLUTION));
@@ -745,8 +735,7 @@
                     <span class="kw">match </span>message {
                         ReconfigureNotification::NewEpoch(new_committee) =&gt; {
                             <span class="comment">// Update the committee and cleanup internal state.
-                            </span><span class="self">self</span>.primary_network.cleanup(<span class="self">self</span>.committee.network_diff(<span class="kw-2">&amp;</span>new_committee));
-                            <span class="self">self</span>.worker_network.cleanup(<span class="self">self</span>.committee.network_diff(<span class="kw-2">&amp;</span>new_committee));
+                            </span><span class="self">self</span>.network.cleanup(<span class="self">self</span>.committee.network_diff(<span class="kw-2">&amp;</span>new_committee));
 
                             <span class="self">self</span>.committee = new_committee;
 
@@ -755,8 +744,7 @@
                             <span class="self">self</span>.parent_requests.clear();
                         },
                         ReconfigureNotification::UpdateCommittee(new_committee) =&gt; {
-                            <span class="self">self</span>.primary_network.cleanup(<span class="self">self</span>.committee.network_diff(<span class="kw-2">&amp;</span>new_committee));
-                            <span class="self">self</span>.worker_network.cleanup(<span class="self">self</span>.committee.network_diff(<span class="kw-2">&amp;</span>new_committee));
+                            <span class="self">self</span>.network.cleanup(<span class="self">self</span>.committee.network_diff(<span class="kw-2">&amp;</span>new_committee));
                             <span class="self">self</span>.committee = new_committee;
                         },
                         ReconfigureNotification::Shutdown =&gt; <span class="kw">return

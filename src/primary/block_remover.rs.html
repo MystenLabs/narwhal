@@ -662,7 +662,7 @@
     FutureExt,
 };
 <span class="kw">use </span>itertools::Either;
-<span class="kw">use </span>network::{PrimaryToWorkerNetwork, UnreliableNetwork};
+<span class="kw">use </span>network::{P2pNetwork, UnreliableNetwork};
 <span class="kw">use </span>std::{collections::HashMap, sync::Arc, time::Duration};
 <span class="kw">use </span>storage::CertificateStore;
 <span class="kw">use </span>store::{rocks::TypedStoreError, Store};
@@ -726,7 +726,7 @@
 ///
 /// ```rust
 /// # use store::{reopen, rocks, rocks::DBMap, Store};
-/// # use network::PrimaryToWorkerNetwork;
+/// # use network::P2pNetwork;
 /// # use tokio::sync::{mpsc::{channel}, watch};
 /// # use arc_swap::ArcSwap;
 /// # use fastcrypto::Hash;
@@ -799,7 +799,7 @@
 ///         headers_store.clone(),
 ///         payload_store.clone(),
 ///         Some(dag),
-///         PrimaryToWorkerNetwork::default(),
+///         network::P2pNetwork::new(test_utils::random_network()),
 ///         rx_reconfigure,
 ///         rx_commands,
 ///         rx_delete_batches,
@@ -858,7 +858,7 @@
     </span>dag: <span class="prelude-ty">Option</span>&lt;Arc&lt;Dag&gt;&gt;,
 
     <span class="doccomment">/// Network driver allowing to send messages.
-    </span>worker_network: PrimaryToWorkerNetwork,
+    </span>worker_network: P2pNetwork,
 
     <span class="doccomment">/// Watch channel to reconfigure the committee.
     </span>rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;,
@@ -894,7 +894,7 @@
         header_store: Store&lt;HeaderDigest, Header&gt;,
         payload_store: Store&lt;(BatchDigest, WorkerId), PayloadToken&gt;,
         dag: <span class="prelude-ty">Option</span>&lt;Arc&lt;Dag&gt;&gt;,
-        worker_network: PrimaryToWorkerNetwork,
+        worker_network: P2pNetwork,
         rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;,
         rx_commands: Receiver&lt;BlockRemoverCommand&gt;,
         rx_delete_batches: Receiver&lt;DeleteBatchResult&gt;,
@@ -1201,24 +1201,24 @@
         <span class="comment">// now send the requests
         </span><span class="kw">for </span>(worker_id, batch_ids) <span class="kw">in </span>batches_by_worker {
             <span class="comment">// send the batches to each worker id
-            </span><span class="kw">let </span>worker_address = <span class="self">self
+            </span><span class="kw">let </span>worker_name = <span class="self">self
                 </span>.worker_cache
                 .load()
                 .worker(<span class="kw-2">&amp;</span><span class="self">self</span>.name, <span class="kw-2">&amp;</span>worker_id)
                 .expect(<span class="string">&quot;Worker id not found&quot;</span>)
-                .primary_to_worker;
+                .name;
 
             <span class="kw">let </span>message = PrimaryWorkerMessage::DeleteBatches(batch_ids.clone());
 
             <span class="comment">// send the request
             </span><span class="self">self</span>.worker_network
-                .unreliable_send(worker_address.clone(), <span class="kw-2">&amp;</span>message)
+                .unreliable_send(worker_name.clone(), <span class="kw-2">&amp;</span>message)
                 .<span class="kw">await</span>;
 
             <span class="macro">debug!</span>(
                 <span class="string">&quot;Sending DeleteBatches request for batch ids {:?} to worker {}&quot;</span>,
                 batch_ids.clone(),
-                worker_address
+                worker_name
             );
 
             <span class="comment">// create a key based on the provided batch ids and use it as a request

@@ -74,14 +74,6 @@
 <span id="74">74</span>
 <span id="75">75</span>
 <span id="76">76</span>
-<span id="77">77</span>
-<span id="78">78</span>
-<span id="79">79</span>
-<span id="80">80</span>
-<span id="81">81</span>
-<span id="82">82</span>
-<span id="83">83</span>
-<span id="84">84</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -95,24 +87,16 @@
 
 </span><span class="kw">mod </span>bounded_executor;
 <span class="kw">pub mod </span>metrics;
-<span class="kw">mod </span>primary;
+<span class="kw">mod </span>p2p;
 <span class="kw">mod </span>retry;
 <span class="kw">mod </span>traits;
-<span class="kw">mod </span>worker;
 
 <span class="kw">pub use crate</span>::{
     bounded_executor::BoundedExecutor,
-    primary::{P2pNetwork, PrimaryToWorkerNetwork},
+    p2p::P2pNetwork,
     retry::RetryConfig,
-    traits::{
-        Lucky, LuckyNetwork, LuckyNetwork2, ReliableNetwork, ReliableNetwork2, UnreliableNetwork,
-        UnreliableNetwork2,
-    },
-    worker::WorkerToPrimaryNetwork,
+    traits::{Lucky, LuckyNetwork, ReliableNetwork, UnreliableNetwork},
 };
-
-<span class="comment">// the result of our network messages
-</span><span class="kw">pub type </span>MessageResult = <span class="prelude-ty">Result</span>&lt;tonic::Response&lt;types::Empty&gt;, eyre::Report&gt;;
 
 <span class="doccomment">/// This adapter will make a [`tokio::task::JoinHandle`] abort its handled task when the handle is dropped.
 </span><span class="attribute">#[derive(Debug)]

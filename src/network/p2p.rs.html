@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `network/src/primary.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>primary.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../normalize.css"><link rel="stylesheet" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../ayu.css" disabled><link rel="stylesheet" href="../../dark.css" disabled><link rel="stylesheet" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button><a class="sidebar-logo" href="../../network/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div></a><h2 class="location"></h2></nav><nav class="sidebar"><a class="sidebar-logo" href="../../network/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div></a></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../../network/index.html"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></a><nav class="sub"><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><button type="button">?</button></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../wheel.svg"></a></div></div></form></nav></div><section id="main-content" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">1</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `network/src/p2p.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>p2p.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../normalize.css"><link rel="stylesheet" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../ayu.css" disabled><link rel="stylesheet" href="../../dark.css" disabled><link rel="stylesheet" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button><a class="sidebar-logo" href="../../network/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div></a><h2 class="location"></h2></nav><nav class="sidebar"><a class="sidebar-logo" href="../../network/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div></a></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../../network/index.html"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></a><nav class="sub"><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><button type="button">?</button></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../wheel.svg"></a></div></div></form></nav></div><section id="main-content" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">1</span>
 <span id="2">2</span>
 <span id="3">3</span>
 <span id="4">4</span>
@@ -296,255 +296,27 @@
 <span id="296">296</span>
 <span id="297">297</span>
 <span id="298">298</span>
-<span id="299">299</span>
-<span id="300">300</span>
-<span id="301">301</span>
-<span id="302">302</span>
-<span id="303">303</span>
-<span id="304">304</span>
-<span id="305">305</span>
-<span id="306">306</span>
-<span id="307">307</span>
-<span id="308">308</span>
-<span id="309">309</span>
-<span id="310">310</span>
-<span id="311">311</span>
-<span id="312">312</span>
-<span id="313">313</span>
-<span id="314">314</span>
-<span id="315">315</span>
-<span id="316">316</span>
-<span id="317">317</span>
-<span id="318">318</span>
-<span id="319">319</span>
-<span id="320">320</span>
-<span id="321">321</span>
-<span id="322">322</span>
-<span id="323">323</span>
-<span id="324">324</span>
-<span id="325">325</span>
-<span id="326">326</span>
-<span id="327">327</span>
-<span id="328">328</span>
-<span id="329">329</span>
-<span id="330">330</span>
-<span id="331">331</span>
-<span id="332">332</span>
-<span id="333">333</span>
-<span id="334">334</span>
-<span id="335">335</span>
-<span id="336">336</span>
-<span id="337">337</span>
-<span id="338">338</span>
-<span id="339">339</span>
-<span id="340">340</span>
-<span id="341">341</span>
-<span id="342">342</span>
-<span id="343">343</span>
-<span id="344">344</span>
-<span id="345">345</span>
-<span id="346">346</span>
-<span id="347">347</span>
-<span id="348">348</span>
-<span id="349">349</span>
-<span id="350">350</span>
-<span id="351">351</span>
-<span id="352">352</span>
-<span id="353">353</span>
-<span id="354">354</span>
-<span id="355">355</span>
-<span id="356">356</span>
-<span id="357">357</span>
-<span id="358">358</span>
-<span id="359">359</span>
-<span id="360">360</span>
-<span id="361">361</span>
-<span id="362">362</span>
-<span id="363">363</span>
-<span id="364">364</span>
-<span id="365">365</span>
-<span id="366">366</span>
-<span id="367">367</span>
-<span id="368">368</span>
-<span id="369">369</span>
-<span id="370">370</span>
-<span id="371">371</span>
-<span id="372">372</span>
-<span id="373">373</span>
-<span id="374">374</span>
-<span id="375">375</span>
-<span id="376">376</span>
-<span id="377">377</span>
-<span id="378">378</span>
-<span id="379">379</span>
-<span id="380">380</span>
-<span id="381">381</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
 </span><span class="kw">use crate</span>::{
-    metrics::{Metrics, PrimaryNetworkMetrics},
-    traits::{BaseNetwork, Lucky, ReliableNetwork2, UnreliableNetwork, UnreliableNetwork2},
-    BoundedExecutor, CancelOnDropHandler, MessageResult, ReliableNetwork, RetryConfig,
-    MAX_TASK_CONCURRENCY,
+    traits::{Lucky, ReliableNetwork, UnreliableNetwork},
+    BoundedExecutor, CancelOnDropHandler, RetryConfig, MAX_TASK_CONCURRENCY,
 };
 <span class="kw">use </span>anemo::PeerId;
 <span class="kw">use </span>async_trait::async_trait;
-<span class="kw">use </span>crypto::NetworkPublicKey;
+<span class="kw">use </span>crypto::{traits::KeyPair, NetworkPublicKey};
 <span class="kw">use </span>multiaddr::Multiaddr;
 <span class="kw">use </span>rand::{rngs::SmallRng, SeedableRng <span class="kw">as _</span>};
 <span class="kw">use </span>std::collections::HashMap;
 <span class="kw">use </span>tokio::{runtime::Handle, task::JoinHandle};
-<span class="kw">use </span>tonic::transport::Channel;
-<span class="kw">use </span>tracing::error;
 <span class="kw">use </span>types::{
-    BincodeEncodedPayload, PrimaryMessage, PrimaryToPrimaryClient, PrimaryToWorkerClient,
-    PrimaryWorkerMessage, WorkerMessage, WorkerToWorkerClient,
+    PrimaryMessage, PrimaryToPrimaryClient, PrimaryToWorkerClient, PrimaryWorkerMessage,
+    WorkerMessage, WorkerPrimaryMessage, WorkerToPrimaryClient, WorkerToWorkerClient,
 };
 
 <span class="kw">fn </span>default_executor() -&gt; BoundedExecutor {
     BoundedExecutor::new(MAX_TASK_CONCURRENCY, Handle::current())
-}
-
-<span class="kw">pub struct </span>PrimaryToWorkerNetwork {
-    clients: HashMap&lt;Multiaddr, PrimaryToWorkerClient&lt;Channel&gt;&gt;,
-    config: mysten_network::config::Config,
-    executor: BoundedExecutor,
-    retry_config: RetryConfig,
-    metrics: <span class="prelude-ty">Option</span>&lt;Metrics&lt;PrimaryNetworkMetrics&gt;&gt;,
-}
-
-<span class="kw">impl </span>PrimaryToWorkerNetwork {
-    <span class="kw">pub fn </span>new(metrics: Metrics&lt;PrimaryNetworkMetrics&gt;) -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{
-            metrics: <span class="prelude-val">Some</span>(Metrics::from(metrics, <span class="string">&quot;primary_to_worker&quot;</span>.to_string())),
-            ..Default::default()
-        }
-    }
-
-    <span class="comment">// used for testing non-blocking behavior
-    </span><span class="attribute">#[cfg(test)]
-    </span><span class="kw">fn </span>new_with_concurrency_limit(concurrency_limit: usize) -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{
-            executor: BoundedExecutor::new(concurrency_limit, Handle::current()),
-            ..<span class="self">Self</span>::default()
-        }
-    }
-
-    <span class="kw">fn </span>update_metrics(<span class="kw-2">&amp;</span><span class="self">self</span>) {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(m) = <span class="kw-2">&amp;</span><span class="self">self</span>.metrics {
-            m.set_network_available_tasks(<span class="self">self</span>.executor.available_capacity() <span class="kw">as </span>i64, <span class="prelude-val">None</span>);
-        }
-    }
-
-    <span class="kw">pub fn </span>cleanup&lt;<span class="lifetime">&#39;a</span>, I&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, to_remove: I)
-    <span class="kw">where
-        </span>I: IntoIterator&lt;Item = <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Multiaddr&gt;,
-    {
-        <span class="comment">// TODO: Add protection for primary owned worker addresses (issue#840).
-        </span><span class="kw">for </span>address <span class="kw">in </span>to_remove {
-            <span class="self">self</span>.clients.remove(address);
-        }
-    }
-}
-
-<span class="kw">impl </span>Default <span class="kw">for </span>PrimaryToWorkerNetwork {
-    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{
-            clients: Default::default(),
-            config: Default::default(),
-            executor: BoundedExecutor::new(MAX_TASK_CONCURRENCY, Handle::current()),
-            retry_config: RetryConfig::default(),
-            metrics: <span class="prelude-val">None</span>,
-        }
-    }
-}
-
-<span class="kw">impl </span>BaseNetwork <span class="kw">for </span>PrimaryToWorkerNetwork {
-    <span class="kw">type </span>Client = PrimaryToWorkerClient&lt;Channel&gt;;
-    <span class="kw">type </span>Message = PrimaryWorkerMessage;
-
-    <span class="kw">fn </span>client(<span class="kw-2">&amp;mut </span><span class="self">self</span>, address: Multiaddr) -&gt; PrimaryToWorkerClient&lt;Channel&gt; {
-        <span class="self">self</span>.clients
-            .entry(address.clone())
-            .or_insert_with(|| <span class="self">Self</span>::create_client(<span class="kw-2">&amp;</span><span class="self">self</span>.config, address))
-            .clone()
-    }
-
-    <span class="kw">fn </span>create_client(
-        config: <span class="kw-2">&amp;</span>mysten_network::config::Config,
-        address: Multiaddr,
-    ) -&gt; PrimaryToWorkerClient&lt;Channel&gt; {
-        <span class="comment">//TODO don&#39;t panic here if address isn&#39;t supported
-        </span><span class="kw">let </span>channel = config.connect_lazy(<span class="kw-2">&amp;</span>address).unwrap();
-        PrimaryToWorkerClient::new(channel)
-    }
-}
-
-<span class="attribute">#[async_trait]
-</span><span class="kw">impl </span>UnreliableNetwork <span class="kw">for </span>PrimaryToWorkerNetwork {
-    <span class="kw">async fn </span>unreliable_send_message(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        address: Multiaddr,
-        message: BincodeEncodedPayload,
-    ) -&gt; () {
-        <span class="kw">let </span><span class="kw-2">mut </span>client = <span class="self">self</span>.client(address);
-        <span class="self">self</span>.executor
-            .try_spawn(<span class="kw">async move </span>{
-                <span class="kw">let _ </span>= client.send_message(message).<span class="kw">await</span>;
-            })
-            .ok();
-
-        <span class="self">self</span>.update_metrics();
-    }
-}
-
-<span class="attribute">#[async_trait]
-</span><span class="kw">impl </span>ReliableNetwork <span class="kw">for </span>PrimaryToWorkerNetwork {
-    <span class="comment">// Safety
-    // Since this spawns an unbounded task, this should be called in a time-restricted fashion.
-    // Here the callers are [`PrimaryNetwork::broadcast`] and [`PrimaryNetwork::send`],
-    // at respectively N and K calls per round.
-    //  (where N is the number of primaries, K the number of workers for this primary)
-    // See the TODO on spawn_with_retries for lifting this restriction.
-    </span><span class="kw">async fn </span>send_message(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        address: Multiaddr,
-        message: BincodeEncodedPayload,
-    ) -&gt; CancelOnDropHandler&lt;MessageResult&gt; {
-        <span class="kw">let </span>client = <span class="self">self</span>.client(address);
-
-        <span class="kw">let </span>message_send = <span class="kw">move </span>|| {
-            <span class="kw">let </span><span class="kw-2">mut </span>client = client.clone();
-            <span class="kw">let </span>message = message.clone();
-
-            <span class="kw">async move </span>{
-                client.send_message(message).<span class="kw">await</span>.map_err(|e| {
-                    <span class="kw">match </span>e.code() {
-                        tonic::Code::FailedPrecondition | tonic::Code::InvalidArgument =&gt; {
-                            <span class="comment">// these errors are not recoverable through retrying, see
-                            // https://github.com/hyperium/tonic/blob/master/tonic/src/status.rs
-                            </span><span class="macro">error!</span>(<span class="string">&quot;Irrecoverable network error: {e}&quot;</span>);
-                            backoff::Error::permanent(eyre::Report::from(e))
-                        }
-                        <span class="kw">_ </span>=&gt; {
-                            <span class="comment">// this returns a backoff::Error::Transient
-                            // so that if tonic::Status is returned, we retry
-                            </span>Into::&lt;backoff::Error&lt;eyre::Report&gt;&gt;::into(eyre::Report::from(e))
-                        }
-                    }
-                })
-            }
-        };
-
-        <span class="kw">let </span>handle = <span class="self">self
-            </span>.executor
-            .spawn_with_retries(<span class="self">self</span>.retry_config, message_send);
-
-        <span class="self">self</span>.update_metrics();
-
-        CancelOnDropHandler(handle)
-    }
 }
 
 <span class="kw">pub struct </span>P2pNetwork {
@@ -580,6 +352,30 @@
         // not be necessary with the new networking stack so we&#39;ll need to revisit if this function
         // is even needed. For now do nothing.
     </span>}
+
+    <span class="comment">// Creates a new single-use anemo::Network to connect outbound to a single
+    // address. This is for tests and should not be used from worker code.
+    </span><span class="kw">pub async fn </span>new_for_single_address(
+        name: NetworkPublicKey,
+        address: anemo::types::Address,
+    ) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>routes = anemo::Router::new();
+        <span class="kw">let </span>network = anemo::Network::bind(<span class="string">&quot;127.0.0.1:0&quot;</span>)
+            .server_name(<span class="string">&quot;narwhal&quot;</span>)
+            .private_key(
+                crypto::NetworkKeyPair::generate(<span class="kw-2">&amp;mut </span>rand::rngs::OsRng)
+                    .private()
+                    .<span class="number">0
+                    </span>.to_bytes(),
+            )
+            .start(routes)
+            .unwrap();
+        network
+            .connect_with_peer_id(address, anemo::PeerId(name.<span class="number">0</span>.to_bytes()))
+            .<span class="kw">await
+            </span>.unwrap();
+        <span class="self">Self</span>::new(network)
+    }
 
     <span class="kw">async fn </span>unreliable_send&lt;F, Fut, O&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, peer: NetworkPublicKey, f: F) -&gt; JoinHandle&lt;()&gt;
     <span class="kw">where
@@ -657,7 +453,7 @@
 //
 
 </span><span class="attribute">#[async_trait]
-</span><span class="kw">impl </span>UnreliableNetwork2&lt;PrimaryMessage&gt; <span class="kw">for </span>P2pNetwork {
+</span><span class="kw">impl </span>UnreliableNetwork&lt;PrimaryMessage&gt; <span class="kw">for </span>P2pNetwork {
     <span class="kw">async fn </span>unreliable_send(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         peer: NetworkPublicKey,
@@ -674,7 +470,7 @@
 }
 
 <span class="attribute">#[async_trait]
-</span><span class="kw">impl </span>ReliableNetwork2&lt;PrimaryMessage&gt; <span class="kw">for </span>P2pNetwork {
+</span><span class="kw">impl </span>ReliableNetwork&lt;PrimaryMessage&gt; <span class="kw">for </span>P2pNetwork {
     <span class="kw">async fn </span>send(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         peer: NetworkPublicKey,
@@ -695,11 +491,81 @@
 }
 
 <span class="comment">//
+// Primary-to-Worker
+//
+
+</span><span class="attribute">#[async_trait]
+</span><span class="kw">impl </span>UnreliableNetwork&lt;PrimaryWorkerMessage&gt; <span class="kw">for </span>P2pNetwork {
+    <span class="kw">async fn </span>unreliable_send(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        peer: NetworkPublicKey,
+        message: <span class="kw-2">&amp;</span>PrimaryWorkerMessage,
+    ) -&gt; JoinHandle&lt;()&gt; {
+        <span class="kw">let </span>message = message.to_owned();
+        <span class="kw">let </span>f =
+            <span class="kw">move </span>|peer| <span class="kw">async move </span>{ PrimaryToWorkerClient::new(peer).send_message(message).<span class="kw">await </span>};
+        <span class="self">self</span>.unreliable_send(peer, f).<span class="kw">await
+    </span>}
+}
+
+<span class="attribute">#[async_trait]
+</span><span class="kw">impl </span>ReliableNetwork&lt;PrimaryWorkerMessage&gt; <span class="kw">for </span>P2pNetwork {
+    <span class="kw">async fn </span>send(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        peer: NetworkPublicKey,
+        message: <span class="kw-2">&amp;</span>PrimaryWorkerMessage,
+    ) -&gt; CancelOnDropHandler&lt;anyhow::Result&lt;anemo::Response&lt;()&gt;&gt;&gt; {
+        <span class="kw">let </span>message = message.to_owned();
+        <span class="kw">let </span>f = <span class="kw">move </span>|peer| {
+            <span class="kw">let </span>message = message.clone();
+            <span class="kw">async move </span>{ PrimaryToWorkerClient::new(peer).send_message(message).<span class="kw">await </span>}
+        };
+
+        <span class="self">self</span>.send(peer, f).<span class="kw">await
+    </span>}
+}
+
+<span class="comment">//
+// Worker-to-Primary
+//
+
+</span><span class="attribute">#[async_trait]
+</span><span class="kw">impl </span>UnreliableNetwork&lt;WorkerPrimaryMessage&gt; <span class="kw">for </span>P2pNetwork {
+    <span class="kw">async fn </span>unreliable_send(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        peer: NetworkPublicKey,
+        message: <span class="kw-2">&amp;</span>WorkerPrimaryMessage,
+    ) -&gt; JoinHandle&lt;()&gt; {
+        <span class="kw">let </span>message = message.to_owned();
+        <span class="kw">let </span>f =
+            <span class="kw">move </span>|peer| <span class="kw">async move </span>{ WorkerToPrimaryClient::new(peer).send_message(message).<span class="kw">await </span>};
+        <span class="self">self</span>.unreliable_send(peer, f).<span class="kw">await
+    </span>}
+}
+
+<span class="attribute">#[async_trait]
+</span><span class="kw">impl </span>ReliableNetwork&lt;WorkerPrimaryMessage&gt; <span class="kw">for </span>P2pNetwork {
+    <span class="kw">async fn </span>send(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        peer: NetworkPublicKey,
+        message: <span class="kw-2">&amp;</span>WorkerPrimaryMessage,
+    ) -&gt; CancelOnDropHandler&lt;anyhow::Result&lt;anemo::Response&lt;()&gt;&gt;&gt; {
+        <span class="kw">let </span>message = message.to_owned();
+        <span class="kw">let </span>f = <span class="kw">move </span>|peer| {
+            <span class="kw">let </span>message = message.clone();
+            <span class="kw">async move </span>{ WorkerToPrimaryClient::new(peer).send_message(message).<span class="kw">await </span>}
+        };
+
+        <span class="self">self</span>.send(peer, f).<span class="kw">await
+    </span>}
+}
+
+<span class="comment">//
 // Worker-to-Worker
 //
 
 </span><span class="attribute">#[async_trait]
-</span><span class="kw">impl </span>UnreliableNetwork2&lt;WorkerMessage&gt; <span class="kw">for </span>P2pNetwork {
+</span><span class="kw">impl </span>UnreliableNetwork&lt;WorkerMessage&gt; <span class="kw">for </span>P2pNetwork {
     <span class="kw">async fn </span>unreliable_send(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         peer: NetworkPublicKey,
@@ -713,7 +579,7 @@
 }
 
 <span class="attribute">#[async_trait]
-</span><span class="kw">impl </span>ReliableNetwork2&lt;WorkerMessage&gt; <span class="kw">for </span>P2pNetwork {
+</span><span class="kw">impl </span>ReliableNetwork&lt;WorkerMessage&gt; <span class="kw">for </span>P2pNetwork {
     <span class="kw">async fn </span>send(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         peer: NetworkPublicKey,
@@ -727,38 +593,6 @@
 
         <span class="self">self</span>.send(peer, f).<span class="kw">await
     </span>}
-}
-
-<span class="attribute">#[cfg(test)]
-</span><span class="kw">mod </span>tests {
-    <span class="kw">use </span>std::time::Duration;
-
-    <span class="kw">use super</span>::<span class="kw-2">*</span>;
-
-    <span class="attribute">#[tokio::test]
-    </span><span class="kw">async fn </span>unreliable_send_doesnt_block() {
-        <span class="kw">let </span>test_concurrency_limit = <span class="number">2</span>;
-        <span class="kw">let </span><span class="kw-2">mut </span>p2p = PrimaryToWorkerNetwork::new_with_concurrency_limit(test_concurrency_limit);
-        <span class="comment">// send those messages to localhost. THey won&#39;t actually land
-        </span><span class="kw">let </span>addr: Multiaddr = <span class="string">&quot;/ip4/127.0.0.1/tcp/0/http&quot;</span>.parse().unwrap();
-        <span class="kw">let </span>serialized_msg =
-            BincodeEncodedPayload::try_from(<span class="kw-2">&amp;</span>PrimaryWorkerMessage::Cleanup(<span class="number">42</span>)).unwrap();
-
-        <span class="kw">let </span>blast_a_few = <span class="kw">async move </span>{
-            <span class="kw">for </span>_i <span class="kw">in </span><span class="number">0</span>..test_concurrency_limit * <span class="number">2 </span>{
-                <span class="kw">let </span>addr = addr.clone();
-                <span class="kw">let </span>msg = serialized_msg.clone();
-                p2p.unreliable_send_message(addr, msg).<span class="kw">await
-            </span>}
-        };
-
-        <span class="comment">// beware: if we happen to set a default connect timeout
-        // (we don&#39;t at the time of writing) then the following delay needs to be smaller
-        </span><span class="kw">let </span>blast_timeout = Duration::from_millis(<span class="number">100</span>);
-        tokio::time::timeout(blast_timeout, blast_a_few)
-            .<span class="kw">await
-            </span>.expect(<span class="string">&quot;The unreliable sends should all have completed instantly!&quot;</span>);
-    }
 }
 </code></pre></div>
 </section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="network" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (fa6ee9375 2022-09-12)" ></div></body></html>

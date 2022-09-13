@@ -1010,11 +1010,6 @@
 <span id="1010">1010</span>
 <span id="1011">1011</span>
 <span id="1012">1012</span>
-<span id="1013">1013</span>
-<span id="1014">1014</span>
-<span id="1015">1015</span>
-<span id="1016">1016</span>
-<span id="1017">1017</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use crate</span>::{
@@ -1034,7 +1029,7 @@
     stream::FuturesUnordered,
     FutureExt, StreamExt,
 };
-<span class="kw">use </span>network::{P2pNetwork, PrimaryToWorkerNetwork, UnreliableNetwork, UnreliableNetwork2};
+<span class="kw">use </span>network::{P2pNetwork, UnreliableNetwork};
 <span class="kw">use </span>rand::{rngs::SmallRng, SeedableRng};
 <span class="kw">use </span>std::{
     collections::{HashMap, HashSet},
@@ -1060,6 +1055,7 @@
 <span class="attribute">#[cfg(test)]
 #[path = <span class="string">&quot;tests/block_synchronizer_tests.rs&quot;</span>]
 </span><span class="kw">mod </span>block_synchronizer_tests;
+
 <span class="kw">pub mod </span>handler;
 <span class="kw">pub mod </span>mock;
 <span class="kw">mod </span>peers;
@@ -1202,8 +1198,7 @@
         HashMap&lt;RequestID, Sender&lt;PayloadAvailabilityResponse&gt;&gt;,
 
     <span class="doccomment">/// Send network requests
-    </span>primary_network: P2pNetwork,
-    worker_network: PrimaryToWorkerNetwork,
+    </span>network: P2pNetwork,
 
     <span class="doccomment">/// The store that holds the certificates
     </span>certificate_store: CertificateStore,
@@ -1248,8 +1243,7 @@
                 pending_requests: HashMap::new(),
                 map_certificate_responses_senders: HashMap::new(),
                 map_payload_availability_responses_senders: HashMap::new(),
-                primary_network: network,
-                worker_network: PrimaryToWorkerNetwork::default(),
+                network,
                 payload_store,
                 certificate_store,
                 certificates_synchronize_timeout: parameters.certificates_synchronize_timeout,
@@ -1340,13 +1334,11 @@
                     <span class="kw">let </span>message = <span class="self">self</span>.rx_reconfigure.borrow().clone();
                     <span class="kw">match </span>message {
                         ReconfigureNotification::NewEpoch(new_committee)=&gt; {
-                            <span class="self">self</span>.primary_network.cleanup(<span class="self">self</span>.committee.network_diff(<span class="kw-2">&amp;</span>new_committee));
-                            <span class="self">self</span>.worker_network.cleanup(<span class="self">self</span>.committee.network_diff(<span class="kw-2">&amp;</span>new_committee));
+                            <span class="self">self</span>.network.cleanup(<span class="self">self</span>.committee.network_diff(<span class="kw-2">&amp;</span>new_committee));
                             <span class="self">self</span>.committee = new_committee;
                         }
                         ReconfigureNotification::UpdateCommittee(new_committee)=&gt; {
-                            <span class="self">self</span>.primary_network.cleanup(<span class="self">self</span>.committee.network_diff(<span class="kw-2">&amp;</span>new_committee));
-                            <span class="self">self</span>.worker_network.cleanup(<span class="self">self</span>.committee.network_diff(<span class="kw-2">&amp;</span>new_committee));
+                            <span class="self">self</span>.network.cleanup(<span class="self">self</span>.committee.network_diff(<span class="kw-2">&amp;</span>new_committee));
                             <span class="self">self</span>.committee = new_committee;
                         }
                         ReconfigureNotification::Shutdown =&gt; <span class="kw">return
@@ -1655,7 +1647,7 @@
             .map(|(name, _address, network_key)| (name, network_key))
             .unzip();
 
-        <span class="self">self</span>.primary_network
+        <span class="self">self</span>.network
             .unreliable_broadcast(network_keys.clone(), <span class="kw-2">&amp;</span>message)
             .<span class="kw">await</span>;
 
@@ -1714,18 +1706,16 @@
         <span class="kw">let </span>batches_by_worker = utils::map_certificate_batches_by_worker(certificates.as_slice());
 
         <span class="kw">for </span>(worker_id, batch_ids) <span class="kw">in </span>batches_by_worker {
-            <span class="kw">let </span>worker_address = <span class="self">self
+            <span class="kw">let </span>worker_name = <span class="self">self
                 </span>.worker_cache
                 .load()
                 .worker(<span class="kw-2">&amp;</span><span class="self">self</span>.name, <span class="kw-2">&amp;</span>worker_id)
                 .expect(<span class="string">&quot;Worker id not found&quot;</span>)
-                .primary_to_worker;
+                .name;
 
             <span class="kw">let </span>message =
                 PrimaryWorkerMessage::Synchronize(batch_ids.clone(), primary_peer_name.clone());
-            <span class="self">self</span>.worker_network
-                .unreliable_send(worker_address, <span class="kw-2">&amp;</span>message)
-                .<span class="kw">await</span>;
+            <span class="self">self</span>.network.unreliable_send(worker_name, <span class="kw-2">&amp;</span>message).<span class="kw">await</span>;
 
             <span class="macro">debug!</span>(
                 <span class="string">&quot;Sent request for batch ids {:?} to worker id {}&quot;</span>,

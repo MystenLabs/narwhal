@@ -159,6 +159,23 @@
 <span id="159">159</span>
 <span id="160">160</span>
 <span id="161">161</span>
+<span id="162">162</span>
+<span id="163">163</span>
+<span id="164">164</span>
+<span id="165">165</span>
+<span id="166">166</span>
+<span id="167">167</span>
+<span id="168">168</span>
+<span id="169">169</span>
+<span id="170">170</span>
+<span id="171">171</span>
+<span id="172">172</span>
+<span id="173">173</span>
+<span id="174">174</span>
+<span id="175">175</span>
+<span id="176">176</span>
+<span id="177">177</span>
+<span id="178">178</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use crate</span>::{Node, NodeStorage};
@@ -168,7 +185,7 @@
 <span class="kw">use </span>executor::{ExecutionState, ExecutorOutput};
 <span class="kw">use </span>fastcrypto::traits::KeyPair <span class="kw">as _</span>;
 <span class="kw">use </span>futures::future::join_all;
-<span class="kw">use </span>network::{PrimaryToWorkerNetwork, ReliableNetwork, ReliableNetwork2, WorkerToPrimaryNetwork};
+<span class="kw">use </span>network::{P2pNetwork, ReliableNetwork};
 <span class="kw">use </span>prometheus::Registry;
 <span class="kw">use </span>std::{fmt::Debug, path::PathBuf, sync::Arc};
 <span class="kw">use </span>tokio::sync::mpsc::{Receiver, Sender};
@@ -208,8 +225,20 @@
         <span class="kw">let </span><span class="kw-2">mut </span>worker_ids_and_keypairs = worker_ids_and_keypairs;
         <span class="kw">let </span><span class="kw-2">mut </span>committee = committee.clone();
 
-        <span class="kw">let </span><span class="kw-2">mut </span>handles = Vec::new();
-        <span class="kw">let </span><span class="kw-2">mut </span>worker_network = PrimaryToWorkerNetwork::default();
+        <span class="comment">// construct a p2p network that we can use to send reconfigure messages to our primary and
+        // workers. We generate a random key simply to construct the network. Also, ideally this
+        // would be done via a different interface.
+        </span><span class="kw">let </span><span class="kw-2">mut </span>handles = Vec::new();
+        <span class="kw">let </span>network = anemo::Network::bind(<span class="string">&quot;127.0.0.1:0&quot;</span>)
+            .server_name(<span class="string">&quot;narwhal&quot;</span>)
+            .private_key(
+                NetworkKeyPair::generate(<span class="kw-2">&amp;mut </span>rand::rngs::OsRng)
+                    .private()
+                    .<span class="number">0
+                    </span>.to_bytes(),
+            )
+            .start(anemo::Router::new())
+            .unwrap();
 
         <span class="comment">// Listen for new committees.
         </span><span class="kw">loop </span>{
@@ -275,21 +304,29 @@
                 .network_key(<span class="kw-2">&amp;</span>name)
                 .expect(<span class="string">&quot;Our key is not in the committee&quot;</span>);
             <span class="kw">let </span><span class="kw-2">mut </span>primary_network =
-                WorkerToPrimaryNetwork::new_for_single_address(network_key.to_owned(), address)
-                    .<span class="kw">await</span>;
+                P2pNetwork::new_for_single_address(network_key.to_owned(), address).<span class="kw">await</span>;
             <span class="kw">let </span>message = WorkerPrimaryMessage::Reconfigure(ReconfigureNotification::Shutdown);
             <span class="kw">let </span>primary_cancel_handle =
                 primary_network.send(network_key.to_owned(), <span class="kw-2">&amp;</span>message).<span class="kw">await</span>;
 
-            <span class="kw">let </span>addresses = worker_cache
+            <span class="kw">let </span>message = PrimaryWorkerMessage::Reconfigure(ReconfigureNotification::Shutdown);
+            <span class="kw">let </span><span class="kw-2">mut </span>worker_names = Vec::new();
+            <span class="kw">for </span>worker <span class="kw">in </span>worker_cache
                 .load()
                 .our_workers(<span class="kw-2">&amp;</span>name)
                 .expect(<span class="string">&quot;Our key is not in the worker cache&quot;</span>)
-                .into_iter()
-                .map(|x| x.primary_to_worker)
-                .collect();
-            <span class="kw">let </span>message = PrimaryWorkerMessage::Reconfigure(ReconfigureNotification::Shutdown);
-            <span class="kw">let </span>worker_cancel_handles = worker_network.broadcast(addresses, <span class="kw-2">&amp;</span>message).<span class="kw">await</span>;
+            {
+                <span class="kw">let </span>address = network::multiaddr_to_address(<span class="kw-2">&amp;</span>worker.worker_address).unwrap();
+                <span class="kw">let </span>peer_id = anemo::PeerId(worker.name.<span class="number">0</span>.to_bytes());
+                network
+                    .connect_with_peer_id(address, peer_id)
+                    .<span class="kw">await
+                    </span>.unwrap();
+                worker_names.push(worker.name);
+            }
+            <span class="kw">let </span>worker_cancel_handles = P2pNetwork::new(network.clone())
+                .broadcast(worker_names, <span class="kw-2">&amp;</span>message)
+                .<span class="kw">await</span>;
 
             <span class="comment">// Ensure the message has been received.
             </span>primary_cancel_handle
@@ -297,9 +334,6 @@
                 </span>.expect(<span class="string">&quot;Failed to notify primary&quot;</span>);
             join_all(worker_cancel_handles).<span class="kw">await</span>;
             <span class="macro">tracing::debug!</span>(<span class="string">&quot;Committee reconfiguration message successfully sent&quot;</span>);
-
-            <span class="comment">// Cleanup the network.
-            </span>worker_network.cleanup(committee.network_diff(<span class="kw-2">&amp;</span>new_committee));
 
             <span class="comment">// Wait for the components to shut down.
             </span>join_all(handles.drain(..)).<span class="kw">await</span>;

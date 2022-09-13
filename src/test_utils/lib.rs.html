@@ -917,11 +917,20 @@
 <span id="917">917</span>
 <span id="918">918</span>
 <span id="919">919</span>
+<span id="920">920</span>
+<span id="921">921</span>
+<span id="922">922</span>
+<span id="923">923</span>
+<span id="924">924</span>
+<span id="925">925</span>
+<span id="926">926</span>
+<span id="927">927</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-</span><span class="kw">use </span>config::{
+</span><span class="kw">use </span>anemo::async_trait;
+<span class="kw">use </span>config::{
     utils::get_available_port, Authority, Committee, Epoch, SharedWorkerCache, Stake, WorkerCache,
     WorkerId, WorkerIndex, WorkerInfo,
 };
@@ -941,12 +950,11 @@
 };
 <span class="kw">use </span>store::{reopen, rocks, rocks::DBMap, Store};
 <span class="kw">use </span>tokio::sync::mpsc::{channel, Receiver, Sender};
-<span class="kw">use </span>tonic::async_trait;
 <span class="kw">use </span>tracing::info;
 <span class="kw">use </span>types::{
-    Batch, BatchDigest, BincodeEncodedPayload, Certificate, CertificateDigest, ConsensusStore,
-    Empty, Header, HeaderBuilder, PrimaryMessage, PrimaryToPrimary, PrimaryToPrimaryServer,
-    PrimaryToWorker, PrimaryToWorkerServer, Round, SequenceNumber, Transaction, Vote,
+    Batch, BatchDigest, Certificate, CertificateDigest, ConsensusStore, Header, HeaderBuilder,
+    PrimaryMessage, PrimaryToPrimary, PrimaryToPrimaryServer, PrimaryToWorker,
+    PrimaryToWorkerServer, PrimaryWorkerMessage, Round, SequenceNumber, Transaction, Vote,
     WorkerInfoResponse, WorkerMessage, WorkerPrimaryMessage, WorkerToPrimary,
     WorkerToPrimaryServer, WorkerToWorker, WorkerToWorkerServer,
 };
@@ -1166,25 +1174,26 @@
 }
 
 <span class="kw">pub struct </span>PrimaryToWorkerMockServer {
-    sender: Sender&lt;BincodeEncodedPayload&gt;,
+    sender: Sender&lt;PrimaryWorkerMessage&gt;,
 }
 
 <span class="kw">impl </span>PrimaryToWorkerMockServer {
-    <span class="kw">pub fn </span>spawn(address: Multiaddr) -&gt; Receiver&lt;BincodeEncodedPayload&gt; {
+    <span class="kw">pub fn </span>spawn(
+        keypair: NetworkKeyPair,
+        address: Multiaddr,
+    ) -&gt; (Receiver&lt;PrimaryWorkerMessage&gt;, anemo::Network) {
+        <span class="kw">let </span>addr = network::multiaddr_to_address(<span class="kw-2">&amp;</span>address).unwrap();
         <span class="kw">let </span>(sender, receiver) = channel(<span class="number">1</span>);
-        tokio::spawn(<span class="kw">async move </span>{
-            <span class="kw">let </span>config = mysten_network::config::Config::new();
-            <span class="kw">let </span>mock = <span class="self">Self </span>{ sender };
-            config
-                .server_builder()
-                .add_service(PrimaryToWorkerServer::new(mock))
-                .bind(<span class="kw-2">&amp;</span>address)
-                .<span class="kw">await
-                </span>.unwrap()
-                .serve()
-                .<span class="kw">await
-        </span>});
-        receiver
+        <span class="kw">let </span>service = PrimaryToWorkerServer::new(<span class="self">Self </span>{ sender });
+
+        <span class="kw">let </span>routes = anemo::Router::new().add_rpc_service(service);
+        <span class="kw">let </span>network = anemo::Network::bind(addr)
+            .server_name(<span class="string">&quot;narwhal&quot;</span>)
+            .private_key(keypair.private().<span class="number">0</span>.to_bytes())
+            .start(routes)
+            .unwrap();
+        <span class="macro">info!</span>(<span class="string">&quot;starting network on: {}&quot;</span>, network.local_addr());
+        (receiver, network)
     }
 }
 
@@ -1192,10 +1201,11 @@
 </span><span class="kw">impl </span>PrimaryToWorker <span class="kw">for </span>PrimaryToWorkerMockServer {
     <span class="kw">async fn </span>send_message(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        request: tonic::Request&lt;BincodeEncodedPayload&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;tonic::Response&lt;Empty&gt;, tonic::Status&gt; {
-        <span class="self">self</span>.sender.send(request.into_inner()).<span class="kw">await</span>.unwrap();
-        <span class="prelude-val">Ok</span>(tonic::Response::new(Empty {}))
+        request: anemo::Request&lt;PrimaryWorkerMessage&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;anemo::Response&lt;()&gt;, anemo::rpc::Status&gt; {
+        <span class="kw">let </span>message = request.into_body();
+        <span class="self">self</span>.sender.send(message).<span class="kw">await</span>.unwrap();
+        <span class="prelude-val">Ok</span>(anemo::Response::new(()))
     }
 }
 
@@ -1688,8 +1698,12 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>.keypair
     }
 
-    <span class="kw">pub fn </span>network_keypair(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>NetworkKeyPair {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.network_keypair
+    <span class="kw">pub fn </span>network_keypair(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; NetworkKeyPair {
+        <span class="self">self</span>.network_keypair.copy()
+    }
+
+    <span class="kw">pub fn </span>address(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>Multiaddr {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.address
     }
 
     <span class="kw">pub fn </span>worker(<span class="kw-2">&amp;</span><span class="self">self</span>, id: WorkerId) -&gt; <span class="kw-2">&amp;</span>WorkerFixture {
@@ -1804,10 +1818,7 @@
     {
         <span class="kw">let </span>keypair = NetworkKeyPair::generate(<span class="kw-2">&amp;mut </span>rng);
         <span class="kw">let </span>worker_name = keypair.public().clone();
-        <span class="kw">let </span>primary_to_worker = <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, get_port())
-            .parse()
-            .unwrap();
-        <span class="kw">let </span>worker_to_worker = <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, get_port())
+        <span class="kw">let </span>worker_address = <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, get_port())
             .parse()
             .unwrap();
         <span class="kw">let </span>transactions = <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, get_port())
@@ -1819,15 +1830,14 @@
             id,
             info: WorkerInfo {
                 name: worker_name,
-                primary_to_worker,
-                worker_to_worker,
+                worker_address,
                 transactions,
             },
         }
     }
 }
 
-<span class="kw">pub fn </span>mock_network(keypair: NetworkKeyPair, address: <span class="kw-2">&amp;</span>Multiaddr) -&gt; anemo::Network {
+<span class="kw">pub fn </span>test_network(keypair: NetworkKeyPair, address: <span class="kw-2">&amp;</span>Multiaddr) -&gt; anemo::Network {
     <span class="kw">let </span>address = network::multiaddr_to_address(address).unwrap();
     <span class="kw">let </span>network_key = keypair.private().<span class="number">0</span>.to_bytes();
     anemo::Network::bind(address)
@@ -1835,6 +1845,12 @@
         .private_key(network_key)
         .start(anemo::Router::new())
         .unwrap()
+}
+
+<span class="kw">pub fn </span>random_network() -&gt; anemo::Network {
+    <span class="kw">let </span>network_key = NetworkKeyPair::generate(<span class="kw-2">&amp;mut </span>OsRng);
+    <span class="kw">let </span>address = <span class="string">&quot;/ip4/127.0.0.1/udp/0&quot;</span>.parse().unwrap();
+    test_network(network_key, <span class="kw-2">&amp;</span>address)
 }
 </code></pre></div>
 </section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="test_utils" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (fa6ee9375 2022-09-12)" ></div></body></html>

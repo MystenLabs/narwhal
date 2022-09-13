@@ -608,6 +608,9 @@
 <span id="608">608</span>
 <span id="609">609</span>
 <span id="610">610</span>
+<span id="611">611</span>
+<span id="612">612</span>
+<span id="613">613</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -639,7 +642,7 @@
     SignatureService,
 };
 <span class="kw">use </span>multiaddr::Protocol;
-<span class="kw">use </span>network::{metrics::Metrics, P2pNetwork, PrimaryToWorkerNetwork};
+<span class="kw">use </span>network::P2pNetwork;
 <span class="kw">use </span>prometheus::Registry;
 <span class="kw">use </span>std::{collections::BTreeMap, net::Ipv4Addr, sync::Arc};
 <span class="kw">use </span>storage::CertificateStore;
@@ -704,7 +707,7 @@
         <span class="comment">// TODO Re-hookup metrics once the network migration is complete.
         </span><span class="kw">let </span>_primary_endpoint_metrics = metrics.primary_endpoint_metrics.unwrap();
         <span class="kw">let </span>node_metrics = Arc::new(metrics.node_metrics.unwrap());
-        <span class="kw">let </span>network_metrics = Arc::new(metrics.network_metrics.unwrap());
+        <span class="kw">let </span>_network_metrics = Arc::new(metrics.network_metrics.unwrap());
 
         <span class="kw">let </span>(tx_others_digests, rx_others_digests) =
             channel(CHANNEL_CAPACITY, <span class="kw-2">&amp;</span>primary_channel_metrics.tx_others_digests);
@@ -824,8 +827,19 @@
             .unwrap();
         <span class="macro">info!</span>(<span class="string">&quot;Primary {} listening on {}&quot;</span>, name.encode_base64(), address);
 
-        <span class="kw">for </span>(<span class="kw">_</span>, address, network_pubkey) <span class="kw">in </span>committee.load().others_primaries(<span class="kw-2">&amp;</span>name) {
-            <span class="kw">let </span>peer_id = PeerId(network_pubkey.<span class="number">0</span>.to_bytes());
+        <span class="kw">let </span>primaries = committee
+            .load()
+            .others_primaries(<span class="kw-2">&amp;</span>name)
+            .into_iter()
+            .map(|(<span class="kw">_</span>, address, network_key)| (network_key, address));
+        <span class="kw">let </span>workers = worker_cache
+            .load()
+            .our_workers(<span class="kw-2">&amp;</span>name)
+            .unwrap()
+            .into_iter()
+            .map(|info| (info.name, info.worker_address));
+        <span class="kw">for </span>(public_key, address) <span class="kw">in </span>primaries.chain(workers) {
+            <span class="kw">let </span>peer_id = PeerId(public_key.<span class="number">0</span>.to_bytes());
             <span class="kw">let </span>address = network::multiaddr_to_address(<span class="kw-2">&amp;</span>address).unwrap();
             <span class="kw">let </span>peer_info = PeerInfo {
                 peer_id,
@@ -889,10 +903,7 @@
 
         <span class="comment">// Retrieves a block&#39;s data by contacting the worker nodes that contain the
         // underlying batches and their transactions.
-        </span><span class="kw">let </span>block_waiter_primary_network = PrimaryToWorkerNetwork::new(Metrics::new(
-            network_metrics.clone(),
-            <span class="string">&quot;block_waiter&quot;</span>.to_string(),
-        ));
+        </span><span class="kw">let </span>block_waiter_primary_network = P2pNetwork::new(network.clone());
         <span class="kw">let </span>block_waiter_handle = BlockWaiter::spawn(
             name.clone(),
             (<span class="kw-2">**</span>committee.load()).clone(),
@@ -908,10 +919,7 @@
         </span><span class="kw">let </span>internal_consensus = dag.is_none();
 
         <span class="comment">// Orchestrates the removal of blocks across the primary and worker nodes.
-        </span><span class="kw">let </span>block_remover_primary_network = PrimaryToWorkerNetwork::new(Metrics::new(
-            network_metrics.clone(),
-            <span class="string">&quot;block_remover&quot;</span>.to_string(),
-        ));
+        </span><span class="kw">let </span>block_remover_primary_network = P2pNetwork::new(network.clone());
         <span class="kw">let </span>block_remover_handle = BlockRemover::spawn(
             name.clone(),
             (<span class="kw-2">**</span>committee.load()).clone(),
@@ -948,8 +956,6 @@
         // batch digests, it commands the `HeaderWaiter` to synchronize with other nodes, wait for their reply, and
         // re-schedule execution of the header once we have all missing data.
         </span><span class="kw">let </span>header_waiter_primary_network = P2pNetwork::new(network.clone());
-        <span class="kw">let </span>header_waiter_worker_network =
-            PrimaryToWorkerNetwork::new(Metrics::new(network_metrics, <span class="string">&quot;header_waiter&quot;</span>.to_string()));
         <span class="kw">let </span>header_waiter_handle = HeaderWaiter::spawn(
             name.clone(),
             (<span class="kw-2">**</span>committee.load()).clone(),
@@ -965,7 +971,6 @@
             <span class="comment">/* tx_core */ </span>tx_headers_loopback,
             node_metrics.clone(),
             header_waiter_primary_network,
-            header_waiter_worker_network,
         );
 
         <span class="comment">// The `CertificateWaiter` waits to receive all the ancestors of a certificate before looping it back to the
@@ -999,7 +1004,7 @@
 
         <span class="comment">// The `Helper` is dedicated to reply to certificates &amp; payload availability requests
         // from other primaries.
-        </span><span class="kw">let </span>helper_primary_network = P2pNetwork::new(network);
+        </span><span class="kw">let </span>helper_primary_network = P2pNetwork::new(network.clone());
         <span class="kw">let </span>helper_handle = Helper::spawn(
             name.clone(),
             (<span class="kw-2">**</span>committee.load()).clone(),
@@ -1019,6 +1024,7 @@
             tx_consensus_round_updates,
             rx_state_handler,
             tx_reconfigure,
+            P2pNetwork::new(network),
         );
 
         <span class="kw">let </span>consensus_api_handle = <span class="kw">if </span>!internal_consensus {

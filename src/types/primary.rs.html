@@ -1456,7 +1456,7 @@
 
 <span class="doccomment">/// The messages sent by the primary to its workers.
 </span><span class="attribute">#[allow(clippy::large_enum_variant)]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 </span><span class="kw">pub enum </span>PrimaryWorkerMessage {
     <span class="doccomment">/// The primary indicates that the worker need to sync the target missing batches.
     </span>Synchronize(Vec&lt;BatchDigest&gt;, <span class="comment">/* target */ </span>PublicKey),

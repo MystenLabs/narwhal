@@ -860,7 +860,7 @@
     stream::{futures_unordered::FuturesUnordered, StreamExt <span class="kw">as _</span>},
     FutureExt,
 };
-<span class="kw">use </span>network::{PrimaryToWorkerNetwork, UnreliableNetwork};
+<span class="kw">use </span>network::{P2pNetwork, UnreliableNetwork};
 <span class="kw">use </span>std::{
     collections::{HashMap, HashSet},
     fmt,
@@ -987,7 +987,7 @@
 /// # use fastcrypto::traits::VerifyingKey;
 /// # use async_trait::async_trait;
 /// # use std::sync::Arc;
-/// # use network::PrimaryToWorkerNetwork;
+/// # use network::P2pNetwork;
 ///
 /// # // A mock implementation of the BlockSynchronizerHandler
 /// struct BlockSynchronizerHandler;
@@ -1033,7 +1033,7 @@
 ///         rx_commands,
 ///         rx_batches,
 ///         Arc::new(BlockSynchronizerHandler{}),
-///         PrimaryToWorkerNetwork::default()
+///         network::P2pNetwork::new(test_utils::random_network()),
 ///     );
 ///
 ///     // Send a command to receive a block
@@ -1080,7 +1080,7 @@
     </span>pending_get_block: HashMap&lt;CertificateDigest, Certificate&gt;,
 
     <span class="doccomment">/// Network driver allowing to send messages.
-    </span>worker_network: PrimaryToWorkerNetwork,
+    </span>worker_network: P2pNetwork,
 
     <span class="doccomment">/// Watch channel to reconfigure the committee.
     </span>rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;,
@@ -1125,7 +1125,7 @@
         rx_commands: Receiver&lt;BlockCommand&gt;,
         batch_receiver: Receiver&lt;BatchResult&gt;,
         block_synchronizer_handler: Arc&lt;SynchronizerHandler&gt;,
-        worker_network: PrimaryToWorkerNetwork,
+        worker_network: P2pNetwork,
     ) -&gt; JoinHandle&lt;()&gt; {
         tokio::spawn(<span class="kw">async move </span>{
             <span class="self">Self </span>{
@@ -1608,17 +1608,17 @@
                     worker_id
                 );
 
-                <span class="kw">let </span>worker_address = <span class="self">self
+                <span class="kw">let </span>worker_name = <span class="self">self
                     </span>.worker_cache
                     .load()
                     .worker(<span class="kw-2">&amp;</span><span class="self">self</span>.name, <span class="kw-2">&amp;</span>worker_id)
                     .expect(<span class="string">&quot;Worker id not found&quot;</span>)
-                    .primary_to_worker;
+                    .name;
 
                 <span class="kw">let </span>message = PrimaryWorkerMessage::RequestBatch(digest);
 
                 <span class="self">self</span>.worker_network
-                    .unreliable_send(worker_address, <span class="kw-2">&amp;</span>message)
+                    .unreliable_send(worker_name, <span class="kw-2">&amp;</span>message)
                     .<span class="kw">await</span>;
             }
 

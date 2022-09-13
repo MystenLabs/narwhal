@@ -5,7 +5,7 @@ var sourcesIndex = JSON.parse('{\
 "dag":["",[],["bft.rs","lib.rs","node_dag.rs"]],\
 "demo_client":["",[],["demo_client.rs"]],\
 "executor":["",[],["core.rs","errors.rs","lib.rs","metrics.rs","state.rs","subscriber.rs"]],\
-"network":["",[],["bounded_executor.rs","lib.rs","metrics.rs","primary.rs","retry.rs","traits.rs","worker.rs"]],\
+"network":["",[],["bounded_executor.rs","lib.rs","metrics.rs","p2p.rs","retry.rs","traits.rs"]],\
 "node":["",[],["execution_state.rs","lib.rs","metrics.rs","restarter.rs"]],\
 "primary":["",[["block_synchronizer",[],["handler.rs","mock.rs","mod.rs","peers.rs","responses.rs"]],["grpc_server",[],["configuration.rs","metrics.rs","mod.rs","proposer.rs","validator.rs"]]],["aggregators.rs","block_remover.rs","block_waiter.rs","certificate_waiter.rs","core.rs","header_waiter.rs","helper.rs","lib.rs","metrics.rs","payload_receiver.rs","primary.rs","proposer.rs","state_handler.rs","synchronizer.rs","utils.rs"]],\
 "storage":["",[],["certificate_store.rs","lib.rs"]],\

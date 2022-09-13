@@ -398,7 +398,7 @@
 <span class="kw">use </span>config::{SharedCommittee, SharedWorkerCache, WorkerCache, WorkerId, WorkerIndex};
 <span class="kw">use </span>crypto::PublicKey;
 <span class="kw">use </span>futures::stream::{futures_unordered::FuturesUnordered, StreamExt <span class="kw">as _</span>};
-<span class="kw">use </span>network::{LuckyNetwork2, P2pNetwork, UnreliableNetwork2};
+<span class="kw">use </span>network::{LuckyNetwork, P2pNetwork, UnreliableNetwork};
 <span class="kw">use </span>primary::PrimaryWorkerMessage;
 <span class="kw">use </span>std::{
     collections::{BTreeMap, HashMap, HashSet},

@@ -79,7 +79,7 @@
 
 </span><span class="kw">use </span>crypto::NetworkPublicKey;
 <span class="kw">use </span>futures::{stream::FuturesUnordered, StreamExt};
-<span class="kw">use </span>network::{ReliableNetwork2, WorkerToPrimaryNetwork};
+<span class="kw">use </span>network::{P2pNetwork, ReliableNetwork};
 <span class="kw">use </span>tokio::{sync::watch, task::JoinHandle};
 <span class="kw">use </span>types::{metered_channel::Receiver, ReconfigureNotification, WorkerPrimaryMessage};
 
@@ -95,7 +95,7 @@
     <span class="doccomment">/// Input channel to receive the messages to send to the primary.
     </span>rx_digest: Receiver&lt;WorkerPrimaryMessage&gt;,
     <span class="doccomment">/// A network sender to send the batches&#39; digests to the primary.
-    </span>primary_client: WorkerToPrimaryNetwork,
+    </span>primary_client: P2pNetwork,
 }
 
 <span class="kw">impl </span>PrimaryConnector {
@@ -104,7 +104,7 @@
         primary_name: NetworkPublicKey,
         rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;,
         rx_digest: Receiver&lt;WorkerPrimaryMessage&gt;,
-        primary_client: WorkerToPrimaryNetwork,
+        primary_client: P2pNetwork,
     ) -&gt; JoinHandle&lt;()&gt; {
         tokio::spawn(<span class="kw">async move </span>{
             <span class="self">Self </span>{
