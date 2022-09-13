@@ -39,7 +39,7 @@ anemo = { git = "https://github.com/mystenlabs/anemo.git", rev = "6278d0fa78147a
 workspace-hack = { version = "0.1", path = "../workspace-hack" }
 
 [dev-dependencies]
-criterion = "0.3.6"
+criterion = "0.4.0"
 hex = "0.4.3"
 serde_test = "1.0.144"
 test_utils = { path = "../test_utils" }
