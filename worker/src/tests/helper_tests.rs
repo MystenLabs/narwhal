@@ -4,7 +4,7 @@
 use super::*;
 use fastcrypto::Hash;
 use store::rocks;
-use test_utils::{batch, mock_network, temp_dir, CommitteeFixture, WorkerToWorkerMockServer};
+use test_utils::{batch, temp_dir, test_network, CommitteeFixture, WorkerToWorkerMockServer};
 use types::BatchDigest;
 
 #[tokio::test]
@@ -30,7 +30,7 @@ async fn worker_batch_reply() {
     store.write(batch_digest, batch.clone()).await;
 
     // setup network
-    let network = mock_network(worker_1.keypair(), &worker_1.info().worker_address);
+    let network = test_network(worker_1.keypair(), &worker_1.info().worker_address);
     // Spawn an `Helper` instance.
     let _helper_handle = Helper::spawn(
         id,

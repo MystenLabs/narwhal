@@ -15,7 +15,7 @@ use mockall::*;
 use network::P2pNetwork;
 use std::{collections::HashMap, sync::Arc};
 use test_utils::{
-    fixture_batch_with_transactions, fixture_payload, mock_network, CommitteeFixture,
+    fixture_batch_with_transactions, fixture_payload, test_network, CommitteeFixture,
     PrimaryToWorkerMockServer,
 };
 use tokio::{
@@ -66,7 +66,7 @@ async fn test_successfully_retrieve_block() {
         );
     }
 
-    let network = mock_network(primary.network_keypair(), primary.address());
+    let network = test_network(primary.network_keypair(), primary.address());
 
     // AND spin up a worker node
     let worker_id = 0;
@@ -283,7 +283,7 @@ async fn test_successfully_retrieve_multiple_blocks() {
     let (tx_get_blocks, rx_get_blocks) = oneshot::channel();
     let (tx_batch_messages, rx_batch_messages) = test_utils::test_channel!(10);
 
-    let network = mock_network(primary.network_keypair(), primary.address());
+    let network = test_network(primary.network_keypair(), primary.address());
 
     // AND spin up a worker node
     let worker = primary.worker(worker_id);
@@ -411,7 +411,7 @@ async fn test_one_pending_request_for_block_at_time() {
         .times(4)
         .return_const(vec![Ok(certificate)]);
 
-    let network = mock_network(primary.network_keypair(), primary.address());
+    let network = test_network(primary.network_keypair(), primary.address());
     let mut waiter = BlockWaiter {
         name: name.clone(),
         committee: committee.clone(),
@@ -494,7 +494,7 @@ async fn test_unlocking_pending_get_block_request_after_response() {
         .times(3)
         .return_const(vec![Ok(certificate)]);
 
-    let network = mock_network(primary.network_keypair(), primary.address());
+    let network = test_network(primary.network_keypair(), primary.address());
     let mut waiter = BlockWaiter {
         name: name.clone(),
         committee: committee.clone(),
@@ -575,7 +575,7 @@ async fn test_batch_timeout() {
         .times(1)
         .return_const(vec![Ok(certificate)]);
 
-    let network = mock_network(primary.network_keypair(), primary.address());
+    let network = test_network(primary.network_keypair(), primary.address());
     let _waiter_handle = BlockWaiter::spawn(
         name.clone(),
         committee.clone(),
@@ -644,7 +644,7 @@ async fn test_return_error_when_certificate_is_missing() {
         .times(1)
         .return_const(vec![Err(handler::Error::BlockDeliveryTimeout { block_id })]);
 
-    let network = mock_network(primary.network_keypair(), primary.address());
+    let network = test_network(primary.network_keypair(), primary.address());
     let _waiter_handle = BlockWaiter::spawn(
         name.clone(),
         committee.clone(),
@@ -720,7 +720,7 @@ async fn test_return_error_when_certificate_is_missing_when_get_blocks() {
         .times(1)
         .return_const(vec![]);
 
-    let network = mock_network(primary.network_keypair(), primary.address());
+    let network = test_network(primary.network_keypair(), primary.address());
     let _waiter_handle = BlockWaiter::spawn(
         name.clone(),
         committee.clone(),

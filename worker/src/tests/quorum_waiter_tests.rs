@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use super::*;
 use crate::worker::WorkerMessage;
-use test_utils::{batch, mock_network, CommitteeFixture, WorkerToWorkerMockServer};
+use test_utils::{batch, test_network, CommitteeFixture, WorkerToWorkerMockServer};
 
 #[tokio::test]
 async fn wait_for_quorum() {
@@ -19,7 +19,7 @@ async fn wait_for_quorum() {
         watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));
 
     // setup network
-    let network = mock_network(myself.keypair(), &myself.info().worker_address);
+    let network = test_network(myself.keypair(), &myself.info().worker_address);
     // Spawn a `QuorumWaiter` instance.
     let _quorum_waiter_handler = QuorumWaiter::spawn(
         my_primary.clone(),

@@ -22,7 +22,7 @@ use network::P2pNetwork;
 use prometheus::Registry;
 use std::{borrow::Borrow, collections::HashMap, sync::Arc, time::Duration};
 use test_utils::{
-    fixture_batch_with_transactions, mock_network, CommitteeFixture, PrimaryToWorkerMockServer,
+    fixture_batch_with_transactions, test_network, CommitteeFixture, PrimaryToWorkerMockServer,
 };
 use tokio::{
     sync::{mpsc, watch},
@@ -55,7 +55,7 @@ async fn test_successful_blocks_delete() {
     let dag = Arc::new(Dag::new(&committee, rx_consensus, consensus_metrics).1);
     populate_genesis(&dag, &committee).await;
 
-    let network = mock_network(primary.network_keypair(), primary.address());
+    let network = test_network(primary.network_keypair(), primary.address());
     let _remover_handler = BlockRemover::spawn(
         name.clone(),
         committee.clone(),
@@ -234,7 +234,7 @@ async fn test_timeout() {
     let dag = Arc::new(Dag::new(&committee, rx_consensus, consensus_metrics).1);
     populate_genesis(&dag, &committee).await;
 
-    let network = mock_network(primary.network_keypair(), primary.address());
+    let network = test_network(primary.network_keypair(), primary.address());
     let _remover_handler = BlockRemover::spawn(
         name.clone(),
         committee.clone(),
@@ -375,7 +375,7 @@ async fn test_unlocking_pending_requests() {
     let dag = Arc::new(Dag::new(&committee, rx_consensus, consensus_metrics).1);
     populate_genesis(&dag, &committee).await;
 
-    let network = mock_network(primary.network_keypair(), primary.address());
+    let network = test_network(primary.network_keypair(), primary.address());
     let mut remover = BlockRemover {
         name,
         committee: committee.clone(),

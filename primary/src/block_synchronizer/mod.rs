@@ -895,7 +895,6 @@ impl BlockSynchronizer {
         let mut peers = Peers::<Certificate>::new(SmallRng::from_entropy());
 
         loop {
-            println!("hello");
             tokio::select! {
                 Some(response) = receiver.recv() => {
                     if peers.contains_peer(&response.from) {
@@ -946,7 +945,6 @@ impl BlockSynchronizer {
                     }
                 },
                 () = &mut timer => {
-                    println!("timer");
                     let result = Self::resolve_block_synchronize_result(&peers, block_ids, true);
 
                     return State::PayloadAvailabilityReceived {

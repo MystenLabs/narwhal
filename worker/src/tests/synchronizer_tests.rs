@@ -6,7 +6,7 @@ use arc_swap::ArcSwap;
 use fastcrypto::Hash;
 use prometheus::Registry;
 use test_utils::{
-    batch, batches, mock_network, open_batch_store, CommitteeFixture, WorkerToWorkerMockServer,
+    batch, batches, open_batch_store, test_network, CommitteeFixture, WorkerToWorkerMockServer,
 };
 use tokio::time::timeout;
 
@@ -30,7 +30,7 @@ async fn synchronize() {
 
     let metrics = Arc::new(WorkerMetrics::new(&Registry::new()));
 
-    let network = mock_network(myself.keypair(), &myself.info().worker_address);
+    let network = test_network(myself.keypair(), &myself.info().worker_address);
     // Spawn a `Synchronizer` instance.
     let _synchronizer_handle = Synchronizer::spawn(
         my_primary.public_key(),
@@ -94,7 +94,7 @@ async fn synchronize_when_batch_exists() {
 
     let metrics = Arc::new(WorkerMetrics::new(&Registry::new()));
 
-    let network = mock_network(myself.keypair(), &myself.info().worker_address);
+    let network = test_network(myself.keypair(), &myself.info().worker_address);
     // Spawn a `Synchronizer` instance.
     let _synchronizer_handle = Synchronizer::spawn(
         my_primary.public_key(),
@@ -175,7 +175,7 @@ async fn test_successful_request_batch() {
 
     let metrics = Arc::new(WorkerMetrics::new(&Registry::new()));
 
-    let network = mock_network(myself.keypair(), &myself.info().worker_address);
+    let network = test_network(myself.keypair(), &myself.info().worker_address);
     // Spawn a `Synchronizer` instance.
     let _synchronizer_handle = Synchronizer::spawn(
         my_primary.public_key(),
@@ -241,7 +241,7 @@ async fn test_request_batch_not_found() {
 
     let metrics = Arc::new(WorkerMetrics::new(&Registry::new()));
 
-    let network = mock_network(myself.keypair(), &myself.info().worker_address);
+    let network = test_network(myself.keypair(), &myself.info().worker_address);
     // Spawn a `Synchronizer` instance.
     let _synchronizer_handle = Synchronizer::spawn(
         my_primary.public_key(),
@@ -307,7 +307,7 @@ async fn test_successful_batch_delete() {
 
     let metrics = Arc::new(WorkerMetrics::new(&Registry::new()));
 
-    let network = mock_network(myself.keypair(), &myself.info().worker_address);
+    let network = test_network(myself.keypair(), &myself.info().worker_address);
     // Spawn a `Synchronizer` instance.
     let _synchronizer_handle = Synchronizer::spawn(
         my_primary.public_key(),

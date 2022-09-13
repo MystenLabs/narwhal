@@ -16,7 +16,7 @@ use std::{
     fmt::Debug,
     sync::{Arc, Mutex},
 };
-use test_utils::CommitteeFixture;
+use test_utils::{random_network, CommitteeFixture};
 use tokio::{
     sync::mpsc::{channel, Receiver, Sender},
     time::{interval, sleep, Duration, MissedTickBehavior},
@@ -323,16 +323,7 @@ async fn epoch_change() {
         let name_clone = name.clone();
         let worker_cache_clone = worker_cache.clone();
         tokio::spawn(async move {
-            let network = anemo::Network::bind("127.0.0.1:0")
-                .server_name("narwhal")
-                .private_key(
-                    NetworkKeyPair::generate(&mut rand::rngs::OsRng)
-                        .private()
-                        .0
-                        .to_bytes(),
-                )
-                .start(anemo::Router::new())
-                .unwrap();
+            let network = random_network();
 
             while let Some((_, _, committee, _, _)) = rx_node_reconfigure.recv().await {
                 // TODO: shutdown message should probably be sent in a better way than by injecting

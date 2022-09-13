@@ -47,6 +47,9 @@ impl NodeRestarter {
         let mut worker_ids_and_keypairs = worker_ids_and_keypairs;
         let mut committee = committee.clone();
 
+        // construct a p2p network that we can use to send reconfigure messages to our primary and
+        // workers. We generate a random key simply to construct the network. Also, ideally this
+        // would be done via a different interface.
         let mut handles = Vec::new();
         let network = anemo::Network::bind("127.0.0.1:0")
             .server_name("narwhal")

@@ -910,7 +910,7 @@ impl WorkerFixture {
     }
 }
 
-pub fn mock_network(keypair: NetworkKeyPair, address: &Multiaddr) -> anemo::Network {
+pub fn test_network(keypair: NetworkKeyPair, address: &Multiaddr) -> anemo::Network {
     let address = network::multiaddr_to_address(address).unwrap();
     let network_key = keypair.private().0.to_bytes();
     anemo::Network::bind(address)
@@ -921,10 +921,7 @@ pub fn mock_network(keypair: NetworkKeyPair, address: &Multiaddr) -> anemo::Netw
 }
 
 pub fn random_network() -> anemo::Network {
-    let network_key = NetworkKeyPair::generate(&mut OsRng).private().0.to_bytes();
-    anemo::Network::bind("127.0.0.1:0")
-        .server_name("narwhal")
-        .private_key(network_key)
-        .start(anemo::Router::new())
-        .unwrap()
+    let network_key = NetworkKeyPair::generate(&mut OsRng);
+    let address = "/ip4/127.0.0.1/udp/0".parse().unwrap();
+    test_network(network_key, &address)
 }
