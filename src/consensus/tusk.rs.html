@@ -261,7 +261,6 @@
 <span id="261">261</span>
 <span id="262">262</span>
 <span id="263">263</span>
-<span id="264">264</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -440,8 +439,7 @@
     <span class="kw">use </span>prometheus::Registry;
     <span class="kw">use </span>rand::Rng;
     <span class="kw">use </span>std::collections::BTreeSet;
-    <span class="kw">use </span>test_utils::make_consensus_store;
-    <span class="kw">use </span>test_utils::CommitteeFixture;
+    <span class="kw">use </span>test_utils::{make_consensus_store, CommitteeFixture};
     <span class="kw">use </span>types::Certificate;
 
     <span class="attribute">#[test]

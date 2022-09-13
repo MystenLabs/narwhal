@@ -509,7 +509,7 @@
             }
         }
 
-        <span class="kw">let </span><span class="kw-2">mut </span>enough_votes = votes_for_leader &gt;= <span class="self">self</span>.committee.quorum_threshold();
+        <span class="kw">let </span><span class="kw-2">mut </span>enough_votes = votes_for_leader &gt;= <span class="self">self</span>.committee.validity_threshold();
         <span class="kw">if </span>enough_votes {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(leader) = <span class="self">self</span>.last_leader.as_ref() {
                 <span class="macro">debug!</span>(
@@ -519,7 +519,7 @@
                 );
             }
         }
-        enough_votes |= no_votes &gt;= <span class="self">self</span>.committee.validity_threshold();
+        enough_votes |= no_votes &gt;= <span class="self">self</span>.committee.quorum_threshold();
         enough_votes
     }
 
