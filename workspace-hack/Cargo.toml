@@ -273,7 +273,7 @@ signature = { version = "1", features = ["digest", "digest-preview", "rand-previ
 similar = { version = "2", features = ["inline", "text"] }
 slab = { version = "0.4", features = ["std"] }
 smallvec = { version = "1", default-features = false }
-socket2 = { version = "0.4", default-features = false, features = ["all"] }
+socket2 = { version = "0.4", default-features = false }
 spki = { version = "0.6", default-features = false, features = ["alloc", "base64ct", "std"] }
 static_assertions = { version = "1", default-features = false }
 strsim-93f6ce9d446188ac = { package = "strsim", version = "0.10", default-features = false }
