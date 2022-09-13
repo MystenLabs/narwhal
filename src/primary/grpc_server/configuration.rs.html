@@ -134,9 +134,11 @@
 <span id="134">134</span>
 <span id="135">135</span>
 <span id="136">136</span>
+<span id="137">137</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-</span><span class="kw">use </span>config::SharedCommittee;
+
+</span><span class="kw">use </span>config::{SharedCommittee, Stake};
 <span class="kw">use </span>crypto::PublicKey;
 <span class="kw">use </span>fastcrypto::traits::ToFromBytes;
 <span class="kw">use </span>multiaddr::Multiaddr;
@@ -234,7 +236,7 @@
         <span class="kw">for </span>validator <span class="kw">in </span>validators.iter() {
             <span class="kw">let </span>public_key = <span class="self">self</span>.get_public_key(validator.public_key.as_ref())<span class="question-mark">?</span>;
 
-            <span class="kw">let </span>stake_weight: u32 = validator
+            <span class="kw">let </span>stake_weight: Stake = validator
                 .stake_weight
                 .try_into()
                 .map_err(|<span class="kw">_</span>| Status::invalid_argument(<span class="string">&quot;Invalid stake weight&quot;</span>))<span class="question-mark">?</span>;

@@ -922,7 +922,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 </span><span class="kw">use </span>config::{
-    utils::get_available_port, Authority, Committee, Epoch, SharedWorkerCache, WorkerCache,
+    utils::get_available_port, Authority, Committee, Epoch, SharedWorkerCache, Stake, WorkerCache,
     WorkerId, WorkerIndex, WorkerInfo,
 };
 <span class="kw">use </span>crypto::{KeyPair, NetworkKeyPair, NetworkPublicKey, PublicKey};
@@ -1678,7 +1678,7 @@
 <span class="kw">pub struct </span>AuthorityFixture {
     keypair: KeyPair,
     network_keypair: NetworkKeyPair,
-    stake: u32,
+    stake: Stake,
     address: Multiaddr,
     workers: BTreeMap&lt;WorkerId, WorkerFixture&gt;,
 }
