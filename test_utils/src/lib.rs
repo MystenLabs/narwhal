@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use config::{
-    utils::get_available_port, Authority, Committee, Epoch, PrimaryAddresses, SharedWorkerCache,
-    WorkerCache, WorkerId, WorkerIndex, WorkerInfo,
+    utils::get_available_port, Authority, Committee, Epoch, SharedWorkerCache, WorkerCache,
+    WorkerId, WorkerIndex, WorkerInfo,
 };
 use crypto::{KeyPair, NetworkKeyPair, NetworkPublicKey, PublicKey};
 use fastcrypto::{
@@ -28,7 +28,8 @@ use types::{
     Batch, BatchDigest, BincodeEncodedPayload, Certificate, CertificateDigest, ConsensusStore,
     Empty, Header, HeaderBuilder, PrimaryMessage, PrimaryToPrimary, PrimaryToPrimaryServer,
     PrimaryToWorker, PrimaryToWorkerServer, Round, SequenceNumber, Transaction, Vote,
-    WorkerMessage, WorkerToPrimary, WorkerToPrimaryServer, WorkerToWorker, WorkerToWorkerServer,
+    WorkerInfoResponse, WorkerMessage, WorkerPrimaryMessage, WorkerToPrimary,
+    WorkerToPrimaryServer, WorkerToWorker, WorkerToWorkerServer,
 };
 
 pub mod cluster;
@@ -201,25 +202,26 @@ impl PrimaryToPrimary for PrimaryToPrimaryMockServer {
 }
 
 pub struct WorkerToPrimaryMockServer {
-    sender: Sender<BincodeEncodedPayload>,
+    sender: Sender<WorkerPrimaryMessage>,
 }
 
 impl WorkerToPrimaryMockServer {
-    pub fn spawn(address: Multiaddr) -> Receiver<BincodeEncodedPayload> {
+    pub fn spawn(
+        keypair: NetworkKeyPair,
+        address: Multiaddr,
+    ) -> (Receiver<WorkerPrimaryMessage>, anemo::Network) {
+        let addr = network::multiaddr_to_address(&address).unwrap();
         let (sender, receiver) = channel(1);
-        tokio::spawn(async move {
-            let config = mysten_network::config::Config::new();
-            let mock = Self { sender };
-            config
-                .server_builder()
-                .add_service(WorkerToPrimaryServer::new(mock))
-                .bind(&address)
-                .await
-                .unwrap()
-                .serve()
-                .await
-        });
-        receiver
+        let service = WorkerToPrimaryServer::new(Self { sender });
+
+        let routes = anemo::Router::new().add_rpc_service(service);
+        let network = anemo::Network::bind(addr)
+            .server_name("narwhal")
+            .private_key(keypair.private().0.to_bytes())
+            .start(routes)
+            .unwrap();
+        info!("starting network on: {}", network.local_addr());
+        (receiver, network)
     }
 }
 
@@ -227,16 +229,19 @@ impl WorkerToPrimaryMockServer {
 impl WorkerToPrimary for WorkerToPrimaryMockServer {
     async fn send_message(
         &self,
-        request: tonic::Request<BincodeEncodedPayload>,
-    ) -> Result<tonic::Response<Empty>, tonic::Status> {
-        self.sender.send(request.into_inner()).await.unwrap();
-        Ok(tonic::Response::new(Empty {}))
+        request: anemo::Request<types::WorkerPrimaryMessage>,
+    ) -> Result<anemo::Response<()>, anemo::rpc::Status> {
+        let message = request.into_body();
+
+        self.sender.send(message).await.unwrap();
+
+        Ok(anemo::Response::new(()))
     }
 
     async fn worker_info(
         &self,
-        _request: tonic::Request<Empty>,
-    ) -> Result<tonic::Response<BincodeEncodedPayload>, tonic::Status> {
+        _request: anemo::Request<()>,
+    ) -> Result<anemo::Response<WorkerInfoResponse>, anemo::rpc::Status> {
         unimplemented!()
     }
 }
@@ -755,7 +760,7 @@ pub struct AuthorityFixture {
     keypair: KeyPair,
     network_keypair: NetworkKeyPair,
     stake: u32,
-    addresses: PrimaryAddresses,
+    address: Multiaddr,
     workers: BTreeMap<WorkerId, WorkerFixture>,
 }
 
@@ -790,7 +795,7 @@ impl AuthorityFixture {
     pub fn authority(&self) -> Authority {
         Authority {
             stake: self.stake,
-            primary: self.addresses.clone(),
+            primary_address: self.address.clone(),
             network_key: self.network_keypair.public().clone(),
         }
     }
@@ -835,14 +840,9 @@ impl AuthorityFixture {
     {
         let keypair = KeyPair::generate(&mut rng);
         let network_keypair = NetworkKeyPair::generate(&mut rng);
-        let primary_addresses = PrimaryAddresses {
-            primary_to_primary: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
-                .parse()
-                .unwrap(),
-            worker_to_primary: format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
-                .parse()
-                .unwrap(),
-        };
+        let address: Multiaddr = format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
+            .parse()
+            .unwrap();
 
         let workers = (0..number_of_workers.get())
             .map(|idx| {
@@ -856,7 +856,7 @@ impl AuthorityFixture {
             keypair,
             network_keypair,
             stake: 1,
-            addresses: primary_addresses,
+            address,
             workers,
         }
     }
