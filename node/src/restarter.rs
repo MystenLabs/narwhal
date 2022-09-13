@@ -7,7 +7,7 @@ use crypto::{KeyPair, NetworkKeyPair};
 use executor::{ExecutionState, ExecutorOutput};
 use fastcrypto::traits::KeyPair as _;
 use futures::future::join_all;
-use network::{P2pNetwork, ReliableNetwork2, WorkerToPrimaryNetwork};
+use network::{P2pNetwork, ReliableNetwork2};
 use prometheus::Registry;
 use std::{fmt::Debug, path::PathBuf, sync::Arc};
 use tokio::sync::mpsc::{Receiver, Sender};
@@ -123,8 +123,7 @@ impl NodeRestarter {
                 .network_key(&name)
                 .expect("Our key is not in the committee");
             let mut primary_network =
-                WorkerToPrimaryNetwork::new_for_single_address(network_key.to_owned(), address)
-                    .await;
+                P2pNetwork::new_for_single_address(network_key.to_owned(), address).await;
             let message = WorkerPrimaryMessage::Reconfigure(ReconfigureNotification::Shutdown);
             let primary_cancel_handle =
                 primary_network.send(network_key.to_owned(), &message).await;

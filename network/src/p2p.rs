@@ -7,14 +7,14 @@ use crate::{
 };
 use anemo::PeerId;
 use async_trait::async_trait;
-use crypto::NetworkPublicKey;
+use crypto::{traits::KeyPair, NetworkPublicKey};
 use multiaddr::Multiaddr;
 use rand::{rngs::SmallRng, SeedableRng as _};
 use std::collections::HashMap;
 use tokio::{runtime::Handle, task::JoinHandle};
 use types::{
     PrimaryMessage, PrimaryToPrimaryClient, PrimaryToWorkerClient, PrimaryWorkerMessage,
-    WorkerMessage, WorkerToWorkerClient,
+    WorkerMessage, WorkerPrimaryMessage, WorkerToPrimaryClient, WorkerToWorkerClient,
 };
 
 fn default_executor() -> BoundedExecutor {
@@ -53,6 +53,30 @@ impl P2pNetwork {
         // TODO This function was previously used to remove old clients on epoch changes. This may
         // not be necessary with the new networking stack so we'll need to revisit if this function
         // is even needed. For now do nothing.
+    }
+
+    // Creates a new single-use anemo::Network to connect outbound to a single
+    // address. This is for tests and should not be used from worker code.
+    pub async fn new_for_single_address(
+        name: NetworkPublicKey,
+        address: anemo::types::Address,
+    ) -> Self {
+        let routes = anemo::Router::new();
+        let network = anemo::Network::bind("127.0.0.1:0")
+            .server_name("narwhal")
+            .private_key(
+                crypto::NetworkKeyPair::generate(&mut rand::rngs::OsRng)
+                    .private()
+                    .0
+                    .to_bytes(),
+            )
+            .start(routes)
+            .unwrap();
+        network
+            .connect_with_peer_id(address, anemo::PeerId(name.0.to_bytes()))
+            .await
+            .unwrap();
+        Self::new(network)
     }
 
     async fn unreliable_send<F, Fut, O>(&mut self, peer: NetworkPublicKey, f: F) -> JoinHandle<()>
@@ -197,6 +221,41 @@ impl ReliableNetwork2<PrimaryWorkerMessage> for P2pNetwork {
         let f = move |peer| {
             let message = message.clone();
             async move { PrimaryToWorkerClient::new(peer).send_message(message).await }
+        };
+
+        self.send(peer, f).await
+    }
+}
+
+//
+// Worker-to-Primary
+//
+
+#[async_trait]
+impl UnreliableNetwork2<WorkerPrimaryMessage> for P2pNetwork {
+    async fn unreliable_send(
+        &mut self,
+        peer: NetworkPublicKey,
+        message: &WorkerPrimaryMessage,
+    ) -> JoinHandle<()> {
+        let message = message.to_owned();
+        let f =
+            move |peer| async move { WorkerToPrimaryClient::new(peer).send_message(message).await };
+        self.unreliable_send(peer, f).await
+    }
+}
+
+#[async_trait]
+impl ReliableNetwork2<WorkerPrimaryMessage> for P2pNetwork {
+    async fn send(
+        &mut self,
+        peer: NetworkPublicKey,
+        message: &WorkerPrimaryMessage,
+    ) -> CancelOnDropHandler<anyhow::Result<anemo::Response<()>>> {
+        let message = message.to_owned();
+        let f = move |peer| {
+            let message = message.clone();
+            async move { WorkerToPrimaryClient::new(peer).send_message(message).await }
         };
 
         self.send(peer, f).await

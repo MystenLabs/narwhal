@@ -8,7 +8,7 @@ use crypto::{KeyPair, NetworkKeyPair, PublicKey};
 use executor::{ExecutionIndices, ExecutionState, ExecutionStateError};
 use fastcrypto::traits::KeyPair as _;
 use futures::future::join_all;
-use network::{P2pNetwork, ReliableNetwork2, WorkerToPrimaryNetwork};
+use network::{P2pNetwork, ReliableNetwork2};
 use node::{restarter::NodeRestarter, Node, NodeStorage};
 use primary::PrimaryWorkerMessage;
 use prometheus::Registry;
@@ -347,8 +347,7 @@ async fn epoch_change() {
                     .network_key(&name_clone)
                     .expect("Our key is not in the committee");
                 let mut primary_network =
-                    WorkerToPrimaryNetwork::new_for_single_address(network_key.to_owned(), address)
-                        .await;
+                    P2pNetwork::new_for_single_address(network_key.to_owned(), address).await;
                 let message = WorkerPrimaryMessage::Reconfigure(ReconfigureNotification::NewEpoch(
                     committee.clone(),
                 ));

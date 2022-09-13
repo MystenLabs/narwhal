@@ -39,10 +39,8 @@ async fn wait_for_quorum() {
     // Spawn enough listeners to acknowledge our batches.
     let mut listener_handles = Vec::new();
     for worker in fixture.authorities().skip(1).map(|a| a.worker(0)) {
-        let handle = WorkerToWorkerMockServer::spawn(
-            worker.keypair(),
-            worker.info().worker_address.clone(),
-        );
+        let handle =
+            WorkerToWorkerMockServer::spawn(worker.keypair(), worker.info().worker_address.clone());
         listener_handles.push(handle);
 
         // ensure that the networks are connected

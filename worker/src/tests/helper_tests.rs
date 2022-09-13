@@ -43,10 +43,8 @@ async fn worker_batch_reply() {
     );
 
     // Spawn a listener to receive the batch reply.
-    let (mut handle, _network) = WorkerToWorkerMockServer::spawn(
-        worker_2.keypair(),
-        worker_2.info().worker_address.clone(),
-    );
+    let (mut handle, _network) =
+        WorkerToWorkerMockServer::spawn(worker_2.keypair(), worker_2.info().worker_address.clone());
 
     // ensure that the two networks are connected
     network

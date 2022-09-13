@@ -169,7 +169,7 @@ impl Worker {
             primary_network_key,
             rx_reconfigure,
             rx_primary,
-            network::WorkerToPrimaryNetwork::new(network.clone()),
+            network::P2pNetwork::new(network.clone()),
         );
 
         let client_flow_handles = worker.handle_clients_transactions(
