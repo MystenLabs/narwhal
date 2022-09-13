@@ -2441,7 +2441,6 @@ dependencies = [
 name = "node"
 version = "0.1.0"
 dependencies = [
- "anemo",
  "arc-swap",
  "async-trait",
  "axum",
