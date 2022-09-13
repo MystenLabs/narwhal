@@ -134,43 +134,9 @@
 <span id="134">134</span>
 <span id="135">135</span>
 <span id="136">136</span>
-<span id="137">137</span>
-<span id="138">138</span>
-<span id="139">139</span>
-<span id="140">140</span>
-<span id="141">141</span>
-<span id="142">142</span>
-<span id="143">143</span>
-<span id="144">144</span>
-<span id="145">145</span>
-<span id="146">146</span>
-<span id="147">147</span>
-<span id="148">148</span>
-<span id="149">149</span>
-<span id="150">150</span>
-<span id="151">151</span>
-<span id="152">152</span>
-<span id="153">153</span>
-<span id="154">154</span>
-<span id="155">155</span>
-<span id="156">156</span>
-<span id="157">157</span>
-<span id="158">158</span>
-<span id="159">159</span>
-<span id="160">160</span>
-<span id="161">161</span>
-<span id="162">162</span>
-<span id="163">163</span>
-<span id="164">164</span>
-<span id="165">165</span>
-<span id="166">166</span>
-<span id="167">167</span>
-<span id="168">168</span>
-<span id="169">169</span>
-<span id="170">170</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-</span><span class="kw">use </span>config::{PrimaryAddresses, SharedCommittee};
+</span><span class="kw">use </span>config::SharedCommittee;
 <span class="kw">use </span>crypto::PublicKey;
 <span class="kw">use </span>fastcrypto::traits::ToFromBytes;
 <span class="kw">use </span>multiaddr::Multiaddr;
@@ -230,35 +196,18 @@
             <span class="kw">let </span>public_key = <span class="self">self</span>.get_public_key(validator.public_key.as_ref())<span class="question-mark">?</span>;
 
             <span class="kw">let </span>stake_weight = validator.stake_weight;
-            <span class="kw">let </span>primary_addresses = validator
-                .primary_addresses
+            <span class="kw">let </span>primary_address: Multiaddr = validator
+                .primary_address
                 .as_ref()
-                .ok_or_else(|| Status::invalid_argument(<span class="string">&quot;Missing primary addresses&quot;</span>))<span class="question-mark">?</span>;
-            <span class="kw">let </span>primary_to_primary = primary_addresses
-                .primary_to_primary
-                .as_ref()
-                .ok_or_else(|| Status::invalid_argument(<span class="string">&quot;Missing primary to primary address&quot;</span>))<span class="question-mark">?
+                .ok_or_else(|| Status::invalid_argument(<span class="string">&quot;Missing primary address&quot;</span>))<span class="question-mark">?
                 </span>.address
                 .parse()
                 .map_err(|err| {
                     Status::invalid_argument(<span class="macro">format!</span>(<span class="string">&quot;Could not serialize: {:?}&quot;</span>, err))
                 })<span class="question-mark">?</span>;
-            <span class="kw">let </span>worker_to_primary = primary_addresses
-                .primary_to_primary
-                .as_ref()
-                .ok_or_else(|| Status::invalid_argument(<span class="string">&quot;Missing worker to primary address&quot;</span>))<span class="question-mark">?
-                </span>.address
-                .parse()
-                .map_err(|err| {
-                    Status::invalid_argument(<span class="macro">format!</span>(<span class="string">&quot;Could not serialize: {:?}&quot;</span>, err))
-                })<span class="question-mark">?</span>;
-            <span class="kw">let </span>primary = PrimaryAddresses {
-                primary_to_primary,
-                worker_to_primary,
-            };
             parsed_input.push(<span class="macro">format!</span>(
-                <span class="string">&quot;public_key: {:?} stake_weight: {:?} primary addresses: {:?}&quot;</span>,
-                public_key, stake_weight, primary
+                <span class="string">&quot;public_key: {:?} stake_weight: {:?} primary address: {:?}&quot;</span>,
+                public_key, stake_weight, primary_address
             ));
         }
         <span class="prelude-val">Err</span>(Status::internal(<span class="macro">format!</span>(
@@ -289,12 +238,8 @@
                 .stake_weight
                 .try_into()
                 .map_err(|<span class="kw">_</span>| Status::invalid_argument(<span class="string">&quot;Invalid stake weight&quot;</span>))<span class="question-mark">?</span>;
-            <span class="kw">let </span>primary_addresses = validator
-                .primary_addresses
-                .as_ref()
-                .ok_or_else(|| Status::invalid_argument(<span class="string">&quot;Missing primary addresses&quot;</span>))<span class="question-mark">?</span>;
-            <span class="kw">let </span>primary_to_primary = primary_addresses
-                .primary_to_primary
+            <span class="kw">let </span>primary_address = validator
+                .primary_address
                 .as_ref()
                 .ok_or_else(|| Status::invalid_argument(<span class="string">&quot;Missing primary to primary address&quot;</span>))<span class="question-mark">?
                 </span>.address
@@ -302,20 +247,7 @@
                 .map_err(|err| {
                     Status::invalid_argument(<span class="macro">format!</span>(<span class="string">&quot;Could not serialize: {:?}&quot;</span>, err))
                 })<span class="question-mark">?</span>;
-            <span class="kw">let </span>worker_to_primary = primary_addresses
-                .primary_to_primary
-                .as_ref()
-                .ok_or_else(|| Status::invalid_argument(<span class="string">&quot;Missing worker to primary address&quot;</span>))<span class="question-mark">?
-                </span>.address
-                .parse()
-                .map_err(|err| {
-                    Status::invalid_argument(<span class="macro">format!</span>(<span class="string">&quot;Could not serialize: {:?}&quot;</span>, err))
-                })<span class="question-mark">?</span>;
-            <span class="kw">let </span>primary = PrimaryAddresses {
-                primary_to_primary,
-                worker_to_primary,
-            };
-            new_network_info.insert(public_key, (stake_weight, primary));
+            new_network_info.insert(public_key, (stake_weight, primary_address));
         }
         <span class="kw">let </span><span class="kw-2">mut </span>new_committee = (<span class="kw-2">**</span><span class="self">self</span>.committee.load()).clone();
         <span class="kw">let </span>res = new_committee.update_primary_network_info(new_network_info);
@@ -339,4 +271,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (59e7a308e 2022-09-11)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (fa6ee9375 2022-09-12)" ></div></body></html>

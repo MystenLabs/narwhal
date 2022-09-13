@@ -723,17 +723,6 @@
 <span id="723">723</span>
 <span id="724">724</span>
 <span id="725">725</span>
-<span id="726">726</span>
-<span id="727">727</span>
-<span id="728">728</span>
-<span id="729">729</span>
-<span id="730">730</span>
-<span id="731">731</span>
-<span id="732">732</span>
-<span id="733">733</span>
-<span id="734">734</span>
-<span id="735">735</span>
-<span id="736">736</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -1204,27 +1193,19 @@
     }
 }
 
-<span class="attribute">#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-</span><span class="kw">pub struct </span>PrimaryAddresses {
-    <span class="doccomment">/// Address to receive messages from other primaries (WAN).
-    </span><span class="kw">pub </span>primary_to_primary: Multiaddr,
-    <span class="doccomment">/// Address to receive messages from our workers (LAN).
-    </span><span class="kw">pub </span>worker_to_primary: Multiaddr,
-}
-
-<span class="attribute">#[derive(Clone, Serialize, Deserialize, Debug)]
+<span class="attribute">#[derive(Clone, Serialize, Deserialize, Debug, Eq, PartialEq)]
 </span><span class="kw">pub struct </span>Authority {
     <span class="doccomment">/// The voting power of this authority.
     </span><span class="kw">pub </span>stake: Stake,
-    <span class="doccomment">/// The network addresses of the primary.
-    </span><span class="kw">pub </span>primary: PrimaryAddresses,
+    <span class="doccomment">/// The network address of the primary.
+    </span><span class="kw">pub </span>primary_address: Multiaddr,
     <span class="doccomment">/// Network key of the primary.
     </span><span class="kw">pub </span>network_key: NetworkPublicKey,
 }
 
 <span class="kw">pub type </span>SharedCommittee = Arc&lt;ArcSwap&lt;Committee&gt;&gt;;
 
-<span class="attribute">#[derive(Clone, Serialize, Deserialize, Debug)]
+<span class="attribute">#[derive(Clone, Serialize, Deserialize, Debug, Eq, PartialEq)]
 </span><span class="kw">pub struct </span>Committee {
     <span class="doccomment">/// The authorities of epoch.
     </span><span class="kw">pub </span>authorities: BTreeMap&lt;PublicKey, Authority&gt;,
@@ -1306,11 +1287,11 @@
             </span>.clone()
     }
 
-    <span class="doccomment">/// Returns the primary addresses of the target primary.
-    </span><span class="kw">pub fn </span>primary(<span class="kw-2">&amp;</span><span class="self">self</span>, to: <span class="kw-2">&amp;</span>PublicKey) -&gt; <span class="prelude-ty">Result</span>&lt;PrimaryAddresses, ConfigError&gt; {
+    <span class="doccomment">/// Returns the primary address of the target primary.
+    </span><span class="kw">pub fn </span>primary(<span class="kw-2">&amp;</span><span class="self">self</span>, to: <span class="kw-2">&amp;</span>PublicKey) -&gt; <span class="prelude-ty">Result</span>&lt;Multiaddr, ConfigError&gt; {
         <span class="self">self</span>.authorities
             .get(<span class="kw-2">&amp;</span>to.clone())
-            .map(|x| x.primary.clone())
+            .map(|x| x.primary_address.clone())
             .ok_or_else(|| ConfigError::NotInCommittee((<span class="kw-2">*</span>to).encode_base64()))
     }
 
@@ -1325,14 +1306,14 @@
     </span><span class="kw">pub fn </span>others_primaries(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         myself: <span class="kw-2">&amp;</span>PublicKey,
-    ) -&gt; Vec&lt;(PublicKey, PrimaryAddresses, NetworkPublicKey)&gt; {
+    ) -&gt; Vec&lt;(PublicKey, Multiaddr, NetworkPublicKey)&gt; {
         <span class="self">self</span>.authorities
             .iter()
             .filter(|(name, <span class="kw">_</span>)| <span class="kw-2">*</span>name != myself)
             .map(|(name, authority)| {
                 (
                     name.clone(),
-                    authority.primary.clone(),
+                    authority.primary_address.clone(),
                     authority.network_key.clone(),
                 )
             })
@@ -1342,10 +1323,7 @@
     <span class="kw">fn </span>get_all_network_addresses(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; HashSet&lt;<span class="kw-2">&amp;</span>Multiaddr&gt; {
         <span class="self">self</span>.authorities
             .values()
-            .flat_map(|authority| {
-                std::iter::once(<span class="kw-2">&amp;</span>authority.primary.primary_to_primary)
-                    .chain(std::iter::once(<span class="kw-2">&amp;</span>authority.primary.worker_to_primary))
-            })
+            .map(|authority| <span class="kw-2">&amp;</span>authority.primary_address)
             .collect()
     }
 
@@ -1363,7 +1341,7 @@
     /// will generate no update and return a vector of errors.
     </span><span class="kw">pub fn </span>update_primary_network_info(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        <span class="kw-2">mut </span>new_info: BTreeMap&lt;PublicKey, (Stake, PrimaryAddresses)&gt;,
+        <span class="kw-2">mut </span>new_info: BTreeMap&lt;PublicKey, (Stake, Multiaddr)&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), Vec&lt;CommitteeUpdateError&gt;&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>errors = <span class="prelude-val">None</span>;
 
@@ -1381,13 +1359,13 @@
         <span class="kw">let </span>res = table
             .iter()
             .fold(<span class="prelude-val">Ok</span>(BTreeMap::new()), |acc, (pk, authority)| {
-                <span class="kw">if let </span><span class="prelude-val">Some</span>((stake, addresses)) = new_info.remove(pk) {
+                <span class="kw">if let </span><span class="prelude-val">Some</span>((stake, address)) = new_info.remove(pk) {
                     <span class="kw">if </span>stake == authority.stake {
                         <span class="kw">match </span>acc {
                             <span class="comment">// No error met yet, update the accumulator
                             </span><span class="prelude-val">Ok</span>(<span class="kw-2">mut </span>bmap) =&gt; {
                                 <span class="kw">let </span><span class="kw-2">mut </span>res = authority.clone();
-                                res.primary = addresses;
+                                res.primary_address = address;
                                 bmap.insert(pk.clone(), res);
                                 <span class="prelude-val">Ok</span>(bmap)
                             }
@@ -1471,4 +1449,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="config" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (59e7a308e 2022-09-11)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="config" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (fa6ee9375 2022-09-12)" ></div></body></html>

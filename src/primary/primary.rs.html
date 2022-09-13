@@ -608,72 +608,6 @@
 <span id="608">608</span>
 <span id="609">609</span>
 <span id="610">610</span>
-<span id="611">611</span>
-<span id="612">612</span>
-<span id="613">613</span>
-<span id="614">614</span>
-<span id="615">615</span>
-<span id="616">616</span>
-<span id="617">617</span>
-<span id="618">618</span>
-<span id="619">619</span>
-<span id="620">620</span>
-<span id="621">621</span>
-<span id="622">622</span>
-<span id="623">623</span>
-<span id="624">624</span>
-<span id="625">625</span>
-<span id="626">626</span>
-<span id="627">627</span>
-<span id="628">628</span>
-<span id="629">629</span>
-<span id="630">630</span>
-<span id="631">631</span>
-<span id="632">632</span>
-<span id="633">633</span>
-<span id="634">634</span>
-<span id="635">635</span>
-<span id="636">636</span>
-<span id="637">637</span>
-<span id="638">638</span>
-<span id="639">639</span>
-<span id="640">640</span>
-<span id="641">641</span>
-<span id="642">642</span>
-<span id="643">643</span>
-<span id="644">644</span>
-<span id="645">645</span>
-<span id="646">646</span>
-<span id="647">647</span>
-<span id="648">648</span>
-<span id="649">649</span>
-<span id="650">650</span>
-<span id="651">651</span>
-<span id="652">652</span>
-<span id="653">653</span>
-<span id="654">654</span>
-<span id="655">655</span>
-<span id="656">656</span>
-<span id="657">657</span>
-<span id="658">658</span>
-<span id="659">659</span>
-<span id="660">660</span>
-<span id="661">661</span>
-<span id="662">662</span>
-<span id="663">663</span>
-<span id="664">664</span>
-<span id="665">665</span>
-<span id="666">666</span>
-<span id="667">667</span>
-<span id="668">668</span>
-<span id="669">669</span>
-<span id="670">670</span>
-<span id="671">671</span>
-<span id="672">672</span>
-<span id="673">673</span>
-<span id="674">674</span>
-<span id="675">675</span>
-<span id="676">676</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -704,21 +638,20 @@
     traits::{EncodeDecodeBase64, KeyPair <span class="kw">as _</span>},
     SignatureService,
 };
-<span class="kw">use </span>multiaddr::{Multiaddr, Protocol};
+<span class="kw">use </span>multiaddr::Protocol;
 <span class="kw">use </span>network::{metrics::Metrics, P2pNetwork, PrimaryToWorkerNetwork};
 <span class="kw">use </span>prometheus::Registry;
 <span class="kw">use </span>std::{collections::BTreeMap, net::Ipv4Addr, sync::Arc};
 <span class="kw">use </span>storage::CertificateStore;
 <span class="kw">use </span>store::Store;
 <span class="kw">use </span>tokio::{sync::watch, task::JoinHandle};
-<span class="kw">use </span>tonic::{Request, Response, Status};
 <span class="kw">use </span>tracing::info;
 <span class="kw">use </span>types::{
     error::DagError,
     metered_channel::{channel, Receiver, Sender},
-    BatchDigest, BatchMessage, BincodeEncodedPayload, Certificate, Empty, Header, HeaderDigest,
-    PrimaryToPrimary, PrimaryToPrimaryServer, ReconfigureNotification, WorkerInfoResponse,
-    WorkerPrimaryError, WorkerPrimaryMessage, WorkerToPrimary, WorkerToPrimaryServer,
+    BatchDigest, BatchMessage, Certificate, Header, HeaderDigest, PrimaryToPrimary,
+    PrimaryToPrimaryServer, ReconfigureNotification, WorkerInfoResponse, WorkerPrimaryError,
+    WorkerPrimaryMessage, WorkerToPrimary, WorkerToPrimaryServer,
 };
 <span class="kw">pub use </span>types::{PrimaryMessage, PrimaryWorkerMessage};
 
@@ -859,8 +792,7 @@
         </span><span class="kw">let </span>address = committee
             .load()
             .primary(<span class="kw-2">&amp;</span>name)
-            .expect(<span class="string">&quot;Our public key or worker id is not in the committee&quot;</span>)
-            .primary_to_primary;
+            .expect(<span class="string">&quot;Our public key or worker id is not in the committee&quot;</span>);
         <span class="kw">let </span>address = address
             .replace(<span class="number">0</span>, |_protocol| <span class="prelude-val">Some</span>(Protocol::Ip4(Primary::INADDR_ANY)))
             .unwrap();
@@ -870,42 +802,7 @@
             tx_payload_availability_responses,
             tx_certificate_responses,
         });
-
-        <span class="kw">let </span>addr = network::multiaddr_to_address(<span class="kw-2">&amp;</span>address).unwrap();
-
-        <span class="kw">let </span>routes = anemo::Router::new().add_rpc_service(primary_service);
-        <span class="kw">let </span>network = anemo::Network::bind(addr)
-            .server_name(<span class="string">&quot;narwhal&quot;</span>)
-            .private_key(network_signer.copy().private().<span class="number">0</span>.to_bytes())
-            .start(routes)
-            .unwrap();
-        <span class="macro">info!</span>(
-            <span class="string">&quot;Primary {} listening to primary messages on {}&quot;</span>,
-            name.encode_base64(),
-            address
-        );
-
-        <span class="kw">for </span>(<span class="kw">_</span>, addresses, network_pubkey) <span class="kw">in </span>committee.load().others_primaries(<span class="kw-2">&amp;</span>name) {
-            <span class="kw">let </span>peer_id = PeerId(network_pubkey.<span class="number">0</span>.to_bytes());
-            <span class="kw">let </span>address = network::multiaddr_to_address(<span class="kw-2">&amp;</span>addresses.primary_to_primary).unwrap();
-            <span class="kw">let </span>peer_info = PeerInfo {
-                peer_id,
-                affinity: anemo::types::PeerAffinity::High,
-                address: <span class="macro">vec!</span>[address],
-            };
-            network.known_peers().insert(peer_info);
-        }
-
-        <span class="comment">// Spawn the network receiver listening to messages from our workers.
-        </span><span class="kw">let </span>address = committee
-            .load()
-            .primary(<span class="kw-2">&amp;</span>name)
-            .expect(<span class="string">&quot;Our public key or worker id is not in the committee&quot;</span>)
-            .worker_to_primary;
-        <span class="kw">let </span>address = address
-            .replace(<span class="number">0</span>, |_protocol| <span class="prelude-val">Some</span>(Protocol::Ip4(Primary::INADDR_ANY)))
-            .unwrap();
-        <span class="kw">let </span>worker_receiver_handle = WorkerReceiverHandler {
+        <span class="kw">let </span>worker_service = WorkerToPrimaryServer::new(WorkerReceiverHandler {
             tx_our_digests,
             tx_others_digests,
             tx_batches,
@@ -913,13 +810,30 @@
             tx_state_handler,
             our_workers,
             metrics: node_metrics.clone(),
+        });
+
+        <span class="kw">let </span>addr = network::multiaddr_to_address(<span class="kw-2">&amp;</span>address).unwrap();
+
+        <span class="kw">let </span>routes = anemo::Router::new()
+            .add_rpc_service(primary_service)
+            .add_rpc_service(worker_service);
+        <span class="kw">let </span>network = anemo::Network::bind(addr)
+            .server_name(<span class="string">&quot;narwhal&quot;</span>)
+            .private_key(network_signer.copy().private().<span class="number">0</span>.to_bytes())
+            .start(routes)
+            .unwrap();
+        <span class="macro">info!</span>(<span class="string">&quot;Primary {} listening on {}&quot;</span>, name.encode_base64(), address);
+
+        <span class="kw">for </span>(<span class="kw">_</span>, address, network_pubkey) <span class="kw">in </span>committee.load().others_primaries(<span class="kw-2">&amp;</span>name) {
+            <span class="kw">let </span>peer_id = PeerId(network_pubkey.<span class="number">0</span>.to_bytes());
+            <span class="kw">let </span>address = network::multiaddr_to_address(<span class="kw-2">&amp;</span>address).unwrap();
+            <span class="kw">let </span>peer_info = PeerInfo {
+                peer_id,
+                affinity: anemo::types::PeerAffinity::High,
+                address: <span class="macro">vec!</span>[address],
+            };
+            network.known_peers().insert(peer_info);
         }
-        .spawn(address.clone(), tx_reconfigure.subscribe());
-        <span class="macro">info!</span>(
-            <span class="string">&quot;Primary {} listening to workers messages on {}&quot;</span>,
-            name.encode_base64(),
-            address
-        );
 
         <span class="comment">// The `Synchronizer` provides auxiliary methods helping the `Core` to sync.
         </span><span class="kw">let </span>synchronizer = Synchronizer::new(
@@ -1133,11 +1047,9 @@
                 .load()
                 .primary(<span class="kw-2">&amp;</span>name)
                 .expect(<span class="string">&quot;Our public key or worker id is not in the committee&quot;</span>)
-                .primary_to_primary
         );
 
         <span class="kw">let </span><span class="kw-2">mut </span>handles = <span class="macro">vec!</span>[
-            worker_receiver_handle,
             core_handle,
             payload_receiver_handle,
             block_synchronizer_handle,
@@ -1233,51 +1145,13 @@
     metrics: Arc&lt;PrimaryMetrics&gt;,
 }
 
-<span class="kw">impl </span>WorkerReceiverHandler {
-    <span class="kw">async fn </span>wait_for_shutdown(<span class="kw-2">mut </span>rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;) {
-        <span class="kw">loop </span>{
-            <span class="kw">let </span>result = rx_reconfigure.changed().<span class="kw">await</span>;
-            result.expect(<span class="string">&quot;Committee channel dropped&quot;</span>);
-            <span class="kw">let </span>message = rx_reconfigure.borrow().clone();
-            <span class="kw">if let </span>ReconfigureNotification::Shutdown = message {
-                <span class="kw">break</span>;
-            }
-        }
-    }
-
-    <span class="attribute">#[must_use]
-    </span><span class="kw">fn </span>spawn(
-        <span class="self">self</span>,
-        address: Multiaddr,
-        rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;,
-    ) -&gt; JoinHandle&lt;()&gt; {
-        tokio::spawn(<span class="kw">async move </span>{
-            <span class="macro">info!</span>(<span class="string">&quot;WorkerReceiverHandler has started successfully.&quot;</span>);
-            <span class="macro">tokio::select! </span>{
-                _result = mysten_network::config::Config::default()
-                    .server_builder()
-                    .add_service(WorkerToPrimaryServer::new(<span class="self">self</span>))
-                    .bind(<span class="kw-2">&amp;</span>address)
-                    .<span class="kw">await
-                    </span>.unwrap()
-                    .serve() =&gt; (),
-
-                () = <span class="self">Self</span>::wait_for_shutdown(rx_reconfigure) =&gt; ()
-            }
-        })
-    }
-}
-
 <span class="attribute">#[async_trait]
 </span><span class="kw">impl </span>WorkerToPrimary <span class="kw">for </span>WorkerReceiverHandler {
     <span class="kw">async fn </span>send_message(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        request: Request&lt;BincodeEncodedPayload&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;Response&lt;Empty&gt;, Status&gt; {
-        <span class="kw">let </span>message: WorkerPrimaryMessage = request
-            .into_inner()
-            .deserialize()
-            .map_err(|e| Status::invalid_argument(e.to_string()))<span class="question-mark">?</span>;
+        request: anemo::Request&lt;types::WorkerPrimaryMessage&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;anemo::Response&lt;()&gt;, anemo::rpc::Status&gt; {
+        <span class="kw">let </span>message = request.into_body();
 
         <span class="kw">match </span>message {
             WorkerPrimaryMessage::OurBatch(digest, worker_id) =&gt; {
@@ -1331,24 +1205,18 @@
                 .<span class="kw">await
                 </span>.map_err(|<span class="kw">_</span>| DagError::ShuttingDown),
         }
-        .map_err(|e| Status::not_found(e.to_string()))<span class="question-mark">?</span>;
-
-        <span class="prelude-val">Ok</span>(Response::new(Empty {}))
+        .map(|<span class="kw">_</span>| anemo::Response::new(()))
+        .map_err(|e| anemo::rpc::Status::internal(e.to_string()))
     }
 
     <span class="kw">async fn </span>worker_info(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        _request: Request&lt;Empty&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;Response&lt;BincodeEncodedPayload&gt;, Status&gt; {
-        <span class="kw">let </span>workers = WorkerInfoResponse {
+        _request: anemo::Request&lt;()&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;anemo::Response&lt;WorkerInfoResponse&gt;, anemo::rpc::Status&gt; {
+        <span class="prelude-val">Ok</span>(anemo::Response::new(WorkerInfoResponse {
             workers: <span class="self">self</span>.our_workers.clone(),
-        };
-
-        <span class="kw">let </span>response = BincodeEncodedPayload::try_from(<span class="kw-2">&amp;</span>workers)
-            .map_err(|e| Status::internal(e.to_string()))<span class="question-mark">?</span>;
-
-        <span class="prelude-val">Ok</span>(Response::new(response))
+        }))
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (59e7a308e 2022-09-11)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (fa6ee9375 2022-09-12)" ></div></body></html>

@@ -149,6 +149,16 @@
 <span id="149">149</span>
 <span id="150">150</span>
 <span id="151">151</span>
+<span id="152">152</span>
+<span id="153">153</span>
+<span id="154">154</span>
+<span id="155">155</span>
+<span id="156">156</span>
+<span id="157">157</span>
+<span id="158">158</span>
+<span id="159">159</span>
+<span id="160">160</span>
+<span id="161">161</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use crate</span>::{Node, NodeStorage};
@@ -158,7 +168,7 @@
 <span class="kw">use </span>executor::{ExecutionState, ExecutorOutput};
 <span class="kw">use </span>fastcrypto::traits::KeyPair <span class="kw">as _</span>;
 <span class="kw">use </span>futures::future::join_all;
-<span class="kw">use </span>network::{PrimaryToWorkerNetwork, ReliableNetwork, WorkerToPrimaryNetwork};
+<span class="kw">use </span>network::{PrimaryToWorkerNetwork, ReliableNetwork, ReliableNetwork2, WorkerToPrimaryNetwork};
 <span class="kw">use </span>prometheus::Registry;
 <span class="kw">use </span>std::{fmt::Debug, path::PathBuf, sync::Arc};
 <span class="kw">use </span>tokio::sync::mpsc::{Receiver, Sender};
@@ -199,7 +209,6 @@
         <span class="kw">let </span><span class="kw-2">mut </span>committee = committee.clone();
 
         <span class="kw">let </span><span class="kw-2">mut </span>handles = Vec::new();
-        <span class="kw">let </span><span class="kw-2">mut </span>primary_network = WorkerToPrimaryNetwork::default();
         <span class="kw">let </span><span class="kw-2">mut </span>worker_network = PrimaryToWorkerNetwork::default();
 
         <span class="comment">// Listen for new committees.
@@ -254,12 +263,23 @@
             <span class="macro">tracing::info!</span>(<span class="string">&quot;Starting reconfiguration with committee {committee}&quot;</span>);
 
             <span class="comment">// Shutdown all relevant components.
-            </span><span class="kw">let </span>address = committee
-                .primary(<span class="kw-2">&amp;</span>name)
-                .expect(<span class="string">&quot;Our key is not in the committee&quot;</span>)
-                .worker_to_primary;
+            // TODO: shutdown message should probably be sent in a better way than by injecting
+            // it through the networking stack.
+            </span><span class="kw">let </span>address = network::multiaddr_to_address(
+                <span class="kw-2">&amp;</span>committee
+                    .primary(<span class="kw-2">&amp;</span>name)
+                    .expect(<span class="string">&quot;Our key is not in the committee&quot;</span>),
+            )
+            .unwrap();
+            <span class="kw">let </span>network_key = committee
+                .network_key(<span class="kw-2">&amp;</span>name)
+                .expect(<span class="string">&quot;Our key is not in the committee&quot;</span>);
+            <span class="kw">let </span><span class="kw-2">mut </span>primary_network =
+                WorkerToPrimaryNetwork::new_for_single_address(network_key.to_owned(), address)
+                    .<span class="kw">await</span>;
             <span class="kw">let </span>message = WorkerPrimaryMessage::Reconfigure(ReconfigureNotification::Shutdown);
-            <span class="kw">let </span>primary_cancel_handle = primary_network.send(address, <span class="kw-2">&amp;</span>message).<span class="kw">await</span>;
+            <span class="kw">let </span>primary_cancel_handle =
+                primary_network.send(network_key.to_owned(), <span class="kw-2">&amp;</span>message).<span class="kw">await</span>;
 
             <span class="kw">let </span>addresses = worker_cache
                 .load()
@@ -301,4 +321,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="node" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (59e7a308e 2022-09-11)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="node" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (fa6ee9375 2022-09-12)" ></div></body></html>

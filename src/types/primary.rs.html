@@ -1444,7 +1444,7 @@
 }
 
 <span class="doccomment">/// Message to reconfigure worker tasks. This message must be sent by a trusted source.
-</span><span class="attribute">#[derive(Clone, Debug, Serialize, Deserialize)]
+</span><span class="attribute">#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
 </span><span class="kw">pub enum </span>ReconfigureNotification {
     <span class="doccomment">/// Indicate the committee has changed. This happens at epoch change.
     </span>NewEpoch(Committee),
@@ -1527,7 +1527,7 @@
 }
 
 <span class="doccomment">/// The messages sent by the workers to their primary.
-</span><span class="attribute">#[derive(Debug, Serialize, Deserialize)]
+</span><span class="attribute">#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
 </span><span class="kw">pub enum </span>WorkerPrimaryMessage {
     <span class="doccomment">/// The worker indicates it sealed a new batch.
     </span>OurBatch(BatchDigest, WorkerId),
@@ -1559,4 +1559,4 @@
     </span><span class="kw">pub </span>workers: BTreeMap&lt;WorkerId, WorkerInfo&gt;,
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (59e7a308e 2022-09-11)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (fa6ee9375 2022-09-12)" ></div></body></html>

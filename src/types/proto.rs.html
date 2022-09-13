@@ -114,6 +114,7 @@
     </span><span class="macro">tonic::include_proto!</span>(<span class="string">&quot;narwhal&quot;</span>);
 
     <span class="macro">include!</span>(<span class="macro">concat!</span>(<span class="macro">env!</span>(<span class="string">&quot;OUT_DIR&quot;</span>), <span class="string">&quot;/narwhal.PrimaryToPrimary.rs&quot;</span>));
+    <span class="macro">include!</span>(<span class="macro">concat!</span>(<span class="macro">env!</span>(<span class="string">&quot;OUT_DIR&quot;</span>), <span class="string">&quot;/narwhal.WorkerToPrimary.rs&quot;</span>));
     <span class="macro">include!</span>(<span class="macro">concat!</span>(<span class="macro">env!</span>(<span class="string">&quot;OUT_DIR&quot;</span>), <span class="string">&quot;/narwhal.WorkerToWorker.rs&quot;</span>));
 }
 
@@ -146,9 +147,8 @@
     CollectionError, CollectionRetrievalResult, Empty, GetCollectionsRequest,
     GetCollectionsResponse, GetPrimaryAddressResponse, MultiAddr <span class="kw">as </span>MultiAddrProto,
     NewEpochRequest, NewNetworkInfoRequest, NodeReadCausalRequest, NodeReadCausalResponse,
-    PrimaryAddresses <span class="kw">as </span>PrimaryAddressesProto, PublicKey <span class="kw">as </span>PublicKeyProto, ReadCausalRequest,
-    ReadCausalResponse, RemoveCollectionsRequest, RoundsRequest, RoundsResponse,
-    Transaction <span class="kw">as </span>TransactionProto, ValidatorData,
+    PublicKey <span class="kw">as </span>PublicKeyProto, ReadCausalRequest, ReadCausalResponse, RemoveCollectionsRequest,
+    RoundsRequest, RoundsResponse, Transaction <span class="kw">as </span>TransactionProto, ValidatorData,
 };
 
 <span class="kw">impl </span>From&lt;PublicKey&gt; <span class="kw">for </span>PublicKeyProto {
@@ -217,4 +217,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (59e7a308e 2022-09-11)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (fa6ee9375 2022-09-12)" ></div></body></html>

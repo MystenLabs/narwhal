@@ -521,6 +521,22 @@
 <span id="521">521</span>
 <span id="522">522</span>
 <span id="523">523</span>
+<span id="524">524</span>
+<span id="525">525</span>
+<span id="526">526</span>
+<span id="527">527</span>
+<span id="528">528</span>
+<span id="529">529</span>
+<span id="530">530</span>
+<span id="531">531</span>
+<span id="532">532</span>
+<span id="533">533</span>
+<span id="534">534</span>
+<span id="535">535</span>
+<span id="536">536</span>
+<span id="537">537</span>
+<span id="538">538</span>
+<span id="539">539</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -564,8 +580,6 @@
     <span class="doccomment">/// The public key of this authority.
     </span>primary_name: PublicKey,
     <span class="comment">// The private-public key pair of this worker.
-    // TODO: utilize keypair in network communication
-    </span><span class="attribute">#[allow(dead_code)]
     </span>keypair: NetworkKeyPair,
     <span class="doccomment">/// The id of this worker used for index-based lookup by other NW nodes.
     </span>id: WorkerId,
@@ -578,8 +592,6 @@
     <span class="doccomment">/// The persistent storage.
     </span>store: Store&lt;BatchDigest, Batch&gt;,
 }
-
-<span class="kw">const </span>INADDR_ANY: Ipv4Addr = Ipv4Addr::new(<span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>);
 
 <span class="kw">impl </span>Worker {
     <span class="kw">pub fn </span>spawn(
@@ -612,7 +624,7 @@
 
         <span class="kw">let </span>initial_committee = (<span class="kw-2">*</span>(<span class="kw-2">*</span>(<span class="kw-2">*</span>committee).load()).clone()).clone();
         <span class="kw">let </span>(tx_reconfigure, rx_reconfigure) =
-            watch::channel(ReconfigureNotification::NewEpoch(initial_committee.clone()));
+            watch::channel(ReconfigureNotification::NewEpoch(initial_committee));
 
         <span class="kw">let </span>(tx_worker_helper, rx_worker_helper) =
             channel(CHANNEL_CAPACITY, <span class="kw-2">&amp;</span>channel_metrics.tx_worker_helper);
@@ -646,7 +658,7 @@
 
         <span class="macro">info!</span>(<span class="string">&quot;Worker {} listening to worker messages on {}&quot;</span>, id, address);
 
-        <span class="comment">// add other workers we want to talk with to the known peers set
+        <span class="comment">// Add other workers we want to talk with to the known peers set.
         </span><span class="kw">for </span>(_primary_pubkey, worker_info) <span class="kw">in </span>worker
             .worker_cache
             .load()
@@ -661,6 +673,30 @@
             };
             network.known_peers().insert(peer_info);
         }
+
+        <span class="comment">// Connect worker to its corresponding primary.
+        </span><span class="kw">let </span>primary_address = network::multiaddr_to_address(
+            <span class="kw-2">&amp;</span>committee
+                .load()
+                .primary(<span class="kw-2">&amp;</span>primary_name)
+                .expect(<span class="string">&quot;Our primary is not in the committee&quot;</span>),
+        )
+        .unwrap();
+        <span class="kw">let </span>primary_network_key = committee
+            .load()
+            .network_key(<span class="kw-2">&amp;</span>primary_name)
+            .expect(<span class="string">&quot;Our primary is not in the committee&quot;</span>);
+        network.known_peers().insert(PeerInfo {
+            peer_id: anemo::PeerId(primary_network_key.<span class="number">0</span>.to_bytes()),
+            affinity: anemo::types::PeerAffinity::High,
+            address: <span class="macro">vec!</span>[primary_address],
+        });
+        <span class="kw">let </span>handle = PrimaryConnector::spawn(
+            primary_network_key,
+            rx_reconfigure,
+            rx_primary,
+            network::WorkerToPrimaryNetwork::new(network.clone()),
+        );
 
         <span class="kw">let </span>client_flow_handles = worker.handle_clients_transactions(
             <span class="kw-2">&amp;</span>tx_reconfigure,
@@ -684,10 +720,6 @@
             channel_metrics,
             network,
         );
-
-        <span class="comment">// The `PrimaryConnector` allows the worker to send messages to its primary.
-        </span><span class="kw">let </span>handle =
-            PrimaryConnector::spawn(primary_name, initial_committee, rx_reconfigure, rx_primary);
 
         <span class="comment">// NOTE: This log entry is used to compute performance.
         </span><span class="macro">info!</span>(
@@ -728,7 +760,7 @@
             .expect(<span class="string">&quot;Our public key or worker id is not in the worker cache&quot;</span>)
             .primary_to_worker;
         <span class="kw">let </span>address = address
-            .replace(<span class="number">0</span>, |_protocol| <span class="prelude-val">Some</span>(Protocol::Ip4(INADDR_ANY)))
+            .replace(<span class="number">0</span>, |_protocol| <span class="prelude-val">Some</span>(Protocol::Ip4(Ipv4Addr::UNSPECIFIED)))
             .unwrap();
         <span class="kw">let </span>primary_handle = PrimaryReceiverHandler { tx_synchronizer }
             .spawn(address.clone(), tx_reconfigure.subscribe());
@@ -784,7 +816,7 @@
             .expect(<span class="string">&quot;Our public key or worker id is not in the worker cache&quot;</span>)
             .transactions;
         <span class="kw">let </span>address = address
-            .replace(<span class="number">0</span>, |_protocol| <span class="prelude-val">Some</span>(Protocol::Ip4(INADDR_ANY)))
+            .replace(<span class="number">0</span>, |_protocol| <span class="prelude-val">Some</span>(Protocol::Ip4(Ipv4Addr::UNSPECIFIED)))
             .unwrap();
         <span class="kw">let </span>tx_receiver_handle = TxReceiverHandler { tx_batch_maker }.spawn(
             address.clone(),
@@ -1045,4 +1077,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (59e7a308e 2022-09-11)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (fa6ee9375 2022-09-12)" ></div></body></html>

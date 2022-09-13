@@ -335,6 +335,7 @@
 <span id="335">335</span>
 <span id="336">336</span>
 <span id="337">337</span>
+<span id="338">338</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright(C) Facebook, Inc. and its affiliates.
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -555,7 +556,7 @@
             // in partially synchrony.
             </span><span class="kw">let </span>enough_parents = !<span class="self">self</span>.last_parents.is_empty();
             <span class="kw">let </span>enough_digests = <span class="self">self</span>.payload_size &gt;= <span class="self">self</span>.header_size;
-            <span class="kw">let </span>timer_expired = timer.is_elapsed();
+            <span class="kw">let </span><span class="kw-2">mut </span>timer_expired = timer.is_elapsed();
 
             <span class="kw">if </span>(timer_expired || (enough_digests &amp;&amp; advance)) &amp;&amp; enough_parents {
                 <span class="kw">if </span>timer_expired &amp;&amp; <span class="macro">matches!</span>(<span class="self">self</span>.network_model, NetworkModel::PartiallySynchronous)
@@ -586,6 +587,7 @@
                 <span class="comment">// Reschedule the timer.
                 </span><span class="kw">let </span>deadline = Instant::now() + <span class="self">self</span>.max_header_delay;
                 timer.as_mut().reset(deadline);
+                timer_expired = <span class="bool-val">false</span>;
             }
 
             <span class="macro">tokio::select! </span>{
@@ -673,4 +675,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (59e7a308e 2022-09-11)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (fa6ee9375 2022-09-12)" ></div></body></html>

@@ -73,27 +73,13 @@
 <span id="73">73</span>
 <span id="74">74</span>
 <span id="75">75</span>
-<span id="76">76</span>
-<span id="77">77</span>
-<span id="78">78</span>
-<span id="79">79</span>
-<span id="80">80</span>
-<span id="81">81</span>
-<span id="82">82</span>
-<span id="83">83</span>
-<span id="84">84</span>
-<span id="85">85</span>
-<span id="86">86</span>
-<span id="87">87</span>
-<span id="88">88</span>
-<span id="89">89</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-</span><span class="kw">use </span>config::Committee;
-<span class="kw">use </span>crypto::PublicKey;
+
+</span><span class="kw">use </span>crypto::NetworkPublicKey;
 <span class="kw">use </span>futures::{stream::FuturesUnordered, StreamExt};
-<span class="kw">use </span>network::{ReliableNetwork, WorkerToPrimaryNetwork};
+<span class="kw">use </span>network::{ReliableNetwork2, WorkerToPrimaryNetwork};
 <span class="kw">use </span>tokio::{sync::watch, task::JoinHandle};
 <span class="kw">use </span>types::{metered_channel::Receiver, ReconfigureNotification, WorkerPrimaryMessage};
 
@@ -103,9 +89,7 @@
 <span class="comment">// Send batches&#39; digests to the primary.
 </span><span class="kw">pub struct </span>PrimaryConnector {
     <span class="doccomment">/// The public key of this authority.
-    </span>name: PublicKey,
-    <span class="doccomment">/// The committee information.
-    </span>committee: Committee,
+    </span>primary_name: NetworkPublicKey,
     <span class="doccomment">/// Receive reconfiguration updates.
     </span>rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;,
     <span class="doccomment">/// Input channel to receive the messages to send to the primary.
@@ -117,18 +101,17 @@
 <span class="kw">impl </span>PrimaryConnector {
     <span class="attribute">#[must_use]
     </span><span class="kw">pub fn </span>spawn(
-        name: PublicKey,
-        committee: Committee,
+        primary_name: NetworkPublicKey,
         rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;,
         rx_digest: Receiver&lt;WorkerPrimaryMessage&gt;,
+        primary_client: WorkerToPrimaryNetwork,
     ) -&gt; JoinHandle&lt;()&gt; {
         tokio::spawn(<span class="kw">async move </span>{
             <span class="self">Self </span>{
-                name,
-                committee,
+                primary_name,
                 rx_reconfigure,
                 rx_digest,
-                primary_client: WorkerToPrimaryNetwork::default(),
+                primary_client,
             }
             .run()
             .<span class="kw">await</span>;
@@ -146,29 +129,18 @@
                         <span class="kw">continue</span>;
                     }
 
-                    <span class="kw">let </span>address = <span class="self">self</span>.committee
-                        .primary(<span class="kw-2">&amp;</span><span class="self">self</span>.name)
-                        .expect(<span class="string">&quot;Our public key is not in the committee&quot;</span>)
-                        .worker_to_primary;
-                    <span class="kw">let </span>handle = <span class="self">self</span>.primary_client.send(address, <span class="kw-2">&amp;</span>digest).<span class="kw">await</span>;
+                    <span class="kw">let </span>handle = <span class="self">self</span>.primary_client.send(<span class="self">self</span>.primary_name.to_owned(), <span class="kw-2">&amp;</span>digest).<span class="kw">await</span>;
                     futures.push(handle);
                 },
 
                 <span class="comment">// Trigger reconfigure.
                 </span>result = <span class="self">self</span>.rx_reconfigure.changed() =&gt; {
                     result.expect(<span class="string">&quot;Committee channel dropped&quot;</span>);
-                    <span class="kw">let </span>message = <span class="self">self</span>.rx_reconfigure.borrow().clone();
-                    <span class="kw">match </span>message {
-                        ReconfigureNotification::NewEpoch(new_committee) =&gt; {
-                            <span class="self">self</span>.committee = new_committee;
-                        },
-                        ReconfigureNotification::UpdateCommittee(new_committee) =&gt; {
-                            <span class="self">self</span>.committee = new_committee;
-
-                        },
-                        ReconfigureNotification::Shutdown =&gt; <span class="kw">return
+                    <span class="comment">// TODO: Move logic to handle epoch &amp; committee changes to wherever anemo
+                    // network is managed after worker-to-worker interface is migrated.
+                    </span><span class="kw">if </span><span class="self">self</span>.rx_reconfigure.borrow().clone() == ReconfigureNotification::Shutdown {
+                        <span class="kw">return
                     </span>}
-                    <span class="macro">tracing::debug!</span>(<span class="string">&quot;Committee updated to {}&quot;</span>, <span class="self">self</span>.committee);
                 }
 
                 <span class="prelude-val">Some</span>(_result) = futures.next() =&gt; ()
@@ -177,4 +149,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (59e7a308e 2022-09-11)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (fa6ee9375 2022-09-12)" ></div></body></html>
