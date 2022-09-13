@@ -99,6 +99,13 @@
 <span id="99">99</span>
 <span id="100">100</span>
 <span id="101">101</span>
+<span id="102">102</span>
+<span id="103">103</span>
+<span id="104">104</span>
+<span id="105">105</span>
+<span id="106">106</span>
+<span id="107">107</span>
+<span id="108">108</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span>prometheus::{
@@ -122,6 +129,8 @@
     <span class="doccomment">/// The number of certificates from consensus that were restored and sent to the executor
     /// following a node restart
     </span><span class="kw">pub </span>recovered_consensus_output: IntCounter,
+    <span class="doccomment">/// The approximate size in memory (including heap allocations) of the Dag.
+    </span><span class="kw">pub </span>dag_size_bytes: IntGauge,
 }
 
 <span class="kw">impl </span>ConsensusMetrics {
@@ -159,6 +168,11 @@
             recovered_consensus_output: <span class="macro">register_int_counter_with_registry!</span>(
                 <span class="string">&quot;recovered_consensus_output&quot;</span>, 
                 <span class="string">&quot;The number of certificates from consensus that were restored and sent to the executor following a node restart&quot;</span>,
+                registry
+            ).unwrap(),
+            dag_size_bytes: <span class="macro">register_int_gauge_with_registry!</span>(
+                <span class="string">&quot;dag_size_bytes&quot;</span>,
+                <span class="string">&quot;The approximate size in memory (including heap allocations) of the dag&quot;</span>,
                 registry
             ).unwrap(),
         }

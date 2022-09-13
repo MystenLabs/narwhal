@@ -778,6 +778,13 @@
 <span id="778">778</span>
 <span id="779">779</span>
 <span id="780">780</span>
+<span id="781">781</span>
+<span id="782">782</span>
+<span id="783">783</span>
+<span id="784">784</span>
+<span id="785">785</span>
+<span id="786">786</span>
+<span id="787">787</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -797,6 +804,7 @@
     Digest, Hash, SignatureService, Verifier, DIGEST_LEN,
 };
 <span class="kw">use </span>indexmap::IndexMap;
+<span class="kw">use </span>mysten_util_mem::MallocSizeOf;
 <span class="kw">use </span>proptest_derive::Arbitrary;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>serde_with::serde_as;
@@ -812,7 +820,9 @@
 <span class="attribute">#[derive(Clone, Serialize, Deserialize, Default, Debug, PartialEq, Eq, Arbitrary)]
 </span><span class="kw">pub struct </span>Batch(<span class="kw">pub </span>Vec&lt;Transaction&gt;);
 
-<span class="attribute">#[derive(Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
+<span class="attribute">#[derive(
+    Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq, Hash, PartialOrd, Ord, MallocSizeOf,
+)]
 </span><span class="kw">pub struct </span>BatchDigest(<span class="kw">pub </span>[u8; DIGEST_LEN]);
 
 <span class="kw">impl </span>fmt::Debug <span class="kw">for </span>BatchDigest {
@@ -849,7 +859,7 @@
     }
 }
 
-<span class="attribute">#[derive(Clone, Serialize, Deserialize, Default, Builder)]
+<span class="attribute">#[derive(Builder, Clone, Default, Deserialize, MallocSizeOf, Serialize)]
 #[builder(pattern = <span class="string">&quot;owned&quot;</span>, build_fn(skip))]
 </span><span class="kw">pub struct </span>Header {
     <span class="kw">pub </span>author: PublicKey,
@@ -960,7 +970,9 @@
     }
 }
 
-<span class="attribute">#[derive(Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
+<span class="attribute">#[derive(
+    Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq, Hash, PartialOrd, Ord, MallocSizeOf,
+)]
 </span><span class="kw">pub struct </span>HeaderDigest([u8; DIGEST_LEN]);
 
 <span class="kw">impl </span>From&lt;HeaderDigest&gt; <span class="kw">for </span>Digest {
@@ -1159,7 +1171,7 @@
 }
 
 <span class="attribute">#[serde_as]
-#[derive(Clone, Serialize, Deserialize, Default)]
+#[derive(Clone, MallocSizeOf, Serialize, Deserialize, Default)]
 </span><span class="kw">pub struct </span>Certificate {
     <span class="kw">pub </span>header: Header,
     aggregated_signature: AggregateSignature,
@@ -1324,7 +1336,9 @@
     }
 }
 
-<span class="attribute">#[derive(Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
+<span class="attribute">#[derive(
+    Clone, Copy, Serialize, Deserialize, Default, MallocSizeOf, PartialEq, Eq, Hash, PartialOrd, Ord,
+)]
 </span><span class="kw">pub struct </span>CertificateDigest([u8; DIGEST_LEN]);
 
 <span class="kw">impl </span>CertificateDigest {
