@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use config::{
-    utils::get_available_port, Authority, Committee, Epoch, SharedWorkerCache, WorkerCache,
+    utils::get_available_port, Authority, Committee, Epoch, SharedWorkerCache, Stake, WorkerCache,
     WorkerId, WorkerIndex, WorkerInfo,
 };
 use crypto::{KeyPair, NetworkKeyPair, NetworkPublicKey, PublicKey};
@@ -759,7 +759,7 @@ impl CommitteeFixture {
 pub struct AuthorityFixture {
     keypair: KeyPair,
     network_keypair: NetworkKeyPair,
-    stake: u32,
+    stake: Stake,
     address: Multiaddr,
     workers: BTreeMap<WorkerId, WorkerFixture>,
 }
