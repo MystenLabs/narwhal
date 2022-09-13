@@ -17,7 +17,7 @@ use futures::{
     stream::FuturesUnordered,
     FutureExt, StreamExt,
 };
-use network::{P2pNetwork, UnreliableNetwork2};
+use network::{P2pNetwork, UnreliableNetwork};
 use rand::{rngs::SmallRng, SeedableRng};
 use std::{
     collections::{HashMap, HashSet},

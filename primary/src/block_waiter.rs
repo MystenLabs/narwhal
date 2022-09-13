@@ -9,7 +9,7 @@ use futures::{
     stream::{futures_unordered::FuturesUnordered, StreamExt as _},
     FutureExt,
 };
-use network::{P2pNetwork, UnreliableNetwork2};
+use network::{P2pNetwork, UnreliableNetwork};
 use std::{
     collections::{HashMap, HashSet},
     fmt,

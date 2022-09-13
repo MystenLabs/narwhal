@@ -4,7 +4,7 @@
 use crate::primary::PrimaryWorkerMessage;
 use config::{SharedCommittee, SharedWorkerCache, WorkerCache, WorkerIndex};
 use crypto::PublicKey;
-use network::{P2pNetwork, UnreliableNetwork2};
+use network::{P2pNetwork, UnreliableNetwork};
 use std::{collections::BTreeMap, sync::Arc};
 use tap::TapOptional;
 use tokio::{sync::watch, task::JoinHandle};

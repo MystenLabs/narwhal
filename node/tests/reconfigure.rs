@@ -8,7 +8,7 @@ use crypto::{KeyPair, NetworkKeyPair, PublicKey};
 use executor::{ExecutionIndices, ExecutionState, ExecutionStateError};
 use fastcrypto::traits::KeyPair as _;
 use futures::future::join_all;
-use network::{P2pNetwork, ReliableNetwork2};
+use network::{P2pNetwork, ReliableNetwork};
 use node::{restarter::NodeRestarter, Node, NodeStorage};
 use primary::PrimaryWorkerMessage;
 use prometheus::Registry;

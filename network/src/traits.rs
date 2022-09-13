@@ -7,7 +7,7 @@ use rand::prelude::{SliceRandom, SmallRng};
 use tokio::task::JoinHandle;
 
 #[async_trait]
-pub trait UnreliableNetwork2<Message: Clone + Send + Sync> {
+pub trait UnreliableNetwork<Message: Clone + Send + Sync> {
     async fn unreliable_send(
         &mut self,
         peer: NetworkPublicKey,
@@ -35,7 +35,7 @@ pub trait Lucky {
 }
 
 #[async_trait]
-pub trait LuckyNetwork2<Message> {
+pub trait LuckyNetwork<Message> {
     /// Pick a few addresses at random (specified by `nodes`) and try (best-effort) to send the
     /// message only to them. This is useful to pick nodes with whom to sync.
     async fn lucky_broadcast(
@@ -47,10 +47,10 @@ pub trait LuckyNetwork2<Message> {
 }
 
 #[async_trait]
-impl<T, M> LuckyNetwork2<M> for T
+impl<T, M> LuckyNetwork<M> for T
 where
     M: Clone + Send + Sync,
-    T: UnreliableNetwork2<M> + Send,
+    T: UnreliableNetwork<M> + Send,
     T: Lucky,
 {
     async fn lucky_broadcast(
@@ -66,7 +66,7 @@ where
 }
 
 #[async_trait]
-pub trait ReliableNetwork2<Message: Clone + Send + Sync> {
+pub trait ReliableNetwork<Message: Clone + Send + Sync> {
     async fn send(
         &mut self,
         peer: NetworkPublicKey,

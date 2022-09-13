@@ -11,7 +11,7 @@ use futures::{
     FutureExt,
 };
 use itertools::Either;
-use network::{P2pNetwork, UnreliableNetwork2};
+use network::{P2pNetwork, UnreliableNetwork};
 use std::{collections::HashMap, sync::Arc, time::Duration};
 use storage::CertificateStore;
 use store::{rocks::TypedStoreError, Store};

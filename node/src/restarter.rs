@@ -7,7 +7,7 @@ use crypto::{KeyPair, NetworkKeyPair};
 use executor::{ExecutionState, ExecutorOutput};
 use fastcrypto::traits::KeyPair as _;
 use futures::future::join_all;
-use network::{P2pNetwork, ReliableNetwork2};
+use network::{P2pNetwork, ReliableNetwork};
 use prometheus::Registry;
 use std::{fmt::Debug, path::PathBuf, sync::Arc};
 use tokio::sync::mpsc::{Receiver, Sender};

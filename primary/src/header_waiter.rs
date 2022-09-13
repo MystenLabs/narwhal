@@ -8,7 +8,7 @@ use crate::{
 use config::{Committee, SharedWorkerCache, WorkerId};
 use crypto::PublicKey;
 use futures::future::{try_join_all, BoxFuture};
-use network::{LuckyNetwork2, P2pNetwork, UnreliableNetwork2};
+use network::{LuckyNetwork, P2pNetwork, UnreliableNetwork};
 use serde::{de::DeserializeOwned, Serialize};
 use std::{
     collections::HashMap,

@@ -4,7 +4,7 @@
 
 use crypto::NetworkPublicKey;
 use futures::{stream::FuturesUnordered, StreamExt};
-use network::{P2pNetwork, ReliableNetwork2};
+use network::{P2pNetwork, ReliableNetwork};
 use tokio::{sync::watch, task::JoinHandle};
 use types::{metered_channel::Receiver, ReconfigureNotification, WorkerPrimaryMessage};
 

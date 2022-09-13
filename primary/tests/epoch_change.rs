@@ -4,7 +4,7 @@ use arc_swap::ArcSwap;
 use config::{Committee, Parameters};
 use fastcrypto::traits::KeyPair;
 use futures::future::join_all;
-use network::{CancelOnDropHandler, P2pNetwork, ReliableNetwork2};
+use network::{CancelOnDropHandler, P2pNetwork, ReliableNetwork};
 use node::NodeStorage;
 use primary::{NetworkModel, Primary, CHANNEL_CAPACITY};
 use prometheus::Registry;

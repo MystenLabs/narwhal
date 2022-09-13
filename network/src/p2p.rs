@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    traits::{Lucky, ReliableNetwork2, UnreliableNetwork2},
+    traits::{Lucky, ReliableNetwork, UnreliableNetwork},
     BoundedExecutor, CancelOnDropHandler, RetryConfig, MAX_TASK_CONCURRENCY,
 };
 use anemo::PeerId;
@@ -155,7 +155,7 @@ impl Lucky for P2pNetwork {
 //
 
 #[async_trait]
-impl UnreliableNetwork2<PrimaryMessage> for P2pNetwork {
+impl UnreliableNetwork<PrimaryMessage> for P2pNetwork {
     async fn unreliable_send(
         &mut self,
         peer: NetworkPublicKey,
@@ -172,7 +172,7 @@ impl UnreliableNetwork2<PrimaryMessage> for P2pNetwork {
 }
 
 #[async_trait]
-impl ReliableNetwork2<PrimaryMessage> for P2pNetwork {
+impl ReliableNetwork<PrimaryMessage> for P2pNetwork {
     async fn send(
         &mut self,
         peer: NetworkPublicKey,
@@ -197,7 +197,7 @@ impl ReliableNetwork2<PrimaryMessage> for P2pNetwork {
 //
 
 #[async_trait]
-impl UnreliableNetwork2<PrimaryWorkerMessage> for P2pNetwork {
+impl UnreliableNetwork<PrimaryWorkerMessage> for P2pNetwork {
     async fn unreliable_send(
         &mut self,
         peer: NetworkPublicKey,
@@ -211,7 +211,7 @@ impl UnreliableNetwork2<PrimaryWorkerMessage> for P2pNetwork {
 }
 
 #[async_trait]
-impl ReliableNetwork2<PrimaryWorkerMessage> for P2pNetwork {
+impl ReliableNetwork<PrimaryWorkerMessage> for P2pNetwork {
     async fn send(
         &mut self,
         peer: NetworkPublicKey,
@@ -232,7 +232,7 @@ impl ReliableNetwork2<PrimaryWorkerMessage> for P2pNetwork {
 //
 
 #[async_trait]
-impl UnreliableNetwork2<WorkerPrimaryMessage> for P2pNetwork {
+impl UnreliableNetwork<WorkerPrimaryMessage> for P2pNetwork {
     async fn unreliable_send(
         &mut self,
         peer: NetworkPublicKey,
@@ -246,7 +246,7 @@ impl UnreliableNetwork2<WorkerPrimaryMessage> for P2pNetwork {
 }
 
 #[async_trait]
-impl ReliableNetwork2<WorkerPrimaryMessage> for P2pNetwork {
+impl ReliableNetwork<WorkerPrimaryMessage> for P2pNetwork {
     async fn send(
         &mut self,
         peer: NetworkPublicKey,
@@ -267,7 +267,7 @@ impl ReliableNetwork2<WorkerPrimaryMessage> for P2pNetwork {
 //
 
 #[async_trait]
-impl UnreliableNetwork2<WorkerMessage> for P2pNetwork {
+impl UnreliableNetwork<WorkerMessage> for P2pNetwork {
     async fn unreliable_send(
         &mut self,
         peer: NetworkPublicKey,
@@ -281,7 +281,7 @@ impl UnreliableNetwork2<WorkerMessage> for P2pNetwork {
 }
 
 #[async_trait]
-impl ReliableNetwork2<WorkerMessage> for P2pNetwork {
+impl ReliableNetwork<WorkerMessage> for P2pNetwork {
     async fn send(
         &mut self,
         peer: NetworkPublicKey,
