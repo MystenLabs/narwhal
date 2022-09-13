@@ -5503,6 +5503,7 @@ dependencies = [
  "unicode-width",
  "unicode-xid 0.1.0",
  "unicode-xid 0.2.3",
+ "unsafe-libyaml",
  "unsigned-varint",
  "untrusted",
  "url",
