@@ -73,14 +73,12 @@ pub type BlockSynchronizeResult<T> = Result<T, SyncError>;
 
 #[derive(Debug)]
 pub enum Command {
-    #[allow(dead_code)]
     /// A request to have this authority catch up with others on certificates as much as possible.
     /// It is intended to be used when this authority has just restarted, or has detected that it is
     /// missing a significant number of latest rounds from the dag.
     SynchronizeRange {
         respond_to: Sender<CertificateIDsByRounds>,
     },
-    #[allow(dead_code)]
     /// A request to synchronize and output the block headers
     /// This will not perform any attempt to fetch the header's
     /// batches. This component does NOT check whether the
@@ -102,7 +100,6 @@ pub enum Command {
     /// This component does NOT check whether the
     //  requested block_ids are already synchronized. This is the
     //  consumer's responsibility.
-    #[allow(dead_code)]
     SynchronizeBlockPayload {
         certificates: Vec<Certificate>,
         respond_to: ResultSender,
