@@ -285,7 +285,8 @@ impl CertificateStore {
     }
 
     /// Retrieves the latest round number of certificates in store.
-    pub fn last_round_number(&self) -> StoreResult<Option<Round>> {
+    /// Returns None if there is no certificate.
+    pub fn last_round_number(&self) -> Option<Round> {
         if let Some(((last_round_num, _), _)) = self
             .certificate_ids_by_round
             .iter()
@@ -293,9 +294,9 @@ impl CertificateStore {
             .reverse()
             .next()
         {
-            return Ok(Some(last_round_num));
+            return Some(last_round_num);
         }
-        Ok(None)
+        None
     }
 
     /// Clears both the main storage of the certificates and the secondary index

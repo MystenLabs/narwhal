@@ -25,7 +25,6 @@ use std::{
 };
 use storage::CertificateStore;
 use store::Store;
-use tap::TapFallible;
 use thiserror::Error;
 use tokio::{
     sync::{
@@ -176,7 +175,7 @@ struct SyncRangeState {
     responded_peers: BTreeSet<PublicKey>,
     // Relays each range sync response to the waiter for processing.
     item_sender: Option<Sender<(CertificateIDsByRounds, PublicKey)>>,
-    // Relies the final response to the original caller of the range sync.
+    // Relays the final response to the original caller of the range sync.
     result_sender: Option<Sender<CertificateIDsByRounds>>,
 }
 
@@ -403,14 +402,7 @@ impl BlockSynchronizer {
         self.sync_range_state.item_sender = Some(sender);
 
         // Broadcast range sync request.
-        let last_round = self.certificate_store.last_round_number().tap_err(|e| {
-            warn!("Failed to read past rounds: {e:?}");
-        });
-        let last_round = if let Ok(r) = last_round {
-            r
-        } else {
-            return None;
-        };
+        let last_round = self.certificate_store.last_round_number();
         // NOTE: Assuming locally missing certificates in existing rounds are negligible issues,
         // range sync starts from the next round where there is no certificate stored locally.
         // We can switch to a more fine grained per-certificate-author range sync if necessary.
@@ -442,7 +434,7 @@ impl BlockSynchronizer {
             // Drop if there is no active range request.
             return;
         }
-        if from == self.name || self.committee.stake(&from) == 0 {
+        if from == self.name || self.committee.primary(&from).is_err() {
             // Drop when the response is from the same primary
             // or from an origin that is not in the committe.
             return;

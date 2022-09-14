@@ -57,18 +57,16 @@ async fn test_successful_range_synchronization() {
     let (_, rx_certificate_responses) = test_utils::test_channel!(10);
     let (_, rx_payload_availability_responses) = test_utils::test_channel!(10);
 
-    let own_address =
-        network::multiaddr_to_address(&committee.primary(&name).unwrap().primary_to_primary)
-            .unwrap();
+    let own_address = network::multiaddr_to_address(&committee.primary(&name).unwrap()).unwrap();
     let network = anemo::Network::bind(own_address)
         .server_name("narwhal")
         .private_key(network_key)
         .start(anemo::Router::new())
         .unwrap();
 
-    for (_pubkey, addresses, network_pubkey) in committee.others_primaries(&name) {
+    for (_pubkey, address, network_pubkey) in committee.others_primaries(&name) {
         let peer_id = PeerId(network_pubkey.0.to_bytes());
-        let address = network::multiaddr_to_address(&addresses.primary_to_primary).unwrap();
+        let address = network::multiaddr_to_address(&address).unwrap();
         let peer_info = PeerInfo {
             peer_id,
             affinity: anemo::types::PeerAffinity::High,
@@ -151,10 +149,7 @@ async fn test_successful_range_synchronization() {
         .authorities()
         .filter(|a| a.public_key() != name)
         .map(|a| {
-            let address = committee
-                .primary(&a.public_key())
-                .unwrap()
-                .primary_to_primary;
+            let address = committee.primary(&a.public_key()).unwrap();
             primary_listener(1, a.network_keypair().copy(), address)
         })
         .collect();
