@@ -39,11 +39,11 @@
 <span class="doccomment">/// Return an ephemeral, available port. On unix systems, the port returned will be in the
 /// TIME_WAIT state ensuring that the OS won&#39;t hand out this port for some grace period.
 /// Callers should be able to bind to this port given they use SO_REUSEADDR.
-</span><span class="kw">pub fn </span>get_available_port() -&gt; u16 {
+</span><span class="kw">pub fn </span>get_available_port(host: <span class="kw-2">&amp;</span>str) -&gt; u16 {
     <span class="kw">const </span>MAX_PORT_RETRIES: u32 = <span class="number">1000</span>;
 
     <span class="kw">for _ in </span><span class="number">0</span>..MAX_PORT_RETRIES {
-        <span class="kw">if let </span><span class="prelude-val">Ok</span>(port) = get_ephemeral_port() {
+        <span class="kw">if let </span><span class="prelude-val">Ok</span>(port) = get_ephemeral_port(host) {
             <span class="kw">return </span>port;
         }
     }
@@ -51,9 +51,9 @@
     <span class="macro">panic!</span>(<span class="string">&quot;Error: could not find an available port&quot;</span>);
 }
 
-<span class="kw">fn </span>get_ephemeral_port() -&gt; ::std::io::Result&lt;u16&gt; {
+<span class="kw">fn </span>get_ephemeral_port(host: <span class="kw-2">&amp;</span>str) -&gt; ::std::io::Result&lt;u16&gt; {
     <span class="comment">// Request a random available port from the OS
-    </span><span class="kw">let </span>listener = TcpListener::bind((<span class="string">&quot;localhost&quot;</span>, <span class="number">0</span>))<span class="question-mark">?</span>;
+    </span><span class="kw">let </span>listener = TcpListener::bind((host, <span class="number">0</span>))<span class="question-mark">?</span>;
     <span class="kw">let </span>addr = listener.local_addr()<span class="question-mark">?</span>;
 
     <span class="comment">// Create and accept a connection (which we&#39;ll promptly drop) in order to force the port

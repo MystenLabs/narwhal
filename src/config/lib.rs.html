@@ -710,6 +710,8 @@
 <span id="710">710</span>
 <span id="711">711</span>
 <span id="712">712</span>
+<span id="713">713</span>
+<span id="714">714</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -857,8 +859,9 @@
 
 <span class="kw">impl </span>Default <span class="kw">for </span>PrometheusMetricsParameters {
     <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>host = <span class="string">&quot;127.0.0.1&quot;</span>;
         <span class="self">Self </span>{
-            socket_addr: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, get_available_port())
+            socket_addr: <span class="macro">format!</span>(<span class="string">&quot;/ip4/{}/tcp/{}/http&quot;</span>, host, get_available_port(host))
                 .parse()
                 .unwrap(),
         }
@@ -879,8 +882,9 @@
 
 <span class="kw">impl </span>Default <span class="kw">for </span>ConsensusAPIGrpcParameters {
     <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>host = <span class="string">&quot;127.0.0.1&quot;</span>;
         <span class="self">Self </span>{
-            socket_addr: <span class="macro">format!</span>(<span class="string">&quot;/ip4/127.0.0.1/tcp/{}/http&quot;</span>, get_available_port())
+            socket_addr: <span class="macro">format!</span>(<span class="string">&quot;/ip4/{}/tcp/{}/http&quot;</span>, host, get_available_port(host))
                 .parse()
                 .unwrap(),
             get_collections_timeout: Duration::from_millis(<span class="number">5_000</span>),
