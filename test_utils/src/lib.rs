@@ -619,16 +619,16 @@ impl<R> Builder<R> {
 
 impl<R: rand::RngCore + rand::CryptoRng> Builder<R> {
     pub fn build(mut self) -> CommitteeFixture {
-        let get_port = || {
-            if self.randomize_ports {
-                get_available_port()
-            } else {
-                0
-            }
-        };
-
         let authorities = (0..self.committee_size.get())
-            .map(|_| AuthorityFixture::generate(&mut self.rng, self.number_of_workers, get_port))
+            .map(|_| {
+                AuthorityFixture::generate(&mut self.rng, self.number_of_workers, |host| {
+                    if self.randomize_ports {
+                        get_available_port(host)
+                    } else {
+                        0
+                    }
+                })
+            })
             .collect();
 
         CommitteeFixture {
@@ -842,11 +842,12 @@ impl AuthorityFixture {
     fn generate<R, P>(mut rng: R, number_of_workers: NonZeroUsize, mut get_port: P) -> Self
     where
         R: rand::RngCore + rand::CryptoRng,
-        P: FnMut() -> u16,
+        P: FnMut(&str) -> u16,
     {
         let keypair = KeyPair::generate(&mut rng);
         let network_keypair = NetworkKeyPair::generate(&mut rng);
-        let address: Multiaddr = format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
+        let host = "127.0.0.1";
+        let address: Multiaddr = format!("/ip4/{}/tcp/{}/http", host, get_port(host))
             .parse()
             .unwrap();
 
@@ -887,14 +888,15 @@ impl WorkerFixture {
     fn generate<R, P>(mut rng: R, id: WorkerId, mut get_port: P) -> Self
     where
         R: rand::RngCore + rand::CryptoRng,
-        P: FnMut() -> u16,
+        P: FnMut(&str) -> u16,
     {
         let keypair = NetworkKeyPair::generate(&mut rng);
         let worker_name = keypair.public().clone();
-        let worker_address = format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
+        let host = "127.0.0.1";
+        let worker_address = format!("/ip4/{}/tcp/{}/http", host, get_port(host))
             .parse()
             .unwrap();
-        let transactions = format!("/ip4/127.0.0.1/tcp/{}/http", get_port())
+        let transactions = format!("/ip4/{}/tcp/{}/http", host, get_port(host))
             .parse()
             .unwrap();
 
