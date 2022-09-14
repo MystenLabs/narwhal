@@ -59,10 +59,6 @@
 <span id="59">59</span>
 <span id="60">60</span>
 <span id="61">61</span>
-<span id="62">62</span>
-<span id="63">63</span>
-<span id="64">64</span>
-<span id="65">65</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span>async_trait::async_trait;
@@ -86,10 +82,6 @@
         _transaction: <span class="self">Self</span>::Transaction,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>::Outcome, <span class="self">Self</span>::Error&gt; {
         <span class="prelude-val">Ok</span>(Vec::default())
-    }
-
-    <span class="kw">fn </span>deserialize(bytes: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>::Transaction, bincode::Error&gt; {
-        bincode::deserialize(bytes)
     }
 
     <span class="kw">fn </span>ask_consensus_write_lock(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
@@ -129,4 +121,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="node" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (fa6ee9375 2022-09-12)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="node" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (17cbdfd07 2022-09-13)" ></div></body></html>

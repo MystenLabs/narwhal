@@ -189,6 +189,9 @@
 <span id="189">189</span>
 <span id="190">190</span>
 <span id="191">191</span>
+<span id="192">192</span>
+<span id="193">193</span>
+<span id="194">194</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -342,26 +345,29 @@
                 );
             }
 
-            <span class="comment">// The first 8 bytes of each transaction message is reserved for an identifier
-            // that&#39;s useful for debugging and tracking the lifetime of messages between
-            // Narwhal and clients.
-            </span><span class="kw">let </span>tracking_ids: Vec&lt;<span class="kw">_</span>&gt; = batch
-                .<span class="number">0
-                </span>.iter()
-                .map(|tx| {
-                    <span class="kw">let </span>len = tx.len();
-                    <span class="kw">if </span>len &gt;= <span class="number">8 </span>{
-                        (<span class="kw-2">&amp;</span>tx[<span class="number">0</span>..<span class="number">8</span>]).read_u64::&lt;BigEndian&gt;().unwrap_or_default()
-                    } <span class="kw">else </span>{
-                        <span class="number">0
-                    </span>}
-                })
-                .collect();
-            <span class="macro">tracing::debug!</span>(
-                <span class="string">&quot;Tracking IDs of transactions in the Batch {:?}: {:?}&quot;</span>,
-                digest,
-                tracking_ids
-            );
+            <span class="attribute">#[cfg(feature = <span class="string">&quot;trace_transaction&quot;</span>)]
+            </span>{
+                <span class="comment">// The first 8 bytes of each transaction message is reserved for an identifier
+                // that&#39;s useful for debugging and tracking the lifetime of messages between
+                // Narwhal and clients.
+                </span><span class="kw">let </span>tracking_ids: Vec&lt;<span class="kw">_</span>&gt; = batch
+                    .<span class="number">0
+                    </span>.iter()
+                    .map(|tx| {
+                        <span class="kw">let </span>len = tx.len();
+                        <span class="kw">if </span>len &gt;= <span class="number">8 </span>{
+                            (<span class="kw-2">&amp;</span>tx[<span class="number">0</span>..<span class="number">8</span>]).read_u64::&lt;BigEndian&gt;().unwrap_or_default()
+                        } <span class="kw">else </span>{
+                            <span class="number">0
+                        </span>}
+                    })
+                    .collect();
+                <span class="macro">tracing::debug!</span>(
+                    <span class="string">&quot;Tracking IDs of transactions in the Batch {:?}: {:?}&quot;</span>,
+                    digest,
+                    tracking_ids
+                );
+            }
 
             <span class="comment">// NOTE: This log entry is used to compute performance.
             </span><span class="macro">tracing::info!</span>(<span class="string">&quot;Batch {:?} contains {} B&quot;</span>, digest, size);
@@ -381,4 +387,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (fa6ee9375 2022-09-12)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (17cbdfd07 2022-09-13)" ></div></body></html>

@@ -499,7 +499,7 @@
         // If the deserialization fail it is safe to ignore the transaction since all correct
         // clients will do the same. Remember that a bad authority or client may input random
         // bytes to the consensus.
-        </span><span class="kw">let </span>transaction: State::Transaction = <span class="kw">match </span>State::deserialize(<span class="kw-2">&amp;</span>serialized) {
+        </span><span class="kw">let </span>transaction: State::Transaction = <span class="kw">match </span>bincode::deserialize(<span class="kw-2">&amp;</span>serialized) {
             <span class="prelude-val">Ok</span>(x) =&gt; x,
             <span class="prelude-val">Err</span>(e) =&gt; <span class="macro">bail!</span>(SubscriberError::ClientExecutionError(<span class="macro">format!</span>(
                 <span class="string">&quot;Failed to deserialize transaction: {e}&quot;
@@ -519,4 +519,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="executor" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (fa6ee9375 2022-09-12)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="executor" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (17cbdfd07 2022-09-13)" ></div></body></html>
