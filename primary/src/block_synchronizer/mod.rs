@@ -57,6 +57,10 @@ pub mod responses;
 /// proceed to next state.
 const CERTIFICATE_RESPONSES_RATIO_THRESHOLD: f32 = 0.5;
 
+/// The maximum number of rounds to be included in each range request. Currently the same as the
+/// default GC threshold. We can make it into a parameter if needed.
+const CERTIFICATES_RANGE_REQUEST_MAX_ROUNDS: u32 = 50;
+
 #[derive(Debug, Clone)]
 pub struct BlockHeader {
     pub certificate: Certificate,
@@ -407,6 +411,7 @@ impl BlockSynchronizer {
         let range_start = if let Some(r) = last_round { r + 1 } else { 0 };
         let message = PrimaryMessage::CertificatesRangeRequest {
             range_start,
+            max_rounds: CERTIFICATES_RANGE_REQUEST_MAX_ROUNDS,
             requestor: self.name.clone(),
         };
         self.broadcast_batch_request(message.clone()).await;
@@ -428,18 +433,39 @@ impl BlockSynchronizer {
         from: PublicKey,
     ) {
         if !self.sync_range_state.running {
-            // Drop if there is no active range request.
+            trace!("dropping range sync request since range sync is active");
             return;
         }
-        if from == self.name || self.committee.primary(&from).is_err() {
-            // Drop when the response is from the same primary
-            // or from an origin that is not in the committe.
+        if from == self.name {
+            trace!("dropping range sync request from the same authority");
+            return;
+        }
+        if self.committee.primary(&from).is_err() {
+            trace!("dropping range sync request from an origin that is not in the committe");
             return;
         }
         let state = &mut self.sync_range_state;
         if !state.responded_peers.insert(from.clone()) {
-            // Skip duplicated response from the same peer.
+            trace!(
+                "dropping range sync request from a peer we already heard from: {:?}",
+                from.clone()
+            );
             return;
+        }
+        if certificate_ids.len() > CERTIFICATES_RANGE_REQUEST_MAX_ROUNDS as usize {
+            // Skip response containing too many rounds.
+            trace!(
+                "dropping range sync request containing too many rounds: {:?} > {:?}",
+                certificate_ids.len(),
+                CERTIFICATES_RANGE_REQUEST_MAX_ROUNDS
+            );
+            return;
+        }
+        for cert_ids in certificate_ids.values() {
+            if cert_ids.len() > self.committee.size() {
+                trace!("dropping range sync request with one round containing too digests: {:?} > {:?}", cert_ids.len(), self.committee.size());
+                return;
+            }
         }
         // Since range sync state is active, item_sender must be valid.
         if let Err(e) = state

@@ -190,10 +190,12 @@ async fn test_successful_range_synchronization() {
         match primary_responses.remove(0) {
             PrimaryMessage::CertificatesRangeRequest {
                 range_start,
+                max_rounds,
                 requestor,
             } => {
                 info!("Received range sync response from {requestor}");
                 assert_eq!(range_start, 5, "Start of requested range is incorrect");
+                assert_eq!(max_rounds, 50, "Max rounds is incorrect");
                 tx_range_responses
                     .send(PrimaryMessage::CertificatesRangeResponse {
                         certificate_ids: certificate_ids[i].clone(),
