@@ -1265,9 +1265,9 @@ version = "0.1.0"
 dependencies = [
  "base64",
  "clap 2.34.0",
- "prost 0.10.4",
+ "prost",
  "tokio",
- "tonic 0.7.2",
+ "tonic",
  "tonic-build",
  "workspace-hack",
 ]
@@ -1514,7 +1514,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-util",
- "tonic 0.7.2",
+ "tonic",
  "tracing",
  "typed-store",
  "types",
@@ -2403,8 +2403,8 @@ dependencies = [
  "serde",
  "tokio",
  "tokio-stream",
- "tonic 0.7.2",
- "tonic-health 0.6.0",
+ "tonic",
+ "tonic-health",
  "tower",
  "tower-http",
  "tracing",
@@ -2460,7 +2460,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-util",
- "tonic 0.7.2",
+ "tonic",
  "tracing",
  "types",
  "workspace-hack",
@@ -3022,7 +3022,7 @@ dependencies = [
  "once_cell",
  "prometheus",
  "proptest",
- "prost 0.10.4",
+ "prost",
  "rand 0.8.5",
  "roaring",
  "serde",
@@ -3034,7 +3034,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-util",
- "tonic 0.7.2",
+ "tonic",
  "tower",
  "tracing",
  "tracing-test",
@@ -3158,17 +3158,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "71adf41db68aa0daaefc69bb30bcd68ded9b9abaad5d1fbb6304c4fb390e083e"
 dependencies = [
  "bytes",
- "prost-derive 0.10.1",
-]
-
-[[package]]
-name = "prost"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "399c3c31cdec40583bb68f0b18403400d01ec4289c383aa047560439952c4dd7"
-dependencies = [
- "bytes",
- "prost-derive 0.11.0",
+ "prost-derive",
 ]
 
 [[package]]
@@ -3186,7 +3176,7 @@ dependencies = [
  "log",
  "multimap",
  "petgraph",
- "prost 0.10.4",
+ "prost",
  "prost-types",
  "regex",
  "tempfile",
@@ -3207,26 +3197,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "prost-derive"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7345d5f0e08c0536d7ac7229952590239e77abf0a0100a1b1d890add6ea96364"
-dependencies = [
- "anyhow",
- "itertools",
- "proc-macro2 1.0.40",
- "quote 1.0.20",
- "syn 1.0.98",
-]
-
-[[package]]
 name = "prost-types"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2d0a014229361011dc8e69c8a1ec6c2e8d0f2af7c91e3ea3f5b2170298461e68"
 dependencies = [
  "bytes",
- "prost 0.10.4",
+ "prost",
 ]
 
 [[package]]
@@ -4037,7 +4014,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-util",
- "tonic 0.7.2",
+ "tonic",
  "tracing",
  "typed-store",
  "types",
@@ -4258,7 +4235,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-util",
- "tonic 0.7.2",
+ "tonic",
  "tower",
  "tracing",
  "typed-store",
@@ -4490,43 +4467,11 @@ dependencies = [
  "hyper-timeout",
  "percent-encoding",
  "pin-project",
- "prost 0.10.4",
- "prost-derive 0.10.1",
+ "prost",
+ "prost-derive",
  "rustls-pemfile 1.0.1",
  "tokio",
  "tokio-rustls",
- "tokio-stream",
- "tokio-util",
- "tower",
- "tower-layer",
- "tower-service",
- "tracing",
- "tracing-futures",
-]
-
-[[package]]
-name = "tonic"
-version = "0.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "11cd56bdb54ef93935a6a79dbd1d91f1ebd4c64150fd61654031fd6b8b775c91"
-dependencies = [
- "async-stream",
- "async-trait",
- "axum",
- "base64",
- "bytes",
- "futures-core",
- "futures-util",
- "h2",
- "http",
- "http-body",
- "hyper",
- "hyper-timeout",
- "percent-encoding",
- "pin-project",
- "prost 0.11.0",
- "prost-derive 0.11.0",
- "tokio",
  "tokio-stream",
  "tokio-util",
  "tower",
@@ -4557,25 +4502,11 @@ checksum = "9da1806c3ff2f02fb6d9b62fc72a2f3b6429c7f2f5d87861f548156708afcd71"
 dependencies = [
  "async-stream",
  "bytes",
- "prost 0.10.4",
+ "prost",
  "tokio",
  "tokio-stream",
- "tonic 0.7.2",
+ "tonic",
  "tonic-build",
-]
-
-[[package]]
-name = "tonic-health"
-version = "0.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "632faf60b81a5b5f439d9635102b2b2921ee39171faf14f3e0008d99f98689f1"
-dependencies = [
- "async-stream",
- "bytes",
- "prost 0.11.0",
- "tokio",
- "tokio-stream",
- "tonic 0.8.1",
 ]
 
 [[package]]
@@ -4846,7 +4777,7 @@ dependencies = [
  "prometheus",
  "proptest",
  "proptest-derive",
- "prost 0.10.4",
+ "prost",
  "prost-build",
  "rand 0.8.5",
  "roaring",
@@ -4859,7 +4790,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-util",
- "tonic 0.7.2",
+ "tonic",
  "tonic-build",
  "tracing",
  "typed-store",
@@ -5199,7 +5130,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tokio-util",
- "tonic 0.7.2",
+ "tonic",
  "tower",
  "tracing",
  "typed-store",
@@ -5466,9 +5397,9 @@ dependencies = [
  "prometheus",
  "proptest",
  "proptest-derive",
- "prost 0.10.4",
+ "prost",
  "prost-build",
- "prost-derive 0.10.1",
+ "prost-derive",
  "prost-types",
  "protobuf",
  "quick-error 1.2.3",
@@ -5578,9 +5509,9 @@ dependencies = [
  "tokio-stream",
  "tokio-util",
  "toml",
- "tonic 0.7.2",
+ "tonic",
  "tonic-build",
- "tonic-health 0.7.1",
+ "tonic-health",
  "tower",
  "tower-http",
  "tower-layer",
