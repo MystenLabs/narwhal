@@ -138,7 +138,7 @@ impl Proposer {
     /// Compute the timeout value of the proposer.
     fn timeout_value(&self) -> Instant {
         match self.network_model {
-            // In partial synchrony, ff this node is going to be the leader of the next
+            // In partial synchrony, if this node is going to be the leader of the next
             // round, we set a lower timeout value to increase its chance of committing
             // the leader committed.
             NetworkModel::PartiallySynchronous
