@@ -334,7 +334,7 @@ impl Primary {
             block_synchronizer_network,
             payload_store.clone(),
             certificate_store.clone(),
-            parameters.block_synchronizer,
+            parameters.clone(),
         );
 
         // Whenever the `Synchronizer` does not manage to validate a header due to missing parent certificates of

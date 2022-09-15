@@ -12,7 +12,7 @@ use crate::{
     PrimaryWorkerMessage,
 };
 use anemo::{types::PeerInfo, PeerId};
-use config::BlockSynchronizerParameters;
+use config::{BlockSynchronizerParameters, Parameters};
 use fastcrypto::Hash;
 use futures::{future::try_join_all, stream::FuturesUnordered};
 use network::P2pNetwork;
@@ -86,7 +86,7 @@ async fn test_successful_range_synchronization() {
         P2pNetwork::new(network.clone()),
         payload_store.clone(),
         certificate_store.clone(),
-        BlockSynchronizerParameters::default(),
+        Parameters::default(),
     );
 
     // AND propulate certificates from round 0 ~ 4 in the local store.
@@ -304,7 +304,7 @@ async fn test_successful_headers_synchronization() {
         P2pNetwork::new(network.clone()),
         payload_store.clone(),
         certificate_store.clone(),
-        BlockSynchronizerParameters::default(),
+        Parameters::default(),
     );
 
     // AND the channel to respond to
@@ -486,7 +486,7 @@ async fn test_successful_payload_synchronization() {
         P2pNetwork::new(network.clone()),
         payload_store.clone(),
         certificate_store.clone(),
-        BlockSynchronizerParameters::default(),
+        Parameters::default(),
     );
 
     // AND the channel to respond to
@@ -697,6 +697,7 @@ async fn test_multiple_overlapping_requests() {
         network: P2pNetwork::new(network),
         payload_store,
         certificate_store,
+        range_request_max_rounds: 50,
         range_synchronize_timeout: Duration::from_secs(10),
         certificates_synchronize_timeout: Duration::from_secs(1),
         payload_synchronize_timeout: Duration::from_secs(1),
@@ -811,8 +812,11 @@ async fn test_timeout_while_waiting_for_certificates() {
         .unwrap();
 
     // AND create the synchronizer
-    let params = BlockSynchronizerParameters {
-        certificates_synchronize_timeout: Duration::from_secs(1),
+    let params = Parameters {
+        block_synchronizer: BlockSynchronizerParameters {
+            certificates_synchronize_timeout: Duration::from_secs(1),
+            ..Default::default()
+        },
         ..Default::default()
     };
     let _synchronizer_handle = BlockSynchronizer::spawn(
@@ -825,7 +829,7 @@ async fn test_timeout_while_waiting_for_certificates() {
         P2pNetwork::new(network),
         payload_store.clone(),
         certificate_store.clone(),
-        params,
+        params.clone(),
     );
 
     // AND the channel to respond to
@@ -917,6 +921,7 @@ async fn test_reply_with_certificates_already_in_storage() {
         network: P2pNetwork::new(network),
         certificate_store: certificate_store.clone(),
         payload_store,
+        range_request_max_rounds: Default::default(),
         range_synchronize_timeout: Default::default(),
         certificates_synchronize_timeout: Default::default(),
         payload_synchronize_timeout: Default::default(),
@@ -1021,6 +1026,7 @@ async fn test_reply_with_payload_already_in_storage() {
         network: P2pNetwork::new(network),
         certificate_store: certificate_store.clone(),
         payload_store: payload_store.clone(),
+        range_request_max_rounds: Default::default(),
         range_synchronize_timeout: Default::default(),
         certificates_synchronize_timeout: Default::default(),
         payload_synchronize_timeout: Default::default(),
@@ -1131,6 +1137,7 @@ async fn test_reply_with_payload_already_in_storage_for_own_certificates() {
         network: P2pNetwork::new(network),
         certificate_store: certificate_store.clone(),
         payload_store: payload_store.clone(),
+        range_request_max_rounds: Default::default(),
         range_synchronize_timeout: Default::default(),
         certificates_synchronize_timeout: Default::default(),
         payload_synchronize_timeout: Default::default(),

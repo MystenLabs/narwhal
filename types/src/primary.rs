@@ -667,7 +667,7 @@ pub enum PrimaryMessage {
         // 32B / digest * 200 authorities * 50 rounds ~ 320KB
         range_start: Round,
         // Maximum number of rounds that should be contained in each reply.
-        max_rounds: u32,
+        max_rounds: u64,
         requestor: PublicKey,
     },
     CertificatesRangeResponse {

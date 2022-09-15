@@ -9,7 +9,7 @@ use crate::{
     primary::PrimaryMessage,
     utils, PayloadToken, CHANNEL_CAPACITY,
 };
-use config::{BlockSynchronizerParameters, Committee, SharedWorkerCache, Stake, WorkerId};
+use config::{Committee, Parameters, SharedWorkerCache, Stake, WorkerId};
 use crypto::PublicKey;
 use fastcrypto::Hash;
 use futures::{
@@ -56,10 +56,6 @@ pub mod responses;
 /// that should be reached when requesting the certificates from peers in order to
 /// proceed to next state.
 const CERTIFICATE_RESPONSES_RATIO_THRESHOLD: f32 = 0.5;
-
-/// The maximum number of rounds to be included in each range request. Currently the same as the
-/// default GC threshold. We can make it into a parameter if needed.
-const CERTIFICATES_RANGE_REQUEST_MAX_ROUNDS: u32 = 50;
 
 #[derive(Debug, Clone)]
 pub struct BlockHeader {
@@ -221,6 +217,10 @@ pub struct BlockSynchronizer {
     /// The persistent storage for payload markers from workers
     payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,
 
+    /// The maximum number of rounds to be included in each range request.
+    /// Set to be the same as the default GC threshold.
+    range_request_max_rounds: u64,
+
     /// Timeout when synchronizing a range of certificate digests
     range_synchronize_timeout: Duration,
 
@@ -246,9 +246,10 @@ impl BlockSynchronizer {
         network: P2pNetwork,
         payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,
         certificate_store: CertificateStore,
-        parameters: BlockSynchronizerParameters,
+        parameters: Parameters,
     ) -> JoinHandle<()> {
         tokio::spawn(async move {
+            let _ = &parameters;
             Self {
                 name,
                 committee,
@@ -263,10 +264,17 @@ impl BlockSynchronizer {
                 network,
                 payload_store,
                 certificate_store,
-                range_synchronize_timeout: parameters.range_synchronize_timeout,
-                certificates_synchronize_timeout: parameters.certificates_synchronize_timeout,
-                payload_synchronize_timeout: parameters.payload_availability_timeout,
-                payload_availability_timeout: parameters.payload_availability_timeout,
+                range_request_max_rounds: parameters.gc_depth,
+                range_synchronize_timeout: parameters.block_synchronizer.range_synchronize_timeout,
+                certificates_synchronize_timeout: parameters
+                    .block_synchronizer
+                    .certificates_synchronize_timeout,
+                payload_synchronize_timeout: parameters
+                    .block_synchronizer
+                    .payload_availability_timeout,
+                payload_availability_timeout: parameters
+                    .block_synchronizer
+                    .payload_availability_timeout,
             }
             .run()
             .await;
@@ -409,7 +417,7 @@ impl BlockSynchronizer {
         let range_start = if let Some(r) = last_round { r + 1 } else { 0 };
         let message = PrimaryMessage::CertificatesRangeRequest {
             range_start,
-            max_rounds: CERTIFICATES_RANGE_REQUEST_MAX_ROUNDS,
+            max_rounds: self.range_request_max_rounds,
             requestor: self.name.clone(),
         };
         self.broadcast_batch_request(message.clone()).await;
@@ -445,23 +453,24 @@ impl BlockSynchronizer {
         let state = &mut self.sync_range_state;
         if !state.responded_peers.insert(from.clone()) {
             trace!(
-                "dropping range sync request from a peer we already heard from: {:?}",
+                "dropping range sync request from a peer we already heard from: {}",
                 from.clone()
             );
             return;
         }
-        if certificate_ids.len() > CERTIFICATES_RANGE_REQUEST_MAX_ROUNDS as usize {
+        if certificate_ids.len() > self.range_request_max_rounds as usize {
             // Skip response containing too many rounds.
             trace!(
-                "dropping range sync request containing too many rounds: {:?} > {:?}",
+                "dropping range sync response from {} containing too many rounds: {} > {}",
+                from,
                 certificate_ids.len(),
-                CERTIFICATES_RANGE_REQUEST_MAX_ROUNDS
+                self.range_request_max_rounds,
             );
             return;
         }
         for cert_ids in certificate_ids.values() {
             if cert_ids.len() > self.committee.size() {
-                trace!("dropping range sync request with one round containing too digests: {:?} > {:?}", cert_ids.len(), self.committee.size());
+                trace!("dropping range sync request from {} with one round containing too digests: {} > {}", from, cert_ids.len(), self.committee.size());
                 return;
             }
         }
