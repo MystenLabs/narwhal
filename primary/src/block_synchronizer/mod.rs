@@ -477,7 +477,7 @@ impl BlockSynchronizer {
             return None;
         }
 
-        let key = RequestID::from_iter(to_sync.iter());
+        let key = RequestID::from_iter(to_sync.clone());
 
         let message = PrimaryMessage::CertificatesBatchRequest {
             certificate_ids: to_sync.clone(),
