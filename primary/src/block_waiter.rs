@@ -488,22 +488,16 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> BlockWaiter<Synchroni
         let mut ids = Vec::new();
 
         // ensure payloads are synchronized for the found certificates
-        let found_certificates: Vec<Certificate> = certificates
-            .clone()
-            .into_iter()
-            .filter(|(_, c)| c.is_some())
-            .map(|(_, c)| c.unwrap())
-            .collect();
+        let found_certificates: Vec<Certificate> =
+            certificates.iter().flat_map(|(_, c)| c).cloned().collect();
 
         let sync_result = self
             .block_synchronizer_handler
             .synchronize_block_payloads(found_certificates)
             .await;
         let successful_payload_sync_set = sync_result
-            .clone()
-            .into_iter()
-            .flatten()
-            .map(|c| c.digest())
+            .iter()
+            .flat_map(|r| r.as_ref().map(|c| c.digest()).ok())
             .collect::<HashSet<CertificateDigest>>();
 
         for (id, c) in certificates {
