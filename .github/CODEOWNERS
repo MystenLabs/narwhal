@@ -6,5 +6,5 @@
 /config/tests/snapshots/ @huitseeker
 /dag/ @huitseeker
 /storage/ @akichidis
-/primary/block_synchronizer/ @akichidis
-/primary/block_waiter @akichidis
+/primary/src/block_synchronizer/ @akichidis
+/primary/src/block_waiter.rs @akichidis
