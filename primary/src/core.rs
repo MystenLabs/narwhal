@@ -9,9 +9,11 @@ use crate::{
 };
 use async_recursion::async_recursion;
 use config::{Committee, Epoch, SharedWorkerCache};
+use consensus::consensus::Dag;
 use crypto::{PublicKey, Signature};
 use fastcrypto::{Hash as _, SignatureService};
-use network::{CancelOnDropHandler, P2pNetwork, ReliableNetwork};
+use network::{CancelOnDropHandler, P2pNetwork, PrimaryNetwork, ReliableNetwork2};
+use proptest::collection::BinaryHeapValueTree;
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
@@ -153,7 +155,7 @@ impl Core {
         }
 
         // Update the committee now if the proposer already did so.
-        self.try_update_committee();
+        self.try_update_committee().await;
 
         // Reset the votes aggregator.
         self.current_header = header.clone();
@@ -288,12 +290,16 @@ impl Core {
             if header.round < round_digest_pair.round {
                 return Ok(());
             }
-            if round_digest_pair.round == header.round {
+            if header.round == round_digest_pair.round {
                 // check the hash first
                 let temp_vote = Vote::new(header, &self.name, &mut self.signature_service).await;
                 if temp_vote.digest() != round_digest_pair.vote_digest {
                     // we already sent a vote for a different header to the authority for this round
                     // don't equivocate by voting again
+                    warn!(
+                        "Authority {} submitted duplicate header for votes at round {}",
+                        header.author, header.round
+                    );
                     self.metrics
                         .votes_dropped_equivocation_protection
                         .with_label_values(&[&header.epoch.to_string(), header_source])
@@ -314,7 +320,11 @@ impl Core {
                     .push(handler);
             }
         }
+        self.send_vote(header).await
+    }
 
+    #[instrument(level = "debug", skip_all)]
+    async fn send_vote(&mut self, header: &Header) -> DagResult<()> {
         // Make a vote and send it to the header's creator.
         let vote = Vote::new(header, &self.name, &mut self.signature_service).await;
         debug!(
@@ -336,18 +346,19 @@ impl Core {
                 .entry(header.round)
                 .or_insert_with(Vec::new)
                 .push(handler);
-
-            // Update the vote store with the vote we just sent.
-            self.vote_store
-                .write(
-                    header.author.clone(),
-                    RoundVoteDigestPair {
-                        round: header.round,
-                        vote_digest,
-                    },
-                )
-                .await;
         }
+
+        // Update the vote store with the vote we just sent.
+        self.vote_store
+            .write(
+                header.author.clone(),
+                RoundVoteDigestPair {
+                    round: header.round,
+                    vote_digest,
+                },
+            )
+            .await;
+
         Ok(())
     }
 
@@ -491,9 +502,9 @@ impl Core {
         Ok(())
     }
 
-    fn sanitize_header(&mut self, header: &Header) -> DagResult<()> {
+    async fn sanitize_header(&mut self, header: &Header) -> DagResult<()> {
         if header.epoch > self.committee.epoch() {
-            self.try_update_committee();
+            self.try_update_committee().await;
         }
         ensure!(
             self.committee.epoch() == header.epoch,
@@ -515,9 +526,9 @@ impl Core {
         Ok(())
     }
 
-    fn sanitize_vote(&mut self, vote: &Vote) -> DagResult<()> {
+    async fn sanitize_vote(&mut self, vote: &Vote) -> DagResult<()> {
         if vote.epoch > self.committee.epoch() {
-            self.try_update_committee();
+            self.try_update_committee().await;
         }
         ensure!(
             self.committee.epoch() == vote.epoch,
@@ -543,9 +554,9 @@ impl Core {
         vote.verify(&self.committee).map_err(DagError::from)
     }
 
-    fn sanitize_certificate(&mut self, certificate: &Certificate) -> DagResult<()> {
+    async fn sanitize_certificate(&mut self, certificate: &Certificate) -> DagResult<()> {
         if certificate.epoch() > self.committee.epoch() {
-            self.try_update_committee();
+            self.try_update_committee().await;
         }
         ensure!(
             self.committee.epoch() == certificate.epoch(),
@@ -570,7 +581,7 @@ impl Core {
     }
 
     /// If a new committee is available, update our internal state.
-    fn try_update_committee(&mut self) {
+    async fn try_update_committee(&mut self) {
         if self
             .rx_reconfigure
             .has_changed()
@@ -578,7 +589,7 @@ impl Core {
         {
             let message = self.rx_reconfigure.borrow().clone();
             if let ReconfigureNotification::NewEpoch(new_committee) = message {
-                self.change_epoch(new_committee);
+                self.change_epoch(new_committee).await;
                 // Mark the value as seen.
                 let _ = self.rx_reconfigure.borrow_and_update();
             }
@@ -586,12 +597,16 @@ impl Core {
     }
 
     /// Update the committee and cleanup internal state.
-    fn change_epoch(&mut self, committee: Committee) {
+    async fn change_epoch(&mut self, committee: Committee) {
         // Cleanup the network.
         self.network
             .cleanup(self.committee.network_diff(&committee));
 
         // Cleanup internal state.
+        let keys = self.vote_store.iter(None).await.into_keys();
+        if let Err(e) = self.vote_store.remove_all(keys).await {
+            error!("Error in change epoch when clearing vote store {}", e);
+        }
         self.processing.clear();
         self.certificates_aggregators.clear();
         self.cancel_handlers.clear();
@@ -612,19 +627,19 @@ impl Core {
                 Some(message) = self.rx_primaries.recv() => {
                     match message {
                         PrimaryMessage::Header(header) => {
-                            match self.sanitize_header(&header) {
+                            match self.sanitize_header(&header).await {
                                 Ok(()) => self.process_header(&header).await,
                                 error => error
                             }
                         },
                         PrimaryMessage::Vote(vote) => {
-                            match self.sanitize_vote(&vote) {
+                            match self.sanitize_vote(&vote).await {
                                 Ok(()) => self.process_vote(vote).await,
                                 error => error
                             }
                         },
                         PrimaryMessage::Certificate(certificate) => {
-                            match self.sanitize_certificate(&certificate) {
+                            match self.sanitize_certificate(&certificate).await {
                                 Ok(()) =>  self.process_certificate(certificate).await,
                                 error => error
                             }
@@ -651,7 +666,7 @@ impl Core {
                     let message = self.rx_reconfigure.borrow().clone();
                     match message {
                         ReconfigureNotification::NewEpoch(new_committee) => {
-                            self.change_epoch(new_committee);
+                            self.change_epoch(new_committee).await;
                         },
                         ReconfigureNotification::UpdateCommittee(new_committee) => {
                             // Cleanup the network.
