@@ -1503,6 +1503,7 @@ dependencies = [
  "match_opt",
  "multiaddr",
  "mysten-network",
+ "pin-project",
  "primary",
  "prometheus",
  "rand 0.8.5",

@@ -704,6 +704,8 @@ pub struct BatchMessage {
     pub transactions: Batch,
 }
 
+pub struct TimedSubscriberResult {}
+
 pub type BlockRemoverResult<T> = Result<T, BlockRemoverError>;
 
 #[derive(Clone, Debug)]

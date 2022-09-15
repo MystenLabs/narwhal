@@ -26,6 +26,7 @@ prometheus = "0.13.2"
 backoff = { version = "0.4.0", features = ["tokio"] }
 storage = { path = "../storage" }
 itertools = "0.10.4"
+pin-project = "1.0.12"
 
 types = { path = "../types" }
 mysten-network = "0.1.0"

@@ -8,6 +8,8 @@ use backoff::{Error, ExponentialBackoff};
 use consensus::ConsensusOutput;
 use fastcrypto::Hash;
 use primary::BlockCommand;
+use prometheus::HistogramTimer;
+use std::collections::VecDeque;
 use std::{sync::Arc, time::Duration};
 use store::Store;
 use tokio::{
@@ -98,6 +100,7 @@ impl Subscriber {
         // mater if we somehow managed to fetch the batches from a later
         // certificate. Unless the earlier certificate's payload has been
         // fetched, no later certificate will be delivered.
+        let mut metrics_timers: VecDeque<HistogramTimer> = VecDeque::new();
         let mut waiting =
             BoundedFuturesOrdered::with_capacity(Self::MAX_PENDING_CONSENSUS_MESSAGES);
 
@@ -109,7 +112,9 @@ impl Subscriber {
                 self.store.clone(),
                 self.tx_get_block_commands.clone(),
                 message,
+                self.metrics.clone(),
             );
+            metrics_timers.push_back(self.metrics.fetch_payload_latency.start_timer());
             waiting.push(future).await;
         }
 
@@ -126,12 +131,15 @@ impl Subscriber {
                         self.get_block_retry_policy.clone(),
                         self.store.clone(),
                         self.tx_get_block_commands.clone(),
-                        message);
+                        message, self.metrics.clone());
                     waiting.push(future).await;
                 },
 
                 // Receive here consensus messages for which we have downloaded all transactions data.
                 (Some(message), permit) = try_fut_and_permit!(waiting.try_next(), self.tx_executor) => {
+                    if let Some(timer) = metrics_timers.pop_front() {
+                        timer.stop_and_record();
+                    }
                     permit.send(message)
                 },
 
@@ -161,12 +169,15 @@ impl Subscriber {
         store: Store<(CertificateDigest, BatchDigest), Batch>,
         tx_get_block_commands: metered_channel::Sender<BlockCommand>,
         deliver: ConsensusOutput,
+        metrics: Arc<ExecutorMetrics>,
     ) -> SubscriberResult<ConsensusOutput> {
+        let metrics_outer = metrics.clone();
         let get_block = move || {
             let message = deliver.clone();
             let certificate_id = message.certificate.digest();
             let tx_get_block = tx_get_block_commands.clone();
             let batch_store = store.clone();
+            let metrics_inner = metrics.clone();
 
             async move {
                 let (sender, receiver) = oneshot::channel();
@@ -182,9 +193,11 @@ impl Subscriber {
                     })?;
 
                 match receiver.await.map_err(|err| {
+                    metrics_inner.send_block_command_errors.inc();
                     Error::permanent(PayloadRetrieveError(certificate_id, err.to_string()))
                 })? {
                     Ok(block) => {
+                        metrics_inner.send_block_command_successes.inc();
                         // we successfully received the payload. Now let's add to store
                         batch_store
                             .write_all(
@@ -195,12 +208,12 @@ impl Subscriber {
                             )
                             .await
                             .map_err(|err| Error::permanent(SubscriberError::from(err)))?;
-
                         Ok(message)
                     }
                     Err(err) => {
                         // whatever the error might be at this point we don't
                         // have many options apart from retrying.
+                        metrics_inner.send_block_command_errors.inc();
                         error!("Error while retrieving block via block waiter: {}", err);
                         Err(Error::transient(PayloadRetrieveError(
                             certificate_id,
@@ -210,7 +223,7 @@ impl Subscriber {
                 }
             }
         };
-
+        metrics_outer.send_block_command_retries.inc();
         backoff::future::retry(back_off_policy, get_block).await
     }
 }
