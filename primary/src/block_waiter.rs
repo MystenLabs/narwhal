@@ -249,12 +249,12 @@ pub struct BlockWaiter<SynchronizerHandler: Handler + Send + Sync + 'static> {
 
     /// A map that holds the channels we should notify with the
     /// GetBlock responses.
-    tx_get_block_map:
+    get_block_map_requesters:
         HashMap<CertificateDigest, Vec<oneshot::Sender<BlockResult<GetBlockResponse>>>>,
 
     /// A map that holds the channels we should notify with the
     /// GetBlocks responses.
-    tx_get_blocks_map: HashMap<RequestKey, Vec<oneshot::Sender<BlocksResult>>>,
+    get_blocks_map_requesters: HashMap<RequestKey, Vec<oneshot::Sender<BlocksResult>>>,
 
     /// We use the handler of the block synchronizer to interact with the
     /// block synchronizer in a synchronous way. Share a reference of this
@@ -287,8 +287,8 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> BlockWaiter<Synchroni
                 rx_reconfigure,
                 rx_batch_receiver: batch_receiver,
                 tx_pending_batch: HashMap::new(),
-                tx_get_block_map: HashMap::new(),
-                tx_get_blocks_map: HashMap::new(),
+                get_block_map_requesters: HashMap::new(),
+                get_blocks_map_requesters: HashMap::new(),
                 block_synchronizer_handler,
             }
             .run()
@@ -379,7 +379,7 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> BlockWaiter<Synchroni
 
         let key = Self::construct_get_blocks_request_key(&ids);
 
-        match self.tx_get_blocks_map.remove(&key) {
+        match self.get_blocks_map_requesters.remove(&key) {
             Some(senders) => {
                 for sender in senders {
                     if sender.send(result.clone()).is_err() {
@@ -407,10 +407,10 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> BlockWaiter<Synchroni
         // and then we merge all the bytes to form a key
         let key = Self::construct_get_blocks_request_key(&ids);
 
-        if self.tx_get_blocks_map.contains_key(&key) {
+        if self.get_blocks_map_requesters.contains_key(&key) {
             // request already pending, nothing to do, just add the sender to the list
             // of pending to be notified ones.
-            self.tx_get_blocks_map
+            self.get_blocks_map_requesters
                 .entry(key)
                 .or_insert_with(Vec::new)
                 .push(sender);
@@ -425,7 +425,7 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> BlockWaiter<Synchroni
         let (get_block_futures, get_blocks_future) = self.get_blocks(certificates).await;
 
         // mark the request as pending
-        self.tx_get_blocks_map
+        self.get_blocks_map_requesters
             .entry(key)
             .or_insert_with(Vec::new)
             .push(sender);
@@ -594,7 +594,7 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> BlockWaiter<Synchroni
     ) -> Option<BoxFuture<'a, BlockResult<GetBlockResponse>>> {
         // If similar request is already under processing, don't start a new one
         if self.pending_get_block.contains_key(&id.clone()) {
-            self.tx_get_block_map
+            self.get_block_map_requesters
                 .entry(id)
                 .or_insert_with(Vec::new)
                 .push(sender);
@@ -616,7 +616,7 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> BlockWaiter<Synchroni
         // as pending so no other can initiate the process
         self.pending_get_block.insert(id, certificate.clone());
 
-        self.tx_get_block_map
+        self.get_block_map_requesters
             .entry(id)
             .or_insert_with(Vec::new)
             .push(sender);
@@ -665,7 +665,7 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> BlockWaiter<Synchroni
     async fn handle_batch_waiting_result(&mut self, result: BlockResult<GetBlockResponse>) {
         let block_id = result.clone().map_or_else(|e| e.id, |r| r.id);
 
-        match self.tx_get_block_map.remove(&block_id) {
+        match self.get_block_map_requesters.remove(&block_id) {
             Some(senders) => {
                 for sender in senders {
                     if sender.send(result.clone()).is_err() {
