@@ -6,6 +6,7 @@ use crate::{
     BoundedExecutor, CancelOnDropHandler, RetryConfig, MAX_TASK_CONCURRENCY,
 };
 use anemo::PeerId;
+use anyhow::Result;
 use async_trait::async_trait;
 use crypto::{traits::KeyPair, NetworkPublicKey};
 use multiaddr::Multiaddr;
@@ -84,7 +85,7 @@ impl P2pNetwork {
         &mut self,
         peer: NetworkPublicKey,
         f: F,
-    ) -> JoinHandle<anyhow::Result<anemo::Response<R>>>
+    ) -> JoinHandle<Result<anemo::Response<R>>>
     where
         F: FnOnce(anemo::Peer) -> Fut + Send + Sync + 'static,
         R: Send + Sync + 'static + Clone,
@@ -113,7 +114,7 @@ impl P2pNetwork {
         &mut self,
         peer: NetworkPublicKey,
         f: F,
-    ) -> CancelOnDropHandler<anyhow::Result<anemo::Response<R>>>
+    ) -> CancelOnDropHandler<Result<anemo::Response<R>>>
     where
         F: Fn(anemo::Peer) -> Fut + Send + Sync + 'static + Clone,
         R: Send + Sync + 'static + Clone,
@@ -174,7 +175,7 @@ impl UnreliableNetwork<PrimaryMessage> for P2pNetwork {
         &mut self,
         peer: NetworkPublicKey,
         message: &PrimaryMessage,
-    ) -> JoinHandle<anyhow::Result<anemo::Response<()>>> {
+    ) -> JoinHandle<Result<anemo::Response<()>>> {
         let message = message.to_owned();
         let f = move |peer| async move {
             PrimaryToPrimaryClient::new(peer)
@@ -192,7 +193,7 @@ impl ReliableNetwork<PrimaryMessage> for P2pNetwork {
         &mut self,
         peer: NetworkPublicKey,
         message: &PrimaryMessage,
-    ) -> CancelOnDropHandler<anyhow::Result<anemo::Response<()>>> {
+    ) -> CancelOnDropHandler<Result<anemo::Response<()>>> {
         let message = message.to_owned();
         let f = move |peer| {
             let message = message.clone();
@@ -218,7 +219,7 @@ impl UnreliableNetwork<PrimaryWorkerMessage> for P2pNetwork {
         &mut self,
         peer: NetworkPublicKey,
         message: &PrimaryWorkerMessage,
-    ) -> JoinHandle<anyhow::Result<anemo::Response<()>>> {
+    ) -> JoinHandle<Result<anemo::Response<()>>> {
         let message = message.to_owned();
         let f =
             move |peer| async move { PrimaryToWorkerClient::new(peer).send_message(message).await };
@@ -233,7 +234,7 @@ impl ReliableNetwork<PrimaryWorkerMessage> for P2pNetwork {
         &mut self,
         peer: NetworkPublicKey,
         message: &PrimaryWorkerMessage,
-    ) -> CancelOnDropHandler<anyhow::Result<anemo::Response<()>>> {
+    ) -> CancelOnDropHandler<Result<anemo::Response<()>>> {
         let message = message.to_owned();
         let f = move |peer| {
             let message = message.clone();
@@ -255,7 +256,7 @@ impl UnreliableNetwork<WorkerPrimaryMessage> for P2pNetwork {
         &mut self,
         peer: NetworkPublicKey,
         message: &WorkerPrimaryMessage,
-    ) -> JoinHandle<anyhow::Result<anemo::Response<()>>> {
+    ) -> JoinHandle<Result<anemo::Response<()>>> {
         let message = message.to_owned();
         let f =
             move |peer| async move { WorkerToPrimaryClient::new(peer).send_message(message).await };
@@ -270,7 +271,7 @@ impl ReliableNetwork<WorkerPrimaryMessage> for P2pNetwork {
         &mut self,
         peer: NetworkPublicKey,
         message: &WorkerPrimaryMessage,
-    ) -> CancelOnDropHandler<anyhow::Result<anemo::Response<()>>> {
+    ) -> CancelOnDropHandler<Result<anemo::Response<()>>> {
         let message = message.to_owned();
         let f = move |peer| {
             let message = message.clone();
@@ -292,7 +293,7 @@ impl UnreliableNetwork<WorkerMessage> for P2pNetwork {
         &mut self,
         peer: NetworkPublicKey,
         message: &WorkerMessage,
-    ) -> JoinHandle<anyhow::Result<anemo::Response<()>>> {
+    ) -> JoinHandle<Result<anemo::Response<()>>> {
         let message = message.to_owned();
         let f =
             move |peer| async move { WorkerToWorkerClient::new(peer).send_message(message).await };
@@ -307,7 +308,7 @@ impl ReliableNetwork<WorkerMessage> for P2pNetwork {
         &mut self,
         peer: NetworkPublicKey,
         message: &WorkerMessage,
-    ) -> CancelOnDropHandler<anyhow::Result<anemo::Response<()>>> {
+    ) -> CancelOnDropHandler<Result<anemo::Response<()>>> {
         let message = message.to_owned();
         let f = move |peer| {
             let message = message.clone();
@@ -325,7 +326,7 @@ impl UnreliableNetwork<WorkerBatchRequest> for P2pNetwork {
         &mut self,
         peer: NetworkPublicKey,
         message: &WorkerBatchRequest,
-    ) -> JoinHandle<anyhow::Result<anemo::Response<WorkerBatchResponse>>> {
+    ) -> JoinHandle<Result<anemo::Response<WorkerBatchResponse>>> {
         let message = message.to_owned();
         let f = move |peer| async move {
             WorkerToWorkerClient::new(peer)
@@ -343,7 +344,7 @@ impl ReliableNetwork<WorkerBatchRequest> for P2pNetwork {
         &mut self,
         peer: NetworkPublicKey,
         message: &WorkerBatchRequest,
-    ) -> CancelOnDropHandler<anyhow::Result<anemo::Response<WorkerBatchResponse>>> {
+    ) -> CancelOnDropHandler<Result<anemo::Response<WorkerBatchResponse>>> {
         let message = message.to_owned();
         let f = move |peer| {
             let message = message.clone();

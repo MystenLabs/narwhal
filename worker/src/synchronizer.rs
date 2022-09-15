@@ -20,7 +20,7 @@ use tokio::{
     task::JoinHandle,
     time::{sleep, Duration, Instant},
 };
-use tracing::{debug, error, trace, warn};
+use tracing::{debug, error, info, trace, warn};
 use types::{
     error::DagError,
     metered_channel::{Receiver, Sender},
@@ -304,7 +304,7 @@ impl Synchronizer {
                             }
                         }
                     },
-                    Ok(Err(e)) => error!("{e}"),
+                    Ok(Err(e)) => info!("{e}"),  // occasional RPC errors are expected
                     Err(e) => error!("{e}"),
                 },
 
