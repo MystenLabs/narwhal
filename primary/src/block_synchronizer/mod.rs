@@ -40,7 +40,7 @@ use types::{
     ReconfigureNotification, Round,
 };
 
-use self::responses::AvailabilityResponse;
+use self::responses::{AvailabilityResponse, CertificateDigestsResponse};
 
 #[cfg(test)]
 #[path = "tests/block_synchronizer_tests.rs"]
@@ -313,11 +313,9 @@ impl BlockSynchronizer {
                 },
                 Some(response) = self.rx_availability_responses.recv() => {
                     match response {
+                        AvailabilityResponse::CertificateDigest(digest_response) => self.handle_digest_response(digest_response).await,
                         AvailabilityResponse::Certificate(certificate_response) => self.handle_certificates_response(certificate_response).await,
                         AvailabilityResponse::Payload(payload_availability_response) => self.handle_payload_availability_response(payload_availability_response).await,
-                // Some(PrimaryMessage::CertificatesRangeResponse { certificate_ids, from }) = self.rx_range_responses.recv() => {
-                //     self.handle_range_response(certificate_ids, from).await;
-                // },
                     }
                 },
                 Some(state) = waiting.next() => {
@@ -427,11 +425,11 @@ impl BlockSynchronizer {
         )
     }
 
-    async fn handle_range_response(
-        &mut self,
-        certificate_ids: CertificateIDsByRounds,
-        from: PublicKey,
-    ) {
+    async fn handle_digest_response(&mut self, certificate_digests: CertificateDigestsResponse) {
+        let CertificateDigestsResponse {
+            certificate_ids,
+            from,
+        } = certificate_digests;
         if !self.sync_range_state.running {
             trace!("dropping range sync request since range sync is active");
             return;

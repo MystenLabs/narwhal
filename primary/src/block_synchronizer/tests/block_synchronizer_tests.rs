@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 use crate::{
     block_synchronizer::{
-        responses::{AvailabilityResponse, PayloadAvailabilityResponse},
+        responses::{
+            AvailabilityResponse, CertificateDigestsResponse, PayloadAvailabilityResponse,
+        },
         BlockSynchronizer, CertificatesResponse, Command, PendingIdentifier, RequestID, SyncError,
     },
     common::{create_db_stores, worker_listener},
@@ -53,9 +55,7 @@ async fn test_successful_range_synchronization() {
     let (_tx_reconfigure, rx_reconfigure) =
         watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));
     let (tx_commands, rx_commands) = test_utils::test_channel!(10);
-    let (tx_range_responses, rx_range_responses) = test_utils::test_channel!(10);
-    let (_, rx_certificate_responses) = test_utils::test_channel!(10);
-    let (_, rx_payload_availability_responses) = test_utils::test_channel!(10);
+    let (tx_availability_responses, rx_availability_responses) = test_utils::test_channel!(10);
 
     let own_address = network::multiaddr_to_address(&committee.primary(&name).unwrap()).unwrap();
     let network = anemo::Network::bind(own_address)
@@ -82,9 +82,7 @@ async fn test_successful_range_synchronization() {
         worker_cache.clone(),
         rx_reconfigure,
         rx_commands,
-        rx_range_responses,
-        rx_certificate_responses,
-        rx_payload_availability_responses,
+        rx_availability_responses,
         P2pNetwork::new(network.clone()),
         payload_store.clone(),
         certificate_store.clone(),
@@ -196,11 +194,13 @@ async fn test_successful_range_synchronization() {
                 info!("Received range sync response from {requestor}");
                 assert_eq!(range_start, 5, "Start of requested range is incorrect");
                 assert_eq!(max_rounds, 50, "Max rounds is incorrect");
-                tx_range_responses
-                    .send(PrimaryMessage::CertificatesRangeResponse {
-                        certificate_ids: certificate_ids[i].clone(),
-                        from: primaries.pop().unwrap().0,
-                    })
+                tx_availability_responses
+                    .send(AvailabilityResponse::CertificateDigest(
+                        CertificateDigestsResponse {
+                            certificate_ids: certificate_ids[i].clone(),
+                            from: primaries.pop().unwrap().0,
+                        },
+                    ))
                     .await
                     .unwrap();
             }
