@@ -294,10 +294,13 @@ impl Synchronizer {
                         for batch in response.into_body().batches {
                             // TODO: remove duplicate hashing of batch after primary-to-worker
                             // communication is refactored to be synchronous.
-                            self.pending.remove(&batch.digest());
-                            if self.tx_batch_processor.send(batch).await.is_err() {
-                                // Assume error sending to processor means we're shutting down.
-                                break
+                            if self.pending.remove(&batch.digest()).is_some() {
+                                // Only send batch to processor if we haven't received it already
+                                // from another source.
+                                if self.tx_batch_processor.send(batch).await.is_err() {
+                                    // Assume error sending to processor means we're shutting down.
+                                    break
+                                }
                             }
                         }
                     },
