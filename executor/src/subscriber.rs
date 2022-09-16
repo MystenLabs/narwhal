@@ -14,7 +14,7 @@ use tokio::{
     sync::{oneshot, watch},
     task::JoinHandle,
 };
-use tracing::{error, instrument};
+use tracing::{debug_span, error, instrument, Instrument};
 use types::{metered_channel, Batch, BatchDigest, CertificateDigest, ReconfigureNotification};
 
 #[cfg(test)]
@@ -101,31 +101,13 @@ impl Subscriber {
             return Ok(());
         }
 
-        // Listen to sequenced consensus message and process them.
         loop {
             tokio::select! {
                 // Receive the ordered sequence of consensus messages from a consensus node.
                 Some(message) = self.rx_consensus.recv() => {
-                    // Fetch the certificate's payload from the workers. This is done via the
-                    // block_waiter component. If the batches are not available in the workers then
-                    // block_waiter will do its best to sync from the other peers. Once all batches
-                    // are available, we forward the certificate to the Executor Core.
-                    let future = Self::wait_on_payload(
-                        self.metrics.clone(),
-                        self.get_block_retry_policy.clone(),
-                        self.store.clone(),
-                        self.tx_get_block_commands.clone(),
-                        message);
-
-                    match future.await {
-                        Ok(output) =>
-                            if let Err(err) = self.tx_executor.send(output).await {
-                                error!("Executor subscriber is shutting down: {err}");
-                                return Ok(());
-                            }
-                        Err(err) => {
-                            panic!("Irrecoverable error occurred while retrieving block payload: {err}");
-                        }
+                    if let Err(err) = self.download_payload_and_forward(message).await {
+                        error!("Executor subscriber is shutting down: {err}");
+                        return Ok(());
                     }
                 },
 
@@ -139,6 +121,64 @@ impl Subscriber {
                 }
             }
         }
+    }
+
+    /// Reads all the restored_consensus_output one by one, fetches their payload
+    /// in order, and delivers them to the tx_executor channel. This is a sequential
+    /// blocking operation. We should expect to block if executor is saturated, but
+    /// this is desired to avoid overloading our system making this easier to trace.
+    #[instrument(level="info", skip_all, fields(num_of_certificates = restored_consensus_output.len()), err)]
+    async fn recover_consensus_output(
+        &self,
+        restored_consensus_output: Vec<ConsensusOutput>,
+    ) -> SubscriberResult<()> {
+        for message in restored_consensus_output {
+            // we are making this a sequential/blocking operation as the number of payloads
+            // that needs to be fetched might exceed the size of the waiting list and then
+            // we'll never be able to empty it until as we'll never reach the following loop.
+            // Also throttling the recovery is another measure to ensure we don't flood our
+            // network with messages.
+            self.download_payload_and_forward(message).await?;
+
+            self.metrics.subscriber_recovered_certificates_count.inc();
+        }
+
+        Ok(())
+    }
+
+    /// Downloads the payload from the worker and forwards the output to the
+    /// executor channel if the operation is successful. An error is returned
+    /// if we can't forward the output to the executor. If an irrecoverable error
+    /// has occurred while downloading the payload then this method panics.
+    #[instrument(level="debug", skip_all, fields(certificate_id = ?message.certificate.digest()), err)]
+    async fn download_payload_and_forward(&self, message: ConsensusOutput) -> SubscriberResult<()> {
+        // Fetch the certificate's payload from the workers. This is done via the
+        // block_waiter component. If the batches are not available in the workers then
+        // block_waiter will do its best to sync from the other peers. Once all batches
+        // are available, we forward the certificate to the Executor Core.
+        let result = Self::wait_on_payload(
+            self.metrics.clone(),
+            self.get_block_retry_policy.clone(),
+            self.store.clone(),
+            self.tx_get_block_commands.clone(),
+            message,
+        )
+        .await;
+
+        match result {
+            Ok(output) => {
+                if self.tx_executor.send(output).await.is_err() {
+                    return Err(SubscriberError::ClosedChannel(
+                        stringify!(self.tx_executor).to_owned(),
+                    ));
+                }
+            }
+            Err(err) => {
+                panic!("Irrecoverable error occurred while retrieving block payload: {err}");
+            }
+        }
+
+        Ok(())
     }
 
     /// The wait_on_payload will try to retrieve the certificate's payload
@@ -156,13 +196,20 @@ impl Subscriber {
         // the latency will be measured automatically once the guard
         // goes out of scope and dropped
         let _start_guard = metrics.subscriber_download_payload_latency.start_timer();
+        let mut attempts_count = 0;
 
         let get_block = move || {
             let message = deliver.clone();
             let certificate_id = message.certificate.digest();
             let tx_get_block = tx_get_block_commands.clone();
             let batch_store = store.clone();
+            let executor_metrics = metrics.clone();
+            let attempts = {
+                attempts_count += 1;
+                attempts_count
+            };
 
+            let span = debug_span!("get_block", attempt = attempts);
             async move {
                 let (sender, receiver) = oneshot::channel();
 
@@ -191,6 +238,10 @@ impl Subscriber {
                             .await
                             .map_err(|err| Error::permanent(SubscriberError::from(err)))?;
 
+                        executor_metrics
+                            .subscriber_download_payload_attempts
+                            .observe(attempts as f64);
+
                         Ok(message)
                     }
                     Err(err) => {
@@ -204,52 +255,9 @@ impl Subscriber {
                     }
                 }
             }
+            .instrument(span)
         };
 
         backoff::future::retry(back_off_policy, get_block).await
-    }
-
-    /// Reads all the restored_consensus_output one by one, fetches their payload
-    /// in order, and delivers them to the tx_executor channel. This is a sequential
-    /// blocking operation. We should expect to block if executor is saturated, but
-    /// this is desired to avoid overloading our system making this easier to trace.
-    #[instrument(level="info", skip_all, fields(num_of_certificates = restored_consensus_output.len()), err)]
-    async fn recover_consensus_output(
-        &self,
-        restored_consensus_output: Vec<ConsensusOutput>,
-    ) -> SubscriberResult<()> {
-        for message in restored_consensus_output {
-            // we are making this a sequential/blocking operation as the number of payloads
-            // that needs to be fetched might exceed the size of the waiting list and then
-            // we'll never be able to empty it until as we'll never reach the following loop.
-            // Also throttling the recovery is another measure to ensure we don't flood our
-            // network with messages.
-            let result = Self::wait_on_payload(
-                self.metrics.clone(),
-                self.get_block_retry_policy.clone(),
-                self.store.clone(),
-                self.tx_get_block_commands.clone(),
-                message,
-            )
-            .await;
-
-            match result {
-                Ok(output) => {
-                    // intentionally block here until the executor becomes
-                    // available. Alternatively we could create buffers to keep
-                    // downloaded messages, but prioritised a more straightforward approach
-                    if self.tx_executor.send(output).await.is_err() {
-                        return Err(SubscriberError::ClosedChannel(
-                            stringify!(self.tx_executor).to_owned(),
-                        ));
-                    }
-                }
-                Err(err) => return Err(err),
-            }
-
-            self.metrics.subscriber_recovered_certificates_count.inc();
-        }
-
-        Ok(())
     }
 }

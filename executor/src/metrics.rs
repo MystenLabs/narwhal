@@ -11,6 +11,9 @@ pub struct ExecutorMetrics {
     pub tx_executor: IntGauge,
     /// Time it takes to download a payload on the Subscriber
     pub subscriber_download_payload_latency: Histogram,
+    /// The number of attempts to successfully download
+    /// a certificate's payload in Subscriber.
+    pub subscriber_download_payload_attempts: Histogram,
     /// The number of certificates processed by Subscriber
     /// during the recovery period to fetch their payloads.
     pub subscriber_recovered_certificates_count: IntCounter,
@@ -39,6 +42,14 @@ impl ExecutorMetrics {
             subscriber_recovered_certificates_count: register_int_counter_with_registry!(
                 "subscriber_recovered_certificates_count",
                 "The number of certificates processed by Subscriber during the recovery period to fetch their payloads",
+                registry
+            ).unwrap(),
+            subscriber_download_payload_attempts: register_histogram_with_registry!(
+                "subscriber_download_payload_retries",
+                "The number of attempts to successfully download a certificate's payload in Subscriber",
+                vec![
+                    1.0, 2.0, 3.0, 4.0, 5.0, 7.0, 10.0, 15.0, 20.0
+                ],
                 registry
             ).unwrap()
         }
