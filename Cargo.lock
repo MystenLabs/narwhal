@@ -4216,6 +4216,7 @@ dependencies = [
  "derive_builder",
  "executor",
  "fastcrypto",
+ "fdlimit",
  "futures",
  "indexmap",
  "itertools",
