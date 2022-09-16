@@ -492,6 +492,11 @@ impl PrimaryToPrimary for PrimaryReceiverHandler {
                 .send(message)
                 .await
                 .map_err(|_| DagError::ShuttingDown),
+            PrimaryMessage::CertificatesRangeRequest { .. } => self
+                .tx_helper_requests
+                .send(message)
+                .await
+                .map_err(|_| DagError::ShuttingDown),
             PrimaryMessage::CertificatesRangeResponse {
                 certificate_ids,
                 from,

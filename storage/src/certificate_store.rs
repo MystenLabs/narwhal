@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 use dashmap::DashMap;
 use fastcrypto::Hash;
-use std::{collections::VecDeque, iter, sync::Arc};
+use std::{
+    collections::{BTreeMap, VecDeque},
+    iter,
+    sync::Arc,
+};
 use store::{
     rocks::{DBMap, TypedStoreError::RocksDBError},
     Map,
@@ -240,6 +244,30 @@ impl CertificateStore {
             .collect()
     }
 
+    /// Retrieves all the certificate digests with rounds beginning at range_start. Returns at most max_rounds number of rounds.
+    /// This is slightly more efficient than after_round() when only the digests are needed.
+    pub fn digests_within_range(
+        &self,
+        range_start: Round,
+        max_rounds: u64,
+    ) -> StoreResult<BTreeMap<Round, Vec<CertificateDigest>>> {
+        // The key is a composite of the range's starting round and
+        // the smallest possible value of the certificate digest (all byte values should be zero).
+        let start_key = (range_start, CertificateDigest::default());
+
+        let digests = self.certificate_ids_by_round.keys().skip_to(&start_key)?;
+
+        let mut result = BTreeMap::<Round, Vec<CertificateDigest>>::new();
+        for (round, digest) in digests {
+            if result.len() as u64 == max_rounds && !result.contains_key(&round) {
+                // Adding another digest would exceed max_rounds.
+                break;
+            }
+            result.entry(round).or_default().push(digest);
+        }
+        Ok(result)
+    }
+
     /// Retrieves the certificates of the last round
     pub fn last_round(&self) -> StoreResult<Vec<Certificate>> {
         // starting from the last element - hence the last round - move backwards until
@@ -333,7 +361,7 @@ mod test {
     use fastcrypto::Hash;
     use futures::future::join_all;
     use std::{
-        collections::{BTreeSet, HashSet},
+        collections::{BTreeMap, BTreeSet, HashSet},
         time::Instant,
     };
     use store::{
@@ -522,6 +550,52 @@ mod test {
 
         // AND none should be left in the original set
         assert!(certs_ids_over_cutoff_round.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_digests_within_range() {
+        // GIVEN
+        let store = new_store(temp_dir());
+
+        // create certificates for 20 rounds
+        let certs = certificates(20);
+        let mut ids = BTreeMap::<Round, Vec<CertificateDigest>>::new();
+        for c in &certs {
+            ids.entry(c.round()).or_default().push(c.digest());
+        }
+
+        // store them in both main and secondary index
+        store.write_all(certs).unwrap();
+
+        // WHEN reading digests from round 10, for at most 5 rounds.
+        let result = store.digests_within_range(10, 5).unwrap();
+
+        // THEN rounds 10 ~ 14 should be returned.
+        assert_eq!(
+            result.keys().cloned().collect::<Vec<u64>>(),
+            (10..=14).collect::<Vec<u64>>()
+        );
+        for (r, mut cert_ids) in result {
+            cert_ids.sort();
+            let expected_cert_ids = ids.get_mut(&r).unwrap();
+            expected_cert_ids.sort();
+            assert_eq!(cert_ids, *expected_cert_ids);
+        }
+
+        // WHEN reading digests from round 15, for at most 10 rounds.
+        let result = store.digests_within_range(15, 10).unwrap();
+
+        // THEN rounds 15 ~ 20 should be returned.
+        assert_eq!(
+            result.keys().cloned().collect::<Vec<u64>>(),
+            (15..=20).collect::<Vec<u64>>()
+        );
+        for (r, mut cert_ids) in result {
+            cert_ids.sort();
+            let expected_cert_ids = ids.get_mut(&r).unwrap();
+            expected_cert_ids.sort();
+            assert_eq!(cert_ids, *expected_cert_ids);
+        }
     }
 
     #[tokio::test]

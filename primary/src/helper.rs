@@ -11,7 +11,8 @@ use thiserror::Error;
 use tokio::{sync::watch, task::JoinHandle};
 use tracing::{error, info, instrument};
 use types::{
-    metered_channel::Receiver, BatchDigest, Certificate, CertificateDigest, ReconfigureNotification,
+    metered_channel::Receiver, BatchDigest, Certificate, CertificateDigest,
+    ReconfigureNotification, Round,
 };
 
 #[cfg(test)]
@@ -85,6 +86,11 @@ impl Helper {
                     // will be emitted one by one to the consumer.
                     PrimaryMessage::CertificatesRequest(digests, origin) => {
                         let _ = self.process_certificates(digests, origin, false).await;
+                    }
+                    // The CertificatesRangeRequest will collect certificate digests from range_start,
+                    // for at most max_rounds number of rounds. All digests will be returned in one response.
+                    PrimaryMessage::CertificatesRangeRequest {range_start, max_rounds, requestor: origin} => {
+                        let _ = self.handle_certificates_range_request(range_start, max_rounds, origin).await;
                     }
                     // The CertificatesBatchRequest will find any certificates that exist in
                     // the data source (dictated by the digests parameter). The results will
@@ -255,6 +261,30 @@ impl Helper {
                     .unreliable_send(self.committee.network_key(&origin).unwrap(), &message);
             }
         }
+
+        Ok(())
+    }
+
+    #[instrument(level = "debug", skip_all, err)]
+    async fn handle_certificates_range_request(
+        &mut self,
+        range_start: Round,
+        max_rounds: u64,
+        origin: PublicKey,
+    ) -> Result<(), HelperError> {
+        // TODO [issue #195]: Do some accounting to prevent bad nodes from monopolizing our resources.
+        let result = self
+            .certificate_store
+            .digests_within_range(range_start, max_rounds)
+            .map_err(HelperError::StoreError)?;
+
+        let message = PrimaryMessage::CertificatesRangeResponse {
+            certificate_ids: result,
+            from: self.name.clone(),
+        };
+        self.primary_network
+            .unreliable_send(self.committee.network_key(&origin).unwrap(), &message)
+            .await;
 
         Ok(())
     }
