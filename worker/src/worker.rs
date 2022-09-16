@@ -452,6 +452,7 @@ impl WorkerToWorker for WorkerReceiverHandler {
     ) -> Result<anemo::Response<types::WorkerBatchResponse>, anemo::rpc::Status> {
         let message = request.into_body();
         // TODO [issue #7]: Do some accounting to prevent bad actors from monopolizing our resources
+        // TODO: Add a limit on number of requested batches
         let batches: Vec<Batch> = self
             .store
             .read_all(message.digests)
