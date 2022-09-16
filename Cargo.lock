@@ -1071,7 +1071,7 @@ dependencies = [
  "bulletproofs",
  "criterion",
  "curve25519-dalek-ng",
- "digest 0.10.3",
+ "digest 0.10.5",
  "ed25519-consensus",
  "eyre",
  "fastcrypto",
@@ -1091,7 +1091,7 @@ dependencies = [
  "serde_bytes",
  "serde_json",
  "serde_with",
- "sha3 0.10.4",
+ "sha3 0.10.5",
  "signature",
  "tokio",
  "workspace-hack",
@@ -1375,9 +1375,9 @@ dependencies = [
 
 [[package]]
 name = "digest"
-version = "0.10.3"
+version = "0.10.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f2fb860ca6fafa5552fb6d0e816a69c8e49f0908bf524e30a90d97c85892d506"
+checksum = "adfbc57365a37acbd2ebf2b64d7e69bb766e2fea813521ed536f5d0520dcf86c"
 dependencies = [
  "block-buffer 0.10.2",
  "crypto-common",
@@ -1454,7 +1454,7 @@ dependencies = [
  "base16ct",
  "crypto-bigint",
  "der",
- "digest 0.10.3",
+ "digest 0.10.5",
  "ff",
  "generic-array",
  "group",
@@ -1541,7 +1541,7 @@ dependencies = [
  "blst",
  "bulletproofs",
  "curve25519-dalek-ng",
- "digest 0.10.3",
+ "digest 0.10.5",
  "ed25519-consensus",
  "eyre",
  "hex",
@@ -1893,7 +1893,7 @@ version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6c49c37c09c17a53d937dfbb742eb3a961d65a994e6bcdcf37e7399d0cc8ab5e"
 dependencies = [
- "digest 0.10.3",
+ "digest 0.10.5",
 ]
 
 [[package]]
@@ -2124,7 +2124,7 @@ dependencies = [
  "ecdsa",
  "elliptic-curve",
  "sha2 0.10.2",
- "sha3 0.10.4",
+ "sha3 0.10.5",
 ]
 
 [[package]]
@@ -2412,7 +2412,7 @@ dependencies = [
 [[package]]
 name = "mysten-util-mem"
 version = "0.11.0"
-source = "git+https://github.com/MystenLabs/mysten-infra#d932aa91fb5345fa72869bf943d9989fafde330c"
+source = "git+https://github.com/MystenLabs/mysten-infra#ffb76dd4fa04463a03e68f66fb10df7cad618ed5"
 dependencies = [
  "cfg-if 1.0.0",
  "ed25519-consensus",
@@ -2429,7 +2429,7 @@ dependencies = [
 [[package]]
 name = "mysten-util-mem-derive"
 version = "0.1.0"
-source = "git+https://github.com/MystenLabs/mysten-infra#d932aa91fb5345fa72869bf943d9989fafde330c"
+source = "git+https://github.com/MystenLabs/mysten-infra#ffb76dd4fa04463a03e68f66fb10df7cad618ed5"
 dependencies = [
  "proc-macro2 1.0.40",
  "syn 1.0.98",
@@ -3862,7 +3862,7 @@ checksum = "55deaec60f81eefe3cce0dc50bda92d6d8e88f2a27df7c5033b42afeb1ed2676"
 dependencies = [
  "cfg-if 1.0.0",
  "cpufeatures",
- "digest 0.10.3",
+ "digest 0.10.5",
 ]
 
 [[package]]
@@ -3879,11 +3879,11 @@ dependencies = [
 
 [[package]]
 name = "sha3"
-version = "0.10.4"
+version = "0.10.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eaedf34ed289ea47c2b741bb72e5357a209512d67bcd4bda44359e5bf0470f56"
+checksum = "e2904bea16a1ae962b483322a1c7b81d976029203aea1f461e51cd7705db7ba9"
 dependencies = [
- "digest 0.10.3",
+ "digest 0.10.5",
  "keccak",
 ]
 
@@ -3938,7 +3938,7 @@ version = "1.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e90531723b08e4d6d71b791108faf51f03e1b4a7784f96b2b87f852ebc247228"
 dependencies = [
- "digest 0.10.3",
+ "digest 0.10.5",
  "rand_core 0.6.3",
 ]
 
@@ -4227,7 +4227,7 @@ dependencies = [
  "prometheus",
  "rand 0.8.5",
  "serde",
- "sha3 0.10.4",
+ "sha3 0.10.5",
  "telemetry-subscribers",
  "tempfile",
  "thiserror",
@@ -5244,7 +5244,7 @@ dependencies = [
  "dhat",
  "diff",
  "difflib",
- "digest 0.10.3",
+ "digest 0.10.5",
  "digest 0.9.0",
  "displaydoc",
  "downcast",
@@ -5460,7 +5460,7 @@ dependencies = [
  "serde_yaml",
  "sha2 0.10.2",
  "sha2 0.9.9",
- "sha3 0.10.4",
+ "sha3 0.10.5",
  "sha3 0.9.1",
  "sharded-slab",
  "shlex",
