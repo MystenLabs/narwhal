@@ -398,6 +398,14 @@
 <span id="398">398</span>
 <span id="399">399</span>
 <span id="400">400</span>
+<span id="401">401</span>
+<span id="402">402</span>
+<span id="403">403</span>
+<span id="404">404</span>
+<span id="405">405</span>
+<span id="406">406</span>
+<span id="407">407</span>
+<span id="408">408</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span>config::{Parameters, SharedCommittee, SharedWorkerCache, WorkerId};
@@ -431,7 +439,7 @@
 <span class="kw">use </span>tracing::{debug, info};
 <span class="kw">use </span>types::{
     metered_channel, Batch, BatchDigest, Certificate, CertificateDigest, ConsensusStore, Header,
-    HeaderDigest, ReconfigureNotification, Round, SequenceNumber,
+    HeaderDigest, ReconfigureNotification, Round, RoundVoteDigestPair, SequenceNumber,
 };
 <span class="kw">use </span>worker::{metrics::initialise_metrics, Worker};
 
@@ -441,6 +449,7 @@
 
 <span class="doccomment">/// All the data stores of the node.
 </span><span class="kw">pub struct </span>NodeStorage {
+    <span class="kw">pub </span>vote_digest_store: Store&lt;PublicKey, RoundVoteDigestPair&gt;,
     <span class="kw">pub </span>header_store: Store&lt;HeaderDigest, Header&gt;,
     <span class="kw">pub </span>certificate_store: CertificateStore,
     <span class="kw">pub </span>payload_store: Store&lt;(BatchDigest, WorkerId), PayloadToken&gt;,
@@ -451,7 +460,8 @@
 
 <span class="kw">impl </span>NodeStorage {
     <span class="doccomment">/// The datastore column family names.
-    </span><span class="kw">const </span>HEADERS_CF: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str = <span class="string">&quot;headers&quot;</span>;
+    </span><span class="kw">const </span>VOTES_CF: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str = <span class="string">&quot;votes&quot;</span>;
+    <span class="kw">const </span>HEADERS_CF: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str = <span class="string">&quot;headers&quot;</span>;
     <span class="kw">const </span>CERTIFICATES_CF: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str = <span class="string">&quot;certificates&quot;</span>;
     <span class="kw">const </span>CERTIFICATE_ID_BY_ROUND_CF: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str = <span class="string">&quot;certificate_id_by_round&quot;</span>;
     <span class="kw">const </span>PAYLOAD_CF: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str = <span class="string">&quot;payload&quot;</span>;
@@ -466,6 +476,7 @@
             store_path,
             <span class="prelude-val">None</span>,
             <span class="kw-2">&amp;</span>[
+                <span class="self">Self</span>::VOTES_CF,
                 <span class="self">Self</span>::HEADERS_CF,
                 <span class="self">Self</span>::CERTIFICATES_CF,
                 <span class="self">Self</span>::CERTIFICATE_ID_BY_ROUND_CF,
@@ -479,6 +490,7 @@
         .expect(<span class="string">&quot;Cannot open database&quot;</span>);
 
         <span class="kw">let </span>(
+            votes_map,
             header_map,
             certificate_map,
             certificate_id_by_round_map,
@@ -488,6 +500,7 @@
             sequence_map,
             temp_batch_map,
         ) = <span class="macro">reopen!</span>(<span class="kw-2">&amp;</span>rocksdb,
+            <span class="self">Self</span>::VOTES_CF;&lt;PublicKey, RoundVoteDigestPair&gt;,
             <span class="self">Self</span>::HEADERS_CF;&lt;HeaderDigest, Header&gt;,
             <span class="self">Self</span>::CERTIFICATES_CF;&lt;CertificateDigest, Certificate&gt;,
             <span class="self">Self</span>::CERTIFICATE_ID_BY_ROUND_CF;&lt;(Round, CertificateDigest), CertificateToken&gt;,
@@ -498,6 +511,7 @@
             <span class="self">Self</span>::TEMP_BATCH_CF;&lt;(CertificateDigest, BatchDigest), Batch&gt;
         );
 
+        <span class="kw">let </span>vote_digest_store = Store::new(votes_map);
         <span class="kw">let </span>header_store = Store::new(header_map);
         <span class="kw">let </span>certificate_store = CertificateStore::new(certificate_map, certificate_id_by_round_map);
         <span class="kw">let </span>payload_store = Store::new(payload_map);
@@ -506,6 +520,7 @@
         <span class="kw">let </span>temp_batch_store = Store::new(temp_batch_map);
 
         <span class="self">Self </span>{
+            vote_digest_store,
             header_store,
             certificate_store,
             payload_store,
@@ -640,6 +655,7 @@
             store.header_store.clone(),
             store.certificate_store.clone(),
             store.payload_store.clone(),
+            store.vote_digest_store.clone(),
             tx_new_certificates,
             <span class="comment">/* rx_consensus */ </span>rx_consensus,
             tx_get_block_commands,

@@ -621,6 +621,10 @@
 <span id="621">621</span>
 <span id="622">622</span>
 <span id="623">623</span>
+<span id="624">624</span>
+<span id="625">625</span>
+<span id="626">626</span>
+<span id="627">627</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -667,8 +671,8 @@
     error::DagError,
     metered_channel::{channel, Receiver, Sender},
     BatchDigest, BatchMessage, Certificate, Header, HeaderDigest, PrimaryToPrimary,
-    PrimaryToPrimaryServer, ReconfigureNotification, WorkerInfoResponse, WorkerPrimaryError,
-    WorkerPrimaryMessage, WorkerToPrimary, WorkerToPrimaryServer,
+    PrimaryToPrimaryServer, ReconfigureNotification, RoundVoteDigestPair, WorkerInfoResponse,
+    WorkerPrimaryError, WorkerPrimaryMessage, WorkerToPrimary, WorkerToPrimaryServer,
 };
 <span class="kw">pub use </span>types::{PrimaryMessage, PrimaryWorkerMessage};
 
@@ -701,6 +705,7 @@
         header_store: Store&lt;HeaderDigest, Header&gt;,
         certificate_store: CertificateStore,
         payload_store: Store&lt;(BatchDigest, WorkerId), PayloadToken&gt;,
+        vote_digest_store: Store&lt;PublicKey, RoundVoteDigestPair&gt;,
         tx_consensus: Sender&lt;Certificate&gt;,
         rx_consensus: Receiver&lt;Certificate&gt;,
         tx_get_block_commands: Sender&lt;BlockCommand&gt;,
@@ -872,7 +877,9 @@
         <span class="comment">// The `SignatureService` is used to require signatures on specific digests.
         </span><span class="kw">let </span>signature_service = SignatureService::new(signer);
 
-        <span class="comment">// The `Core` receives and handles headers, votes, and certificates from the other primaries.
+        <span class="comment">// TODO (Laura): if we are restarting and not advancing, for the headers in the header
+        // TODO (Laura): store that do not have a matching certificate, re-create and send a vote
+        // The `Core` receives and handles headers, votes, and certificates from the other primaries.
         </span><span class="kw">let </span>core_primary_network = P2pNetwork::new(network.clone());
         <span class="kw">let </span>core_handle = Core::spawn(
             name.clone(),
@@ -880,6 +887,7 @@
             worker_cache.clone(),
             header_store.clone(),
             certificate_store.clone(),
+            vote_digest_store,
             synchronizer,
             signature_service.clone(),
             tx_consensus_round_updates.subscribe(),

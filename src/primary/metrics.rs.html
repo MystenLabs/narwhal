@@ -474,6 +474,15 @@
 <span id="474">474</span>
 <span id="475">475</span>
 <span id="476">476</span>
+<span id="477">477</span>
+<span id="478">478</span>
+<span id="479">479</span>
+<span id="480">480</span>
+<span id="481">481</span>
+<span id="482">482</span>
+<span id="483">483</span>
+<span id="484">484</span>
+<span id="485">485</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span><span class="kw">crate</span>::EndpointMetrics;
@@ -771,6 +780,8 @@
     </span><span class="kw">pub </span>pending_elements_certificate_waiter: IntGaugeVec,
     <span class="doccomment">/// Number of elements in the waiting (ready-to-deliver) list of certificate_waiter
     </span><span class="kw">pub </span>waiting_elements_certificate_waiter: IntGaugeVec,
+    <span class="doccomment">/// Number of votes that were requested but not sent due to previously having voted differently
+    </span><span class="kw">pub </span>votes_dropped_equivocation_protection: IntCounterVec,
 }
 
 <span class="kw">impl </span>PrimaryMetrics {
@@ -885,6 +896,13 @@
                 <span class="string">&quot;waiting_elements_certificate_waiter&quot;</span>,
                 <span class="string">&quot;Number of waiting elements in certificate waiter&quot;</span>,
                 <span class="kw-2">&amp;</span>[<span class="string">&quot;epoch&quot;</span>],
+                registry
+            )
+            .unwrap(),
+            votes_dropped_equivocation_protection: <span class="macro">register_int_counter_vec_with_registry!</span>(
+                <span class="string">&quot;votes_dropped_equivocation_protection&quot;</span>,
+                <span class="string">&quot;Number of votes that were requested but not sent due to previously having voted differently&quot;</span>,
+                <span class="kw-2">&amp;</span>[<span class="string">&quot;epoch&quot;</span>, <span class="string">&quot;source&quot;</span>],
                 registry
             )
             .unwrap(),
