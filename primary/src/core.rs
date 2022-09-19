@@ -9,11 +9,9 @@ use crate::{
 };
 use async_recursion::async_recursion;
 use config::{Committee, Epoch, SharedWorkerCache};
-use consensus::consensus::Dag;
 use crypto::{PublicKey, Signature};
 use fastcrypto::{Hash as _, SignatureService};
-use network::{CancelOnDropHandler, P2pNetwork, PrimaryNetwork, ReliableNetwork2};
-use proptest::collection::BinaryHeapValueTree;
+use network::{CancelOnDropHandler, P2pNetwork, ReliableNetwork};
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
@@ -306,18 +304,6 @@ impl Core {
                         .inc();
                     return Ok(());
                 }
-            } else {
-                let handler = self
-                    .network
-                    .send(
-                        self.committee.network_key(&header.author).unwrap(),
-                        &PrimaryMessage::Vote(vote),
-                    )
-                    .await;
-                self.cancel_handlers
-                    .entry(header.round)
-                    .or_insert_with(Vec::new)
-                    .push(handler);
             }
         }
         self.send_vote(header).await
@@ -340,7 +326,10 @@ impl Core {
         } else {
             let handler = self
                 .network
-                .send(header.author.clone(), &PrimaryMessage::Vote(vote))
+                .send(
+                    self.committee.network_key(&header.author).unwrap(),
+                    &PrimaryMessage::Vote(vote),
+                )
                 .await;
             self.cancel_handlers
                 .entry(header.round)

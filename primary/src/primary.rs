@@ -43,11 +43,9 @@ use tracing::info;
 use types::{
     error::DagError,
     metered_channel::{channel, Receiver, Sender},
-    BatchDigest, BatchMessage, BincodeEncodedPayload, Certificate, Empty, Header, HeaderDigest,
-    PrimaryToPrimary, PrimaryToPrimary, PrimaryToPrimaryServer, ReconfigureNotification,
-    RoundVoteDigestPair, WorkerInfoResponse, WorkerPrimaryError,,
-    WorkerPrimaryMessage, WorkerToPrimary, WorkerToPrimary,
-    WorkerToPrimaryServer, WorkerToPrimaryServer,
+    BatchDigest, BatchMessage, Certificate, Header, HeaderDigest, PrimaryToPrimary,
+    PrimaryToPrimaryServer, ReconfigureNotification, RoundVoteDigestPair, WorkerInfoResponse,
+    WorkerPrimaryError, WorkerPrimaryMessage, WorkerToPrimary, WorkerToPrimaryServer,
 };
 pub use types::{PrimaryMessage, PrimaryWorkerMessage};
 
@@ -262,7 +260,7 @@ impl Primary {
             worker_cache.clone(),
             header_store.clone(),
             certificate_store.clone(),
-            vote_digest_store.clone(),
+            vote_digest_store,
             synchronizer,
             signature_service.clone(),
             tx_consensus_round_updates.subscribe(),

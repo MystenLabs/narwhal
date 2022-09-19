@@ -280,7 +280,7 @@ async fn test_partial_committee_change() {
             store.header_store.clone(),
             store.certificate_store.clone(),
             store.payload_store,
-            store.vote_digest_store.clone(),
+            store.vote_digest_store,
             /* tx_consensus */ tx_new_certificates,
             /* rx_consensus */ rx_feedback,
             tx_get_block_commands,

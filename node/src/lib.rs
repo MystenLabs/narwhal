@@ -32,7 +32,6 @@ use tracing::{debug, info};
 use types::{
     metered_channel, Batch, BatchDigest, Certificate, CertificateDigest, ConsensusStore, Header,
     HeaderDigest, ReconfigureNotification, Round, RoundVoteDigestPair, SequenceNumber,
-    SerializedBatchMessage,
 };
 use worker::{metrics::initialise_metrics, Worker};
 
