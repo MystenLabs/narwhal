@@ -1203,6 +1203,11 @@
 <span id="1203">1203</span>
 <span id="1204">1204</span>
 <span id="1205">1205</span>
+<span id="1206">1206</span>
+<span id="1207">1207</span>
+<span id="1208">1208</span>
+<span id="1209">1209</span>
+<span id="1210">1210</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use crate</span>::{
@@ -1595,7 +1600,8 @@
         }
     }
 
-    <span class="kw">async fn </span>handle_synchronize_range_command&lt;<span class="lifetime">&#39;a</span>&gt;(
+    <span class="attribute">#[instrument(level = <span class="string">&quot;trace&quot;</span>, skip_all)]
+    </span><span class="kw">async fn </span>handle_synchronize_range_command&lt;<span class="lifetime">&#39;a</span>&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         respond_to: Sender&lt;CertificateIDsByRounds&gt;,
     ) -&gt; <span class="prelude-ty">Option</span>&lt;BoxFuture&lt;<span class="lifetime">&#39;a</span>, State&gt;&gt; {
@@ -1638,7 +1644,8 @@
         )
     }
 
-    <span class="kw">async fn </span>handle_digest_response(<span class="kw-2">&amp;mut </span><span class="self">self</span>, certificate_digests: CertificateDigestsResponse) {
+    <span class="attribute">#[instrument(level = <span class="string">&quot;trace&quot;</span>, skip_all)]
+    </span><span class="kw">async fn </span>handle_digest_response(<span class="kw-2">&amp;mut </span><span class="self">self</span>, certificate_digests: CertificateDigestsResponse) {
         <span class="kw">let </span>CertificateDigestsResponse {
             certificate_ids,
             from,
@@ -1735,7 +1742,8 @@
         State::RangeSynchronized { certificate_ids }
     }
 
-    <span class="kw">async fn </span>notify_requestors_for_result(
+    <span class="attribute">#[instrument(level = <span class="string">&quot;trace&quot;</span>, skip_all)]
+    </span><span class="kw">async fn </span>notify_requestors_for_result(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         request: PendingIdentifier,
         result: BlockSynchronizeResult&lt;BlockHeader&gt;,
@@ -1849,6 +1857,7 @@
     /// back to the consumer. The method returns a future that is running the
     /// process of waiting to gather the node responses and emits the result as
     /// the next State to be executed.
+    </span><span class="attribute">#[instrument(level = <span class="string">&quot;trace&quot;</span>, skip_all)]
     </span><span class="kw">async fn </span>handle_synchronize_block_headers_command&lt;<span class="lifetime">&#39;a</span>&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         block_ids: Vec&lt;CertificateDigest&gt;,
@@ -2110,7 +2119,8 @@
         }
     }
 
-    <span class="kw">async fn </span>wait_for_block_payload&lt;<span class="lifetime">&#39;a</span>&gt;(
+    <span class="attribute">#[instrument(level = <span class="string">&quot;trace&quot;</span>, skip_all, fields(request_id, certificate=<span class="question-mark">?</span>certificate.header.id))]
+    </span><span class="kw">async fn </span>wait_for_block_payload&lt;<span class="lifetime">&#39;a</span>&gt;(
         payload_synchronize_timeout: Duration,
         request_id: RequestID,
         payload_store: Store&lt;(BatchDigest, WorkerId), PayloadToken&gt;,

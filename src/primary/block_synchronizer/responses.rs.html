@@ -156,12 +156,20 @@
 <span id="156">156</span>
 <span id="157">157</span>
 <span id="158">158</span>
+<span id="159">159</span>
+<span id="160">160</span>
+<span id="161">161</span>
+<span id="162">162</span>
+<span id="163">163</span>
+<span id="164">164</span>
+<span id="165">165</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span>blake2::digest::Update;
 <span class="kw">use </span>config::{Committee, SharedWorkerCache};
 <span class="kw">use </span>crypto::PublicKey;
 <span class="kw">use </span>fastcrypto::{Digest, Hash};
+<span class="kw">use </span>std::fmt::Debug;
 <span class="kw">use </span>std::{
     collections::BTreeMap,
     fmt::{Display, Formatter},
@@ -172,13 +180,19 @@
 
 <span class="comment">// RequestID helps us identify an incoming request and
 // all the consequent network requests associated with it.
-</span><span class="attribute">#[derive(Clone, Debug, Copy, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
+</span><span class="attribute">#[derive(Clone, Copy, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
 </span><span class="kw">pub struct </span>RequestID(<span class="kw">pub </span>[u8; fastcrypto::DIGEST_LEN]);
 
 <span class="kw">impl </span>RequestID {
     <span class="comment">// Create a request key (deterministically) from arbitrary data.
     </span><span class="kw">pub fn </span>new(data: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="self">Self </span>{
         RequestID(fastcrypto::blake2b_256(|hasher| hasher.update(data)))
+    }
+}
+
+<span class="kw">impl </span>Debug <span class="kw">for </span>RequestID {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), std::fmt::Error&gt; {
+        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, base64::encode(<span class="self">self</span>.<span class="number">0</span>))
     }
 }
 
