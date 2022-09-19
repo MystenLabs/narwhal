@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/work/narwhal/narwhal/target/debug/build/types-44cb9061750de926/out/narwhal.PrimaryToWorker.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>narwhal.PrimaryToWorker.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../../../../../../../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../../../../../../../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../../../../../../../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../../../../../../../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../../../../../../../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../../../../../../../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../../../../../../../../../../../normalize.css"><link rel="stylesheet" href="../../../../../../../../../../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../../../../../../../../../../../ayu.css" disabled><link rel="stylesheet" href="../../../../../../../../../../../../dark.css" disabled><link rel="stylesheet" href="../../../../../../../../../../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../../../../../../../../../../storage.js"></script><script defer src="../../../../../../../../../../../../source-script.js"></script><script defer src="../../../../../../../../../../../../source-files.js"></script><script defer src="../../../../../../../../../../../../main.js"></script><noscript><link rel="stylesheet" href="../../../../../../../../../../../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../../../../../../../../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../../../../../../../../../../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../../../../../../../../../../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button><a class="sidebar-logo" href="../../../../../../../../../../../../types/index.html"><div class="logo-container"><img class="rust-logo" src="../../../../../../../../../../../../rust-logo.svg" alt="logo"></div></a><h2 class="location"></h2></nav><nav class="sidebar"><a class="sidebar-logo" href="../../../../../../../../../../../../types/index.html"><div class="logo-container"><img class="rust-logo" src="../../../../../../../../../../../../rust-logo.svg" alt="logo"></div></a></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../../../../../../../../../../../../types/index.html"><img class="rust-logo" src="../../../../../../../../../../../../rust-logo.svg" alt="logo"></a><nav class="sub"><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><button type="button">?</button></div><div id="settings-menu" tabindex="-1"><a href="../../../../../../../../../../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../../../../../../../../../../wheel.svg"></a></div></div></form></nav></div><section id="main-content" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">1</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/work/narwhal/narwhal/target/debug/build/types-476f33befbb5a1bd/out/narwhal.PrimaryToPrimary.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>narwhal.PrimaryToPrimary.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../../../../../../../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../../../../../../../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../../../../../../../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../../../../../../../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../../../../../../../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../../../../../../../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../../../../../../../../../../../normalize.css"><link rel="stylesheet" href="../../../../../../../../../../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../../../../../../../../../../../ayu.css" disabled><link rel="stylesheet" href="../../../../../../../../../../../../dark.css" disabled><link rel="stylesheet" href="../../../../../../../../../../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../../../../../../../../../../storage.js"></script><script defer src="../../../../../../../../../../../../source-script.js"></script><script defer src="../../../../../../../../../../../../source-files.js"></script><script defer src="../../../../../../../../../../../../main.js"></script><noscript><link rel="stylesheet" href="../../../../../../../../../../../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../../../../../../../../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../../../../../../../../../../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../../../../../../../../../../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button><a class="sidebar-logo" href="../../../../../../../../../../../../types/index.html"><div class="logo-container"><img class="rust-logo" src="../../../../../../../../../../../../rust-logo.svg" alt="logo"></div></a><h2 class="location"></h2></nav><nav class="sidebar"><a class="sidebar-logo" href="../../../../../../../../../../../../types/index.html"><div class="logo-container"><img class="rust-logo" src="../../../../../../../../../../../../rust-logo.svg" alt="logo"></div></a></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../../../../../../../../../../../../types/index.html"><img class="rust-logo" src="../../../../../../../../../../../../rust-logo.svg" alt="logo"></a><nav class="sub"><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><button type="button">?</button></div><div id="settings-menu" tabindex="-1"><a href="../../../../../../../../../../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../../../../../../../../../../wheel.svg"></a></div></div></form></nav></div><section id="main-content" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">1</span>
 <span id="2">2</span>
 <span id="3">3</span>
 <span id="4">4</span>
@@ -126,14 +126,14 @@
 <span id="126">126</span>
 <span id="127">127</span>
 </pre><pre class="rust"><code><span class="doccomment">/// Generated client implementations.
-</span><span class="kw">pub mod </span>primary_to_worker_client {
+</span><span class="kw">pub mod </span>primary_to_primary_client {
     <span class="attribute">#![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     </span><span class="kw">use </span>anemo::codegen::<span class="kw-2">*</span>;
     <span class="attribute">#[derive(Debug, Clone)]
-    </span><span class="kw">pub struct </span>PrimaryToWorkerClient&lt;T&gt; {
+    </span><span class="kw">pub struct </span>PrimaryToPrimaryClient&lt;T&gt; {
         inner: anemo::rpc::client::Rpc&lt;T&gt;,
     }
-    <span class="kw">impl</span>&lt;T&gt; PrimaryToWorkerClient&lt;T&gt;
+    <span class="kw">impl</span>&lt;T&gt; PrimaryToPrimaryClient&lt;T&gt;
     <span class="kw">where
         </span>T: Service&lt;Request&lt;Bytes&gt;, Response = Response&lt;Bytes&gt;&gt;,
         T::Error: Into&lt;BoxError&gt;,
@@ -144,7 +144,7 @@
         }
         <span class="kw">pub async fn </span>send_message(
             <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-            request: <span class="kw">impl </span>anemo::types::request::IntoRequest&lt;<span class="kw">crate</span>::PrimaryWorkerMessage&gt;,
+            request: <span class="kw">impl </span>anemo::types::request::IntoRequest&lt;<span class="kw">crate</span>::PrimaryMessage&gt;,
         ) -&gt; <span class="prelude-ty">Result</span>&lt;anemo::Response&lt;()&gt;, anemo::rpc::Status&gt; {
             <span class="self">self</span>.inner
                 .ready()
@@ -156,28 +156,28 @@
                 })<span class="question-mark">?</span>;
             <span class="kw">let </span>codec = anemo::rpc::codec::BincodeCodec::default();
             <span class="kw">let </span><span class="kw-2">mut </span>request = request.into_request();
-            <span class="kw-2">*</span>request.route_mut() = <span class="string">&quot;/narwhal.PrimaryToWorker/SendMessage&quot;</span>.into();
+            <span class="kw-2">*</span>request.route_mut() = <span class="string">&quot;/narwhal.PrimaryToPrimary/SendMessage&quot;</span>.into();
             <span class="self">self</span>.inner.unary(request, codec).<span class="kw">await
         </span>}
     }
 }
 <span class="doccomment">/// Generated server implementations.
-</span><span class="kw">pub mod </span>primary_to_worker_server {
+</span><span class="kw">pub mod </span>primary_to_primary_server {
     <span class="attribute">#![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     </span><span class="kw">use </span>anemo::codegen::<span class="kw-2">*</span>;
-    <span class="doccomment">///Generated trait containing RPC methods that should be implemented for use with PrimaryToWorkerServer.
+    <span class="doccomment">///Generated trait containing RPC methods that should be implemented for use with PrimaryToPrimaryServer.
     </span><span class="attribute">#[async_trait]
-    </span><span class="kw">pub trait </span>PrimaryToWorker: Send + Sync + <span class="lifetime">&#39;static </span>{
+    </span><span class="kw">pub trait </span>PrimaryToPrimary: Send + Sync + <span class="lifetime">&#39;static </span>{
         <span class="kw">async fn </span>send_message(
             <span class="kw-2">&amp;</span><span class="self">self</span>,
-            request: anemo::Request&lt;<span class="kw">crate</span>::PrimaryWorkerMessage&gt;,
+            request: anemo::Request&lt;<span class="kw">crate</span>::PrimaryMessage&gt;,
         ) -&gt; <span class="prelude-ty">Result</span>&lt;anemo::Response&lt;()&gt;, anemo::rpc::Status&gt;;
     }
     <span class="attribute">#[derive(Debug)]
-    </span><span class="kw">pub struct </span>PrimaryToWorkerServer&lt;T: PrimaryToWorker&gt; {
+    </span><span class="kw">pub struct </span>PrimaryToPrimaryServer&lt;T: PrimaryToPrimary&gt; {
         inner: Arc&lt;T&gt;,
     }
-    <span class="kw">impl</span>&lt;T: PrimaryToWorker&gt; PrimaryToWorkerServer&lt;T&gt; {
+    <span class="kw">impl</span>&lt;T: PrimaryToPrimary&gt; PrimaryToPrimaryServer&lt;T&gt; {
         <span class="kw">pub fn </span>new(inner: T) -&gt; <span class="self">Self </span>{
             <span class="self">Self</span>::from_arc(Arc::new(inner))
         }
@@ -185,9 +185,9 @@
             <span class="self">Self </span>{ inner }
         }
     }
-    <span class="kw">impl</span>&lt;T&gt; anemo::codegen::Service&lt;anemo::Request&lt;Bytes&gt;&gt; <span class="kw">for </span>PrimaryToWorkerServer&lt;T&gt;
+    <span class="kw">impl</span>&lt;T&gt; anemo::codegen::Service&lt;anemo::Request&lt;Bytes&gt;&gt; <span class="kw">for </span>PrimaryToPrimaryServer&lt;T&gt;
     <span class="kw">where
-        </span>T: PrimaryToWorker,
+        </span>T: PrimaryToPrimary,
     {
         <span class="kw">type </span>Response = anemo::Response&lt;Bytes&gt;;
         <span class="kw">type </span>Error = std::convert::Infallible;
@@ -201,12 +201,12 @@
         <span class="kw">fn </span>call(<span class="kw-2">&amp;mut </span><span class="self">self</span>, req: anemo::Request&lt;Bytes&gt;) -&gt; <span class="self">Self</span>::Future {
             <span class="kw">let </span>inner = <span class="self">self</span>.inner.clone();
             <span class="kw">match </span>req.route() {
-                <span class="string">&quot;/narwhal.PrimaryToWorker/SendMessage&quot; </span>=&gt; {
+                <span class="string">&quot;/narwhal.PrimaryToPrimary/SendMessage&quot; </span>=&gt; {
                     <span class="attribute">#[allow(non_camel_case_types)]
-                    </span><span class="kw">struct </span>SendMessageSvc&lt;T: PrimaryToWorker&gt;(<span class="kw">pub </span>Arc&lt;T&gt;);
+                    </span><span class="kw">struct </span>SendMessageSvc&lt;T: PrimaryToPrimary&gt;(<span class="kw">pub </span>Arc&lt;T&gt;);
                     <span class="kw">impl</span>&lt;
-                        T: PrimaryToWorker,
-                    &gt; anemo::rpc::server::UnaryService&lt;<span class="kw">crate</span>::PrimaryWorkerMessage&gt;
+                        T: PrimaryToPrimary,
+                    &gt; anemo::rpc::server::UnaryService&lt;<span class="kw">crate</span>::PrimaryMessage&gt;
                     <span class="kw">for </span>SendMessageSvc&lt;T&gt; {
                         <span class="kw">type </span>Response = ();
                         <span class="kw">type </span>Future = BoxFuture&lt;
@@ -215,7 +215,7 @@
                         &gt;;
                         <span class="kw">fn </span>call(
                             <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-                            request: anemo::Request&lt;<span class="kw">crate</span>::PrimaryWorkerMessage&gt;,
+                            request: anemo::Request&lt;<span class="kw">crate</span>::PrimaryMessage&gt;,
                         ) -&gt; <span class="self">Self</span>::Future {
                             <span class="kw">let </span>inner = <span class="self">self</span>.<span class="number">0</span>.clone();
                             <span class="kw">let </span>fut = <span class="kw">async move </span>{
@@ -242,15 +242,15 @@
             }
         }
     }
-    <span class="kw">impl</span>&lt;T: PrimaryToWorker&gt; Clone <span class="kw">for </span>PrimaryToWorkerServer&lt;T&gt; {
+    <span class="kw">impl</span>&lt;T: PrimaryToPrimary&gt; Clone <span class="kw">for </span>PrimaryToPrimaryServer&lt;T&gt; {
         <span class="kw">fn </span>clone(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
             <span class="kw">let </span>inner = <span class="self">self</span>.inner.clone();
             <span class="self">Self </span>{ inner }
         }
     }
-    <span class="kw">impl</span>&lt;T: PrimaryToWorker&gt; anemo::rpc::RpcService <span class="kw">for </span>PrimaryToWorkerServer&lt;T&gt; {
-        <span class="kw">const </span>SERVICE_NAME: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str = <span class="string">&quot;narwhal.PrimaryToWorker&quot;</span>;
+    <span class="kw">impl</span>&lt;T: PrimaryToPrimary&gt; anemo::rpc::RpcService <span class="kw">for </span>PrimaryToPrimaryServer&lt;T&gt; {
+        <span class="kw">const </span>SERVICE_NAME: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str = <span class="string">&quot;narwhal.PrimaryToPrimary&quot;</span>;
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../../../../../../../../../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (17cbdfd07 2022-09-13)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../../../../../../../../../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (a37499ae6 2022-09-18)" ></div></body></html>

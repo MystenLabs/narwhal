@@ -646,9 +646,6 @@
 <span id="646">646</span>
 <span id="647">647</span>
 <span id="648">648</span>
-<span id="649">649</span>
-<span id="650">650</span>
-<span id="651">651</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use crate</span>::{utils, PayloadToken};
@@ -1081,7 +1078,7 @@
         <span class="comment">// Now output all the removed certificates
         </span><span class="kw">for </span>certificate <span class="kw">in </span>certificates.clone() {
             <span class="self">self</span>.tx_removed_certificates
-                .send(certificate.clone())
+                .send(certificate)
                 .<span class="kw">await
                 </span>.expect(<span class="string">&quot;Couldn&#39;t forward removed certificates to channel&quot;</span>);
         }
@@ -1131,20 +1128,17 @@
                 <span class="comment">// find the blocks in certificates store
                 </span><span class="kw">match </span><span class="self">self</span>.certificate_store.read_all(ids.clone()) {
                     <span class="prelude-val">Ok</span>(certificates) =&gt; {
-                        <span class="kw">let </span>non_found_certificates: Vec&lt;(<span class="prelude-ty">Option</span>&lt;Certificate&gt;, CertificateDigest)&gt; =
-                            certificates
-                                .clone()
-                                .into_iter()
-                                .zip(ids.clone())
-                                .filter(|(c, _digest)| c.is_none())
-                                .collect();
+                        <span class="kw">let </span>non_found_digests: Vec&lt;CertificateDigest&gt; = certificates
+                            .iter()
+                            .zip(ids.clone())
+                            .filter_map(|(c, digest)| <span class="kw">if </span>c.is_none() { <span class="prelude-val">Some</span>(digest) } <span class="kw">else </span>{ <span class="prelude-val">None </span>})
+                            .collect();
 
-                        <span class="kw">if </span>!non_found_certificates.is_empty() {
-                            <span class="kw">let </span>c: Vec&lt;CertificateDigest&gt; = non_found_certificates
-                                .into_iter()
-                                .map(|(_c, d)| d)
-                                .collect();
-                            <span class="macro">warn!</span>(<span class="string">&quot;Some certificates are missing, will ignore them {:?}&quot;</span>, c);
+                        <span class="kw">if </span>!non_found_digests.is_empty() {
+                            <span class="macro">warn!</span>(
+                                <span class="string">&quot;Some certificates are missing, will ignore them {:?}&quot;</span>,
+                                non_found_digests
+                            );
                         }
 
                         <span class="comment">// ensure that we store only the found certificates
@@ -1301,4 +1295,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (17cbdfd07 2022-09-13)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (a37499ae6 2022-09-18)" ></div></body></html>

@@ -545,7 +545,7 @@
 </span><span class="kw">pub mod </span>dag_tests;
 
 <span class="doccomment">/// Dag represents the Direct Acyclic Graph that is constructed by the certificate of each round without any
-/// consensus running on top of it. This is a [`VerifyingKey`], [`Certificate`] and [`Round`]-aware
+/// consensus running on top of it. This is a [`fastcrypto::traits::VerifyingKey`], [`Certificate`] and [`Round`]-aware
 ///  variant of the Dag, with a secondary index to link a (pubkey, round) pair to the possible
 /// certified collection by that authority at that round.
 ///
@@ -573,7 +573,7 @@
     tx_commands: Sender&lt;DagCommand&gt;,
 }
 
-<span class="doccomment">/// Represents the errors that can be encountered in this concrete, [`VerifyingKey`],
+<span class="doccomment">/// Represents the errors that can be encountered in this concrete, [`fastcrypto::traits::VerifyingKey`],
 /// [`Certificate`] and [`Round`]-aware variant of the Dag.
 </span><span class="attribute">#[derive(Debug, Error)]
 </span><span class="kw">pub enum </span>ValidatorDagError {
@@ -1031,4 +1031,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="consensus" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (17cbdfd07 2022-09-13)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="consensus" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (a37499ae6 2022-09-18)" ></div></body></html>

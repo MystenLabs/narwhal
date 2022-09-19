@@ -785,6 +785,23 @@
 <span id="785">785</span>
 <span id="786">786</span>
 <span id="787">787</span>
+<span id="788">788</span>
+<span id="789">789</span>
+<span id="790">790</span>
+<span id="791">791</span>
+<span id="792">792</span>
+<span id="793">793</span>
+<span id="794">794</span>
+<span id="795">795</span>
+<span id="796">796</span>
+<span id="797">797</span>
+<span id="798">798</span>
+<span id="799">799</span>
+<span id="800">800</span>
+<span id="801">801</span>
+<span id="802">802</span>
+<span id="803">803</span>
+<span id="804">804</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -1446,6 +1463,23 @@
         from: PublicKey,
     },
 
+    CertificatesRangeRequest {
+        <span class="comment">// Requests certificate digests with rounds &gt;= `range_start` to be sent back.
+        // No upper range limit is specified, because the requestor does not know the
+        // current upper limit. The response size should still be acceptable if all
+        // certificate digests from an authority are returned: e.g. a response can be
+        // 32B / digest * 200 authorities * 50 rounds ~ 320KB
+        </span>range_start: Round,
+        <span class="comment">// Maximum number of rounds that should be contained in each reply.
+        </span>max_rounds: u64,
+        requestor: PublicKey,
+    },
+    CertificatesRangeResponse {
+        <span class="comment">// Certificate digests, grouped by round numbers.
+        </span>certificate_ids: BTreeMap&lt;Round, Vec&lt;CertificateDigest&gt;&gt;,
+        from: PublicKey,
+    },
+
     PayloadAvailabilityRequest {
         certificate_ids: Vec&lt;CertificateDigest&gt;,
         requestor: PublicKey,
@@ -1573,4 +1607,4 @@
     </span><span class="kw">pub </span>workers: BTreeMap&lt;WorkerId, WorkerInfo&gt;,
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (17cbdfd07 2022-09-13)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (a37499ae6 2022-09-18)" ></div></body></html>

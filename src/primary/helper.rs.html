@@ -397,7 +397,7 @@
     /// certificate &amp; batch data for each certificate digest in digests,
     /// and reports on each fully available item in the request in a
     /// PayloadAvailabilityResponse.
-    </span><span class="attribute">#[instrument(level=<span class="string">&quot;debug&quot;</span>, skip_all, fields(num_certificate_ids = digests.len()), err)]
+    </span><span class="attribute">#[instrument(level=<span class="string">&quot;debug&quot;</span>, skip_all, fields(origin = <span class="question-mark">?</span>origin, num_certificate_ids = digests.len()), err)]
     </span><span class="kw">async fn </span>process_payload_availability(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         digests: Vec&lt;CertificateDigest&gt;,
@@ -462,7 +462,7 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="attribute">#[instrument(level=<span class="string">&quot;debug&quot;</span>, skip_all, fields(num_certificate_ids = digests.len(), mode = batch_mode), err)]
+    <span class="attribute">#[instrument(level=<span class="string">&quot;debug&quot;</span>, skip_all, fields(origin = <span class="question-mark">?</span>origin, num_certificate_ids = digests.len(), mode = batch_mode), err)]
     </span><span class="kw">async fn </span>process_certificates(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         digests: Vec&lt;CertificateDigest&gt;,
@@ -521,4 +521,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (17cbdfd07 2022-09-13)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (a37499ae6 2022-09-18)" ></div></body></html>

@@ -249,6 +249,9 @@
 <span id="249">249</span>
 <span id="250">250</span>
 <span id="251">251</span>
+<span id="252">252</span>
+<span id="253">253</span>
+<span id="254">254</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span><span class="kw">crate</span>::block_synchronizer::{BlockHeader, BlockSynchronizeResult, Command};
@@ -302,6 +305,9 @@
             <span class="macro">tokio::select! </span>{
                 <span class="prelude-val">Some</span>(command) = <span class="self">self</span>.rx_commands.recv() =&gt; {
                     <span class="kw">match </span>command {
+                        Command::SynchronizeRange { .. } =&gt; {
+                            <span class="macro">todo!</span>(<span class="string">&quot;MockBlockSynchronizerCore for Command::SynchronizeRange is unimplemented!&quot;</span>)
+                        }
                         Command::SynchronizeBlockHeaders { block_ids, respond_to } =&gt; {
                             <span class="kw">let </span>(times, results) = <span class="self">self
                                 </span>.block_headers_expected_requests
@@ -501,4 +507,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (17cbdfd07 2022-09-13)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (a37499ae6 2022-09-18)" ></div></body></html>

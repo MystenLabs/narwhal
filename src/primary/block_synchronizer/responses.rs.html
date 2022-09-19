@@ -145,16 +145,30 @@
 <span id="145">145</span>
 <span id="146">146</span>
 <span id="147">147</span>
+<span id="148">148</span>
+<span id="149">149</span>
+<span id="150">150</span>
+<span id="151">151</span>
+<span id="152">152</span>
+<span id="153">153</span>
+<span id="154">154</span>
+<span id="155">155</span>
+<span id="156">156</span>
+<span id="157">157</span>
+<span id="158">158</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span>blake2::digest::Update;
 <span class="kw">use </span>config::{Committee, SharedWorkerCache};
 <span class="kw">use </span>crypto::PublicKey;
 <span class="kw">use </span>fastcrypto::{Digest, Hash};
-<span class="kw">use </span>std::fmt::{Display, Formatter};
+<span class="kw">use </span>std::{
+    collections::BTreeMap,
+    fmt::{Display, Formatter},
+};
 <span class="kw">use </span>thiserror::Error;
 <span class="kw">use </span>tracing::{error, warn};
-<span class="kw">use </span>types::{Certificate, CertificateDigest};
+<span class="kw">use </span>types::{Certificate, CertificateDigest, Round};
 
 <span class="comment">// RequestID helps us identify an incoming request and
 // all the consequent network requests associated with it.
@@ -168,14 +182,14 @@
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; FromIterator&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>CertificateDigest&gt; <span class="kw">for </span>RequestID {
-    <span class="kw">fn </span>from_iter&lt;T: IntoIterator&lt;Item = <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>CertificateDigest&gt;&gt;(ids: T) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span><span class="kw-2">mut </span>ids_sorted: Vec&lt;<span class="kw-2">&amp;</span>CertificateDigest&gt; = ids.into_iter().collect();
+<span class="kw">impl </span>FromIterator&lt;CertificateDigest&gt; <span class="kw">for </span>RequestID {
+    <span class="kw">fn </span>from_iter&lt;T: IntoIterator&lt;Item = CertificateDigest&gt;&gt;(ids: T) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span><span class="kw-2">mut </span>ids_sorted: Vec&lt;CertificateDigest&gt; = ids.into_iter().collect();
         ids_sorted.sort();
 
         <span class="kw">let </span>result: Vec&lt;u8&gt; = ids_sorted
             .into_iter()
-            .flat_map(|d| Digest::from(<span class="kw-2">*</span>d).to_vec())
+            .flat_map(|d| Digest::from(d).to_vec())
             .collect();
 
         RequestID::new(<span class="kw-2">&amp;</span>result)
@@ -184,9 +198,7 @@
 
 <span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; FromIterator&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Certificate&gt; <span class="kw">for </span>RequestID {
     <span class="kw">fn </span>from_iter&lt;T: IntoIterator&lt;Item = <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Certificate&gt;&gt;(certificates: T) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span>ids: Vec&lt;CertificateDigest&gt; = certificates.into_iter().map(|c| c.digest()).collect();
-
-        ids.iter().collect()
+        certificates.into_iter().map(|c| c.digest()).collect()
     }
 }
 
@@ -204,9 +216,7 @@
 
 <span class="kw">impl </span>PayloadAvailabilityResponse {
     <span class="kw">pub fn </span>request_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; RequestID {
-        <span class="kw">let </span>ids: Vec&lt;CertificateDigest&gt; = <span class="self">self</span>.block_ids.iter().map(|entry| entry.<span class="number">0</span>).collect();
-
-        ids.iter().collect()
+        <span class="self">self</span>.block_ids.iter().map(|entry| entry.<span class="number">0</span>).collect()
     }
 
     <span class="kw">pub fn </span>available_block_ids(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;CertificateDigest&gt; {
@@ -225,9 +235,7 @@
 
 <span class="kw">impl </span>CertificatesResponse {
     <span class="kw">pub fn </span>request_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; RequestID {
-        <span class="kw">let </span>ids: Vec&lt;CertificateDigest&gt; = <span class="self">self</span>.certificates.iter().map(|entry| entry.<span class="number">0</span>).collect();
-
-        ids.iter().collect()
+        <span class="self">self</span>.certificates.iter().map(|entry| entry.<span class="number">0</span>).collect()
     }
 
     <span class="doccomment">/// This method does two things:
@@ -284,6 +292,20 @@
     }
 }
 
+<span class="attribute">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>CertificateDigestsResponse {
+    <span class="comment">// Certificate digests, grouped by round numbers.
+    </span><span class="kw">pub </span>certificate_ids: BTreeMap&lt;Round, Vec&lt;CertificateDigest&gt;&gt;,
+    <span class="kw">pub </span>from: PublicKey,
+}
+
+<span class="attribute">#[derive(Debug, Clone)]
+</span><span class="kw">pub enum </span>AvailabilityResponse {
+    CertificateDigest(CertificateDigestsResponse),
+    Certificate(CertificatesResponse),
+    Payload(PayloadAvailabilityResponse),
+}
+
 <span class="attribute">#[derive(Debug, Error, Clone, PartialEq)]
 </span><span class="kw">pub enum </span>CertificatesResponseError {
     <span class="attribute">#[error(<span class="string">&quot;Found invalid certificates form peer {name} - potentially Byzantine.&quot;</span>)]
@@ -293,4 +315,4 @@
     },
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (17cbdfd07 2022-09-13)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (a37499ae6 2022-09-18)" ></div></body></html>

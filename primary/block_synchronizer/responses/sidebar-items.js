@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":[["CertificatesResponseError",""]],"struct":[["CertificatesResponse",""],["PayloadAvailabilityResponse",""],["RequestID",""]]};
+window.SIDEBAR_ITEMS = {"enum":[["AvailabilityResponse",""],["CertificatesResponseError",""]],"struct":[["CertificateDigestsResponse",""],["CertificatesResponse",""],["PayloadAvailabilityResponse",""],["RequestID",""]]};

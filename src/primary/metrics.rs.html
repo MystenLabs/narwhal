@@ -474,13 +474,6 @@
 <span id="474">474</span>
 <span id="475">475</span>
 <span id="476">476</span>
-<span id="477">477</span>
-<span id="478">478</span>
-<span id="479">479</span>
-<span id="480">480</span>
-<span id="481">481</span>
-<span id="482">482</span>
-<span id="483">483</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span><span class="kw">crate</span>::EndpointMetrics;
@@ -546,7 +539,7 @@
     </span><span class="kw">pub </span>tx_sync_certificates: IntGauge,
     <span class="doccomment">/// occupancy of the channel from the `primary::HeaderWaiter` to the `primary::Core`
     </span><span class="kw">pub </span>tx_headers_loopback: IntGauge,
-    <span class="doccomment">/// occupancy of the channel from the `primary::CertificateWaiter` to the `primary::Core`    
+    <span class="doccomment">/// occupancy of the channel from the `primary::CertificateWaiter` to the `primary::Core`
     </span><span class="kw">pub </span>tx_certificates_loopback: IntGauge,
     <span class="doccomment">/// occupancy of the channel from the `primary::PrimaryReceiverHandler` to the `primary::Core`
     </span><span class="kw">pub </span>tx_primary_messages: IntGauge,
@@ -565,9 +558,7 @@
     <span class="doccomment">/// occupancy of the channel from the `primary::BlockSynchronizerHandler` to the `primary::BlockSynchronizer`
     </span><span class="kw">pub </span>tx_block_synchronizer_commands: IntGauge,
     <span class="doccomment">/// occupancy of the channel from the `primary::PrimaryReceiverHandler` to the `primary::BlockSynchronizer`
-    </span><span class="kw">pub </span>tx_certificate_responses: IntGauge,
-    <span class="doccomment">/// occupancy of the channel from the `primary::PrimaryReceiverHandler` to the `primary::BlockSynchronizer`
-    </span><span class="kw">pub </span>tx_payload_availability_responses: IntGauge,
+    </span><span class="kw">pub </span>tx_availability_responses: IntGauge,
     <span class="doccomment">/// occupancy of the channel from the `primary::WorkerReceiverHandler` to the `primary::StateHandler`
     </span><span class="kw">pub </span>tx_state_handler: IntGauge,
     <span class="doccomment">/// occupancy of the channel from the reconfigure notification to most components.
@@ -672,13 +663,8 @@
                 <span class="string">&quot;occupancy of the channel from the `primary::BlockSynchronizerHandler` to the `primary::BlockSynchronizer`&quot;</span>,
                 registry
             ).unwrap(),
-            tx_certificate_responses: <span class="macro">register_int_gauge_with_registry!</span>(
-                <span class="string">&quot;tx_certificate_responses&quot;</span>,
-                <span class="string">&quot;occupancy of the channel from the `primary::PrimaryReceiverHandler` to the `primary::BlockSynchronizer`&quot;</span>,
-                registry
-            ).unwrap(),
-            tx_payload_availability_responses: <span class="macro">register_int_gauge_with_registry!</span>(
-                <span class="string">&quot;tx_payload_availability_responses&quot;</span>,
+            tx_availability_responses: <span class="macro">register_int_gauge_with_registry!</span>(
+                <span class="string">&quot;tx_availability_responses&quot;</span>,
                 <span class="string">&quot;occupancy of the channel from the `primary::PrimaryReceiverHandler` to the `primary::BlockSynchronizer`&quot;</span>,
                 registry
             ).unwrap(),
@@ -965,4 +951,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (17cbdfd07 2022-09-13)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (a37499ae6 2022-09-18)" ></div></body></html>

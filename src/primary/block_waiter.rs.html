@@ -843,12 +843,6 @@
 <span id="843">843</span>
 <span id="844">844</span>
 <span id="845">845</span>
-<span id="846">846</span>
-<span id="847">847</span>
-<span id="848">848</span>
-<span id="849">849</span>
-<span id="850">850</span>
-<span id="851">851</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span><span class="kw">crate</span>::block_synchronizer::handler::Handler;
@@ -1100,12 +1094,12 @@
 
     <span class="doccomment">/// A map that holds the channels we should notify with the
     /// GetBlock responses.
-    </span>tx_get_block_map:
+    </span>get_block_map_requesters:
         HashMap&lt;CertificateDigest, Vec&lt;oneshot::Sender&lt;BlockResult&lt;GetBlockResponse&gt;&gt;&gt;&gt;,
 
     <span class="doccomment">/// A map that holds the channels we should notify with the
     /// GetBlocks responses.
-    </span>tx_get_blocks_map: HashMap&lt;RequestKey, Vec&lt;oneshot::Sender&lt;BlocksResult&gt;&gt;&gt;,
+    </span>get_blocks_map_requesters: HashMap&lt;RequestKey, Vec&lt;oneshot::Sender&lt;BlocksResult&gt;&gt;&gt;,
 
     <span class="doccomment">/// We use the handler of the block synchronizer to interact with the
     /// block synchronizer in a synchronous way. Share a reference of this
@@ -1138,8 +1132,8 @@
                 rx_reconfigure,
                 rx_batch_receiver: batch_receiver,
                 tx_pending_batch: HashMap::new(),
-                tx_get_block_map: HashMap::new(),
-                tx_get_blocks_map: HashMap::new(),
+                get_block_map_requesters: HashMap::new(),
+                get_blocks_map_requesters: HashMap::new(),
                 block_synchronizer_handler,
             }
             .run()
@@ -1230,7 +1224,7 @@
 
         <span class="kw">let </span>key = <span class="self">Self</span>::construct_get_blocks_request_key(<span class="kw-2">&amp;</span>ids);
 
-        <span class="kw">match </span><span class="self">self</span>.tx_get_blocks_map.remove(<span class="kw-2">&amp;</span>key) {
+        <span class="kw">match </span><span class="self">self</span>.get_blocks_map_requesters.remove(<span class="kw-2">&amp;</span>key) {
             <span class="prelude-val">Some</span>(senders) =&gt; {
                 <span class="kw">for </span>sender <span class="kw">in </span>senders {
                     <span class="kw">if </span>sender.send(result.clone()).is_err() {
@@ -1258,10 +1252,10 @@
         // and then we merge all the bytes to form a key
         </span><span class="kw">let </span>key = <span class="self">Self</span>::construct_get_blocks_request_key(<span class="kw-2">&amp;</span>ids);
 
-        <span class="kw">if </span><span class="self">self</span>.tx_get_blocks_map.contains_key(<span class="kw-2">&amp;</span>key) {
+        <span class="kw">if </span><span class="self">self</span>.get_blocks_map_requesters.contains_key(<span class="kw-2">&amp;</span>key) {
             <span class="comment">// request already pending, nothing to do, just add the sender to the list
             // of pending to be notified ones.
-            </span><span class="self">self</span>.tx_get_blocks_map
+            </span><span class="self">self</span>.get_blocks_map_requesters
                 .entry(key)
                 .or_insert_with(Vec::new)
                 .push(sender);
@@ -1276,7 +1270,7 @@
         <span class="kw">let </span>(get_block_futures, get_blocks_future) = <span class="self">self</span>.get_blocks(certificates).<span class="kw">await</span>;
 
         <span class="comment">// mark the request as pending
-        </span><span class="self">self</span>.tx_get_blocks_map
+        </span><span class="self">self</span>.get_blocks_map_requesters
             .entry(key)
             .or_insert_with(Vec::new)
             .push(sender);
@@ -1339,22 +1333,16 @@
         <span class="kw">let </span><span class="kw-2">mut </span>ids = Vec::new();
 
         <span class="comment">// ensure payloads are synchronized for the found certificates
-        </span><span class="kw">let </span>found_certificates: Vec&lt;Certificate&gt; = certificates
-            .clone()
-            .into_iter()
-            .filter(|(<span class="kw">_</span>, c)| c.is_some())
-            .map(|(<span class="kw">_</span>, c)| c.unwrap())
-            .collect();
+        </span><span class="kw">let </span>found_certificates: Vec&lt;Certificate&gt; =
+            certificates.iter().flat_map(|(<span class="kw">_</span>, c)| c).cloned().collect();
 
         <span class="kw">let </span>sync_result = <span class="self">self
             </span>.block_synchronizer_handler
             .synchronize_block_payloads(found_certificates)
             .<span class="kw">await</span>;
         <span class="kw">let </span>successful_payload_sync_set = sync_result
-            .clone()
-            .into_iter()
-            .flatten()
-            .map(|c| c.digest())
+            .iter()
+            .flat_map(|r| r.as_ref().map(|c| c.digest()).ok())
             .collect::&lt;HashSet&lt;CertificateDigest&gt;&gt;();
 
         <span class="kw">for </span>(id, c) <span class="kw">in </span>certificates {
@@ -1451,7 +1439,7 @@
     ) -&gt; <span class="prelude-ty">Option</span>&lt;BoxFuture&lt;<span class="lifetime">&#39;a</span>, BlockResult&lt;GetBlockResponse&gt;&gt;&gt; {
         <span class="comment">// If similar request is already under processing, don&#39;t start a new one
         </span><span class="kw">if </span><span class="self">self</span>.pending_get_block.contains_key(<span class="kw-2">&amp;</span>id.clone()) {
-            <span class="self">self</span>.tx_get_block_map
+            <span class="self">self</span>.get_block_map_requesters
                 .entry(id)
                 .or_insert_with(Vec::new)
                 .push(sender);
@@ -1473,7 +1461,7 @@
         // as pending so no other can initiate the process
         </span><span class="self">self</span>.pending_get_block.insert(id, certificate.clone());
 
-        <span class="self">self</span>.tx_get_block_map
+        <span class="self">self</span>.get_block_map_requesters
             .entry(id)
             .or_insert_with(Vec::new)
             .push(sender);
@@ -1522,7 +1510,7 @@
     <span class="kw">async fn </span>handle_batch_waiting_result(<span class="kw-2">&amp;mut </span><span class="self">self</span>, result: BlockResult&lt;GetBlockResponse&gt;) {
         <span class="kw">let </span>block_id = result.clone().map_or_else(|e| e.id, |r| r.id);
 
-        <span class="kw">match </span><span class="self">self</span>.tx_get_block_map.remove(<span class="kw-2">&amp;</span>block_id) {
+        <span class="kw">match </span><span class="self">self</span>.get_block_map_requesters.remove(<span class="kw-2">&amp;</span>block_id) {
             <span class="prelude-val">Some</span>(senders) =&gt; {
                 <span class="kw">for </span>sender <span class="kw">in </span>senders {
                     <span class="kw">if </span>sender.send(result.clone()).is_err() {
@@ -1701,4 +1689,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (17cbdfd07 2022-09-13)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (a37499ae6 2022-09-18)" ></div></body></html>

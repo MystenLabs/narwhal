@@ -658,7 +658,6 @@
 <span id="658">658</span>
 <span id="659">659</span>
 <span id="660">660</span>
-<span id="661">661</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -804,7 +803,7 @@
         })
     }
 
-    <span class="attribute">#[instrument(level = <span class="string">&quot;debug&quot;</span>, skip_all)]
+    <span class="attribute">#[instrument(level = <span class="string">&quot;debug&quot;</span>, skip_all, fields(header_digest = <span class="question-mark">?</span>header.digest()))]
     </span><span class="kw">async fn </span>process_own_header(<span class="kw-2">&amp;mut </span><span class="self">self</span>, header: Header) -&gt; DagResult&lt;()&gt; {
         <span class="kw">if </span>header.epoch &lt; <span class="self">self</span>.committee.epoch() {
             <span class="macro">debug!</span>(<span class="string">&quot;Proposer outdated&quot;</span>);
@@ -838,7 +837,7 @@
     </span>}
 
     <span class="attribute">#[async_recursion]
-    #[instrument(level = <span class="string">&quot;debug&quot;</span>, skip_all)]
+    #[instrument(level = <span class="string">&quot;debug&quot;</span>, skip_all, fields(header_digest = <span class="question-mark">?</span>header.digest()))]
     </span><span class="kw">async fn </span>process_header(<span class="kw-2">&amp;mut </span><span class="self">self</span>, header: <span class="kw-2">&amp;</span>Header) -&gt; DagResult&lt;()&gt; {
         <span class="macro">debug!</span>(<span class="string">&quot;Processing {:?} round:{:?}&quot;</span>, header, header.round);
         <span class="kw">let </span>header_source = <span class="kw">if </span><span class="self">self</span>.name.eq(<span class="kw-2">&amp;</span>header.author) {
@@ -963,7 +962,7 @@
     }
 
     <span class="attribute">#[async_recursion]
-    #[instrument(level = <span class="string">&quot;debug&quot;</span>, skip_all)]
+    #[instrument(level = <span class="string">&quot;debug&quot;</span>, skip_all, fields(vote_digest = <span class="question-mark">?</span>vote.digest()))]
     </span><span class="kw">async fn </span>process_vote(<span class="kw-2">&amp;mut </span><span class="self">self</span>, vote: Vote) -&gt; DagResult&lt;()&gt; {
         <span class="macro">debug!</span>(<span class="string">&quot;Processing {:?}&quot;</span>, vote);
 
@@ -1004,7 +1003,7 @@
     }
 
     <span class="attribute">#[async_recursion]
-    #[instrument(level = <span class="string">&quot;debug&quot;</span>, skip_all)]
+    #[instrument(level = <span class="string">&quot;debug&quot;</span>, skip_all, fields(certificate_digest = <span class="question-mark">?</span>certificate.digest()))]
     </span><span class="kw">async fn </span>process_certificate(<span class="kw-2">&amp;mut </span><span class="self">self</span>, certificate: Certificate) -&gt; DagResult&lt;()&gt; {
         <span class="macro">debug!</span>(
             <span class="string">&quot;Processing {:?} round:{:?}&quot;</span>,
@@ -1228,7 +1227,6 @@
                                 <span class="prelude-val">Ok</span>(()) =&gt; <span class="self">self</span>.process_header(<span class="kw-2">&amp;</span>header).<span class="kw">await</span>,
                                 error =&gt; error
                             }
-
                         },
                         PrimaryMessage::Vote(vote) =&gt; {
                             <span class="kw">match </span><span class="self">self</span>.sanitize_vote(<span class="kw-2">&amp;</span>vote) {
@@ -1321,4 +1319,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (17cbdfd07 2022-09-13)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (a37499ae6 2022-09-18)" ></div></body></html>

@@ -611,12 +611,26 @@
 <span id="611">611</span>
 <span id="612">612</span>
 <span id="613">613</span>
+<span id="614">614</span>
+<span id="615">615</span>
+<span id="616">616</span>
+<span id="617">617</span>
+<span id="618">618</span>
+<span id="619">619</span>
+<span id="620">620</span>
+<span id="621">621</span>
+<span id="622">622</span>
+<span id="623">623</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use crate</span>::{
     block_remover::DeleteBatchResult,
-    block_synchronizer::{handler::BlockSynchronizerHandler, BlockSynchronizer},
+    block_synchronizer::{
+        handler::BlockSynchronizerHandler,
+        responses::{AvailabilityResponse, CertificateDigestsResponse},
+        BlockSynchronizer,
+    },
     block_waiter::{BatchMessageError, BatchResult, BlockWaiter},
     certificate_waiter::CertificateWaiter,
     core::Core,
@@ -751,13 +765,9 @@
             CHANNEL_CAPACITY,
             <span class="kw-2">&amp;</span>primary_channel_metrics.tx_block_synchronizer_commands,
         );
-        <span class="kw">let </span>(tx_certificate_responses, rx_certificate_responses) = channel(
+        <span class="kw">let </span>(tx_availability_responses, rx_availability_responses) = channel(
             CHANNEL_CAPACITY,
-            <span class="kw-2">&amp;</span>primary_channel_metrics.tx_certificate_responses,
-        );
-        <span class="kw">let </span>(tx_payload_availability_responses, rx_payload_availability_responses) = channel(
-            CHANNEL_CAPACITY,
-            <span class="kw-2">&amp;</span>primary_channel_metrics.tx_payload_availability_responses,
+            <span class="kw-2">&amp;</span>primary_channel_metrics.tx_availability_responses,
         );
         <span class="kw">let </span>(tx_state_handler, rx_state_handler) =
             channel(CHANNEL_CAPACITY, <span class="kw-2">&amp;</span>primary_channel_metrics.tx_state_handler);
@@ -802,8 +812,7 @@
         <span class="kw">let </span>primary_service = PrimaryToPrimaryServer::new(PrimaryReceiverHandler {
             tx_primary_messages: tx_primary_messages.clone(),
             tx_helper_requests,
-            tx_payload_availability_responses,
-            tx_certificate_responses,
+            tx_availability_responses,
         });
         <span class="kw">let </span>worker_service = WorkerToPrimaryServer::new(WorkerReceiverHandler {
             tx_our_digests,
@@ -944,12 +953,11 @@
             worker_cache.clone(),
             tx_reconfigure.subscribe(),
             rx_block_synchronizer_commands,
-            rx_certificate_responses,
-            rx_payload_availability_responses,
+            rx_availability_responses,
             block_synchronizer_network,
             payload_store.clone(),
             certificate_store.clone(),
-            parameters.block_synchronizer,
+            parameters.clone(),
         );
 
         <span class="comment">// Whenever the `Synchronizer` does not manage to validate a header due to missing parent certificates of
@@ -1081,8 +1089,7 @@
 </span><span class="kw">struct </span>PrimaryReceiverHandler {
     tx_primary_messages: Sender&lt;PrimaryMessage&gt;,
     tx_helper_requests: Sender&lt;PrimaryMessage&gt;,
-    tx_payload_availability_responses: Sender&lt;PayloadAvailabilityResponse&gt;,
-    tx_certificate_responses: Sender&lt;CertificatesResponse&gt;,
+    tx_availability_responses: Sender&lt;AvailabilityResponse&gt;,
 }
 
 <span class="attribute">#[async_trait]
@@ -1099,17 +1106,30 @@
                 .send(message)
                 .<span class="kw">await
                 </span>.map_err(|<span class="kw">_</span>| DagError::ShuttingDown),
+            PrimaryMessage::CertificatesRangeResponse {
+                certificate_ids,
+                from,
+            } =&gt; <span class="self">self
+                </span>.tx_availability_responses
+                .send(AvailabilityResponse::CertificateDigest(
+                    CertificateDigestsResponse {
+                        certificate_ids,
+                        from,
+                    },
+                ))
+                .<span class="kw">await
+                </span>.map_err(|<span class="kw">_</span>| DagError::ShuttingDown),
             PrimaryMessage::CertificatesBatchRequest { .. } =&gt; <span class="self">self
                 </span>.tx_helper_requests
                 .send(message)
                 .<span class="kw">await
                 </span>.map_err(|<span class="kw">_</span>| DagError::ShuttingDown),
             PrimaryMessage::CertificatesBatchResponse { certificates, from } =&gt; <span class="self">self
-                </span>.tx_certificate_responses
-                .send(CertificatesResponse {
-                    certificates: certificates.to_vec(),
-                    from: from.clone(),
-                })
+                </span>.tx_availability_responses
+                .send(AvailabilityResponse::Certificate(CertificatesResponse {
+                    certificates,
+                    from,
+                }))
                 .<span class="kw">await
                 </span>.map_err(|<span class="kw">_</span>| DagError::ShuttingDown),
             PrimaryMessage::PayloadAvailabilityRequest { .. } =&gt; <span class="self">self
@@ -1121,11 +1141,11 @@
                 payload_availability,
                 from,
             } =&gt; <span class="self">self
-                </span>.tx_payload_availability_responses
-                .send(PayloadAvailabilityResponse {
+                </span>.tx_availability_responses
+                .send(AvailabilityResponse::Payload(PayloadAvailabilityResponse {
                     block_ids: payload_availability.to_vec(),
                     from: from.clone(),
-                })
+                }))
                 .<span class="kw">await
                 </span>.map_err(|<span class="kw">_</span>| DagError::ShuttingDown),
             <span class="kw">_ </span>=&gt; <span class="self">self
@@ -1225,4 +1245,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (17cbdfd07 2022-09-13)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (a37499ae6 2022-09-18)" ></div></body></html>

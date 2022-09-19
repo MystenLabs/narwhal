@@ -51,6 +51,8 @@
 <span id="51">51</span>
 <span id="52">52</span>
 <span id="53">53</span>
+<span id="54">54</span>
+<span id="55">55</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -61,7 +63,7 @@
     rust_2021_compatibility
 )]
 
-</span><span class="kw">use </span>fastcrypto::ed25519;
+</span><span class="kw">use </span>fastcrypto::{bls12381, ed25519};
 
 <span class="comment">// This re-export allows using the trait-defined APIs
 </span><span class="kw">pub use </span>fastcrypto::traits;
@@ -78,11 +80,13 @@
 // Beware: if you change those aliases to point to another scheme implementation, you will have
 // to change all four aliases to point to concrete types that work with each other. Failure to do
 // so will result in a ton of compilation errors, and worse: it will not make sense!
-</span><span class="kw">pub type </span>PublicKey = ed25519::Ed25519PublicKey;
-<span class="kw">pub type </span>Signature = ed25519::Ed25519Signature;
-<span class="kw">pub type </span>AggregateSignature = ed25519::Ed25519AggregateSignature;
-<span class="kw">pub type </span>PrivateKey = ed25519::Ed25519PrivateKey;
-<span class="kw">pub type </span>KeyPair = ed25519::Ed25519KeyPair;
+
+</span><span class="kw">pub type </span>PublicKey = bls12381::BLS12381PublicKey;
+<span class="kw">pub type </span>Signature = bls12381::BLS12381Signature;
+<span class="kw">pub type </span>AggregateSignature = bls12381::BLS12381AggregateSignature;
+<span class="kw">pub type </span>PrivateKey = bls12381::BLS12381PrivateKey;
+<span class="kw">pub type </span>KeyPair = bls12381::BLS12381KeyPair;
+
 <span class="comment">// Example to use BLS12-377 instead:
 // #[cfg(feature = &quot;celo&quot;)]
 // pub type PublicKey = bls12377::BLS12377PublicKey;
@@ -105,4 +109,4 @@
 <span class="attribute">#[cfg(feature = <span class="string">&quot;celo&quot;</span>)]
 </span><span class="kw">pub mod </span>bls12377;
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="crypto" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (17cbdfd07 2022-09-13)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="crypto" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (a37499ae6 2022-09-18)" ></div></body></html>

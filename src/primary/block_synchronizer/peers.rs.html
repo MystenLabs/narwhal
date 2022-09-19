@@ -408,9 +408,6 @@
 <span id="408">408</span>
 <span id="409">409</span>
 <span id="410">410</span>
-<span id="411">411</span>
-<span id="412">412</span>
-<span id="413">413</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
@@ -768,10 +765,7 @@
                 </span>);
 
                 <span class="kw">for </span>c <span class="kw">in </span>peer.assigned_values() {
-                    <span class="kw">let </span>found = peer_certs
-                        .clone()
-                        .into_iter()
-                        .any(|c| c.digest().eq(<span class="kw-2">&amp;</span>c.digest()));
+                    <span class="kw">let </span>found = peer_certs.iter().any(|c| c.digest().eq(<span class="kw-2">&amp;</span>c.digest()));
 
                     <span class="macro">assert!</span>(found, <span class="string">&quot;Assigned certificate not in set of expected&quot;</span>);
                     <span class="macro">assert!</span>(
@@ -825,4 +819,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (17cbdfd07 2022-09-13)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (a37499ae6 2022-09-18)" ></div></body></html>
