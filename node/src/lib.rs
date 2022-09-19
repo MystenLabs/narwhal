@@ -42,7 +42,7 @@ pub mod restarter;
 
 /// All the data stores of the node.
 pub struct NodeStorage {
-    pub vote_store: Store<PublicKey, RoundVoteDigestPair>,
+    pub vote_digest_store: Store<PublicKey, RoundVoteDigestPair>,
     pub header_store: Store<HeaderDigest, Header>,
     pub certificate_store: CertificateStore,
     pub payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,
@@ -104,7 +104,7 @@ impl NodeStorage {
             Self::TEMP_BATCH_CF;<(CertificateDigest, BatchDigest), Batch>
         );
 
-        let vote_store = Store::new(votes_map);
+        let vote_digest_store = Store::new(votes_map);
         let header_store = Store::new(header_map);
         let certificate_store = CertificateStore::new(certificate_map, certificate_id_by_round_map);
         let payload_store = Store::new(payload_map);
@@ -113,7 +113,7 @@ impl NodeStorage {
         let temp_batch_store = Store::new(temp_batch_map);
 
         Self {
-            vote_store,
+            vote_digest_store,
             header_store,
             certificate_store,
             payload_store,
@@ -248,7 +248,7 @@ impl Node {
             store.header_store.clone(),
             store.certificate_store.clone(),
             store.payload_store.clone(),
-            store.vote_store.clone(),
+            store.vote_digest_store.clone(),
             tx_new_certificates,
             /* rx_consensus */ rx_consensus,
             tx_get_block_commands,

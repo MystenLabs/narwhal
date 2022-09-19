@@ -80,7 +80,7 @@ impl Primary {
         header_store: Store<HeaderDigest, Header>,
         certificate_store: CertificateStore,
         payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,
-        vote_store: Store<PublicKey, RoundVoteDigestPair>,
+        vote_digest_store: Store<PublicKey, RoundVoteDigestPair>,
         tx_consensus: Sender<Certificate>,
         rx_consensus: Receiver<Certificate>,
         tx_get_block_commands: Sender<BlockCommand>,
@@ -252,6 +252,8 @@ impl Primary {
         // The `SignatureService` is used to require signatures on specific digests.
         let signature_service = SignatureService::new(signer);
 
+        // TODO (Laura): if we are restarting and not advancing, for the headers in the header
+        // TODO (Laura): store that do not have a matching certificate, re-create and send a vote
         // The `Core` receives and handles headers, votes, and certificates from the other primaries.
         let core_primary_network = P2pNetwork::new(network.clone());
         let core_handle = Core::spawn(
@@ -260,7 +262,7 @@ impl Primary {
             worker_cache.clone(),
             header_store.clone(),
             certificate_store.clone(),
-            vote_store.clone(),
+            vote_digest_store.clone(),
             synchronizer,
             signature_service.clone(),
             tx_consensus_round_updates.subscribe(),

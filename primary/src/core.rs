@@ -77,7 +77,7 @@ pub struct Core {
     /// The last header we proposed (for which we are waiting votes).
     current_header: Header,
     /// The store to persist the last voted round per authority, used to ensure idempotence.
-    vote_store: Store<PublicKey, RoundVoteDigestPair>,
+    vote_digest_store: Store<PublicKey, RoundVoteDigestPair>,
     /// Aggregates votes into a certificate.
     votes_aggregator: VotesAggregator,
     /// Aggregates certificates to use as parents for new headers.
@@ -99,7 +99,7 @@ impl Core {
         worker_cache: SharedWorkerCache,
         header_store: Store<HeaderDigest, Header>,
         certificate_store: CertificateStore,
-        vote_store: Store<PublicKey, RoundVoteDigestPair>,
+        vote_digest_store: Store<PublicKey, RoundVoteDigestPair>,
         synchronizer: Synchronizer,
         signature_service: SignatureService<Signature>,
         rx_consensus_round_updates: watch::Receiver<u64>,
@@ -135,7 +135,7 @@ impl Core {
                 gc_round: 0,
                 processing: HashMap::with_capacity(2 * gc_depth as usize),
                 current_header: Header::default(),
-                vote_store,
+                vote_digest_store,
                 votes_aggregator: VotesAggregator::new(),
                 certificates_aggregators: HashMap::with_capacity(2 * gc_depth as usize),
                 network: primary_network,
@@ -281,7 +281,7 @@ impl Core {
         // then it is useless to vote, so we don't.
 
         let result = self
-            .vote_store
+            .vote_digest_store
             .read(header.author.clone())
             .await
             .map_err(StoreError)?;
@@ -295,7 +295,7 @@ impl Core {
                 let temp_vote = Vote::new(header, &self.name, &mut self.signature_service).await;
                 if temp_vote.digest() != round_digest_pair.vote_digest {
                     // we already sent a vote for a different header to the authority for this round
-                    // don't equivocate by voting again
+                    // don't equivocate by sending a different vote for the same round
                     warn!(
                         "Authority {} submitted duplicate header for votes at round {}",
                         header.author, header.round
@@ -348,8 +348,11 @@ impl Core {
                 .push(handler);
         }
 
-        // Update the vote store with the vote we just sent.
-        self.vote_store
+        // Update the vote digest store with the vote we just sent.
+        // We don't need to store the vote itself, since it can be reconstructed using the headers
+        // that are stored in the header store. This strategy can be used to re-deliver votes to
+        // ensure progress / liveness.
+        self.vote_digest_store
             .write(
                 header.author.clone(),
                 RoundVoteDigestPair {
@@ -603,8 +606,8 @@ impl Core {
             .cleanup(self.committee.network_diff(&committee));
 
         // Cleanup internal state.
-        let keys = self.vote_store.iter(None).await.into_keys();
-        if let Err(e) = self.vote_store.remove_all(keys).await {
+        let keys = self.vote_digest_store.iter(None).await.into_keys();
+        if let Err(e) = self.vote_digest_store.remove_all(keys).await {
             error!("Error in change epoch when clearing vote store {}", e);
         }
         self.processing.clear();
