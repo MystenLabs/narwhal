@@ -9,7 +9,7 @@ use node::NodeStorage;
 use primary::{NetworkModel, Primary, CHANNEL_CAPACITY};
 use prometheus::Registry;
 use std::{sync::Arc, time::Duration};
-use test_utils::{random_network, temp_dir, CommitteeFixture, ensure_test_environment};
+use test_utils::{ensure_test_environment, random_network, temp_dir, CommitteeFixture};
 use tokio::sync::watch;
 use types::{ReconfigureNotification, WorkerPrimaryMessage};
 
