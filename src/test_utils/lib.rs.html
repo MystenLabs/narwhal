@@ -950,6 +950,14 @@
 <span id="950">950</span>
 <span id="951">951</span>
 <span id="952">952</span>
+<span id="953">953</span>
+<span id="954">954</span>
+<span id="955">955</span>
+<span id="956">956</span>
+<span id="957">957</span>
+<span id="958">958</span>
+<span id="959">959</span>
+<span id="960">960</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -996,6 +1004,14 @@
     tempfile::tempdir()
         .expect(<span class="string">&quot;Failed to open temporary directory&quot;</span>)
         .into_path()
+}
+
+<span class="kw">pub fn </span>ensure_test_environment() {
+    <span class="comment">// One common issue when running tests on Mac is that the default ulimit is too low,
+    // leading to I/O errors such as &quot;Too many open files&quot;. Raising fdlimit to bypass it.
+    // Also we can&#39;t do this in Windows, apparently.
+    </span><span class="attribute">#[cfg(not(target_os = <span class="string">&quot;windows&quot;</span>))]
+    </span>fdlimit::raise_fd_limit().expect(<span class="string">&quot;Could not raise ulimit&quot;</span>);
 }
 
 <span class="attribute">#[macro_export]
