@@ -46,6 +46,14 @@ pub fn temp_dir() -> std::path::PathBuf {
         .into_path()
 }
 
+pub fn ensure_test_environment() {
+    // One common issue when running tests on Mac is that the default ulimit is too low,
+    // leading to I/O errors such as "Too many open files". Raising fdlimit to bypass it.
+    // Also we can't do this in Windows, apparently.
+    #[cfg(not(target_os = "windows"))]
+    fdlimit::raise_fd_limit().expect("Could not raise ulimit");
+}
+
 #[macro_export]
 macro_rules! test_channel {
     ($e:expr) => {
