@@ -11,7 +11,7 @@ var sourcesIndex = JSON.parse('{\
 "storage":["",[],["certificate_store.rs","lib.rs"]],\
 "test_utils":["",[],["cluster.rs","lib.rs"]],\
 "types":["",[],["bounded_future_queue.rs","consensus.rs","error.rs","lib.rs","metered_channel.rs","primary.rs","proto.rs","serde.rs","worker.rs"]],\
-"worker":["",[],["batch_maker.rs","helper.rs","lib.rs","metrics.rs","primary_connector.rs","processor.rs","quorum_waiter.rs","synchronizer.rs","worker.rs"]],\
+"worker":["",[],["batch_maker.rs","lib.rs","metrics.rs","primary_connector.rs","processor.rs","quorum_waiter.rs","synchronizer.rs","worker.rs"]],\
 "workspace_hack":["",[],["lib.rs"]]\
 }');
 createSourceSidebar();

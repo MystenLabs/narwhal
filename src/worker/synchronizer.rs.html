@@ -382,21 +382,13 @@
 <span id="382">382</span>
 <span id="383">383</span>
 <span id="384">384</span>
-<span id="385">385</span>
-<span id="386">386</span>
-<span id="387">387</span>
-<span id="388">388</span>
-<span id="389">389</span>
-<span id="390">390</span>
-<span id="391">391</span>
-<span id="392">392</span>
-<span id="393">393</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span><span class="kw">crate</span>::metrics::WorkerMetrics;
 <span class="kw">use </span>config::{SharedCommittee, SharedWorkerCache, WorkerCache, WorkerId, WorkerIndex};
 <span class="kw">use </span>crypto::PublicKey;
+<span class="kw">use </span>fastcrypto::Hash;
 <span class="kw">use </span>futures::stream::{futures_unordered::FuturesUnordered, StreamExt <span class="kw">as _</span>};
 <span class="kw">use </span>network::{LuckyNetwork, P2pNetwork, UnreliableNetwork};
 <span class="kw">use </span>primary::PrimaryWorkerMessage;
@@ -405,18 +397,18 @@
     sync::Arc,
     time::{SystemTime, UNIX_EPOCH},
 };
-<span class="kw">use </span>store::{Store, StoreError};
+<span class="kw">use </span>store::Store;
 <span class="kw">use </span>tap::{TapFallible, TapOptional};
 <span class="kw">use </span>tokio::{
-    sync::{mpsc, watch},
+    sync::watch,
     task::JoinHandle,
     time::{sleep, Duration, Instant},
 };
-<span class="kw">use </span>tracing::{debug, error, trace, warn};
+<span class="kw">use </span>tracing::{debug, error, info, trace, warn};
 <span class="kw">use </span>types::{
     error::DagError,
     metered_channel::{Receiver, Sender},
-    Batch, BatchDigest, ReconfigureNotification, Round, WorkerMessage, WorkerPrimaryError,
+    Batch, BatchDigest, ReconfigureNotification, Round, WorkerBatchRequest, WorkerPrimaryError,
     WorkerPrimaryMessage,
 };
 
@@ -455,11 +447,13 @@
     <span class="doccomment">/// Keeps the digests (of batches) that are waiting to be processed by the primary. Their
     /// processing will resume when we get the missing batches in the store or we no longer need them.
     /// It also keeps the round number and a time stamp (`u128`) of each request we sent.
-    </span>pending: HashMap&lt;BatchDigest, (Round, mpsc::Sender&lt;()&gt;, u128)&gt;,
+    </span>pending: HashMap&lt;BatchDigest, (Round, u128)&gt;,
     <span class="doccomment">/// Send reconfiguration update to other tasks.
     </span>tx_reconfigure: watch::Sender&lt;ReconfigureNotification&gt;,
     <span class="doccomment">/// Output channel to send out the batch requests.
     </span>tx_primary: Sender&lt;WorkerPrimaryMessage&gt;,
+    <span class="doccomment">/// Output channel to process received batches.
+    </span>tx_batch_processor: Sender&lt;Batch&gt;,
     <span class="doccomment">/// Metrics handler
     </span>metrics: Arc&lt;WorkerMetrics&gt;,
 }
@@ -478,6 +472,7 @@
         rx_message: Receiver&lt;PrimaryWorkerMessage&gt;,
         tx_reconfigure: watch::Sender&lt;ReconfigureNotification&gt;,
         tx_primary: Sender&lt;WorkerPrimaryMessage&gt;,
+        tx_batch_processor: Sender&lt;Batch&gt;,
         metrics: Arc&lt;WorkerMetrics&gt;,
         network: P2pNetwork,
     ) -&gt; JoinHandle&lt;()&gt; {
@@ -497,27 +492,12 @@
                 pending: HashMap::new(),
                 tx_reconfigure,
                 tx_primary,
+                tx_batch_processor,
                 metrics,
             }
             .run()
             .<span class="kw">await</span>;
         })
-    }
-
-    <span class="doccomment">/// Helper function. It waits for a batch to become available in the storage
-    /// and then delivers its digest.
-    </span><span class="kw">async fn </span>waiter(
-        missing: BatchDigest,
-        store: Store&lt;BatchDigest, Batch&gt;,
-        deliver: BatchDigest,
-        <span class="kw-2">mut </span>handler: mpsc::Receiver&lt;()&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;BatchDigest&gt;, StoreError&gt; {
-        <span class="macro">tokio::select! </span>{
-            result = store.notify_read(missing) =&gt; {
-                result.map(|<span class="kw">_</span>| <span class="prelude-val">Some</span>(deliver))
-            }
-            <span class="kw">_ </span>= handler.recv() =&gt; <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>),
-        }
     }
 
     <span class="doccomment">/// Main loop listening to the primary&#39;s messages.
@@ -536,7 +516,7 @@
                         <span class="kw">let </span><span class="kw-2">mut </span>available = HashSet::new();
 
                         <span class="kw">for </span>digest <span class="kw">in </span>digests.iter() {
-                            <span class="comment">// Ensure we do not send twice the same sync request.
+                            <span class="comment">// Ensure we do not send the same sync request twice.
                             </span><span class="kw">if </span><span class="self">self</span>.pending.contains_key(digest) {
                                 <span class="kw">continue</span>;
                             }
@@ -581,12 +561,7 @@
 
                             <span class="comment">// now add all requests as pending
                             </span><span class="kw">for </span>digest <span class="kw">in </span>missing.iter() {
-                                <span class="comment">// Add the digest to the waiter.
-                                </span><span class="kw">let </span>deliver = <span class="kw-2">*</span>digest;
-                                <span class="kw">let </span>(tx_cancel, rx_cancel) = mpsc::channel(<span class="number">1</span>);
-                                <span class="kw">let </span>fut = <span class="self">Self</span>::waiter(<span class="kw-2">*</span>digest, <span class="self">self</span>.store.clone(), deliver, rx_cancel);
-                                waiting.push(fut);
-                                <span class="self">self</span>.pending.insert(<span class="kw-2">*</span>digest, (<span class="self">self</span>.round, tx_cancel, now));
+                                <span class="self">self</span>.pending.insert(<span class="kw-2">*</span>digest, (<span class="self">self</span>.round, now));
                             }
 
                             <span class="comment">// Send sync request to a single node. If this fails, we will send it
@@ -599,10 +574,12 @@
                                 }
                             };
 
-                            <span class="macro">debug!</span>(<span class="string">&quot;Sending BatchRequest message to {} for missing batches {:?}&quot;</span>, worker_name, missing.clone());
+                            <span class="macro">debug!</span>(<span class="string">&quot;Sending WorkerBatchRequest message to {} for missing batches {:?}&quot;</span>, worker_name, missing.clone());
 
-                            <span class="kw">let </span>message = WorkerMessage::BatchRequest(missing.into_iter().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;(), <span class="self">self</span>.name.clone());
-                            <span class="self">self</span>.network.unreliable_send(worker_name, <span class="kw-2">&amp;</span>message).<span class="kw">await</span>;
+                            <span class="comment">// TODO: restore ability to cancel these requests when primary-&gt;worker RPCs are
+                            // made synchronous and this one becomes a child of those.
+                            </span><span class="kw">let </span>message = WorkerBatchRequest{digests: missing.into_iter().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;() };
+                            waiting.push(<span class="self">self</span>.network.unreliable_send(worker_name, <span class="kw-2">&amp;</span>message).<span class="kw">await</span>);
                         } <span class="kw">else </span>{
                             <span class="macro">debug!</span>(<span class="string">&quot;All batches are already available {:?} nothing to request from peers&quot;</span>, digests);
                         }
@@ -617,12 +594,7 @@
                         }
 
                         <span class="kw">let </span><span class="kw-2">mut </span>gc_round = <span class="self">self</span>.round - <span class="self">self</span>.gc_depth;
-                        <span class="kw">for </span>(r, handler, <span class="kw">_</span>) <span class="kw">in </span><span class="self">self</span>.pending.values() {
-                            <span class="kw">if </span>r &lt;= <span class="kw-2">&amp;</span>gc_round {
-                                <span class="kw">let _ </span>= handler.send(()).<span class="kw">await</span>;
-                            }
-                        }
-                        <span class="self">self</span>.pending.retain(|<span class="kw">_</span>, (r, <span class="kw">_</span>, <span class="kw">_</span>)| r &gt; <span class="kw-2">&amp;mut </span>gc_round);
+                        <span class="self">self</span>.pending.retain(|<span class="kw">_</span>, (r, <span class="kw">_</span>)| r &gt; <span class="kw-2">&amp;mut </span>gc_round);
                     },
                     PrimaryWorkerMessage::Reconfigure(message) =&gt; {
                         <span class="comment">// Reconfigure this task and update the shared committee.
@@ -702,14 +674,22 @@
 
                 <span class="comment">// Stream out the futures of the `FuturesUnordered` that completed.
                 </span><span class="prelude-val">Some</span>(result) = waiting.next() =&gt; <span class="kw">match </span>result {
-                    <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(digest)) =&gt; {
-                        <span class="comment">// We got the batch, remove it from the pending list.
-                        </span><span class="self">self</span>.pending.remove(<span class="kw-2">&amp;</span>digest);
+                    <span class="prelude-val">Ok</span>(<span class="prelude-val">Ok</span>(response)) =&gt; {
+                        <span class="kw">for </span>batch <span class="kw">in </span>response.into_body().batches {
+                            <span class="comment">// TODO: remove duplicate hashing of batch after primary-to-worker
+                            // communication is refactored to be synchronous.
+                            </span><span class="kw">if </span><span class="self">self</span>.pending.remove(<span class="kw-2">&amp;</span>batch.digest()).is_some() {
+                                <span class="comment">// Only send batch to processor if we haven&#39;t received it already
+                                // from another source.
+                                </span><span class="kw">if </span><span class="self">self</span>.tx_batch_processor.send(batch).<span class="kw">await</span>.is_err() {
+                                    <span class="comment">// Assume error sending to processor means we&#39;re shutting down.
+                                    </span><span class="kw">break
+                                </span>}
+                            }
+                        }
                     },
-                    <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>) =&gt; {
-                        <span class="comment">// The sync request for this batch has been canceled.
-                    </span>},
-                    <span class="prelude-val">Err</span>(e) =&gt; <span class="macro">error!</span>(<span class="string">&quot;{e}&quot;</span>)
+                    <span class="prelude-val">Ok</span>(<span class="prelude-val">Err</span>(e)) =&gt; <span class="macro">info!</span>(<span class="string">&quot;{e}&quot;</span>),  <span class="comment">// occasional RPC errors are expected
+                    </span><span class="prelude-val">Err</span>(e) =&gt; <span class="macro">error!</span>(<span class="string">&quot;{e}&quot;</span>),
                 },
 
                 <span class="comment">// Triggers on timer&#39;s expiration.
@@ -723,7 +703,7 @@
                         .as_millis();
 
                     <span class="kw">let </span><span class="kw-2">mut </span>retry = Vec::new();
-                    <span class="kw">for </span>(digest, (<span class="kw">_</span>, <span class="kw">_</span>, timestamp)) <span class="kw">in </span><span class="self">self</span>.pending.iter_mut() {
+                    <span class="kw">for </span>(digest, (<span class="kw">_</span>, timestamp)) <span class="kw">in </span><span class="self">self</span>.pending.iter_mut() {
                         <span class="kw">if </span><span class="kw-2">*</span>timestamp + <span class="self">self</span>.sync_retry_delay.as_millis() &lt; now {
                             <span class="macro">debug!</span>(<span class="string">&quot;Requesting sync for batch {digest} (retry)&quot;</span>);
                             retry.push(<span class="kw-2">*</span>digest);
@@ -737,10 +717,12 @@
                             .into_iter()
                             .map(|(<span class="kw">_</span>, info)| info.name)
                             .collect();
-                        <span class="kw">let </span>message = WorkerMessage::BatchRequest(retry, <span class="self">self</span>.name.clone());
-                        <span class="self">self</span>.network
+                        <span class="kw">let </span>message = WorkerBatchRequest{digests: retry};
+                        <span class="kw">for </span>fut <span class="kw">in </span><span class="self">self</span>.network
                             .lucky_broadcast(names, <span class="kw-2">&amp;</span>message, <span class="self">self</span>.sync_retry_nodes)
-                            .<span class="kw">await</span>;
+                            .<span class="kw">await </span>{
+                            waiting.push(fut);
+                        }
                     }
 
                     <span class="comment">// Reschedule the timer.

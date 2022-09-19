@@ -927,6 +927,29 @@
 <span id="927">927</span>
 <span id="928">928</span>
 <span id="929">929</span>
+<span id="930">930</span>
+<span id="931">931</span>
+<span id="932">932</span>
+<span id="933">933</span>
+<span id="934">934</span>
+<span id="935">935</span>
+<span id="936">936</span>
+<span id="937">937</span>
+<span id="938">938</span>
+<span id="939">939</span>
+<span id="940">940</span>
+<span id="941">941</span>
+<span id="942">942</span>
+<span id="943">943</span>
+<span id="944">944</span>
+<span id="945">945</span>
+<span id="946">946</span>
+<span id="947">947</span>
+<span id="948">948</span>
+<span id="949">949</span>
+<span id="950">950</span>
+<span id="951">951</span>
+<span id="952">952</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -957,8 +980,9 @@
     Batch, BatchDigest, Certificate, CertificateDigest, ConsensusStore, Header, HeaderBuilder,
     PrimaryMessage, PrimaryToPrimary, PrimaryToPrimaryServer, PrimaryToWorker,
     PrimaryToWorkerServer, PrimaryWorkerMessage, Round, SequenceNumber, Transaction, Vote,
-    WorkerInfoResponse, WorkerMessage, WorkerPrimaryMessage, WorkerToPrimary,
-    WorkerToPrimaryServer, WorkerToWorker, WorkerToWorkerServer,
+    WorkerBatchRequest, WorkerBatchResponse, WorkerInfoResponse, WorkerMessage,
+    WorkerPrimaryMessage, WorkerToPrimary, WorkerToPrimaryServer, WorkerToWorker,
+    WorkerToWorkerServer,
 };
 
 <span class="kw">pub mod </span>cluster;
@@ -1212,17 +1236,26 @@
 }
 
 <span class="kw">pub struct </span>WorkerToWorkerMockServer {
-    sender: Sender&lt;WorkerMessage&gt;,
+    msg_sender: Sender&lt;WorkerMessage&gt;,
+    batch_request_sender: Sender&lt;WorkerBatchRequest&gt;,
 }
 
 <span class="kw">impl </span>WorkerToWorkerMockServer {
     <span class="kw">pub fn </span>spawn(
         keypair: NetworkKeyPair,
         address: Multiaddr,
-    ) -&gt; (Receiver&lt;WorkerMessage&gt;, anemo::Network) {
+    ) -&gt; (
+        Receiver&lt;WorkerMessage&gt;,
+        Receiver&lt;WorkerBatchRequest&gt;,
+        anemo::Network,
+    ) {
         <span class="kw">let </span>addr = network::multiaddr_to_address(<span class="kw-2">&amp;</span>address).unwrap();
-        <span class="kw">let </span>(sender, receiver) = channel(<span class="number">1</span>);
-        <span class="kw">let </span>service = WorkerToWorkerServer::new(<span class="self">Self </span>{ sender });
+        <span class="kw">let </span>(msg_sender, msg_receiver) = channel(<span class="number">1</span>);
+        <span class="kw">let </span>(batch_request_sender, batch_request_receiver) = channel(<span class="number">1</span>);
+        <span class="kw">let </span>service = WorkerToWorkerServer::new(<span class="self">Self </span>{
+            msg_sender,
+            batch_request_sender,
+        });
 
         <span class="kw">let </span>routes = anemo::Router::new().add_rpc_service(service);
         <span class="kw">let </span>network = anemo::Network::bind(addr)
@@ -1231,7 +1264,7 @@
             .start(routes)
             .unwrap();
         <span class="macro">info!</span>(<span class="string">&quot;starting network on: {}&quot;</span>, network.local_addr());
-        (receiver, network)
+        (msg_receiver, batch_request_receiver, network)
     }
 }
 
@@ -1243,9 +1276,22 @@
     ) -&gt; <span class="prelude-ty">Result</span>&lt;anemo::Response&lt;()&gt;, anemo::rpc::Status&gt; {
         <span class="kw">let </span>message = request.into_body();
 
-        <span class="self">self</span>.sender.send(message).<span class="kw">await</span>.unwrap();
+        <span class="self">self</span>.msg_sender.send(message).<span class="kw">await</span>.unwrap();
 
         <span class="prelude-val">Ok</span>(anemo::Response::new(()))
+    }
+    <span class="kw">async fn </span>request_batches(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        request: anemo::Request&lt;WorkerBatchRequest&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;anemo::Response&lt;WorkerBatchResponse&gt;, anemo::rpc::Status&gt; {
+        <span class="kw">let </span>message = request.into_body();
+
+        <span class="self">self</span>.batch_request_sender.send(message).<span class="kw">await</span>.unwrap();
+
+        <span class="comment">// For testing stub, just always reply with no batches.
+        </span><span class="prelude-val">Ok</span>(anemo::Response::new(WorkerBatchResponse {
+            batches: <span class="macro">vec!</span>[],
+        }))
     }
 }
 

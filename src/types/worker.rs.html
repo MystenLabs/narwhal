@@ -71,12 +71,19 @@
 <span id="71">71</span>
 <span id="72">72</span>
 <span id="73">73</span>
+<span id="74">74</span>
+<span id="75">75</span>
+<span id="76">76</span>
+<span id="77">77</span>
+<span id="78">78</span>
+<span id="79">79</span>
+<span id="80">80</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
 </span><span class="kw">use crate</span>::{Batch, BatchDigest};
 <span class="kw">use </span>blake2::digest::Update;
-<span class="kw">use </span>crypto::PublicKey;
+
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>thiserror::Error;
 
@@ -84,18 +91,25 @@
 #[path = <span class="string">&quot;tests/batch_serde.rs&quot;</span>]
 </span><span class="kw">mod </span>batch_serde;
 
-<span class="doccomment">/// The message exchanged between workers.
+<span class="doccomment">/// Unsolicited messages exchanged between workers.
 </span><span class="attribute">#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 </span><span class="kw">pub enum </span>WorkerMessage {
-    <span class="doccomment">/// Used by workers to send a new batch or to reply to a batch request.
+    <span class="doccomment">/// Used by workers to send a new batch.
     </span>Batch(Batch),
-    <span class="doccomment">/// Used by workers to request batches.
-    </span>BatchRequest(Vec&lt;BatchDigest&gt;, <span class="comment">/* origin */ </span>PublicKey),
 }
 
-<span class="attribute">#[derive(Debug, Serialize, Deserialize)]
-</span><span class="kw">pub struct </span>ClientBatchRequest(<span class="kw">pub </span>Vec&lt;BatchDigest&gt;);
+<span class="doccomment">/// Used by workers to request batches from other workers.
+</span><span class="attribute">#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+</span><span class="kw">pub struct </span>WorkerBatchRequest {
+    <span class="kw">pub </span>digests: Vec&lt;BatchDigest&gt;,
+}
+
+<span class="doccomment">/// Used by workers to provide batches to other workers.
+</span><span class="attribute">#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+</span><span class="kw">pub struct </span>WorkerBatchResponse {
+    <span class="kw">pub </span>batches: Vec&lt;Batch&gt;,
+}
 
 <span class="doccomment">/// Hashes a serialized batch message without deserializing it into a batch.
 ///
