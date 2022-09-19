@@ -2412,7 +2412,7 @@ dependencies = [
 [[package]]
 name = "mysten-util-mem"
 version = "0.11.0"
-source = "git+https://github.com/MystenLabs/mysten-infra#d932aa91fb5345fa72869bf943d9989fafde330c"
+source = "git+https://github.com/MystenLabs/mysten-infra#ffb76dd4fa04463a03e68f66fb10df7cad618ed5"
 dependencies = [
  "cfg-if 1.0.0",
  "ed25519-consensus",
@@ -2429,7 +2429,7 @@ dependencies = [
 [[package]]
 name = "mysten-util-mem-derive"
 version = "0.1.0"
-source = "git+https://github.com/MystenLabs/mysten-infra#d932aa91fb5345fa72869bf943d9989fafde330c"
+source = "git+https://github.com/MystenLabs/mysten-infra#ffb76dd4fa04463a03e68f66fb10df7cad618ed5"
 dependencies = [
  "proc-macro2 1.0.40",
  "syn 1.0.98",
