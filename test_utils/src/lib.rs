@@ -35,6 +35,7 @@ use types::{
 
 pub mod cluster;
 
+pub const VOTES_CF: &str = "votes";
 pub const HEADERS_CF: &str = "headers";
 pub const CERTIFICATES_CF: &str = "certificates";
 pub const CERTIFICATE_ID_BY_ROUND_CF: &str = "certificate_id_by_round";
