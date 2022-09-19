@@ -197,6 +197,7 @@ impl Node {
 
             (Some(Arc::new(dag)), NetworkModel::Asynchronous)
         } else {
+            let (tx_recovery_token, tr_recovery_token) = tokio::sync::oneshot::channel();
             let consensus_handles = Self::spawn_consensus(
                 committee.clone(),
                 store,
@@ -208,8 +209,22 @@ impl Node {
                 tx_confirmation,
                 tx_get_block_commands.clone(),
                 registry,
+                tx_recovery_token,
             )
             .await?;
+            // Ensure that the primary is spawned only after the consensus is fully recovered.
+            // so that consensus is guaranteed to in a state where it can process messages it
+            // receives from the primary when the primary starts up.
+            // todo: loop and log when recovered
+            loop {
+                tokio::select! {
+                    _ = tr_recovery_token => {
+                        info!("Consensus component has signaled that it is ready for messages");
+                        break;
+                    }
+                }
+            }
+
             handles.extend(consensus_handles);
             (None, NetworkModel::PartiallySynchronous)
         };
@@ -287,6 +302,7 @@ impl Node {
         )>,
         tx_get_block_commands: metered_channel::Sender<BlockCommand>,
         registry: &Registry,
+        tx_recovery_token: tokio::sync::oneshot::Sender<()>,
     ) -> SubscriberResult<Vec<JoinHandle<()>>>
     where
         PublicKey: VerifyingKey,
@@ -328,6 +344,7 @@ impl Node {
             store.consensus_store.clone(),
             parameters.gc_depth,
         );
+
         let consensus_handles = Consensus::spawn(
             (**committee.load()).clone(),
             store.consensus_store.clone(),
@@ -339,6 +356,7 @@ impl Node {
             ordering_engine,
             consensus_metrics.clone(),
             parameters.gc_depth,
+            tx_recovery_token,
         );
 
         // Spawn the client executing the transactions. It can also synchronize with the
