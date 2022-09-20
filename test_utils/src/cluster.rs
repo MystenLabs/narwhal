@@ -173,6 +173,7 @@ impl Cluster {
         } else {
             info!("Node with {id} not found - nothing to stop");
         }
+        // TODO: wait for the node's network port to be released.
     }
 
     /// Returns all the running authorities. Any authority that:
@@ -631,7 +632,7 @@ impl AuthorityDetails {
             .stop();
     }
 
-    /// Stops all the nodes (primary & workers)
+    /// Stops all the nodes (primary & workers).
     pub async fn stop_all(&self) {
         let internal = self.internal.read().await;
 
