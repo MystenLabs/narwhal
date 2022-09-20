@@ -674,34 +674,10 @@ impl BlockSynchronizer {
             return None;
         }
 
-        let key = RequestID::from_iter(to_sync.clone());
-
-        let message = PrimaryMessage::CertificatesBatchRequest {
-            certificate_ids: to_sync.clone(),
-            requestor: self.name.clone(),
-        };
-
-        // broadcast the message to fetch  the certificates
-        let primaries = self.broadcast_batch_request(message).await;
-
-        let (sender, receiver) = channel(primaries.as_slice().len());
-
-        // record the request key to forward the results to the dedicated sender
-        self.map_certificate_responses_senders.insert(key, sender);
-
-        // now create the future that will wait to gather the responses
-        Some(
-            Self::wait_for_certificate_responses(
-                self.certificates_synchronize_timeout,
-                key,
-                self.committee.clone(),
-                self.worker_cache.clone(),
-                to_sync,
-                primaries,
-                receiver,
-            )
-            .boxed(),
-        )
+        panic!(
+            "dbg handle_synchronize_block_headers_command missing certificate ids! {:?}",
+            to_sync
+        );
     }
 
     /// This method queries the local storage to try and find certificates
