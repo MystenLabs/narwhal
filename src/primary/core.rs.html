@@ -712,7 +712,6 @@
 <span id="712">712</span>
 <span id="713">713</span>
 <span id="714">714</span>
-<span id="715">715</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -736,10 +735,9 @@
 <span class="kw">use </span>store::Store;
 <span class="kw">use </span>tokio::{sync::watch, task::JoinHandle};
 <span class="kw">use </span>tracing::{debug, error, info, instrument, warn};
-<span class="kw">use </span>types::error::DagError::StoreError;
 <span class="kw">use </span>types::{
     ensure,
-    error::{DagError, DagResult},
+    error::{DagError, DagError::StoreError, DagResult},
     metered_channel::{Receiver, Sender},
     Certificate, Header, HeaderDigest, ReconfigureNotification, Round, RoundVoteDigestPair, Vote,
 };
@@ -1429,4 +1427,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (a37499ae6 2022-09-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (432abd86f 2022-09-20)" ></div></body></html>

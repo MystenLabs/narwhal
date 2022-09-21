@@ -838,11 +838,6 @@
 <span id="838">838</span>
 <span id="839">839</span>
 <span id="840">840</span>
-<span id="841">841</span>
-<span id="842">842</span>
-<span id="843">843</span>
-<span id="844">844</span>
-<span id="845">845</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span><span class="kw">crate</span>::block_synchronizer::handler::Handler;
@@ -1089,7 +1084,7 @@
     /// as we might need to deliver the batch result for requests from multiple
     /// certificates (although not really probable its still possible for batches of
     /// same id to be included in multiple headers).
-    </span>tx_pending_batch:
+    </span>pending_batch_by_digest:
         HashMap&lt;BatchDigest, HashMap&lt;CertificateDigest, oneshot::Sender&lt;BatchResult&gt;&gt;&gt;,
 
     <span class="doccomment">/// A map that holds the channels we should notify with the
@@ -1131,7 +1126,7 @@
                 worker_network,
                 rx_reconfigure,
                 rx_batch_receiver: batch_receiver,
-                tx_pending_batch: HashMap::new(),
+                pending_batch_by_digest: HashMap::new(),
                 get_block_map_requesters: HashMap::new(),
                 get_blocks_map_requesters: HashMap::new(),
                 block_synchronizer_handler,
@@ -1212,12 +1207,12 @@
     }
 
     <span class="kw">async fn </span>handle_get_blocks_waiting_result(<span class="kw-2">&amp;mut </span><span class="self">self</span>, result: BlocksResult) {
-        <span class="kw">let </span>ids = result.clone().map_or_else(
-            |err| err.ids,
+        <span class="kw">let </span>ids = result.as_ref().map_or_else(
+            |err| err.ids.clone(),
             |ok| {
                 ok.blocks
-                    .into_iter()
-                    .map(|res| res.map_or_else(|e| e.id, |r| r.id))
+                    .iter()
+                    .map(|res| res.as_ref().map_or_else(|e| e.id, |r| r.id))
                     .collect()
             },
         );
@@ -1438,13 +1433,13 @@
         sender: oneshot::Sender&lt;BlockResult&lt;GetBlockResponse&gt;&gt;,
     ) -&gt; <span class="prelude-ty">Option</span>&lt;BoxFuture&lt;<span class="lifetime">&#39;a</span>, BlockResult&lt;GetBlockResponse&gt;&gt;&gt; {
         <span class="comment">// If similar request is already under processing, don&#39;t start a new one
-        </span><span class="kw">if </span><span class="self">self</span>.pending_get_block.contains_key(<span class="kw-2">&amp;</span>id.clone()) {
+        </span><span class="kw">if </span><span class="self">self</span>.pending_get_block.contains_key(<span class="kw-2">&amp;</span>id) {
             <span class="self">self</span>.get_block_map_requesters
                 .entry(id)
                 .or_insert_with(Vec::new)
                 .push(sender);
 
-            <span class="macro">trace!</span>(<span class="string">&quot;Block with id {} already has a pending request&quot;</span>, id.clone());
+            <span class="macro">trace!</span>(<span class="string">&quot;Block with id {} already has a pending request&quot;</span>, id);
             <span class="kw">return </span><span class="prelude-val">None</span>;
         }
 
@@ -1508,23 +1503,20 @@
     }
 
     <span class="kw">async fn </span>handle_batch_waiting_result(<span class="kw-2">&amp;mut </span><span class="self">self</span>, result: BlockResult&lt;GetBlockResponse&gt;) {
-        <span class="kw">let </span>block_id = result.clone().map_or_else(|e| e.id, |r| r.id);
+        <span class="kw">let </span>block_id = result.as_ref().map_or_else(|e| e.id, |r| r.id);
 
         <span class="kw">match </span><span class="self">self</span>.get_block_map_requesters.remove(<span class="kw-2">&amp;</span>block_id) {
             <span class="prelude-val">Some</span>(senders) =&gt; {
                 <span class="kw">for </span>sender <span class="kw">in </span>senders {
                     <span class="kw">if </span>sender.send(result.clone()).is_err() {
-                        <span class="macro">error!</span>(
-                            <span class="string">&quot;Couldn&#39;t forward results for block {} to sender&quot;</span>,
-                            block_id.clone()
-                        )
+                        <span class="macro">error!</span>(<span class="string">&quot;Couldn&#39;t forward results for block {} to sender&quot;</span>, block_id)
                     }
                 }
             }
             <span class="prelude-val">None </span>=&gt; {
                 <span class="macro">error!</span>(
                     <span class="string">&quot;We should expect to find channels to respond for {}&quot;</span>,
-                    block_id.clone()
+                    block_id
                 );
             }
         }
@@ -1536,13 +1528,13 @@
                     <span class="comment">// Although we expect the entries to have been cleaned up by the moment
                     // they have been delivered (or error) still adding this here to ensure
                     // we don&#39;t miss any edge case and introduce memory leaks.
-                    </span><span class="kw">if let </span><span class="prelude-val">Some</span>(senders) = <span class="self">self</span>.tx_pending_batch.get_mut(<span class="kw-2">&amp;</span>digest) {
+                    </span><span class="kw">if let </span><span class="prelude-val">Some</span>(senders) = <span class="self">self</span>.pending_batch_by_digest.get_mut(<span class="kw-2">&amp;</span>digest) {
                         senders.remove(<span class="kw-2">&amp;</span>block_id);
 
                         <span class="comment">// if no more senders in the map then remove entirely
                         // the map for the digest
                         </span><span class="kw">if </span>senders.is_empty() {
-                            <span class="self">self</span>.tx_pending_batch.remove(<span class="kw-2">&amp;</span>digest);
+                            <span class="self">self</span>.pending_batch_by_digest.remove(<span class="kw-2">&amp;</span>digest);
                         }
                     }
                 }
@@ -1576,24 +1568,22 @@
             // still a possibility and this component should be prepared for it.
             </span><span class="kw">let </span>(tx, rx) = oneshot::channel();
 
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(map) = <span class="self">self</span>.tx_pending_batch.get_mut(<span class="kw-2">&amp;</span>digest) {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(map) = <span class="self">self</span>.pending_batch_by_digest.get_mut(<span class="kw-2">&amp;</span>digest) {
                 <span class="macro">debug!</span>(
                     <span class="string">&quot;Skip sending request for batch {} to worker id {}, already pending&quot;</span>,
-                    digest.clone(),
-                    worker_id
+                    digest, worker_id
                 );
 
                 map.insert(block_id, tx);
             } <span class="kw">else </span>{
-                <span class="self">self</span>.tx_pending_batch
+                <span class="self">self</span>.pending_batch_by_digest
                     .entry(digest)
                     .or_default()
                     .insert(block_id, tx);
 
                 <span class="macro">debug!</span>(
                     <span class="string">&quot;Sending batch {} request to worker id {}&quot;</span>,
-                    digest.clone(),
-                    worker_id
+                    digest, worker_id
                 );
 
                 <span class="kw">let </span>worker_name = <span class="self">self
@@ -1618,9 +1608,9 @@
     }
 
     <span class="kw">async fn </span>handle_batch_message(<span class="kw-2">&amp;mut </span><span class="self">self</span>, result: BatchResult) {
-        <span class="kw">let </span>batch_id: BatchDigest = result.clone().map_or_else(|e| e.id, |r| r.id);
+        <span class="kw">let </span>batch_id: BatchDigest = result.as_ref().map_or_else(|e| e.id, |r| r.id);
 
-        <span class="kw">match </span><span class="self">self</span>.tx_pending_batch.remove(<span class="kw-2">&amp;</span>batch_id) {
+        <span class="kw">match </span><span class="self">self</span>.pending_batch_by_digest.remove(<span class="kw-2">&amp;</span>batch_id) {
             <span class="prelude-val">Some</span>(respond_to) =&gt; {
                 <span class="kw">for </span>(id, s) <span class="kw">in </span>respond_to {
                     <span class="kw">let _ </span>= s.send(result.clone())
@@ -1689,4 +1679,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (a37499ae6 2022-09-18)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (432abd86f 2022-09-20)" ></div></body></html>
