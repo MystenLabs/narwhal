@@ -94,7 +94,7 @@ impl Subscriber {
         // This needs to happen before we start listening on rx_consensus and receive messages
         // sequenced after these.
         if let Err(err) = self
-            .recover_consensus_output(restored_consensus_output)
+            .recover_from_consensus_output(restored_consensus_output)
             .await
         {
             error!("Executor subscriber is shutting down: {err}");
@@ -128,7 +128,7 @@ impl Subscriber {
     /// blocking operation. We should expect to block if executor is saturated, but
     /// this is desired to avoid overloading our system making this easier to trace.
     #[instrument(level="info", skip_all, fields(num_of_certificates = restored_consensus_output.len()), err)]
-    async fn recover_consensus_output(
+    async fn recover_from_consensus_output(
         &self,
         restored_consensus_output: Vec<ConsensusOutput>,
     ) -> SubscriberResult<()> {
