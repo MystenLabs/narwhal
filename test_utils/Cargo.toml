@@ -1,5 +1,5 @@
 [package]
-name = "test_utils"
+name = "narwhal-test-utils"
 version = "0.1.0"
 edition = "2021"
 license = "Apache-2.0"
@@ -28,15 +28,15 @@ tokio-util = { version = "0.7.4", features = ["codec"] }
 tonic = "0.7.2"
 tracing = "0.1.36"
 
-config = { path = "../config" }
+config = { path = "../config", package = "narwhal-config" }
 fastcrypto = "0.1.2"
-crypto = { path = "../crypto" }
-executor = { path = "../executor" }
-node = { path = "../node" }
-primary = { path = "../primary" }
-network = { path = "../network" }
-types = { path = "../types" }
-worker = { path = "../worker" }
+crypto = { path = "../crypto", package = "narwhal-crypto" }
+executor = { path = "../executor", package = "narwhal-executor" }
+node = { path = "../node", package = "narwhal-node" }
+primary = { path = "../primary", package = "narwhal-primary" }
+network = { path = "../network", package = "narwhal-network" }
+types = { path = "../types", package = "narwhal-types" }
+worker = { path = "../worker", package = "narwhal-worker" }
 mysten-network = "0.1.0"
 
 store = { version = "0.1.0", package = "typed-store"}
