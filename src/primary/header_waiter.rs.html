@@ -638,7 +638,7 @@
 
                                 <span class="comment">// TODO [issue #423]: This network transmission needs to be reliable: the worker may crash-recover.
                                 </span><span class="kw">let </span>message = PrimaryWorkerMessage::Synchronize(digests, author.clone());
-                                <span class="self">self</span>.network.unreliable_send(worker_name, <span class="kw-2">&amp;</span>message).<span class="kw">await</span>;
+                                <span class="kw">let _ </span>= <span class="self">self</span>.network.unreliable_send(worker_name, <span class="kw-2">&amp;</span>message);
                             }
                         }
 
@@ -678,7 +678,7 @@
                             }
                             <span class="kw">if </span>!requires_sync.is_empty() {
                                 <span class="kw">let </span>message = PrimaryMessage::CertificatesRequest(requires_sync, <span class="self">self</span>.name.clone());
-                                <span class="self">self</span>.network.unreliable_send(<span class="self">self</span>.committee.network_key(<span class="kw-2">&amp;</span>author).unwrap(), <span class="kw-2">&amp;</span>message).<span class="kw">await</span>;
+                                <span class="kw">let _ </span>= <span class="self">self</span>.network.unreliable_send(<span class="self">self</span>.committee.network_key(<span class="kw-2">&amp;</span>author).unwrap(), <span class="kw-2">&amp;</span>message);
                             }
                         }
                     }
@@ -722,7 +722,7 @@
                             .map(|(<span class="kw">_</span>, <span class="kw">_</span>, network_key)| network_key)
                             .collect();
                         <span class="kw">let </span>message = PrimaryMessage::CertificatesRequest(retry, <span class="self">self</span>.name.clone());
-                        <span class="self">self</span>.network.lucky_broadcast(network_keys, <span class="kw-2">&amp;</span>message, <span class="self">self</span>.sync_retry_nodes).<span class="kw">await</span>;
+                        <span class="self">self</span>.network.lucky_broadcast(network_keys, <span class="kw-2">&amp;</span>message, <span class="self">self</span>.sync_retry_nodes);
                     }
                     <span class="comment">// Reschedule the timer.
                     </span>timer.as_mut().reset(Instant::now() + Duration::from_millis(TIMER_RESOLUTION));

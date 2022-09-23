@@ -836,8 +836,6 @@
 <span id="836">836</span>
 <span id="837">837</span>
 <span id="838">838</span>
-<span id="839">839</span>
-<span id="840">840</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span><span class="kw">crate</span>::block_synchronizer::handler::Handler;
@@ -1595,9 +1593,7 @@
 
                 <span class="kw">let </span>message = PrimaryWorkerMessage::RequestBatch(digest);
 
-                <span class="self">self</span>.worker_network
-                    .unreliable_send(worker_name, <span class="kw-2">&amp;</span>message)
-                    .<span class="kw">await</span>;
+                <span class="kw">let _ </span>= <span class="self">self</span>.worker_network.unreliable_send(worker_name, <span class="kw-2">&amp;</span>message);
             }
 
             <span class="comment">// add the receiver to a vector to poll later

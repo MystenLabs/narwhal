@@ -259,7 +259,7 @@
                 .map(|x| x.name)
                 .collect();
             <span class="kw">let </span>message = PrimaryWorkerMessage::Cleanup(round);
-            <span class="self">self</span>.network.unreliable_broadcast(addresses, <span class="kw-2">&amp;</span>message).<span class="kw">await</span>;
+            <span class="self">self</span>.network.unreliable_broadcast(addresses, <span class="kw-2">&amp;</span>message);
         }
     }
 

@@ -90,36 +90,34 @@
 <span id="90">90</span>
 <span id="91">91</span>
 <span id="92">92</span>
-<span id="93">93</span>
-<span id="94">94</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span><span class="kw">crate</span>::CancelOnDropHandler;
+<span class="kw">use </span>anyhow::Result;
 <span class="kw">use </span>async_trait::async_trait;
 <span class="kw">use </span>crypto::NetworkPublicKey;
 <span class="kw">use </span>rand::prelude::{SliceRandom, SmallRng};
 <span class="kw">use </span>tokio::task::JoinHandle;
 
-<span class="attribute">#[async_trait]
-</span><span class="kw">pub trait </span>UnreliableNetwork&lt;Request: Clone + Send + Sync&gt; {
+<span class="kw">pub trait </span>UnreliableNetwork&lt;Request: Clone + Send + Sync&gt; {
     <span class="kw">type </span>Response: Clone + Send + Sync;
 
-    <span class="kw">async fn </span>unreliable_send(
+    <span class="kw">fn </span>unreliable_send(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         peer: NetworkPublicKey,
         message: <span class="kw-2">&amp;</span>Request,
-    ) -&gt; JoinHandle&lt;anyhow::Result&lt;anemo::Response&lt;<span class="self">Self</span>::Response&gt;&gt;&gt;;
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;JoinHandle&lt;<span class="prelude-ty">Result</span>&lt;anemo::Response&lt;<span class="self">Self</span>::Response&gt;&gt;&gt;&gt;;
 
     <span class="doccomment">/// Broadcasts a message to all `peers` passed as an argument.
     /// The attempts to send individual messages are best effort and will not be retried.
-    </span><span class="kw">async fn </span>unreliable_broadcast(
+    </span><span class="kw">fn </span>unreliable_broadcast(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         peers: Vec&lt;NetworkPublicKey&gt;,
         message: <span class="kw-2">&amp;</span>Request,
-    ) -&gt; Vec&lt;JoinHandle&lt;anyhow::Result&lt;anemo::Response&lt;<span class="self">Self</span>::Response&gt;&gt;&gt;&gt; {
+    ) -&gt; Vec&lt;<span class="prelude-ty">Result</span>&lt;JoinHandle&lt;<span class="prelude-ty">Result</span>&lt;anemo::Response&lt;<span class="self">Self</span>::Response&gt;&gt;&gt;&gt;&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>handlers = Vec::new();
         <span class="kw">for </span>peer <span class="kw">in </span>peers {
-            <span class="kw">let </span>handle = { <span class="self">self</span>.unreliable_send(peer, message).<span class="kw">await </span>};
+            <span class="kw">let </span>handle = { <span class="self">self</span>.unreliable_send(peer, message) };
             handlers.push(handle);
         }
         handlers
@@ -130,37 +128,35 @@
     <span class="kw">fn </span>rng(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>SmallRng;
 }
 
-<span class="attribute">#[async_trait]
-</span><span class="kw">pub trait </span>LuckyNetwork&lt;Request&gt; {
+<span class="kw">pub trait </span>LuckyNetwork&lt;Request&gt; {
     <span class="kw">type </span>Response: Clone + Send + Sync;
     <span class="doccomment">/// Pick a few addresses at random (specified by `nodes`) and try (best-effort) to send the
     /// message only to them. This is useful to pick nodes with whom to sync.
-    </span><span class="kw">async fn </span>lucky_broadcast(
+    </span><span class="kw">fn </span>lucky_broadcast(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        <span class="kw-2">mut </span>peers: Vec&lt;NetworkPublicKey&gt;,
+        peers: Vec&lt;NetworkPublicKey&gt;,
         message: <span class="kw-2">&amp;</span>Request,
         num_nodes: usize,
-    ) -&gt; Vec&lt;JoinHandle&lt;anyhow::Result&lt;anemo::Response&lt;<span class="self">Self</span>::Response&gt;&gt;&gt;&gt;;
+    ) -&gt; Vec&lt;<span class="prelude-ty">Result</span>&lt;JoinHandle&lt;anyhow::Result&lt;anemo::Response&lt;<span class="self">Self</span>::Response&gt;&gt;&gt;&gt;&gt;;
 }
 
-<span class="attribute">#[async_trait]
-</span><span class="kw">impl</span>&lt;T, M&gt; LuckyNetwork&lt;M&gt; <span class="kw">for </span>T
+<span class="kw">impl</span>&lt;T, M&gt; LuckyNetwork&lt;M&gt; <span class="kw">for </span>T
 <span class="kw">where
     </span>M: Clone + Send + Sync,
     T: UnreliableNetwork&lt;M&gt; + Send,
     T: Lucky,
 {
     <span class="kw">type </span>Response = T::Response;
-    <span class="kw">async fn </span>lucky_broadcast(
+    <span class="kw">fn </span>lucky_broadcast(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         <span class="kw-2">mut </span>peers: Vec&lt;NetworkPublicKey&gt;,
         message: <span class="kw-2">&amp;</span>M,
         nodes: usize,
-    ) -&gt; Vec&lt;JoinHandle&lt;anyhow::Result&lt;anemo::Response&lt;<span class="self">Self</span>::Response&gt;&gt;&gt;&gt; {
+    ) -&gt; Vec&lt;<span class="prelude-ty">Result</span>&lt;JoinHandle&lt;<span class="prelude-ty">Result</span>&lt;anemo::Response&lt;<span class="self">Self</span>::Response&gt;&gt;&gt;&gt;&gt; {
         peers.shuffle(<span class="self">self</span>.rng());
         peers.truncate(nodes);
-        <span class="self">self</span>.unreliable_broadcast(peers, message).<span class="kw">await
-    </span>}
+        <span class="self">self</span>.unreliable_broadcast(peers, message)
+    }
 }
 
 <span class="attribute">#[async_trait]

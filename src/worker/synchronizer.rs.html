@@ -382,6 +382,10 @@
 <span id="382">382</span>
 <span id="383">383</span>
 <span id="384">384</span>
+<span id="385">385</span>
+<span id="386">386</span>
+<span id="387">387</span>
+<span id="388">388</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -579,7 +583,9 @@
                             <span class="comment">// TODO: restore ability to cancel these requests when primary-&gt;worker RPCs are
                             // made synchronous and this one becomes a child of those.
                             </span><span class="kw">let </span>message = WorkerBatchRequest{digests: missing.into_iter().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;() };
-                            waiting.push(<span class="self">self</span>.network.unreliable_send(worker_name, <span class="kw-2">&amp;</span>message).<span class="kw">await</span>);
+                            <span class="kw">if let </span><span class="prelude-val">Ok</span>(request) = <span class="self">self</span>.network.unreliable_send(worker_name, <span class="kw-2">&amp;</span>message) {
+                                waiting.push(request);
+                            }
                         } <span class="kw">else </span>{
                             <span class="macro">debug!</span>(<span class="string">&quot;All batches are already available {:?} nothing to request from peers&quot;</span>, digests);
                         }
@@ -720,7 +726,9 @@
                         <span class="kw">let </span>message = WorkerBatchRequest{digests: retry};
                         <span class="kw">for </span>fut <span class="kw">in </span><span class="self">self</span>.network
                             .lucky_broadcast(names, <span class="kw-2">&amp;</span>message, <span class="self">self</span>.sync_retry_nodes)
-                            .<span class="kw">await </span>{
+                            .into_iter()
+                            .flatten()
+                        {
                             waiting.push(fut);
                         }
                     }

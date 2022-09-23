@@ -417,9 +417,9 @@
                     payload_availability: result,
                     from: <span class="self">self</span>.name.clone(),
                 };
-                <span class="self">self</span>.primary_network
-                    .unreliable_send(<span class="self">self</span>.committee.network_key(<span class="kw-2">&amp;</span>origin).unwrap(), <span class="kw-2">&amp;</span>message)
-                    .<span class="kw">await</span>;
+                <span class="kw">let _ </span>= <span class="self">self
+                    </span>.primary_network
+                    .unreliable_send(<span class="self">self</span>.committee.network_key(<span class="kw-2">&amp;</span>origin).unwrap(), <span class="kw-2">&amp;</span>message);
 
                 <span class="kw">return </span><span class="prelude-val">Err</span>(HelperError::StoreError(err));
             }
@@ -455,9 +455,9 @@
             payload_availability: result,
             from: <span class="self">self</span>.name.clone(),
         };
-        <span class="self">self</span>.primary_network
-            .unreliable_send(<span class="self">self</span>.committee.network_key(<span class="kw-2">&amp;</span>origin).unwrap(), <span class="kw-2">&amp;</span>message)
-            .<span class="kw">await</span>;
+        <span class="kw">let _ </span>= <span class="self">self
+            </span>.primary_network
+            .unreliable_send(<span class="self">self</span>.committee.network_key(<span class="kw-2">&amp;</span>origin).unwrap(), <span class="kw-2">&amp;</span>message);
 
         <span class="prelude-val">Ok</span>(())
     }
@@ -504,16 +504,16 @@
                 from: <span class="self">self</span>.name.clone(),
             };
 
-            <span class="self">self</span>.primary_network
-                .unreliable_send(<span class="self">self</span>.committee.network_key(<span class="kw-2">&amp;</span>origin).unwrap(), <span class="kw-2">&amp;</span>message)
-                .<span class="kw">await</span>;
+            <span class="kw">let _ </span>= <span class="self">self
+                </span>.primary_network
+                .unreliable_send(<span class="self">self</span>.committee.network_key(<span class="kw-2">&amp;</span>origin).unwrap(), <span class="kw-2">&amp;</span>message);
         } <span class="kw">else </span>{
             <span class="kw">for </span>certificate <span class="kw">in </span>certificates.into_iter().flatten() {
                 <span class="comment">// TODO: Remove this deserialization-serialization in the critical path.
                 </span><span class="kw">let </span>message = PrimaryMessage::Certificate(certificate);
-                <span class="self">self</span>.primary_network
-                    .unreliable_send(<span class="self">self</span>.committee.network_key(<span class="kw-2">&amp;</span>origin).unwrap(), <span class="kw-2">&amp;</span>message)
-                    .<span class="kw">await</span>;
+                <span class="kw">let _ </span>= <span class="self">self
+                    </span>.primary_network
+                    .unreliable_send(<span class="self">self</span>.committee.network_key(<span class="kw-2">&amp;</span>origin).unwrap(), <span class="kw-2">&amp;</span>message);
             }
         }
 

@@ -1205,9 +1205,9 @@
             <span class="kw">let </span>message = PrimaryWorkerMessage::DeleteBatches(batch_ids.clone());
 
             <span class="comment">// send the request
-            </span><span class="self">self</span>.worker_network
-                .unreliable_send(worker_name.clone(), <span class="kw-2">&amp;</span>message)
-                .<span class="kw">await</span>;
+            </span><span class="kw">let _ </span>= <span class="self">self
+                </span>.worker_network
+                .unreliable_send(worker_name.clone(), <span class="kw-2">&amp;</span>message);
 
             <span class="macro">debug!</span>(
                 <span class="string">&quot;Sending DeleteBatches request for batch ids {:?} to worker {}&quot;</span>,

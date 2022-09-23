@@ -1206,8 +1206,6 @@
 <span id="1206">1206</span>
 <span id="1207">1207</span>
 <span id="1208">1208</span>
-<span id="1209">1209</span>
-<span id="1210">1210</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use crate</span>::{
@@ -2042,9 +2040,7 @@
             .map(|(name, _address, network_key)| (name, network_key))
             .unzip();
 
-        <span class="self">self</span>.network
-            .unreliable_broadcast(network_keys.clone(), <span class="kw-2">&amp;</span>message)
-            .<span class="kw">await</span>;
+        <span class="self">self</span>.network.unreliable_broadcast(network_keys, <span class="kw-2">&amp;</span>message);
 
         keys
     }
@@ -2110,7 +2106,7 @@
 
             <span class="kw">let </span>message =
                 PrimaryWorkerMessage::Synchronize(batch_ids.clone(), primary_peer_name.clone());
-            <span class="self">self</span>.network.unreliable_send(worker_name, <span class="kw-2">&amp;</span>message).<span class="kw">await</span>;
+            <span class="kw">let _ </span>= <span class="self">self</span>.network.unreliable_send(worker_name, <span class="kw-2">&amp;</span>message);
 
             <span class="macro">debug!</span>(
                 <span class="string">&quot;Sent request for batch ids {:?} to worker id {}&quot;</span>,
