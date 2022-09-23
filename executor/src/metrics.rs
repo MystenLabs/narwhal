@@ -45,7 +45,7 @@ impl ExecutorMetrics {
                 registry
             ).unwrap(),
             subscriber_download_payload_attempts: register_histogram_with_registry!(
-                "subscriber_download_payload_retries",
+                "subscriber_download_payload_attempts",
                 "The number of attempts to successfully download a certificate's payload in Subscriber",
                 vec![
                     1.0, 2.0, 3.0, 4.0, 5.0, 7.0, 10.0, 15.0, 20.0
