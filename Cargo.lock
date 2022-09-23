@@ -819,60 +819,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "08abddbaad209601e53c7dd4308d8c04c06f17bb7df006434e586a22b83be45a"
 
 [[package]]
-name = "config"
-version = "0.1.0"
-dependencies = [
- "arc-swap",
- "crypto",
- "fastcrypto",
- "insta",
- "match_opt",
- "multiaddr",
- "rand 0.8.5",
- "serde",
- "serde_json",
- "serde_with",
- "tempfile",
- "test_utils",
- "thiserror",
- "tracing",
- "tracing-test",
- "workspace-hack",
-]
-
-[[package]]
-name = "consensus"
-version = "0.1.0"
-dependencies = [
- "arc-swap",
- "bincode",
- "blake2",
- "bytes",
- "cfg-if 1.0.0",
- "config",
- "criterion",
- "crypto",
- "dag",
- "fastcrypto",
- "futures",
- "indexmap",
- "match_opt",
- "mysten-util-mem",
- "pprof",
- "prometheus",
- "rand 0.8.5",
- "serde",
- "storage",
- "test_utils",
- "thiserror",
- "tokio",
- "tracing",
- "typed-store",
- "types",
- "workspace-hack",
-]
-
-[[package]]
 name = "console"
 version = "0.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1055,50 +1001,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "crypto"
-version = "0.1.0"
-dependencies = [
- "ark-bls12-377",
- "ark-ec",
- "ark-ff",
- "ark-serialize",
- "ark-std",
- "base64ct",
- "bincode",
- "blake2",
- "bls-crypto",
- "blst",
- "bulletproofs",
- "criterion",
- "curve25519-dalek-ng",
- "digest 0.10.5",
- "ed25519-consensus",
- "eyre",
- "fastcrypto",
- "hex",
- "hex-literal",
- "hkdf",
- "k256",
- "merlin",
- "once_cell",
- "proptest",
- "proptest-derive",
- "rand 0.8.5",
- "readonly",
- "secp256k1",
- "serde",
- "serde-reflection",
- "serde_bytes",
- "serde_json",
- "serde_with",
- "sha3 0.10.5",
- "signature",
- "tokio",
- "workspace-hack",
- "zeroize",
-]
-
-[[package]]
 name = "crypto-bigint"
 version = "0.4.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1177,25 +1079,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dag"
-version = "0.1.0"
-dependencies = [
- "arc-swap",
- "dashmap",
- "either",
- "fastcrypto",
- "hex",
- "itertools",
- "once_cell",
- "proptest",
- "proptest-derive",
- "rayon",
- "serde",
- "thiserror",
- "workspace-hack",
-]
-
-[[package]]
 name = "darling"
 version = "0.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1256,19 +1139,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bef552e6f588e446098f6ba40d89ac146c8c7b64aade83c051ee00bb5d2bc18d"
 dependencies = [
  "uuid",
-]
-
-[[package]]
-name = "demo"
-version = "0.1.0"
-dependencies = [
- "base64",
- "clap 2.34.0",
- "prost",
- "tokio",
- "tonic",
- "tonic-build",
- "workspace-hack",
 ]
 
 [[package]]
@@ -1482,42 +1352,6 @@ dependencies = [
  "log",
  "regex",
  "termcolor",
-]
-
-[[package]]
-name = "executor"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "backoff",
- "bincode",
- "blake2",
- "bytes",
- "config",
- "consensus",
- "fastcrypto",
- "futures",
- "indexmap",
- "itertools",
- "match_opt",
- "multiaddr",
- "mysten-network",
- "primary",
- "prometheus",
- "rand 0.8.5",
- "serde",
- "storage",
- "telemetry-subscribers",
- "tempfile",
- "test_utils",
- "thiserror",
- "tokio",
- "tokio-util",
- "tonic",
- "tracing",
- "typed-store",
- "types",
- "workspace-hack",
 ]
 
 [[package]]
@@ -2437,7 +2271,173 @@ dependencies = [
 ]
 
 [[package]]
-name = "network"
+name = "narwhal-config"
+version = "0.1.0"
+dependencies = [
+ "arc-swap",
+ "fastcrypto",
+ "insta",
+ "match_opt",
+ "multiaddr",
+ "narwhal-crypto",
+ "narwhal-test-utils",
+ "rand 0.8.5",
+ "serde",
+ "serde_json",
+ "serde_with",
+ "tempfile",
+ "thiserror",
+ "tracing",
+ "tracing-test",
+ "workspace-hack",
+]
+
+[[package]]
+name = "narwhal-consensus"
+version = "0.1.0"
+dependencies = [
+ "arc-swap",
+ "bincode",
+ "blake2",
+ "bytes",
+ "cfg-if 1.0.0",
+ "criterion",
+ "fastcrypto",
+ "futures",
+ "indexmap",
+ "match_opt",
+ "mysten-util-mem",
+ "narwhal-config",
+ "narwhal-crypto",
+ "narwhal-dag",
+ "narwhal-storage",
+ "narwhal-test-utils",
+ "narwhal-types",
+ "pprof",
+ "prometheus",
+ "rand 0.8.5",
+ "serde",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "typed-store",
+ "workspace-hack",
+]
+
+[[package]]
+name = "narwhal-crypto"
+version = "0.1.0"
+dependencies = [
+ "ark-bls12-377",
+ "ark-ec",
+ "ark-ff",
+ "ark-serialize",
+ "ark-std",
+ "base64ct",
+ "bincode",
+ "blake2",
+ "bls-crypto",
+ "blst",
+ "bulletproofs",
+ "criterion",
+ "curve25519-dalek-ng",
+ "digest 0.10.5",
+ "ed25519-consensus",
+ "eyre",
+ "fastcrypto",
+ "hex",
+ "hex-literal",
+ "hkdf",
+ "k256",
+ "merlin",
+ "once_cell",
+ "proptest",
+ "proptest-derive",
+ "rand 0.8.5",
+ "readonly",
+ "secp256k1",
+ "serde",
+ "serde-reflection",
+ "serde_bytes",
+ "serde_json",
+ "serde_with",
+ "sha3 0.10.5",
+ "signature",
+ "tokio",
+ "workspace-hack",
+ "zeroize",
+]
+
+[[package]]
+name = "narwhal-dag"
+version = "0.1.0"
+dependencies = [
+ "arc-swap",
+ "dashmap",
+ "either",
+ "fastcrypto",
+ "hex",
+ "itertools",
+ "once_cell",
+ "proptest",
+ "proptest-derive",
+ "rayon",
+ "serde",
+ "thiserror",
+ "workspace-hack",
+]
+
+[[package]]
+name = "narwhal-examples"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "clap 2.34.0",
+ "prost",
+ "tokio",
+ "tonic",
+ "tonic-build",
+ "workspace-hack",
+]
+
+[[package]]
+name = "narwhal-executor"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "backoff",
+ "bincode",
+ "blake2",
+ "bytes",
+ "fastcrypto",
+ "futures",
+ "indexmap",
+ "itertools",
+ "match_opt",
+ "multiaddr",
+ "mysten-network",
+ "narwhal-config",
+ "narwhal-consensus",
+ "narwhal-primary",
+ "narwhal-storage",
+ "narwhal-test-utils",
+ "narwhal-types",
+ "prometheus",
+ "rand 0.8.5",
+ "serde",
+ "telemetry-subscribers",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tokio-util",
+ "tonic",
+ "tracing",
+ "typed-store",
+ "workspace-hack",
+]
+
+[[package]]
+name = "narwhal-network"
 version = "0.1.0"
 dependencies = [
  "anemo",
@@ -2446,21 +2446,263 @@ dependencies = [
  "backoff",
  "bincode",
  "bytes",
- "crypto",
  "eyre",
  "fastcrypto",
  "futures",
  "multiaddr",
+ "narwhal-crypto",
+ "narwhal-test-utils",
+ "narwhal-types",
  "prometheus",
  "rand 0.8.5",
  "serde",
- "test_utils",
  "thiserror",
  "tokio",
  "tokio-util",
  "tonic",
  "tracing",
- "types",
+ "workspace-hack",
+]
+
+[[package]]
+name = "narwhal-node"
+version = "0.1.0"
+dependencies = [
+ "anemo",
+ "arc-swap",
+ "async-trait",
+ "axum",
+ "bincode",
+ "bytes",
+ "cfg-if 1.0.0",
+ "clap 2.34.0",
+ "dhat",
+ "eyre",
+ "fastcrypto",
+ "futures",
+ "hex",
+ "itertools",
+ "multiaddr",
+ "mysten-network",
+ "narwhal-config",
+ "narwhal-consensus",
+ "narwhal-crypto",
+ "narwhal-executor",
+ "narwhal-network",
+ "narwhal-primary",
+ "narwhal-storage",
+ "narwhal-test-utils",
+ "narwhal-types",
+ "narwhal-worker",
+ "pretty_assertions",
+ "prometheus",
+ "rand 0.8.5",
+ "serde-reflection",
+ "serde_yaml",
+ "structopt",
+ "telemetry-subscribers",
+ "thiserror",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "tracing",
+ "tracing-log",
+ "tracing-subscriber 0.3.15",
+ "typed-store",
+ "url",
+ "workspace-hack",
+]
+
+[[package]]
+name = "narwhal-primary"
+version = "0.1.0"
+dependencies = [
+ "anemo",
+ "anyhow",
+ "arc-swap",
+ "async-recursion",
+ "async-trait",
+ "base64",
+ "bincode",
+ "blake2",
+ "bytes",
+ "dashmap",
+ "derive_builder",
+ "dhat",
+ "fastcrypto",
+ "futures",
+ "indexmap",
+ "itertools",
+ "mockall",
+ "multiaddr",
+ "mysten-network",
+ "narwhal-config",
+ "narwhal-consensus",
+ "narwhal-crypto",
+ "narwhal-executor",
+ "narwhal-network",
+ "narwhal-node",
+ "narwhal-storage",
+ "narwhal-test-utils",
+ "narwhal-types",
+ "narwhal-worker",
+ "once_cell",
+ "prometheus",
+ "proptest",
+ "prost",
+ "rand 0.8.5",
+ "roaring",
+ "serde",
+ "tap",
+ "telemetry-subscribers",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tokio-util",
+ "tonic",
+ "tower",
+ "tracing",
+ "tracing-test",
+ "typed-store",
+ "workspace-hack",
+]
+
+[[package]]
+name = "narwhal-storage"
+version = "0.1.0"
+dependencies = [
+ "dashmap",
+ "fastcrypto",
+ "futures",
+ "narwhal-test-utils",
+ "narwhal-types",
+ "thiserror",
+ "tokio",
+ "tokio-util",
+ "tonic",
+ "tracing",
+ "typed-store",
+ "workspace-hack",
+]
+
+[[package]]
+name = "narwhal-test-utils"
+version = "0.1.0"
+dependencies = [
+ "anemo",
+ "arc-swap",
+ "base64",
+ "bincode",
+ "blake2",
+ "bytes",
+ "derive_builder",
+ "fastcrypto",
+ "fdlimit",
+ "futures",
+ "indexmap",
+ "itertools",
+ "multiaddr",
+ "mysten-network",
+ "narwhal-config",
+ "narwhal-crypto",
+ "narwhal-executor",
+ "narwhal-network",
+ "narwhal-node",
+ "narwhal-primary",
+ "narwhal-types",
+ "narwhal-worker",
+ "prometheus",
+ "rand 0.8.5",
+ "serde",
+ "telemetry-subscribers",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tokio-util",
+ "tonic",
+ "tower",
+ "tracing",
+ "typed-store",
+ "workspace-hack",
+]
+
+[[package]]
+name = "narwhal-types"
+version = "0.1.0"
+dependencies = [
+ "anemo",
+ "anemo-build",
+ "base64",
+ "bincode",
+ "blake2",
+ "bytes",
+ "criterion",
+ "dashmap",
+ "derive_builder",
+ "fastcrypto",
+ "futures",
+ "hex",
+ "indexmap",
+ "mysten-util-mem",
+ "narwhal-config",
+ "narwhal-crypto",
+ "narwhal-dag",
+ "narwhal-test-utils",
+ "prometheus",
+ "proptest",
+ "proptest-derive",
+ "prost",
+ "prost-build",
+ "rand 0.8.5",
+ "roaring",
+ "rustversion",
+ "serde",
+ "serde_test",
+ "serde_with",
+ "signature",
+ "thiserror",
+ "tokio",
+ "tokio-util",
+ "tonic",
+ "tonic-build",
+ "tracing",
+ "typed-store",
+ "workspace-hack",
+]
+
+[[package]]
+name = "narwhal-worker"
+version = "0.1.0"
+dependencies = [
+ "anemo",
+ "arc-swap",
+ "async-trait",
+ "bincode",
+ "blake2",
+ "byteorder",
+ "bytes",
+ "fastcrypto",
+ "futures",
+ "multiaddr",
+ "mysten-network",
+ "narwhal-config",
+ "narwhal-crypto",
+ "narwhal-network",
+ "narwhal-primary",
+ "narwhal-test-utils",
+ "narwhal-types",
+ "prometheus",
+ "rand 0.8.5",
+ "serde",
+ "tap",
+ "tempfile",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "tonic",
+ "tower",
+ "tracing",
+ "typed-store",
  "workspace-hack",
 ]
 
@@ -2473,55 +2715,6 @@ dependencies = [
  "bitflags",
  "cfg-if 1.0.0",
  "libc",
-]
-
-[[package]]
-name = "node"
-version = "0.1.0"
-dependencies = [
- "anemo",
- "arc-swap",
- "async-trait",
- "axum",
- "bincode",
- "bytes",
- "cfg-if 1.0.0",
- "clap 2.34.0",
- "config",
- "consensus",
- "crypto",
- "dhat",
- "executor",
- "eyre",
- "fastcrypto",
- "futures",
- "hex",
- "itertools",
- "multiaddr",
- "mysten-network",
- "network",
- "pretty_assertions",
- "primary",
- "prometheus",
- "rand 0.8.5",
- "serde-reflection",
- "serde_yaml",
- "storage",
- "structopt",
- "telemetry-subscribers",
- "test_utils",
- "thiserror",
- "tokio",
- "tokio-stream",
- "tokio-util",
- "tracing",
- "tracing-log",
- "tracing-subscriber 0.3.15",
- "typed-store",
- "types",
- "url",
- "worker",
- "workspace-hack",
 ]
 
 [[package]]
@@ -2986,60 +3179,6 @@ checksum = "697ae720ee02011f439e0701db107ffe2916d83f718342d65d7f8bf7b8a5fee9"
 dependencies = [
  "proc-macro2 1.0.40",
  "syn 1.0.98",
-]
-
-[[package]]
-name = "primary"
-version = "0.1.0"
-dependencies = [
- "anemo",
- "anyhow",
- "arc-swap",
- "async-recursion",
- "async-trait",
- "base64",
- "bincode",
- "blake2",
- "bytes",
- "config",
- "consensus",
- "crypto",
- "dashmap",
- "derive_builder",
- "dhat",
- "executor",
- "fastcrypto",
- "futures",
- "indexmap",
- "itertools",
- "mockall",
- "multiaddr",
- "mysten-network",
- "network",
- "node",
- "once_cell",
- "prometheus",
- "proptest",
- "prost",
- "rand 0.8.5",
- "roaring",
- "serde",
- "storage",
- "tap",
- "telemetry-subscribers",
- "tempfile",
- "test_utils",
- "thiserror",
- "tokio",
- "tokio-util",
- "tonic",
- "tower",
- "tracing",
- "tracing-test",
- "typed-store",
- "types",
- "worker",
- "workspace-hack",
 ]
 
 [[package]]
@@ -4002,24 +4141,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
-name = "storage"
-version = "0.1.0"
-dependencies = [
- "dashmap",
- "fastcrypto",
- "futures",
- "test_utils",
- "thiserror",
- "tokio",
- "tokio-util",
- "tonic",
- "tracing",
- "typed-store",
- "types",
- "workspace-hack",
-]
-
-[[package]]
 name = "str_stack"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4200,47 +4321,6 @@ name = "termtree"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "507e9898683b6c43a9aa55b64259b721b52ba226e0f3779137e50ad114a4c90b"
-
-[[package]]
-name = "test_utils"
-version = "0.1.0"
-dependencies = [
- "anemo",
- "arc-swap",
- "base64",
- "bincode",
- "blake2",
- "bytes",
- "config",
- "crypto",
- "derive_builder",
- "executor",
- "fastcrypto",
- "fdlimit",
- "futures",
- "indexmap",
- "itertools",
- "multiaddr",
- "mysten-network",
- "network",
- "node",
- "primary",
- "prometheus",
- "rand 0.8.5",
- "serde",
- "telemetry-subscribers",
- "tempfile",
- "thiserror",
- "tokio",
- "tokio-util",
- "tonic",
- "tower",
- "tracing",
- "typed-store",
- "types",
- "worker",
- "workspace-hack",
-]
 
 [[package]]
 name = "textwrap"
@@ -4752,50 +4832,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dcf81ac59edc17cc8697ff311e8f5ef2d99fcbd9817b34cec66f90b6c3dfd987"
 
 [[package]]
-name = "types"
-version = "0.1.0"
-dependencies = [
- "anemo",
- "anemo-build",
- "base64",
- "bincode",
- "blake2",
- "bytes",
- "config",
- "criterion",
- "crypto",
- "dag",
- "dashmap",
- "derive_builder",
- "fastcrypto",
- "futures",
- "hex",
- "indexmap",
- "mysten-util-mem",
- "prometheus",
- "proptest",
- "proptest-derive",
- "prost",
- "prost-build",
- "rand 0.8.5",
- "roaring",
- "rustversion",
- "serde",
- "serde_test",
- "serde_with",
- "signature",
- "test_utils",
- "thiserror",
- "tokio",
- "tokio-util",
- "tonic",
- "tonic-build",
- "tracing",
- "typed-store",
- "workspace-hack",
-]
-
-[[package]]
 name = "ucd-trie"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5099,42 +5135,6 @@ name = "windows_x86_64_msvc"
 version = "0.36.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c811ca4a8c853ef420abd8592ba53ddbbac90410fab6903b3e79972a631f7680"
-
-[[package]]
-name = "worker"
-version = "0.1.0"
-dependencies = [
- "anemo",
- "arc-swap",
- "async-trait",
- "bincode",
- "blake2",
- "byteorder",
- "bytes",
- "config",
- "crypto",
- "fastcrypto",
- "futures",
- "multiaddr",
- "mysten-network",
- "network",
- "primary",
- "prometheus",
- "rand 0.8.5",
- "serde",
- "tap",
- "tempfile",
- "test_utils",
- "tokio",
- "tokio-stream",
- "tokio-util",
- "tonic",
- "tower",
- "tracing",
- "typed-store",
- "types",
- "workspace-hack",
-]
 
 [[package]]
 name = "workspace-hack"
