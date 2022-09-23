@@ -1,4 +1,4 @@
 (function() {var implementors = {
-"primary":[["impl MetricsCallbackProvider for <a class=\"struct\" href=\"primary/struct.EndpointMetrics.html\" title=\"struct primary::EndpointMetrics\">EndpointMetrics</a>"]],
-"worker":[["impl MetricsCallbackProvider for <a class=\"struct\" href=\"worker/metrics/struct.WorkerEndpointMetrics.html\" title=\"struct worker::metrics::WorkerEndpointMetrics\">WorkerEndpointMetrics</a>"]]
+"narwhal_primary":[["impl MetricsCallbackProvider for <a class=\"struct\" href=\"narwhal_primary/struct.EndpointMetrics.html\" title=\"struct narwhal_primary::EndpointMetrics\">EndpointMetrics</a>"]],
+"narwhal_worker":[["impl MetricsCallbackProvider for <a class=\"struct\" href=\"narwhal_worker/metrics/struct.WorkerEndpointMetrics.html\" title=\"struct narwhal_worker::metrics::WorkerEndpointMetrics\">WorkerEndpointMetrics</a>"]]
 };if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

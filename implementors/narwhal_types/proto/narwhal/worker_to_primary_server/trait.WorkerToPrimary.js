@@ -1,0 +1,3 @@
+(function() {var implementors = {
+"narwhal_test_utils":[["impl <a class=\"trait\" href=\"narwhal_types/proto/narwhal/worker_to_primary_server/trait.WorkerToPrimary.html\" title=\"trait narwhal_types::proto::narwhal::worker_to_primary_server::WorkerToPrimary\">WorkerToPrimary</a> for <a class=\"struct\" href=\"narwhal_test_utils/struct.WorkerToPrimaryMockServer.html\" title=\"struct narwhal_test_utils::WorkerToPrimaryMockServer\">WorkerToPrimaryMockServer</a>"]]
+};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

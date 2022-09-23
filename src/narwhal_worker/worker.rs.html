@@ -1,0 +1,982 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `worker/src/worker.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>worker.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../normalize.css"><link rel="stylesheet" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../ayu.css" disabled><link rel="stylesheet" href="../../dark.css" disabled><link rel="stylesheet" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button><a class="sidebar-logo" href="../../narwhal_worker/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div></a><h2 class="location"></h2></nav><nav class="sidebar"><a class="sidebar-logo" href="../../narwhal_worker/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div></a></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../../narwhal_worker/index.html"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></a><nav class="sub"><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><button type="button">?</button></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../wheel.svg"></a></div></div></form></nav></div><section id="main-content" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">1</span>
+<span id="2">2</span>
+<span id="3">3</span>
+<span id="4">4</span>
+<span id="5">5</span>
+<span id="6">6</span>
+<span id="7">7</span>
+<span id="8">8</span>
+<span id="9">9</span>
+<span id="10">10</span>
+<span id="11">11</span>
+<span id="12">12</span>
+<span id="13">13</span>
+<span id="14">14</span>
+<span id="15">15</span>
+<span id="16">16</span>
+<span id="17">17</span>
+<span id="18">18</span>
+<span id="19">19</span>
+<span id="20">20</span>
+<span id="21">21</span>
+<span id="22">22</span>
+<span id="23">23</span>
+<span id="24">24</span>
+<span id="25">25</span>
+<span id="26">26</span>
+<span id="27">27</span>
+<span id="28">28</span>
+<span id="29">29</span>
+<span id="30">30</span>
+<span id="31">31</span>
+<span id="32">32</span>
+<span id="33">33</span>
+<span id="34">34</span>
+<span id="35">35</span>
+<span id="36">36</span>
+<span id="37">37</span>
+<span id="38">38</span>
+<span id="39">39</span>
+<span id="40">40</span>
+<span id="41">41</span>
+<span id="42">42</span>
+<span id="43">43</span>
+<span id="44">44</span>
+<span id="45">45</span>
+<span id="46">46</span>
+<span id="47">47</span>
+<span id="48">48</span>
+<span id="49">49</span>
+<span id="50">50</span>
+<span id="51">51</span>
+<span id="52">52</span>
+<span id="53">53</span>
+<span id="54">54</span>
+<span id="55">55</span>
+<span id="56">56</span>
+<span id="57">57</span>
+<span id="58">58</span>
+<span id="59">59</span>
+<span id="60">60</span>
+<span id="61">61</span>
+<span id="62">62</span>
+<span id="63">63</span>
+<span id="64">64</span>
+<span id="65">65</span>
+<span id="66">66</span>
+<span id="67">67</span>
+<span id="68">68</span>
+<span id="69">69</span>
+<span id="70">70</span>
+<span id="71">71</span>
+<span id="72">72</span>
+<span id="73">73</span>
+<span id="74">74</span>
+<span id="75">75</span>
+<span id="76">76</span>
+<span id="77">77</span>
+<span id="78">78</span>
+<span id="79">79</span>
+<span id="80">80</span>
+<span id="81">81</span>
+<span id="82">82</span>
+<span id="83">83</span>
+<span id="84">84</span>
+<span id="85">85</span>
+<span id="86">86</span>
+<span id="87">87</span>
+<span id="88">88</span>
+<span id="89">89</span>
+<span id="90">90</span>
+<span id="91">91</span>
+<span id="92">92</span>
+<span id="93">93</span>
+<span id="94">94</span>
+<span id="95">95</span>
+<span id="96">96</span>
+<span id="97">97</span>
+<span id="98">98</span>
+<span id="99">99</span>
+<span id="100">100</span>
+<span id="101">101</span>
+<span id="102">102</span>
+<span id="103">103</span>
+<span id="104">104</span>
+<span id="105">105</span>
+<span id="106">106</span>
+<span id="107">107</span>
+<span id="108">108</span>
+<span id="109">109</span>
+<span id="110">110</span>
+<span id="111">111</span>
+<span id="112">112</span>
+<span id="113">113</span>
+<span id="114">114</span>
+<span id="115">115</span>
+<span id="116">116</span>
+<span id="117">117</span>
+<span id="118">118</span>
+<span id="119">119</span>
+<span id="120">120</span>
+<span id="121">121</span>
+<span id="122">122</span>
+<span id="123">123</span>
+<span id="124">124</span>
+<span id="125">125</span>
+<span id="126">126</span>
+<span id="127">127</span>
+<span id="128">128</span>
+<span id="129">129</span>
+<span id="130">130</span>
+<span id="131">131</span>
+<span id="132">132</span>
+<span id="133">133</span>
+<span id="134">134</span>
+<span id="135">135</span>
+<span id="136">136</span>
+<span id="137">137</span>
+<span id="138">138</span>
+<span id="139">139</span>
+<span id="140">140</span>
+<span id="141">141</span>
+<span id="142">142</span>
+<span id="143">143</span>
+<span id="144">144</span>
+<span id="145">145</span>
+<span id="146">146</span>
+<span id="147">147</span>
+<span id="148">148</span>
+<span id="149">149</span>
+<span id="150">150</span>
+<span id="151">151</span>
+<span id="152">152</span>
+<span id="153">153</span>
+<span id="154">154</span>
+<span id="155">155</span>
+<span id="156">156</span>
+<span id="157">157</span>
+<span id="158">158</span>
+<span id="159">159</span>
+<span id="160">160</span>
+<span id="161">161</span>
+<span id="162">162</span>
+<span id="163">163</span>
+<span id="164">164</span>
+<span id="165">165</span>
+<span id="166">166</span>
+<span id="167">167</span>
+<span id="168">168</span>
+<span id="169">169</span>
+<span id="170">170</span>
+<span id="171">171</span>
+<span id="172">172</span>
+<span id="173">173</span>
+<span id="174">174</span>
+<span id="175">175</span>
+<span id="176">176</span>
+<span id="177">177</span>
+<span id="178">178</span>
+<span id="179">179</span>
+<span id="180">180</span>
+<span id="181">181</span>
+<span id="182">182</span>
+<span id="183">183</span>
+<span id="184">184</span>
+<span id="185">185</span>
+<span id="186">186</span>
+<span id="187">187</span>
+<span id="188">188</span>
+<span id="189">189</span>
+<span id="190">190</span>
+<span id="191">191</span>
+<span id="192">192</span>
+<span id="193">193</span>
+<span id="194">194</span>
+<span id="195">195</span>
+<span id="196">196</span>
+<span id="197">197</span>
+<span id="198">198</span>
+<span id="199">199</span>
+<span id="200">200</span>
+<span id="201">201</span>
+<span id="202">202</span>
+<span id="203">203</span>
+<span id="204">204</span>
+<span id="205">205</span>
+<span id="206">206</span>
+<span id="207">207</span>
+<span id="208">208</span>
+<span id="209">209</span>
+<span id="210">210</span>
+<span id="211">211</span>
+<span id="212">212</span>
+<span id="213">213</span>
+<span id="214">214</span>
+<span id="215">215</span>
+<span id="216">216</span>
+<span id="217">217</span>
+<span id="218">218</span>
+<span id="219">219</span>
+<span id="220">220</span>
+<span id="221">221</span>
+<span id="222">222</span>
+<span id="223">223</span>
+<span id="224">224</span>
+<span id="225">225</span>
+<span id="226">226</span>
+<span id="227">227</span>
+<span id="228">228</span>
+<span id="229">229</span>
+<span id="230">230</span>
+<span id="231">231</span>
+<span id="232">232</span>
+<span id="233">233</span>
+<span id="234">234</span>
+<span id="235">235</span>
+<span id="236">236</span>
+<span id="237">237</span>
+<span id="238">238</span>
+<span id="239">239</span>
+<span id="240">240</span>
+<span id="241">241</span>
+<span id="242">242</span>
+<span id="243">243</span>
+<span id="244">244</span>
+<span id="245">245</span>
+<span id="246">246</span>
+<span id="247">247</span>
+<span id="248">248</span>
+<span id="249">249</span>
+<span id="250">250</span>
+<span id="251">251</span>
+<span id="252">252</span>
+<span id="253">253</span>
+<span id="254">254</span>
+<span id="255">255</span>
+<span id="256">256</span>
+<span id="257">257</span>
+<span id="258">258</span>
+<span id="259">259</span>
+<span id="260">260</span>
+<span id="261">261</span>
+<span id="262">262</span>
+<span id="263">263</span>
+<span id="264">264</span>
+<span id="265">265</span>
+<span id="266">266</span>
+<span id="267">267</span>
+<span id="268">268</span>
+<span id="269">269</span>
+<span id="270">270</span>
+<span id="271">271</span>
+<span id="272">272</span>
+<span id="273">273</span>
+<span id="274">274</span>
+<span id="275">275</span>
+<span id="276">276</span>
+<span id="277">277</span>
+<span id="278">278</span>
+<span id="279">279</span>
+<span id="280">280</span>
+<span id="281">281</span>
+<span id="282">282</span>
+<span id="283">283</span>
+<span id="284">284</span>
+<span id="285">285</span>
+<span id="286">286</span>
+<span id="287">287</span>
+<span id="288">288</span>
+<span id="289">289</span>
+<span id="290">290</span>
+<span id="291">291</span>
+<span id="292">292</span>
+<span id="293">293</span>
+<span id="294">294</span>
+<span id="295">295</span>
+<span id="296">296</span>
+<span id="297">297</span>
+<span id="298">298</span>
+<span id="299">299</span>
+<span id="300">300</span>
+<span id="301">301</span>
+<span id="302">302</span>
+<span id="303">303</span>
+<span id="304">304</span>
+<span id="305">305</span>
+<span id="306">306</span>
+<span id="307">307</span>
+<span id="308">308</span>
+<span id="309">309</span>
+<span id="310">310</span>
+<span id="311">311</span>
+<span id="312">312</span>
+<span id="313">313</span>
+<span id="314">314</span>
+<span id="315">315</span>
+<span id="316">316</span>
+<span id="317">317</span>
+<span id="318">318</span>
+<span id="319">319</span>
+<span id="320">320</span>
+<span id="321">321</span>
+<span id="322">322</span>
+<span id="323">323</span>
+<span id="324">324</span>
+<span id="325">325</span>
+<span id="326">326</span>
+<span id="327">327</span>
+<span id="328">328</span>
+<span id="329">329</span>
+<span id="330">330</span>
+<span id="331">331</span>
+<span id="332">332</span>
+<span id="333">333</span>
+<span id="334">334</span>
+<span id="335">335</span>
+<span id="336">336</span>
+<span id="337">337</span>
+<span id="338">338</span>
+<span id="339">339</span>
+<span id="340">340</span>
+<span id="341">341</span>
+<span id="342">342</span>
+<span id="343">343</span>
+<span id="344">344</span>
+<span id="345">345</span>
+<span id="346">346</span>
+<span id="347">347</span>
+<span id="348">348</span>
+<span id="349">349</span>
+<span id="350">350</span>
+<span id="351">351</span>
+<span id="352">352</span>
+<span id="353">353</span>
+<span id="354">354</span>
+<span id="355">355</span>
+<span id="356">356</span>
+<span id="357">357</span>
+<span id="358">358</span>
+<span id="359">359</span>
+<span id="360">360</span>
+<span id="361">361</span>
+<span id="362">362</span>
+<span id="363">363</span>
+<span id="364">364</span>
+<span id="365">365</span>
+<span id="366">366</span>
+<span id="367">367</span>
+<span id="368">368</span>
+<span id="369">369</span>
+<span id="370">370</span>
+<span id="371">371</span>
+<span id="372">372</span>
+<span id="373">373</span>
+<span id="374">374</span>
+<span id="375">375</span>
+<span id="376">376</span>
+<span id="377">377</span>
+<span id="378">378</span>
+<span id="379">379</span>
+<span id="380">380</span>
+<span id="381">381</span>
+<span id="382">382</span>
+<span id="383">383</span>
+<span id="384">384</span>
+<span id="385">385</span>
+<span id="386">386</span>
+<span id="387">387</span>
+<span id="388">388</span>
+<span id="389">389</span>
+<span id="390">390</span>
+<span id="391">391</span>
+<span id="392">392</span>
+<span id="393">393</span>
+<span id="394">394</span>
+<span id="395">395</span>
+<span id="396">396</span>
+<span id="397">397</span>
+<span id="398">398</span>
+<span id="399">399</span>
+<span id="400">400</span>
+<span id="401">401</span>
+<span id="402">402</span>
+<span id="403">403</span>
+<span id="404">404</span>
+<span id="405">405</span>
+<span id="406">406</span>
+<span id="407">407</span>
+<span id="408">408</span>
+<span id="409">409</span>
+<span id="410">410</span>
+<span id="411">411</span>
+<span id="412">412</span>
+<span id="413">413</span>
+<span id="414">414</span>
+<span id="415">415</span>
+<span id="416">416</span>
+<span id="417">417</span>
+<span id="418">418</span>
+<span id="419">419</span>
+<span id="420">420</span>
+<span id="421">421</span>
+<span id="422">422</span>
+<span id="423">423</span>
+<span id="424">424</span>
+<span id="425">425</span>
+<span id="426">426</span>
+<span id="427">427</span>
+<span id="428">428</span>
+<span id="429">429</span>
+<span id="430">430</span>
+<span id="431">431</span>
+<span id="432">432</span>
+<span id="433">433</span>
+<span id="434">434</span>
+<span id="435">435</span>
+<span id="436">436</span>
+<span id="437">437</span>
+<span id="438">438</span>
+<span id="439">439</span>
+<span id="440">440</span>
+<span id="441">441</span>
+<span id="442">442</span>
+<span id="443">443</span>
+<span id="444">444</span>
+<span id="445">445</span>
+<span id="446">446</span>
+<span id="447">447</span>
+<span id="448">448</span>
+<span id="449">449</span>
+<span id="450">450</span>
+<span id="451">451</span>
+<span id="452">452</span>
+<span id="453">453</span>
+<span id="454">454</span>
+<span id="455">455</span>
+<span id="456">456</span>
+<span id="457">457</span>
+<span id="458">458</span>
+<span id="459">459</span>
+<span id="460">460</span>
+<span id="461">461</span>
+<span id="462">462</span>
+<span id="463">463</span>
+<span id="464">464</span>
+<span id="465">465</span>
+<span id="466">466</span>
+<span id="467">467</span>
+<span id="468">468</span>
+<span id="469">469</span>
+<span id="470">470</span>
+<span id="471">471</span>
+<span id="472">472</span>
+<span id="473">473</span>
+<span id="474">474</span>
+<span id="475">475</span>
+<span id="476">476</span>
+<span id="477">477</span>
+<span id="478">478</span>
+<span id="479">479</span>
+<span id="480">480</span>
+<span id="481">481</span>
+<span id="482">482</span>
+<span id="483">483</span>
+<span id="484">484</span>
+<span id="485">485</span>
+<span id="486">486</span>
+<span id="487">487</span>
+<span id="488">488</span>
+<span id="489">489</span>
+<span id="490">490</span>
+</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
+// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+</span><span class="kw">use crate</span>::{
+    batch_maker::BatchMaker, metrics::WorkerChannelMetrics, primary_connector::PrimaryConnector,
+    processor::Processor, quorum_waiter::QuorumWaiter, synchronizer::Synchronizer,
+};
+<span class="kw">use </span>anemo::{types::PeerInfo, PeerId};
+<span class="kw">use </span>async_trait::async_trait;
+<span class="kw">use </span>config::{Parameters, SharedCommittee, SharedWorkerCache, WorkerId};
+<span class="kw">use </span>crypto::{traits::KeyPair <span class="kw">as _</span>, NetworkKeyPair, PublicKey};
+<span class="kw">use </span>futures::StreamExt;
+<span class="kw">use </span>multiaddr::{Multiaddr, Protocol};
+<span class="kw">use </span>network::P2pNetwork;
+<span class="kw">use </span>primary::PrimaryWorkerMessage;
+<span class="kw">use </span>std::{net::Ipv4Addr, sync::Arc};
+<span class="kw">use </span>store::Store;
+<span class="kw">use </span>tokio::{sync::watch, task::JoinHandle};
+<span class="kw">use </span>tonic::{Request, Response, Status};
+<span class="kw">use </span>tracing::info;
+<span class="kw">use </span>types::{
+    error::DagError,
+    metered_channel::{channel, Receiver, Sender},
+    Batch, BatchDigest, Empty, PrimaryToWorker, PrimaryToWorkerServer, ReconfigureNotification,
+    Transaction, TransactionProto, Transactions, TransactionsServer, WorkerPrimaryMessage,
+    WorkerToWorker, WorkerToWorkerServer,
+};
+
+<span class="attribute">#[cfg(test)]
+#[path = <span class="string">&quot;tests/worker_tests.rs&quot;</span>]
+</span><span class="kw">pub mod </span>worker_tests;
+
+<span class="doccomment">/// The default channel capacity for each channel of the worker.
+</span><span class="kw">pub const </span>CHANNEL_CAPACITY: usize = <span class="number">1_000</span>;
+
+<span class="kw">use </span><span class="kw">crate</span>::metrics::{Metrics, WorkerEndpointMetrics, WorkerMetrics};
+<span class="kw">pub use </span>types::WorkerMessage;
+
+<span class="kw">pub struct </span>Worker {
+    <span class="doccomment">/// The public key of this authority.
+    </span>primary_name: PublicKey,
+    <span class="comment">// The private-public key pair of this worker.
+    </span>keypair: NetworkKeyPair,
+    <span class="doccomment">/// The id of this worker used for index-based lookup by other NW nodes.
+    </span>id: WorkerId,
+    <span class="doccomment">/// The committee information.
+    </span>committee: SharedCommittee,
+    <span class="doccomment">/// The worker information cache.
+    </span>worker_cache: SharedWorkerCache,
+    <span class="doccomment">/// The configuration parameters
+    </span>parameters: Parameters,
+    <span class="doccomment">/// The persistent storage.
+    </span>store: Store&lt;BatchDigest, Batch&gt;,
+}
+
+<span class="kw">impl </span>Worker {
+    <span class="kw">pub fn </span>spawn(
+        primary_name: PublicKey,
+        keypair: NetworkKeyPair,
+        id: WorkerId,
+        committee: SharedCommittee,
+        worker_cache: SharedWorkerCache,
+        parameters: Parameters,
+        store: Store&lt;BatchDigest, Batch&gt;,
+        metrics: Metrics,
+    ) -&gt; Vec&lt;JoinHandle&lt;()&gt;&gt; {
+        <span class="comment">// Define a worker instance.
+        </span><span class="kw">let </span>worker = <span class="self">Self </span>{
+            primary_name: primary_name.clone(),
+            keypair,
+            id,
+            committee: committee.clone(),
+            worker_cache,
+            parameters,
+            store,
+        };
+
+        <span class="kw">let </span>node_metrics = Arc::new(metrics.worker_metrics.unwrap());
+        <span class="kw">let </span>endpoint_metrics = metrics.endpoint_metrics.unwrap();
+        <span class="kw">let </span>channel_metrics: Arc&lt;WorkerChannelMetrics&gt; = Arc::new(metrics.channel_metrics.unwrap());
+
+        <span class="comment">// Spawn all worker tasks.
+        </span><span class="kw">let </span>(tx_primary, rx_primary) = channel(CHANNEL_CAPACITY, <span class="kw-2">&amp;</span>channel_metrics.tx_primary);
+
+        <span class="kw">let </span>initial_committee = (<span class="kw-2">*</span>(<span class="kw-2">*</span>(<span class="kw-2">*</span>committee).load()).clone()).clone();
+        <span class="kw">let </span>(tx_reconfigure, rx_reconfigure) =
+            watch::channel(ReconfigureNotification::NewEpoch(initial_committee));
+
+        <span class="kw">let </span>(tx_worker_processor, rx_worker_processor) =
+            channel(CHANNEL_CAPACITY, <span class="kw-2">&amp;</span>channel_metrics.tx_worker_processor);
+        <span class="kw">let </span>(tx_synchronizer, rx_synchronizer) =
+            channel(CHANNEL_CAPACITY, <span class="kw-2">&amp;</span>channel_metrics.tx_synchronizer);
+
+        <span class="kw">let </span>worker_service = WorkerToWorkerServer::new(WorkerReceiverHandler {
+            tx_processor: tx_worker_processor.clone(),
+            store: worker.store.clone(),
+        });
+        <span class="kw">let </span>primary_service =
+            PrimaryToWorkerServer::new(PrimaryReceiverHandler { tx_synchronizer });
+
+        <span class="comment">// Receive incoming messages from other workers.
+        </span><span class="kw">let </span>address = worker
+            .worker_cache
+            .load()
+            .worker(<span class="kw-2">&amp;</span>primary_name, <span class="kw-2">&amp;</span>id)
+            .expect(<span class="string">&quot;Our public key or worker id is not in the worker cache&quot;</span>)
+            .worker_address;
+        <span class="kw">let </span>address = address
+            .replace(<span class="number">0</span>, |_protocol| <span class="prelude-val">Some</span>(Protocol::Ip4(Ipv4Addr::UNSPECIFIED)))
+            .unwrap();
+        <span class="kw">let </span>addr = network::multiaddr_to_address(<span class="kw-2">&amp;</span>address).unwrap();
+
+        <span class="comment">// Set up anemo Network.
+        </span><span class="kw">let </span>routes = anemo::Router::new()
+            .add_rpc_service(worker_service)
+            .add_rpc_service(primary_service);
+        <span class="kw">let </span>network = anemo::Network::bind(addr)
+            .server_name(<span class="string">&quot;narwhal&quot;</span>)
+            .private_key(worker.keypair.copy().private().<span class="number">0</span>.to_bytes())
+            .start(routes)
+            .unwrap();
+
+        <span class="macro">info!</span>(<span class="string">&quot;Worker {} listening to worker messages on {}&quot;</span>, id, address);
+
+        <span class="kw">let </span>other_workers = worker
+            .worker_cache
+            .load()
+            .others_workers(<span class="kw-2">&amp;</span>primary_name, <span class="kw-2">&amp;</span>id)
+            .into_iter()
+            .map(|(<span class="kw">_</span>, info)| (info.name, info.worker_address));
+        <span class="kw">let </span>our_primary = std::iter::once((
+            committee.load().network_key(<span class="kw-2">&amp;</span>primary_name).unwrap(),
+            committee.load().primary(<span class="kw-2">&amp;</span>primary_name).unwrap(),
+        ));
+
+        <span class="comment">// Add other workers we want to talk with to the known peers set.
+        </span><span class="kw">for </span>(public_key, address) <span class="kw">in </span>other_workers.chain(our_primary) {
+            <span class="kw">let </span>peer_id = PeerId(public_key.<span class="number">0</span>.to_bytes());
+            <span class="kw">let </span>address = network::multiaddr_to_address(<span class="kw-2">&amp;</span>address).unwrap();
+            <span class="kw">let </span>peer_info = PeerInfo {
+                peer_id,
+                affinity: anemo::types::PeerAffinity::High,
+                address: <span class="macro">vec!</span>[address],
+            };
+            network.known_peers().insert(peer_info);
+        }
+
+        <span class="comment">// Connect worker to its corresponding primary.
+        </span><span class="kw">let </span>primary_address = network::multiaddr_to_address(
+            <span class="kw-2">&amp;</span>committee
+                .load()
+                .primary(<span class="kw-2">&amp;</span>primary_name)
+                .expect(<span class="string">&quot;Our primary is not in the committee&quot;</span>),
+        )
+        .unwrap();
+        <span class="kw">let </span>primary_network_key = committee
+            .load()
+            .network_key(<span class="kw-2">&amp;</span>primary_name)
+            .expect(<span class="string">&quot;Our primary is not in the committee&quot;</span>);
+        network.known_peers().insert(PeerInfo {
+            peer_id: anemo::PeerId(primary_network_key.<span class="number">0</span>.to_bytes()),
+            affinity: anemo::types::PeerAffinity::High,
+            address: <span class="macro">vec!</span>[primary_address],
+        });
+        <span class="kw">let </span>handle = PrimaryConnector::spawn(
+            primary_network_key,
+            rx_reconfigure,
+            rx_primary,
+            network::P2pNetwork::new(network.clone()),
+        );
+
+        <span class="kw">let </span>client_flow_handles = worker.handle_clients_transactions(
+            <span class="kw-2">&amp;</span>tx_reconfigure,
+            tx_primary.clone(),
+            node_metrics.clone(),
+            channel_metrics,
+            endpoint_metrics,
+            network.clone(),
+        );
+        <span class="kw">let </span>worker_flow_handles = worker.handle_workers_messages(
+            <span class="kw-2">&amp;</span>tx_reconfigure,
+            tx_primary.clone(),
+            rx_worker_processor,
+        );
+        <span class="kw">let </span>primary_flow_handles = worker.handle_primary_messages(
+            rx_synchronizer,
+            tx_reconfigure,
+            tx_primary,
+            tx_worker_processor,
+            node_metrics,
+            network,
+        );
+
+        <span class="comment">// NOTE: This log entry is used to compute performance.
+        </span><span class="macro">info!</span>(
+            <span class="string">&quot;Worker {} successfully booted on {}&quot;</span>,
+            id,
+            worker
+                .worker_cache
+                .load()
+                .worker(<span class="kw-2">&amp;</span>worker.primary_name, <span class="kw-2">&amp;</span>worker.id)
+                .expect(<span class="string">&quot;Our public key or worker id is not in the worker cache&quot;</span>)
+                .transactions
+        );
+
+        <span class="kw">let </span><span class="kw-2">mut </span>handles = <span class="macro">vec!</span>[handle];
+        handles.extend(primary_flow_handles);
+        handles.extend(client_flow_handles);
+        handles.extend(worker_flow_handles);
+        handles
+    }
+
+    <span class="doccomment">/// Spawn all tasks responsible to handle messages from our primary.
+    </span><span class="kw">fn </span>handle_primary_messages(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        rx_synchronizer: Receiver&lt;PrimaryWorkerMessage&gt;,
+        tx_reconfigure: watch::Sender&lt;ReconfigureNotification&gt;,
+        tx_primary: Sender&lt;WorkerPrimaryMessage&gt;,
+        tx_batch_processor: Sender&lt;Batch&gt;,
+        node_metrics: Arc&lt;WorkerMetrics&gt;,
+        network: anemo::Network,
+    ) -&gt; Vec&lt;JoinHandle&lt;()&gt;&gt; {
+        <span class="comment">// The `Synchronizer` is responsible to keep the worker in sync with the others. It handles the commands
+        // it receives from the primary (which are mainly notifications that we are out of sync).
+        </span><span class="kw">let </span>handle = Synchronizer::spawn(
+            <span class="self">self</span>.primary_name.clone(),
+            <span class="self">self</span>.id,
+            <span class="self">self</span>.committee.clone(),
+            <span class="self">self</span>.worker_cache.clone(),
+            <span class="self">self</span>.store.clone(),
+            <span class="self">self</span>.parameters.gc_depth,
+            <span class="self">self</span>.parameters.sync_retry_delay,
+            <span class="self">self</span>.parameters.sync_retry_nodes,
+            <span class="comment">/* rx_message */ </span>rx_synchronizer,
+            tx_reconfigure,
+            tx_primary,
+            tx_batch_processor,
+            node_metrics,
+            P2pNetwork::new(network),
+        );
+
+        <span class="macro">vec!</span>[handle]
+    }
+
+    <span class="doccomment">/// Spawn all tasks responsible to handle clients transactions.
+    </span><span class="kw">fn </span>handle_clients_transactions(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        tx_reconfigure: <span class="kw-2">&amp;</span>watch::Sender&lt;ReconfigureNotification&gt;,
+        tx_primary: Sender&lt;WorkerPrimaryMessage&gt;,
+        node_metrics: Arc&lt;WorkerMetrics&gt;,
+        channel_metrics: Arc&lt;WorkerChannelMetrics&gt;,
+        endpoint_metrics: WorkerEndpointMetrics,
+        network: anemo::Network,
+    ) -&gt; Vec&lt;JoinHandle&lt;()&gt;&gt; {
+        <span class="kw">let </span>(tx_batch_maker, rx_batch_maker) =
+            channel(CHANNEL_CAPACITY, <span class="kw-2">&amp;</span>channel_metrics.tx_batch_maker);
+        <span class="kw">let </span>(tx_quorum_waiter, rx_quorum_waiter) =
+            channel(CHANNEL_CAPACITY, <span class="kw-2">&amp;</span>channel_metrics.tx_quorum_waiter);
+        <span class="kw">let </span>(tx_client_processor, rx_client_processor) =
+            channel(CHANNEL_CAPACITY, <span class="kw-2">&amp;</span>channel_metrics.tx_client_processor);
+
+        <span class="comment">// We first receive clients&#39; transactions from the network.
+        </span><span class="kw">let </span>address = <span class="self">self
+            </span>.worker_cache
+            .load()
+            .worker(<span class="kw-2">&amp;</span><span class="self">self</span>.primary_name, <span class="kw-2">&amp;</span><span class="self">self</span>.id)
+            .expect(<span class="string">&quot;Our public key or worker id is not in the worker cache&quot;</span>)
+            .transactions;
+        <span class="kw">let </span>address = address
+            .replace(<span class="number">0</span>, |_protocol| <span class="prelude-val">Some</span>(Protocol::Ip4(Ipv4Addr::UNSPECIFIED)))
+            .unwrap();
+        <span class="kw">let </span>tx_receiver_handle = TxReceiverHandler { tx_batch_maker }.spawn(
+            address.clone(),
+            tx_reconfigure.subscribe(),
+            endpoint_metrics,
+        );
+
+        <span class="comment">// The transactions are sent to the `BatchMaker` that assembles them into batches. It then broadcasts
+        // (in a reliable manner) the batches to all other workers that share the same `id` as us. Finally, it
+        // gathers the &#39;cancel handlers&#39; of the messages and send them to the `QuorumWaiter`.
+        </span><span class="kw">let </span>batch_maker_handle = BatchMaker::spawn(
+            (<span class="kw-2">*</span>(<span class="kw-2">*</span>(<span class="kw-2">*</span><span class="self">self</span>.committee).load()).clone()).clone(),
+            <span class="self">self</span>.parameters.batch_size,
+            <span class="self">self</span>.parameters.max_batch_delay,
+            tx_reconfigure.subscribe(),
+            <span class="comment">/* rx_transaction */ </span>rx_batch_maker,
+            <span class="comment">/* tx_message */ </span>tx_quorum_waiter,
+            node_metrics,
+        );
+
+        <span class="comment">// The `QuorumWaiter` waits for 2f authorities to acknowledge reception of the batch. It then forwards
+        // the batch to the `Processor`.
+        </span><span class="kw">let </span>quorum_waiter_handle = QuorumWaiter::spawn(
+            <span class="self">self</span>.primary_name.clone(),
+            <span class="self">self</span>.id,
+            (<span class="kw-2">*</span>(<span class="kw-2">*</span>(<span class="kw-2">*</span><span class="self">self</span>.committee).load()).clone()).clone(),
+            <span class="self">self</span>.worker_cache.clone(),
+            tx_reconfigure.subscribe(),
+            <span class="comment">/* rx_message */ </span>rx_quorum_waiter,
+            <span class="comment">/* tx_batch */ </span>tx_client_processor,
+            P2pNetwork::new(network),
+        );
+
+        <span class="comment">// The `Processor` hashes and stores the batch. It then forwards the batch&#39;s digest to the `PrimaryConnector`
+        // that will send it to our primary machine.
+        </span><span class="kw">let </span>processor_handle = Processor::spawn(
+            <span class="self">self</span>.id,
+            <span class="self">self</span>.store.clone(),
+            tx_reconfigure.subscribe(),
+            <span class="comment">/* rx_batch */ </span>rx_client_processor,
+            <span class="comment">/* tx_digest */ </span>tx_primary,
+            <span class="comment">/* own_batch */ </span><span class="bool-val">true</span>,
+        );
+
+        <span class="macro">info!</span>(
+            <span class="string">&quot;Worker {} listening to client transactions on {}&quot;</span>,
+            <span class="self">self</span>.id, address
+        );
+
+        <span class="macro">vec!</span>[
+            batch_maker_handle,
+            quorum_waiter_handle,
+            processor_handle,
+            tx_receiver_handle,
+        ]
+    }
+
+    <span class="doccomment">/// Spawn all tasks responsible to handle messages from other workers.
+    </span><span class="kw">fn </span>handle_workers_messages(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        tx_reconfigure: <span class="kw-2">&amp;</span>watch::Sender&lt;ReconfigureNotification&gt;,
+        tx_primary: Sender&lt;WorkerPrimaryMessage&gt;,
+        rx_worker_processor: types::metered_channel::Receiver&lt;Batch&gt;,
+    ) -&gt; Vec&lt;JoinHandle&lt;()&gt;&gt; {
+        <span class="comment">// This `Processor` hashes and stores the batches we receive from the other workers. It then forwards the
+        // batch&#39;s digest to the `PrimaryConnector` that will send it to our primary.
+        </span><span class="kw">let </span>processor_handle = Processor::spawn(
+            <span class="self">self</span>.id,
+            <span class="self">self</span>.store.clone(),
+            tx_reconfigure.subscribe(),
+            <span class="comment">/* rx_batch */ </span>rx_worker_processor,
+            <span class="comment">/* tx_digest */ </span>tx_primary,
+            <span class="comment">/* own_batch */ </span><span class="bool-val">false</span>,
+        );
+
+        <span class="macro">vec!</span>[processor_handle]
+    }
+}
+
+<span class="doccomment">/// Defines how the network receiver handles incoming transactions.
+</span><span class="attribute">#[derive(Clone)]
+</span><span class="kw">struct </span>TxReceiverHandler {
+    tx_batch_maker: Sender&lt;Transaction&gt;,
+}
+
+<span class="kw">impl </span>TxReceiverHandler {
+    <span class="kw">async fn </span>wait_for_shutdown(<span class="kw-2">mut </span>rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;) {
+        <span class="kw">loop </span>{
+            <span class="kw">let </span>result = rx_reconfigure.changed().<span class="kw">await</span>;
+            result.expect(<span class="string">&quot;Committee channel dropped&quot;</span>);
+            <span class="kw">let </span>message = rx_reconfigure.borrow().clone();
+            <span class="kw">if let </span>ReconfigureNotification::Shutdown = message {
+                <span class="kw">break</span>;
+            }
+        }
+    }
+
+    <span class="attribute">#[must_use]
+    </span><span class="kw">fn </span>spawn(
+        <span class="self">self</span>,
+        address: Multiaddr,
+        rx_reconfigure: watch::Receiver&lt;ReconfigureNotification&gt;,
+        endpoint_metrics: WorkerEndpointMetrics,
+    ) -&gt; JoinHandle&lt;()&gt; {
+        tokio::spawn(<span class="kw">async move </span>{
+            <span class="macro">tokio::select! </span>{
+                _result =  mysten_network::config::Config::new()
+                    .server_builder_with_metrics(endpoint_metrics)
+                    .add_service(TransactionsServer::new(<span class="self">self</span>))
+                    .bind(<span class="kw-2">&amp;</span>address)
+                    .<span class="kw">await
+                    </span>.unwrap()
+                    .serve() =&gt; (),
+
+                () = <span class="self">Self</span>::wait_for_shutdown(rx_reconfigure) =&gt; ()
+            }
+        })
+    }
+}
+
+<span class="attribute">#[async_trait]
+</span><span class="kw">impl </span>Transactions <span class="kw">for </span>TxReceiverHandler {
+    <span class="kw">async fn </span>submit_transaction(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        request: Request&lt;TransactionProto&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;Response&lt;Empty&gt;, Status&gt; {
+        <span class="kw">let </span>message = request.into_inner().transaction;
+        <span class="comment">// Send the transaction to the batch maker.
+        </span><span class="self">self</span>.tx_batch_maker
+            .send(message.to_vec())
+            .<span class="kw">await
+            </span>.map_err(|<span class="kw">_</span>| DagError::ShuttingDown)
+            .map_err(|e| Status::not_found(e.to_string()))<span class="question-mark">?</span>;
+
+        <span class="prelude-val">Ok</span>(Response::new(Empty {}))
+    }
+
+    <span class="kw">async fn </span>submit_transaction_stream(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        request: tonic::Request&lt;tonic::Streaming&lt;types::TransactionProto&gt;&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;tonic::Response&lt;types::Empty&gt;, tonic::Status&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>transactions = request.into_inner();
+
+        <span class="kw">while let </span><span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(txn)) = transactions.next().<span class="kw">await </span>{
+            <span class="comment">// Send the transaction to the batch maker.
+            </span><span class="self">self</span>.tx_batch_maker
+                .send(txn.transaction.to_vec())
+                .<span class="kw">await
+                </span>.expect(<span class="string">&quot;Failed to send transaction&quot;</span>);
+        }
+        <span class="prelude-val">Ok</span>(Response::new(Empty {}))
+    }
+}
+
+<span class="doccomment">/// Defines how the network receiver handles incoming workers messages.
+</span><span class="attribute">#[derive(Clone)]
+</span><span class="kw">struct </span>WorkerReceiverHandler {
+    tx_processor: Sender&lt;Batch&gt;,
+    store: Store&lt;BatchDigest, Batch&gt;,
+}
+
+<span class="attribute">#[async_trait]
+</span><span class="kw">impl </span>WorkerToWorker <span class="kw">for </span>WorkerReceiverHandler {
+    <span class="kw">async fn </span>send_message(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        request: anemo::Request&lt;types::WorkerMessage&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;anemo::Response&lt;()&gt;, anemo::rpc::Status&gt; {
+        <span class="kw">let </span>message = request.into_body();
+        <span class="kw">match </span>message {
+            WorkerMessage::Batch(batch) =&gt; <span class="self">self
+                </span>.tx_processor
+                .send(batch)
+                .<span class="kw">await
+                </span>.map_err(|<span class="kw">_</span>| DagError::ShuttingDown),
+        }
+        .map(|<span class="kw">_</span>| anemo::Response::new(()))
+        .map_err(|e| anemo::rpc::Status::internal(e.to_string()))
+    }
+    <span class="kw">async fn </span>request_batches(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        request: anemo::Request&lt;types::WorkerBatchRequest&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;anemo::Response&lt;types::WorkerBatchResponse&gt;, anemo::rpc::Status&gt; {
+        <span class="kw">let </span>message = request.into_body();
+        <span class="comment">// TODO [issue #7]: Do some accounting to prevent bad actors from monopolizing our resources
+        // TODO: Add a limit on number of requested batches
+        </span><span class="kw">let </span>batches: Vec&lt;Batch&gt; = <span class="self">self
+            </span>.store
+            .read_all(message.digests)
+            .<span class="kw">await
+            </span>.map_err(|e| anemo::rpc::Status::from_error(Box::new(e)))<span class="question-mark">?
+            </span>.into_iter()
+            .flatten()
+            .collect();
+        <span class="prelude-val">Ok</span>(anemo::Response::new(types::WorkerBatchResponse { batches }))
+    }
+}
+
+<span class="doccomment">/// Defines how the network receiver handles incoming primary messages.
+</span><span class="attribute">#[derive(Clone)]
+</span><span class="kw">struct </span>PrimaryReceiverHandler {
+    tx_synchronizer: Sender&lt;PrimaryWorkerMessage&gt;,
+}
+
+<span class="attribute">#[async_trait]
+</span><span class="kw">impl </span>PrimaryToWorker <span class="kw">for </span>PrimaryReceiverHandler {
+    <span class="kw">async fn </span>send_message(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        request: anemo::Request&lt;PrimaryWorkerMessage&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;anemo::Response&lt;()&gt;, anemo::rpc::Status&gt; {
+        <span class="kw">let </span>message = request.into_body();
+
+        <span class="self">self</span>.tx_synchronizer
+            .send(message)
+            .<span class="kw">await
+            </span>.map_err(|<span class="kw">_</span>| DagError::ShuttingDown)
+            .map_err(|e| anemo::rpc::Status::internal(e.to_string()))<span class="question-mark">?</span>;
+
+        <span class="prelude-val">Ok</span>(anemo::Response::new(()))
+    }
+}
+</code></pre></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="narwhal_worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (e7119a030 2022-09-22)" ></div></body></html>

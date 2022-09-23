@@ -1,1 +1,1 @@
-window.ALL_CRATES = ["config","consensus","crypto","dag","demo_client","executor","network","node","primary","storage","test_utils","types","worker","workspace_hack"];
+window.ALL_CRATES = ["demo_client","narwhal_config","narwhal_consensus","narwhal_crypto","narwhal_dag","narwhal_executor","narwhal_network","narwhal_node","narwhal_primary","narwhal_storage","narwhal_test_utils","narwhal_types","narwhal_worker","node","workspace_hack"];

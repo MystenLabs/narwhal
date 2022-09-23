@@ -1,0 +1,358 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `node/src/restarter.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>restarter.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../normalize.css"><link rel="stylesheet" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../ayu.css" disabled><link rel="stylesheet" href="../../dark.css" disabled><link rel="stylesheet" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button><a class="sidebar-logo" href="../../narwhal_node/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div></a><h2 class="location"></h2></nav><nav class="sidebar"><a class="sidebar-logo" href="../../narwhal_node/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div></a></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../../narwhal_node/index.html"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></a><nav class="sub"><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><button type="button">?</button></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../wheel.svg"></a></div></div></form></nav></div><section id="main-content" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">1</span>
+<span id="2">2</span>
+<span id="3">3</span>
+<span id="4">4</span>
+<span id="5">5</span>
+<span id="6">6</span>
+<span id="7">7</span>
+<span id="8">8</span>
+<span id="9">9</span>
+<span id="10">10</span>
+<span id="11">11</span>
+<span id="12">12</span>
+<span id="13">13</span>
+<span id="14">14</span>
+<span id="15">15</span>
+<span id="16">16</span>
+<span id="17">17</span>
+<span id="18">18</span>
+<span id="19">19</span>
+<span id="20">20</span>
+<span id="21">21</span>
+<span id="22">22</span>
+<span id="23">23</span>
+<span id="24">24</span>
+<span id="25">25</span>
+<span id="26">26</span>
+<span id="27">27</span>
+<span id="28">28</span>
+<span id="29">29</span>
+<span id="30">30</span>
+<span id="31">31</span>
+<span id="32">32</span>
+<span id="33">33</span>
+<span id="34">34</span>
+<span id="35">35</span>
+<span id="36">36</span>
+<span id="37">37</span>
+<span id="38">38</span>
+<span id="39">39</span>
+<span id="40">40</span>
+<span id="41">41</span>
+<span id="42">42</span>
+<span id="43">43</span>
+<span id="44">44</span>
+<span id="45">45</span>
+<span id="46">46</span>
+<span id="47">47</span>
+<span id="48">48</span>
+<span id="49">49</span>
+<span id="50">50</span>
+<span id="51">51</span>
+<span id="52">52</span>
+<span id="53">53</span>
+<span id="54">54</span>
+<span id="55">55</span>
+<span id="56">56</span>
+<span id="57">57</span>
+<span id="58">58</span>
+<span id="59">59</span>
+<span id="60">60</span>
+<span id="61">61</span>
+<span id="62">62</span>
+<span id="63">63</span>
+<span id="64">64</span>
+<span id="65">65</span>
+<span id="66">66</span>
+<span id="67">67</span>
+<span id="68">68</span>
+<span id="69">69</span>
+<span id="70">70</span>
+<span id="71">71</span>
+<span id="72">72</span>
+<span id="73">73</span>
+<span id="74">74</span>
+<span id="75">75</span>
+<span id="76">76</span>
+<span id="77">77</span>
+<span id="78">78</span>
+<span id="79">79</span>
+<span id="80">80</span>
+<span id="81">81</span>
+<span id="82">82</span>
+<span id="83">83</span>
+<span id="84">84</span>
+<span id="85">85</span>
+<span id="86">86</span>
+<span id="87">87</span>
+<span id="88">88</span>
+<span id="89">89</span>
+<span id="90">90</span>
+<span id="91">91</span>
+<span id="92">92</span>
+<span id="93">93</span>
+<span id="94">94</span>
+<span id="95">95</span>
+<span id="96">96</span>
+<span id="97">97</span>
+<span id="98">98</span>
+<span id="99">99</span>
+<span id="100">100</span>
+<span id="101">101</span>
+<span id="102">102</span>
+<span id="103">103</span>
+<span id="104">104</span>
+<span id="105">105</span>
+<span id="106">106</span>
+<span id="107">107</span>
+<span id="108">108</span>
+<span id="109">109</span>
+<span id="110">110</span>
+<span id="111">111</span>
+<span id="112">112</span>
+<span id="113">113</span>
+<span id="114">114</span>
+<span id="115">115</span>
+<span id="116">116</span>
+<span id="117">117</span>
+<span id="118">118</span>
+<span id="119">119</span>
+<span id="120">120</span>
+<span id="121">121</span>
+<span id="122">122</span>
+<span id="123">123</span>
+<span id="124">124</span>
+<span id="125">125</span>
+<span id="126">126</span>
+<span id="127">127</span>
+<span id="128">128</span>
+<span id="129">129</span>
+<span id="130">130</span>
+<span id="131">131</span>
+<span id="132">132</span>
+<span id="133">133</span>
+<span id="134">134</span>
+<span id="135">135</span>
+<span id="136">136</span>
+<span id="137">137</span>
+<span id="138">138</span>
+<span id="139">139</span>
+<span id="140">140</span>
+<span id="141">141</span>
+<span id="142">142</span>
+<span id="143">143</span>
+<span id="144">144</span>
+<span id="145">145</span>
+<span id="146">146</span>
+<span id="147">147</span>
+<span id="148">148</span>
+<span id="149">149</span>
+<span id="150">150</span>
+<span id="151">151</span>
+<span id="152">152</span>
+<span id="153">153</span>
+<span id="154">154</span>
+<span id="155">155</span>
+<span id="156">156</span>
+<span id="157">157</span>
+<span id="158">158</span>
+<span id="159">159</span>
+<span id="160">160</span>
+<span id="161">161</span>
+<span id="162">162</span>
+<span id="163">163</span>
+<span id="164">164</span>
+<span id="165">165</span>
+<span id="166">166</span>
+<span id="167">167</span>
+<span id="168">168</span>
+<span id="169">169</span>
+<span id="170">170</span>
+<span id="171">171</span>
+<span id="172">172</span>
+<span id="173">173</span>
+<span id="174">174</span>
+<span id="175">175</span>
+<span id="176">176</span>
+<span id="177">177</span>
+<span id="178">178</span>
+</pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+</span><span class="kw">use crate</span>::{Node, NodeStorage};
+<span class="kw">use </span>arc_swap::ArcSwap;
+<span class="kw">use </span>config::{Committee, Parameters, SharedWorkerCache, WorkerCache, WorkerId};
+<span class="kw">use </span>crypto::{KeyPair, NetworkKeyPair};
+<span class="kw">use </span>executor::{ExecutionState, ExecutorOutput};
+<span class="kw">use </span>fastcrypto::traits::KeyPair <span class="kw">as _</span>;
+<span class="kw">use </span>futures::future::join_all;
+<span class="kw">use </span>network::{P2pNetwork, ReliableNetwork};
+<span class="kw">use </span>prometheus::Registry;
+<span class="kw">use </span>std::{fmt::Debug, path::PathBuf, sync::Arc};
+<span class="kw">use </span>tokio::sync::mpsc::{Receiver, Sender};
+<span class="kw">use </span>types::{PrimaryWorkerMessage, ReconfigureNotification, WorkerPrimaryMessage};
+
+<span class="comment">// Module to start a node (primary, workers and default consensus), keep it running, and restarting it
+</span><span class="doccomment">/// every time the committee changes.
+</span><span class="kw">pub struct </span>NodeRestarter;
+
+<span class="kw">impl </span>NodeRestarter {
+    <span class="kw">pub async fn </span>watch&lt;State&gt;(
+        primary_keypair: KeyPair,
+        primary_network_keypair: NetworkKeyPair,
+        worker_ids_and_keypairs: Vec&lt;(WorkerId, NetworkKeyPair)&gt;,
+        committee: <span class="kw-2">&amp;</span>Committee,
+        worker_cache: SharedWorkerCache,
+        storage_base_path: PathBuf,
+        execution_state: Arc&lt;State&gt;,
+        parameters: Parameters,
+        <span class="kw-2">mut </span>rx_reconfigure: Receiver&lt;(
+            KeyPair,
+            NetworkKeyPair,
+            Committee,
+            Vec&lt;(WorkerId, NetworkKeyPair)&gt;,
+            WorkerCache,
+        )&gt;,
+        tx_output: Sender&lt;ExecutorOutput&lt;State&gt;&gt;,
+        registry: <span class="kw-2">&amp;</span>Registry,
+    ) <span class="kw">where
+        </span>State: ExecutionState + Send + Sync + <span class="lifetime">&#39;static</span>,
+        State::Outcome: Send + <span class="lifetime">&#39;static</span>,
+        State::Error: Debug,
+    {
+        <span class="kw">let </span><span class="kw-2">mut </span>primary_keypair = primary_keypair;
+        <span class="kw">let </span><span class="kw-2">mut </span>primary_network_keypair = primary_network_keypair;
+        <span class="kw">let </span><span class="kw-2">mut </span>name = primary_keypair.public().clone();
+        <span class="kw">let </span><span class="kw-2">mut </span>worker_ids_and_keypairs = worker_ids_and_keypairs;
+        <span class="kw">let </span><span class="kw-2">mut </span>committee = committee.clone();
+
+        <span class="comment">// construct a p2p network that we can use to send reconfigure messages to our primary and
+        // workers. We generate a random key simply to construct the network. Also, ideally this
+        // would be done via a different interface.
+        </span><span class="kw">let </span><span class="kw-2">mut </span>handles = Vec::new();
+        <span class="kw">let </span>network = anemo::Network::bind(<span class="string">&quot;127.0.0.1:0&quot;</span>)
+            .server_name(<span class="string">&quot;narwhal&quot;</span>)
+            .private_key(
+                NetworkKeyPair::generate(<span class="kw-2">&amp;mut </span>rand::rngs::OsRng)
+                    .private()
+                    .<span class="number">0
+                    </span>.to_bytes(),
+            )
+            .start(anemo::Router::new())
+            .unwrap();
+
+        <span class="comment">// Listen for new committees.
+        </span><span class="kw">loop </span>{
+            <span class="macro">tracing::info!</span>(<span class="string">&quot;Starting epoch E{}&quot;</span>, committee.epoch());
+
+            <span class="comment">// Get a fresh store for the new epoch.
+            </span><span class="kw">let </span><span class="kw-2">mut </span>store_path = storage_base_path.clone();
+            store_path.push(<span class="macro">format!</span>(<span class="string">&quot;epoch{}&quot;</span>, committee.epoch()));
+            <span class="kw">let </span>store = NodeStorage::reopen(store_path);
+
+            <span class="comment">// Restart the relevant components.
+            </span><span class="kw">let </span>primary_handles = Node::spawn_primary(
+                primary_keypair,
+                primary_network_keypair,
+                Arc::new(ArcSwap::new(Arc::new(committee.clone()))),
+                worker_cache.clone(),
+                <span class="kw-2">&amp;</span>store,
+                parameters.clone(),
+                <span class="comment">/* consensus */ </span><span class="bool-val">true</span>,
+                execution_state.clone(),
+                tx_output.clone(),
+                registry,
+            )
+            .<span class="kw">await
+            </span>.unwrap();
+
+            <span class="kw">let </span>worker_handles = Node::spawn_workers(
+                name.clone(),
+                worker_ids_and_keypairs,
+                Arc::new(ArcSwap::new(Arc::new(committee.clone()))),
+                worker_cache.clone(),
+                <span class="kw-2">&amp;</span>store,
+                parameters.clone(),
+                registry,
+            );
+
+            handles.extend(primary_handles);
+            handles.extend(worker_handles);
+
+            <span class="comment">// Wait for a committee change.
+            </span><span class="kw">let </span>(
+                new_keypair,
+                new_network_keypair,
+                new_committee,
+                new_worker_ids_and_keypairs,
+                new_worker_cache,
+            ) = <span class="kw">match </span>rx_reconfigure.recv().<span class="kw">await </span>{
+                <span class="prelude-val">Some</span>(x) =&gt; x,
+                <span class="prelude-val">None </span>=&gt; <span class="kw">break</span>,
+            };
+            <span class="macro">tracing::info!</span>(<span class="string">&quot;Starting reconfiguration with committee {committee}&quot;</span>);
+
+            <span class="comment">// Shutdown all relevant components.
+            // TODO: shutdown message should probably be sent in a better way than by injecting
+            // it through the networking stack.
+            </span><span class="kw">let </span>address = network::multiaddr_to_address(
+                <span class="kw-2">&amp;</span>committee
+                    .primary(<span class="kw-2">&amp;</span>name)
+                    .expect(<span class="string">&quot;Our key is not in the committee&quot;</span>),
+            )
+            .unwrap();
+            <span class="kw">let </span>network_key = committee
+                .network_key(<span class="kw-2">&amp;</span>name)
+                .expect(<span class="string">&quot;Our key is not in the committee&quot;</span>);
+            <span class="kw">let </span><span class="kw-2">mut </span>primary_network =
+                P2pNetwork::new_for_single_address(network_key.to_owned(), address).<span class="kw">await</span>;
+            <span class="kw">let </span>message = WorkerPrimaryMessage::Reconfigure(ReconfigureNotification::Shutdown);
+            <span class="kw">let </span>primary_cancel_handle =
+                primary_network.send(network_key.to_owned(), <span class="kw-2">&amp;</span>message).<span class="kw">await</span>;
+
+            <span class="kw">let </span>message = PrimaryWorkerMessage::Reconfigure(ReconfigureNotification::Shutdown);
+            <span class="kw">let </span><span class="kw-2">mut </span>worker_names = Vec::new();
+            <span class="kw">for </span>worker <span class="kw">in </span>worker_cache
+                .load()
+                .our_workers(<span class="kw-2">&amp;</span>name)
+                .expect(<span class="string">&quot;Our key is not in the worker cache&quot;</span>)
+            {
+                <span class="kw">let </span>address = network::multiaddr_to_address(<span class="kw-2">&amp;</span>worker.worker_address).unwrap();
+                <span class="kw">let </span>peer_id = anemo::PeerId(worker.name.<span class="number">0</span>.to_bytes());
+                network
+                    .connect_with_peer_id(address, peer_id)
+                    .<span class="kw">await
+                    </span>.unwrap();
+                worker_names.push(worker.name);
+            }
+            <span class="kw">let </span>worker_cancel_handles = P2pNetwork::new(network.clone())
+                .broadcast(worker_names, <span class="kw-2">&amp;</span>message)
+                .<span class="kw">await</span>;
+
+            <span class="comment">// Ensure the message has been received.
+            </span>primary_cancel_handle
+                .<span class="kw">await
+                </span>.expect(<span class="string">&quot;Failed to notify primary&quot;</span>);
+            join_all(worker_cancel_handles).<span class="kw">await</span>;
+            <span class="macro">tracing::debug!</span>(<span class="string">&quot;Committee reconfiguration message successfully sent&quot;</span>);
+
+            <span class="comment">// Wait for the components to shut down.
+            </span>join_all(handles.drain(..)).<span class="kw">await</span>;
+            <span class="macro">tracing::debug!</span>(<span class="string">&quot;All tasks successfully exited&quot;</span>);
+
+            <span class="comment">// Give it an extra second in case the last task to exit is a network server. The OS
+            // may need a moment to make the TCP ports available again.
+            </span>tokio::time::sleep(tokio::time::Duration::from_secs(<span class="number">1</span>)).<span class="kw">await</span>;
+            <span class="macro">tracing::debug!</span>(<span class="string">&quot;Epoch E{} terminated&quot;</span>, committee.epoch());
+
+            <span class="comment">// Update the settings for the next epoch.
+            </span>primary_keypair = new_keypair;
+            primary_network_keypair = new_network_keypair;
+            name = primary_keypair.public().clone();
+            worker_ids_and_keypairs = new_worker_ids_and_keypairs;
+            committee = new_committee;
+            worker_cache.swap(Arc::new(new_worker_cache));
+        }
+    }
+}
+</code></pre></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="narwhal_node" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (e7119a030 2022-09-22)" ></div></body></html>

@@ -1,3 +1,3 @@
 (function() {var implementors = {
-"network":[["impl&lt;T&gt; <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/future/future/trait.Future.html\" title=\"trait core::future::future::Future\">Future</a> for <a class=\"struct\" href=\"network/struct.CancelOnDropHandler.html\" title=\"struct network::CancelOnDropHandler\">CancelOnDropHandler</a>&lt;T&gt;"]]
+"narwhal_network":[["impl&lt;T&gt; <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/future/future/trait.Future.html\" title=\"trait core::future::future::Future\">Future</a> for <a class=\"struct\" href=\"narwhal_network/struct.CancelOnDropHandler.html\" title=\"struct narwhal_network::CancelOnDropHandler\">CancelOnDropHandler</a>&lt;T&gt;"]]
 };if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

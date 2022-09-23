@@ -1,3 +1,3 @@
 (function() {var implementors = {
-"dag":[["impl&lt;T&gt; <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/ops/deref/trait.Deref.html\" title=\"trait core::ops::deref::Deref\">Deref</a> for <a class=\"struct\" href=\"dag/struct.NodeRef.html\" title=\"struct dag::NodeRef\">NodeRef</a>&lt;T&gt;"]]
+"narwhal_dag":[["impl&lt;T&gt; <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/ops/deref/trait.Deref.html\" title=\"trait core::ops::deref::Deref\">Deref</a> for <a class=\"struct\" href=\"narwhal_dag/struct.NodeRef.html\" title=\"struct narwhal_dag::NodeRef\">NodeRef</a>&lt;T&gt;"]]
 };if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
