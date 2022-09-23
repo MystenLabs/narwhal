@@ -545,8 +545,6 @@
 <span id="545">545</span>
 <span id="546">546</span>
 <span id="547">547</span>
-<span id="548">548</span>
-<span id="549">549</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
@@ -979,9 +977,7 @@
                     );
                 }
                 RetrievalResult::Error(error) =&gt; {
-                    <span class="comment">//let certificate_id = base64::encode(&amp;error.id.unwrap().digest);
-
-                    </span>result = <span class="macro">format!</span>(
+                    result = <span class="macro">format!</span>(
                         <span class="string">&quot;{}\n\tError for certificate id {}, error: {}&quot;</span>,
                         result,
                         <span class="kw-2">&amp;</span>error.id.unwrap(),
@@ -1097,4 +1093,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="demo_client" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (9062b780b 2022-09-21)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="demo_client" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (e7119a030 2022-09-22)" ></div></body></html>

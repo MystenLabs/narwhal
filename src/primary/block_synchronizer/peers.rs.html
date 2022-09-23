@@ -794,13 +794,13 @@
 
     <span class="kw">impl </span>fmt::Debug <span class="kw">for </span>MockDigest {
         <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), fmt::Error&gt; {
-            <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, base64::encode(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>))
+            <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, base64::encode(<span class="self">self</span>.<span class="number">0</span>))
         }
     }
 
     <span class="kw">impl </span>fmt::Display <span class="kw">for </span>MockDigest {
         <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), fmt::Error&gt; {
-            <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, base64::encode(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>).get(<span class="number">0</span>..<span class="number">16</span>).unwrap())
+            <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, base64::encode(<span class="self">self</span>.<span class="number">0</span>).get(<span class="number">0</span>..<span class="number">16</span>).unwrap())
         }
     }
 
@@ -819,4 +819,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (9062b780b 2022-09-21)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (e7119a030 2022-09-22)" ></div></body></html>
