@@ -16,7 +16,7 @@ publish = false
 [dependencies]
 addr2line = { version = "0.17", default-features = false }
 adler = { version = "1", default-features = false }
-ahash = { version = "0.7", default-features = false }
+ahash = { version = "0.8", default-features = false }
 aho-corasick = { version = "0.7", features = ["std"] }
 anemo = { git = "https://github.com/mystenlabs/anemo.git", rev = "6278d0fa78147a49ff2cb9dd2e45e763886be0a0", default-features = false }
 ansi_term = { version = "0.12", default-features = false }
