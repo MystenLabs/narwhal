@@ -7,6 +7,8 @@ use std::collections::HashMap;
 use tokio::sync::oneshot;
 use types::{metered_channel, CertificateDigest};
 
+use super::CertificateIDsByRounds;
+
 #[derive(Debug)]
 enum Core {
     SynchronizeBlockHeaders {
@@ -19,6 +21,10 @@ enum Core {
         block_ids: Vec<CertificateDigest>,
         times: u32,
         result: Vec<BlockSynchronizeResult<BlockHeader>>,
+        ready: oneshot::Sender<()>,
+    },
+    SynchronizeRange {
+        result: CertificateIDsByRounds,
         ready: oneshot::Sender<()>,
     },
     AssertExpectations {
@@ -37,6 +43,9 @@ struct MockBlockSynchronizerCore {
     block_payload_expected_requests:
         HashMap<Vec<CertificateDigest>, (u32, Vec<BlockSynchronizeResult<BlockHeader>>)>,
 
+    /// Expected response to a synchronize range request.
+    range_expected_requests: Vec<CertificateIDsByRounds>,
+
     /// Channel to receive the messages that are supposed to be sent to the
     /// block synchronizer.
     rx_commands: metered_channel::Receiver<Command>,
@@ -51,8 +60,12 @@ impl MockBlockSynchronizerCore {
             tokio::select! {
                 Some(command) = self.rx_commands.recv() => {
                     match command {
-                        Command::SynchronizeRange { .. } => {
-                            todo!("MockBlockSynchronizerCore for Command::SynchronizeRange is unimplemented!")
+                        Command::SynchronizeRange { respond_to } => {
+                            if let Some(result) = self.range_expected_requests.pop() {
+                                respond_to.send(result).await.expect("Couldn't send mock response");
+                            } else {
+                                panic!("No mock SynchronizeRange has been provided!");
+                            }
                         }
                         Command::SynchronizeBlockHeaders { block_ids, respond_to } => {
                             let (times, results) = self
@@ -107,6 +120,10 @@ impl MockBlockSynchronizerCore {
                             self.block_payload_expected_requests.insert(block_ids, (times, result));
                             ready.send(()).expect("Failed to send ready message");
                         },
+                        Core::SynchronizeRange { result, ready } => {
+                            self.range_expected_requests.push(result);
+                            ready.send(()).expect("Failed to send ready message");
+                        },
                         Core::AssertExpectations {ready} => {
                             self.assert_expectations();
                             ready.send(()).expect("Failed to send ready message");
@@ -140,9 +157,13 @@ impl MockBlockSynchronizerCore {
             );
         }
 
+        for results in &self.range_expected_requests {
+            result.push_str(format!("SynchronizeRange, results={:?}", results).as_str());
+        }
+
         if !result.is_empty() {
             panic!(
-                "There are expected calls that haven't been fulfilled \n\n {}",
+                "There are expected calls that haven't been fulfilled \n {}",
                 result
             );
         }
@@ -164,6 +185,7 @@ impl MockBlockSynchronizer {
         let mut core = MockBlockSynchronizerCore {
             block_headers_expected_requests: HashMap::new(),
             block_payload_expected_requests: HashMap::new(),
+            range_expected_requests: Vec::new(),
             rx_commands,
             rx_core,
         };
@@ -221,6 +243,18 @@ impl MockBlockSynchronizer {
                 result,
                 ready: tx,
             })
+            .await
+            .expect("Failed to send mock expectation");
+
+        Self::await_channel(rx).await;
+    }
+
+    /// A method that allows us to mock responses for the
+    /// SynchronizeRange requests.
+    pub async fn expect_synchronize_range(&self, result: CertificateIDsByRounds) {
+        let (tx, rx) = oneshot::channel();
+        self.tx_core
+            .send(Core::SynchronizeRange { result, ready: tx })
             .await
             .expect("Failed to send mock expectation");
 

@@ -1,7 +1,7 @@
 // Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use crate::{header_waiter::WaiterMessage, primary::PayloadToken};
+use crate::{header_waiter::WaiterMessage, primary::PayloadToken, BlockCommand};
 use config::{Committee, WorkerId};
 use consensus::dag::Dag;
 use crypto::PublicKey;
@@ -9,9 +9,14 @@ use fastcrypto::Hash as _;
 use std::{collections::HashMap, sync::Arc};
 use storage::CertificateStore;
 use store::Store;
+use tracing::info;
 use types::{
     error::DagResult, metered_channel::Sender, BatchDigest, Certificate, CertificateDigest, Header,
+    Round,
 };
+
+/// The number of missing rounds when a catch up process using range synchronization should be started.
+const MISSING_ROUNDS_CATCH_UP_THRESHOLD: Round = 2;
 
 #[cfg(test)]
 #[path = "tests/synchronizer_tests.rs"]
@@ -29,6 +34,8 @@ pub struct Synchronizer {
     tx_header_waiter: Sender<WaiterMessage>,
     /// Send commands to the `CertificateWaiter`.
     tx_certificate_waiter: Sender<Certificate>,
+    /// Send commands to the `BlockWaiter`.
+    tx_get_block_commands: Sender<BlockCommand>,
     /// The genesis and its digests.
     genesis: Vec<(CertificateDigest, Certificate)>,
     /// The dag used for the external consensus
@@ -43,6 +50,7 @@ impl Synchronizer {
         payload_store: Store<(BatchDigest, WorkerId), PayloadToken>,
         tx_header_waiter: Sender<WaiterMessage>,
         tx_certificate_waiter: Sender<Certificate>,
+        tx_get_block_commands: Sender<BlockCommand>,
         dag: Option<Arc<Dag>>,
     ) -> Self {
         let mut synchronizer = Self {
@@ -51,6 +59,7 @@ impl Synchronizer {
             payload_store,
             tx_header_waiter,
             tx_certificate_waiter,
+            tx_get_block_commands,
             genesis: Vec::default(),
             dag,
         };
@@ -162,6 +171,23 @@ impl Synchronizer {
         }
 
         Ok(true)
+    }
+
+    /// Checks if this primary is missing > 2 rounds of certificates and needs to start a range sync to catch up.
+    /// Returns whether a catch up process is started. Does not block on finishing the catch up process.
+    pub async fn maybe_catch_up(&self, round: Round) -> bool {
+        let latest_round = self.certificate_store.last_round_number().unwrap_or(0);
+        if round.saturating_sub(latest_round) <= MISSING_ROUNDS_CATCH_UP_THRESHOLD {
+            // No catch up is needed.
+            return false;
+        }
+        let cmd = BlockCommand::GetRange {};
+        self.tx_get_block_commands
+            .send(cmd)
+            .await
+            .expect("Failed to send get range request");
+        info!("Missing rounds detected: received certificate at {}, local latest at {}. Starting to catch up ...", round, latest_round);
+        true
     }
 
     /// This method answers to the question of whether the certificate with the

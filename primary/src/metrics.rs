@@ -297,6 +297,8 @@ pub struct PrimaryMetrics {
     pub waiting_elements_certificate_waiter: IntGaugeVec,
     /// Number of votes that were requested but not sent due to previously having voted differently
     pub votes_dropped_equivocation_protection: IntCounterVec,
+    /// Number of times range sync is started to catch up missing rounds
+    pub range_sync_started: IntCounterVec,
 }
 
 impl PrimaryMetrics {
@@ -418,6 +420,13 @@ impl PrimaryMetrics {
                 "votes_dropped_equivocation_protection",
                 "Number of votes that were requested but not sent due to previously having voted differently",
                 &["epoch", "source"],
+                registry
+            )
+            .unwrap(),
+            range_sync_started: register_int_counter_vec_with_registry!(
+                "range_sync_started",
+                "Number of times range sync is started to catch up missing rounds",
+                &["epoch"],
                 registry
             )
             .unwrap(),

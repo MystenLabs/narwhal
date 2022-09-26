@@ -282,9 +282,9 @@ impl Helper {
             certificate_ids: result,
             from: self.name.clone(),
         };
-        self.primary_network
-            .unreliable_send(self.committee.network_key(&origin).unwrap(), &message)
-            .await;
+        let _ = self
+            .primary_network
+            .unreliable_send(self.committee.network_key(&origin).unwrap(), &message);
 
         Ok(())
     }

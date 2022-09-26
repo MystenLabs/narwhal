@@ -249,6 +249,7 @@ impl Primary {
             payload_store.clone(),
             /* tx_header_waiter */ tx_sync_headers,
             /* tx_certificate_waiter */ tx_sync_certificates,
+            tx_get_block_commands.clone(),
             dag.clone(),
         );
 
@@ -294,6 +295,8 @@ impl Primary {
             parameters
                 .block_synchronizer
                 .handler_certificate_deliver_timeout,
+            (**committee.load()).clone(),
+            node_metrics.clone(),
         ));
 
         // Retrieves a block's data by contacting the worker nodes that contain the

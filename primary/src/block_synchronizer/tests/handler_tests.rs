@@ -3,19 +3,27 @@
 use crate::{
     block_synchronizer::{
         handler::{BlockSynchronizerHandler, Error, Handler},
-        SyncError,
+        BlockSynchronizeResult, SyncError,
     },
     common::create_db_stores,
+    metrics::PrimaryMetrics,
     BlockHeader, MockBlockSynchronizer,
 };
 use fastcrypto::Hash;
-use std::{collections::HashSet, time::Duration};
+use prometheus::Registry;
+use std::{
+    collections::{BTreeMap, HashSet},
+    sync::Arc,
+    time::Duration,
+};
 use test_utils::{fixture_payload, CommitteeFixture};
-use types::{CertificateDigest, PrimaryMessage};
+use types::{Certificate, CertificateDigest, PrimaryMessage, Round};
 
 #[tokio::test]
 async fn test_get_and_synchronize_block_headers_when_fetched_from_storage() {
     // GIVEN
+    let fixture = CommitteeFixture::builder().randomize_ports(true).build();
+    let committee = fixture.committee();
     let (_, certificate_store, _) = create_db_stores();
     let (tx_block_synchronizer, rx_block_synchronizer) = test_utils::test_channel!(1);
     let (tx_core, _rx_core) = test_utils::test_channel!(1);
@@ -25,10 +33,10 @@ async fn test_get_and_synchronize_block_headers_when_fetched_from_storage() {
         tx_core,
         certificate_store: certificate_store.clone(),
         certificate_deliver_timeout: Duration::from_millis(2_000),
+        committee: committee.clone(),
+        metrics: Arc::new(PrimaryMetrics::new(&Registry::new())),
     };
 
-    let fixture = CommitteeFixture::builder().build();
-    let committee = fixture.committee();
     let author = fixture.authorities().next().unwrap();
 
     // AND dummy certificate
@@ -74,6 +82,8 @@ async fn test_get_and_synchronize_block_headers_when_fetched_from_storage() {
 #[tokio::test]
 async fn test_get_and_synchronize_block_headers_when_fetched_from_peers() {
     // GIVEN
+    let fixture = CommitteeFixture::builder().randomize_ports(true).build();
+    let committee = fixture.committee();
     let (_, certificate_store, _) = create_db_stores();
     let (tx_block_synchronizer, rx_block_synchronizer) = test_utils::test_channel!(1);
     let (tx_core, mut rx_core) = test_utils::test_channel!(1);
@@ -83,10 +93,10 @@ async fn test_get_and_synchronize_block_headers_when_fetched_from_peers() {
         tx_core,
         certificate_store: certificate_store.clone(),
         certificate_deliver_timeout: Duration::from_millis(2_000),
+        committee: committee.clone(),
+        metrics: Arc::new(PrimaryMetrics::new(&Registry::new())),
     };
 
-    let fixture = CommitteeFixture::builder().build();
-    let committee = fixture.committee();
     let author = fixture.authorities().next().unwrap();
 
     // AND a certificate stored
@@ -173,6 +183,8 @@ async fn test_get_and_synchronize_block_headers_when_fetched_from_peers() {
 #[tokio::test]
 async fn test_get_and_synchronize_block_headers_timeout_on_causal_completion() {
     // GIVEN
+    let fixture = CommitteeFixture::builder().randomize_ports(true).build();
+    let committee = fixture.committee();
     let (_, certificate_store, _) = create_db_stores();
     let (tx_block_synchronizer, rx_block_synchronizer) = test_utils::test_channel!(1);
     let (tx_core, _rx_core) = test_utils::test_channel!(1);
@@ -182,10 +194,10 @@ async fn test_get_and_synchronize_block_headers_timeout_on_causal_completion() {
         tx_core,
         certificate_store: certificate_store.clone(),
         certificate_deliver_timeout: Duration::from_millis(2_000),
+        committee: committee.clone(),
+        metrics: Arc::new(PrimaryMetrics::new(&Registry::new())),
     };
 
-    let fixture = CommitteeFixture::builder().build();
-    let committee = fixture.committee();
     let author = fixture.authorities().next().unwrap();
 
     // AND a certificate stored
@@ -225,6 +237,8 @@ async fn test_get_and_synchronize_block_headers_timeout_on_causal_completion() {
         .expect_synchronize_block_headers(block_ids.clone(), expected_result, 1)
         .await;
 
+    // Unlike test_get_and_synchronize_block_headers_when_fetched_from_peers above, core module is not mocked.
+
     // WHEN
     let result = synchronizer
         .get_and_synchronize_block_headers(block_ids)
@@ -254,6 +268,8 @@ async fn test_get_and_synchronize_block_headers_timeout_on_causal_completion() {
 #[tokio::test]
 async fn test_synchronize_block_payload() {
     // GIVEN
+    let fixture = CommitteeFixture::builder().randomize_ports(true).build();
+    let committee = fixture.committee();
     let (_, certificate_store, payload_store) = create_db_stores();
     let (tx_block_synchronizer, rx_block_synchronizer) = test_utils::test_channel!(1);
     let (tx_core, _rx_core) = test_utils::test_channel!(1);
@@ -263,10 +279,10 @@ async fn test_synchronize_block_payload() {
         tx_core,
         certificate_store: certificate_store.clone(),
         certificate_deliver_timeout: Duration::from_millis(2_000),
+        committee: committee.clone(),
+        metrics: Arc::new(PrimaryMetrics::new(&Registry::new())),
     };
 
-    let fixture = CommitteeFixture::builder().build();
-    let committee = fixture.committee();
     let author = fixture.authorities().next().unwrap();
 
     // AND a certificate with payload already available
@@ -336,6 +352,8 @@ async fn test_synchronize_block_payload() {
 #[tokio::test]
 async fn test_call_methods_with_empty_input() {
     // GIVEN
+    let fixture = CommitteeFixture::builder().randomize_ports(true).build();
+    let committee = fixture.committee();
     let (_, certificate_store, _) = create_db_stores();
     let (tx_block_synchronizer, _) = test_utils::test_channel!(1);
     let (tx_core, _rx_core) = test_utils::test_channel!(1);
@@ -345,6 +363,8 @@ async fn test_call_methods_with_empty_input() {
         tx_core,
         certificate_store: certificate_store.clone(),
         certificate_deliver_timeout: Duration::from_millis(2_000),
+        committee,
+        metrics: Arc::new(PrimaryMetrics::new(&Registry::new())),
     };
 
     let result = synchronizer.synchronize_block_payloads(vec![]).await;
@@ -352,4 +372,119 @@ async fn test_call_methods_with_empty_input() {
 
     let result = synchronizer.get_and_synchronize_block_headers(vec![]).await;
     assert!(result.is_empty());
+}
+
+#[tokio::test]
+async fn test_synchronize_range() {
+    // GIVEN
+    let fixture = CommitteeFixture::builder().randomize_ports(true).build();
+    let committee = fixture.committee();
+    let (_, certificate_store, _) = create_db_stores();
+    let (tx_block_synchronizer, rx_block_synchronizer) = test_utils::test_channel!(1);
+    // More than 1 certificate can be inflight to core.
+    let (tx_core, mut rx_core) = test_utils::test_channel!(100);
+
+    let synchronizer = BlockSynchronizerHandler {
+        tx_block_synchronizer,
+        tx_core,
+        certificate_store: certificate_store.clone(),
+        certificate_deliver_timeout: Duration::from_millis(2_000),
+        committee: committee.clone(),
+        metrics: Arc::new(PrimaryMetrics::new(&Registry::new())),
+    };
+
+    let author = fixture.authorities().next().unwrap();
+
+    // AND a certificate stored
+    let header = author
+        .header_builder(&committee)
+        .payload(fixture_payload(1))
+        .round(0)
+        .build(author.keypair())
+        .unwrap();
+    let cert_stored = fixture.certificate(&header);
+    certificate_store.write(cert_stored.clone()).unwrap();
+
+    // AND a few certificates NOT in local store
+    let mut certs_missing = BTreeMap::<Round, Vec<Certificate>>::new();
+    let mut digests_missing = BTreeMap::<Round, Vec<CertificateDigest>>::new();
+    let mut expected_cert_ids = Vec::<Vec<CertificateDigest>>::new();
+    let mut expected_cert_results = Vec::<Vec<BlockSynchronizeResult<BlockHeader>>>::new();
+    let mut expected_map = BTreeMap::<CertificateDigest, Certificate>::new();
+    for r in 1..5 {
+        let mut expected_certs = Vec::new();
+        for i in 0..4 {
+            let header = author
+                .header_builder(&committee)
+                .payload(fixture_payload(r))
+                .round(r.into())
+                .build(author.keypair())
+                .unwrap();
+            let cert = fixture.certificate(&header);
+            if r < 4 && i < 3 {
+                digests_missing
+                    .entry(r.into())
+                    .or_default()
+                    .push(cert.digest());
+                expected_certs.push(cert.clone());
+                expected_map.insert(cert.digest(), cert.clone());
+            }
+            certs_missing.entry(r.into()).or_default().push(cert);
+        }
+        if !expected_certs.is_empty() {
+            expected_cert_ids.push(expected_certs.iter().map(|c| c.digest()).collect());
+            expected_cert_results.push(
+                expected_certs
+                    .into_iter()
+                    .map(|c| {
+                        Ok(BlockHeader {
+                            certificate: c,
+                            fetched_from_storage: false,
+                        })
+                    })
+                    .collect(),
+            );
+        }
+    }
+    let total_expected = expected_map.len();
+
+    // AND mock the block_synchronizer
+    let mock_synchronizer = MockBlockSynchronizer::new(rx_block_synchronizer);
+    mock_synchronizer
+        .expect_synchronize_range(digests_missing.clone())
+        .await;
+    for (cert_ids, cert_results) in expected_cert_ids
+        .clone()
+        .into_iter()
+        .zip(expected_cert_results.into_iter())
+    {
+        mock_synchronizer
+            .expect_synchronize_block_headers(cert_ids, cert_results, 1)
+            .await;
+    }
+
+    // AND mock the "core" module. We assume that the certificate will be
+    // stored after validated and causally complete the history.
+    let store = certificate_store.clone();
+    tokio::spawn(async move {
+        for _ in 0..total_expected {
+            match rx_core.recv().await {
+                Some(PrimaryMessage::Certificate(c)) => {
+                    store.write(c).unwrap();
+                }
+                _ => panic!("Didn't receive certificate message"),
+            }
+        }
+    });
+
+    // WHEN
+    let _ = synchronizer.synchronize_range().await;
+
+    // THEN mock expectations should be satisfied.
+    mock_synchronizer.assert_expectations().await;
+
+    // AND missing certificates should be available in store.
+    for (digest, cert) in expected_map {
+        assert_eq!(certificate_store.read(digest).unwrap().unwrap(), cert);
+    }
 }

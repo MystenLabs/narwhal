@@ -61,6 +61,12 @@ pub enum BlockCommand {
         ids: Vec<CertificateDigest>,
         sender: oneshot::Sender<BlocksResult>,
     },
+
+    /// GetRange will initiate the process of retrieving the block data
+    /// for blocks starting after the last round available in the certificate store.
+    /// The caller is not interested in the results of blocks, but having the
+    /// blocks available locally.
+    GetRange {},
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -143,6 +149,10 @@ type RequestKey = Vec<u8>;
 ///
 /// #[async_trait]
 /// impl Handler for BlockSynchronizerHandler {
+///
+///     async fn synchronize_range(&self) -> Result<(), Error> {
+///         Ok(())
+///     }
 ///
 ///     async fn get_and_synchronize_block_headers(&self, block_ids: Vec<CertificateDigest>) -> Vec<Result<Certificate, Error>> {
 ///         vec![]
@@ -299,6 +309,7 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> BlockWaiter<Synchroni
     async fn run(&mut self) {
         let mut waiting_get_block = FuturesUnordered::new();
         let mut waiting_get_blocks = FuturesUnordered::new();
+        let mut waiting_get_range = FuturesUnordered::new();
 
         info!(
             "BlockWaiter on node {} has started successfully.",
@@ -308,6 +319,20 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> BlockWaiter<Synchroni
             tokio::select! {
                 Some(command) = self.rx_commands.recv() => {
                     match command {
+                        BlockCommand::GetRange {} => {
+                            if !waiting_get_range.is_empty() {
+                                debug!("ignoring new command GetRange because it is already running");
+                                continue;
+                            }
+                            let synchronizer_handler = self.block_synchronizer_handler.clone();
+                            waiting_get_range.push(
+                                async move {
+                                    synchronizer_handler
+                                        .synchronize_range()
+                                        .await
+                                }
+                                .boxed());
+                        },
                         BlockCommand::GetBlocks { ids, sender } => {
                             match self.handle_get_blocks_command(ids, sender).await {
                                 Some((get_block_futures, get_blocks_future)) => {
@@ -316,15 +341,15 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> BlockWaiter<Synchroni
                                     }
                                     waiting_get_blocks.push(get_blocks_future);
                                 },
-                                _ => debug!("no processing for command get blocks, will not wait for any result")
+                                _ => debug!("no processing for command GetBlocks, will not wait for any result")
                             }
                         },
                         BlockCommand::GetBlock { id, sender } => {
                             match self.handle_get_block_command(id, sender).await {
                                 Some(fut) => waiting_get_block.push(fut),
-                                None => debug!("no processing for command, will not wait for any results")
+                                None => debug!("no processing for command GetBlock, will not wait for any results")
                             }
-                        }
+                        },
                     }
                 },
                 // When we receive a BatchMessage (from a worker), this is
@@ -342,7 +367,10 @@ impl<SynchronizerHandler: Handler + Send + Sync + 'static> BlockWaiter<Synchroni
                 },
                 Some(result) = waiting_get_blocks.next() => {
                     self.handle_get_blocks_waiting_result(result).await;
-                }
+                },
+                Some( .. ) = waiting_get_range.next() => {
+                    debug!("GetRange command finished");
+                },
 
                 // Check whether the committee changed. If the network address of our workers changed upon trying
                 // to send them a request, we will timeout and the caller will have to retry.

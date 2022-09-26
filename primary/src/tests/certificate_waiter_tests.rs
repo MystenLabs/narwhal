@@ -33,6 +33,8 @@ async fn process_certificate_missing_parents_in_reverse() {
     let (tx_sync_headers, rx_sync_headers) = test_utils::test_channel!(1);
     // synchronizer to certificate waiter
     let (tx_sync_certificates, rx_sync_certificates) = test_utils::test_channel!(1);
+    // synchronizer to block waiter: use a large queue since there is no consumer
+    let (tx_get_block_commands, _rx_get_block_commands) = test_utils::test_channel!(1000);
     // primary messages
     let (tx_primary_messages, rx_primary_messages) = test_utils::test_channel!(1);
     // header waiter to primary
@@ -60,6 +62,7 @@ async fn process_certificate_missing_parents_in_reverse() {
         payload_store.clone(),
         /* tx_header_waiter */ tx_sync_headers,
         /* tx_certificate_waiter */ tx_sync_certificates,
+        tx_get_block_commands,
         None,
     );
 
@@ -187,6 +190,8 @@ async fn process_certificate_check_gc_fires() {
     let (tx_sync_headers, rx_sync_headers) = test_utils::test_channel!(1);
     // synchronizer to certificate waiter
     let (tx_sync_certificates, rx_sync_certificates) = test_utils::test_channel!(1);
+    // synchronizer to block waiter: use a large queue since there is no consumer
+    let (tx_get_block_commands, _rx_get_block_commands) = test_utils::test_channel!(1000);
     // primary messages
     let (tx_primary_messages, rx_primary_messages) = test_utils::test_channel!(1);
     // header waiter to primary
@@ -214,6 +219,7 @@ async fn process_certificate_check_gc_fires() {
         payload_store.clone(),
         /* tx_header_waiter */ tx_sync_headers,
         /* tx_certificate_waiter */ tx_sync_certificates,
+        tx_get_block_commands,
         None,
     );
 

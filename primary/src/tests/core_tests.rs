@@ -29,6 +29,7 @@ async fn process_header() {
         watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));
     let (tx_sync_headers, _rx_sync_headers) = test_utils::test_channel!(1);
     let (tx_sync_certificates, _rx_sync_certificates) = test_utils::test_channel!(1);
+    let (tx_get_block_commands, _rx_get_block_commands) = test_utils::test_channel!(1);
     let (tx_primary_messages, rx_primary_messages) = test_utils::test_channel!(1);
     let (_tx_headers_loopback, rx_headers_loopback) = test_utils::test_channel!(1);
     let (_tx_certificates_loopback, rx_certificates_loopback) = test_utils::test_channel!(1);
@@ -56,6 +57,7 @@ async fn process_header() {
         payload_store,
         /* tx_header_waiter */ tx_sync_headers,
         /* tx_certificate_waiter */ tx_sync_certificates,
+        tx_get_block_commands,
         None,
     );
 
@@ -157,6 +159,7 @@ async fn process_header_missing_parent() {
     let (_, rx_reconfigure) = watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));
     let (tx_sync_headers, _rx_sync_headers) = test_utils::test_channel!(1);
     let (tx_sync_certificates, _rx_sync_certificates) = test_utils::test_channel!(1);
+    let (tx_get_block_commands, _rx_get_block_commands) = test_utils::test_channel!(1);
     let (tx_primary_messages, rx_primary_messages) = test_utils::test_channel!(1);
     let (_tx_headers_loopback, rx_headers_loopback) = test_utils::test_channel!(1);
     let (_tx_certificates_loopback, rx_certificates_loopback) = test_utils::test_channel!(1);
@@ -176,6 +179,7 @@ async fn process_header_missing_parent() {
         payload_store.clone(),
         /* tx_header_waiter */ tx_sync_headers,
         /* tx_certificate_waiter */ tx_sync_certificates,
+        tx_get_block_commands,
         None,
     );
 
@@ -245,6 +249,7 @@ async fn process_header_missing_payload() {
     let (_, rx_reconfigure) = watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));
     let (tx_sync_headers, _rx_sync_headers) = test_utils::test_channel!(1);
     let (tx_sync_certificates, _rx_sync_certificates) = test_utils::test_channel!(1);
+    let (tx_get_block_commands, _rx_get_block_commands) = test_utils::test_channel!(1);
     let (tx_primary_messages, rx_primary_messages) = test_utils::test_channel!(1);
     let (_tx_headers_loopback, rx_headers_loopback) = test_utils::test_channel!(1);
     let (_tx_certificates_loopback, rx_certificates_loopback) = test_utils::test_channel!(1);
@@ -264,6 +269,7 @@ async fn process_header_missing_payload() {
         payload_store.clone(),
         /* tx_header_waiter */ tx_sync_headers,
         /* tx_certificate_waiter */ tx_sync_certificates,
+        tx_get_block_commands,
         None,
     );
 
@@ -334,6 +340,7 @@ async fn process_votes() {
         watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));
     let (tx_sync_headers, _rx_sync_headers) = test_utils::test_channel!(1);
     let (tx_sync_certificates, _rx_sync_certificates) = test_utils::test_channel!(1);
+    let (tx_get_block_commands, _rx_get_block_commands) = test_utils::test_channel!(1);
     let (tx_primary_messages, rx_primary_messages) = test_utils::test_channel!(1);
     let (_tx_headers_loopback, rx_headers_loopback) = test_utils::test_channel!(1);
     let (_tx_certificates_loopback, rx_certificates_loopback) = test_utils::test_channel!(1);
@@ -353,6 +360,7 @@ async fn process_votes() {
         payload_store.clone(),
         /* tx_header_waiter */ tx_sync_headers,
         /* tx_certificate_waiter */ tx_sync_certificates,
+        tx_get_block_commands,
         None,
     );
 
@@ -454,6 +462,7 @@ async fn process_certificates() {
         watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));
     let (tx_sync_headers, _rx_sync_headers) = test_utils::test_channel!(1);
     let (tx_sync_certificates, _rx_sync_certificates) = test_utils::test_channel!(1);
+    let (tx_get_block_commands, _rx_get_block_commands) = test_utils::test_channel!(1);
     let (tx_primary_messages, rx_primary_messages) = test_utils::test_channel!(3);
     let (_tx_headers_loopback, rx_headers_loopback) = test_utils::test_channel!(1);
     let (_tx_certificates_loopback, rx_certificates_loopback) = test_utils::test_channel!(1);
@@ -473,6 +482,7 @@ async fn process_certificates() {
         payload_store.clone(),
         /* tx_header_waiter */ tx_sync_headers,
         /* tx_certificate_waiter */ tx_sync_certificates,
+        tx_get_block_commands,
         None,
     );
 
@@ -572,6 +582,7 @@ async fn shutdown_core() {
         watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));
     let (tx_sync_headers, _rx_sync_headers) = test_utils::test_channel!(1);
     let (tx_sync_certificates, _rx_sync_certificates) = test_utils::test_channel!(1);
+    let (tx_get_block_commands, _rx_get_block_commands) = test_utils::test_channel!(1);
     let (_tx_primary_messages, rx_primary_messages) = test_utils::test_channel!(1);
     let (_tx_headers_loopback, rx_headers_loopback) = test_utils::test_channel!(1);
     let (_tx_certificates_loopback, rx_certificates_loopback) = test_utils::test_channel!(1);
@@ -591,6 +602,7 @@ async fn shutdown_core() {
         payload_store,
         /* tx_header_waiter */ tx_sync_headers,
         /* tx_certificate_waiter */ tx_sync_certificates,
+        tx_get_block_commands,
         None,
     );
 
@@ -650,6 +662,7 @@ async fn reconfigure_core() {
         watch::channel(ReconfigureNotification::NewEpoch(committee.clone()));
     let (tx_sync_headers, _rx_sync_headers) = test_utils::test_channel!(1);
     let (tx_sync_certificates, _rx_sync_certificates) = test_utils::test_channel!(1);
+    let (tx_get_block_commands, _rx_get_block_commands) = test_utils::test_channel!(1);
     let (tx_primary_messages, rx_primary_messages) = test_utils::test_channel!(1);
     let (_tx_headers_loopback, rx_headers_loopback) = test_utils::test_channel!(1);
     let (_tx_certificates_loopback, rx_certificates_loopback) = test_utils::test_channel!(1);
@@ -678,6 +691,7 @@ async fn reconfigure_core() {
         payload_store,
         /* tx_header_waiter */ tx_sync_headers,
         /* tx_certificate_waiter */ tx_sync_certificates,
+        tx_get_block_commands,
         None,
     );
 

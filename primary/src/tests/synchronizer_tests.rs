@@ -19,6 +19,7 @@ async fn deliver_certificate_using_dag() {
     let (_, certificates_store, payload_store) = create_db_stores();
     let (tx_header_waiter, _rx_header_waiter) = test_utils::test_channel!(1);
     let (tx_certificate_waiter, _rx_certificate_waiter) = test_utils::test_channel!(1);
+    let (tx_get_block_commands, _rx_get_block_commands) = test_utils::test_channel!(1);
     let (_tx_consensus, rx_consensus) = test_utils::test_channel!(1);
 
     let consensus_metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
@@ -31,6 +32,7 @@ async fn deliver_certificate_using_dag() {
         payload_store,
         tx_header_waiter,
         tx_certificate_waiter,
+        tx_get_block_commands,
         Some(dag.clone()),
     );
 
@@ -76,6 +78,7 @@ async fn deliver_certificate_using_store() {
     let (_, certificates_store, payload_store) = create_db_stores();
     let (tx_header_waiter, _rx_header_waiter) = test_utils::test_channel!(1);
     let (tx_certificate_waiter, _rx_certificate_waiter) = test_utils::test_channel!(1);
+    let (tx_get_block_commands, _rx_get_block_commands) = test_utils::test_channel!(1);
 
     let mut synchronizer = Synchronizer::new(
         name,
@@ -84,6 +87,7 @@ async fn deliver_certificate_using_store() {
         payload_store,
         tx_header_waiter,
         tx_certificate_waiter,
+        tx_get_block_commands,
         None,
     );
 
@@ -129,6 +133,7 @@ async fn deliver_certificate_not_found_parents() {
     let (_, certificates_store, payload_store) = create_db_stores();
     let (tx_header_waiter, _rx_header_waiter) = test_utils::test_channel!(1);
     let (tx_certificate_waiter, mut rx_certificate_waiter) = test_utils::test_channel!(1);
+    let (tx_get_block_commands, _rx_get_block_commands) = test_utils::test_channel!(1);
 
     let mut synchronizer = Synchronizer::new(
         name,
@@ -137,6 +142,7 @@ async fn deliver_certificate_not_found_parents() {
         payload_store,
         tx_header_waiter,
         tx_certificate_waiter,
+        tx_get_block_commands,
         None,
     );
 

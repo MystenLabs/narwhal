@@ -416,6 +416,10 @@ impl Core {
             .await
             .map_err(|_| DagError::ShuttingDown)?;
 
+        // Checks if there are too many missing rounds locally. If yes, start a process to catch up certificates
+        // in the missing rounds.
+        self.synchronizer.maybe_catch_up(certificate.round()).await;
+
         // Process the header embedded in the certificate if we haven't already voted for it (if we already
         // voted, it means we already processed it). Since this header got certified, we are sure that all
         // the data it refers to (ie. its payload and its parents) are available. We can thus continue the

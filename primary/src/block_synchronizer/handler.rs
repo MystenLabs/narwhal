@@ -5,14 +5,16 @@ use crate::{
         handler::Error::{BlockDeliveryTimeout, BlockNotFound, Internal, PayloadSyncError},
         BlockSynchronizeResult, Command, SyncError,
     },
+    metrics::PrimaryMetrics,
     BlockHeader,
 };
 use async_trait::async_trait;
+use config::Committee;
 use fastcrypto::Hash;
 use futures::future::join_all;
 #[cfg(test)]
 use mockall::*;
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 use storage::CertificateStore;
 use thiserror::Error;
 use tokio::{sync::mpsc::channel, time::timeout};
@@ -66,6 +68,10 @@ impl Error {
 #[cfg_attr(test, automock)]
 #[async_trait]
 pub trait Handler {
+    /// Synchronizes missing certificates via the block_synchronizer, from the next round
+    /// where the local certificate store does not have a certificate.
+    async fn synchronize_range(&self) -> Result<(), Error>;
+
     /// It retrieves the requested blocks via the block_synchronizer making
     /// sure though that they are fully validated. The certificates will only
     /// be returned when they have properly processed via the core module
@@ -109,6 +115,12 @@ pub struct BlockSynchronizerHandler {
     /// The timeout while waiting for a certificate to become available
     /// after submitting for processing to core.
     certificate_deliver_timeout: Duration,
+
+    /// Info about the validator committee.
+    committee: Committee,
+
+    /// Exported metrics.
+    metrics: Arc<PrimaryMetrics>,
 }
 
 impl BlockSynchronizerHandler {
@@ -117,12 +129,16 @@ impl BlockSynchronizerHandler {
         tx_core: metered_channel::Sender<PrimaryMessage>,
         certificate_store: CertificateStore,
         certificate_deliver_timeout: Duration,
+        committee: Committee,
+        metrics: Arc<PrimaryMetrics>,
     ) -> Self {
         Self {
             tx_block_synchronizer,
             tx_core,
             certificate_store,
             certificate_deliver_timeout,
+            committee,
+            metrics,
         }
     }
 
@@ -151,6 +167,40 @@ impl BlockSynchronizerHandler {
 
 #[async_trait]
 impl Handler for BlockSynchronizerHandler {
+    /// This method kicks start a process to fetch digests of missing certificates after the latest local round.
+    /// Then certificates are fetched and synchronized for these digests, from the lowest to the highest round.
+    /// The goal is to allow fast catch up of a validator lagging behind, by reducing the need to use the slow
+    /// recursive causal completion code path to synchronize certificates.
+    #[instrument(level = "trace", skip_all)]
+    async fn synchronize_range(&self) -> Result<(), Error> {
+        self.metrics
+            .range_sync_started
+            .with_label_values(&[&self.committee.epoch.to_string()])
+            .inc();
+
+        let (tx_certificate_ids, mut rx_certificate_ids) = channel(1);
+        self.tx_block_synchronizer
+            .send(Command::SynchronizeRange {
+                respond_to: tx_certificate_ids,
+            })
+            .await
+            .expect("Couldn't send SynchronizeRange message to block synchronizer");
+        let certificate_ids = rx_certificate_ids.recv().await.unwrap_or_default();
+
+        // Synchronize certificates by round from the lowest instead of synchronizing all certificates together,
+        // to reduce the amount of inflight causal completion.
+        for (round, digests) in certificate_ids {
+            trace!("Synchronizing certificates in round {round}: {:?}", digests);
+            // Return error if some blocks failed to be retrieved by their digests.
+            self.get_and_synchronize_block_headers(digests)
+                .await
+                .into_iter()
+                .collect::<Result<Vec<_>, Error>>()?;
+        }
+
+        Ok(())
+    }
+
     /// The method will return a separate result for each requested block id.
     /// If a certificate has been successfully retrieved (and processed via core
     /// if has been fetched from peers) then an OK result will be returned with the
