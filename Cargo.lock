@@ -2691,6 +2691,7 @@ version = "0.1.0"
 dependencies = [
  "anemo",
  "anemo-tower",
+ "anyhow",
  "arc-swap",
  "async-trait",
  "bincode",
@@ -2711,6 +2712,7 @@ dependencies = [
  "rand 0.8.5",
  "serde",
  "tap",
+ "telemetry-subscribers",
  "tempfile",
  "tokio",
  "tokio-stream",
