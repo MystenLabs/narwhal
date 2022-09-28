@@ -9,7 +9,7 @@ use fastcrypto::Hash as _;
 use std::{collections::HashMap, sync::Arc};
 use storage::CertificateStore;
 use store::Store;
-use tracing::info;
+use tracing::log::{trace, warn};
 use types::{
     error::DagResult, metered_channel::Sender, BatchDigest, Certificate, CertificateDigest, Header,
     Round,
@@ -175,9 +175,10 @@ impl Synchronizer {
 
     /// Checks if this primary is missing > 2 rounds of certificates and needs to start a range sync to catch up.
     /// Returns whether a catch up process is started. Does not block on finishing the catch up process.
-    pub async fn maybe_catch_up(&self, round: Round) -> bool {
+    pub async fn maybe_catch_up(&self, cert_round: Round) -> bool {
         let latest_round = self.certificate_store.last_round_number().unwrap_or(0);
-        if round.saturating_sub(latest_round) <= MISSING_ROUNDS_CATCH_UP_THRESHOLD {
+        let round_lag = cert_round.saturating_sub(latest_round);
+        if round_lag <= MISSING_ROUNDS_CATCH_UP_THRESHOLD {
             // No catch up is needed.
             return false;
         }
@@ -186,7 +187,12 @@ impl Synchronizer {
             .send(cmd)
             .await
             .expect("Failed to send get range request");
-        info!("Missing rounds detected: received certificate at {}, local latest at {}. Starting to catch up ...", round, latest_round);
+        let msg = "Missing rounds detected: received certificate at {cert_round}, local latest at {latest_round}. Starting to catch up ...";
+        if round_lag >= 20 {
+            warn!("{msg}");
+        } else {
+            trace!("{msg}");
+        }
         true
     }
 

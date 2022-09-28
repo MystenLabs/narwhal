@@ -405,15 +405,17 @@ async fn test_synchronize_range() {
     let cert_stored = fixture.certificate(&header);
     certificate_store.write(cert_stored.clone()).unwrap();
 
-    // AND a few certificates NOT in local store
-    let mut certs_missing = BTreeMap::<Round, Vec<Certificate>>::new();
+    // AND 4 certificates in each round of 1 ~ 5, NOT in local store
     let mut digests_missing = BTreeMap::<Round, Vec<CertificateDigest>>::new();
-    let mut expected_cert_ids = Vec::<Vec<CertificateDigest>>::new();
+    // AND certificate digests by round.
+    let mut expected_cert_ids = Vec::<Vec<CertificateDigest>>::new(); // AND certificate digests by round.
+                                                                      // AND block header results by round.
     let mut expected_cert_results = Vec::<Vec<BlockSynchronizeResult<BlockHeader>>>::new();
+    // AND a map of digest to certificate for all certificates.
     let mut expected_map = BTreeMap::<CertificateDigest, Certificate>::new();
     for r in 1..5 {
-        let mut expected_certs = Vec::new();
-        for i in 0..4 {
+        let mut expected_certs_in_round = Vec::new();
+        for _ in 0..4 {
             let header = author
                 .header_builder(&committee)
                 .payload(fixture_payload(r))
@@ -421,34 +423,29 @@ async fn test_synchronize_range() {
                 .build(author.keypair())
                 .unwrap();
             let cert = fixture.certificate(&header);
-            if r < 4 && i < 3 {
-                digests_missing
-                    .entry(r.into())
-                    .or_default()
-                    .push(cert.digest());
-                expected_certs.push(cert.clone());
-                expected_map.insert(cert.digest(), cert.clone());
-            }
-            certs_missing.entry(r.into()).or_default().push(cert);
+            expected_certs_in_round.push(cert.clone());
+            digests_missing
+                .entry(r.into())
+                .or_default()
+                .push(cert.digest());
+            expected_map.insert(cert.digest(), cert.clone());
         }
-        if !expected_certs.is_empty() {
-            expected_cert_ids.push(expected_certs.iter().map(|c| c.digest()).collect());
-            expected_cert_results.push(
-                expected_certs
-                    .into_iter()
-                    .map(|c| {
-                        Ok(BlockHeader {
-                            certificate: c,
-                            fetched_from_storage: false,
-                        })
+        expected_cert_ids.push(expected_certs_in_round.iter().map(|c| c.digest()).collect());
+        expected_cert_results.push(
+            expected_certs_in_round
+                .into_iter()
+                .map(|c| {
+                    Ok(BlockHeader {
+                        certificate: c,
+                        fetched_from_storage: false,
                     })
-                    .collect(),
-            );
-        }
+                })
+                .collect(),
+        );
     }
     let total_expected = expected_map.len();
 
-    // AND mock the block_synchronizer
+    // AND mock the block_synchronizer with responses: 1 response to synchronize range and 4 responses to synchronize certificates.
     let mock_synchronizer = MockBlockSynchronizer::new(rx_block_synchronizer);
     mock_synchronizer
         .expect_synchronize_range(digests_missing.clone())
@@ -483,7 +480,7 @@ async fn test_synchronize_range() {
     // THEN mock expectations should be satisfied.
     mock_synchronizer.assert_expectations().await;
 
-    // AND missing certificates should be available in store.
+    // AND synchronized certificates should be available in store.
     for (digest, cert) in expected_map {
         assert_eq!(certificate_store.read(digest).unwrap().unwrap(), cert);
     }

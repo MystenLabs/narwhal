@@ -9,7 +9,7 @@ use storage::CertificateStore;
 use store::{Store, StoreError};
 use thiserror::Error;
 use tokio::{sync::watch, task::JoinHandle};
-use tracing::{error, info, instrument};
+use tracing::{error, info, instrument, log::debug};
 use types::{
     metered_channel::Receiver, BatchDigest, Certificate, CertificateDigest,
     ReconfigureNotification, Round,
@@ -85,12 +85,16 @@ impl Helper {
                     // the data source (dictated by the digests parameter). The results
                     // will be emitted one by one to the consumer.
                     PrimaryMessage::CertificatesRequest(digests, origin) => {
-                        let _ = self.process_certificates(digests, origin, false).await;
+                        if let Err(e) = self.process_certificates(digests, origin, false).await {
+                            debug!("Failed to respond to CertificatesRequest: {e}");
+                        }
                     }
                     // The CertificatesRangeRequest will collect certificate digests from range_start,
                     // for at most max_rounds number of rounds. All digests will be returned in one response.
                     PrimaryMessage::CertificatesRangeRequest {range_start, max_rounds, requestor: origin} => {
-                        let _ = self.handle_certificates_range_request(range_start, max_rounds, origin).await;
+                        if let Err(e) = self.handle_certificates_range_request(range_start, max_rounds, origin).await {
+                            debug!("Failed to respond to CertificatesRangeRequest: {e}");
+                        };
                     }
                     // The CertificatesBatchRequest will find any certificates that exist in
                     // the data source (dictated by the digests parameter). The results will
@@ -99,9 +103,11 @@ impl Helper {
                         certificate_ids,
                         requestor,
                     } => {
-                        let _ = self
+                        if let Err(e) = self
                             .process_certificates(certificate_ids, requestor, true)
-                            .await;
+                            .await {
+                                debug!("Failed to respond to CertificatesBatchRequest: {e}");
+                            };
                     }
                     // A request that another primary sends us to ask whether we
                     // can serve batch data for the provided certificate_ids.
@@ -109,9 +115,11 @@ impl Helper {
                         certificate_ids,
                         requestor,
                     } => {
-                        let _ = self
+                        if let Err(e) = self
                             .process_payload_availability(certificate_ids, requestor)
-                            .await;
+                            .await {
+                                debug!("Failed to respond to PayloadAvailabilityRequest: {e}");
+                            };
                     }
                     _ => {
                         panic!("Received unexpected message!");

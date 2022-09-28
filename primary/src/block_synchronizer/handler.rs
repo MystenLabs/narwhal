@@ -14,12 +14,12 @@ use fastcrypto::Hash;
 use futures::future::join_all;
 #[cfg(test)]
 use mockall::*;
-use std::{sync::Arc, time::Duration};
+use std::{collections::BTreeMap, sync::Arc, time::Duration};
 use storage::CertificateStore;
 use thiserror::Error;
 use tokio::{sync::mpsc::channel, time::timeout};
 use tracing::{debug, error, instrument, trace};
-use types::{metered_channel, Certificate, CertificateDigest, PrimaryMessage};
+use types::{metered_channel, Certificate, CertificateDigest, PrimaryMessage, Round};
 
 #[cfg(test)]
 #[path = "tests/handler_tests.rs"]
@@ -167,10 +167,10 @@ impl BlockSynchronizerHandler {
 
 #[async_trait]
 impl Handler for BlockSynchronizerHandler {
-    /// This method kicks start a process to fetch digests of missing certificates after the latest local round.
-    /// Then certificates are fetched and synchronized for these digests, from the lowest to the highest round.
-    /// The goal is to allow fast catch up of a validator lagging behind, by reducing the need to use the slow
-    /// recursive causal completion code path to synchronize certificates.
+    /// This method kickstarts a process to fetch digests of missing certificates after the latest local round.
+    /// Then certificates are fetched and synchronized for these digests, from the lowest to the highest rounds.
+    /// The goal is to speed up a lagging validator catching up, by reducing the need to use the slower, recursive
+    /// causal completion to synchronize certificates.
     #[instrument(level = "trace", skip_all)]
     async fn synchronize_range(&self) -> Result<(), Error> {
         self.metrics
@@ -185,13 +185,15 @@ impl Handler for BlockSynchronizerHandler {
             })
             .await
             .expect("Couldn't send SynchronizeRange message to block synchronizer");
-        let certificate_ids = rx_certificate_ids.recv().await.unwrap_or_default();
+        let certificate_ids: BTreeMap<Round, Vec<CertificateDigest>> =
+            rx_certificate_ids.recv().await.unwrap_or_default();
 
         // Synchronize certificates by round from the lowest instead of synchronizing all certificates together,
         // to reduce the amount of inflight causal completion.
         for (round, digests) in certificate_ids {
             trace!("Synchronizing certificates in round {round}: {:?}", digests);
-            // Return error if some blocks failed to be retrieved by their digests.
+            // Return error if some blocks failed to be retrieved by their digests. Otherwise we will just be
+            // waiting on causal completion from higher rounds.
             self.get_and_synchronize_block_headers(digests)
                 .await
                 .into_iter()
