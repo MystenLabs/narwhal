@@ -1,3 +1,5 @@
+// Copyright (c) 2022, Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
 use crate::{ExecutionIndices, ExecutionState};
 use consensus::ConsensusOutput;
 use tokio::task::JoinHandle;
