@@ -66,6 +66,15 @@ fn build_anemo_services(out_dir: &Path) {
                 .codec_path("anemo::rpc::codec::BincodeCodec")
                 .build(),
         )
+        .method(
+            anemo_build::manual::Method::builder()
+                .name("get_payload")
+                .route_name("GetPayload")
+                .request_type("crate::GetPayloadRequest")
+                .response_type("crate::GetPayloadResponse")
+                .codec_path("anemo::rpc::codec::BincodeCodec")
+                .build(),
+        )
         .build();
 
     let worker_to_primary = anemo_build::manual::Service::builder()

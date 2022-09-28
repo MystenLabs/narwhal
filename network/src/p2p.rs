@@ -1,11 +1,13 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::traits::Primary2WorkerRpc;
 use crate::{
     traits::{Lucky, ReliableNetwork, UnreliableNetwork},
     BoundedExecutor, CancelOnDropHandler, RetryConfig, MAX_TASK_CONCURRENCY,
 };
 use anemo::PeerId;
+use anyhow::format_err;
 use anyhow::Result;
 use async_trait::async_trait;
 use crypto::{traits::KeyPair, NetworkPublicKey};
@@ -14,9 +16,9 @@ use rand::{rngs::SmallRng, SeedableRng as _};
 use std::collections::HashMap;
 use tokio::{runtime::Handle, task::JoinHandle};
 use types::{
-    PrimaryMessage, PrimaryToPrimaryClient, PrimaryToWorkerClient, PrimaryWorkerMessage,
-    WorkerBatchRequest, WorkerBatchResponse, WorkerMessage, WorkerPrimaryMessage,
-    WorkerToPrimaryClient, WorkerToWorkerClient,
+    Batch, BatchDigest, GetPayloadRequest, PrimaryMessage, PrimaryToPrimaryClient,
+    PrimaryToWorkerClient, PrimaryWorkerMessage, WorkerBatchRequest, WorkerBatchResponse,
+    WorkerMessage, WorkerPrimaryMessage, WorkerToPrimaryClient, WorkerToWorkerClient,
 };
 
 fn default_executor() -> BoundedExecutor {
@@ -326,6 +328,27 @@ impl UnreliableNetwork<WorkerBatchRequest> for P2pNetwork {
                 .await
         };
         self.unreliable_send(peer, f)
+    }
+}
+
+#[async_trait]
+impl Primary2WorkerRpc for P2pNetwork {
+    async fn get_payload(
+        &self,
+        peer: &NetworkPublicKey,
+        batch: BatchDigest,
+    ) -> Result<Option<Batch>> {
+        let peer_id = PeerId(peer.0.to_bytes());
+        let peer = self
+            .network
+            .peer(peer_id)
+            .ok_or_else(|| format_err!("Network has no connection with peer {peer_id}"))?;
+        let request = GetPayloadRequest { batch };
+        let response = PrimaryToWorkerClient::new(peer)
+            .get_payload(request)
+            .await
+            .map_err(|e| format_err!("Network error {:?}", e))?;
+        Ok(response.into_body().batch)
     }
 }
 

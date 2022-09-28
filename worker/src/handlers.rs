@@ -4,8 +4,8 @@
 use async_trait::async_trait;
 use store::Store;
 use types::{
-    error::DagError, metered_channel::Sender, Batch, BatchDigest, PrimaryToWorker,
-    PrimaryWorkerMessage, WorkerMessage, WorkerToWorker,
+    error::DagError, metered_channel::Sender, Batch, BatchDigest, GetPayloadRequest,
+    GetPayloadResponse, PrimaryToWorker, PrimaryWorkerMessage, WorkerMessage, WorkerToWorker,
 };
 
 /// Defines how the network receiver handles incoming workers messages.
@@ -55,6 +55,7 @@ impl WorkerToWorker for WorkerReceiverHandler {
 #[derive(Clone)]
 pub struct PrimaryReceiverHandler {
     pub tx_synchronizer: Sender<PrimaryWorkerMessage>,
+    pub store: Store<BatchDigest, Batch>,
 }
 
 #[async_trait]
@@ -72,5 +73,19 @@ impl PrimaryToWorker for PrimaryReceiverHandler {
             .map_err(|e| anemo::rpc::Status::internal(e.to_string()))?;
 
         Ok(anemo::Response::new(()))
+    }
+
+    async fn get_payload(
+        &self,
+        request: anemo::Request<GetPayloadRequest>,
+    ) -> Result<anemo::Response<GetPayloadResponse>, anemo::rpc::Status> {
+        let batch = request.into_body().batch;
+        let batch = self
+            .store
+            .read(batch)
+            .await
+            .map_err(|e| anemo::rpc::Status::from_error(Box::new(e)))?;
+
+        Ok(anemo::Response::new(GetPayloadResponse { batch }))
     }
 }

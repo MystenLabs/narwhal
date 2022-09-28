@@ -3,10 +3,6 @@
 use serde::{Deserialize, Serialize};
 use types::SequenceNumber;
 
-#[cfg(test)]
-#[path = "tests/state_tests.rs"]
-pub mod state_tests;
-
 /// The state of the subscriber keeping track of the transactions that have already been
 /// executed. It ensures we do not process twice the same transaction despite crash-recovery.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, Eq)]

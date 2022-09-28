@@ -99,8 +99,10 @@ impl Worker {
             tx_processor: tx_worker_processor.clone(),
             store: worker.store.clone(),
         });
-        let primary_service =
-            PrimaryToWorkerServer::new(PrimaryReceiverHandler { tx_synchronizer });
+        let primary_service = PrimaryToWorkerServer::new(PrimaryReceiverHandler {
+            tx_synchronizer,
+            store: worker.store.clone(),
+        });
 
         // Receive incoming messages from other workers.
         let address = worker

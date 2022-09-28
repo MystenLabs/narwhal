@@ -38,6 +38,7 @@ use prometheus::Registry;
 use std::{collections::BTreeMap, net::Ipv4Addr, sync::Arc};
 use storage::CertificateStore;
 use store::Store;
+use tokio::sync::oneshot;
 use tokio::{sync::watch, task::JoinHandle};
 use tracing::info;
 use types::{
@@ -88,6 +89,8 @@ impl Primary {
         tx_reconfigure: watch::Sender<ReconfigureNotification>,
         tx_committed_certificates: Sender<Certificate>,
         registry: &Registry,
+        // See comments in Subscriber::spawn
+        executor_network_rx: Option<oneshot::Sender<P2pNetwork>>,
     ) -> Vec<JoinHandle<()>> {
         // Write the parameters to the logs.
         parameters.tracing();
@@ -254,6 +257,13 @@ impl Primary {
 
         // The `SignatureService` is used to require signatures on specific digests.
         let signature_service = SignatureService::new(signer);
+
+        if let Some(executor_network_rx) = executor_network_rx {
+            let executor_network = P2pNetwork::new(network.clone());
+            if executor_network_rx.send(executor_network).is_err() {
+                panic!("Executor shut down before primary has a chance to start");
+            }
+        }
 
         // TODO (Laura): if we are restarting and not advancing, for the headers in the header
         // TODO (Laura): store that do not have a matching certificate, re-create and send a vote

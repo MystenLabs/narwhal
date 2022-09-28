@@ -25,11 +25,11 @@ use store::{reopen, rocks, rocks::DBMap, Store};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tracing::info;
 use types::{
-    Batch, BatchDigest, Certificate, CertificateDigest, ConsensusStore, Header, HeaderBuilder,
-    PrimaryMessage, PrimaryToPrimary, PrimaryToPrimaryServer, PrimaryToWorker,
-    PrimaryToWorkerServer, PrimaryWorkerMessage, Round, SequenceNumber, Transaction, Vote,
-    WorkerBatchRequest, WorkerBatchResponse, WorkerInfoResponse, WorkerMessage,
-    WorkerPrimaryMessage, WorkerToPrimary, WorkerToPrimaryServer, WorkerToWorker,
+    Batch, BatchDigest, Certificate, CertificateDigest, ConsensusStore, GetPayloadRequest,
+    GetPayloadResponse, Header, HeaderBuilder, PrimaryMessage, PrimaryToPrimary,
+    PrimaryToPrimaryServer, PrimaryToWorker, PrimaryToWorkerServer, PrimaryWorkerMessage, Round,
+    SequenceNumber, Transaction, Vote, WorkerBatchRequest, WorkerBatchResponse, WorkerInfoResponse,
+    WorkerMessage, WorkerPrimaryMessage, WorkerToPrimary, WorkerToPrimaryServer, WorkerToWorker,
     WorkerToWorkerServer,
 };
 
@@ -289,6 +289,14 @@ impl PrimaryToWorker for PrimaryToWorkerMockServer {
         let message = request.into_body();
         self.sender.send(message).await.unwrap();
         Ok(anemo::Response::new(()))
+    }
+
+    async fn get_payload(
+        &self,
+        _request: anemo::Request<GetPayloadRequest>,
+    ) -> Result<anemo::Response<GetPayloadResponse>, anemo::rpc::Status> {
+        tracing::error!("Not implemented PrimaryToWorkerMockServer::get_payload");
+        Err(anemo::rpc::Status::internal("Unimplemented"))
     }
 }
 
