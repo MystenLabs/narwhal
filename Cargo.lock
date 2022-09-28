@@ -78,6 +78,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "anemo-tower"
+version = "0.0.0"
+source = "git+https://github.com/mystenlabs/anemo.git?rev=b145cbcf4a1917197e2b9ee6a1523afdb623dbf2#b145cbcf4a1917197e2b9ee6a1523afdb623dbf2"
+dependencies = [
+ "anemo",
+ "bytes",
+ "futures",
+ "pin-project-lite",
+ "tower",
+ "tracing",
+]
+
+[[package]]
 name = "ansi_term"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2441,6 +2454,7 @@ name = "narwhal-network"
 version = "0.1.0"
 dependencies = [
  "anemo",
+ "anemo-tower",
  "anyhow",
  "async-trait",
  "backoff",
@@ -2518,6 +2532,7 @@ name = "narwhal-primary"
 version = "0.1.0"
 dependencies = [
  "anemo",
+ "anemo-tower",
  "anyhow",
  "arc-swap",
  "async-recursion",
@@ -2675,6 +2690,7 @@ name = "narwhal-worker"
 version = "0.1.0"
 dependencies = [
  "anemo",
+ "anemo-tower",
  "arc-swap",
  "async-trait",
  "bincode",
@@ -5146,6 +5162,7 @@ dependencies = [
  "aho-corasick",
  "anemo",
  "anemo-build",
+ "anemo-tower",
  "ansi_term",
  "anyhow",
  "arc-swap",
