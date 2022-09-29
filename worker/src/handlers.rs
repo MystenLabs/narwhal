@@ -268,17 +268,15 @@ impl PrimaryToWorker for PrimaryReceiverHandler {
             };
         }
 
-        // reply back immediately for the available ones
-        if !available.is_empty() {
-            // Doing this will ensure the batch id will be populated to primary even
-            // when other processes fail to do so (ex we received a batch from a peer
-            // worker and message has been missed by primary).
-            for digest in available {
-                let message = WorkerPrimaryMessage::OthersBatch(digest, self.id);
-                let _ = self.tx_primary.send(message).await.tap_err(|err| {
-                    debug!("{err:?} {}", DagError::ShuttingDown);
-                });
-            }
+        // Reply back immediately for the available ones.
+        // Doing this will ensure the batch id will be populated to primary even
+        // when other processes fail to do so (ex we received a batch from a peer
+        // worker and message has been missed by primary).
+        for digest in available {
+            let message = WorkerPrimaryMessage::OthersBatch(digest, self.id);
+            let _ = self.tx_primary.send(message).await.tap_err(|err| {
+                debug!("{err:?} {}", DagError::ShuttingDown);
+            });
         }
 
         if missing.is_empty() {

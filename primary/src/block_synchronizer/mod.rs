@@ -897,14 +897,14 @@ impl BlockSynchronizer {
                 .name;
 
             let message = WorkerSynchronizeMessage {
-                digests: batch_ids.clone(),
+                digests: batch_ids,
                 target: primary_peer_name.clone(),
             };
             let _ = self.network.unreliable_send(worker_name, &message);
 
             debug!(
                 "Sent request for batch ids {:?} to worker id {}",
-                batch_ids, worker_id
+                message.digests, worker_id
             );
         }
     }
