@@ -68,10 +68,10 @@ fn build_anemo_services(out_dir: &Path) {
         )
         .method(
             anemo_build::manual::Method::builder()
-                .name("get_payload")
-                .route_name("GetPayload")
-                .request_type("crate::GetPayloadRequest")
-                .response_type("crate::GetPayloadResponse")
+                .name("request_batch")
+                .route_name("RequestBatch")
+                .request_type("crate::RequestBatchRequest")
+                .response_type("crate::RequestBatchResponse")
                 .codec_path("anemo::rpc::codec::BincodeCodec")
                 .build(),
         )

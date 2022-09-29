@@ -18,8 +18,8 @@ pub struct ExecutorMetrics {
     /// The number of certificates processed by Subscriber
     /// during the recovery period to fetch their payloads.
     pub subscriber_recovered_certificates_count: IntCounter,
-    /// The number of pending remote calls to get_payload
-    pub pending_remote_get_payload: IntGauge,
+    /// The number of pending remote calls to request_batch
+    pub pending_remote_request_batch: IntGauge,
     /// The number of pending payload downloads
     pub waiting_elements_subscriber: IntGauge,
 }
@@ -65,9 +65,9 @@ impl ExecutorMetrics {
                 "Number of times certificate was found locally",
                 registry
             ).unwrap(),
-            pending_remote_get_payload: register_int_gauge_with_registry!(
-                "pending_remote_get_payload",
-                "The number of pending remote calls to get_payload",
+            pending_remote_request_batch: register_int_gauge_with_registry!(
+                "pending_remote_request_batch",
+                "The number of pending remote calls to request_batch",
                 registry
             ).unwrap(),
             waiting_elements_subscriber: register_int_gauge_with_registry!(

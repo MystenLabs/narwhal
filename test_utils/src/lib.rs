@@ -25,9 +25,9 @@ use store::{reopen, rocks, rocks::DBMap, Store};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tracing::info;
 use types::{
-    Batch, BatchDigest, Certificate, CertificateDigest, ConsensusStore, GetPayloadRequest,
-    GetPayloadResponse, Header, HeaderBuilder, PrimaryMessage, PrimaryToPrimary,
-    PrimaryToPrimaryServer, PrimaryToWorker, PrimaryToWorkerServer, PrimaryWorkerMessage, Round,
+    Batch, BatchDigest, Certificate, CertificateDigest, ConsensusStore, Header, HeaderBuilder,
+    PrimaryMessage, PrimaryToPrimary, PrimaryToPrimaryServer, PrimaryToWorker,
+    PrimaryToWorkerServer, PrimaryWorkerMessage, RequestBatchRequest, RequestBatchResponse, Round,
     SequenceNumber, Transaction, Vote, WorkerBatchRequest, WorkerBatchResponse, WorkerInfoResponse,
     WorkerMessage, WorkerPrimaryMessage, WorkerToPrimary, WorkerToPrimaryServer, WorkerToWorker,
     WorkerToWorkerServer,
@@ -291,11 +291,11 @@ impl PrimaryToWorker for PrimaryToWorkerMockServer {
         Ok(anemo::Response::new(()))
     }
 
-    async fn get_payload(
+    async fn request_batch(
         &self,
-        _request: anemo::Request<GetPayloadRequest>,
-    ) -> Result<anemo::Response<GetPayloadResponse>, anemo::rpc::Status> {
-        tracing::error!("Not implemented PrimaryToWorkerMockServer::get_payload");
+        _request: anemo::Request<RequestBatchRequest>,
+    ) -> Result<anemo::Response<RequestBatchResponse>, anemo::rpc::Status> {
+        tracing::error!("Not implemented PrimaryToWorkerMockServer::request_batch");
         Err(anemo::rpc::Status::internal("Unimplemented"))
     }
 }

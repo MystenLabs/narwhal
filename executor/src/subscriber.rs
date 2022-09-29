@@ -225,7 +225,7 @@ impl<Network: SubscriberNetwork> Fetcher<Network> {
     async fn try_fetch_locally(&self, digest: BatchDigest, worker_id: WorkerId) -> Option<Batch> {
         let _timer = self.metrics.subscriber_local_fetch_latency.start_timer();
         let worker = self.network.my_worker(&worker_id);
-        let payload = self.network.get_payload(digest, &worker).await;
+        let payload = self.network.request_batch(digest, &worker).await;
         match payload {
             Ok(Some(batch)) => {
                 debug!("Payload {} found locally", digest);
@@ -253,11 +253,11 @@ impl<Network: SubscriberNetwork> Fetcher<Network> {
         let mut timeout = Duration::from_secs(10);
         loop {
             let deadline = Instant::now() + timeout;
-            let get_payload_guard =
-                PendingGuard::make_inc(&self.metrics.pending_remote_get_payload);
+            let request_batch_guard =
+                PendingGuard::make_inc(&self.metrics.pending_remote_request_batch);
             let payload =
-                tokio::time::timeout_at(deadline, self.safe_get_payload(digest, &worker)).await;
-            drop(get_payload_guard);
+                tokio::time::timeout_at(deadline, self.safe_request_batch(digest, &worker)).await;
+            drop(request_batch_guard);
             match payload {
                 Ok(Ok(Some(payload))) => return payload,
                 Ok(Ok(None)) => error!("[Protocol violation] Payload {} was not found at worker {} while authority signed certificate", digest, worker),
@@ -276,13 +276,13 @@ impl<Network: SubscriberNetwork> Fetcher<Network> {
         }
     }
 
-    /// Issue get_payload RPC and verifies response integrity
-    async fn safe_get_payload(
+    /// Issue request_batch RPC and verifies response integrity
+    async fn safe_request_batch(
         &self,
         digest: BatchDigest,
         worker: &NetworkPublicKey,
     ) -> anyhow::Result<Option<Batch>> {
-        let payload = self.network.get_payload(digest, worker).await?;
+        let payload = self.network.request_batch(digest, worker).await?;
         if let Some(payload) = payload {
             let payload_digest = payload.digest();
             if payload_digest != digest {
@@ -323,7 +323,7 @@ pub trait SubscriberNetwork: Send + Sync {
         certificate: &Certificate,
         worker_id: &WorkerId,
     ) -> Vec<NetworkPublicKey>;
-    async fn get_payload(
+    async fn request_batch(
         &self,
         digest: BatchDigest,
         worker: &NetworkPublicKey,
@@ -371,12 +371,12 @@ impl SubscriberNetwork for SubscriberNetworkImpl {
             .collect()
     }
 
-    async fn get_payload(
+    async fn request_batch(
         &self,
         digest: BatchDigest,
         worker: &NetworkPublicKey,
     ) -> anyhow::Result<Option<Batch>> {
-        self.network.get_payload(worker, digest).await
+        self.network.request_batch(worker, digest).await
     }
 }
 
@@ -447,7 +447,7 @@ mod tests {
             self.data.get(digest).unwrap().keys().cloned().collect()
         }
 
-        async fn get_payload(
+        async fn request_batch(
             &self,
             digest: BatchDigest,
             worker: &NetworkPublicKey,

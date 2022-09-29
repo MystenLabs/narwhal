@@ -94,7 +94,7 @@ pub trait ReliableNetwork<Request: Clone + Send + Sync> {
 
 #[async_trait]
 pub trait Primary2WorkerRpc {
-    async fn get_payload(
+    async fn request_batch(
         &self,
         peer: &NetworkPublicKey,
         batch: BatchDigest,

@@ -33,12 +33,12 @@ pub struct WorkerBatchResponse {
 
 /// Used by primary to ask worker for the request.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
-pub struct GetPayloadRequest {
+pub struct RequestBatchRequest {
     pub batch: BatchDigest,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
-pub struct GetPayloadResponse {
+pub struct RequestBatchResponse {
     pub batch: Option<Batch>,
 }
 

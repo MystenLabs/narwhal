@@ -16,8 +16,8 @@ use rand::{rngs::SmallRng, SeedableRng as _};
 use std::collections::HashMap;
 use tokio::{runtime::Handle, task::JoinHandle};
 use types::{
-    Batch, BatchDigest, GetPayloadRequest, PrimaryMessage, PrimaryToPrimaryClient,
-    PrimaryToWorkerClient, PrimaryWorkerMessage, WorkerBatchRequest, WorkerBatchResponse,
+    Batch, BatchDigest, PrimaryMessage, PrimaryToPrimaryClient, PrimaryToWorkerClient,
+    PrimaryWorkerMessage, RequestBatchRequest, WorkerBatchRequest, WorkerBatchResponse,
     WorkerMessage, WorkerPrimaryMessage, WorkerToPrimaryClient, WorkerToWorkerClient,
 };
 
@@ -333,7 +333,7 @@ impl UnreliableNetwork<WorkerBatchRequest> for P2pNetwork {
 
 #[async_trait]
 impl Primary2WorkerRpc for P2pNetwork {
-    async fn get_payload(
+    async fn request_batch(
         &self,
         peer: &NetworkPublicKey,
         batch: BatchDigest,
@@ -343,9 +343,9 @@ impl Primary2WorkerRpc for P2pNetwork {
             .network
             .peer(peer_id)
             .ok_or_else(|| format_err!("Network has no connection with peer {peer_id}"))?;
-        let request = GetPayloadRequest { batch };
+        let request = RequestBatchRequest { batch };
         let response = PrimaryToWorkerClient::new(peer)
-            .get_payload(request)
+            .request_batch(request)
             .await
             .map_err(|e| format_err!("Network error {:?}", e))?;
         Ok(response.into_body().batch)
