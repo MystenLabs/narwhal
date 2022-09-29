@@ -1,7 +1,6 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use super::{NetworkModel, Primary, CHANNEL_CAPACITY};
-use crate::metrics::PrimaryChannelMetrics;
 use arc_swap::ArcSwap;
 use config::Parameters;
 use consensus::{dag::Dag, metrics::ConsensusMetrics};
@@ -30,30 +29,11 @@ async fn get_network_peers_from_admin_server() {
     // Make the data store.
     let store = NodeStorage::reopen(temp_dir());
 
-    let (tx_new_certificates, rx_new_certificates) = types::metered_channel::channel(
-        CHANNEL_CAPACITY,
-        &prometheus::IntGauge::new(
-            PrimaryChannelMetrics::NAME_NEW_CERTS,
-            PrimaryChannelMetrics::DESC_NEW_CERTS,
-        )
-        .unwrap(),
-    );
-    let (tx_feedback, rx_feedback) = types::metered_channel::channel(
-        CHANNEL_CAPACITY,
-        &prometheus::IntGauge::new(
-            PrimaryChannelMetrics::NAME_COMMITTED_CERTS,
-            PrimaryChannelMetrics::DESC_COMMITTED_CERTS,
-        )
-        .unwrap(),
-    );
-    let (tx_get_block_commands, rx_get_block_commands) = types::metered_channel::channel(
-        1,
-        &prometheus::IntGauge::new(
-            PrimaryChannelMetrics::NAME_GET_BLOCK_COMMANDS,
-            PrimaryChannelMetrics::DESC_GET_BLOCK_COMMANDS,
-        )
-        .unwrap(),
-    );
+    let (tx_new_certificates, rx_new_certificates) =
+        test_utils::test_new_certificates_channel!(CHANNEL_CAPACITY);
+    let (tx_feedback, rx_feedback) =
+        test_utils::test_committed_certificates_channel!(CHANNEL_CAPACITY);
+    let (tx_get_block_commands, rx_get_block_commands) = test_utils::test_get_block_commands!(1);
     let initial_committee = ReconfigureNotification::NewEpoch(committee.clone());
     let (tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
     let consensus_metrics = Arc::new(ConsensusMetrics::new(&Registry::new()));
