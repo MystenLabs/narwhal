@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":[["Metrics",""],["PrimaryNetworkMetrics",""],["WorkerNetworkMetrics",""]],"trait":[["NetworkMetrics",""]]};
+window.SIDEBAR_ITEMS = {"struct":[["MetricsMakeCallbackHandler",""],["MetricsResponseHandler",""],["NetworkMetrics",""]]};

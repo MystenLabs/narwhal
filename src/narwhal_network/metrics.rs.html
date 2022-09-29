@@ -153,159 +153,209 @@
 <span id="153">153</span>
 <span id="154">154</span>
 <span id="155">155</span>
+<span id="156">156</span>
+<span id="157">157</span>
+<span id="158">158</span>
+<span id="159">159</span>
+<span id="160">160</span>
+<span id="161">161</span>
+<span id="162">162</span>
+<span id="163">163</span>
+<span id="164">164</span>
+<span id="165">165</span>
+<span id="166">166</span>
+<span id="167">167</span>
+<span id="168">168</span>
+<span id="169">169</span>
+<span id="170">170</span>
+<span id="171">171</span>
+<span id="172">172</span>
+<span id="173">173</span>
+<span id="174">174</span>
+<span id="175">175</span>
+<span id="176">176</span>
+<span id="177">177</span>
+<span id="178">178</span>
+<span id="179">179</span>
+<span id="180">180</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-</span><span class="kw">use </span>prometheus::{default_registry, register_int_gauge_vec_with_registry, IntGaugeVec, Registry};
+</span><span class="kw">use </span>anemo_tower::callback::MakeCallbackHandler;
+<span class="kw">use </span>anemo_tower::callback::ResponseHandler;
+<span class="kw">use </span>prometheus::HistogramTimer;
+<span class="kw">use </span>prometheus::{
+    register_histogram_vec_with_registry, register_int_counter_vec_with_registry,
+    register_int_gauge_vec_with_registry, IntGaugeVec, Registry,
+};
+<span class="kw">use </span>prometheus::{HistogramVec, IntCounterVec};
 <span class="kw">use </span>std::sync::Arc;
 
-<span class="kw">pub trait </span>NetworkMetrics {
-    <span class="kw">fn </span>network_available_tasks(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>IntGaugeVec;
+<span class="attribute">#[derive(Clone)]
+</span><span class="kw">pub struct </span>NetworkMetrics {
+    <span class="doccomment">/// Counter of requests by route
+    </span>requests: IntCounterVec,
+    <span class="doccomment">/// Request latency by route
+    </span>request_latency: HistogramVec,
+    <span class="doccomment">/// Request size by route
+    </span>request_size: HistogramVec,
+    <span class="doccomment">/// Response size by route
+    </span>response_size: HistogramVec,
+    <span class="doccomment">/// Gauge of the number of inflight requests at any given time by route
+    </span>inflight_requests: IntGaugeVec,
+    <span class="doccomment">/// Failed requests by route
+    </span>errors: IntCounterVec,
 }
 
-<span class="attribute">#[derive(Clone, Debug)]
-</span><span class="kw">pub struct </span>PrimaryNetworkMetrics {
-    <span class="doccomment">/// The number of executor available tasks
-    </span><span class="kw">pub </span>network_available_tasks: IntGaugeVec,
-}
+<span class="kw">const </span>LATENCY_SEC_BUCKETS: <span class="kw-2">&amp;</span>[f64] = <span class="kw-2">&amp;</span>[
+    <span class="number">0.001</span>, <span class="number">0.005</span>, <span class="number">0.01</span>, <span class="number">0.05</span>, <span class="number">0.1</span>, <span class="number">0.25</span>, <span class="number">0.5</span>, <span class="number">1.</span>, <span class="number">2.5</span>, <span class="number">5.</span>, <span class="number">10.</span>, <span class="number">20.</span>, <span class="number">30.</span>, <span class="number">60.</span>, <span class="number">90.</span>,
+];
 
-<span class="kw">impl </span>PrimaryNetworkMetrics {
-    <span class="kw">pub fn </span>new(registry: <span class="kw-2">&amp;</span>Registry) -&gt; <span class="self">Self </span>{
+<span class="kw">impl </span>NetworkMetrics {
+    <span class="kw">pub fn </span>new(node: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str, direction: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str, registry: <span class="kw-2">&amp;</span>Registry) -&gt; <span class="self">Self </span>{
+        <span class="comment">// Buckets from 1kb to 8mb by powers of 2
+        </span><span class="kw">let </span>size_byte_buckets = prometheus::exponential_buckets(<span class="number">1024.0</span>, <span class="number">2.0</span>, <span class="number">15</span>).unwrap();
+
+        <span class="kw">let </span>requests = <span class="macro">register_int_counter_vec_with_registry!</span>(
+            <span class="macro">format!</span>(<span class="string">&quot;{node}_{direction}_requests&quot;</span>),
+            <span class="string">&quot;The number of requests made on the network&quot;</span>,
+            <span class="kw-2">&amp;</span>[<span class="string">&quot;route&quot;</span>],
+            registry
+        )
+        .unwrap();
+
+        <span class="kw">let </span>request_latency = <span class="macro">register_histogram_vec_with_registry!</span>(
+            <span class="macro">format!</span>(<span class="string">&quot;{node}_{direction}_request_latency&quot;</span>),
+            <span class="string">&quot;Latency of a request by route&quot;</span>,
+            <span class="kw-2">&amp;</span>[<span class="string">&quot;route&quot;</span>],
+            LATENCY_SEC_BUCKETS.to_vec(),
+            registry,
+        )
+        .unwrap();
+
+        <span class="kw">let </span>request_size = <span class="macro">register_histogram_vec_with_registry!</span>(
+            <span class="macro">format!</span>(<span class="string">&quot;{node}_{direction}_request_size&quot;</span>),
+            <span class="string">&quot;Size of a request by route&quot;</span>,
+            <span class="kw-2">&amp;</span>[<span class="string">&quot;route&quot;</span>],
+            size_byte_buckets.clone(),
+            registry,
+        )
+        .unwrap();
+
+        <span class="kw">let </span>response_size = <span class="macro">register_histogram_vec_with_registry!</span>(
+            <span class="macro">format!</span>(<span class="string">&quot;{node}_{direction}_response_size&quot;</span>),
+            <span class="string">&quot;Size of a response by route&quot;</span>,
+            <span class="kw-2">&amp;</span>[<span class="string">&quot;route&quot;</span>],
+            size_byte_buckets,
+            registry,
+        )
+        .unwrap();
+
+        <span class="kw">let </span>inflight_requests = <span class="macro">register_int_gauge_vec_with_registry!</span>(
+            <span class="macro">format!</span>(<span class="string">&quot;{node}_{direction}_inflight_requests&quot;</span>),
+            <span class="string">&quot;The number of inflight network requests&quot;</span>,
+            <span class="kw-2">&amp;</span>[<span class="string">&quot;route&quot;</span>],
+            registry
+        )
+        .unwrap();
+
+        <span class="kw">let </span>errors = <span class="macro">register_int_counter_vec_with_registry!</span>(
+            <span class="macro">format!</span>(<span class="string">&quot;{node}_{direction}_request_errors&quot;</span>),
+            <span class="string">&quot;Number of errors by route&quot;</span>,
+            <span class="kw-2">&amp;</span>[<span class="string">&quot;route&quot;</span>, <span class="string">&quot;status&quot;</span>],
+            registry,
+        )
+        .unwrap();
+
         <span class="self">Self </span>{
-            network_available_tasks: <span class="macro">register_int_gauge_vec_with_registry!</span>(
-                <span class="string">&quot;primary_network_available_tasks&quot;</span>,
-                <span class="string">&quot;The number of available tasks to run in the primary2primary network connector&quot;</span>,
-                <span class="kw-2">&amp;</span>[<span class="string">&quot;module&quot;</span>, <span class="string">&quot;network&quot;</span>, <span class="string">&quot;address&quot;</span>],
-                registry
-            )
-            .unwrap(),
+            requests,
+            request_latency,
+            request_size,
+            response_size,
+            inflight_requests,
+            errors,
         }
     }
 }
 
-<span class="kw">impl </span>NetworkMetrics <span class="kw">for </span>PrimaryNetworkMetrics {
-    <span class="kw">fn </span>network_available_tasks(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>IntGaugeVec {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.network_available_tasks
+<span class="attribute">#[derive(Clone)]
+</span><span class="kw">pub struct </span>MetricsMakeCallbackHandler {
+    metrics: Arc&lt;NetworkMetrics&gt;,
+}
+
+<span class="kw">impl </span>MetricsMakeCallbackHandler {
+    <span class="kw">pub fn </span>new(metrics: Arc&lt;NetworkMetrics&gt;) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{ metrics }
     }
 }
 
-<span class="kw">impl </span>Default <span class="kw">for </span>PrimaryNetworkMetrics {
-    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
-        <span class="self">Self</span>::new(default_registry())
-    }
-}
+<span class="kw">impl </span>MakeCallbackHandler <span class="kw">for </span>MetricsMakeCallbackHandler {
+    <span class="kw">type </span>Handler = MetricsResponseHandler;
 
-<span class="attribute">#[derive(Clone, Debug)]
-</span><span class="kw">pub struct </span>WorkerNetworkMetrics {
-    <span class="doccomment">/// The number of executor available tasks
-    </span><span class="kw">pub </span>network_available_tasks: IntGaugeVec,
-}
+    <span class="kw">fn </span>make_handler(<span class="kw-2">&amp;</span><span class="self">self</span>, request: <span class="kw-2">&amp;</span>anemo::Request&lt;bytes::Bytes&gt;) -&gt; <span class="self">Self</span>::Handler {
+        <span class="kw">let </span>route = request.route().to_owned();
 
-<span class="kw">impl </span>WorkerNetworkMetrics {
-    <span class="kw">pub fn </span>new(registry: <span class="kw-2">&amp;</span>Registry) -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{
-            network_available_tasks: <span class="macro">register_int_gauge_vec_with_registry!</span>(
-                <span class="string">&quot;worker_network_available_tasks&quot;</span>,
-                <span class="string">&quot;The number of available tasks to run in the worker2worker network connector&quot;</span>,
-                <span class="kw-2">&amp;</span>[<span class="string">&quot;module&quot;</span>, <span class="string">&quot;network&quot;</span>, <span class="string">&quot;address&quot;</span>],
-                registry
-            )
-            .unwrap(),
+        <span class="self">self</span>.metrics.requests.with_label_values(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>route]).inc();
+        <span class="self">self</span>.metrics
+            .inflight_requests
+            .with_label_values(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>route])
+            .inc();
+        <span class="self">self</span>.metrics
+            .request_size
+            .with_label_values(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>route])
+            .observe(request.body().len() <span class="kw">as </span>f64);
+
+        <span class="kw">let </span>timer = <span class="self">self
+            </span>.metrics
+            .request_latency
+            .with_label_values(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>route])
+            .start_timer();
+
+        MetricsResponseHandler {
+            metrics: <span class="self">self</span>.metrics.clone(),
+            timer,
+            route,
         }
     }
 }
 
-<span class="kw">impl </span>NetworkMetrics <span class="kw">for </span>WorkerNetworkMetrics {
-    <span class="kw">fn </span>network_available_tasks(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>IntGaugeVec {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.network_available_tasks
-    }
+<span class="kw">pub struct </span>MetricsResponseHandler {
+    metrics: Arc&lt;NetworkMetrics&gt;,
+    <span class="comment">// The timer is held on to and &quot;observed&quot; once dropped
+    </span><span class="attribute">#[allow(unused)]
+    </span>timer: HistogramTimer,
+    route: String,
 }
 
-<span class="kw">impl </span>Default <span class="kw">for </span>WorkerNetworkMetrics {
-    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
-        <span class="self">Self</span>::new(default_registry())
-    }
-}
+<span class="kw">impl </span>ResponseHandler <span class="kw">for </span>MetricsResponseHandler {
+    <span class="kw">fn </span>on_response(<span class="self">self</span>, response: <span class="kw-2">&amp;</span>anemo::Response&lt;bytes::Bytes&gt;) {
+        <span class="self">self</span>.metrics
+            .response_size
+            .with_label_values(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="self">self</span>.route])
+            .observe(response.body().len() <span class="kw">as </span>f64);
 
-<span class="kw">pub struct </span>Metrics&lt;N: NetworkMetrics&gt; {
-    <span class="doccomment">/// The handler to report the metrics.
-    </span>metrics_handler: Arc&lt;N&gt;,
-    <span class="doccomment">/// A tag used for every reported metric to trace the module where this has been used from
-    </span>module_tag: String,
-    <span class="doccomment">/// The network type - this shouldn&#39;t be set outside of this crate but is meant to
-    /// be initialised from the network modules.
-    </span>network_type: String,
-}
-
-<span class="kw">impl</span>&lt;N: NetworkMetrics&gt; Metrics&lt;N&gt; {
-    <span class="kw">pub fn </span>new(metrics_handler: Arc&lt;N&gt;, module_tag: String) -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{
-            metrics_handler,
-            module_tag,
-            network_type: <span class="string">&quot;&quot;</span>.to_string(),
+        <span class="kw">if </span>!response.status().is_success() {
+            <span class="kw">let </span>status = response.status().to_u16().to_string();
+            <span class="self">self</span>.metrics
+                .errors
+                .with_label_values(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="self">self</span>.route, <span class="kw-2">&amp;</span>status])
+                .inc();
         }
     }
 
-    <span class="kw">pub fn </span>from(metrics: Metrics&lt;N&gt;, network_type: String) -&gt; Metrics&lt;N&gt; {
-        Metrics {
-            metrics_handler: metrics.metrics_handler,
-            module_tag: metrics.module_tag,
-            network_type,
-        }
-    }
-
-    <span class="kw">pub fn </span>module_tag(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; String {
-        <span class="self">self</span>.module_tag.clone()
-    }
-
-    <span class="kw">pub fn </span>network_type(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; String {
-        <span class="self">self</span>.network_type.clone()
-    }
-
-    <span class="kw">pub fn </span>set_network_available_tasks(<span class="kw-2">&amp;</span><span class="self">self</span>, value: i64, addr: <span class="prelude-ty">Option</span>&lt;String&gt;) {
-        <span class="self">self</span>.metrics_handler
-            .network_available_tasks()
-            .with_label_values(<span class="kw-2">&amp;</span>[
-                <span class="self">self</span>.module_tag.as_str(),
-                <span class="self">self</span>.network_type.as_str(),
-                addr.map_or(<span class="string">&quot;&quot;</span>.to_string(), |a| a).as_str(),
-            ])
-            .set(value);
+    <span class="kw">fn </span>on_error&lt;E&gt;(<span class="self">self</span>, _error: <span class="kw-2">&amp;</span>E) {
+        <span class="self">self</span>.metrics
+            .errors
+            .with_label_values(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="self">self</span>.route, <span class="string">&quot;unknown&quot;</span>])
+            .inc();
     }
 }
 
-<span class="attribute">#[cfg(test)]
-</span><span class="kw">mod </span>test {
-    <span class="kw">use </span><span class="kw">crate</span>::metrics::{Metrics, NetworkMetrics, PrimaryNetworkMetrics};
-    <span class="kw">use </span>prometheus::Registry;
-    <span class="kw">use </span>std::{collections::HashMap, sync::Arc};
-
-    <span class="attribute">#[test]
-    </span><span class="kw">fn </span>test_called_metrics() {
-        <span class="comment">// GIVEN
-        </span><span class="kw">let </span>registry = Registry::new();
-        <span class="kw">let </span>metrics = Metrics {
-            metrics_handler: Arc::new(PrimaryNetworkMetrics::new(<span class="kw-2">&amp;</span>registry)),
-            module_tag: <span class="string">&quot;demo_handler&quot;</span>.to_string(),
-            network_type: <span class="string">&quot;primary&quot;</span>.to_string(),
-        };
-
-        <span class="comment">// WHEN update metrics
-        </span>metrics.set_network_available_tasks(<span class="number">14</span>, <span class="prelude-val">Some</span>(<span class="string">&quot;127.0.0.1&quot;</span>.to_string()));
-
-        <span class="comment">// THEN registry should be updated with expected tag
-        </span><span class="kw">let </span><span class="kw-2">mut </span>m = HashMap::new();
-        m.insert(<span class="string">&quot;module&quot;</span>, <span class="string">&quot;demo_handler&quot;</span>);
-        m.insert(<span class="string">&quot;network&quot;</span>, <span class="string">&quot;primary&quot;</span>);
-        m.insert(<span class="string">&quot;address&quot;</span>, <span class="string">&quot;127.0.0.1&quot;</span>);
-        <span class="macro">assert_eq!</span>(
-            metrics
-                .metrics_handler
-                .network_available_tasks()
-                .get_metric_with(<span class="kw-2">&amp;</span>m)
-                .unwrap()
-                .get(),
-            <span class="number">14
-        </span>);
+<span class="kw">impl </span>Drop <span class="kw">for </span>MetricsResponseHandler {
+    <span class="kw">fn </span>drop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="self">self</span>.metrics
+            .inflight_requests
+            .with_label_values(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="self">self</span>.route])
+            .dec();
     }
 }
 </code></pre></div>

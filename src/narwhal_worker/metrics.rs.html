@@ -187,10 +187,13 @@
 <span id="187">187</span>
 <span id="188">188</span>
 <span id="189">189</span>
+<span id="190">190</span>
+<span id="191">191</span>
+<span id="192">192</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span>mysten_network::metrics::MetricsCallbackProvider;
-<span class="kw">use </span>network::metrics::WorkerNetworkMetrics;
+<span class="kw">use </span>network::metrics::NetworkMetrics;
 <span class="kw">use </span>prometheus::{
     default_registry, register_histogram_vec_with_registry, register_int_counter_vec_with_registry,
     register_int_gauge_vec_with_registry, register_int_gauge_with_registry, HistogramVec,
@@ -204,7 +207,8 @@
     <span class="kw">pub </span>worker_metrics: <span class="prelude-ty">Option</span>&lt;WorkerMetrics&gt;,
     <span class="kw">pub </span>channel_metrics: <span class="prelude-ty">Option</span>&lt;WorkerChannelMetrics&gt;,
     <span class="kw">pub </span>endpoint_metrics: <span class="prelude-ty">Option</span>&lt;WorkerEndpointMetrics&gt;,
-    <span class="kw">pub </span>network_metrics: <span class="prelude-ty">Option</span>&lt;WorkerNetworkMetrics&gt;,
+    <span class="kw">pub </span>inbound_network_metrics: <span class="prelude-ty">Option</span>&lt;NetworkMetrics&gt;,
+    <span class="kw">pub </span>outbound_network_metrics: <span class="prelude-ty">Option</span>&lt;NetworkMetrics&gt;,
 }
 
 <span class="doccomment">/// Initialises the metrics
@@ -218,14 +222,16 @@
     <span class="comment">// Endpoint metrics
     </span><span class="kw">let </span>endpoint_metrics = WorkerEndpointMetrics::new(metrics_registry);
 
-    <span class="comment">// The network metrics
-    </span><span class="kw">let </span>network_metrics = WorkerNetworkMetrics::new(metrics_registry);
+    <span class="comment">// The metrics used for communicating over the network
+    </span><span class="kw">let </span>inbound_network_metrics = NetworkMetrics::new(<span class="string">&quot;worker&quot;</span>, <span class="string">&quot;inbound&quot;</span>, metrics_registry);
+    <span class="kw">let </span>outbound_network_metrics = NetworkMetrics::new(<span class="string">&quot;worker&quot;</span>, <span class="string">&quot;outbound&quot;</span>, metrics_registry);
 
     Metrics {
         worker_metrics: <span class="prelude-val">Some</span>(node_metrics),
         channel_metrics: <span class="prelude-val">Some</span>(channel_metrics),
         endpoint_metrics: <span class="prelude-val">Some</span>(endpoint_metrics),
-        network_metrics: <span class="prelude-val">Some</span>(network_metrics),
+        inbound_network_metrics: <span class="prelude-val">Some</span>(inbound_network_metrics),
+        outbound_network_metrics: <span class="prelude-val">Some</span>(outbound_network_metrics),
     }
 }
 

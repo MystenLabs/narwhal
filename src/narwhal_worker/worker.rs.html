@@ -425,6 +425,26 @@
 <span id="425">425</span>
 <span id="426">426</span>
 <span id="427">427</span>
+<span id="428">428</span>
+<span id="429">429</span>
+<span id="430">430</span>
+<span id="431">431</span>
+<span id="432">432</span>
+<span id="433">433</span>
+<span id="434">434</span>
+<span id="435">435</span>
+<span id="436">436</span>
+<span id="437">437</span>
+<span id="438">438</span>
+<span id="439">439</span>
+<span id="440">440</span>
+<span id="441">441</span>
+<span id="442">442</span>
+<span id="443">443</span>
+<span id="444">444</span>
+<span id="445">445</span>
+<span id="446">446</span>
+<span id="447">447</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -438,17 +458,20 @@
     synchronizer::Synchronizer,
 };
 <span class="kw">use </span>anemo::{types::PeerInfo, PeerId};
+<span class="kw">use </span>anemo_tower::{callback::CallbackLayer, trace::TraceLayer};
 <span class="kw">use </span>async_trait::async_trait;
 <span class="kw">use </span>config::{Parameters, SharedCommittee, SharedWorkerCache, WorkerId};
 <span class="kw">use </span>crypto::{traits::KeyPair <span class="kw">as _</span>, NetworkKeyPair, PublicKey};
 <span class="kw">use </span>futures::StreamExt;
 <span class="kw">use </span>multiaddr::{Multiaddr, Protocol};
+<span class="kw">use </span>network::metrics::MetricsMakeCallbackHandler;
 <span class="kw">use </span>network::P2pNetwork;
 <span class="kw">use </span>primary::PrimaryWorkerMessage;
 <span class="kw">use </span>std::{net::Ipv4Addr, sync::Arc};
 <span class="kw">use </span>store::Store;
 <span class="kw">use </span>tokio::{sync::watch, task::JoinHandle};
 <span class="kw">use </span>tonic::{Request, Response, Status};
+<span class="kw">use </span>tower::ServiceBuilder;
 <span class="kw">use </span>tracing::info;
 <span class="kw">use </span>types::{
     error::DagError,
@@ -509,6 +532,8 @@
         <span class="kw">let </span>node_metrics = Arc::new(metrics.worker_metrics.unwrap());
         <span class="kw">let </span>endpoint_metrics = metrics.endpoint_metrics.unwrap();
         <span class="kw">let </span>channel_metrics: Arc&lt;WorkerChannelMetrics&gt; = Arc::new(metrics.channel_metrics.unwrap());
+        <span class="kw">let </span>inbound_network_metrics = Arc::new(metrics.inbound_network_metrics.unwrap());
+        <span class="kw">let </span>outbound_network_metrics = Arc::new(metrics.outbound_network_metrics.unwrap());
 
         <span class="comment">// Spawn all worker tasks.
         </span><span class="kw">let </span>(tx_primary, rx_primary) = channel(CHANNEL_CAPACITY, <span class="kw-2">&amp;</span>channel_metrics.tx_primary);
@@ -545,10 +570,25 @@
         </span><span class="kw">let </span>routes = anemo::Router::new()
             .add_rpc_service(worker_service)
             .add_rpc_service(primary_service);
+
+        <span class="kw">let </span>service = ServiceBuilder::new()
+            .layer(TraceLayer::new())
+            .layer(CallbackLayer::new(MetricsMakeCallbackHandler::new(
+                inbound_network_metrics,
+            )))
+            .service(routes);
+
+        <span class="kw">let </span>outbound_layer = ServiceBuilder::new()
+            .layer(TraceLayer::new())
+            .layer(CallbackLayer::new(MetricsMakeCallbackHandler::new(
+                outbound_network_metrics,
+            )))
+            .into_inner();
         <span class="kw">let </span>network = anemo::Network::bind(addr)
             .server_name(<span class="string">&quot;narwhal&quot;</span>)
             .private_key(worker.keypair.copy().private().<span class="number">0</span>.to_bytes())
-            .start(routes)
+            .outbound_request_layer(outbound_layer)
+            .start(service)
             .unwrap();
 
         <span class="macro">info!</span>(<span class="string">&quot;Worker {} listening to worker messages on {}&quot;</span>, id, address);

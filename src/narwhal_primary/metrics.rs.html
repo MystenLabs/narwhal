@@ -481,13 +481,11 @@
 <span id="481">481</span>
 <span id="482">482</span>
 <span id="483">483</span>
-<span id="484">484</span>
-<span id="485">485</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span><span class="kw">crate</span>::EndpointMetrics;
 <span class="kw">use </span>mysten_network::metrics::MetricsCallbackProvider;
-<span class="kw">use </span>network::{metrics, metrics::PrimaryNetworkMetrics};
+<span class="kw">use </span>network::metrics::NetworkMetrics;
 <span class="kw">use </span>prometheus::{
     core::{AtomicI64, GenericGauge},
     default_registry, register_histogram_vec_with_registry, register_int_counter_vec_with_registry,
@@ -500,10 +498,10 @@
 <span class="attribute">#[derive(Clone)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Metrics {
     <span class="kw">pub</span>(<span class="kw">crate</span>) endpoint_metrics: <span class="prelude-ty">Option</span>&lt;EndpointMetrics&gt;,
-    <span class="kw">pub</span>(<span class="kw">crate</span>) primary_endpoint_metrics: <span class="prelude-ty">Option</span>&lt;PrimaryEndpointMetrics&gt;,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) inbound_network_metrics: <span class="prelude-ty">Option</span>&lt;NetworkMetrics&gt;,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) outbound_network_metrics: <span class="prelude-ty">Option</span>&lt;NetworkMetrics&gt;,
     <span class="kw">pub</span>(<span class="kw">crate</span>) primary_channel_metrics: <span class="prelude-ty">Option</span>&lt;PrimaryChannelMetrics&gt;,
     <span class="kw">pub</span>(<span class="kw">crate</span>) node_metrics: <span class="prelude-ty">Option</span>&lt;PrimaryMetrics&gt;,
-    <span class="kw">pub</span>(<span class="kw">crate</span>) network_metrics: <span class="prelude-ty">Option</span>&lt;PrimaryNetworkMetrics&gt;,
 }
 
 <span class="doccomment">/// Initialises the metrics
@@ -511,8 +509,9 @@
     <span class="comment">// The metrics used for the gRPC primary node endpoints we expose to the external consensus
     </span><span class="kw">let </span>endpoint_metrics = EndpointMetrics::new(metrics_registry);
 
-    <span class="comment">// The metrics used for the primary-to-primary communication node endpoints
-    </span><span class="kw">let </span>primary_endpoint_metrics = PrimaryEndpointMetrics::new(metrics_registry);
+    <span class="comment">// The metrics used for communicating over the network
+    </span><span class="kw">let </span>inbound_network_metrics = NetworkMetrics::new(<span class="string">&quot;primary&quot;</span>, <span class="string">&quot;inbound&quot;</span>, metrics_registry);
+    <span class="kw">let </span>outbound_network_metrics = NetworkMetrics::new(<span class="string">&quot;primary&quot;</span>, <span class="string">&quot;outbound&quot;</span>, metrics_registry);
 
     <span class="comment">// The metrics used for measuring the occupancy of the channels in the primary
     </span><span class="kw">let </span>primary_channel_metrics = PrimaryChannelMetrics::new(metrics_registry);
@@ -520,15 +519,12 @@
     <span class="comment">// Essential/core metrics across the primary node
     </span><span class="kw">let </span>node_metrics = PrimaryMetrics::new(metrics_registry);
 
-    <span class="comment">// Network metrics for the primary to primary comms
-    </span><span class="kw">let </span>network_metrics = metrics::PrimaryNetworkMetrics::new(metrics_registry);
-
     Metrics {
         node_metrics: <span class="prelude-val">Some</span>(node_metrics),
         endpoint_metrics: <span class="prelude-val">Some</span>(endpoint_metrics),
         primary_channel_metrics: <span class="prelude-val">Some</span>(primary_channel_metrics),
-        primary_endpoint_metrics: <span class="prelude-val">Some</span>(primary_endpoint_metrics),
-        network_metrics: <span class="prelude-val">Some</span>(network_metrics),
+        inbound_network_metrics: <span class="prelude-val">Some</span>(inbound_network_metrics),
+        outbound_network_metrics: <span class="prelude-val">Some</span>(outbound_network_metrics),
     }
 }
 
