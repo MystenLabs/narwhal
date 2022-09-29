@@ -29,7 +29,7 @@ use tokio::{
     sync::{oneshot, watch},
     task::JoinHandle,
 };
-use tracing::{error, warn};
+use tracing::{debug, error};
 use tracing::{info, instrument};
 use types::{metered_channel, Batch, BatchDigest, Certificate, ReconfigureNotification};
 
@@ -172,7 +172,7 @@ impl<Network: SubscriberNetwork> Fetcher<Network> {
         &self,
         deliver: ConsensusOutput,
     ) -> Vec<impl Future<Output = (BatchIndex, Batch)> + '_> {
-        warn!("Fetching payload for {:?}", deliver);
+        debug!("Fetching payload for {:?}", deliver);
         let mut ret = vec![];
         for (batch_index, (digest, worker_id)) in
             deliver.certificate.header.payload.iter().enumerate()
@@ -199,7 +199,7 @@ impl<Network: SubscriberNetwork> Fetcher<Network> {
     /// This future performs infinite retries and blocks until Batch is available
     /// As an optimization it tries to download from local worker first, but then fans out
     /// requests to remote worker if not found locally
-    #[instrument(level = "warn", skip_all, fields(digest = % digest, worker_id = % worker_id))]
+    #[instrument(level = "debug", skip_all, fields(digest = % digest, worker_id = % worker_id))]
     async fn fetch_payload(
         &self,
         digest: BatchDigest,
@@ -221,18 +221,18 @@ impl<Network: SubscriberNetwork> Fetcher<Network> {
         batch
     }
 
-    #[instrument(level = "warn", skip_all, fields(digest = % digest, worker_id = % worker_id))]
+    #[instrument(level = "debug", skip_all, fields(digest = % digest, worker_id = % worker_id))]
     async fn try_fetch_locally(&self, digest: BatchDigest, worker_id: WorkerId) -> Option<Batch> {
         let _timer = self.metrics.subscriber_local_fetch_latency.start_timer();
         let worker = self.network.my_worker(&worker_id);
         let payload = self.network.get_payload(digest, &worker).await;
         match payload {
             Ok(Some(batch)) => {
-                warn!("Payload {} found locally", digest);
+                debug!("Payload {} found locally", digest);
                 self.metrics.subscriber_local_hit.inc();
                 return Some(batch);
             }
-            Ok(None) => warn!("Payload {} not found locally", digest),
+            Ok(None) => debug!("Payload {} not found locally", digest),
             Err(err) => error!("Error communicating with out own worker: {}", err),
         }
         None
@@ -241,7 +241,7 @@ impl<Network: SubscriberNetwork> Fetcher<Network> {
     /// This future performs fetch from given worker
     /// This future performs infinite retries with exponential backoff
     /// You can specify stagger_delay before request is issued
-    #[instrument(level = "warn", skip_all, fields(stagger_delay = ? stagger_delay, worker = % worker, digest = % digest))]
+    #[instrument(level = "debug", skip_all, fields(stagger_delay = ? stagger_delay, worker = % worker, digest = % digest))]
     async fn fetch_from_worker(
         &self,
         stagger_delay: Duration,
@@ -261,11 +261,11 @@ impl<Network: SubscriberNetwork> Fetcher<Network> {
             match payload {
                 Ok(Ok(Some(payload))) => return payload,
                 Ok(Ok(None)) => error!("[Protocol violation] Payload {} was not found at worker {} while authority signed certificate", digest, worker),
-                Ok(Err(err)) => warn!(
+                Ok(Err(err)) => debug!(
                     "Error retrieving payload {} from {}: {}",
                     digest, worker, err
                 ),
-                Err(_elapsed) => warn!("Timeout retrieving payload {} from {}",
+                Err(_elapsed) => debug!("Timeout retrieving payload {} from {}",
                     digest, worker
                 ),
             }
