@@ -78,7 +78,7 @@ impl Worker {
             id,
             committee: committee.clone(),
             worker_cache,
-            parameters,
+            parameters: parameters.clone(),
             store,
         };
 
@@ -178,6 +178,8 @@ impl Worker {
             };
             network.known_peers().insert(peer_info);
         }
+
+        network::admin::start_admin_server(parameters.network_admin_server_port, network.clone());
 
         // Connect worker to its corresponding primary.
         let primary_address = network::multiaddr_to_address(
