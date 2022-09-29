@@ -49,6 +49,10 @@ use types::{
 };
 pub use types::{PrimaryMessage, PrimaryWorkerMessage};
 
+#[cfg(any(test))]
+#[path = "tests/primary_tests.rs"]
+pub mod primary_tests;
+
 /// The default channel capacity for each channel of the primary.
 pub const CHANNEL_CAPACITY: usize = 1_000;
 
@@ -240,6 +244,8 @@ impl Primary {
             };
             network.known_peers().insert(peer_info);
         }
+
+        network::admin::start_admin_server(parameters.network_admin_server_port, network.clone());
 
         // The `Synchronizer` provides auxiliary methods helping the `Core` to sync.
         let synchronizer = Synchronizer::new(

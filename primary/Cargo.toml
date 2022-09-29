@@ -48,6 +48,7 @@ workspace-hack = { version = "0.1", path = "../workspace-hack" }
 
 anemo = { git = "https://github.com/mystenlabs/anemo.git", rev = "6278d0fa78147a49ff2cb9dd2e45e763886be0a0" }
 
+
 [dev-dependencies]
 arc-swap = { version = "1.5.1", features = ["serde"] }
 async-trait = "0.1.57"
@@ -65,6 +66,7 @@ tracing = "0.1.36"
 tracing-test = "0.2.3"
 worker = { path = "../worker", package = "narwhal-worker" }
 storage = { path = "../storage", package = "narwhal-storage" }
+reqwest = { version = "0.11.12", features = ["json"] }
 
 [features]
 benchmark = []
