@@ -21,9 +21,9 @@ workspace-hack = { version = "0.1", path = "../workspace-hack" }
 rand = "0.8.5"
 
 [dev-dependencies]
-insta = { version = "1.20.0", features = ["json"] }
+insta = { version = "1.21.0", features = ["json"] }
 rand = "0.8.5"
 tempfile = "3.3.0"
 tracing-test = "0.2.3"
 
-test_utils = { path = "../test_utils", package = "narwhal-test-utils" }
+test-utils = { path = "../test-utils", package = "narwhal-test-utils" }
