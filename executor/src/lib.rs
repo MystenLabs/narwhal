@@ -11,8 +11,8 @@ pub use errors::{SubscriberError, SubscriberResult};
 pub use state::ExecutionIndices;
 use tracing::info;
 
+use crate::metrics::ExecutorMetrics;
 use crate::notifier::Notifier;
-use crate::{metrics::ExecutorMetrics, subscriber::Subscriber};
 use async_trait::async_trait;
 use config::{Committee, SharedWorkerCache};
 use consensus::ConsensusOutput;
@@ -24,6 +24,7 @@ use prometheus::Registry;
 use std::sync::Arc;
 use storage::CertificateStore;
 
+use crate::subscriber::spawn_subscriber;
 use tokio::sync::oneshot;
 use tokio::{sync::watch, task::JoinHandle};
 use types::{
@@ -84,7 +85,7 @@ impl Executor {
         let arc_metrics = Arc::new(metrics);
 
         // Spawn the subscriber.
-        let subscriber_handle = Subscriber::spawn(
+        let subscriber_handle = spawn_subscriber(
             name,
             network,
             worker_cache,
