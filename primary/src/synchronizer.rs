@@ -15,9 +15,6 @@ use types::{
     Round,
 };
 
-/// The number of missing rounds when a catch up process using range synchronization should be started.
-const MISSING_ROUNDS_CATCH_UP_THRESHOLD: Round = 2;
-
 #[cfg(test)]
 #[path = "tests/synchronizer_tests.rs"]
 pub mod synchronizer_tests;
@@ -175,10 +172,12 @@ impl Synchronizer {
 
     /// Checks if this primary is missing > 2 rounds of certificates and needs to start a range sync to catch up.
     /// Returns whether a catch up process is started. Does not block on finishing the catch up process.
-    pub async fn maybe_catch_up(&self, cert_round: Round) -> bool {
+    /// NOTE: this needs to be called in process_certificate(), but currently we do not.
+    #[allow(dead_code)]
+    pub async fn maybe_catch_up(&self, cert_round: Round, threshold: Round) -> bool {
         let latest_round = self.certificate_store.last_round_number().unwrap_or(0);
         let round_lag = cert_round.saturating_sub(latest_round);
-        if round_lag <= MISSING_ROUNDS_CATCH_UP_THRESHOLD {
+        if round_lag <= threshold {
             // No catch up is needed.
             return false;
         }
