@@ -227,12 +227,7 @@ impl Primary {
             .others_primaries(&name)
             .into_iter()
             .map(|(_, address, network_key)| (network_key, address));
-        let workers = worker_cache
-            .load()
-            .our_workers(&name)
-            .unwrap()
-            .into_iter()
-            .map(|info| (info.name, info.worker_address));
+        let workers = worker_cache.load().all_workers().into_iter();
         for (public_key, address) in primaries.chain(workers) {
             let peer_id = PeerId(public_key.0.to_bytes());
             let address = network::multiaddr_to_address(&address).unwrap();
