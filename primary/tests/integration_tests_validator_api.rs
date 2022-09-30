@@ -220,7 +220,8 @@ async fn test_get_collections() {
 }
 
 #[tokio::test]
-#[cfg_attr(windows, ignore)]
+// #[cfg_attr(windows, ignore)]
+#[ignore]
 async fn test_remove_collections() {
     telemetry_subscribers::init_for_testing();
 
