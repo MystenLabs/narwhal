@@ -36,88 +36,42 @@
 <span id="36">36</span>
 <span id="37">37</span>
 <span id="38">38</span>
-<span id="39">39</span>
-<span id="40">40</span>
-<span id="41">41</span>
-<span id="42">42</span>
-<span id="43">43</span>
-<span id="44">44</span>
-<span id="45">45</span>
-<span id="46">46</span>
-<span id="47">47</span>
-<span id="48">48</span>
-<span id="49">49</span>
-<span id="50">50</span>
-<span id="51">51</span>
-<span id="52">52</span>
-<span id="53">53</span>
-<span id="54">54</span>
-<span id="55">55</span>
-<span id="56">56</span>
-<span id="57">57</span>
-<span id="58">58</span>
-<span id="59">59</span>
-<span id="60">60</span>
-<span id="61">61</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span>async_trait::async_trait;
 <span class="kw">use </span>consensus::ConsensusOutput;
-<span class="kw">use </span>executor::{ExecutionIndices, ExecutionState, ExecutionStateError};
-<span class="kw">use </span>thiserror::Error;
+<span class="kw">use </span>executor::{ExecutionIndices, ExecutionState};
+
+<span class="kw">use </span>tokio::sync::mpsc::Sender;
 
 <span class="doccomment">/// A simple/dumb execution engine.
-</span><span class="kw">pub struct </span>SimpleExecutionState;
+</span><span class="kw">pub struct </span>SimpleExecutionState {
+    tx_transaction_confirmation: Sender&lt;Vec&lt;u8&gt;&gt;,
+}
+
+<span class="kw">impl </span>SimpleExecutionState {
+    <span class="kw">pub fn </span>new(tx_transaction_confirmation: Sender&lt;Vec&lt;u8&gt;&gt;) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            tx_transaction_confirmation,
+        }
+    }
+}
 
 <span class="attribute">#[async_trait]
 </span><span class="kw">impl </span>ExecutionState <span class="kw">for </span>SimpleExecutionState {
-    <span class="kw">type </span>Transaction = String;
-    <span class="kw">type </span>Error = SimpleExecutionError;
-    <span class="kw">type </span>Outcome = Vec&lt;u8&gt;;
-
     <span class="kw">async fn </span>handle_consensus_transaction(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         _consensus_output: <span class="kw-2">&amp;</span>ConsensusOutput,
         _execution_indices: ExecutionIndices,
-        _transaction: <span class="self">Self</span>::Transaction,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>::Outcome, <span class="self">Self</span>::Error&gt; {
-        <span class="prelude-val">Ok</span>(Vec::default())
-    }
-
-    <span class="kw">fn </span>ask_consensus_write_lock(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="bool-val">true
-    </span>}
-
-    <span class="kw">fn </span>release_consensus_write_lock(<span class="kw-2">&amp;</span><span class="self">self</span>) {}
-
-    <span class="kw">async fn </span>load_execution_indices(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;ExecutionIndices, <span class="self">Self</span>::Error&gt; {
-        <span class="prelude-val">Ok</span>(ExecutionIndices::default())
-    }
-}
-
-<span class="kw">impl </span>Default <span class="kw">for </span>SimpleExecutionState {
-    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
-        <span class="self">Self
-    </span>}
-}
-
-<span class="doccomment">/// A simple/dumb execution error.
-</span><span class="attribute">#[derive(Debug, Error)]
-</span><span class="kw">pub enum </span>SimpleExecutionError {
-    <span class="attribute">#[error(<span class="string">&quot;Something went wrong in the authority&quot;</span>)]
-    </span>ServerError,
-
-    <span class="attribute">#[error(<span class="string">&quot;The client made something bad&quot;</span>)]
-    </span>ClientError,
-}
-
-<span class="attribute">#[async_trait]
-</span><span class="kw">impl </span>ExecutionStateError <span class="kw">for </span>SimpleExecutionError {
-    <span class="kw">fn </span>node_error(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="kw">match </span><span class="self">self </span>{
-            <span class="self">Self</span>::ServerError =&gt; <span class="bool-val">true</span>,
-            <span class="self">Self</span>::ClientError =&gt; <span class="bool-val">false</span>,
+        transaction: Vec&lt;u8&gt;,
+    ) {
+        <span class="kw">if let </span><span class="prelude-val">Err</span>(err) = <span class="self">self</span>.tx_transaction_confirmation.send(transaction).<span class="kw">await </span>{
+            <span class="macro">eprintln!</span>(<span class="string">&quot;Failed to send txn in SimpleExecutionState: {}&quot;</span>, err);
         }
+    }
+
+    <span class="kw">async fn </span>load_execution_indices(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ExecutionIndices {
+        ExecutionIndices::default()
     }
 }
 </code></pre></div>

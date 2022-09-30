@@ -803,16 +803,13 @@
 <span id="803">803</span>
 <span id="804">804</span>
 <span id="805">805</span>
-<span id="806">806</span>
-<span id="807">807</span>
-<span id="808">808</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use crate</span>::{temp_dir, CommitteeFixture};
 <span class="kw">use </span>arc_swap::ArcSwap;
 <span class="kw">use </span>config::{Parameters, SharedCommittee, SharedWorkerCache, WorkerId};
 <span class="kw">use </span>crypto::{KeyPair, NetworkKeyPair, PublicKey};
-<span class="kw">use </span>executor::{SerializedTransaction, SubscriberResult};
+<span class="kw">use </span>executor::SerializedTransaction;
 <span class="kw">use </span>fastcrypto::traits::KeyPair <span class="kw">as _</span>;
 <span class="kw">use </span>itertools::Itertools;
 <span class="kw">use </span>multiaddr::Multiaddr;
@@ -1080,7 +1077,7 @@
     <span class="kw">pub </span>id: usize,
     <span class="kw">pub </span>key_pair: Arc&lt;KeyPair&gt;,
     <span class="kw">pub </span>network_key_pair: Arc&lt;NetworkKeyPair&gt;,
-    <span class="kw">pub </span>tx_transaction_confirmation: Sender&lt;(SubscriberResult&lt;Vec&lt;u8&gt;&gt;, SerializedTransaction)&gt;,
+    <span class="kw">pub </span>tx_transaction_confirmation: Sender&lt;SerializedTransaction&gt;,
     registry: Registry,
     store_path: PathBuf,
     committee: SharedCommittee,
@@ -1161,8 +1158,8 @@
             <span class="kw-2">&amp;</span>primary_store,
             <span class="self">self</span>.parameters.clone(),
             <span class="comment">/* consensus */ </span><span class="self">self</span>.internal_consensus_enabled,
-            <span class="comment">/* execution_state */ </span>Arc::new(SimpleExecutionState::default()),
-            tx_transaction_confirmation,
+            <span class="comment">/* execution_state */
+            </span>Arc::new(SimpleExecutionState::new(tx_transaction_confirmation)),
             <span class="kw-2">&amp;</span>registry,
         )
         .<span class="kw">await
@@ -1175,10 +1172,7 @@
         </span><span class="kw">let </span>h = tokio::spawn(<span class="kw">async move </span>{
             <span class="kw">while let </span><span class="prelude-val">Some</span>(t) = rx_transaction_confirmation.recv().<span class="kw">await </span>{
                 <span class="comment">// send the transaction to the mpmc channel
-                </span><span class="kw">if let </span><span class="prelude-val">Err</span>(e) = t.clone().<span class="number">0 </span>{
-                    <span class="macro">println!</span>(<span class="string">&quot;The result from consensus is an error: {:?}&quot;</span>, e);
-                }
-                <span class="kw">let _ </span>= transactions_sender.send(t);
+                </span><span class="kw">let _ </span>= transactions_sender.send(t);
             }
         });
 

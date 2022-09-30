@@ -172,23 +172,19 @@
 <span id="172">172</span>
 <span id="173">173</span>
 <span id="174">174</span>
-<span id="175">175</span>
-<span id="176">176</span>
-<span id="177">177</span>
-<span id="178">178</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use crate</span>::{Node, NodeStorage};
 <span class="kw">use </span>arc_swap::ArcSwap;
 <span class="kw">use </span>config::{Committee, Parameters, SharedWorkerCache, WorkerCache, WorkerId};
 <span class="kw">use </span>crypto::{KeyPair, NetworkKeyPair};
-<span class="kw">use </span>executor::{ExecutionState, ExecutorOutput};
+<span class="kw">use </span>executor::ExecutionState;
 <span class="kw">use </span>fastcrypto::traits::KeyPair <span class="kw">as _</span>;
 <span class="kw">use </span>futures::future::join_all;
 <span class="kw">use </span>network::{P2pNetwork, ReliableNetwork};
 <span class="kw">use </span>prometheus::Registry;
-<span class="kw">use </span>std::{fmt::Debug, path::PathBuf, sync::Arc};
-<span class="kw">use </span>tokio::sync::mpsc::{Receiver, Sender};
+<span class="kw">use </span>std::{path::PathBuf, sync::Arc};
+<span class="kw">use </span>tokio::sync::mpsc::Receiver;
 <span class="kw">use </span>types::{PrimaryWorkerMessage, ReconfigureNotification, WorkerPrimaryMessage};
 
 <span class="comment">// Module to start a node (primary, workers and default consensus), keep it running, and restarting it
@@ -212,12 +208,9 @@
             Vec&lt;(WorkerId, NetworkKeyPair)&gt;,
             WorkerCache,
         )&gt;,
-        tx_output: Sender&lt;ExecutorOutput&lt;State&gt;&gt;,
         registry: <span class="kw-2">&amp;</span>Registry,
     ) <span class="kw">where
         </span>State: ExecutionState + Send + Sync + <span class="lifetime">&#39;static</span>,
-        State::Outcome: Send + <span class="lifetime">&#39;static</span>,
-        State::Error: Debug,
     {
         <span class="kw">let </span><span class="kw-2">mut </span>primary_keypair = primary_keypair;
         <span class="kw">let </span><span class="kw-2">mut </span>primary_network_keypair = primary_network_keypair;
@@ -259,7 +252,6 @@
                 parameters.clone(),
                 <span class="comment">/* consensus */ </span><span class="bool-val">true</span>,
                 execution_state.clone(),
-                tx_output.clone(),
                 registry,
             )
             .<span class="kw">await

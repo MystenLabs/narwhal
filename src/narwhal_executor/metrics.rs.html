@@ -61,6 +61,29 @@
 <span id="61">61</span>
 <span id="62">62</span>
 <span id="63">63</span>
+<span id="64">64</span>
+<span id="65">65</span>
+<span id="66">66</span>
+<span id="67">67</span>
+<span id="68">68</span>
+<span id="69">69</span>
+<span id="70">70</span>
+<span id="71">71</span>
+<span id="72">72</span>
+<span id="73">73</span>
+<span id="74">74</span>
+<span id="75">75</span>
+<span id="76">76</span>
+<span id="77">77</span>
+<span id="78">78</span>
+<span id="79">79</span>
+<span id="80">80</span>
+<span id="81">81</span>
+<span id="82">82</span>
+<span id="83">83</span>
+<span id="84">84</span>
+<span id="85">85</span>
+<span id="86">86</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span>prometheus::{
@@ -72,14 +95,19 @@
 </span><span class="kw">pub struct </span>ExecutorMetrics {
     <span class="doccomment">/// occupancy of the channel from the `Subscriber` to `Core`
     </span><span class="kw">pub </span>tx_executor: IntGauge,
-    <span class="doccomment">/// Time it takes to download a payload on the Subscriber
-    </span><span class="kw">pub </span>subscriber_download_payload_latency: Histogram,
-    <span class="doccomment">/// The number of attempts to successfully download
-    /// a certificate&#39;s payload in Subscriber.
-    </span><span class="kw">pub </span>subscriber_download_payload_attempts: Histogram,
+    <span class="doccomment">/// Time it takes to download a payload from local worker peer
+    </span><span class="kw">pub </span>subscriber_local_fetch_latency: Histogram,
+    <span class="doccomment">/// Time it takes to download a payload from remote peer
+    </span><span class="kw">pub </span>subscriber_remote_fetch_latency: Histogram,
+    <span class="doccomment">/// Number of times certificate was found locally
+    </span><span class="kw">pub </span>subscriber_local_hit: IntCounter,
     <span class="doccomment">/// The number of certificates processed by Subscriber
     /// during the recovery period to fetch their payloads.
     </span><span class="kw">pub </span>subscriber_recovered_certificates_count: IntCounter,
+    <span class="doccomment">/// The number of pending remote calls to request_batch
+    </span><span class="kw">pub </span>pending_remote_request_batch: IntGauge,
+    <span class="doccomment">/// The number of pending payload downloads
+    </span><span class="kw">pub </span>waiting_elements_subscriber: IntGauge,
 }
 
 <span class="kw">impl </span>ExecutorMetrics {
@@ -91,9 +119,20 @@
                 registry
             )
             .unwrap(),
-            subscriber_download_payload_latency: <span class="macro">register_histogram_with_registry!</span>(
-                <span class="string">&quot;subscriber_download_payload_latency&quot;</span>,
-                <span class="string">&quot;Time it takes to download a payload on the Subscriber&quot;</span>,
+            subscriber_local_fetch_latency: <span class="macro">register_histogram_with_registry!</span>(
+                <span class="string">&quot;subscriber_local_fetch_latency&quot;</span>,
+                <span class="string">&quot;Time it takes to download a payload from local worker peer&quot;</span>,
+                <span class="comment">// the buckets defined in seconds
+                </span><span class="macro">vec!</span>[
+                    <span class="number">0.005</span>, <span class="number">0.01</span>, <span class="number">0.02</span>, <span class="number">0.05</span>, <span class="number">0.1</span>, <span class="number">0.25</span>, <span class="number">0.5</span>, <span class="number">1.0</span>, <span class="number">2.0</span>, <span class="number">3.0</span>, <span class="number">5.0</span>, <span class="number">10.0</span>, <span class="number">20.0</span>, <span class="number">40.0</span>,
+                    <span class="number">60.0
+                </span>],
+                registry
+            )
+            .unwrap(),
+            subscriber_remote_fetch_latency: <span class="macro">register_histogram_with_registry!</span>(
+                <span class="string">&quot;subscriber_remote_fetch_latency&quot;</span>,
+                <span class="string">&quot;Time it takes to download a payload from remote worker peer&quot;</span>,
                 <span class="comment">// the buckets defined in seconds
                 </span><span class="macro">vec!</span>[
                     <span class="number">0.005</span>, <span class="number">0.01</span>, <span class="number">0.02</span>, <span class="number">0.05</span>, <span class="number">0.1</span>, <span class="number">0.25</span>, <span class="number">0.5</span>, <span class="number">1.0</span>, <span class="number">2.0</span>, <span class="number">3.0</span>, <span class="number">5.0</span>, <span class="number">10.0</span>, <span class="number">20.0</span>, <span class="number">40.0</span>,
@@ -107,14 +146,21 @@
                 <span class="string">&quot;The number of certificates processed by Subscriber during the recovery period to fetch their payloads&quot;</span>,
                 registry
             ).unwrap(),
-            subscriber_download_payload_attempts: <span class="macro">register_histogram_with_registry!</span>(
-                <span class="string">&quot;subscriber_download_payload_attempts&quot;</span>,
-                <span class="string">&quot;The number of attempts to successfully download a certificate&#39;s payload in Subscriber&quot;</span>,
-                <span class="macro">vec!</span>[
-                    <span class="number">1.0</span>, <span class="number">2.0</span>, <span class="number">3.0</span>, <span class="number">4.0</span>, <span class="number">5.0</span>, <span class="number">7.0</span>, <span class="number">10.0</span>, <span class="number">15.0</span>, <span class="number">20.0
-                </span>],
+            subscriber_local_hit: <span class="macro">register_int_counter_with_registry!</span>(
+                <span class="string">&quot;subscriber_local_hit&quot;</span>,
+                <span class="string">&quot;Number of times certificate was found locally&quot;</span>,
                 registry
-            ).unwrap()
+            ).unwrap(),
+            pending_remote_request_batch: <span class="macro">register_int_gauge_with_registry!</span>(
+                <span class="string">&quot;pending_remote_request_batch&quot;</span>,
+                <span class="string">&quot;The number of pending remote calls to request_batch&quot;</span>,
+                registry
+            ).unwrap(),
+            waiting_elements_subscriber: <span class="macro">register_int_gauge_with_registry!</span>(
+                <span class="string">&quot;waiting_elements_subscriber&quot;</span>,
+                <span class="string">&quot;The number of pending payload downloads&quot;</span>,
+                registry
+            ).unwrap(),
         }
     }
 }

@@ -364,14 +364,40 @@
 <span id="364">364</span>
 <span id="365">365</span>
 <span id="366">366</span>
+<span id="367">367</span>
+<span id="368">368</span>
+<span id="369">369</span>
+<span id="370">370</span>
+<span id="371">371</span>
+<span id="372">372</span>
+<span id="373">373</span>
+<span id="374">374</span>
+<span id="375">375</span>
+<span id="376">376</span>
+<span id="377">377</span>
+<span id="378">378</span>
+<span id="379">379</span>
+<span id="380">380</span>
+<span id="381">381</span>
+<span id="382">382</span>
+<span id="383">383</span>
+<span id="384">384</span>
+<span id="385">385</span>
+<span id="386">386</span>
+<span id="387">387</span>
+<span id="388">388</span>
+<span id="389">389</span>
+<span id="390">390</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-</span><span class="kw">use crate</span>::{
+</span><span class="kw">use </span><span class="kw">crate</span>::traits::PrimaryToWorkerRpc;
+<span class="kw">use crate</span>::{
     traits::{Lucky, ReliableNetwork, UnreliableNetwork},
     BoundedExecutor, CancelOnDropHandler, RetryConfig, MAX_TASK_CONCURRENCY,
 };
 <span class="kw">use </span>anemo::PeerId;
+<span class="kw">use </span>anyhow::format_err;
 <span class="kw">use </span>anyhow::Result;
 <span class="kw">use </span>async_trait::async_trait;
 <span class="kw">use </span>crypto::{traits::KeyPair, NetworkPublicKey};
@@ -380,9 +406,10 @@
 <span class="kw">use </span>std::collections::HashMap;
 <span class="kw">use </span>tokio::{runtime::Handle, task::JoinHandle};
 <span class="kw">use </span>types::{
-    PrimaryMessage, PrimaryToPrimaryClient, PrimaryToWorkerClient, PrimaryWorkerMessage,
-    WorkerBatchRequest, WorkerBatchResponse, WorkerMessage, WorkerPrimaryMessage,
-    WorkerSynchronizeMessage, WorkerToPrimaryClient, WorkerToWorkerClient,
+    Batch, BatchDigest, PrimaryMessage, PrimaryToPrimaryClient, PrimaryToWorkerClient,
+    PrimaryWorkerMessage, RequestBatchRequest, WorkerBatchRequest, WorkerBatchResponse,
+    WorkerMessage, WorkerPrimaryMessage, WorkerSynchronizeMessage, WorkerToPrimaryClient,
+    WorkerToWorkerClient,
 };
 
 <span class="kw">fn </span>default_executor() -&gt; BoundedExecutor {
@@ -706,6 +733,27 @@
                 .<span class="kw">await
         </span>};
         <span class="self">self</span>.unreliable_send(peer, f)
+    }
+}
+
+<span class="attribute">#[async_trait]
+</span><span class="kw">impl </span>PrimaryToWorkerRpc <span class="kw">for </span>P2pNetwork {
+    <span class="kw">async fn </span>request_batch(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        peer: <span class="kw-2">&amp;</span>NetworkPublicKey,
+        batch: BatchDigest,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Batch&gt;&gt; {
+        <span class="kw">let </span>peer_id = PeerId(peer.<span class="number">0</span>.to_bytes());
+        <span class="kw">let </span>peer = <span class="self">self
+            </span>.network
+            .peer(peer_id)
+            .ok_or_else(|| <span class="macro">format_err!</span>(<span class="string">&quot;Network has no connection with peer {peer_id}&quot;</span>))<span class="question-mark">?</span>;
+        <span class="kw">let </span>request = RequestBatchRequest { batch };
+        <span class="kw">let </span>response = PrimaryToWorkerClient::new(peer)
+            .request_batch(request)
+            .<span class="kw">await
+            </span>.map_err(|e| <span class="macro">format_err!</span>(<span class="string">&quot;Network error {:?}&quot;</span>, e))<span class="question-mark">?</span>;
+        <span class="prelude-val">Ok</span>(response.into_body().batch)
     }
 }
 

@@ -976,6 +976,14 @@
 <span id="976">976</span>
 <span id="977">977</span>
 <span id="978">978</span>
+<span id="979">979</span>
+<span id="980">980</span>
+<span id="981">981</span>
+<span id="982">982</span>
+<span id="983">983</span>
+<span id="984">984</span>
+<span id="985">985</span>
+<span id="986">986</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -1005,10 +1013,10 @@
 <span class="kw">use </span>types::{
     Batch, BatchDigest, Certificate, CertificateDigest, ConsensusStore, Header, HeaderBuilder,
     PrimaryMessage, PrimaryToPrimary, PrimaryToPrimaryServer, PrimaryToWorker,
-    PrimaryToWorkerServer, PrimaryWorkerMessage, Round, SequenceNumber, Transaction, Vote,
-    WorkerBatchRequest, WorkerBatchResponse, WorkerInfoResponse, WorkerMessage,
-    WorkerPrimaryMessage, WorkerSynchronizeMessage, WorkerToPrimary, WorkerToPrimaryServer,
-    WorkerToWorker, WorkerToWorkerServer,
+    PrimaryToWorkerServer, PrimaryWorkerMessage, RequestBatchRequest, RequestBatchResponse, Round,
+    SequenceNumber, Transaction, Vote, WorkerBatchRequest, WorkerBatchResponse, WorkerInfoResponse,
+    WorkerMessage, WorkerPrimaryMessage, WorkerSynchronizeMessage, WorkerToPrimary,
+    WorkerToPrimaryServer, WorkerToWorker, WorkerToWorkerServer,
 };
 
 <span class="kw">pub mod </span>cluster;
@@ -1284,6 +1292,14 @@
         <span class="kw">let </span>message = request.into_body();
         <span class="self">self</span>.synchronize_sender.send(message).<span class="kw">await</span>.unwrap();
         <span class="prelude-val">Ok</span>(anemo::Response::new(()))
+    }
+
+    <span class="kw">async fn </span>request_batch(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        _request: anemo::Request&lt;RequestBatchRequest&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;anemo::Response&lt;RequestBatchResponse&gt;, anemo::rpc::Status&gt; {
+        <span class="macro">tracing::error!</span>(<span class="string">&quot;Not implemented PrimaryToWorkerMockServer::request_batch&quot;</span>);
+        <span class="prelude-val">Err</span>(anemo::rpc::Status::internal(<span class="string">&quot;Unimplemented&quot;</span>))
     }
 }
 

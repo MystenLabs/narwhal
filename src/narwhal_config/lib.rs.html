@@ -727,6 +727,17 @@
 <span id="727">727</span>
 <span id="728">728</span>
 <span id="729">729</span>
+<span id="730">730</span>
+<span id="731">731</span>
+<span id="732">732</span>
+<span id="733">733</span>
+<span id="734">734</span>
+<span id="735">735</span>
+<span id="736">736</span>
+<span id="737">737</span>
+<span id="738">738</span>
+<span id="739">739</span>
+<span id="740">740</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -1165,6 +1176,17 @@
             .cloned()
             .collect();
         <span class="prelude-val">Ok</span>(res)
+    }
+
+    <span class="doccomment">/// Returns the addresses of all known workers.
+    </span><span class="kw">pub fn </span>all_workers(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;(NetworkPublicKey, Multiaddr)&gt; {
+        <span class="self">self</span>.workers
+            .iter()
+            .flat_map(|(<span class="kw">_</span>, w)| {
+                w.<span class="number">0</span>.values()
+                    .map(|w| (w.name.clone(), w.worker_address.clone()))
+            })
+            .collect()
     }
 
     <span class="doccomment">/// Returns the addresses of all workers with a specific id except the ones of the authority

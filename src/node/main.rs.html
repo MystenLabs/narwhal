@@ -315,7 +315,7 @@
 <span class="kw">use </span>clap::{crate_name, crate_version, App, AppSettings, ArgMatches, SubCommand};
 <span class="kw">use </span>config::{Committee, Import, Parameters, WorkerCache, WorkerId};
 <span class="kw">use </span>crypto::{KeyPair, NetworkKeyPair};
-<span class="kw">use </span>executor::{SerializedTransaction, SubscriberResult};
+<span class="kw">use </span>executor::SerializedTransaction;
 <span class="kw">use </span>eyre::Context;
 <span class="kw">use </span>fastcrypto::{generate_production_keypair, traits::KeyPair <span class="kw">as _</span>};
 <span class="kw">use </span>futures::future::join_all;
@@ -551,8 +551,8 @@
                 <span class="kw-2">&amp;</span>store,
                 parameters.clone(),
                 <span class="comment">/* consensus */ </span>!sub_matches.is_present(<span class="string">&quot;consensus-disabled&quot;</span>),
-                <span class="comment">/* execution_state */ </span>Arc::new(SimpleExecutionState::default()),
-                tx_transaction_confirmation,
+                <span class="comment">/* execution_state */
+                </span>Arc::new(SimpleExecutionState::new(tx_transaction_confirmation)),
                 <span class="kw-2">&amp;</span>registry,
             )
             .<span class="kw">await</span><span class="question-mark">?
@@ -599,7 +599,7 @@
 }
 
 <span class="doccomment">/// Receives an ordered list of certificates and apply any application-specific logic.
-</span><span class="kw">async fn </span>analyze(<span class="kw-2">mut </span>rx_output: Receiver&lt;(SubscriberResult&lt;Vec&lt;u8&gt;&gt;, SerializedTransaction)&gt;) {
+</span><span class="kw">async fn </span>analyze(<span class="kw-2">mut </span>rx_output: Receiver&lt;SerializedTransaction&gt;) {
     <span class="kw">while let </span><span class="prelude-val">Some</span>(_message) = rx_output.recv().<span class="kw">await </span>{
         <span class="comment">// NOTE: Notify the user that its transaction has been processed.
     </span>}

@@ -648,6 +648,11 @@
 <span id="648">648</span>
 <span id="649">649</span>
 <span id="650">650</span>
+<span id="651">651</span>
+<span id="652">652</span>
+<span id="653">653</span>
+<span id="654">654</span>
+<span id="655">655</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -690,6 +695,7 @@
 <span class="kw">use </span>std::{collections::BTreeMap, net::Ipv4Addr, sync::Arc};
 <span class="kw">use </span>storage::CertificateStore;
 <span class="kw">use </span>store::Store;
+<span class="kw">use </span>tokio::sync::oneshot;
 <span class="kw">use </span>tokio::{sync::watch, task::JoinHandle};
 <span class="kw">use </span>tower::ServiceBuilder;
 <span class="kw">use </span>tracing::info;
@@ -741,6 +747,8 @@
         tx_reconfigure: watch::Sender&lt;ReconfigureNotification&gt;,
         tx_committed_certificates: Sender&lt;Certificate&gt;,
         registry: <span class="kw-2">&amp;</span>Registry,
+        <span class="comment">// See comments in Subscriber::spawn
+        </span>rx_executor_network: <span class="prelude-ty">Option</span>&lt;oneshot::Sender&lt;P2pNetwork&gt;&gt;,
     ) -&gt; Vec&lt;JoinHandle&lt;()&gt;&gt; {
         <span class="comment">// Write the parameters to the logs.
         </span>parameters.tracing();
@@ -892,12 +900,7 @@
             .others_primaries(<span class="kw-2">&amp;</span>name)
             .into_iter()
             .map(|(<span class="kw">_</span>, address, network_key)| (network_key, address));
-        <span class="kw">let </span>workers = worker_cache
-            .load()
-            .our_workers(<span class="kw-2">&amp;</span>name)
-            .unwrap()
-            .into_iter()
-            .map(|info| (info.name, info.worker_address));
+        <span class="kw">let </span>workers = worker_cache.load().all_workers().into_iter();
         <span class="kw">for </span>(public_key, address) <span class="kw">in </span>primaries.chain(workers) {
             <span class="kw">let </span>peer_id = PeerId(public_key.<span class="number">0</span>.to_bytes());
             <span class="kw">let </span>address = network::multiaddr_to_address(<span class="kw-2">&amp;</span>address).unwrap();
@@ -922,6 +925,13 @@
 
         <span class="comment">// The `SignatureService` is used to require signatures on specific digests.
         </span><span class="kw">let </span>signature_service = SignatureService::new(signer);
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(rx_executor_network) = rx_executor_network {
+            <span class="kw">let </span>executor_network = P2pNetwork::new(network.clone());
+            <span class="kw">if </span>rx_executor_network.send(executor_network).is_err() {
+                <span class="macro">panic!</span>(<span class="string">&quot;Executor shut down before primary has a chance to start&quot;</span>);
+            }
+        }
 
         <span class="comment">// TODO (Laura): if we are restarting and not advancing, for the headers in the header
         // TODO (Laura): store that do not have a matching certificate, re-create and send a vote

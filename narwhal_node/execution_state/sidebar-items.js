@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":[["SimpleExecutionError","A simple/dumb execution error."]],"struct":[["SimpleExecutionState","A simple/dumb execution engine."]]};
+window.SIDEBAR_ITEMS = {"struct":[["SimpleExecutionState","A simple/dumb execution engine."]]};

@@ -156,70 +156,37 @@
 <span id="156">156</span>
 <span id="157">157</span>
 <span id="158">158</span>
-<span id="159">159</span>
-<span id="160">160</span>
-<span id="161">161</span>
-<span id="162">162</span>
-<span id="163">163</span>
-<span id="164">164</span>
-<span id="165">165</span>
-<span id="166">166</span>
-<span id="167">167</span>
-<span id="168">168</span>
-<span id="169">169</span>
-<span id="170">170</span>
-<span id="171">171</span>
-<span id="172">172</span>
-<span id="173">173</span>
-<span id="174">174</span>
-<span id="175">175</span>
-<span id="176">176</span>
-<span id="177">177</span>
-<span id="178">178</span>
-<span id="179">179</span>
-<span id="180">180</span>
-<span id="181">181</span>
-<span id="182">182</span>
-<span id="183">183</span>
-<span id="184">184</span>
-<span id="185">185</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-</span><span class="kw">mod </span>core;
-<span class="kw">mod </span>errors;
+</span><span class="kw">mod </span>errors;
 <span class="kw">mod </span>state;
 <span class="kw">mod </span>subscriber;
 
-<span class="attribute">#[cfg(test)]
-#[path = <span class="string">&quot;tests/fixtures.rs&quot;</span>]
-</span><span class="kw">mod </span>fixtures;
-
-<span class="attribute">#[cfg(test)]
-#[path = <span class="string">&quot;tests/execution_state.rs&quot;</span>]
-</span><span class="kw">mod </span>execution_state;
-
 <span class="kw">mod </span>metrics;
+<span class="kw">mod </span>notifier;
 
-<span class="kw">pub use </span>errors::{ExecutionStateError, SubscriberError, SubscriberResult};
+<span class="kw">pub use </span>errors::{SubscriberError, SubscriberResult};
 <span class="kw">pub use </span>state::ExecutionIndices;
 <span class="kw">use </span>tracing::info;
 
-<span class="kw">use crate</span>::{core::Core, metrics::ExecutorMetrics, subscriber::Subscriber};
+<span class="kw">use </span><span class="kw">crate</span>::metrics::ExecutorMetrics;
+<span class="kw">use </span><span class="kw">crate</span>::notifier::Notifier;
 <span class="kw">use </span>async_trait::async_trait;
+<span class="kw">use </span>config::{Committee, SharedWorkerCache};
 <span class="kw">use </span>consensus::ConsensusOutput;
-<span class="kw">use </span>primary::BlockCommand;
+<span class="kw">use </span>crypto::PublicKey;
+<span class="kw">use </span>network::P2pNetwork;
+
 <span class="kw">use </span>prometheus::Registry;
-<span class="kw">use </span>serde::de::DeserializeOwned;
-<span class="kw">use </span>std::{fmt::Debug, sync::Arc};
+
+<span class="kw">use </span>std::sync::Arc;
 <span class="kw">use </span>storage::CertificateStore;
-<span class="kw">use </span>store::Store;
-<span class="kw">use </span>tokio::{
-    sync::{mpsc::Sender, watch},
-    task::JoinHandle,
-};
+
+<span class="kw">use </span><span class="kw">crate</span>::subscriber::spawn_subscriber;
+<span class="kw">use </span>tokio::sync::oneshot;
+<span class="kw">use </span>tokio::{sync::watch, task::JoinHandle};
 <span class="kw">use </span>types::{
-    metered_channel, Batch, BatchDigest, CertificateDigest, ConsensusStore,
-    ReconfigureNotification, SequenceNumber,
+    metered_channel, CertificateDigest, ConsensusStore, ReconfigureNotification, SequenceNumber,
 };
 
 <span class="doccomment">/// Convenience type representing a serialized transaction.
@@ -230,15 +197,6 @@
 
 <span class="attribute">#[async_trait]
 </span><span class="kw">pub trait </span>ExecutionState {
-    <span class="doccomment">/// The type of the transaction to process.
-    </span><span class="kw">type </span>Transaction: DeserializeOwned + Send + Debug;
-
-    <span class="doccomment">/// The error type to return in case something went wrong during execution.
-    </span><span class="kw">type </span>Error: ExecutionStateError;
-
-    <span class="doccomment">/// The execution outcome to output.
-    </span><span class="kw">type </span>Outcome;
-
     <span class="doccomment">/// Execute the transaction and atomically persist the consensus index. This function
     /// returns an execution outcome that will be output by the executor channel. It may
     /// also return a new committee to reconfigure the system.
@@ -246,98 +204,68 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         consensus_output: <span class="kw-2">&amp;</span>ConsensusOutput,
         execution_indices: ExecutionIndices,
-        transaction: <span class="self">Self</span>::Transaction,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>::Outcome, <span class="self">Self</span>::Error&gt;;
-
-    <span class="doccomment">/// Simple guardrail ensuring there is a single instance using the state
-    /// to call `handle_consensus_transaction`. Many instances may read the state,
-    /// or use it for other purposes.
-    </span><span class="kw">fn </span>ask_consensus_write_lock(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool;
-
-    <span class="doccomment">/// Tell the state that the caller instance is no longer using calling
-    </span><span class="comment">//// `handle_consensus_transaction`.
-    </span><span class="kw">fn </span>release_consensus_write_lock(<span class="kw-2">&amp;</span><span class="self">self</span>);
+        transaction: Vec&lt;u8&gt;,
+    );
 
     <span class="doccomment">/// Load the last consensus index from storage.
-    </span><span class="kw">async fn </span>load_execution_indices(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;ExecutionIndices, <span class="self">Self</span>::Error&gt;;
+    </span><span class="kw">async fn </span>load_execution_indices(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ExecutionIndices;
 }
-
-<span class="doccomment">/// The output of the executor.
-</span><span class="kw">pub type </span>ExecutorOutput&lt;State&gt; = (
-    SubscriberResult&lt;&lt;State <span class="kw">as </span>ExecutionState&gt;::Outcome&gt;,
-    SerializedTransaction,
-);
 
 <span class="doccomment">/// A client subscribing to the consensus output and executing every transaction.
 </span><span class="kw">pub struct </span>Executor;
 
 <span class="kw">impl </span>Executor {
     <span class="doccomment">/// Spawn a new client subscriber.
-    </span><span class="kw">pub async fn </span>spawn&lt;State&gt;(
-        store: Store&lt;(CertificateDigest, BatchDigest), Batch&gt;,
-        execution_state: Arc&lt;State&gt;,
+    </span><span class="kw">pub fn </span>spawn&lt;State&gt;(
+        name: PublicKey,
+        network: oneshot::Receiver&lt;P2pNetwork&gt;,
+        worker_cache: SharedWorkerCache,
+        committee: Committee,
+
+        execution_state: State,
         tx_reconfigure: <span class="kw-2">&amp;</span>watch::Sender&lt;ReconfigureNotification&gt;,
         rx_consensus: metered_channel::Receiver&lt;ConsensusOutput&gt;,
-        tx_output: Sender&lt;ExecutorOutput&lt;State&gt;&gt;,
-        tx_get_block_commands: metered_channel::Sender&lt;BlockCommand&gt;,
         registry: <span class="kw-2">&amp;</span>Registry,
         restored_consensus_output: Vec&lt;ConsensusOutput&gt;,
     ) -&gt; SubscriberResult&lt;Vec&lt;JoinHandle&lt;()&gt;&gt;&gt;
     <span class="kw">where
         </span>State: ExecutionState + Send + Sync + <span class="lifetime">&#39;static</span>,
-        State::Outcome: Send + <span class="lifetime">&#39;static</span>,
-        State::Error: Debug,
     {
         <span class="kw">let </span>metrics = ExecutorMetrics::new(registry);
 
-        <span class="kw">let </span>(tx_executor, rx_executor) =
+        <span class="kw">let </span>(tx_notifier, rx_notifier) =
             metered_channel::channel(primary::CHANNEL_CAPACITY, <span class="kw-2">&amp;</span>metrics.tx_executor);
-
-        <span class="comment">// Ensure there is a single consensus client modifying the execution state.
-        </span><span class="macro">ensure!</span>(
-            execution_state.ask_consensus_write_lock(),
-            SubscriberError::OnlyOneConsensusClientPermitted
-        );
 
         <span class="comment">// We expect this will ultimately be needed in the `Core` as well as the `Subscriber`.
         </span><span class="kw">let </span>arc_metrics = Arc::new(metrics);
 
         <span class="comment">// Spawn the subscriber.
-        </span><span class="kw">let </span>subscriber_handle = Subscriber::spawn(
-            store.clone(),
-            tx_get_block_commands,
+        </span><span class="kw">let </span>subscriber_handle = spawn_subscriber(
+            name,
+            network,
+            worker_cache,
+            committee,
             tx_reconfigure.subscribe(),
             rx_consensus,
-            tx_executor,
+            tx_notifier,
             arc_metrics,
             restored_consensus_output,
         );
 
-        <span class="comment">// Spawn the executor&#39;s core.
-        </span><span class="kw">let </span>executor_handle = Core::&lt;State&gt;::spawn(
-            store,
-            execution_state,
-            tx_reconfigure.subscribe(),
-            <span class="comment">/* rx_subscriber */ </span>rx_executor,
-            tx_output,
-        );
+        <span class="kw">let </span>notifier_handler = Notifier::spawn(rx_notifier, execution_state);
 
         <span class="comment">// Return the handle.
         </span><span class="macro">info!</span>(<span class="string">&quot;Consensus subscriber successfully started&quot;</span>);
 
-        <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[subscriber_handle, executor_handle])
+        <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[subscriber_handle, notifier_handler])
     }
 }
 
-<span class="kw">pub async fn </span>get_restored_consensus_output&lt;State&gt;(
+<span class="kw">pub async fn </span>get_restored_consensus_output&lt;State: ExecutionState&gt;(
     consensus_store: Arc&lt;ConsensusStore&gt;,
     certificate_store: CertificateStore,
-    execution_state: Arc&lt;State&gt;,
-) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;ConsensusOutput&gt;, SubscriberError&gt;
-<span class="kw">where
-    </span>State: ExecutionState + Send + Sync + <span class="lifetime">&#39;static</span>,
-    State::Error: Debug,
-{
+    execution_state: <span class="kw-2">&amp;</span>State,
+) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;ConsensusOutput&gt;, SubscriberError&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>restored_consensus_output = Vec::new();
     <span class="kw">let </span>consensus_next_index = consensus_store
         .read_last_consensus_index()
@@ -345,7 +273,7 @@
 
     <span class="kw">let </span>next_cert_index = execution_state
         .load_execution_indices()
-        .<span class="kw">await</span><span class="question-mark">?
+        .<span class="kw">await
         </span>.next_certificate_index;
 
     <span class="kw">if </span>next_cert_index &lt; consensus_next_index {
@@ -367,6 +295,24 @@
         }
     }
     <span class="prelude-val">Ok</span>(restored_consensus_output)
+}
+
+<span class="attribute">#[async_trait]
+</span><span class="kw">impl</span>&lt;T: ExecutionState + <span class="lifetime">&#39;static </span>+ Send + Sync&gt; ExecutionState <span class="kw">for </span>Arc&lt;T&gt; {
+    <span class="kw">async fn </span>handle_consensus_transaction(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        consensus_output: <span class="kw-2">&amp;</span>ConsensusOutput,
+        execution_indices: ExecutionIndices,
+        transaction: Vec&lt;u8&gt;,
+    ) {
+        <span class="self">self</span>.as_ref()
+            .handle_consensus_transaction(consensus_output, execution_indices, transaction)
+            .<span class="kw">await
+    </span>}
+
+    <span class="kw">async fn </span>load_execution_indices(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ExecutionIndices {
+        <span class="self">self</span>.as_ref().load_execution_indices().<span class="kw">await
+    </span>}
 }
 </code></pre></div>
 </section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="narwhal_executor" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (9c56d9d6f 2022-09-29)" ></div></body></html>

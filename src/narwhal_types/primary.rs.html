@@ -815,6 +815,18 @@
 <span id="815">815</span>
 <span id="816">816</span>
 <span id="817">817</span>
+<span id="818">818</span>
+<span id="819">819</span>
+<span id="820">820</span>
+<span id="821">821</span>
+<span id="822">822</span>
+<span id="823">823</span>
+<span id="824">824</span>
+<span id="825">825</span>
+<span id="826">826</span>
+<span id="827">827</span>
+<span id="828">828</span>
+<span id="829">829</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -825,7 +837,7 @@
 };
 <span class="kw">use </span>blake2::{digest::Update, VarBlake2b};
 <span class="kw">use </span>bytes::Bytes;
-<span class="kw">use </span>config::{Committee, Epoch, SharedWorkerCache, WorkerId, WorkerInfo};
+<span class="kw">use </span>config::{Committee, Epoch, SharedWorkerCache, Stake, WorkerId, WorkerInfo};
 <span class="kw">use </span>crypto::{AggregateSignature, PublicKey, Signature};
 <span class="kw">use </span>dag::node_dag::Affiliated;
 <span class="kw">use </span>derive_builder::Builder;
@@ -1301,6 +1313,35 @@
         })
     }
 
+    <span class="doccomment">/// This function requires that certificate was verified against given committee
+    </span><span class="kw">pub fn </span>signed_authorities(<span class="kw-2">&amp;</span><span class="self">self</span>, committee: <span class="kw-2">&amp;</span>Committee) -&gt; Vec&lt;PublicKey&gt; {
+        <span class="macro">assert_eq!</span>(committee.epoch, <span class="self">self</span>.epoch());
+        <span class="kw">let </span>(_stake, pks) = <span class="self">self</span>.signed_by(committee);
+        pks
+    }
+
+    <span class="kw">fn </span>signed_by(<span class="kw-2">&amp;</span><span class="self">self</span>, committee: <span class="kw-2">&amp;</span>Committee) -&gt; (Stake, Vec&lt;PublicKey&gt;) {
+        <span class="comment">// Ensure the certificate has a quorum.
+        </span><span class="kw">let </span><span class="kw-2">mut </span>weight = <span class="number">0</span>;
+
+        <span class="kw">let </span>auth_indexes = <span class="self">self</span>.signed_authorities.iter().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+        <span class="kw">let </span><span class="kw-2">mut </span>auth_iter = <span class="number">0</span>;
+        <span class="kw">let </span>pks = committee
+            .authorities()
+            .enumerate()
+            .filter(|(i, (<span class="kw">_</span>, auth))| <span class="kw">match </span>auth_indexes.get(auth_iter) {
+                <span class="prelude-val">Some</span>(index) <span class="kw">if </span><span class="kw-2">*</span>index == <span class="kw-2">*</span>i <span class="kw">as </span>u32 =&gt; {
+                    weight += auth.stake;
+                    auth_iter += <span class="number">1</span>;
+                    <span class="bool-val">true
+                </span>}
+                <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+            })
+            .map(|(<span class="kw">_</span>, (pk, <span class="kw">_</span>))| pk.clone())
+            .collect();
+        (weight, pks)
+    }
+
     <span class="kw">pub fn </span>verify(<span class="kw-2">&amp;</span><span class="self">self</span>, committee: <span class="kw-2">&amp;</span>Committee, worker_cache: SharedWorkerCache) -&gt; DagResult&lt;()&gt; {
         <span class="comment">// Ensure the header is from the correct epoch.
         </span><span class="macro">ensure!</span>(
@@ -1319,24 +1360,7 @@
         <span class="comment">// Check the embedded header.
         </span><span class="self">self</span>.header.verify(committee, worker_cache)<span class="question-mark">?</span>;
 
-        <span class="comment">// Ensure the certificate has a quorum.
-        </span><span class="kw">let </span><span class="kw-2">mut </span>weight = <span class="number">0</span>;
-
-        <span class="kw">let </span>auth_indexes = <span class="self">self</span>.signed_authorities.iter().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-        <span class="kw">let </span><span class="kw-2">mut </span>auth_iter = <span class="number">0</span>;
-        <span class="kw">let </span>pks: Vec&lt;<span class="kw">_</span>&gt; = committee
-            .authorities()
-            .enumerate()
-            .filter(|(i, (<span class="kw">_</span>, auth))| <span class="kw">match </span>auth_indexes.get(auth_iter) {
-                <span class="prelude-val">Some</span>(index) <span class="kw">if </span><span class="kw-2">*</span>index == <span class="kw-2">*</span>i <span class="kw">as </span>u32 =&gt; {
-                    weight += auth.stake;
-                    auth_iter += <span class="number">1</span>;
-                    <span class="bool-val">true
-                </span>}
-                <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
-            })
-            .map(|(<span class="kw">_</span>, (pk, <span class="kw">_</span>))| pk.clone())
-            .collect();
+        <span class="kw">let </span>(weight, pks) = <span class="self">self</span>.signed_by(committee);
 
         <span class="macro">ensure!</span>(
             weight &gt;= committee.quorum_threshold(),

@@ -90,6 +90,16 @@
 <span id="90">90</span>
 <span id="91">91</span>
 <span id="92">92</span>
+<span id="93">93</span>
+<span id="94">94</span>
+<span id="95">95</span>
+<span id="96">96</span>
+<span id="97">97</span>
+<span id="98">98</span>
+<span id="99">99</span>
+<span id="100">100</span>
+<span id="101">101</span>
+<span id="102">102</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span><span class="kw">crate</span>::CancelOnDropHandler;
@@ -98,6 +108,7 @@
 <span class="kw">use </span>crypto::NetworkPublicKey;
 <span class="kw">use </span>rand::prelude::{SliceRandom, SmallRng};
 <span class="kw">use </span>tokio::task::JoinHandle;
+<span class="kw">use </span>types::{Batch, BatchDigest};
 
 <span class="kw">pub trait </span>UnreliableNetwork&lt;Request: Clone + Send + Sync&gt; {
     <span class="kw">type </span>Response: Clone + Send + Sync;
@@ -181,6 +192,15 @@
         }
         handlers
     }
+}
+
+<span class="attribute">#[async_trait]
+</span><span class="kw">pub trait </span>PrimaryToWorkerRpc {
+    <span class="kw">async fn </span>request_batch(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        peer: <span class="kw-2">&amp;</span>NetworkPublicKey,
+        batch: BatchDigest,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Batch&gt;&gt;;
 }
 </code></pre></div>
 </section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="narwhal_network" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (9c56d9d6f 2022-09-29)" ></div></body></html>

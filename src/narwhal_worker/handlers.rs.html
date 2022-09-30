@@ -378,6 +378,20 @@
 <span id="378">378</span>
 <span id="379">379</span>
 <span id="380">380</span>
+<span id="381">381</span>
+<span id="382">382</span>
+<span id="383">383</span>
+<span id="384">384</span>
+<span id="385">385</span>
+<span id="386">386</span>
+<span id="387">387</span>
+<span id="388">388</span>
+<span id="389">389</span>
+<span id="390">390</span>
+<span id="391">391</span>
+<span id="392">392</span>
+<span id="393">393</span>
+<span id="394">394</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -401,8 +415,8 @@
     error::DagError,
     metered_channel::{Receiver, Sender},
     Batch, BatchDigest, PrimaryToWorker, PrimaryWorkerMessage, ReconfigureNotification,
-    WorkerBatchRequest, WorkerBatchResponse, WorkerMessage, WorkerPrimaryMessage,
-    WorkerSynchronizeMessage, WorkerToWorker,
+    RequestBatchRequest, RequestBatchResponse, WorkerBatchRequest, WorkerBatchResponse,
+    WorkerMessage, WorkerPrimaryMessage, WorkerSynchronizeMessage, WorkerToWorker,
 };
 
 <span class="attribute">#[cfg(test)]
@@ -756,6 +770,20 @@
         <span class="prelude-val">Err</span>(anemo::rpc::Status::unknown(<span class="macro">format!</span>(
             <span class="string">&quot;Unable to retrieve batches after retry: {missing:?}&quot;
         </span>)))
+    }
+
+    <span class="kw">async fn </span>request_batch(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        request: anemo::Request&lt;RequestBatchRequest&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;anemo::Response&lt;RequestBatchResponse&gt;, anemo::rpc::Status&gt; {
+        <span class="kw">let </span>batch = request.into_body().batch;
+        <span class="kw">let </span>batch = <span class="self">self
+            </span>.store
+            .read(batch)
+            .<span class="kw">await
+            </span>.map_err(|e| anemo::rpc::Status::from_error(Box::new(e)))<span class="question-mark">?</span>;
+
+        <span class="prelude-val">Ok</span>(anemo::Response::new(RequestBatchResponse { batch }))
     }
 }
 </code></pre></div>

@@ -397,15 +397,6 @@
 <span id="397">397</span>
 <span id="398">398</span>
 <span id="399">399</span>
-<span id="400">400</span>
-<span id="401">401</span>
-<span id="402">402</span>
-<span id="403">403</span>
-<span id="404">404</span>
-<span id="405">405</span>
-<span id="406">406</span>
-<span id="407">407</span>
-<span id="408">408</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span>config::{Parameters, SharedCommittee, SharedWorkerCache, WorkerId};
@@ -417,25 +408,21 @@
 };
 
 <span class="kw">use </span>crypto::{KeyPair, NetworkKeyPair, PublicKey};
-<span class="kw">use </span>executor::{
-    get_restored_consensus_output, ExecutionState, Executor, ExecutorOutput, SerializedTransaction,
-    SubscriberResult,
-};
+<span class="kw">use </span>executor::{get_restored_consensus_output, ExecutionState, Executor, SubscriberResult};
 <span class="kw">use </span>fastcrypto::traits::{KeyPair <span class="kw">as _</span>, VerifyingKey};
 <span class="kw">use </span>itertools::Itertools;
-<span class="kw">use </span>primary::{BlockCommand, NetworkModel, PayloadToken, Primary, PrimaryChannelMetrics};
+<span class="kw">use </span>network::P2pNetwork;
+<span class="kw">use </span>primary::{NetworkModel, PayloadToken, Primary, PrimaryChannelMetrics};
 <span class="kw">use </span>prometheus::{IntGauge, Registry};
-<span class="kw">use </span>std::{fmt::Debug, sync::Arc};
+<span class="kw">use </span>std::sync::Arc;
 <span class="kw">use </span>storage::{CertificateStore, CertificateToken};
 <span class="kw">use </span>store::{
     reopen,
     rocks::{open_cf, DBMap},
     Store,
 };
-<span class="kw">use </span>tokio::{
-    sync::{mpsc::Sender, watch},
-    task::JoinHandle,
-};
+<span class="kw">use </span>tokio::sync::oneshot;
+<span class="kw">use </span>tokio::{sync::watch, task::JoinHandle};
 <span class="kw">use </span>tracing::{debug, info};
 <span class="kw">use </span>types::{
     metered_channel, Batch, BatchDigest, Certificate, CertificateDigest, ConsensusStore, Header,
@@ -560,15 +547,11 @@
         </span>internal_consensus: bool,
         <span class="comment">// The state used by the client to execute transactions.
         </span>execution_state: Arc&lt;State&gt;,
-        <span class="comment">// A channel to output transactions execution confirmations.
-        </span>tx_confirmation: Sender&lt;ExecutorOutput&lt;State&gt;&gt;,
         <span class="comment">// A prometheus exporter Registry to use for the metrics
         </span>registry: <span class="kw-2">&amp;</span>Registry,
     ) -&gt; SubscriberResult&lt;Vec&lt;JoinHandle&lt;()&gt;&gt;&gt;
     <span class="kw">where
         </span>State: ExecutionState + Send + Sync + <span class="lifetime">&#39;static</span>,
-        State::Outcome: Send + <span class="lifetime">&#39;static</span>,
-        State::Error: Debug,
     {
         <span class="kw">let </span>initial_committee = ReconfigureNotification::NewEpoch((<span class="kw-2">**</span>committee.load()).clone());
         <span class="kw">let </span>(tx_reconfigure, _rx_reconfigure) = watch::channel(initial_committee);
@@ -602,7 +585,7 @@
         <span class="comment">// Compute the public key of this authority.
         </span><span class="kw">let </span>name = keypair.public().clone();
         <span class="kw">let </span><span class="kw-2">mut </span>handles = Vec::new();
-
+        <span class="kw">let </span>(rx_executor_network, tx_executor_network) = oneshot::channel();
         <span class="kw">let </span>(dag, network_model) = <span class="kw">if </span>!internal_consensus {
             <span class="macro">debug!</span>(<span class="string">&quot;Consensus is disabled: the primary will run w/o Tusk&quot;</span>);
             <span class="kw">let </span>consensus_metrics = Arc::new(ConsensusMetrics::new(registry));
@@ -613,6 +596,9 @@
             (<span class="prelude-val">Some</span>(Arc::new(dag)), NetworkModel::Asynchronous)
         } <span class="kw">else </span>{
             <span class="kw">let </span>consensus_handles = <span class="self">Self</span>::spawn_consensus(
+                name.clone(),
+                tx_executor_network,
+                worker_cache.clone(),
                 committee.clone(),
                 store,
                 parameters.clone(),
@@ -620,8 +606,6 @@
                 <span class="kw-2">&amp;</span>tx_reconfigure,
                 rx_new_certificates,
                 tx_consensus.clone(),
-                tx_confirmation,
-                tx_get_block_commands.clone(),
                 registry,
             )
             .<span class="kw">await</span><span class="question-mark">?</span>;
@@ -665,6 +649,7 @@
             tx_reconfigure,
             tx_consensus,
             registry,
+            <span class="prelude-val">Some</span>(rx_executor_network),
         );
         handles.extend(primary_handles);
 
@@ -690,25 +675,22 @@
 
     <span class="doccomment">/// Spawn the consensus core and the client executing transactions.
     </span><span class="kw">async fn </span>spawn_consensus&lt;State&gt;(
+        name: PublicKey,
+        network: oneshot::Receiver&lt;P2pNetwork&gt;,
+        worker_cache: SharedWorkerCache,
+
         committee: SharedCommittee,
         store: <span class="kw-2">&amp;</span>NodeStorage,
         parameters: Parameters,
-        execution_state: Arc&lt;State&gt;,
+        execution_state: State,
         tx_reconfigure: <span class="kw-2">&amp;</span>watch::Sender&lt;ReconfigureNotification&gt;,
         rx_new_certificates: metered_channel::Receiver&lt;Certificate&gt;,
         tx_feedback: metered_channel::Sender&lt;Certificate&gt;,
-        tx_confirmation: Sender&lt;(
-            SubscriberResult&lt;&lt;State <span class="kw">as </span>ExecutionState&gt;::Outcome&gt;,
-            SerializedTransaction,
-        )&gt;,
-        tx_get_block_commands: metered_channel::Sender&lt;BlockCommand&gt;,
         registry: <span class="kw-2">&amp;</span>Registry,
     ) -&gt; SubscriberResult&lt;Vec&lt;JoinHandle&lt;()&gt;&gt;&gt;
     <span class="kw">where
         </span>PublicKey: VerifyingKey,
         State: ExecutionState + Send + Sync + <span class="lifetime">&#39;static</span>,
-        State::Outcome: Send + <span class="lifetime">&#39;static</span>,
-        State::Error: Debug,
     {
         <span class="kw">let </span>consensus_metrics = Arc::new(ConsensusMetrics::new(registry));
         <span class="kw">let </span>channel_metrics = ChannelMetrics::new(registry);
@@ -720,7 +702,7 @@
         </span><span class="kw">let </span>restored_consensus_output = get_restored_consensus_output(
             store.consensus_store.clone(),
             store.certificate_store.clone(),
-            execution_state.clone(),
+            <span class="kw-2">&amp;</span>execution_state,
         )
         .<span class="kw">await</span><span class="question-mark">?
         </span>.into_iter()
@@ -760,16 +742,16 @@
         <span class="comment">// Spawn the client executing the transactions. It can also synchronize with the
         // subscriber handler if it missed some transactions.
         </span><span class="kw">let </span>executor_handles = Executor::spawn(
-            store.temp_batch_store.clone(),
+            name,
+            network,
+            worker_cache,
+            (<span class="kw-2">**</span>committee.load()).clone(),
             execution_state,
             tx_reconfigure,
             <span class="comment">/* rx_consensus */ </span>rx_sequence,
-            <span class="comment">/* tx_output */ </span>tx_confirmation,
-            tx_get_block_commands,
             registry,
             restored_consensus_output,
-        )
-        .<span class="kw">await</span><span class="question-mark">?</span>;
+        )<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(executor_handles
             .into_iter()

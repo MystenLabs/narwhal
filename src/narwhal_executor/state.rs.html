@@ -35,62 +35,10 @@
 <span id="35">35</span>
 <span id="36">36</span>
 <span id="37">37</span>
-<span id="38">38</span>
-<span id="39">39</span>
-<span id="40">40</span>
-<span id="41">41</span>
-<span id="42">42</span>
-<span id="43">43</span>
-<span id="44">44</span>
-<span id="45">45</span>
-<span id="46">46</span>
-<span id="47">47</span>
-<span id="48">48</span>
-<span id="49">49</span>
-<span id="50">50</span>
-<span id="51">51</span>
-<span id="52">52</span>
-<span id="53">53</span>
-<span id="54">54</span>
-<span id="55">55</span>
-<span id="56">56</span>
-<span id="57">57</span>
-<span id="58">58</span>
-<span id="59">59</span>
-<span id="60">60</span>
-<span id="61">61</span>
-<span id="62">62</span>
-<span id="63">63</span>
-<span id="64">64</span>
-<span id="65">65</span>
-<span id="66">66</span>
-<span id="67">67</span>
-<span id="68">68</span>
-<span id="69">69</span>
-<span id="70">70</span>
-<span id="71">71</span>
-<span id="72">72</span>
-<span id="73">73</span>
-<span id="74">74</span>
-<span id="75">75</span>
-<span id="76">76</span>
-<span id="77">77</span>
-<span id="78">78</span>
-<span id="79">79</span>
-<span id="80">80</span>
-<span id="81">81</span>
-<span id="82">82</span>
-<span id="83">83</span>
-<span id="84">84</span>
-<span id="85">85</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>types::SequenceNumber;
-
-<span class="attribute">#[cfg(test)]
-#[path = <span class="string">&quot;tests/state_tests.rs&quot;</span>]
-</span><span class="kw">pub mod </span>state_tests;
 
 <span class="doccomment">/// The state of the subscriber keeping track of the transactions that have already been
 /// executed. It ensures we do not process twice the same transaction despite crash-recovery.
@@ -102,50 +50,6 @@
     </span><span class="kw">pub </span>next_batch_index: SequenceNumber,
     <span class="doccomment">/// The index of the last transaction we executed (used for crash-recovery).
     </span><span class="kw">pub </span>next_transaction_index: SequenceNumber,
-}
-
-<span class="kw">impl </span>ExecutionIndices {
-    <span class="doccomment">/// Compute the next expected indices.
-    </span><span class="kw">pub fn </span>next(<span class="kw-2">&amp;mut </span><span class="self">self</span>, total_batches: usize, total_transactions: usize) {
-        <span class="kw">let </span>total_batches = total_batches <span class="kw">as </span>SequenceNumber;
-        <span class="kw">let </span>total_transactions = total_transactions <span class="kw">as </span>SequenceNumber;
-
-        <span class="kw">if </span><span class="self">self</span>.next_transaction_index + <span class="number">1 </span>== total_transactions {
-            <span class="kw">if </span><span class="self">self</span>.next_batch_index + <span class="number">1 </span>== total_batches {
-                <span class="self">self</span>.next_certificate_index += <span class="number">1</span>;
-            }
-            <span class="self">self</span>.next_batch_index = (<span class="self">self</span>.next_batch_index + <span class="number">1</span>) % total_batches;
-        }
-        <span class="self">self</span>.next_transaction_index = (<span class="self">self</span>.next_transaction_index + <span class="number">1</span>) % total_transactions;
-    }
-
-    <span class="doccomment">/// Update the state to skip a batch.
-    </span><span class="kw">pub fn </span>skip_batch(<span class="kw-2">&amp;mut </span><span class="self">self</span>, total_batches: usize) {
-        <span class="kw">let </span>total_batches = total_batches <span class="kw">as </span>SequenceNumber;
-
-        <span class="kw">if </span><span class="self">self</span>.next_batch_index + <span class="number">1 </span>== total_batches {
-            <span class="self">self</span>.next_certificate_index += <span class="number">1</span>;
-        }
-        <span class="self">self</span>.next_batch_index = (<span class="self">self</span>.next_batch_index + <span class="number">1</span>) % total_batches;
-        <span class="self">self</span>.next_transaction_index = <span class="number">0</span>;
-    }
-
-    <span class="doccomment">/// Update the state to skip a certificate.
-    </span><span class="kw">pub fn </span>skip_certificate(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="self">self</span>.next_transaction_index = <span class="number">0</span>;
-        <span class="self">self</span>.next_batch_index = <span class="number">0</span>;
-        <span class="self">self</span>.next_certificate_index += <span class="number">1</span>;
-    }
-
-    <span class="doccomment">/// Check whether the input index is the next expected batch index.
-    </span><span class="kw">pub fn </span>check_next_batch_index(<span class="kw-2">&amp;</span><span class="self">self</span>, batch_index: SequenceNumber) -&gt; bool {
-        batch_index == <span class="self">self</span>.next_batch_index
-    }
-
-    <span class="doccomment">/// Check whether the input index is the next expected transaction index.
-    </span><span class="kw">pub fn </span>check_next_transaction_index(<span class="kw-2">&amp;</span><span class="self">self</span>, transaction_index: SequenceNumber) -&gt; bool {
-        transaction_index == <span class="self">self</span>.next_transaction_index
-    }
 }
 
 <span class="kw">impl </span>Ord <span class="kw">for </span>ExecutionIndices {
