@@ -90,7 +90,7 @@ impl Primary {
         tx_committed_certificates: Sender<Certificate>,
         registry: &Registry,
         // See comments in Subscriber::spawn
-        executor_network_rx: Option<oneshot::Sender<P2pNetwork>>,
+        rx_executor_network: Option<oneshot::Sender<P2pNetwork>>,
     ) -> Vec<JoinHandle<()>> {
         // Write the parameters to the logs.
         parameters.tracing();
@@ -253,9 +253,9 @@ impl Primary {
         // The `SignatureService` is used to require signatures on specific digests.
         let signature_service = SignatureService::new(signer);
 
-        if let Some(executor_network_rx) = executor_network_rx {
+        if let Some(rx_executor_network) = rx_executor_network {
             let executor_network = P2pNetwork::new(network.clone());
-            if executor_network_rx.send(executor_network).is_err() {
+            if rx_executor_network.send(executor_network).is_err() {
                 panic!("Executor shut down before primary has a chance to start");
             }
         }

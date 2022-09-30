@@ -1,7 +1,7 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::traits::Primary2WorkerRpc;
+use crate::traits::PrimaryToWorkerRpc;
 use crate::{
     traits::{Lucky, ReliableNetwork, UnreliableNetwork},
     BoundedExecutor, CancelOnDropHandler, RetryConfig, MAX_TASK_CONCURRENCY,
@@ -332,7 +332,7 @@ impl UnreliableNetwork<WorkerBatchRequest> for P2pNetwork {
 }
 
 #[async_trait]
-impl Primary2WorkerRpc for P2pNetwork {
+impl PrimaryToWorkerRpc for P2pNetwork {
     async fn request_batch(
         &self,
         peer: &NetworkPublicKey,

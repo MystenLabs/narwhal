@@ -15,50 +15,6 @@ pub struct ExecutionIndices {
     pub next_transaction_index: SequenceNumber,
 }
 
-impl ExecutionIndices {
-    /// Compute the next expected indices.
-    pub fn next(&mut self, total_batches: usize, total_transactions: usize) {
-        let total_batches = total_batches as SequenceNumber;
-        let total_transactions = total_transactions as SequenceNumber;
-
-        if self.next_transaction_index + 1 == total_transactions {
-            if self.next_batch_index + 1 == total_batches {
-                self.next_certificate_index += 1;
-            }
-            self.next_batch_index = (self.next_batch_index + 1) % total_batches;
-        }
-        self.next_transaction_index = (self.next_transaction_index + 1) % total_transactions;
-    }
-
-    /// Update the state to skip a batch.
-    pub fn skip_batch(&mut self, total_batches: usize) {
-        let total_batches = total_batches as SequenceNumber;
-
-        if self.next_batch_index + 1 == total_batches {
-            self.next_certificate_index += 1;
-        }
-        self.next_batch_index = (self.next_batch_index + 1) % total_batches;
-        self.next_transaction_index = 0;
-    }
-
-    /// Update the state to skip a certificate.
-    pub fn skip_certificate(&mut self) {
-        self.next_transaction_index = 0;
-        self.next_batch_index = 0;
-        self.next_certificate_index += 1;
-    }
-
-    /// Check whether the input index is the next expected batch index.
-    pub fn check_next_batch_index(&self, batch_index: SequenceNumber) -> bool {
-        batch_index == self.next_batch_index
-    }
-
-    /// Check whether the input index is the next expected transaction index.
-    pub fn check_next_transaction_index(&self, transaction_index: SequenceNumber) -> bool {
-        transaction_index == self.next_transaction_index
-    }
-}
-
 impl Ord for ExecutionIndices {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         (

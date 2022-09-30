@@ -93,7 +93,7 @@ pub trait ReliableNetwork<Request: Clone + Send + Sync> {
 }
 
 #[async_trait]
-pub trait Primary2WorkerRpc {
+pub trait PrimaryToWorkerRpc {
     async fn request_batch(
         &self,
         peer: &NetworkPublicKey,

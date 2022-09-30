@@ -186,7 +186,7 @@ impl Node {
         // Compute the public key of this authority.
         let name = keypair.public().clone();
         let mut handles = Vec::new();
-        let (executor_network_rx, executor_network_tx) = oneshot::channel();
+        let (rx_executor_network, tx_executor_network) = oneshot::channel();
         let (dag, network_model) = if !internal_consensus {
             debug!("Consensus is disabled: the primary will run w/o Tusk");
             let consensus_metrics = Arc::new(ConsensusMetrics::new(registry));
@@ -198,7 +198,7 @@ impl Node {
         } else {
             let consensus_handles = Self::spawn_consensus(
                 name.clone(),
-                executor_network_tx,
+                tx_executor_network,
                 worker_cache.clone(),
                 committee.clone(),
                 store,
@@ -250,7 +250,7 @@ impl Node {
             tx_reconfigure,
             tx_consensus,
             registry,
-            Some(executor_network_rx),
+            Some(rx_executor_network),
         );
         handles.extend(primary_handles);
 

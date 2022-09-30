@@ -53,9 +53,6 @@ pub trait ExecutionState {
     async fn load_execution_indices(&self) -> ExecutionIndices;
 }
 
-/// The output of the executor.
-pub type ExecutorOutput = (SubscriberResult<()>, SerializedTransaction);
-
 /// A client subscribing to the consensus output and executing every transaction.
 pub struct Executor;
 

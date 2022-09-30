@@ -13,7 +13,7 @@ use futures::FutureExt;
 use futures::StreamExt;
 
 use network::P2pNetwork;
-use network::Primary2WorkerRpc;
+use network::PrimaryToWorkerRpc;
 
 use anyhow::bail;
 use prometheus::IntGauge;
