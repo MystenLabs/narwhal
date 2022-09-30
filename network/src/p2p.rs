@@ -18,7 +18,8 @@ use tokio::{runtime::Handle, task::JoinHandle};
 use types::{
     Batch, BatchDigest, PrimaryMessage, PrimaryToPrimaryClient, PrimaryToWorkerClient,
     PrimaryWorkerMessage, RequestBatchRequest, WorkerBatchRequest, WorkerBatchResponse,
-    WorkerMessage, WorkerPrimaryMessage, WorkerToPrimaryClient, WorkerToWorkerClient,
+    WorkerMessage, WorkerPrimaryMessage, WorkerSynchronizeMessage, WorkerToPrimaryClient,
+    WorkerToWorkerClient,
 };
 
 fn default_executor() -> BoundedExecutor {
@@ -239,6 +240,20 @@ impl ReliableNetwork<PrimaryWorkerMessage> for P2pNetwork {
         };
 
         self.send(peer, f).await
+    }
+}
+
+impl UnreliableNetwork<WorkerSynchronizeMessage> for P2pNetwork {
+    type Response = ();
+    fn unreliable_send(
+        &mut self,
+        peer: NetworkPublicKey,
+        message: &WorkerSynchronizeMessage,
+    ) -> Result<JoinHandle<Result<anemo::Response<()>>>> {
+        let message = message.to_owned();
+        let f =
+            move |peer| async move { PrimaryToWorkerClient::new(peer).synchronize(message).await };
+        self.unreliable_send(peer, f)
     }
 }
 
