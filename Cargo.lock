@@ -2417,6 +2417,7 @@ dependencies = [
 name = "narwhal-executor"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "async-trait",
  "backoff",
  "bincode",
@@ -2431,6 +2432,8 @@ dependencies = [
  "mysten-network",
  "narwhal-config",
  "narwhal-consensus",
+ "narwhal-crypto",
+ "narwhal-network",
  "narwhal-primary",
  "narwhal-storage",
  "narwhal-test-utils",
