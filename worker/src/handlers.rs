@@ -16,7 +16,7 @@ use tokio::{
     task::JoinHandle,
     time::{self, Timeout},
 };
-use tracing::{debug, error, trace};
+use tracing::{debug, error, info, trace};
 use types::{
     error::DagError,
     metered_channel::{Receiver, Sender},
@@ -309,7 +309,7 @@ impl PrimaryToWorker for PrimaryReceiverHandler {
             digests: missing.iter().cloned().collect(),
         };
         self.tx_request_batches_rpc
-            .send((Some(worker_name), None, message, tx_batch_response))
+            .send((Some(worker_name.clone()), None, message, tx_batch_response))
             .await
             .map_err(|e| anemo::rpc::Status::internal(e.to_string()))?;
         let response = rx_batch_response
@@ -327,6 +327,9 @@ impl PrimaryToWorker for PrimaryReceiverHandler {
                     }
                 }
             }
+        } else {
+            let e = response.err().unwrap();
+            info!("WorkerBatchRequest to first target {worker_name} failed: {e}");
         }
 
         if missing.is_empty() {
