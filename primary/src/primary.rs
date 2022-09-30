@@ -109,6 +109,7 @@ impl Primary {
         let inbound_network_metrics = Arc::new(metrics.inbound_network_metrics.unwrap());
         let outbound_network_metrics = Arc::new(metrics.outbound_network_metrics.unwrap());
         let node_metrics = Arc::new(metrics.node_metrics.unwrap());
+        let network_connection_metrics = metrics.network_connection_metrics.unwrap();
 
         let (tx_others_digests, rx_others_digests) =
             channel(CHANNEL_CAPACITY, &primary_channel_metrics.tx_others_digests);
@@ -243,6 +244,11 @@ impl Primary {
                 )
             });
         info!("Primary {} listening on {}", name.encode_base64(), address);
+
+        let connection_monitor_handle = network::connectivity::ConnectionMonitor::spawn(
+            network.clone(),
+            network_connection_metrics,
+        );
 
         let primaries = committee
             .load()
@@ -489,6 +495,7 @@ impl Primary {
             proposer_handle,
             helper_handle,
             state_handler_handle,
+            connection_monitor_handle,
         ];
 
         if let Some(h) = consensus_api_handle {

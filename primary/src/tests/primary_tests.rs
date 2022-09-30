@@ -6,21 +6,17 @@ use arc_swap::ArcSwap;
 use config::Parameters;
 use consensus::{dag::Dag, metrics::ConsensusMetrics};
 use fastcrypto::traits::KeyPair;
-use network::metrics::WorkerNetworkMetrics;
 use node::NodeStorage;
 use prometheus::Registry;
 use std::{sync::Arc, time::Duration};
 use test_utils::{temp_dir, CommitteeFixture};
 use tokio::sync::watch;
 use types::ReconfigureNotification;
-use worker::{
-    metrics::{Metrics, WorkerChannelMetrics, WorkerEndpointMetrics, WorkerMetrics},
-    Worker,
-};
+use worker::{metrics::initialise_metrics, Worker};
 
 #[tokio::test]
 async fn get_network_peers_from_admin_server() {
-    // telemetry_subscribers::init_for_testing();
+    telemetry_subscribers::init_for_testing();
     let primary_1_parameters = Parameters {
         batch_size: 200, // Two transactions.
         ..Parameters::default()
@@ -90,18 +86,14 @@ async fn get_network_peers_from_admin_server() {
         tx_reconfigure,
         tx_feedback,
         &Registry::new(),
+        None,
     );
 
     // Wait for tasks to start
     tokio::time::sleep(Duration::from_secs(1)).await;
 
     let registry_1 = Registry::new();
-    let metrics_1 = Metrics {
-        worker_metrics: Some(WorkerMetrics::new(&registry_1)),
-        channel_metrics: Some(WorkerChannelMetrics::new(&registry_1)),
-        endpoint_metrics: Some(WorkerEndpointMetrics::new(&registry_1)),
-        network_metrics: Some(WorkerNetworkMetrics::new(&registry_1)),
-    };
+    let metrics_1 = initialise_metrics(&registry_1);
 
     let worker_1_parameters = Parameters {
         batch_size: 200, // Two transactions.
@@ -209,6 +201,7 @@ async fn get_network_peers_from_admin_server() {
         tx_reconfigure_2,
         tx_feedback_2,
         &Registry::new(),
+        None,
     );
 
     // Wait for tasks to start

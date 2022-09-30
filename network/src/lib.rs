@@ -11,6 +11,7 @@
 
 pub mod admin;
 mod bounded_executor;
+pub mod connectivity;
 pub mod metrics;
 mod p2p;
 mod retry;

@@ -108,12 +108,15 @@ async fn main() -> Result<(), eyre::Report> {
         }
         ("run", Some(sub_matches)) => {
             let primary_key_file = sub_matches.value_of("primary-keys").unwrap();
+            info!("primary-key-file: {:?}", primary_key_file);
             let primary_keypair = KeyPair::import(primary_key_file)
                 .context("Failed to load the node's primary keypair")?;
             let primary_network_key_file = sub_matches.value_of("primary-network-keys").unwrap();
+            info!("primary-network-key-file: {:?}", primary_network_key_file);
             let primary_network_keypair = NetworkKeyPair::import(primary_network_key_file)
                 .context("Failed to load the node's primary network keypair")?;
             let worker_key_file = sub_matches.value_of("worker-keys").unwrap();
+            info!("worker-key-file: {:?}", worker_key_file);
             let worker_keypair = NetworkKeyPair::import(worker_key_file)
                 .context("Failed to load the node's worker keypair")?;
             let registry = match sub_matches.subcommand() {

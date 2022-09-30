@@ -2,6 +2,7 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use super::*;
+use crate::metrics::initialise_metrics;
 use arc_swap::ArcSwap;
 use bytes::Bytes;
 use consensus::{dag::Dag, metrics::ConsensusMetrics};
@@ -37,7 +38,7 @@ async fn handle_clients_transactions() {
     let store = Store::new(db);
 
     let registry = Registry::new();
-    let metrics = crate::metrics::initialise_metrics(&registry);
+    let metrics = initialise_metrics(&registry);
 
     // Spawn a `Worker` instance.
     Worker::spawn(
@@ -142,18 +143,14 @@ async fn get_network_peers_from_admin_server() {
         tx_reconfigure,
         tx_feedback,
         &Registry::new(),
+        None,
     );
 
     // Wait for tasks to start
     tokio::time::sleep(Duration::from_secs(1)).await;
 
     let registry_1 = Registry::new();
-    let metrics_1 = Metrics {
-        worker_metrics: Some(WorkerMetrics::new(&registry_1)),
-        channel_metrics: Some(WorkerChannelMetrics::new(&registry_1)),
-        endpoint_metrics: Some(WorkerEndpointMetrics::new(&registry_1)),
-        network_metrics: Some(WorkerNetworkMetrics::new(&registry_1)),
-    };
+    let metrics_1 = initialise_metrics(&registry_1);
 
     let worker_1_parameters = Parameters {
         batch_size: 200, // Two transactions.
@@ -169,7 +166,7 @@ async fn get_network_peers_from_admin_server() {
         worker_cache.clone(),
         worker_1_parameters.clone(),
         store.batch_store.clone(),
-        metrics_1,
+        metrics_1.clone(),
     );
 
     // Wait for tasks to start
@@ -247,18 +244,14 @@ async fn get_network_peers_from_admin_server() {
         tx_reconfigure_2,
         tx_feedback_2,
         &Registry::new(),
+        None,
     );
 
     // Wait for tasks to start
     tokio::time::sleep(Duration::from_secs(1)).await;
 
     let registry_2 = Registry::new();
-    let metrics_2 = Metrics {
-        worker_metrics: Some(WorkerMetrics::new(&registry_2)),
-        channel_metrics: Some(WorkerChannelMetrics::new(&registry_2)),
-        endpoint_metrics: Some(WorkerEndpointMetrics::new(&registry_2)),
-        network_metrics: Some(WorkerNetworkMetrics::new(&registry_2)),
-    };
+    let metrics_2 = initialise_metrics(&registry_2);
 
     let worker_2_parameters = Parameters {
         batch_size: 200, // Two transactions.
@@ -274,7 +267,7 @@ async fn get_network_peers_from_admin_server() {
         worker_cache.clone(),
         worker_2_parameters.clone(),
         store.batch_store,
-        metrics_2,
+        metrics_2.clone(),
     );
 
     // Wait for tasks to start
@@ -307,4 +300,31 @@ async fn get_network_peers_from_admin_server() {
 
     // Assert we returned 2 peers (1 primary spawned + 1 other worker spawned)
     assert_eq!(2, resp.len());
+
+    // Assert network connectivity metrics are also set as expected
+    let mut m = std::collections::HashMap::new();
+    m.insert("peer_id", resp.get(0).unwrap().as_str());
+    assert_eq!(
+        1,
+        metrics_2
+            .clone()
+            .network_connection_metrics
+            .unwrap()
+            .network_peer_connected
+            .get_metric_with(&m)
+            .unwrap()
+            .get()
+    );
+
+    m.insert("peer_id", resp.get(1).unwrap().as_str());
+    assert_eq!(
+        1,
+        metrics_2
+            .network_connection_metrics
+            .unwrap()
+            .network_peer_connected
+            .get_metric_with(&m)
+            .unwrap()
+            .get()
+    );
 }

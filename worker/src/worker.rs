@@ -87,6 +87,7 @@ impl Worker {
         let channel_metrics: Arc<WorkerChannelMetrics> = Arc::new(metrics.channel_metrics.unwrap());
         let inbound_network_metrics = Arc::new(metrics.inbound_network_metrics.unwrap());
         let outbound_network_metrics = Arc::new(metrics.outbound_network_metrics.unwrap());
+        let network_connection_metrics = metrics.network_connection_metrics.unwrap();
 
         // Spawn all worker tasks.
         let (tx_primary, rx_primary) = channel(CHANNEL_CAPACITY, &channel_metrics.tx_primary);
@@ -155,6 +156,11 @@ impl Worker {
             .unwrap();
 
         info!("Worker {} listening to worker messages on {}", id, address);
+
+        let connection_monitor_handle = network::connectivity::ConnectionMonitor::spawn(
+            network.clone(),
+            network_connection_metrics,
+        );
 
         let other_workers = worker
             .worker_cache
@@ -241,7 +247,11 @@ impl Worker {
                 .transactions
         );
 
-        let mut handles = vec![primary_connector_handle, child_rpc_sender_handle];
+        let mut handles = vec![
+            primary_connector_handle,
+            child_rpc_sender_handle,
+            connection_monitor_handle,
+        ];
         handles.extend(primary_flow_handles);
         handles.extend(client_flow_handles);
         handles.extend(worker_flow_handles);
