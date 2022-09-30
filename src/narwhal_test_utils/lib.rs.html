@@ -959,6 +959,23 @@
 <span id="959">959</span>
 <span id="960">960</span>
 <span id="961">961</span>
+<span id="962">962</span>
+<span id="963">963</span>
+<span id="964">964</span>
+<span id="965">965</span>
+<span id="966">966</span>
+<span id="967">967</span>
+<span id="968">968</span>
+<span id="969">969</span>
+<span id="970">970</span>
+<span id="971">971</span>
+<span id="972">972</span>
+<span id="973">973</span>
+<span id="974">974</span>
+<span id="975">975</span>
+<span id="976">976</span>
+<span id="977">977</span>
+<span id="978">978</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -990,8 +1007,8 @@
     PrimaryMessage, PrimaryToPrimary, PrimaryToPrimaryServer, PrimaryToWorker,
     PrimaryToWorkerServer, PrimaryWorkerMessage, Round, SequenceNumber, Transaction, Vote,
     WorkerBatchRequest, WorkerBatchResponse, WorkerInfoResponse, WorkerMessage,
-    WorkerPrimaryMessage, WorkerToPrimary, WorkerToPrimaryServer, WorkerToWorker,
-    WorkerToWorkerServer,
+    WorkerPrimaryMessage, WorkerSynchronizeMessage, WorkerToPrimary, WorkerToPrimaryServer,
+    WorkerToWorker, WorkerToWorkerServer,
 };
 
 <span class="kw">pub mod </span>cluster;
@@ -1218,17 +1235,26 @@
 }
 
 <span class="kw">pub struct </span>PrimaryToWorkerMockServer {
-    sender: Sender&lt;PrimaryWorkerMessage&gt;,
+    msg_sender: Sender&lt;PrimaryWorkerMessage&gt;,
+    synchronize_sender: Sender&lt;WorkerSynchronizeMessage&gt;,
 }
 
 <span class="kw">impl </span>PrimaryToWorkerMockServer {
     <span class="kw">pub fn </span>spawn(
         keypair: NetworkKeyPair,
         address: Multiaddr,
-    ) -&gt; (Receiver&lt;PrimaryWorkerMessage&gt;, anemo::Network) {
+    ) -&gt; (
+        Receiver&lt;PrimaryWorkerMessage&gt;,
+        Receiver&lt;WorkerSynchronizeMessage&gt;,
+        anemo::Network,
+    ) {
         <span class="kw">let </span>addr = network::multiaddr_to_address(<span class="kw-2">&amp;</span>address).unwrap();
-        <span class="kw">let </span>(sender, receiver) = channel(<span class="number">1</span>);
-        <span class="kw">let </span>service = PrimaryToWorkerServer::new(<span class="self">Self </span>{ sender });
+        <span class="kw">let </span>(msg_sender, msg_receiver) = channel(<span class="number">1</span>);
+        <span class="kw">let </span>(synchronize_sender, synchronize_receiver) = channel(<span class="number">1</span>);
+        <span class="kw">let </span>service = PrimaryToWorkerServer::new(<span class="self">Self </span>{
+            msg_sender,
+            synchronize_sender,
+        });
 
         <span class="kw">let </span>routes = anemo::Router::new().add_rpc_service(service);
         <span class="kw">let </span>network = anemo::Network::bind(addr)
@@ -1237,7 +1263,7 @@
             .start(routes)
             .unwrap();
         <span class="macro">info!</span>(<span class="string">&quot;starting network on: {}&quot;</span>, network.local_addr());
-        (receiver, network)
+        (msg_receiver, synchronize_receiver, network)
     }
 }
 
@@ -1248,7 +1274,15 @@
         request: anemo::Request&lt;PrimaryWorkerMessage&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;anemo::Response&lt;()&gt;, anemo::rpc::Status&gt; {
         <span class="kw">let </span>message = request.into_body();
-        <span class="self">self</span>.sender.send(message).<span class="kw">await</span>.unwrap();
+        <span class="self">self</span>.msg_sender.send(message).<span class="kw">await</span>.unwrap();
+        <span class="prelude-val">Ok</span>(anemo::Response::new(()))
+    }
+    <span class="kw">async fn </span>synchronize(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        request: anemo::Request&lt;WorkerSynchronizeMessage&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;anemo::Response&lt;()&gt;, anemo::rpc::Status&gt; {
+        <span class="kw">let </span>message = request.into_body();
+        <span class="self">self</span>.synchronize_sender.send(message).<span class="kw">await</span>.unwrap();
         <span class="prelude-val">Ok</span>(anemo::Response::new(()))
     }
 }
@@ -1921,4 +1955,4 @@
     test_network(network_key, <span class="kw-2">&amp;</span>address)
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="narwhal_test_utils" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (ce7f0f1aa 2022-09-28)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="narwhal_test_utils" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (9c56d9d6f 2022-09-29)" ></div></body></html>

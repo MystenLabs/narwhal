@@ -125,6 +125,60 @@
 <span id="125">125</span>
 <span id="126">126</span>
 <span id="127">127</span>
+<span id="128">128</span>
+<span id="129">129</span>
+<span id="130">130</span>
+<span id="131">131</span>
+<span id="132">132</span>
+<span id="133">133</span>
+<span id="134">134</span>
+<span id="135">135</span>
+<span id="136">136</span>
+<span id="137">137</span>
+<span id="138">138</span>
+<span id="139">139</span>
+<span id="140">140</span>
+<span id="141">141</span>
+<span id="142">142</span>
+<span id="143">143</span>
+<span id="144">144</span>
+<span id="145">145</span>
+<span id="146">146</span>
+<span id="147">147</span>
+<span id="148">148</span>
+<span id="149">149</span>
+<span id="150">150</span>
+<span id="151">151</span>
+<span id="152">152</span>
+<span id="153">153</span>
+<span id="154">154</span>
+<span id="155">155</span>
+<span id="156">156</span>
+<span id="157">157</span>
+<span id="158">158</span>
+<span id="159">159</span>
+<span id="160">160</span>
+<span id="161">161</span>
+<span id="162">162</span>
+<span id="163">163</span>
+<span id="164">164</span>
+<span id="165">165</span>
+<span id="166">166</span>
+<span id="167">167</span>
+<span id="168">168</span>
+<span id="169">169</span>
+<span id="170">170</span>
+<span id="171">171</span>
+<span id="172">172</span>
+<span id="173">173</span>
+<span id="174">174</span>
+<span id="175">175</span>
+<span id="176">176</span>
+<span id="177">177</span>
+<span id="178">178</span>
+<span id="179">179</span>
+<span id="180">180</span>
+<span id="181">181</span>
 </pre><pre class="rust"><code><span class="doccomment">/// Generated client implementations.
 </span><span class="kw">pub mod </span>primary_to_worker_client {
     <span class="attribute">#![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
@@ -159,6 +213,25 @@
             <span class="kw-2">*</span>request.route_mut() = <span class="string">&quot;/narwhal.PrimaryToWorker/SendMessage&quot;</span>.into();
             <span class="self">self</span>.inner.unary(request, codec).<span class="kw">await
         </span>}
+        <span class="kw">pub async fn </span>synchronize(
+            <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+            request: <span class="kw">impl </span>anemo::types::request::IntoRequest&lt;
+                <span class="kw">crate</span>::WorkerSynchronizeMessage,
+            &gt;,
+        ) -&gt; <span class="prelude-ty">Result</span>&lt;anemo::Response&lt;()&gt;, anemo::rpc::Status&gt; {
+            <span class="self">self</span>.inner
+                .ready()
+                .<span class="kw">await
+                </span>.map_err(|e| {
+                    anemo::rpc::Status::unknown(
+                        <span class="macro">format!</span>(<span class="string">&quot;Service was not ready: {}&quot;</span>, e.into()),
+                    )
+                })<span class="question-mark">?</span>;
+            <span class="kw">let </span>codec = anemo::rpc::codec::BincodeCodec::default();
+            <span class="kw">let </span><span class="kw-2">mut </span>request = request.into_request();
+            <span class="kw-2">*</span>request.route_mut() = <span class="string">&quot;/narwhal.PrimaryToWorker/Synchronize&quot;</span>.into();
+            <span class="self">self</span>.inner.unary(request, codec).<span class="kw">await
+        </span>}
     }
 }
 <span class="doccomment">/// Generated server implementations.
@@ -171,6 +244,10 @@
         <span class="kw">async fn </span>send_message(
             <span class="kw-2">&amp;</span><span class="self">self</span>,
             request: anemo::Request&lt;<span class="kw">crate</span>::PrimaryWorkerMessage&gt;,
+        ) -&gt; <span class="prelude-ty">Result</span>&lt;anemo::Response&lt;()&gt;, anemo::rpc::Status&gt;;
+        <span class="kw">async fn </span>synchronize(
+            <span class="kw-2">&amp;</span><span class="self">self</span>,
+            request: anemo::Request&lt;<span class="kw">crate</span>::WorkerSynchronizeMessage&gt;,
         ) -&gt; <span class="prelude-ty">Result</span>&lt;anemo::Response&lt;()&gt;, anemo::rpc::Status&gt;;
     }
     <span class="attribute">#[derive(Debug)]
@@ -234,6 +311,37 @@
                     };
                     Box::pin(fut)
                 }
+                <span class="string">&quot;/narwhal.PrimaryToWorker/Synchronize&quot; </span>=&gt; {
+                    <span class="attribute">#[allow(non_camel_case_types)]
+                    </span><span class="kw">struct </span>SynchronizeSvc&lt;T: PrimaryToWorker&gt;(<span class="kw">pub </span>Arc&lt;T&gt;);
+                    <span class="kw">impl</span>&lt;
+                        T: PrimaryToWorker,
+                    &gt; anemo::rpc::server::UnaryService&lt;<span class="kw">crate</span>::WorkerSynchronizeMessage&gt;
+                    <span class="kw">for </span>SynchronizeSvc&lt;T&gt; {
+                        <span class="kw">type </span>Response = ();
+                        <span class="kw">type </span>Future = BoxFuture&lt;
+                            <span class="lifetime">&#39;static</span>,
+                            <span class="prelude-ty">Result</span>&lt;anemo::Response&lt;<span class="self">Self</span>::Response&gt;, anemo::rpc::Status&gt;,
+                        &gt;;
+                        <span class="kw">fn </span>call(
+                            <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+                            request: anemo::Request&lt;<span class="kw">crate</span>::WorkerSynchronizeMessage&gt;,
+                        ) -&gt; <span class="self">Self</span>::Future {
+                            <span class="kw">let </span>inner = <span class="self">self</span>.<span class="number">0</span>.clone();
+                            <span class="kw">let </span>fut = <span class="kw">async move </span>{ (<span class="kw-2">*</span>inner).synchronize(request).<span class="kw">await </span>};
+                            Box::pin(fut)
+                        }
+                    }
+                    <span class="kw">let </span>inner = <span class="self">self</span>.inner.clone();
+                    <span class="kw">let </span>fut = <span class="kw">async move </span>{
+                        <span class="kw">let </span>method = SynchronizeSvc(inner);
+                        <span class="kw">let </span>codec = anemo::rpc::codec::BincodeCodec::default();
+                        <span class="kw">let </span><span class="kw-2">mut </span>rpc = anemo::rpc::server::Rpc::new(codec);
+                        <span class="kw">let </span>res = rpc.unary(method, req).<span class="kw">await</span>;
+                        <span class="prelude-val">Ok</span>(res)
+                    };
+                    Box::pin(fut)
+                }
                 <span class="kw">_ </span>=&gt; {
                     Box::pin(<span class="kw">async move </span>{
                         <span class="prelude-val">Ok</span>(anemo::types::response::StatusCode::NotFound.into_response())
@@ -253,4 +361,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../../../../../../../../../../" data-current-crate="narwhal_types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (ce7f0f1aa 2022-09-28)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../../../../../../../../../../" data-current-crate="narwhal_types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (9c56d9d6f 2022-09-29)" ></div></body></html>

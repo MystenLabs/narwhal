@@ -350,6 +350,20 @@
 <span id="350">350</span>
 <span id="351">351</span>
 <span id="352">352</span>
+<span id="353">353</span>
+<span id="354">354</span>
+<span id="355">355</span>
+<span id="356">356</span>
+<span id="357">357</span>
+<span id="358">358</span>
+<span id="359">359</span>
+<span id="360">360</span>
+<span id="361">361</span>
+<span id="362">362</span>
+<span id="363">363</span>
+<span id="364">364</span>
+<span id="365">365</span>
+<span id="366">366</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
@@ -368,7 +382,7 @@
 <span class="kw">use </span>types::{
     PrimaryMessage, PrimaryToPrimaryClient, PrimaryToWorkerClient, PrimaryWorkerMessage,
     WorkerBatchRequest, WorkerBatchResponse, WorkerMessage, WorkerPrimaryMessage,
-    WorkerToPrimaryClient, WorkerToWorkerClient,
+    WorkerSynchronizeMessage, WorkerToPrimaryClient, WorkerToWorkerClient,
 };
 
 <span class="kw">fn </span>default_executor() -&gt; BoundedExecutor {
@@ -592,6 +606,20 @@
     </span>}
 }
 
+<span class="kw">impl </span>UnreliableNetwork&lt;WorkerSynchronizeMessage&gt; <span class="kw">for </span>P2pNetwork {
+    <span class="kw">type </span>Response = ();
+    <span class="kw">fn </span>unreliable_send(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        peer: NetworkPublicKey,
+        message: <span class="kw-2">&amp;</span>WorkerSynchronizeMessage,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;JoinHandle&lt;<span class="prelude-ty">Result</span>&lt;anemo::Response&lt;()&gt;&gt;&gt;&gt; {
+        <span class="kw">let </span>message = message.to_owned();
+        <span class="kw">let </span>f =
+            <span class="kw">move </span>|peer| <span class="kw">async move </span>{ PrimaryToWorkerClient::new(peer).synchronize(message).<span class="kw">await </span>};
+        <span class="self">self</span>.unreliable_send(peer, f)
+    }
+}
+
 <span class="comment">//
 // Worker-to-Primary
 //
@@ -703,4 +731,4 @@
     </span>}
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="narwhal_network" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (ce7f0f1aa 2022-09-28)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="narwhal_network" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (9c56d9d6f 2022-09-29)" ></div></body></html>

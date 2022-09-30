@@ -190,6 +190,13 @@
 <span id="190">190</span>
 <span id="191">191</span>
 <span id="192">192</span>
+<span id="193">193</span>
+<span id="194">194</span>
+<span id="195">195</span>
+<span id="196">196</span>
+<span id="197">197</span>
+<span id="198">198</span>
+<span id="199">199</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use </span>mysten_network::metrics::MetricsCallbackProvider;
@@ -274,8 +281,10 @@
 </span><span class="kw">pub struct </span>WorkerChannelMetrics {
     <span class="doccomment">/// occupancy of the channel from various handlers to the `worker::PrimaryConnector`
     </span><span class="kw">pub </span>tx_primary: IntGauge,
-    <span class="doccomment">/// occupancy of the channel from the `worker::PrimaryReceiverHandler` to the `worker::Synchronizer`
+    <span class="doccomment">/// occupancy of the channel from the `handlers::PrimaryReceiverHandler` to the `worker::Synchronizer`
     </span><span class="kw">pub </span>tx_synchronizer: IntGauge,
+    <span class="doccomment">/// occupancy of the channel from the `handlers::PrimaryReceiverHandler` to the `handlers::ChildRpcSender`
+    </span><span class="kw">pub </span>tx_request_batches_rpc: IntGauge,
     <span class="doccomment">/// occupancy of the channel from the `worker::TxReceiverhandler` to the `worker::BatchMaker`
     </span><span class="kw">pub </span>tx_batch_maker: IntGauge,
     <span class="doccomment">/// occupancy of the channel from the `worker::BatchMaker` to the `worker::QuorumWaiter`
@@ -299,6 +308,11 @@
             tx_synchronizer: <span class="macro">register_int_gauge_with_registry!</span>(
                 <span class="string">&quot;tx_synchronizer&quot;</span>,
                 <span class="string">&quot;occupancy of the channel from the `worker::PrimaryReceiverHandler` to the `worker::Synchronizer`&quot;</span>,
+                registry
+            ).unwrap(),
+            tx_request_batches_rpc: <span class="macro">register_int_gauge_with_registry!</span>(
+                <span class="string">&quot;tx_request_batches_rpc&quot;</span>,
+                <span class="string">&quot;occupancy of the channel from the `handlers::PrimaryReceiverHandler` to the `handlers::ChildRpcSender`&quot;</span>,
                 registry
             ).unwrap(),
             tx_batch_maker: <span class="macro">register_int_gauge_with_registry!</span>(
@@ -383,4 +397,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="narwhal_worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (ce7f0f1aa 2022-09-28)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="narwhal_worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (9c56d9d6f 2022-09-29)" ></div></body></html>

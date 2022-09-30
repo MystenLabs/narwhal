@@ -1206,6 +1206,8 @@
 <span id="1206">1206</span>
 <span id="1207">1207</span>
 <span id="1208">1208</span>
+<span id="1209">1209</span>
+<span id="1210">1210</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use crate</span>::{
@@ -1244,8 +1246,8 @@
 };
 <span class="kw">use </span>tracing::{debug, error, info, instrument, trace, warn};
 <span class="kw">use </span>types::{
-    metered_channel, BatchDigest, Certificate, CertificateDigest, PrimaryWorkerMessage,
-    ReconfigureNotification, Round,
+    metered_channel, BatchDigest, Certificate, CertificateDigest, ReconfigureNotification, Round,
+    WorkerSynchronizeMessage,
 };
 
 <span class="kw">use </span><span class="self">self</span>::responses::{AvailabilityResponse, CertificateDigestsResponse};
@@ -2104,13 +2106,15 @@
                 .expect(<span class="string">&quot;Worker id not found&quot;</span>)
                 .name;
 
-            <span class="kw">let </span>message =
-                PrimaryWorkerMessage::Synchronize(batch_ids.clone(), primary_peer_name.clone());
+            <span class="kw">let </span>message = WorkerSynchronizeMessage {
+                digests: batch_ids,
+                target: primary_peer_name.clone(),
+            };
             <span class="kw">let _ </span>= <span class="self">self</span>.network.unreliable_send(worker_name, <span class="kw-2">&amp;</span>message);
 
             <span class="macro">debug!</span>(
                 <span class="string">&quot;Sent request for batch ids {:?} to worker id {}&quot;</span>,
-                batch_ids, worker_id
+                message.digests, worker_id
             );
         }
     }
@@ -2415,4 +2419,4 @@
     </span>}
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="narwhal_primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (ce7f0f1aa 2022-09-28)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="narwhal_primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (9c56d9d6f 2022-09-29)" ></div></body></html>

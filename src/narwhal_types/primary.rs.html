@@ -810,6 +810,11 @@
 <span id="810">810</span>
 <span id="811">811</span>
 <span id="812">812</span>
+<span id="813">813</span>
+<span id="814">814</span>
+<span id="815">815</span>
+<span id="816">816</span>
+<span id="817">817</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -1514,8 +1519,6 @@
 </span><span class="attribute">#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 </span><span class="kw">pub enum </span>PrimaryWorkerMessage {
-    <span class="doccomment">/// The primary indicates that the worker need to sync the target missing batches.
-    </span>Synchronize(Vec&lt;BatchDigest&gt;, <span class="comment">/* target */ </span>PublicKey),
     <span class="doccomment">/// The primary indicates a round update.
     </span>Cleanup(Round),
     <span class="doccomment">/// Reconfigure the worker.
@@ -1524,6 +1527,13 @@
     </span>RequestBatch(BatchDigest),
     <span class="doccomment">/// Delete the batches, dictated from the provided vector of digest, from the worker node
     </span>DeleteBatches(Vec&lt;BatchDigest&gt;),
+}
+
+<span class="doccomment">/// Used by the primary to request that the worker sync the target missing batches.
+</span><span class="attribute">#[derive(Clone, Debug, Serialize, Deserialize)]
+</span><span class="kw">pub struct </span>WorkerSynchronizeMessage {
+    <span class="kw">pub </span>digests: Vec&lt;BatchDigest&gt;,
+    <span class="kw">pub </span>target: PublicKey,
 }
 
 <span class="attribute">#[derive(Clone, Default, Debug, Eq, PartialEq)]
@@ -1623,4 +1633,4 @@
     </span><span class="kw">pub </span>vote_digest: VoteDigest,
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="narwhal_types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (ce7f0f1aa 2022-09-28)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="narwhal_types" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (9c56d9d6f 2022-09-29)" ></div></body></html>

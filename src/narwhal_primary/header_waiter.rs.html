@@ -409,7 +409,7 @@
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use crate</span>::{
     metrics::PrimaryMetrics,
-    primary::{PayloadToken, PrimaryMessage, PrimaryWorkerMessage},
+    primary::{PayloadToken, PrimaryMessage},
 };
 <span class="kw">use </span>config::{Committee, SharedWorkerCache, WorkerId};
 <span class="kw">use </span>crypto::PublicKey;
@@ -434,7 +434,7 @@
     error::{DagError, DagResult},
     metered_channel::{Receiver, Sender},
     try_fut_and_permit, BatchDigest, CertificateDigest, Header, HeaderDigest,
-    ReconfigureNotification, Round,
+    ReconfigureNotification, Round, WorkerSynchronizeMessage,
 };
 
 <span class="attribute">#[cfg(test)]
@@ -637,7 +637,7 @@
                                     .name;
 
                                 <span class="comment">// TODO [issue #423]: This network transmission needs to be reliable: the worker may crash-recover.
-                                </span><span class="kw">let </span>message = PrimaryWorkerMessage::Synchronize(digests, author.clone());
+                                </span><span class="kw">let </span>message = WorkerSynchronizeMessage{digests, target: author.clone()};
                                 <span class="kw">let _ </span>= <span class="self">self</span>.network.unreliable_send(worker_name, <span class="kw-2">&amp;</span>message);
                             }
                         }
@@ -811,4 +811,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="narwhal_primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (ce7f0f1aa 2022-09-28)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="narwhal_primary" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (9c56d9d6f 2022-09-29)" ></div></body></html>

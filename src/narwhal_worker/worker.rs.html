@@ -445,12 +445,15 @@
 <span id="445">445</span>
 <span id="446">446</span>
 <span id="447">447</span>
+<span id="448">448</span>
+<span id="449">449</span>
+<span id="450">450</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright (c) 2021, Facebook, Inc. and its affiliates
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 </span><span class="kw">use crate</span>::{
     batch_maker::BatchMaker,
-    handlers::{PrimaryReceiverHandler, WorkerReceiverHandler},
+    handlers::{ChildRpcSender, PrimaryReceiverHandler, WorkerReceiverHandler},
     metrics::WorkerChannelMetrics,
     primary_connector::PrimaryConnector,
     processor::Processor,
@@ -546,13 +549,23 @@
             channel(CHANNEL_CAPACITY, <span class="kw-2">&amp;</span>channel_metrics.tx_worker_processor);
         <span class="kw">let </span>(tx_synchronizer, rx_synchronizer) =
             channel(CHANNEL_CAPACITY, <span class="kw-2">&amp;</span>channel_metrics.tx_synchronizer);
+        <span class="kw">let </span>(tx_request_batches_rpc, rx_request_batches_rpc) =
+            channel(CHANNEL_CAPACITY, <span class="kw-2">&amp;</span>channel_metrics.tx_request_batches_rpc);
 
         <span class="kw">let </span>worker_service = WorkerToWorkerServer::new(WorkerReceiverHandler {
             tx_processor: tx_worker_processor.clone(),
             store: worker.store.clone(),
         });
-        <span class="kw">let </span>primary_service =
-            PrimaryToWorkerServer::new(PrimaryReceiverHandler { tx_synchronizer });
+        <span class="kw">let </span>primary_service = PrimaryToWorkerServer::new(PrimaryReceiverHandler {
+            id: worker.id,
+            worker_cache: worker.worker_cache.clone(),
+            store: worker.store.clone(),
+            request_batches_retry_nodes: worker.parameters.sync_retry_nodes,
+            tx_synchronizer,
+            tx_request_batches_rpc,
+            tx_primary: tx_primary.clone(),
+            tx_batch_processor: tx_worker_processor,
+        });
 
         <span class="comment">// Receive incoming messages from other workers.
         </span><span class="kw">let </span>address = worker
@@ -633,17 +646,25 @@
             affinity: anemo::types::PeerAffinity::High,
             address: <span class="macro">vec!</span>[primary_address],
         });
-        <span class="kw">let </span>handle = PrimaryConnector::spawn(
+        <span class="kw">let </span>primary_connector_handle = PrimaryConnector::spawn(
             primary_network_key,
-            rx_reconfigure,
+            rx_reconfigure.clone(),
             rx_primary,
             network::P2pNetwork::new(network.clone()),
         );
-
+        <span class="kw">let </span>child_rpc_sender_handle = ChildRpcSender::spawn(
+            worker.primary_name.clone(),
+            worker.id,
+            worker.worker_cache.clone(),
+            worker.parameters.sync_retry_delay,
+            rx_request_batches_rpc,
+            rx_reconfigure,
+            network::P2pNetwork::new(network.clone()),
+        );
         <span class="kw">let </span>client_flow_handles = worker.handle_clients_transactions(
             <span class="kw-2">&amp;</span>tx_reconfigure,
             tx_primary.clone(),
-            node_metrics.clone(),
+            node_metrics,
             channel_metrics,
             endpoint_metrics,
             network.clone(),
@@ -653,14 +674,8 @@
             tx_primary.clone(),
             rx_worker_processor,
         );
-        <span class="kw">let </span>primary_flow_handles = worker.handle_primary_messages(
-            rx_synchronizer,
-            tx_reconfigure,
-            tx_primary,
-            tx_worker_processor,
-            node_metrics,
-            network,
-        );
+        <span class="kw">let </span>primary_flow_handles =
+            worker.handle_primary_messages(rx_synchronizer, tx_reconfigure, tx_primary, network);
 
         <span class="comment">// NOTE: This log entry is used to compute performance.
         </span><span class="macro">info!</span>(
@@ -674,7 +689,7 @@
                 .transactions
         );
 
-        <span class="kw">let </span><span class="kw-2">mut </span>handles = <span class="macro">vec!</span>[handle];
+        <span class="kw">let </span><span class="kw-2">mut </span>handles = <span class="macro">vec!</span>[primary_connector_handle, child_rpc_sender_handle];
         handles.extend(primary_flow_handles);
         handles.extend(client_flow_handles);
         handles.extend(worker_flow_handles);
@@ -687,26 +702,17 @@
         rx_synchronizer: Receiver&lt;PrimaryWorkerMessage&gt;,
         tx_reconfigure: watch::Sender&lt;ReconfigureNotification&gt;,
         tx_primary: Sender&lt;WorkerPrimaryMessage&gt;,
-        tx_batch_processor: Sender&lt;Batch&gt;,
-        node_metrics: Arc&lt;WorkerMetrics&gt;,
         network: anemo::Network,
     ) -&gt; Vec&lt;JoinHandle&lt;()&gt;&gt; {
         <span class="comment">// The `Synchronizer` is responsible to keep the worker in sync with the others. It handles the commands
         // it receives from the primary (which are mainly notifications that we are out of sync).
         </span><span class="kw">let </span>handle = Synchronizer::spawn(
-            <span class="self">self</span>.primary_name.clone(),
-            <span class="self">self</span>.id,
             <span class="self">self</span>.committee.clone(),
             <span class="self">self</span>.worker_cache.clone(),
             <span class="self">self</span>.store.clone(),
-            <span class="self">self</span>.parameters.gc_depth,
-            <span class="self">self</span>.parameters.sync_retry_delay,
-            <span class="self">self</span>.parameters.sync_retry_nodes,
             <span class="comment">/* rx_message */ </span>rx_synchronizer,
             tx_reconfigure,
             tx_primary,
-            tx_batch_processor,
-            node_metrics,
             P2pNetwork::new(network),
         );
 
@@ -893,4 +899,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="narwhal_worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (ce7f0f1aa 2022-09-28)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="narwhal_worker" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (9c56d9d6f 2022-09-29)" ></div></body></html>
