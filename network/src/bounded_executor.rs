@@ -7,12 +7,14 @@
 //! A bounded tokio [`Handle`]. Only a bounded number of tasks can run
 //! concurrently when spawned through this executor, defined by the initial
 //! `capacity`.
+use crate::CancelOnDropHandler;
 use exponential_backoff::Backoff;
 use futures::{
     future::{BoxFuture, Future},
     FutureExt, StreamExt,
 };
-use std::{ops::Deref, sync::Arc, time::Duration};
+use std::{sync::Arc, time::Duration};
+use thiserror::Error;
 use tokio::{
     runtime::Handle,
     sync::{
@@ -23,10 +25,6 @@ use tokio::{
 };
 use tokio_util::time::DelayQueue;
 use tracing::{debug, log::error, warn};
-
-use thiserror::Error;
-
-use crate::CancelOnDropHandler;
 
 #[derive(Error)]
 pub enum BoundedExecutionError<F>
@@ -81,10 +79,9 @@ impl BoundedExecutor {
     }
 }
 
-impl Deref for BoundedExecutor {
-    type Target = InternalBoundedExecutor;
-    fn deref(&self) -> &Self::Target {
-        &self.inner
+impl AsRef<InternalBoundedExecutor> for BoundedExecutor {
+    fn as_ref(&self) -> &InternalBoundedExecutor {
+        self.inner.as_ref()
     }
 }
 

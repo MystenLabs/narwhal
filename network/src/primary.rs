@@ -67,7 +67,7 @@ impl PrimaryNetwork {
         if let Some(m) = &self.metrics {
             for (addr, executor) in &self.executors {
                 m.set_network_available_tasks(
-                    executor.available_capacity() as i64,
+                    executor.as_ref().available_capacity() as i64,
                     Some(addr.to_string()),
                 );
             }
@@ -115,6 +115,7 @@ impl UnreliableNetwork for PrimaryNetwork {
             .executors
             .entry(address)
             .or_insert_with(default_executor)
+            .as_ref()
             .spawn(async move {
                 let _ = client.send_message(message).await;
             })
@@ -184,6 +185,7 @@ impl ReliableNetwork for PrimaryNetwork {
             .executors
             .entry(address)
             .or_insert_with(default_executor)
+            .as_ref()
             .spawn_with_retries_and_adapter(backoff, message_send, adapter)
             .await;
 
@@ -209,7 +211,7 @@ impl PrimaryToWorkerNetwork {
 
     fn update_metrics(&self) {
         if let Some(m) = &self.metrics {
-            m.set_network_available_tasks(self.executor.available_capacity() as i64, None);
+            m.set_network_available_tasks(self.executor.as_ref().available_capacity() as i64, None);
         }
     }
 
@@ -266,6 +268,7 @@ impl UnreliableNetwork for PrimaryToWorkerNetwork {
         let mut client = self.client(address.clone());
         let handler = self
             .executor
+            .as_ref()
             .spawn(async move {
                 let _ = client.send_message(message).await;
             })

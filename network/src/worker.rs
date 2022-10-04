@@ -60,7 +60,7 @@ impl WorkerNetwork {
         if let Some(m) = &self.metrics {
             for (addr, executor) in &self.executors {
                 m.set_network_available_tasks(
-                    executor.available_capacity() as i64,
+                    executor.as_ref().available_capacity() as i64,
                     Some(addr.to_string()),
                 );
             }
@@ -111,6 +111,7 @@ impl UnreliableNetwork for WorkerNetwork {
             .executors
             .entry(address)
             .or_insert_with(default_executor)
+            .as_ref()
             .spawn(async move {
                 let _ = client.send_message(message).await;
             })
@@ -178,6 +179,7 @@ impl ReliableNetwork for WorkerNetwork {
             .executors
             .entry(address)
             .or_insert_with(default_executor)
+            .as_ref()
             .spawn_with_retries_and_adapter(backoff, message_send, adapter)
             .await;
 
@@ -283,6 +285,7 @@ impl ReliableNetwork for WorkerToPrimaryNetwork {
 
         let handle = self
             .executor
+            .as_ref()
             .spawn_with_retries_and_adapter(backoff, message_send, adapter)
             .await;
 
