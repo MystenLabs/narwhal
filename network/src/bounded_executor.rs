@@ -11,9 +11,15 @@ use crate::CancelOnDropHandler;
 use exponential_backoff::Backoff;
 use futures::{
     future::{BoxFuture, Future},
+    lock::OwnedMutexGuard,
     FutureExt, StreamExt,
 };
-use std::{sync::Arc, time::Duration};
+use std::{
+    mem::{replace, swap},
+    ops::DerefMut,
+    sync::{atomic::AtomicBool, Arc, Mutex, MutexGuard},
+    time::Duration,
+};
 use thiserror::Error;
 use tokio::{
     runtime::Handle,
@@ -23,7 +29,7 @@ use tokio::{
     },
     task::JoinHandle,
 };
-use tokio_util::time::DelayQueue;
+use tokio_util::time::{delay_queue, DelayQueue};
 use tracing::{debug, log::error, warn};
 
 #[derive(Error)]
@@ -85,6 +91,7 @@ impl AsRef<InternalBoundedExecutor> for BoundedExecutor {
     }
 }
 
+// TODO(erwan): update diagram --> smaller, accurate
 ///   BoundedExecutor
 /// ┌───────────────────────────────────────────────────────────────────────────────┬────────────┐
 /// │                                                                               │            │
@@ -336,21 +343,27 @@ impl RetryManager {
             tokio::select! {
                 // Pull jobs that are ready for execution, and forward them to the executor if
                 // resources can be acquired.
-                Some((job_ready, permit)) = async {
+                Some((mut job, permit)) = async {
                     // Unlike most [`Stream`] implementations, `DelayQueue::poll_expired` returning
                     // `Poll::Ready(None)` does not signal a "closed" stream. Instead, that value
                     // is used to indicate an empty queue. If an item is inserted later, polling
                     // the queue will return `Poll::Ready(Some<T>)`.
                     if let Some(job_ready) = self.execution_queue.next().await {
+                        let job = job_ready.into_inner();
+                        // TODO(erwan): use the state transition function 
+                        // make SAFETY / LIVENESS arguments.
+                        // 1. very low contention 
+                        // 2. there should NO way for clients to throw the retry 
+                        // state machine into a bad state
+                        job.fetch_and_set(RetryState::AwaitingPermit);
                         let permit = InternalBoundedExecutor::acquire_permit(self.semaphore.clone()).await;
-                        Some((job_ready, permit))
+                        Some((job, permit))
                     } else {
                         // The execution queue is empty, we avoid polling for a semaphore permit
                         // and return early.
                         None
                     }
                 } => {
-                    let mut job = job_ready.into_inner();
                     let tx_scheduler = self.tx_new_jobs.clone();
                     let task = (job.task_factory)();
                     let retry_task = task.then(|result| async move { RetryManager::retry_logic(result, job, tx_scheduler).await });
@@ -364,23 +377,57 @@ impl RetryManager {
                     let job = new_job.unwrap();
                     let cooldown_time = job.cooldown_time();
                     if let Some(duration) = cooldown_time {
-                        self.execution_queue.insert(job, duration);
-                    } else {
+                        // Cancellation logic
+                        //
+                        //
+                        //
+                        // This is safe to do because j
+                        //
+
+                        // TODO(erwan):
+                        // ABA problem here:
+                        // =======================================>
+                        //    |                 |              |
+                        //  NotCompleted     Completed     Queued(k)
+                        //
+                        // have to lock
+                        //
+                        //  LOCK:
+                        //      check that it's not Completed
+                        //      insert in queue (get key) TODO(erwan): safety / poisoning.
+                        //      set state to queued(key)
+                        //  RELEASE
+                        let mut job_state = job.lock();
+                        match *job_state {
+                            RetryState::Completed => (),
+                            _ => {
+                                // TODO(erwan): any way to slot our state transition method?
+                                let key = self.execution_queue.insert(job, duration);
+                                *job_state = RetryState::Queued(key);
+                                drop(job_state);
+                            }
+                        }
+                    }
+                        else {
                         warn!("run_scheduler: expired jobs are being queued, this should not happen");
                     }
-                }
+                },
             }
         }
     }
 
-    /// or forward that result.
+    ///
     async fn retry_logic(
         result: Result<(), RetryError>,
         mut job: RetryJob,
         tx_scheduler: Arc<Sender<RetryJob>>,
     ) -> Result<(), RetryError> {
         match result {
-            Ok(_) => Ok(()),
+            Ok(_) => {
+                // TODO(erwan): overhead vs just setting?
+                job.fetch_and_set(RetryState::Completed);
+                Ok(())
+            }
             Err(e) => match e {
                 RetryError::Transient => {
                     job.increase_retry_counter();
@@ -420,7 +467,120 @@ pub enum RetryError {
 /// A `Future` factory that produces boxed futures ready to be ran, and implementing Unpin.
 pub type FutureFactory = dyn FnMut() -> BoxFuture<'static, Result<(), RetryError>> + Send;
 
+// Models the different state that a [`RetryJob`] can take.
+#[allow(dead_code)]
+pub enum RetryState {
+    /// TODO(erwan): doc
+    /// crashed, expired, succeeded, or got cancelled.
+    Completed,
+    Running(JoinHandle<Result<(), RetryError>>),
+    Queued(delay_queue::Key),
+    AwaitingPermit,
+    Init,
+}
+
+#[derive(Clone)]
+pub struct SharedRetryState {
+    state: Arc<Mutex<RetryState>>,
+}
+
+impl Default for SharedRetryState {
+    fn default() -> Self {
+        Self {
+            state: Arc::new(Mutex::new(RetryState::default())),
+        }
+    }
+}
+
+// TODO(erwan): retry api v2 maybe, unused in the current draft.
+// trying something different first.
+#[allow(dead_code)]
+pub struct RetryStateMachine {
+    current_state: Arc<Mutex<RetryState>>,
+    poisioned: AtomicBool,
+}
+
+impl SharedRetryState {
+    pub fn fetch_and_set(&self, new_state: RetryState) -> RetryState {
+        let mut entry = self.state.lock().expect("TODO(erwan): handling!!");
+        // TODO(erwan): test semantics with mutex
+        replace(entry.deref_mut(), new_state)
+    }
+
+    /// The [`RetryState`] state-machine can be represented as follow:
+    ///                 ┌───────────────────────────────────┐
+    ///                 ▼                                   │
+    /// ┌──────┐    ┌─────────┐       ┌──────┐       ┌──────┴───────┐
+    /// │ Init ├───►│ Running ├──────►│Queued├──────►│AwaitingPermit│
+    /// └──┬───┘    └────┬────┘       └───┬──┘       └──────┬───────┘
+    ///    │             │                │                 │
+    ///    │             │                │                 │
+    ///    ▼             │                │                 │
+    /// ┌──────────┐     │                │                 │
+    /// │Completed │ ◄◄◄─┴────────────────┴─────────────────┘
+    /// └──────────┘
+    ///
+    ///
+    /// It represents the life-cycle of a retry attempt. A [`RetryJob`] starts 
+    /// out in the [`RetryState::Init`] or [`RetryState::Running`] stage. If it 
+    /// completes successfully, or encounters a permanent error, or exceeds its 
+    /// execution budget, or gets cancelled at any point, the retry attempt reache
+    pub fn transition(&self, new_state: RetryState) -> RetryState {
+        // TODO(erwan): handling
+        let mut state = self.state.lock().expect("TODO(erwan): antidote handling");
+        match (&*state, &new_state) {
+            (RetryState::Init, RetryState::Running(_)) => replace(state.deref_mut(), new_state),
+            (RetryState::Queued(_), RetryState::AwaitingPermit) => {
+                replace(state.deref_mut(), new_state)
+            }
+            (RetryState::AwaitingPermit, RetryState::Running(_)) => {
+                replace(state.deref_mut(), new_state)
+            }
+            (RetryState::Running(_), RetryState::Queued(_)) => {
+                replace(state.deref_mut(), new_state)
+            }
+            (RetryState::Completed, _) => RetryState::Completed,
+            (_, RetryState::Completed) => replace(state.deref_mut(), new_state),
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn lock(&self) -> MutexGuard<'_, RetryState> {
+        self.state.lock().expect("TODO(erwan): handling!!!")
+    }
+}
+
+impl Default for RetryState {
+    fn default() -> Self {
+        RetryState::Init
+    }
+}
+
+#[allow(dead_code)]
+/// A handle to a retry attempt.
+pub struct RetryHandle {
+    /// The concrete TODO(erwan): doc, explain that we expect low contention
+    job: SharedRetryState,
+}
+
+impl RetryHandle {
+    /// Cancels a retry attempt.
+    // TODO(erwan): doc
+    #[allow(dead_code)]
+    pub fn abort(mut self) {
+        let previous_state = self.job.fetch_and_set(RetryState::Completed);
+        match previous_state {
+            RetryState::Init => {}
+            RetryState::AwaitingPermit => todo!(),
+            RetryState::Queued(id) => todo!(),
+            RetryState::Running(handle) => handle.abort(),
+            RetryState::Completed => {}
+        }
+    }
+}
+
 /// A computation to be retried.
+#[allow(dead_code)]
 pub struct RetryJob {
     /// A factory producing fresh futures of the task to be retried.
     pub task_factory: Box<FutureFactory>,
@@ -428,6 +588,13 @@ pub struct RetryJob {
     backoff: Backoff,
     /// Monotonic counter tracking the number of execution attempts.
     retry_counter: u32,
+    /// The current state of this retry job.
+    state: SharedRetryState,
+}
+
+pub enum RetryStateError {
+    // InvalidTransition(RetryState, RetryState),
+    InvalidTransition,
 }
 
 impl RetryJob {
@@ -440,6 +607,7 @@ impl RetryJob {
             task_factory,
             backoff,
             retry_counter: 0,
+            state: SharedRetryState::default(),
         }
     }
 
@@ -451,6 +619,36 @@ impl RetryJob {
     /// Returns `None` if the job has exceeded its maximum retry policy.
     pub fn cooldown_time(&self) -> Option<Duration> {
         self.backoff.next(self.retry_counter)
+    }
+
+    /*
+     * 0. set
+     * 1. fetch and set
+     * 2. fetch and set but ignore completed
+     * 3. lock and Release
+     * 4. CAS?
+     */
+
+    /// Returns a shallow copy of the job's [`SharedRetryState`]
+    // TODO(erwan): can we avoid this
+    pub fn shared_state(&self) -> SharedRetryState {
+        self.state.clone()
+    }
+
+    /// Transition the [`RetryJob`]'s state-machine to some `new_state` and returns the previous
+    /// state. If an invalid state transition is applied, returns an error.
+    pub fn transition(&self, new_state: RetryState) -> Result<RetryState, RetryStateError> {
+        Ok(self.state.transition(new_state))
+    }
+
+    // TODO(erwan): deprecate or rename this?
+    pub fn fetch_and_set(&self, new_state: RetryState) -> RetryState {
+        // TODO(erwan): not a fan of thin method
+        self.state.fetch_and_set(new_state)
+    }
+
+    pub fn lock(&self) -> OwnedMutexGuard<RetryState> {
+        todo!()
     }
 }
 
