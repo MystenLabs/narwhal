@@ -319,7 +319,7 @@ tracing-chrome = { version = "0.6", default-features = false }
 tracing-core = { version = "0.1", features = ["once_cell", "std"] }
 tracing-futures = { version = "0.2", features = ["pin-project", "std", "std-future"] }
 tracing-log = { version = "0.1", features = ["log-tracer", "std", "trace-logger"] }
-tracing-opentelemetry = { version = "0.18", features = ["tracing-log"] }
+tracing-opentelemetry = { version = "0.17", features = ["tracing-log"] }
 tracing-subscriber-6f8ce4dd05d13bba = { package = "tracing-subscriber", version = "0.2", default-features = false }
 tracing-subscriber-468e82937335b1c9 = { package = "tracing-subscriber", version = "0.3", features = ["alloc", "ansi", "ansi_term", "env-filter", "fmt", "matchers", "once_cell", "regex", "registry", "sharded-slab", "smallvec", "std", "thread_local", "time", "tracing", "tracing-log"] }
 tracing-test = { version = "0.2", default-features = false }
