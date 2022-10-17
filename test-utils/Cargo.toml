@@ -37,7 +37,7 @@ primary = { path = "../primary", package = "narwhal-primary" }
 network = { path = "../network", package = "narwhal-network" }
 types = { path = "../types", package = "narwhal-types" }
 worker = { path = "../worker", package = "narwhal-worker" }
-mysten-network = "0.1.0"
+mysten-network = "0.2.0"
 
 store = { version = "0.1.0", package = "typed-store"}
 workspace-hack = { version = "0.1", path = "../workspace-hack" }

@@ -28,7 +28,7 @@ storage = { path = "../storage", package = "narwhal-storage" }
 itertools = "0.10.4"
 
 types = { path = "../types", package = "narwhal-types" }
-mysten-network = "0.1.0"
+mysten-network = "0.2.0"
 network = { path = "../network", package = "narwhal-network" }
 crypto = { path = "../crypto", package = "narwhal-crypto" }
 anyhow = "1.0.65"

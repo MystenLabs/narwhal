@@ -179,7 +179,7 @@ mio = { version = "0.8", features = ["net", "os-ext", "os-poll"] }
 mockall = { version = "0.11", default-features = false }
 multiaddr = { version = "0.14", features = ["url"] }
 multihash = { version = "0.16", default-features = false, features = ["alloc", "derive", "identity", "multihash-derive", "multihash-impl", "std"] }
-mysten-network = { version = "0.1", default-features = false }
+mysten-network = { version = "0.2", default-features = false }
 mysten-util-mem = { git = "https://github.com/MystenLabs/mysten-infra", features = ["estimate-heapsize", "hashbrown", "parking_lot", "smallvec", "std"] }
 nom = { version = "7", features = ["alloc", "std"] }
 normalize-line-endings = { version = "0.3", default-features = false }
